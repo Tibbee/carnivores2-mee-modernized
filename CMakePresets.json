@@ -1,0 +1,108 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 15,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}"
+      }
+    },
+    {
+      "name": "d3d-debug",
+      "displayName": "Direct3D (Debug)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "RENDERER": "D3D",
+        "MEM_DEBUG": "ON",
+        "ENABLE_RENDERER_LOGGING": "ON",
+        "ENABLE_TERRAIN_LOGGING": "OFF"
+      }
+    },
+    {
+      "name": "d3d-release",
+      "displayName": "Direct3D (Release)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "RENDERER": "D3D"
+      }
+    },
+    {
+      "name": "soft-debug",
+      "displayName": "Software (Debug)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "RENDERER": "SOFT",
+        "MEM_DEBUG": "ON",
+        "ENABLE_RENDERER_LOGGING": "ON",
+        "ENABLE_TERRAIN_LOGGING": "OFF"
+      }
+    },
+    {
+      "name": "soft-release",
+      "displayName": "Software (Release)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "RENDERER": "SOFT"
+      }
+    },
+    {
+      "name": "glide-debug",
+      "displayName": "3DFX Glide (Debug)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "RENDERER": "3DFX",
+        "MEM_DEBUG": "ON",
+        "ENABLE_RENDERER_LOGGING": "ON",
+        "ENABLE_TERRAIN_LOGGING": "OFF"
+      }
+    },
+    {
+      "name": "glide-release",
+      "displayName": "3DFX Glide (Release)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "RENDERER": "3DFX"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "d3d-debug",
+      "configurePreset": "d3d-debug"
+    },
+    {
+      "name": "d3d-release",
+      "configurePreset": "d3d-release"
+    },
+    {
+      "name": "soft-debug",
+      "configurePreset": "soft-debug"
+    },
+    {
+      "name": "soft-release",
+      "configurePreset": "soft-release"
+    },
+    {
+      "name": "glide-debug",
+      "configurePreset": "glide-debug"
+    },
+    {
+      "name": "glide-release",
+      "configurePreset": "glide-release"
+    }
+  ]
+}
