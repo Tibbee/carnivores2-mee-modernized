@@ -5,9 +5,9 @@ project(Carnivores1)
 cmake_policy(SET CMP0091 NEW)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-# Renderer selection: D3D, SOFT, or 3DFX
-set(RENDERER "D3D" CACHE STRING "Select the renderer: D3D, SOFT, or 3DFX")
-set_property(CACHE RENDERER PROPERTY STRINGS D3D SOFT 3DFX)
+# Renderer selection: D3D, SOFT, 3DFX, or GL
+set(RENDERER "D3D" CACHE STRING "Select the renderer: D3D, SOFT, 3DFX, or GL")
+set_property(CACHE RENDERER PROPERTY STRINGS D3D SOFT 3DFX GL)
 
 # Ensure we are targeting 32-bit if using MSVC
 if(MSVC)
@@ -37,17 +37,28 @@ if(MSVC)
         message(STATUS "Building with Software Renderer")
     elseif(RENDERER STREQUAL "3DFX")
         add_definitions(-D_3dfx)
-        set(RENDER_SRC
+        set(RENDER_SRC 
             Hunt/Render3DFX.cpp
             Hunt/RenderSoft.cpp
         )
-
+        
         # Glide 2.x support
         include_directories(${CMAKE_CURRENT_SOURCE_DIR}/deps/Glide2/include)
         link_directories(${CMAKE_CURRENT_SOURCE_DIR}/deps/Glide2/lib)
         set(GLIDE_LIBS glide2x)
-
+        
         message(STATUS "Building with 3DFX Glide Renderer (using Glide2 folder)")
+    elseif(RENDERER STREQUAL "GL")
+        add_definitions(-D_gl)
+        set(RENDER_SRC 
+            Hunt/GLRenderer.h
+            Hunt/GLRenderer.cpp
+            Hunt/GLShader.h
+            Hunt/GLShader.cpp
+            deps/glad/glad.c
+            Hunt/GLUI.cpp
+        )
+        message(STATUS "Building with OpenGL Renderer")
     endif()
 
     # Fix for some legacy headers and scoping

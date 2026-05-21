@@ -77,6 +77,27 @@
         "CMAKE_BUILD_TYPE": "Release",
         "RENDERER": "3DFX"
       }
+    },
+    {
+      "name": "ogl-debug",
+      "displayName": "OpenGL (Debug)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "RENDERER": "GL",
+        "MEM_DEBUG": "ON",
+        "ENABLE_RENDERER_LOGGING": "ON",
+        "ENABLE_TERRAIN_LOGGING": "OFF"
+      }
+    },
+    {
+      "name": "ogl-release",
+      "displayName": "OpenGL (Release)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "RENDERER": "GL"
+      }
     }
   ],
   "buildPresets": [
@@ -103,6 +124,14 @@
     {
       "name": "glide-release",
       "configurePreset": "glide-release"
+    },
+    {
+      "name": "ogl-debug",
+      "configurePreset": "ogl-debug"
+    },
+    {
+      "name": "ogl-release",
+      "configurePreset": "ogl-release"
     }
   ]
 }
