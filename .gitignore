@@ -1,0 +1,8 @@
+backup/
+build/
+doc/
+.vscode/
+deps/Glide2/
+bin/
+tests/
+.commit*/
