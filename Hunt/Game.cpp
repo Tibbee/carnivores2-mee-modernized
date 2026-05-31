@@ -2981,12 +2981,8 @@ void LoadTrophy()
 
   ReadFile(hfile, &KeyMap, sizeof(KeyMap), &l, NULL);
   ReadFile(hfile, &REVERSEMS, 4, &l, NULL);
-  //INGORE SAVEFILE SETTING FOR EQUIPMENT
-  boolean temp;
-  ReadFile(hfile, &temp, 4, &l, NULL);
-  ReadFile(hfile, &temp, 4, &l, NULL);
-  ReadFile(hfile, &temp, 4, &l, NULL);
-  ReadFile(hfile, &temp, 4, &l, NULL);
+  //  Ignore savefile settings for equipment — skip 4 DWORDs
+  SetFilePointer(hfile, 16, NULL, FILE_CURRENT);
   ReadFile(hfile, &OPT_ALPHA_COLORKEY, 4, &l, NULL);
 
   ReadFile(hfile, &OptSys, 4, &l, NULL);

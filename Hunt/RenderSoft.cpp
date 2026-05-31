@@ -3320,9 +3320,6 @@ void Activate3DHardware()
 
   DWORD cl = DDSCL_EXCLUSIVE|DDSCL_FULLSCREEN;
 
-#ifdef _DEBUG
-  cl = DDSCL_NORMAL;
-#endif
 
   HRESULT hres = lpDD->SetCooperativeLevel( hwndMain, cl);
   if( hres != DD_OK )

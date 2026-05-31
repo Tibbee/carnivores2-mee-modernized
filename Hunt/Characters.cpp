@@ -9436,7 +9436,7 @@ void CreateChMorphedModel(TCharacter *cptr)
 	TAni *aptr = &cptr->pinfo->Animation[cptr->Phase];
 	TAni *paptr = &cptr->pinfo->Animation[cptr->PrevPhase];
 
-	int CurFrame, SplineD, PCurFrame, PSplineD;
+	int CurFrame, SplineD, PCurFrame = 0, PSplineD = 0;
 	float scale = cptr->scale;
 
 	CurFrame = ((aptr->FramesCount - 1) * cptr->FTime * 256) / aptr->AniTime;
@@ -9565,7 +9565,7 @@ void CreateChMorphedModel(TCharacter *cptr)
 
 void CreateMorphedModelBetaGamma(TModel* mptr, TAni *aptr, int FTime, float scale, float beta, float gamma) {
 
-	int CurFrame, SplineD, PCurFrame, PSplineD;
+	int CurFrame, SplineD, PCurFrame = 0, PSplineD = 0;
 
 	CurFrame = ((aptr->FramesCount - 1) * FTime * 256) / aptr->AniTime;
 	SplineD = CurFrame & 0xFF;

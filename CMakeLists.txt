@@ -85,6 +85,7 @@ set(CORE_FILES
     Hunt/Resources.cpp
     Hunt/renderasm.cpp
     Hunt/AppRes.rc
+    Hunt/Carnivores1.manifest
     # Headers (optional, for IDE)
     Hunt/Hunt.h
     Hunt/AppRes.h
