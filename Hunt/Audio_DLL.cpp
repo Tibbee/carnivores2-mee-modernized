@@ -1,176 +1,564 @@
+// Audio_DLL.cpp — Rewritten to use OpenAL Soft internally
+// Keeps the same public API signatures as the original DLL‑based system
+// so Hunt.h / Hunt.cpp / Game.cpp need zero changes.
+//
+// The external menu (StartLegacy.exe) still needs stub a_*.dll files to pass
+// its version‑check — those stubs are separate and not used by the engine.
+
 #include "hunt.h"
+#include "Audio.h"
+#include <unordered_map>
+#include <cmath>
 
-#define req_versionH 0x0001
-#define req_versionL 0x0002
+// ---------------------------------------------------------------------------
+// OpenAL state
+// ---------------------------------------------------------------------------
+ALCdevice*  alDevice = nullptr;
+ALCcontext* alContext = nullptr;
+std::unordered_map<short*, ALuint> bufferCache;
+HANDLE      hAudioThread = nullptr;
+DWORD       AudioTId;
+CRITICAL_SECTION AudioCS;
+static volatile BOOL g_AudioShutdown = FALSE;
 
-HINSTANCE hAudioDLL = NULL;
-void DoHalt(LPSTR);
+int iSoundActive = 0;
+CHANNEL channel[MAX_CHANNEL]{};
+AMBIENT ambient{};
+AMBIENT ambient2{};
+MAMBIENT mambient{};
 
-typedef void (WINAPI * LPFUNC1)(void);
-typedef void (WINAPI * LPFUNC2)(HWND, HANDLE);
-typedef void (WINAPI * LPFUNC3)(float, float, float, float, float);
-typedef void (WINAPI * LPFUNC4)(int, short int*, int);
-typedef void (WINAPI * LPFUNC5)(int, short int*, float, float, float);
-typedef void (WINAPI * LPFUNC6)(int, short int*, float, float, float, int);
+int   xCamera, yCamera, zCamera;
+float alphaCamera, betaCamera, cosa, sina;
 
-typedef int  (WINAPI * LPFUNC7)(void);
-typedef void (WINAPI * LPFUNC8)(int, float);
+// For EAX → EFX reverb
+static ALuint g_effect = 0;
+static ALuint g_slot   = 0;
+static int    g_CurrentEnv = -1;
 
-typedef void (WINAPI * LPFUNC9)(int, AudioQuad *);
-LPFUNC9 audio_uploadgeometry;
+// ---------------------------------------------------------------------------
+// EAX 2.0 environment presets  (values match original EAX2Audio/Audio3d.cpp)
+// ---------------------------------------------------------------------------
+struct EAX2ENV {
+    int   envID;      // EAX preset enum (unused in EFX path)
+    int   room;       // mB  (−10000 … 0)
+    float decay;      // seconds
+    float decayHF;    // ratio
+    float diffusion;  // 0.0 … 1.0
+    int   reverb;     // mB  (−10000 … 0)
+};
 
-LPFUNC1 audio_restore;
-LPFUNC1 audiostop;
-LPFUNC1 audio_shutdown;
+static const EAX2ENV g_EnvPresets[9] = {
+    { 0, -400, 2.5f,  0.3f,   0.4f,   -620 },  // 0  Generic
+    { 1, -400, 1.2f,  0.2f,   0.2f,   -600 },  // 1  Plate
+    { 2, -400, 2.4f,  0.18f,  0.3f,   -700 },  // 2  Forest
+    { 3, -200, 2.6f,  0.2f,   0.326f, -500 },  // 3  Mountain
+    { 4, -400, 1.1f,  0.6f,   0.275f, -700 },  // 4  Canyon
+    { 5, -300, 3.2f,  0.6f,   0.9f,   -200 },  // 5  Cave
+    { 6, -400, 1.8f,  0.4f,   0.4f,   -400 },  // 6  Special 2
+    { 7,    0, 0.0f,  0.0f,   0.0f,      0 },  // 7  Special 3 (no‑op)
+    { 8, -400, 1.5f,  0.1f,   0.1f,   -200 },  // 8  Underwater
+};
 
-LPFUNC2 initaudiosystem;
-LPFUNC3 audiosetcamerapos;
-LPFUNC4 setambient;
-LPFUNC5 setambient3d;
-LPFUNC6 addvoice3dv;
-LPFUNC7 audio_getversion;
-LPFUNC8 audio_setenvironment;
+// Convert EAX mB to linear gain (OpenAL EFX uses 0.0–1.0)
+static float mBToGain(int mB) {
+    return std::pow(10.0f, mB / 2000.0f);
+}
 
+// ---------------------------------------------------------------------------
+// Debug helpers
+// ---------------------------------------------------------------------------
+#define AL_CHECK(call) do { call; ALenum err = alGetError ? alGetError() : AL_NO_ERROR; \
+    if (err != AL_NO_ERROR) { char m[128]; wsprintfA(m,"ALerr 0x%04X at %s\n",err,#call); PrintLog(m); } } while(0)
+
+// ---------------------------------------------------------------------------
+// Buffer cache
+// ---------------------------------------------------------------------------
+static ALuint GetBuffer(short int* lpData, int length) {
+    if (!lpData) return 0;
+    auto it = bufferCache.find(lpData);
+    if (it != bufferCache.end())
+        return it->second;
+
+    ALuint buffer = 0;
+    AL_CHECK(alGenBuffers(1, &buffer));
+    AL_CHECK(alBufferData(buffer, AL_FORMAT_MONO16, lpData, length, 22050));
+    bufferCache[lpData] = buffer;
+    return buffer;
+}
+
+// ---------------------------------------------------------------------------
+// Audio thread  (ambient crossfade only)
+// ---------------------------------------------------------------------------
+DWORD WINAPI ProcessAudioThread(LPVOID) {
+    while (!g_AudioShutdown) {
+        if (iSoundActive) {
+            EnterCriticalSection(&AudioCS);
+
+            // Fade in new ambient
+            if (ambient.volume < 256) {
+                float gain = (ambient.volume * ambient.avolume) / (256.0f * 256.0f);
+                AL_CHECK(alSourcef(ambient.source, AL_GAIN, gain));
+                ambient.volume += 16;
+                if (ambient.volume > 256) ambient.volume = 256;
+            }
+
+            // Fade out old ambient
+            if (ambient2.volume > 0) {
+                float gain = (ambient2.volume * ambient2.avolume) / (256.0f * 256.0f);
+                AL_CHECK(alSourcef(ambient2.source, AL_GAIN, gain));
+                ambient2.volume -= 16;
+                if (ambient2.volume <= 0) {
+                    ambient2.volume = 0;
+                    AL_CHECK(alSourceStop(ambient2.source));
+                    AL_CHECK(alSourcei(ambient2.source, AL_BUFFER, 0));
+                    ambient2.lpData = nullptr;
+                }
+            }
+
+            LeaveCriticalSection(&AudioCS);
+        }
+        Sleep(70);
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Init / Shutdown
+// ---------------------------------------------------------------------------
+void InitAudioSystem(HWND hw, HANDLE hlog, int driver)
+{
+    // 'driver' is ignored — we always use OpenAL.
+    // The menu (StartLegacy.exe) pre‑validates stub a_*.dlls; the engine
+    // never loads them.
+
+    if (!LoadOpenAL()) {
+        PrintLog("OpenAL: openal32.dll not found — audio disabled\n");
+        return;
+    }
+
+    alDevice = alcOpenDevice(nullptr);
+    if (!alDevice) {
+        PrintLog("OpenAL: no default audio device — audio disabled\n");
+        UnloadOpenAL();
+        return;
+    }
+
+    alContext = alcCreateContext(alDevice, nullptr);
+    if (!alContext || !alcMakeContextCurrent(alContext)) {
+        PrintLog("OpenAL: failed to create context — audio disabled\n");
+        if (alContext) alcDestroyContext(alContext);
+        alcCloseDevice(alDevice);
+        alDevice = nullptr;
+        alContext = nullptr;
+        UnloadOpenAL();
+        return;
+    }
+
+    InitializeCriticalSection(&AudioCS);
+    g_CurrentEnv = -1;
+
+    AL_CHECK(alDistanceModel(AL_INVERSE_DISTANCE_CLAMPED));
+
+    // ── Voice channels ──
+    for (int i = 0; i < MAX_CHANNEL; i++) {
+        AL_CHECK(alGenSources(1, &channel[i].source));
+        alSourcef(channel[i].source, AL_ROLLOFF_FACTOR, 0.418f);
+        alSourcef(channel[i].source, AL_REFERENCE_DISTANCE, (float)MIN_RADIUS);
+        alSourcef(channel[i].source, AL_MAX_DISTANCE, 10000.0f);
+        channel[i].status = 0;
+    }
+
+    // ── Ambient (non‑positional, looping) ──
+    AL_CHECK(alGenSources(1, &ambient.source));
+    alSourcei(ambient.source, AL_LOOPING, AL_TRUE);
+    alSourcei(ambient.source, AL_SOURCE_RELATIVE, AL_TRUE);
+    alSource3f(ambient.source, AL_POSITION, 0, 0, 0);
+
+    AL_CHECK(alGenSources(1, &ambient2.source));
+    alSourcei(ambient2.source, AL_LOOPING, AL_TRUE);
+    alSourcei(ambient2.source, AL_SOURCE_RELATIVE, AL_TRUE);
+    alSource3f(ambient2.source, AL_POSITION, 0, 0, 0);
+
+    // ── Moving ambient (positional, looping) ──
+    AL_CHECK(alGenSources(1, &mambient.source));
+    alSourcei(mambient.source, AL_LOOPING, AL_TRUE);
+    alSourcef(mambient.source, AL_ROLLOFF_FACTOR, 0.418f);
+    alSourcef(mambient.source, AL_REFERENCE_DISTANCE, (float)MIN_RADIUS);
+    alSourcef(mambient.source, AL_MAX_DISTANCE, 10000.0f);
+
+    // ── EFX effect + slot (created once, updated on SetEnvironment) ──
+    // OpenAL Soft ≥1.24 exposes EFX as AL_SOFT_effect_target, not AL_EXT_EFX.
+    // We just try to create the objects and check for errors.
+    // Clear any residual AL errors from earlier calls before testing EFX.
+    while (alGetError && alGetError() != AL_NO_ERROR);
+    if (alGenEffects && alGenAuxiliaryEffectSlots) {
+        AL_CHECK(alGenEffects(1, &g_effect));
+        ALenum err = alGetError();
+        if (err == AL_NO_ERROR && g_effect != 0) {
+            AL_CHECK(alGenAuxiliaryEffectSlots(1, &g_slot));
+            err = alGetError();
+            if (err == AL_NO_ERROR && g_slot != 0) {
+                PrintLog("OpenAL: EFX reverb available\n");
+                if (alAuxiliaryEffectSlotf)
+                    AL_CHECK(alAuxiliaryEffectSlotf(g_slot, AL_EFFECTSLOT_GAIN, 1.0f));
+            } else {
+                if (g_effect) alDeleteEffects(1, &g_effect);
+                if (g_slot) alDeleteAuxiliaryEffectSlots(1, &g_slot);
+                g_effect = 0; g_slot = 0;
+                PrintLog("OpenAL: EFX slots unavailable\n");
+            }
+        } else {
+            if (g_effect) alDeleteEffects(1, &g_effect);
+            g_effect = 0;
+            PrintLog("OpenAL: EFX effects unavailable\n");
+        }
+    } else {
+        PrintLog("OpenAL: EFX functions not loaded\n");
+    }
+
+    g_AudioShutdown = FALSE;
+    iSoundActive = 1;
+
+    // Start the background thread (same pattern as original audio DLLs)
+    hAudioThread = CreateThread(nullptr, 0, ProcessAudioThread, nullptr, 0, &AudioTId);
+    if (hAudioThread)
+        SetThreadPriority(hAudioThread, THREAD_PRIORITY_HIGHEST);
+
+    // ── Log device info ──
+    {
+        char buf[256];
+        const char* devName = alcGetString ? alcGetString(alDevice, ALC_DEVICE_SPECIFIER) : nullptr;
+        wsprintfA(buf, "OpenAL: device=\"%s\"\n", devName ? devName : "(unknown)");
+        PrintLog(buf);
+    }
+    PrintLog("OpenAL: Audio System Initialized\n");
+}
 
 void Audio_Shutdown()
 {
-  if (audio_shutdown) audio_shutdown();
-  if (hAudioDLL)  	FreeLibrary(hAudioDLL);
-  hAudioDLL = NULL;
-  audio_shutdown = NULL;
+    if (!iSoundActive) return;
+
+    g_AudioShutdown = TRUE;
+
+    if (hAudioThread) {
+        WaitForSingleObject(hAudioThread, 5000);
+        CloseHandle(hAudioThread);
+        hAudioThread = nullptr;
+    }
+
+    EnterCriticalSection(&AudioCS);
+    AudioStop();
+    iSoundActive = 0;
+    g_CurrentEnv = -1;
+
+    for (int i = 0; i < MAX_CHANNEL; i++)
+        AL_CHECK(alDeleteSources(1, &channel[i].source));
+    AL_CHECK(alDeleteSources(1, &ambient.source));
+    AL_CHECK(alDeleteSources(1, &ambient2.source));
+    AL_CHECK(alDeleteSources(1, &mambient.source));
+
+    if (g_effect) { AL_CHECK(alDeleteEffects(1, &g_effect));   g_effect = 0; }
+    if (g_slot)   { AL_CHECK(alDeleteAuxiliaryEffectSlots(1, &g_slot)); g_slot   = 0; }
+
+    for (auto& kv : bufferCache)
+        AL_CHECK(alDeleteBuffers(1, &kv.second));
+    bufferCache.clear();
+
+    LeaveCriticalSection(&AudioCS);
+
+    if (alContext) {
+        alcMakeContextCurrent(nullptr);
+        alcDestroyContext(alContext);
+        alContext = nullptr;
+    }
+    if (alDevice) {
+        alcCloseDevice(alDevice);
+        alDevice = nullptr;
+    }
+
+    DeleteCriticalSection(&AudioCS);
+    UnloadOpenAL();
+
+    PrintLog("OpenAL Audio System Shut Down\n");
 }
-
-
-void InitAudioSystem(HWND hw, HANDLE hlog, int  driver)
-{
-  Audio_Shutdown();
-
-  switch (driver)
-  {
-  case 0:
-    hAudioDLL = LoadLibrary("a_soft.dll");
-    if (!hAudioDLL) DoHalt("Can't load A_SOFT.DLL");
-    break;
-  case 1:
-    hAudioDLL = LoadLibrary("a_ds3d.dll");
-    if (!hAudioDLL) DoHalt("Can't load A_DS3D.DLL");
-    break;
-  case 2:
-    hAudioDLL = LoadLibrary("a_a3d.dll");
-    if (!hAudioDLL) DoHalt("Can't load A_A3D.DLL");
-    break;
-  case 3:
-    hAudioDLL = LoadLibrary("a_eax.dll");
-    if (!hAudioDLL) DoHalt("Can't load A_EAX.DLL");
-    break;
-  }
-
-
-  initaudiosystem   = (LPFUNC2) GetProcAddress(hAudioDLL, "InitAudioSystem");
-  if (!initaudiosystem) DoHalt("Can't find procedure address.");
-
-  audio_restore     = (LPFUNC1) GetProcAddress(hAudioDLL, "Audio_Restore");
-  if (!audio_restore) DoHalt("Can't find procedure address.");
-
-  audiostop         = (LPFUNC1) GetProcAddress(hAudioDLL, "AudioStop");
-  if (!audiostop)   DoHalt("Can't find procedure address.");
-
-  audio_shutdown    = (LPFUNC1) GetProcAddress(hAudioDLL, "Audio_Shutdown");
-  if (!audio_shutdown) DoHalt("Can't find procedure address.");
-
-  audiosetcamerapos = (LPFUNC3) GetProcAddress(hAudioDLL, "AudioSetCameraPos");
-  if (!audiosetcamerapos) DoHalt("Can't find procedure address.");
-
-  setambient        = (LPFUNC4) GetProcAddress(hAudioDLL, "SetAmbient");
-  if (!setambient) DoHalt("Can't find procedure address.");
-
-  setambient3d      = (LPFUNC5) GetProcAddress(hAudioDLL, "SetAmbient3d");
-  if (!setambient3d) DoHalt("Can't find procedure address.");
-
-  addvoice3dv       = (LPFUNC6) GetProcAddress(hAudioDLL, "AddVoice3dv");
-  if (!addvoice3dv) DoHalt("Can't find procedure address.");
-
-  audio_getversion  = (LPFUNC7) GetProcAddress(hAudioDLL, "Audio_GetVersion");
-  if (!audio_getversion) DoHalt("Can't find procedure address.");
-
-  audio_setenvironment = (LPFUNC8) GetProcAddress(hAudioDLL, "Audio_SetEnvironment");
-  if (!audio_setenvironment) DoHalt("Can't find procedure address.");
-
-  audio_uploadgeometry = (LPFUNC9) GetProcAddress(hAudioDLL, "Audio_UploadGeometry");
-  if (!audio_uploadgeometry) DoHalt("Can't find procedure Audio_UploadGeometry address.");
-  
-  int v1 = audio_getversion()>>16;
-  int v2 = audio_getversion() & 0xFFFF;
-  if ( (v1!=req_versionH) || (v2<req_versionL) )
-    DoHalt("Incorrect audio driver version.");
-
-  initaudiosystem(hw, hlog);
-}
-
-void Audio_UploadGeometry()
-{
-	UploadGeometry();
-	audio_uploadgeometry(AudioFCount, data);
-}
-
 
 void AudioStop()
 {
-  audiostop();
+    if (!alContext) return;
+
+    EnterCriticalSection(&AudioCS);
+
+    for (int i = 0; i < MAX_CHANNEL; i++) {
+        AL_CHECK(alSourceStop(channel[i].source));
+        AL_CHECK(alSourcei(channel[i].source, AL_BUFFER, 0));
+        channel[i].status = 0;
+        channel[i].lpData = nullptr;
+    }
+
+    AL_CHECK(alSourceStop(ambient.source));
+    AL_CHECK(alSourcei(ambient.source, AL_BUFFER, 0));
+    ambient.lpData = nullptr;
+    ambient.volume = 0;
+
+    AL_CHECK(alSourceStop(ambient2.source));
+    AL_CHECK(alSourcei(ambient2.source, AL_BUFFER, 0));
+    ambient2.lpData = nullptr;
+    ambient2.volume = 0;
+
+    AL_CHECK(alSourceStop(mambient.source));
+    AL_CHECK(alSourcei(mambient.source, AL_BUFFER, 0));
+    mambient.lpData = nullptr;
+
+    LeaveCriticalSection(&AudioCS);
 }
 
+// ---------------------------------------------------------------------------
+// Restore  (no‑op for OpenAL — device loss is handled by the OS)
+// ---------------------------------------------------------------------------
 void Audio_Restore()
 {
-  if (audio_restore)
-    audio_restore();
+    // Nothing to do.
 }
 
-
-
+// ---------------------------------------------------------------------------
+// Camera / listener
+// ---------------------------------------------------------------------------
 void AudioSetCameraPos(float cx, float cy, float cz, float ca, float cb)
 {
-  audiosetcamerapos(cx, cy, cz, ca, cb);
+    if (!iSoundActive) return;
+
+    xCamera = (int)cx;
+    yCamera = (int)cy;
+    zCamera = (int)cz;
+    alphaCamera = ca;
+    betaCamera  = cb;
+    cosa = std::cos(ca);
+    sina = std::sin(ca);
+
+    ALfloat pos[] = { cx, cy, cz };
+    ALfloat orient[] = {
+        std::sin(ca) * std::cos(cb),
+        std::sin(cb),
+       -std::cos(ca) * std::cos(cb),
+
+       -std::sin(ca) * std::sin(cb),
+        std::cos(cb),
+        std::cos(ca) * std::sin(cb)
+    };
+    alListenerfv(AL_POSITION, pos);
+    alListenerfv(AL_ORIENTATION, orient);
 }
 
-
-void Audio_SetEnvironment(int e, float f)
-{
-  audio_setenvironment(e, f);
-}
-
-
+// ---------------------------------------------------------------------------
+// Ambient (non‑positional, e.g. jungle loop)
+// ---------------------------------------------------------------------------
 void SetAmbient(int length, short int* lpdata, int av)
 {
-  setambient(length, lpdata, av);
+    if (!iSoundActive) return;
+
+    EnterCriticalSection(&AudioCS);
+
+    // Already playing this exact sound — nothing to do
+    if (ambient.lpData == lpdata && ambient.avolume == av) {
+        LeaveCriticalSection(&AudioCS);
+        return;
+    }
+
+    // Move current ambient to fade‑out slot
+    AL_CHECK(alSourceStop(ambient2.source));
+    AL_CHECK(alSourcei(ambient2.source, AL_BUFFER, 0));
+
+    ambient2.lpData  = ambient.lpData;
+    ambient2.iLength = ambient.iLength;
+    ambient2.volume  = ambient.volume;
+    ambient2.avolume = ambient.avolume;
+    ambient2.buffer  = ambient.buffer;
+
+    if (ambient2.lpData && ambient2.buffer && ambient2.volume > 0) {
+        float oldGain = (ambient2.volume * ambient2.avolume) / (256.0f * 256.0f);
+        AL_CHECK(alSourcei(ambient2.source, AL_BUFFER, ambient2.buffer));
+        AL_CHECK(alSourcef(ambient2.source, AL_GAIN, oldGain));
+        AL_CHECK(alSourcePlay(ambient2.source));
+    }
+
+    // Start new ambient at zero volume (thread will fade in)
+    AL_CHECK(alSourceStop(ambient.source));
+    AL_CHECK(alSourcei(ambient.source, AL_BUFFER, 0));
+
+    ambient.lpData   = lpdata;
+    ambient.iLength  = length;
+    ambient.volume   = 0;
+    ambient.avolume  = av;
+    ambient.buffer   = GetBuffer(lpdata, length);
+
+    if (ambient.buffer) {
+        AL_CHECK(alSourcei(ambient.source, AL_BUFFER, ambient.buffer));
+        AL_CHECK(alSourcef(ambient.source, AL_GAIN, 0.0f));
+        AL_CHECK(alSourcePlay(ambient.source));
+    } else {
+        ambient.lpData  = nullptr;
+        ambient.iLength = 0;
+        ambient.avolume = 0;
+    }
+
+    LeaveCriticalSection(&AudioCS);
 }
 
-
+// ---------------------------------------------------------------------------
+// Ambient with 3D position (e.g. ship engine)
+// ---------------------------------------------------------------------------
 void SetAmbient3d(int length, short int* lpdata, float cx, float cy, float cz)
 {
-  setambient3d(length, lpdata, cx, cy, cz);
+    if (!iSoundActive) return;
+
+    EnterCriticalSection(&AudioCS);
+
+    if (!lpdata) {
+        // Stop moving ambient
+        AL_CHECK(alSourceStop(mambient.source));
+        AL_CHECK(alSourcei(mambient.source, AL_BUFFER, 0));
+        mambient.lpData = nullptr;
+        LeaveCriticalSection(&AudioCS);
+        return;
+    }
+
+    if (mambient.lpData != lpdata) {
+        mambient.lpData  = lpdata;
+        mambient.iLength = length;
+        mambient.buffer  = GetBuffer(lpdata, length);
+        AL_CHECK(alSourcei(mambient.source, AL_BUFFER, mambient.buffer));
+        AL_CHECK(alSourcePlay(mambient.source));
+    }
+
+    mambient.x = cx;
+    mambient.y = cy;
+    mambient.z = cz;
+    AL_CHECK(alSource3f(mambient.source, AL_POSITION, cx, cy, cz));
+
+    LeaveCriticalSection(&AudioCS);
 }
 
-
+// ---------------------------------------------------------------------------
+// 3D voice (one‑shot sounds)
+// ---------------------------------------------------------------------------
 void AddVoice3dv(int length, short int* lpdata, float cx, float cy, float cz, int vol)
 {
-  addvoice3dv(length, lpdata, cx, cy, cz, vol);
+    if (!iSoundActive || !lpdata) return;
+
+    EnterCriticalSection(&AudioCS);
+
+    // Find a free channel
+    int idx = -1;
+    for (int i = 0; i < MAX_CHANNEL; i++) {
+        ALint state;
+        AL_CHECK(alGetSourcei(channel[i].source, AL_SOURCE_STATE, &state));
+        if (state != AL_PLAYING) { idx = i; break; }
+    }
+    if (idx < 0) { LeaveCriticalSection(&AudioCS); return; }
+
+    channel[idx].lpData  = lpdata;
+    channel[idx].x       = cx;
+    channel[idx].y       = cy;
+    channel[idx].z       = cz;
+    channel[idx].volume  = vol;
+    channel[idx].buffer  = GetBuffer(lpdata, length);
+    channel[idx].status  = 1;
+
+    AL_CHECK(alSourcei(channel[idx].source, AL_BUFFER, channel[idx].buffer));
+    AL_CHECK(alSourcef(channel[idx].source, AL_GAIN, vol / 256.0f));
+
+    if (cx == 0.0f && cy == 0.0f && cz == 0.0f) {
+        AL_CHECK(alSourcei(channel[idx].source, AL_SOURCE_RELATIVE, AL_TRUE));
+        AL_CHECK(alSource3f(channel[idx].source, AL_POSITION, 0, 0, 0));
+    } else {
+        AL_CHECK(alSourcei(channel[idx].source, AL_SOURCE_RELATIVE, AL_FALSE));
+        AL_CHECK(alSource3f(channel[idx].source, AL_POSITION, cx, cy, cz));
+    }
+
+    AL_CHECK(alSourcePlay(channel[idx].source));
+
+    LeaveCriticalSection(&AudioCS);
 }
-
-
 
 void AddVoice3d(int length, short int* lpdata, float cx, float cy, float cz)
 {
-  AddVoice3dv(length, lpdata, cx, cy, cz, 256);
+    AddVoice3dv(length, lpdata, cx, cy, cz, 256);
 }
-
 
 void AddVoicev(int length, short int* lpdata, int v)
 {
-  AddVoice3dv(length, lpdata, 0,0,0, v);
+    AddVoice3dv(length, lpdata, 0, 0, 0, v);
 }
-
 
 void AddVoice(int length, short int* lpdata)
 {
-  AddVoice3dv(length, lpdata, 0,0,0, 256);
+    AddVoice3dv(length, lpdata, 0, 0, 0, 256);
+}
+
+// ---------------------------------------------------------------------------
+// Environment reverb  (EAX → OpenAL EFX)
+// ---------------------------------------------------------------------------
+void Audio_SetEnvironment(int e, float)
+{
+    if (!iSoundActive || !alContext) return;
+    if (e == g_CurrentEnv) return;
+    g_CurrentEnv = e;
+
+    // No EFX support — silently ignore
+    if (!g_effect || !g_slot) { PrintLog("Audio_SetEnvironment: no EFX objects\n"); return; }
+    if (e < 0 || e > 8) { PrintLog("Audio_SetEnvironment: invalid env %d\n"); return; }
+    if (e == 7) return;  // Special 3 — intentionally empty
+
+    // Clear any residual errors before setting up reverb
+    while (alGetError && alGetError() != AL_NO_ERROR);
+
+    const EAX2ENV* env = &g_EnvPresets[e];
+    {
+        char buf[128];
+        wsprintfA(buf, "Audio_SetEnvironment: env=%d gain=100 decay=%d decayHF=%d diff=%d reverblevel=%d\n",
+                  e, (int)(env->decay*10), (int)(env->decayHF*100), (int)(env->diffusion*100), env->reverb);
+        PrintLog(buf);
+    }
+
+    AL_CHECK(alEffecti(g_effect, AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB));
+
+    // Set reverb parameters — map EAX mB fields correctly:
+    //   room   → AL_EAXREVERB_ROOM (reverb return level in mB)
+    //   reverb → AL_EAXREVERB_LATE_REVERB_GAIN (late reverb level, linear from mB)
+    //   decay  → AL_EAXREVERB_DECAY_TIME
+    //   decayHF → AL_EAXREVERB_DECAY_HFRATIO
+    //   diffusion → AL_EAXREVERB_DIFFUSION
+    // Note: AL_EAXREVERB_ROOM does not exist in OpenAL Soft's EFX.
+    // The EAX2 room level is mapped via the gain parameters below.
+    AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_GAIN, 1.0f));
+    AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_DECAY_TIME, env->decay));
+    AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_DECAY_HFRATIO, env->decayHF));
+    AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_DIFFUSION, env->diffusion));
+    AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_LATE_REVERB_GAIN, mBToGain(env->reverb)));
+
+    // Apply effect to slot, then set slot gain
+    AL_CHECK(alAuxiliaryEffectSloti(g_slot, AL_EFFECTSLOT_EFFECT, g_effect));
+
+    // Connect to voice channels
+    for (int i = 0; i < MAX_CHANNEL; i++) {
+        AL_CHECK(alSource3i(channel[i].source, AL_AUXILIARY_SEND_FILTER,
+                            g_slot, 0, AL_FILTER_NULL));
+    }
+    AL_CHECK(alSource3i(ambient.source, AL_AUXILIARY_SEND_FILTER,
+                        g_slot, 0, AL_FILTER_NULL));
+    AL_CHECK(alSource3i(ambient2.source, AL_AUXILIARY_SEND_FILTER,
+                        g_slot, 0, AL_FILTER_NULL));
+    AL_CHECK(alSource3i(mambient.source, AL_AUXILIARY_SEND_FILTER,
+                        g_slot, 0, AL_FILTER_NULL));
+}
+
+// ---------------------------------------------------------------------------
+// Terrain geometry upload  (no‑op for OpenAL)
+// Still calls UploadGeometry() to keep the data array populated, but
+// never sends it to any audio driver.
+// ---------------------------------------------------------------------------
+void Audio_UploadGeometry()
+{
+    UploadGeometry();
+    // OpenAL Soft has no terrain‑occlusion equivalent — discard.
 }

@@ -77,6 +77,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Core source files (excluding renderers)
 set(CORE_FILES
     Hunt/Audio_DLL.cpp
+    Hunt/OpenAL_Loader.cpp
     Hunt/Characters.cpp
     Hunt/Game.cpp
     Hunt/Hunt.cpp
