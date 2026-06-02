@@ -92,7 +92,10 @@ set(CORE_FILES
     Hunt/AppRes.h
 )
 
-# Executable
+# Menu subdirectory
+add_subdirectory(Menu)
+
+# Game executable (renderer-specific)
 add_executable(Carnivores1 WIN32 ${CORE_FILES} ${RENDER_SRC})
 
 # Include directories
