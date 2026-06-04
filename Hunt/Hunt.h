@@ -1593,6 +1593,20 @@ _EXTORNOT BOOL SLOW, DEBUG, MORPHP, MORPHA;
 _EXTORNOT HANDLE hlog;
 
 
+enum AudioSystemEnum {
+	AUDIO_DIRECTSOUND = 0,
+	AUDIO_OPENALSOFT = 1,
+	AUDIO_BACKEND_COUNT = 2
+};
+
+inline int NormalizeAudioBackend(int driver)
+{
+	// Legacy saved values:
+	// 0..3 = software / DirectSound / A3D / EAX → DirectSound
+	// 4..5 = OpenAL / XAudio2 → OpenAL Soft
+	return (driver == AUDIO_OPENALSOFT || driver >= 4) ? AUDIO_OPENALSOFT : AUDIO_DIRECTSOUND;
+}
+
 //========== for audio ==============//
 void  AddVoicev  (int, short int*, int);
 void  AddVoice3dv(int, short int*, float, float, float, int);

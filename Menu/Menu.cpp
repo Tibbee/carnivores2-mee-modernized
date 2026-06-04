@@ -86,8 +86,7 @@ const char st_TextureText[3][5] = { "Low", "High", "Auto" };
 const char st_AlphaKeyText[2][14] = { "Color Key", "Alpha Channel" };
 const char st_RenText[7][12] = { "Software", "3Dfx Glide", "Direct3D 7", "OpenGL", "Direct3D 9", "Direct3D 11", "Vulkan" };
 const char g_RendererFile[7][8] = { "v_soft", "v_3dfx", "v_d3d", "v_gl", "v_d3d9", "v_d3d11", "v_vulk" };
-const char st_AudText[6][16] = { "Software", "Direct Sound 3D", "Aureal 3D", "EAX", "OpenAL", "XAudio2"};
-const char g_AudioFile[6][8] = { "a_soft", "a_ds3d", "a_a3d", "a_eax", "a_oal", "a_xa2" };
+const char st_AudText[2][16] = { "DirectSound", "OpenAL Soft" };
 
 
 int MapVKKey(int k);
@@ -1635,9 +1634,7 @@ void MenuEventInput(int32_t menu)
 							else if (mo.Hilite == 5)
 							{
 								WaitForMouseRelease();
-								g_Options.SoundAPI++;
-								if (g_Options.SoundAPI == 4)
-									g_Options.SoundAPI = 0;
+								g_Options.SoundAPI = (g_Options.SoundAPI + 1) % AUDIO_BACKEND_COUNT;
 							}
 						}
 						else if (m == OPT_KEYBINDINGS) { // Left Click
@@ -2097,7 +2094,7 @@ void DrawMenuOptions()
 		if (i == 2) DrawSliderBar(x1 - tbw, y0 + 12, tbw, (float)g_Options.Sensitivity / 255.0f, label_c);
 		if (i == 3) DrawSliderBar(x1 - tbw, y0 + 12, tbw, (float)g_Options.ViewRange / 255.0f, label_c);
 		if (i == 4) DrawTextShadow(x1, y0, st_UnitText[g_Options.OptSys], value_c, DTA_RIGHT);
-		if (i == 5) DrawTextShadow(x1, y0, st_AudText[g_Options.SoundAPI], value_c, DTA_RIGHT);
+		if (i == 5) DrawTextShadow(x1, y0, st_AudText[NormalizeAudioBackend(g_Options.SoundAPI)], value_c, DTA_RIGHT);
 	}
 
 	// Control key bindings

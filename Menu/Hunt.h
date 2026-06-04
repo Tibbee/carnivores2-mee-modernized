@@ -91,14 +91,18 @@ if (OptRes==7) { WinW =1600; WinH=1200; }
 */
 
 enum AudioSystemEnum {
-	AUDIO_SOFTWARE = 0,
-	AUDIO_DIRECTSOUND3D = 1,
-	AUDIO_AUREAL3D = 2,
-	AUDIO_EAX = 3,
-	// Custom audio begins here
-	AUDIO_OPENAL = 4,
-	AUDIO_XAUDIO = 5
+	AUDIO_DIRECTSOUND = 0,
+	AUDIO_OPENALSOFT = 1,
+	AUDIO_BACKEND_COUNT = 2
 };
+
+inline int NormalizeAudioBackend(int driver)
+{
+	// Legacy saved values:
+	// 0..3 = software / DirectSound / A3D / EAX → DirectSound
+	// 4..5 = OpenAL / XAudio2 → OpenAL Soft
+	return (driver == AUDIO_OPENALSOFT || driver >= 4) ? AUDIO_OPENALSOFT : AUDIO_DIRECTSOUND;
+}
 
 // ======================================================================= //
 // Global Types & Classes

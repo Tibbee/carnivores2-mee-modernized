@@ -27,6 +27,7 @@ Standalone launcher / menu executable for **Carnivores 2 Modder’s Engine**, re
   inside `characters`.
 - The long-term plan is to reuse the game’s own parser from `Hunt/Resources.cpp`
   so the menu and the engine read the same format.
+- Audio selection is now trimmed to the two supported backends: DirectSound and OpenAL Soft.
 
 ## Targets / outputs
 

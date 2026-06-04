@@ -2988,6 +2988,7 @@ void LoadTrophy()
   ReadFile(hfile, &OptSys, 4, &l, NULL);
   ReadFile(hfile, &OptSound, 4, &l, NULL);
   ReadFile(hfile, &OptRender, 4, &l, NULL);
+  OptSound = NormalizeAudioBackend(OptSound);
 
 
   SetupRes();

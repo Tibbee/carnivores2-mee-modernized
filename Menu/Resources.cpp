@@ -683,6 +683,7 @@ void TrophyLoad(Profile& profile, int pr)
 	fs.read((char*)&g_Options.OptSys, 4);
 	fs.read((char*)&g_Options.SoundAPI, 4);
 	fs.read((char*)&g_Options.RenderAPI, 4);
+	g_Options.SoundAPI = NormalizeAudioBackend(g_Options.SoundAPI);
 
 	// Append any data you want, the original games do not check the file size and stop reading at this point
 
@@ -944,7 +945,7 @@ void Options::Default()
 	this->TranqMode = false;
 	this->AlphaColorKey = 1;
 	this->OptSys = 1;
-	this->SoundAPI = 0; // Default to software
+	this->SoundAPI = AUDIO_OPENALSOFT; // Default to OpenAL Soft
 	this->RenderAPI = 0; // Default to software
 }
 
