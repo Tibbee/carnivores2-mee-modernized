@@ -75,6 +75,7 @@ HFONT hfntOld;
 POINT g_CursorPos;
 int g_WaitKey = -1;
 bool g_KeyboardUsed = false;
+static int g_LastHoverId = -1;
 
 
 // String table
@@ -146,8 +147,13 @@ void AcceptNewKey()
 
 void ChangeMenuState(int32_t ms)
 {
+	if (g_MenuState == MENU_MAIN && ms != MENU_MAIN) {
+		MenuAudioStopAmbient();
+	}
+
 	g_PrevMenuState = g_MenuState;
 	g_MenuState = ms;
+	g_LastHoverId = -1;
 	LoadGameMenu(g_MenuState);
 }
 
@@ -512,8 +518,6 @@ void InitInterface()
 
 void ShutdownInterface()
 {
-	//PlaySound(NULL, NULL, SND_NODEFAULT);
-
 	if (bmpMain)
 		DeleteObject((HBITMAP)bmpMain);
 	if (hdcCMain)
@@ -662,6 +666,16 @@ void DrawMenuBg(MenuItem& menu)
 	uint8_t cursor_id = 0;
 
 	cursor_id = menu.GetID((p.x / 2), (p.y / 2));
+
+	if (g_LastHoverId == -1) {
+		g_LastHoverId = cursor_id;
+	}
+	else if (cursor_id != g_LastHoverId) {
+		if (cursor_id != 0) {
+			MenuAudioPlayHover();
+		}
+		g_LastHoverId = cursor_id;
+	}
 
 	// OLD: Render background image
 	/*for (int y = 0; y < 600; y++) {
@@ -837,6 +851,9 @@ void MenuEventStart(int32_t menu_state)
 			MenuOptions[m].Hilite = -1;
 			MenuOptions[m].Selected = -1;
 		}
+	} break;
+	case MENU_MAIN: {
+		MenuAudioStartAmbient();
 	} break;
 		/****************************************************
 		Hunt License Menu */
@@ -1445,8 +1462,6 @@ void MenuEventInput(int32_t menu)
 	uint8_t id = g_MenuItem.GetID(g_CursorPos.x / 2, g_CursorPos.y / 2);
 
 	if (g_KeyboardState[VK_LBUTTON] & 128) {
-		//PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_NODEFAULT | SND_ASYNC | SND_FILENAME);
-		//AddVoice(g_MenuSound_Go.m_Length, g_MenuSound_Go.m_Data);
 	}
 
 	if (menu == MENU_CREDITS)
@@ -1461,6 +1476,7 @@ void MenuEventInput(int32_t menu)
 
 		if (g_KeyboardState[VK_LBUTTON] & 128) {
 			WaitForMouseRelease();
+			MenuAudioPlayClick();
 			RECT rc = { 550, 42, 600 + GetTextW(hdcCMain, g_GitHubURL), 56 };
 
 			if (IsPointInRect(g_CursorPos, rc))
@@ -1469,7 +1485,6 @@ void MenuEventInput(int32_t menu)
 			}
 			else
 			{
-				//PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_ASYNC | SND_FILENAME);
 				ChangeMenuState(MENU_MAIN);
 			}
 		}
@@ -1488,7 +1503,7 @@ void MenuEventInput(int32_t menu)
 
 		if (g_KeyboardState[VK_LBUTTON] & 128) {
 			if (id == 1) {
-				//PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_ASYNC | SND_FILENAME);
+				MenuAudioPlayClick();
 
 				if (g_Profiles[g_ProfileIndex].m_Name.empty()) {
 					if (!g_TypingBuffer.empty())
@@ -1513,12 +1528,12 @@ void MenuEventInput(int32_t menu)
 			else if (id == 2) {
 				// Delete the selected 'save'
 				WaitForMouseRelease();
-				//PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_ASYNC | SND_FILENAME);
+				MenuAudioPlayClick();
 				ChangeMenuState(MENU_REGISTRY_DELETE);
 			}
 			else {
 				WaitForMouseRelease();
-				//PlaySound("huntdat/soundfx/menumov.wav", NULL, SND_ASYNC | SND_FILENAME);
+				MenuAudioPlayHover();
 				g_ProfileIndex = g_HiliteProfileIndex;
 			}
 		}
@@ -1531,14 +1546,14 @@ void MenuEventInput(int32_t menu)
 			if (id == 1)
 			{
 				WaitForMouseRelease();
+				MenuAudioPlayClick();
 				TrophyDelete(g_ProfileIndex); // Delete the last clicked profile
-				//PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_ASYNC | SND_FILENAME);
 				ChangeMenuState(MENU_REGISTER);
 			}
 			else if (id == 2)
 			{
 				WaitForMouseRelease();
-				//PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_ASYNC | SND_FILENAME);
+				MenuAudioPlayClick();
 				ChangeMenuState(MENU_REGISTER);
 			}
 		}
@@ -1551,14 +1566,14 @@ void MenuEventInput(int32_t menu)
 			if (id == 1)
 			{
 				WaitForMouseRelease();
-				//PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_ASYNC | SND_FILENAME);
+				MenuAudioPlayClick();
 				ChangeMenuState(MENU_MAIN);
 			}
 			else if (id == 2)
 			{
 				WaitForMouseRelease();
+				MenuAudioPlayClick();
 				TrophyDelete(g_ProfileIndex);
-				//PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_ASYNC | SND_FILENAME);
 				ChangeMenuState(MENU_REGISTER);
 			}
 		}
@@ -1576,8 +1591,8 @@ void MenuEventInput(int32_t menu)
 			if (g_KeyboardState[VK_LBUTTON] & 128)
 			{
 				WaitForMouseRelease();
+				MenuAudioPlayClick();
 				TrophySave(g_UserProfile); // Save all the settings
-				//PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_ASYNC | SND_FILENAME);
 				ChangeMenuState(MENU_MAIN);
 			}
 		}
@@ -1754,7 +1769,7 @@ void MenuEventInput(int32_t menu)
 				if ((g_KeyboardState[VK_LBUTTON] & 128) && score >= g_AreaInfo[index].m_Price)
 				{
 					WaitForMouseRelease();
-					//PlaySound("huntdat/soundfx/menumov.wav", NULL, SND_ASYNC | SND_FILENAME);
+					MenuAudioPlayClick();
 
 					// Reset the states
 					for (auto i = MenuHunt[0].Item.begin(); i != MenuHunt[0].Item.end(); i++)
@@ -1789,7 +1804,7 @@ void MenuEventInput(int32_t menu)
 				if ((g_KeyboardState[VK_LBUTTON] & 128))
 				{
 					WaitForMouseRelease();
-					//PlaySound("huntdat/soundfx/menumov.wav", NULL, SND_ASYNC | SND_FILENAME);
+					MenuAudioPlayClick();
 
 					if (score >= g_DinoInfo[g_DinoList[dataIndex]].m_Price && !MenuHunt[1].Item[dataIndex].second)
 					{
@@ -1823,7 +1838,7 @@ void MenuEventInput(int32_t menu)
 				if ((g_KeyboardState[VK_LBUTTON] & 128))
 				{
 					WaitForMouseRelease();
-					//PlaySound("huntdat/soundfx/menumov.wav", NULL, SND_ASYNC | SND_FILENAME);
+					MenuAudioPlayClick();
 
 					if (score >= g_WeapInfo[index].m_Price && !MenuHunt[2].Item[index].second)
 					{
@@ -1853,7 +1868,7 @@ void MenuEventInput(int32_t menu)
 				if ((g_KeyboardState[VK_LBUTTON] & 128))
 				{
 					WaitForMouseRelease();
-					//PlaySound("huntdat/soundfx/menumov.wav", NULL, SND_ASYNC | SND_FILENAME);
+					MenuAudioPlayClick();
 
 					MenuHunt[3].Item[index].second = !MenuHunt[3].Item[index].second;
 				}
@@ -1879,7 +1894,7 @@ void MenuEventInput(int32_t menu)
 			if (id >= 1 && id <= 6)
 			{
 				WaitForMouseRelease();
-				//PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_ASYNC | SND_FILENAME);
+				MenuAudioPlayClick();
 				bool b = g_MenuItem.ToggleIsElementSet(id);
 
 				if (id >= 1 && id <= 3)
@@ -1905,14 +1920,14 @@ void MenuEventInput(int32_t menu)
 			else if (id == 7) // Back
 			{
 				WaitForMouseRelease();
-				//PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_ASYNC | SND_FILENAME);
+				MenuAudioPlayClick();
 				ChangeMenuState(MENU_MAIN);
 			}
 			else if (id == 8) // Hunt/Next
 			{
 				// Launch the game
 				WaitForMouseRelease();
-				//PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_ASYNC | SND_FILENAME);
+				MenuAudioPlayClick();
 				
 				if (MenuHunt[0].Selected == -1)
 				{
@@ -2015,7 +2030,7 @@ void MenuEventInput(int32_t menu)
 			WaitForMouseRelease();
 			if (id >= 1 && id <= 6) {
 				WaitForMouseRelease();
-				//PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_ASYNC | SND_FILENAME);
+				MenuAudioPlayClick();
 				if (id == 1) { ChangeMenuState(MENU_HUNT); }
 				else if (id == 2) { ChangeMenuState(MENU_OPTIONS); }
 				else if (id == 3) {
@@ -2049,7 +2064,7 @@ void MenuEventInput(int32_t menu)
 
 		if (g_KeyboardState[VK_LBUTTON] & 128) {
 			WaitForMouseRelease();
-			//PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_ASYNC | SND_FILENAME);
+			MenuAudioPlayClick();
 			ChangeMenuState(MENU_MAIN);
 		}
 	}
@@ -2057,7 +2072,7 @@ void MenuEventInput(int32_t menu)
 	{
 		if (g_KeyboardState[VK_LBUTTON] & 128) {
 			WaitForMouseRelease();
-			//if (id == 1 || id == 2) PlaySound("huntdat/soundfx/menugo.wav", NULL, SND_ASYNC | SND_FILENAME);
+			MenuAudioPlayClick();
 
 			if (id == 1)      PostQuitMessage(0);
 			else if (id == 2) ChangeMenuState(MENU_MAIN);

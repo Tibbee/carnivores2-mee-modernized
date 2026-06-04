@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.15)
 set(MENU_SOURCES
     Hunt2.cpp
     Menu.cpp
+    Audio.cpp
     Resources.cpp
     GUI.cpp
     Targa.h
@@ -11,6 +12,7 @@ set(MENU_SOURCES
     resource.h
     Menu.rc
     Version.h
+    ../Hunt/OpenAL_Loader.cpp
 )
 
 # Add the menu executable
@@ -19,6 +21,7 @@ add_executable(Carnivores2Menu WIN32 ${MENU_SOURCES})
 # Include directories (self-contained, uses local Hunt.h)
 target_include_directories(Carnivores2Menu PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Hunt
 )
 
 # Link libraries (same as main executable)

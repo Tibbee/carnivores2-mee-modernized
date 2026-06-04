@@ -306,6 +306,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 		LoadResourcesScript();
 		LoadResources();
 
+		MenuAudioInit();
+
 		// -- Message Loop
 		std::cout << "Entering Messages Loop." << std::endl;
 
@@ -360,6 +362,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 	}
 
 	ReleaseResources();
+	MenuAudioShutdown();
 	//Audio_Shutdown();
 	ShutdownInterface();
 	ShutdownNetwork();

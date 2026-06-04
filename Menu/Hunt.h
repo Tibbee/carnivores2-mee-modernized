@@ -674,6 +674,14 @@ void AddVoice3d(int length, short int* lpdata, float cx, float cy, float cz);
 void AddVoicev(int length, short int* lpdata, int v);
 void AddVoice(int length, short int* lpdata);
 
+// Menu audio feedback (OpenAL Soft)
+bool MenuAudioInit();
+void MenuAudioShutdown();
+void MenuAudioStartAmbient();
+void MenuAudioStopAmbient();
+void MenuAudioPlayHover();
+void MenuAudioPlayClick();
+
 
 #ifdef _MAIN_
 EXTERNAL char g_KeyNames[256][24] = {
