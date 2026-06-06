@@ -650,6 +650,7 @@ void LoadResourcesScript();
 void ReleaseResources();
 void TrophyLoad(Profile& profile, int pr);
 void TrophySave(Profile& profile);
+void RequestMenuExit(int exitCode = 0);
 void TrophyDelete(uint32_t);
 bool ReadTGAFile(const std::string& path, TargaImage& tga);
 bool LoadPicture(Picture& pic, const std::string& fpath);

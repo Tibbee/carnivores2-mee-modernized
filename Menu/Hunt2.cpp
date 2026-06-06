@@ -133,11 +133,11 @@ LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 		return true;
 
 	case WM_CLOSE:
-		PostQuitMessage(0);
+		RequestMenuExit(0);
 		return 0;
 
 	case WM_DESTROY:
-		PostQuitMessage(0);
+		RequestMenuExit(0);
 		return 0;
 
 	case WM_MOUSEWHEEL:
@@ -153,7 +153,7 @@ LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 	{
 		if (wParam == VK_F4) { HuntWindowResize(); }
 #ifdef _DEBUG
-		if (wParam == VK_F9) { PostQuitMessage(1); }
+		if (wParam == VK_F9) { RequestMenuExit(1); }
 #endif
 	}
 	break;

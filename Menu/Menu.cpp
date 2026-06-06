@@ -158,6 +158,18 @@ void ChangeMenuState(int32_t ms)
 }
 
 
+// Centralized menu-exit path. Saves the current profile (and options,
+// since TrophySave writes the full 1660-byte trophy block) before
+// requesting shutdown, so unsaved settings in the menu do not get lost
+// on quit. Callers must use this instead of calling PostQuitMessage
+// directly, otherwise the save is skipped.
+void RequestMenuExit(int exitCode)
+{
+	TrophySave(g_UserProfile);
+	PostQuitMessage(exitCode);
+}
+
+
 int GetTextW(HDC hdc, const std::string& s)
 {
 	SIZE sz;
