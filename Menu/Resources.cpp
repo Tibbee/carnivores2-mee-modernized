@@ -49,6 +49,7 @@ uint32_t g_ScriptLine = 0;
 
 void ReadWeapons(FILE*);
 void ReadCharacters(FILE*);
+void LoadC2Maps();
 
 
 /*
@@ -474,6 +475,233 @@ void ReadPrices(FILE* stream)
 }
 
 
+/*
+ * LoadC2Maps()
+ *
+ * Discover and parse .c2map custom-map descriptor files in
+ * HUNTDAT/AREAS/. The format is the MEE format (Adelphospro 4.22.09):
+ *
+ *     info
+ *     {
+ *         name    = 'Delphaeus Hills'
+ *         mapfile = 'huntdat\\areas\\area1'
+ *         rscfile = 'huntdat\\areas\\area1.rsc'
+ *         pic     = 'huntdat\\menu\\pics\\area1.tga'
+ *         text    = 'huntdat\\menu\\txt\\area1.txt'
+ *         price   = 20
+ *     }
+ *     .
+ *
+ * Unlike the MEE parser, we use a proper key/value tokeniser (the MEE
+ * code does strstr(line, "txt") which only works because "text" is a
+ * substring of "txt" -- a real footgun if anyone renames a key).
+ *
+ * Discovered maps are appended to g_AreaInfo unless the map's project
+ * name already exists (the script-defined entry wins). Maps whose
+ * .MAP file is missing are skipped with a warning.
+ */
+void LoadC2Maps()
+{
+	namespace fs = std::filesystem;
+	const std::string areasDir = "huntdat/areas";
+
+	std::error_code ec;
+	if (!fs::is_directory(areasDir, ec)) {
+		// No areas directory -- not a hard error, modder may not have any c2maps
+		return;
+	}
+
+	int discovered = 0;
+	int loaded = 0;
+	int skipped = 0;
+	int duplicates = 0;
+
+	for (const auto& entry : fs::directory_iterator(areasDir, ec)) {
+		if (ec) break;
+		if (!entry.is_regular_file()) continue;
+		if (entry.path().extension() != ".c2map") continue;
+
+		discovered++;
+		const std::string c2mapPath = entry.path().string();
+
+		std::ifstream f(c2mapPath);
+		if (!f.is_open()) {
+			std::cout << "LoadC2Maps: cannot open '" << c2mapPath << "'" << std::endl;
+			skipped++;
+			continue;
+		}
+
+		AreaInfo area;
+		area.m_Valid = false;
+		area.m_Rank = RANK_BEGINNER;
+		bool inBlock = false;
+		std::string mapfile;
+
+		std::string line;
+		while (std::getline(f, line)) {
+			// Trim leading whitespace for prefix checks
+			size_t start = line.find_first_not_of(" \t\r\n");
+			if (start == std::string::npos) continue;
+			if (line[start] == '#') continue; // comment
+
+			if (line[start] == '.') break; // EOF marker
+
+			if (!inBlock) {
+				// The c2map format puts 'info' on one line and '{' on the next,
+				// so we accept either: 'info {', 'info', or '{' alone (after
+				// we've seen 'info' on the previous iteration).
+				bool hasInfo = line.find("info", start) != std::string::npos;
+				bool hasOpenBrace = line.find('{', start) != std::string::npos;
+				if (hasInfo || hasOpenBrace) {
+					inBlock = true;
+				}
+				continue;
+			}
+
+			// Inside the info { ... } block
+			if (line.find('}', start) != std::string::npos) break;
+
+			auto eq = line.find('=', start);
+			if (eq == std::string::npos) continue;
+
+			std::string key = line.substr(start, eq - start);
+			// Trim trailing whitespace on the key
+			while (!key.empty() && (key.back() == ' ' || key.back() == '\t'))
+				key.pop_back();
+
+			std::string value = line.substr(eq + 1);
+			// Trim leading whitespace on the value
+			size_t vstart = value.find_first_not_of(" \t");
+			if (vstart != std::string::npos) value = value.substr(vstart);
+			// Strip trailing whitespace + comments
+			size_t comment = value.find('#');
+			if (comment != std::string::npos) value = value.substr(0, comment);
+			while (!value.empty() && (value.back() == ' ' || value.back() == '\t' || value.back() == '\r' || value.back() == '\n'))
+				value.pop_back();
+
+			// Strip surrounding single quotes from string values
+			if (value.size() >= 2 && value.front() == '\'' && value.back() == '\'') {
+				value = value.substr(1, value.size() - 2);
+			}
+
+			if (key == "price") {
+				area.m_Price = std::atoi(value.c_str());
+			}
+			else if (key == "rank") {
+				area.m_Rank = std::atoi(value.c_str());
+			}
+			else if (key == "name") {
+				area.m_Name = value;
+			}
+			else if (key == "mapfile") {
+				mapfile = value;
+				// Project name is the .MAP filename without extension.
+				// Normalize backslashes to forward slashes first so
+				// fs::path behaves the same on Windows and POSIX.
+				std::string norm = value;
+				for (auto& c : norm) if (c == '\\') c = '/';
+				fs::path mp(norm);
+				area.m_ProjectName = mp.stem().string();
+			}
+			else if (key == "rscfile") {
+				// Stored in m_ProjectName + ".rsc" already, but keep raw for validation
+				// (we don't currently validate .rsc, .MAP is the hard requirement)
+			}
+			else if (key == "pic") {
+				if (!value.empty()) LoadPicture(area.m_Thumbnail, value);
+			}
+			else if (key == "text") {
+				if (!value.empty()) LoadText(area.m_Description, value);
+			}
+		}
+		f.close();
+
+		// If name is empty, fall back to project name
+		if (area.m_Name.empty() && !area.m_ProjectName.empty()) {
+			area.m_Name = area.m_ProjectName;
+		}
+
+		// Validate the .MAP file actually exists. We try the candidates in
+		// order of decreasing specificity:
+		//   1. Whatever the modder wrote in 'mapfile' (normalized)
+		//   2. <mapfile> with .map appended if no extension was given
+		//   3. huntdat/areas/<stem>.map (fallback derived from project name)
+		std::vector<std::string> mapCandidates;
+		auto normalize = [](std::string s) {
+			// MEE samples use double backslashes ('huntdat\\areas\\x') as a
+			// Windows-INI escape; collapse them to single forward slashes
+			// so fs::path / ifstream treat them uniformly on both platforms.
+			for (auto& c : s) if (c == '\\') c = '/';
+			return s;
+		};
+		auto endsWithMap = [](const std::string& s) {
+			return s.size() >= 4 &&
+			       s[s.size() - 4] == '.' && s[s.size() - 3] == 'm' &&
+			       s[s.size() - 2] == 'a' && s[s.size() - 1] == 'p';
+		};
+		if (!mapfile.empty()) {
+			std::string mf = normalize(mapfile);
+			mapCandidates.push_back(mf);
+			if (!endsWithMap(mf)) mapCandidates.push_back(mf + ".map");
+		}
+		if (!area.m_ProjectName.empty()) {
+			mapCandidates.push_back(areasDir + "/" + area.m_ProjectName + ".map");
+		}
+
+		bool mapFound = false;
+		std::string usedMap;
+		for (const auto& candidate : mapCandidates) {
+			std::ifstream mf(candidate, std::ios::binary);
+			if (mf.is_open()) {
+				mapFound = true;
+				usedMap = candidate;
+				mf.close();
+				break;
+			}
+		}
+
+		if (!mapFound) {
+			std::cout << "LoadC2Maps: '" << c2mapPath
+			          << "' skipped, no .MAP file found (tried "
+			          << mapCandidates.size() << " candidates)" << std::endl;
+			skipped++;
+			continue;
+		}
+
+		// Check for duplicate project name (script-defined entry wins)
+		bool duplicate = false;
+		for (const auto& existing : g_AreaInfo) {
+			if (existing.m_ProjectName == area.m_ProjectName) {
+				duplicate = true;
+				break;
+			}
+		}
+		if (duplicate) {
+			std::cout << "LoadC2Maps: '" << c2mapPath
+			          << "' skipped, project name '" << area.m_ProjectName
+			          << "' already in g_AreaInfo (script entry wins)"
+			          << std::endl;
+			duplicates++;
+			continue;
+		}
+
+		area.m_Valid = true;
+		g_AreaInfo.push_back(area);
+		loaded++;
+		std::cout << "LoadC2Maps: added '" << area.m_Name
+		          << "' (map=" << usedMap
+		          << ", price=" << area.m_Price
+		          << ", rank=" << area.m_Rank << ")" << std::endl;
+	}
+
+	std::cout << "LoadC2Maps: discovered=" << discovered
+	          << " loaded=" << loaded
+	          << " skipped=" << skipped
+	          << " duplicates=" << duplicates
+	          << " total areas=" << g_AreaInfo.size() << std::endl;
+}
+
+
 void LoadResourcesScript()
 {
 	FILE* file;
@@ -545,6 +773,13 @@ void LoadResourcesScript()
 	}
 
 	fclose(file);
+
+	// Custom-map discovery (.c2map files in HUNTDAT/AREAS/).
+	// Modder-friendly feature: ship a .c2map descriptor and the menu
+	// will pick it up without editing _MENU.TXT / _RES.TXT.
+	// We do this AFTER the main script load so script-defined entries
+	// take precedence on duplicate project names.
+	LoadC2Maps();
 }
 
 
