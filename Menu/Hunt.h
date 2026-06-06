@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <chrono>
+#include <map>
 
 
 
@@ -411,6 +412,7 @@ public:
 	std::vector<std::string> m_Description;
 	std::string m_Command;
 	Picture m_Thumbnail; // Preview icon/image associated with this area
+	float m_ScoreMod; // Score multiplier when this accessory is selected (1.0 = neutral, 0.85 = -15%)
 
 //public:
 
@@ -418,15 +420,17 @@ public:
 		m_Name(""),
 		m_Description(),
 		m_Command(""),
-		m_Thumbnail()
+		m_Thumbnail(),
+		m_ScoreMod(1.0f)
 	{
 	}
-	
+
 	UtilInfo(const std::string& name, std::vector<std::string> description, const std::string& command, const std::string& thumbnail) :
 		m_Name(name),
 		m_Description(description),
 		m_Command(command),
-		m_Thumbnail()
+		m_Thumbnail(),
+		m_ScoreMod(1.0f)
 	{
 		//if (!thumbnail.empty())
 			//LoadPicture(this->m_Thumbnail, thumbnail);
@@ -436,7 +440,8 @@ public:
 		m_Name(ui.m_Name),
 		m_Description(ui.m_Description),
 		m_Command(ui.m_Command),
-		m_Thumbnail(ui.m_Thumbnail)
+		m_Thumbnail(ui.m_Thumbnail),
+		m_ScoreMod(ui.m_ScoreMod)
 	{
 	}
 };
@@ -599,6 +604,7 @@ EXTERNAL std::vector<WeapInfo>	g_WeapInfo;
 EXTERNAL std::vector<AreaInfo>	g_AreaInfo;
 EXTERNAL std::vector<UtilInfo>	g_UtilInfo;
 EXTERNAL UtilInfo				g_TranqInfo, g_ObserverInfo;
+EXTERNAL std::map<std::string, float> g_AccessoryScoreMods; // populated by ReadAccessories()
 EXTERNAL std::vector<unsigned int> g_DinoList;
 EXTERNAL uint32_t				g_ProfileIndex;
 EXTERNAL uint32_t				g_HiliteProfileIndex;

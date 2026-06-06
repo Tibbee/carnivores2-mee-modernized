@@ -49,6 +49,7 @@ uint32_t g_ScriptLine = 0;
 
 void ReadWeapons(FILE*);
 void ReadCharacters(FILE*);
+void ReadAccessories(FILE*);
 void LoadC2Maps();
 
 
@@ -414,6 +415,96 @@ void ReadAreas(FILE* stream)
 }
 
 
+/*
+ * ReadAccessories()
+ *
+ * Parses the 'accessories { ... }' block in _MENU.TXT / _RES.TXT.
+ * Format (one entry per line, key = value):
+ *
+ *     accessories
+ *     {
+ *         camo    = 0.85
+ *         radar   = 0.70
+ *         scent   = 0.80
+ *         double  = 1.0
+ *         tranq   = 1.25
+ *         observe = 1.0
+ *     }
+ *     .
+ *
+ * Keys correspond to the command-line flag (without leading '-').
+ * Populates the global g_AccessoryScoreMods map. Missing keys fall
+ * back to hardcoded defaults applied in LoadResources().
+ */
+void ReadAccessories(FILE* stream)
+{
+	char line[256];
+	uint32_t count = 0;
+
+	while (fgets(line, 255, stream))
+	{
+		g_ScriptLine++;
+		if (line[0] == '.') break; // end of block
+
+		// Find the '=' separator
+		const char* eq = strchr(line, '=');
+		if (!eq) continue; // not a key=value line
+
+		// Extract key
+		std::string key(line, eq - line);
+		// Trim whitespace from key
+		while (!key.empty() && (key.back() == ' ' || key.back() == '\t' || key.back() == '\r' || key.back() == '\n'))
+			key.pop_back();
+		size_t kstart = key.find_first_not_of(" \t");
+		if (kstart != std::string::npos) key = key.substr(kstart);
+		if (key.empty() || key[0] == '#') continue; // empty or comment
+
+		// Extract value
+		std::string value(eq + 1);
+		// Strip trailing whitespace
+		while (!value.empty() && (value.back() == ' ' || value.back() == '\t' || value.back() == '\r' || value.back() == '\n'))
+			value.pop_back();
+		// Strip leading whitespace
+		size_t vstart = value.find_first_not_of(" \t");
+		if (vstart != std::string::npos) value = value.substr(vstart);
+		// Strip inline comments
+		size_t comment = value.find('#');
+		if (comment != std::string::npos) value = value.substr(0, comment);
+		// Trim again after comment strip
+		while (!value.empty() && (value.back() == ' ' || value.back() == '\t' || value.back() == '\r' || value.back() == '\n'))
+			value.pop_back();
+
+		if (value.empty()) continue;
+
+		float mod = (float)atof(value.c_str());
+		g_AccessoryScoreMods[key] = mod;
+		count++;
+		std::cout << "  accessory[" << key << "] = " << mod << std::endl;
+	}
+
+	std::cout << "Loaded " << count << " accessory score modifiers" << std::endl;
+}
+
+
+/*
+ * LookupAccessoryScoreMod()
+ *
+ * Returns the modder-defined score multiplier for the given accessory
+ * key, or the hardcoded default if the key was not present in the
+ * accessories { ... } block.
+ *
+ * Keys: "camo", "radar", "scent", "double", "supply", "tranq", "observe"
+ */
+static float LookupAccessoryScoreMod(const std::string& key, float defaultValue)
+{
+	auto it = g_AccessoryScoreMods.find(key);
+	if (it != g_AccessoryScoreMods.end()) {
+		return it->second;
+	}
+	return defaultValue;
+}
+
+
 void ReadPrices(FILE* stream)
 {
 	uint32_t CurA = 0;
@@ -710,6 +801,7 @@ void LoadResourcesScript()
 	// Initialise some things
 	g_StartCredits = 100; // Default
 	g_ScriptLine = 0;
+	g_AccessoryScoreMods.clear(); // reset on each script load
 
 	// Try _MENU.TXT first (simplified menu data with prices)
 	// Fall back to _res.txt if _MENU.TXT doesn't exist
@@ -749,6 +841,10 @@ void LoadResourcesScript()
 				std::cout << "Found 'prices' section at line " << g_ScriptLine << std::endl;
 				ReadPrices(file);
 				std::cout << "Loaded " << g_AreaInfo.size() << " areas" << std::endl;
+			}
+			else if (strstr(line, "accessories")) {
+				std::cout << "Found 'accessories' section at line " << g_ScriptLine << std::endl;
+				ReadAccessories(file);
 			}
 
 			// C2ME sections we don't need - skip their blocks
@@ -795,6 +891,7 @@ void LoadResources()
 	ui.m_Name = "Camouflage";
 	LoadText(ui.m_Description, "huntdat/menu/txt/camoflag.nfo");
 	ui.m_Command = "-camo";
+	ui.m_ScoreMod = LookupAccessoryScoreMod("camo", 0.85f); // default -15%
 	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip1.tga");
 	g_UtilInfo.push_back(ui);
 	ui.m_Description.clear();
@@ -802,6 +899,7 @@ void LoadResources()
 	ui.m_Name = "Radar";
 	LoadText(ui.m_Description, "huntdat/menu/txt/radar.nfo");
 	ui.m_Command = "-radar";
+	ui.m_ScoreMod = LookupAccessoryScoreMod("radar", 0.70f); // default -30%
 	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip2.tga");
 	g_UtilInfo.push_back(ui);
 	ui.m_Description.clear();
@@ -809,6 +907,7 @@ void LoadResources()
 	ui.m_Name = "Cover scent";
 	LoadText(ui.m_Description, "huntdat/menu/txt/scent.nfo");
 	ui.m_Command = "";
+	ui.m_ScoreMod = LookupAccessoryScoreMod("scent", 0.80f); // default -20%
 	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip3.tga");
 	g_UtilInfo.push_back(ui);
 	ui.m_Description.clear();
@@ -816,6 +915,7 @@ void LoadResources()
 	ui.m_Name = "Double ammo";
 	LoadText(ui.m_Description, "huntdat/menu/txt/double.nfo");
 	ui.m_Command = "-double";
+	ui.m_ScoreMod = LookupAccessoryScoreMod("double", 1.0f); // neutral
 	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip4.tga");
 	g_UtilInfo.push_back(ui);
 	ui.m_Description.clear();
@@ -824,6 +924,7 @@ void LoadResources()
 	ui.m_Name = "Supply drop";
 	LoadText(ui.m_Description, "huntdat/menu/txt/resupply.nfo");
 	ui.m_Command = "-supply -resupply";
+	ui.m_ScoreMod = LookupAccessoryScoreMod("supply", 1.0f); // neutral
 	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip5.tga");
 	g_UtilInfo.push_back(ui);
 	ui.m_Description.clear();
@@ -833,10 +934,12 @@ void LoadResources()
 	g_TranqInfo.m_Name = "Tranquilizer";
 	LoadText(g_TranqInfo.m_Description, "huntdat/menu/txt/tranq.nfo");
 	g_TranqInfo.m_Command = "-tranq -tranquilizer";
+	g_TranqInfo.m_ScoreMod = LookupAccessoryScoreMod("tranq", 1.25f); // default +25%
 
 	g_ObserverInfo.m_Name = "Observer";
 	LoadText(g_ObserverInfo.m_Description, "huntdat/menu/txt/observe.nfo");
 	g_ObserverInfo.m_Command = "-observe -observer";
+	g_ObserverInfo.m_ScoreMod = LookupAccessoryScoreMod("observe", 1.0f); // neutral
 
 
 	LoadWave(g_MenuSound_Go, "huntdat/soundfx/menugo.wav");

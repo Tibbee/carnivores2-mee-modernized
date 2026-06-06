@@ -2012,6 +2012,18 @@ void MenuEventInput(int32_t menu)
 				if (g_ObserverMode)
 					params << " -observ";
 
+				// Pass accessory score multipliers to the engine. Order must
+				// match the engine's smod= parser in Hunt/Game.cpp
+				// ProcessCommandLine(): camo, radar, scent, double, tranq, observer.
+				// Values come from UtilInfo.m_ScoreMod (populated from _RES.TXT's
+				// 'accessories {}' block, falling back to legacy defaults).
+				params << " smod=" << g_UtilInfo[0].m_ScoreMod  // camo
+				       << ","  << g_UtilInfo[1].m_ScoreMod    // radar
+				       << ","  << g_UtilInfo[2].m_ScoreMod    // scent
+				       << ","  << g_UtilInfo[3].m_ScoreMod    // double
+				       << ","  << g_TranqInfo.m_ScoreMod      // tranq
+				       << ","  << g_ObserverInfo.m_ScoreMod;  // observer
+
 #ifdef _DEBUG
 				params << " -debug";
 				params << " -window"; // Optional

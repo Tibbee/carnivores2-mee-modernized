@@ -1280,6 +1280,19 @@ _EXTORNOT BOOL ScentMode, CamoMode,
           Host, CiskMode, SonarMode,
           ScannerMode, SurvivalMode;
 
+// Score multipliers for accessories. Defaults are set in Hunt/Game.cpp
+// InitEngine() and match the legacy hardcoded values from
+// SubmitDinoScore() so a hunt launched without a Menu-supplied 'smod='
+// argument behaves identically to the original game. The Menu passes
+// 'smod=camo,radar,scent,double,tranq,observer' in the same order to
+// override these from _RES.TXT (see Menu/Resources.cpp ReadAccessories()).
+_EXTORNOT float ScoreMod_Camo;
+_EXTORNOT float ScoreMod_Radar;
+_EXTORNOT float ScoreMod_Scent;
+_EXTORNOT float ScoreMod_Double;
+_EXTORNOT float ScoreMod_Tranq;
+_EXTORNOT float ScoreMod_Observer;
+
 _EXTORNOT float sonarPos;
 
 _EXTORNOT TTrophyRoom TrophyRoom;

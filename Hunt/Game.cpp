@@ -586,6 +586,22 @@ void ProcessCommandLine()
     if (strstr(s,"-tranq")) Tranq = TRUE;
     if (strstr(s,"-observ")) ObservMode = TRUE;
 
+	// smod=camo,radar,scent,double,tranq,observer
+	// Order must match the Menu's assembly in Menu.cpp and the defaults
+	// in InitEngine(). Modders can override these via the 'accessories {}'
+	// block in _RES.TXT (parsed by Menu/Resources.cpp ReadAccessories()).
+	if (strstr(s, "smod=")) {
+		float mods[6] = {0};
+		int got = sscanf(s + 5, "%f,%f,%f,%f,%f,%f",
+			&mods[0], &mods[1], &mods[2], &mods[3], &mods[4], &mods[5]);
+		if (got >= 1) ScoreMod_Camo     = mods[0];
+		if (got >= 2) ScoreMod_Radar    = mods[1];
+		if (got >= 3) ScoreMod_Scent    = mods[2];
+		if (got >= 4) ScoreMod_Double   = mods[3];
+		if (got >= 5) ScoreMod_Tranq    = mods[4];
+		if (got >= 6) ScoreMod_Observer = mods[5];
+	}
+
   }
 }
 
@@ -611,10 +627,14 @@ void SubmitDinoScore (int cindex) {
 
 	SYSTEMTIME st;
 	GetLocalTime(&st);
-	if (Tranq) score *= 1.25f;
-	if (RadarMode) score *= 0.70f;
-	if (ScentMode) score *= 0.80f;
-	if (CamoMode) score *= 0.85f;
+	// Score multipliers are now driven by the Menu (see smod= in
+	// ProcessCommandLine) so modders can tune them via _RES.TXT.
+	// Defaults match the original hardcoded values when no smod= is
+	// supplied (see InitEngine).
+	if (Tranq) score *= ScoreMod_Tranq;
+	if (RadarMode) score *= ScoreMod_Radar;
+	if (ScentMode) score *= ScoreMod_Scent;
+	if (CamoMode) score *= ScoreMod_Camo;
 	TrophyRoom.Score += (int)score;
 	Characters[cindex].tempScore = (int)score;
 	Characters[cindex].tempDate = (st.wYear << 20) + (st.wMonth << 10) + st.wDay;
@@ -1483,6 +1503,16 @@ void InitEngine()
   _MultiplayerState = 0;
 
   RadarMode    = FALSE;
+
+  // Accessory score multipliers. Defaults match the legacy hardcoded
+  // values that used to live in SubmitDinoScore() so legacy hunts
+  // (launched without a 'smod=' argument) keep the same final score.
+  ScoreMod_Camo     = 0.85f;
+  ScoreMod_Radar    = 0.70f;
+  ScoreMod_Scent    = 0.80f;
+  ScoreMod_Double   = 1.0f;
+  ScoreMod_Tranq    = 1.25f;
+  ScoreMod_Observer = 1.0f;
 
   //multiplayer
   Multiplayer = FALSE;
