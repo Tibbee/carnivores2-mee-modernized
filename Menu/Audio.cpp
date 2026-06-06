@@ -122,23 +122,40 @@ bool MenuAudioInit()
 
 	alDistanceModel(AL_INVERSE_DISTANCE_CLAMPED);
 
-	bool ok = true;
-	ok &= UploadSound(g_MenuAudio.ambientBuffer, g_MenuSound_Ambient);
-	ok &= UploadSound(g_MenuAudio.hoverBuffer, g_MenuSound_Move);
-	ok &= UploadSound(g_MenuAudio.clickBuffer, g_MenuSound_Go);
-	ok &= UploadSound(g_MenuAudio.typeBuffer, g_MenuSound_Type);
-	ok &= UploadSound(g_MenuAudio.typeGoBuffer, g_MenuSound_TypeGo);
+	// Core sounds (required). If any of these fail, the menu is silent.
+	bool coreOk = true;
+	coreOk &= UploadSound(g_MenuAudio.ambientBuffer, g_MenuSound_Ambient);
+	coreOk &= UploadSound(g_MenuAudio.hoverBuffer, g_MenuSound_Move);
+	coreOk &= UploadSound(g_MenuAudio.clickBuffer, g_MenuSound_Go);
 
-	ok &= CreateSource(g_MenuAudio.ambientSource, g_MenuAudio.ambientBuffer, true, 0.85f);
-	ok &= CreateSource(g_MenuAudio.hoverSource, g_MenuAudio.hoverBuffer, false, 0.95f);
-	ok &= CreateSource(g_MenuAudio.clickSource, g_MenuAudio.clickBuffer, false, 1.0f);
-	ok &= CreateSource(g_MenuAudio.typeSource, g_MenuAudio.typeBuffer, false, 0.9f);
-	ok &= CreateSource(g_MenuAudio.typeGoSource, g_MenuAudio.typeGoBuffer, false, 1.0f);
+	coreOk &= CreateSource(g_MenuAudio.ambientSource, g_MenuAudio.ambientBuffer, true, 0.85f);
+	coreOk &= CreateSource(g_MenuAudio.hoverSource, g_MenuAudio.hoverBuffer, false, 0.95f);
+	coreOk &= CreateSource(g_MenuAudio.clickSource, g_MenuAudio.clickBuffer, false, 1.0f);
 
-	if (!ok) {
-		std::cout << "MenuAudio: sound setup failed, audio disabled" << std::endl;
+	if (!coreOk) {
+		std::cout << "MenuAudio: core sound setup failed (ambient/hover/click), audio disabled" << std::endl;
 		MenuAudioShutdown();
 		return false;
+	}
+
+	// Typing sounds (optional). MEE-only assets (type.wav, typego.wav) are not
+	// shipped with stock C2, so a missing file is fine - just no typing feedback.
+	if (UploadSound(g_MenuAudio.typeBuffer, g_MenuSound_Type) &&
+	    CreateSource(g_MenuAudio.typeSource, g_MenuAudio.typeBuffer, false, 0.9f)) {
+		std::cout << "MenuAudio: typing sound (type.wav) loaded" << std::endl;
+	} else {
+		std::cout << "MenuAudio: typing sound unavailable (no type.wav) - typing feedback disabled" << std::endl;
+		DestroyBuffer(g_MenuAudio.typeBuffer);
+		g_MenuAudio.typeBuffer = 0;
+	}
+
+	if (UploadSound(g_MenuAudio.typeGoBuffer, g_MenuSound_TypeGo) &&
+	    CreateSource(g_MenuAudio.typeGoSource, g_MenuAudio.typeGoBuffer, false, 1.0f)) {
+		std::cout << "MenuAudio: typing-go sound (typego.wav) loaded" << std::endl;
+	} else {
+		std::cout << "MenuAudio: typing-go sound unavailable (no typego.wav) - Enter feedback disabled" << std::endl;
+		DestroyBuffer(g_MenuAudio.typeGoBuffer);
+		g_MenuAudio.typeGoBuffer = 0;
 	}
 
 	g_MenuAudio.active = true;
