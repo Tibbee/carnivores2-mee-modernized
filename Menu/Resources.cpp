@@ -607,6 +607,8 @@ void LoadResources()
 	LoadWave(g_MenuSound_Go, "huntdat/soundfx/menugo.wav");
 	LoadWave(g_MenuSound_Ambient, "huntdat/soundfx/menuamb.wav");
 	LoadWave(g_MenuSound_Move, "huntdat/soundfx/menumov.wav");
+	LoadWave(g_MenuSound_Type, "huntdat/soundfx/type.wav");
+	LoadWave(g_MenuSound_TypeGo, "huntdat/soundfx/typego.wav");
 }
 
 

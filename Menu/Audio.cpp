@@ -19,6 +19,12 @@ struct MenuAudioState
 	ALuint clickBuffer = 0;
 	ALuint clickSource = 0;
 
+	ALuint typeBuffer = 0;
+	ALuint typeSource = 0;
+
+	ALuint typeGoBuffer = 0;
+	ALuint typeGoSource = 0;
+
 	bool active = false;
 };
 
@@ -120,10 +126,14 @@ bool MenuAudioInit()
 	ok &= UploadSound(g_MenuAudio.ambientBuffer, g_MenuSound_Ambient);
 	ok &= UploadSound(g_MenuAudio.hoverBuffer, g_MenuSound_Move);
 	ok &= UploadSound(g_MenuAudio.clickBuffer, g_MenuSound_Go);
+	ok &= UploadSound(g_MenuAudio.typeBuffer, g_MenuSound_Type);
+	ok &= UploadSound(g_MenuAudio.typeGoBuffer, g_MenuSound_TypeGo);
 
 	ok &= CreateSource(g_MenuAudio.ambientSource, g_MenuAudio.ambientBuffer, true, 0.85f);
 	ok &= CreateSource(g_MenuAudio.hoverSource, g_MenuAudio.hoverBuffer, false, 0.95f);
 	ok &= CreateSource(g_MenuAudio.clickSource, g_MenuAudio.clickBuffer, false, 1.0f);
+	ok &= CreateSource(g_MenuAudio.typeSource, g_MenuAudio.typeBuffer, false, 0.9f);
+	ok &= CreateSource(g_MenuAudio.typeGoSource, g_MenuAudio.typeGoBuffer, false, 1.0f);
 
 	if (!ok) {
 		std::cout << "MenuAudio: sound setup failed, audio disabled" << std::endl;
@@ -144,6 +154,10 @@ void MenuAudioShutdown()
 		DestroySource(g_MenuAudio.hoverSource);
 	if (g_MenuAudio.clickSource)
 		DestroySource(g_MenuAudio.clickSource);
+	if (g_MenuAudio.typeSource)
+		DestroySource(g_MenuAudio.typeSource);
+	if (g_MenuAudio.typeGoSource)
+		DestroySource(g_MenuAudio.typeGoSource);
 
 	if (g_MenuAudio.ambientBuffer)
 		DestroyBuffer(g_MenuAudio.ambientBuffer);
@@ -151,6 +165,10 @@ void MenuAudioShutdown()
 		DestroyBuffer(g_MenuAudio.hoverBuffer);
 	if (g_MenuAudio.clickBuffer)
 		DestroyBuffer(g_MenuAudio.clickBuffer);
+	if (g_MenuAudio.typeBuffer)
+		DestroyBuffer(g_MenuAudio.typeBuffer);
+	if (g_MenuAudio.typeGoBuffer)
+		DestroyBuffer(g_MenuAudio.typeGoBuffer);
 
 	if (g_MenuAudio.context) {
 		alcMakeContextCurrent(nullptr);
@@ -197,4 +215,20 @@ void MenuAudioPlayClick()
 		return;
 
 	PlaySource(g_MenuAudio.clickSource);
+}
+
+void MenuAudioPlayType()
+{
+	if (!g_MenuAudio.active || !g_MenuAudio.typeSource)
+		return;
+
+	PlaySource(g_MenuAudio.typeSource);
+}
+
+void MenuAudioPlayTypeGo()
+{
+	if (!g_MenuAudio.active || !g_MenuAudio.typeGoSource)
+		return;
+
+	PlaySource(g_MenuAudio.typeGoSource);
 }

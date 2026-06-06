@@ -4,11 +4,10 @@
 #include "OpenAL_Loader.h"
 
 // Matches the original audio DLL channel layout
-#define MAX_CHANNEL 16
-#define MIN_RADIUS  512
+constexpr int MAX_CHANNEL = 16;
+constexpr int MIN_RADIUS  = 512;
 
 struct CHANNEL {
-    int status;        // 0 = free
     ALuint source;
     ALuint buffer;
     short int* lpData;
@@ -40,6 +39,6 @@ extern AMBIENT ambient2;
 extern MAMBIENT mambient;
 
 extern int xCamera, yCamera, zCamera;
-extern float alphaCamera, betaCamera, cosa, sina;
+extern float alphaCamera, betaCamera;
 
 #endif

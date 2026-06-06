@@ -55,7 +55,7 @@ static LegacyAudioEnvFn g_LegacyAudioSetEnvironment = nullptr;
 static LegacyAudioGeomFn g_LegacyAudioUploadGeometry = nullptr;
 
 int   xCamera, yCamera, zCamera;
-float alphaCamera, betaCamera, cosa, sina;
+float alphaCamera, betaCamera;
 
 // For EAX → EFX reverb
 static ALuint g_effect = 0;
@@ -264,7 +264,6 @@ void InitAudioSystem(HWND hw, HANDLE hlog, int driver)
         alSourcef(channel[i].source, AL_ROLLOFF_FACTOR, 0.418f);
         alSourcef(channel[i].source, AL_REFERENCE_DISTANCE, (float)MIN_RADIUS);
         alSourcef(channel[i].source, AL_MAX_DISTANCE, 10000.0f);
-        channel[i].status = 0;
     }
 
     // ── Ambient (non‑positional, looping) ──
@@ -405,7 +404,6 @@ void AudioStop()
     for (int i = 0; i < MAX_CHANNEL; i++) {
         AL_CHECK(alSourceStop(channel[i].source));
         AL_CHECK(alSourcei(channel[i].source, AL_BUFFER, 0));
-        channel[i].status = 0;
         channel[i].lpData = nullptr;
     }
 
@@ -458,8 +456,6 @@ void AudioSetCameraPos(float cx, float cy, float cz, float ca, float cb)
     zCamera = (int)cz;
     alphaCamera = ca;
     betaCamera  = cb;
-    cosa = std::cos(ca);
-    sina = std::sin(ca);
 
     ALfloat pos[] = { cx, cy, cz };
     ALfloat orient[] = {
@@ -606,7 +602,6 @@ void AddVoice3dv(int length, short int* lpdata, float cx, float cy, float cz, in
     channel[idx].z       = cz;
     channel[idx].volume  = vol;
     channel[idx].buffer  = GetBuffer(lpdata, length);
-    channel[idx].status  = 1;
 
     AL_CHECK(alSourcei(channel[idx].source, AL_BUFFER, channel[idx].buffer));
     AL_CHECK(alSourcef(channel[idx].source, AL_GAIN, vol / 256.0f));

@@ -616,6 +616,8 @@ EXTERNAL uint8_t                g_KeyboardState[256];
 EXTERNAL SoundFX				g_MenuSound_Go;
 EXTERNAL SoundFX				g_MenuSound_Ambient;
 EXTERNAL SoundFX				g_MenuSound_Move;
+EXTERNAL SoundFX				g_MenuSound_Type;
+EXTERNAL SoundFX				g_MenuSound_TypeGo;
 
 
 // ======================================================================= //
@@ -681,6 +683,8 @@ void MenuAudioStartAmbient();
 void MenuAudioStopAmbient();
 void MenuAudioPlayHover();
 void MenuAudioPlayClick();
+void MenuAudioPlayType();
+void MenuAudioPlayTypeGo();
 
 
 #ifdef _MAIN_

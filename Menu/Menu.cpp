@@ -1494,6 +1494,7 @@ void MenuEventInput(int32_t menu)
 		if (g_KeyboardState[VK_RETURN] & 128) {
 			g_KeyboardState[VK_LBUTTON] |= 128;
 			id = 1;
+			MenuAudioPlayTypeGo();
 		}
 
 		if (g_KeyboardState[VK_DELETE] & 128) {
@@ -2296,13 +2297,16 @@ void MenuKeyCharEvent(uint16_t wParam)
 {
 	if (g_MenuState == MENU_REGISTER) {
 		if (wParam == 8) {
-			if (!g_TypingBuffer.empty())
+			if (!g_TypingBuffer.empty()) {
 				g_TypingBuffer.pop_back();
+				MenuAudioPlayType();
+			}
 		}
 		else {
 			if (g_TypingBuffer.size() < 19) {
 				if (wParam >= 32 && wParam <= 128) {
 					g_TypingBuffer.push_back(static_cast<char>(wParam));
+					MenuAudioPlayType();
 				}
 			}
 		}
