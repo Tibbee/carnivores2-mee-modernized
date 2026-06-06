@@ -5,9 +5,10 @@ project(Carnivores1)
 cmake_policy(SET CMP0091 NEW)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-# Renderer selection: D3D, SOFT, 3DFX, or GL
-set(RENDERER "D3D" CACHE STRING "Select the renderer: D3D, SOFT, 3DFX, or GL")
-set_property(CACHE RENDERER PROPERTY STRINGS D3D SOFT 3DFX GL)
+# Renderer selection: D3D, SOFT, 3DFX, or GL.
+# Leave empty (unset) to build only the standalone menu executable.
+set(RENDERER "" CACHE STRING "Select the renderer: D3D, SOFT, 3DFX, or GL. Leave empty to build the menu only.")
+set_property(CACHE RENDERER PROPERTY STRINGS D3D SOFT 3DFX GL "")
 
 # Ensure we are targeting 32-bit if using MSVC
 if(MSVC)
@@ -21,7 +22,21 @@ if(MSVC)
     add_definitions(-D_WINSOCK_DEPRECATED_NO_WARNINGS)
     add_definitions(-DWIN32)
 
-    # Renderer specific defines and source management
+    # Fix for some legacy headers and scoping
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /permissive")
+
+    # Enable memory debugging for Debug builds
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        add_definitions(-DMEM_DEBUG)
+    endif()
+endif()
+
+# Renderer-specific source and library configuration. Skipped entirely when
+# RENDERER is empty (menu-only builds).
+set(RENDER_SRC "")
+set(GLIDE_LIBS "")
+
+if(RENDERER)
     if(RENDERER STREQUAL "D3D")
         add_definitions(-D_d3d)
         set(RENDER_SRC
@@ -37,20 +52,20 @@ if(MSVC)
         message(STATUS "Building with Software Renderer")
     elseif(RENDERER STREQUAL "3DFX")
         add_definitions(-D_3dfx)
-        set(RENDER_SRC 
+        set(RENDER_SRC
             Hunt/Render3DFX.cpp
             Hunt/RenderSoft.cpp
         )
-        
+
         # Glide 2.x support
         include_directories(${CMAKE_CURRENT_SOURCE_DIR}/deps/Glide2/include)
         link_directories(${CMAKE_CURRENT_SOURCE_DIR}/deps/Glide2/lib)
         set(GLIDE_LIBS glide2x)
-        
+
         message(STATUS "Building with 3DFX Glide Renderer (using Glide2 folder)")
     elseif(RENDERER STREQUAL "GL")
         add_definitions(-D_gl)
-        set(RENDER_SRC 
+        set(RENDER_SRC
             Hunt/GLRenderer.h
             Hunt/GLRenderer.cpp
             Hunt/GLShader.h
@@ -59,15 +74,11 @@ if(MSVC)
             Hunt/GLUI.cpp
         )
         message(STATUS "Building with OpenGL Renderer")
+    else()
+        message(FATAL_ERROR "Unknown RENDERER='${RENDERER}'. Expected D3D, SOFT, 3DFX, GL, or empty for menu-only builds.")
     endif()
-
-    # Fix for some legacy headers and scoping
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /permissive")
-
-    # Enable memory debugging for Debug builds
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        add_definitions(-DMEM_DEBUG)
-    endif()
+else()
+    message(STATUS "RENDERER is empty - building menu only (no game executable)")
 endif()
 
 # Set C++ Standard
@@ -92,31 +103,33 @@ set(CORE_FILES
     Hunt/AppRes.h
 )
 
-# Menu subdirectory
+# Menu subdirectory (always built - renderer-agnostic)
 add_subdirectory(Menu)
 
-# Game executable (renderer-specific)
-add_executable(Carnivores1 WIN32 ${CORE_FILES} ${RENDER_SRC})
+# Game executable (only when a renderer is selected)
+if(RENDERER)
+    add_executable(Carnivores1 WIN32 ${CORE_FILES} ${RENDER_SRC})
 
-# Include directories
-target_include_directories(Carnivores1 PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/Hunt
-    ${CMAKE_CURRENT_SOURCE_DIR}/deps
-)
+    # Include directories
+    target_include_directories(Carnivores1 PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt
+        ${CMAKE_CURRENT_SOURCE_DIR}/deps
+    )
 
-# Link libraries
-target_link_libraries(Carnivores1 PRIVATE
-    kernel32
-    user32
-    gdi32
-    winmm
-    ddraw
-    opengl32
-    ${GLIDE_LIBS}
-)
+    # Link libraries
+    target_link_libraries(Carnivores1 PRIVATE
+        kernel32
+        user32
+        gdi32
+        winmm
+        ddraw
+        opengl32
+        ${GLIDE_LIBS}
+    )
 
-# Output directory for the executable
-set_target_properties(Carnivores1 PROPERTIES
-    OUTPUT_NAME "Carnivores1_${RENDERER}"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-)
+    # Output directory for the executable
+    set_target_properties(Carnivores1 PROPERTIES
+        OUTPUT_NAME "Carnivores1_${RENDERER}"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
+endif()

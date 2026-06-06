@@ -104,8 +104,7 @@
       "displayName": "Menu (Release)",
       "inherits": "base",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "RENDERER": "D3D"
+        "CMAKE_BUILD_TYPE": "Release"
       }
     }
   ],
