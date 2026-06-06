@@ -933,10 +933,11 @@ void Options::Default()
 	this->KeyMap.fkBinoc = 'B';
 	this->KeyMap.fkCrouch = 'C';
 	this->KeyMap.fkRun = VK_LSHIFT;
-	this->KeyMap.fkUp = VK_UP;
-	this->KeyMap.fkDown = VK_DOWN;
-	this->KeyMap.fkLeft = VK_LEFT;
-	this->KeyMap.fkRight = VK_RIGHT;
+	this->KeyMap.fkReload = 'R';
+	this->KeyMap.fkResupply = 'T';
+	this->KeyMap.fkHoldBreath = VK_LCONTROL;
+	this->KeyMap.fkFiringMode = 'V';
+	this->KeyMap.fkStrafe = 'G'; // Rack / Pump (also used for strafe movement by the MEE engine)
 #ifdef _iceage
 	this->KeyMap.fkSupply = 'O';
 #endif //_iceage

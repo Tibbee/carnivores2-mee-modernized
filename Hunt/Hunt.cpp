@@ -1735,16 +1735,16 @@ void ProcessPlayerMovement()
 //  if (KeyFlags & kfStrafe)
   if (KeyboardState[KeyMap.fkStrafe] & 128) ProcessPump(); 
 
-  //RIGHT - CHANGE FIRING MODE
-  if (KeyboardState[KeyMap.fkRight] & 128) ProcessFireMode();
+  //FIRING MODE
+  if (KeyboardState[KeyMap.fkFiringMode] & 128) ProcessFireMode();
 
-  if (KeyboardState[KeyMap.fkUp] & 128) ProcessReload(); //UP - RELOAD
+  if (KeyboardState[KeyMap.fkReload] & 128) ProcessReload();
 
   //menu option/already used check needed - TODO
-  if (KeyboardState[KeyMap.fkDown] & 128) AddShipSupply(PlayerX,PlayerZ); //DOWN - RESUPPLY
+  if (KeyboardState[KeyMap.fkResupply] & 128) AddShipSupply(PlayerX,PlayerZ);
 
   if (Weapon.state) {
-	  if (KeyboardState[KeyMap.fkLeft] & 128 && !UNDERWATER) { //LEFT - HOLD BREATH
+	  if (KeyboardState[KeyMap.fkHoldBreath] & 128 && !UNDERWATER) {
 		  if (Weapon.breathPressed == 0) {
 			  AddVoicev(fxBreathIn.length, fxBreathIn.lpData, 256);
 			  Weapon.breathPressed = 1;
@@ -1989,8 +1989,8 @@ void ProcessControls()
   GetKeyboardState(KeyboardState);
 
   
-  if (KeyboardState[KeyMap.fkUp] & 128)  KeyFlags += kfLookUp;
-  if (KeyboardState[KeyMap.fkDown] & 128)  KeyFlags += kfLookDn;
+  if (KeyboardState[KeyMap.fkReload] & 128)  KeyFlags += kfLookUp;
+  if (KeyboardState[KeyMap.fkResupply] & 128)  KeyFlags += kfLookDn;
 
   if (!SurvivalMode) {
     if (KeyboardState [KeyMap.fkStrafe] & 128) KeyFlags+=kfStrafe;

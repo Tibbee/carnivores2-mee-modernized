@@ -1448,7 +1448,7 @@ _EXTORNOT   Vector3d  nv, waterclipbase, Sun3dPos;
 
 _EXTORNOT   struct _t
 {
-  int fkForward, fkBackward, fkUp, fkDown, fkLeft, fkRight, fkFire, fkShow, fkSLeft, fkSRight, fkStrafe, fkJump, fkRun, fkCrouch, fkCall, fkCCall, fkBinoc;
+  int fkForward, fkBackward, fkReload, fkResupply, fkHoldBreath, fkFiringMode, fkFire, fkShow, fkSLeft, fkSRight, fkStrafe, fkJump, fkRun, fkCrouch, fkCall, fkCCall, fkBinoc;
 } KeyMap;
 
 

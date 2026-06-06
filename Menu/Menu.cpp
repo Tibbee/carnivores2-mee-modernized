@@ -438,15 +438,15 @@ void InitInterface()
 	MenuOptions[m].Count = 0;
 	MenuOptions[m].AddItem("Forward");
 	MenuOptions[m].AddItem("Backward");
-	MenuOptions[m].AddItem("Turn Up");
-	MenuOptions[m].AddItem("Turn Down");
-	MenuOptions[m].AddItem("Turn Left");
-	MenuOptions[m].AddItem("Turn Right");
+	MenuOptions[m].AddItem("Reload");
+	MenuOptions[m].AddItem("Resupply");
+	MenuOptions[m].AddItem("Hold Breath");
+	MenuOptions[m].AddItem("Firing Mode");
 	MenuOptions[m].AddItem("Fire");
 	MenuOptions[m].AddItem("Draw Weapon");
 	MenuOptions[m].AddItem("Step Left");
 	MenuOptions[m].AddItem("Step Right");
-	MenuOptions[m].AddItem("Strafe");
+	MenuOptions[m].AddItem("Rack");
 	MenuOptions[m].AddItem("Jump");
 	MenuOptions[m].AddItem("Run");
 	MenuOptions[m].AddItem("Crouch");
@@ -2087,7 +2087,7 @@ void MenuEventInput(int32_t menu)
 			WaitForMouseRelease();
 			MenuAudioPlayClick();
 
-			if (id == 1)      PostQuitMessage(0);
+			if (id == 1)      RequestMenuExit(0);
 			else if (id == 2) ChangeMenuState(MENU_MAIN);
 		}
 	}
