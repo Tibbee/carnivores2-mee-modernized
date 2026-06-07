@@ -1707,8 +1707,12 @@ void MenuEventInput(int32_t menu)
 							if (mo.Hilite == 1) // Resolution
 							{
 								WaitForMouseRelease();
+								// Cycle through the dynamic list. g_ResCount is
+								// rebuilt by EnumerateResolutions() at menu startup.
+								// Clamp at g_ResCount (g_ResolutionList[] length) instead
+								// of the old fixed RES_MAX=8.
 								g_Options.Resolution++;
-								if (g_Options.Resolution == RES_MAX)
+								if (g_Options.Resolution >= g_ResCount)
 									g_Options.Resolution = 0;
 							}
 							else if (mo.Hilite == 2) // Shadows
@@ -2180,16 +2184,16 @@ void DrawMenuOptions()
 
 		if (i == 0) DrawTextShadow(x1, y0, st_RenText[g_Options.RenderAPI], value_c, DTA_RIGHT);
 		else if (i == 1) {
-			switch (g_Options.Resolution) {
-			case 0: DrawTextShadow(x1, y0, "320 x 240", value_c, DTA_RIGHT); break;
-			case 1: DrawTextShadow(x1, y0, "400 x 300", value_c, DTA_RIGHT); break;
-			case 2: DrawTextShadow(x1, y0, "512 x 384", value_c, DTA_RIGHT); break;
-			case 3: DrawTextShadow(x1, y0, "640 x 480", value_c, DTA_RIGHT); break;
-			case 4: DrawTextShadow(x1, y0, "800 x 600", value_c, DTA_RIGHT); break;
-			case 5: DrawTextShadow(x1, y0, "1024 x 768", value_c, DTA_RIGHT); break;
-			case 6: DrawTextShadow(x1, y0, "1280 x 1024", value_c, DTA_RIGHT); break;
-			case 7: DrawTextShadow(x1, y0, "1600 x 1200", value_c, DTA_RIGHT); break;
-			}
+			// Render the selected resolution from g_ResolutionList[]. The list
+			// is built by EnumerateResolutions() at menu startup, so any mode
+			// the display supports can be shown. Clamp the index defensively
+			// in case the saved value is out of range (e.g., a profile from a
+			// 1920x1080 display loaded on a 1366x768 one).
+			int idx = g_Options.Resolution;
+			if (idx < 0 || idx >= g_ResCount) idx = 0;
+			static char resStr[32];
+			sprintf(resStr, "%d x %d", g_ResolutionList[idx].w, g_ResolutionList[idx].h);
+			DrawTextShadow(x1, y0, resStr, value_c, DTA_RIGHT);
 		}
 		else if (i == 2) DrawTextShadow(x1, y0, st_BoolText[g_Options.Shadows], value_c, DTA_RIGHT);
 		else if (i == 3) DrawTextShadow(x1, y0, st_BoolText[g_Options.Fog], value_c, DTA_RIGHT);

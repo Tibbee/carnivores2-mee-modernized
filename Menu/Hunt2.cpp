@@ -306,6 +306,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 		LoadResourcesScript();
 		LoadResources();
 
+		// Build the dynamic resolution list (queried from the display) and
+		// clamp the saved profile's Resolution index to the new list. Must
+		// come after LoadResources() so g_Options.Resolution has been read
+		// from the profile, but before any menu that lets the user pick a
+		// resolution.
+		EnumerateResolutions();
+		if (g_Options.Resolution < 0 || g_Options.Resolution >= g_ResCount) {
+			// Out of range (e.g., profile from a bigger display). Fall back
+			// to the first 800x600 entry, matching the render exe's behavior.
+			g_Options.Resolution = 0;
+			for (int r = 0; r < g_ResCount; r++) {
+				if (g_ResolutionList[r].w == 800 && g_ResolutionList[r].h == 600) {
+					g_Options.Resolution = r;
+					break;
+				}
+			}
+		}
+
 		MenuAudioInit();
 
 		// -- Message Loop

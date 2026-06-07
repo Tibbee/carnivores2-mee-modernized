@@ -67,6 +67,15 @@ enum AIIndexEnum
 	AI_TREX = 18
 };
 
+// ResolutionsEnum is kept as a documentation/legacy reference only.
+// The actual resolution list is built at runtime by EnumerateResolutions()
+// and stored in g_ResolutionList[]. The menu and the render exe agree on
+// the same dynamic-list semantics: g_Options.Resolution is an index into
+// g_ResolutionList[], not a constant from this enum.
+//
+// Historical values (kept here for reference when reading older profiles):
+//   0=320x240, 1=400x300, 2=512x384, 3=640x480, 4=800x600, 5=1024x768,
+//   6=1280x1024, 7=1600x1200.
 enum ResolutionsEnum
 {
 	RES_320x240 = 0,
@@ -77,8 +86,19 @@ enum ResolutionsEnum
 	RES_1024x768 = 5,
 	RES_1280x1024 = 6,
 	RES_1600x1200 = 7,
-	RES_MAX
+	RES_MAX = 128   // matches g_ResolutionList[] capacity
 };
+
+// Resolution entry populated by EnumerateResolutions().
+struct TRes
+{
+	int w, h;
+};
+
+extern TRes g_ResolutionList[128];
+extern int  g_ResCount;
+
+void EnumerateResolutions();
 /*
 if (!HARD3D && OptRes > 5) { OptRes = 0; }
 if (OptRes==0) { WinW = 320; WinH=240; }

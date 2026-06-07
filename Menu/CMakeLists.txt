@@ -7,6 +7,7 @@ set(MENU_SOURCES
     Audio.cpp
     Resources.cpp
     GUI.cpp
+    Resolutions.cpp
     Targa.h
     Hunt.h
     resource.h
