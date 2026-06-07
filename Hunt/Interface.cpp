@@ -214,8 +214,16 @@ void SetVideoMode(int W, int H)
   VideoCX = WinW / 2;
   VideoCY = WinH / 2;
 
-  CameraW = (float)VideoCX*1.25f;
-  CameraH = CameraW * (WinH * 1.3333f / WinW);
+  // Vertical FOV is the fundamental projection parameter. CameraH is
+  // derived from VideoCY and the user-selected FOV (OptFov, in degrees).
+  // CameraW is set equal to CameraH to keep square pixels: a square in
+  // world-space appears square on screen regardless of aspect ratio.
+  // The horizontal FOV then widens automatically as WinW/WinH grows
+  // (e.g. ~80 deg at 4:3, ~120 deg at 16:9 with OptFov=62). This is
+  // the same approach C1 uses and it avoids the horizontal stretching
+  // that the old 4:3-hardcoded formula produced on 16:9 displays.
+  CameraH = (float)VideoCY * FovScaleFromDegrees(OptFov);
+  CameraW = CameraH;
 
   // Reallocate the back-buffer DIB to match the new WinW/WinH so the
   // GDI pitch matches the runtime VideoPitchB. Required for widescreen

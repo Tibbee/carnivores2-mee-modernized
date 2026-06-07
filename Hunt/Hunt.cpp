@@ -2217,9 +2217,18 @@ SKIPYMOVE:
   if (UNDERWATER)
   {
 	  if (MyHealth) {
-		CameraW = (float)VideoCX*(1.25f + (1.f + (float)cos(RealTime / 180.f)) / 30 + (1.f - (float)sin(UnderWaterT / 512.f*pi / 2)) / 1.5f);
-		CameraH = (float)VideoCX*(1.25f + (1.f + (float)sin(RealTime / 180.f)) / 30 - (1.f - (float)sin(UnderWaterT / 512.f*pi / 2)) / 16.f);
-		CameraH *= (WinH*1.3333f / WinW);
+		// Underwater camera has a wobble + dive-recovery effect. The base
+		// FovScaleFromDegrees(OptFov) is the same as the above-water case
+		// (drives vertical FOV) and the wobble terms add to it. C1 uses
+		// VideoCY for the base too, so the underwater H-FOV matches
+		// above-water H-FOV (i.e. the wobble affects both axes equally).
+		CameraH = (float)VideoCY * (FovScaleFromDegrees(OptFov) + (1.f + (float)sin(RealTime / 180.f)) / 30 - (1.f - (float)sin(UnderWaterT / 512.f*pi / 2)) / 16.f);
+		CameraW = (float)VideoCY * (FovScaleFromDegrees(OptFov) + (1.f + (float)cos(RealTime / 180.f)) / 30 + (1.f - (float)sin(UnderWaterT / 512.f*pi / 2)) / 1.5f);
+		// Keep square pixels (see SetVideoMode comment).
+		// The old C2 ME code dropped the *1.25f from C1 and used
+		// VideoCX (a horizontal term) which made the underwater effect
+		// aspect-dependent in confusing ways. Mirroring C1's structure
+		// here keeps the underwater camera consistent across resolutions.
 
 		CameraAlpha += (float)cos(RealTime / 360.f) / 120;
 		CameraBeta += (float)sin(RealTime / 360.f) / 100;
@@ -2232,8 +2241,13 @@ SKIPYMOVE:
   }
   else
   {
-    CameraW = (float)VideoCX*1.25f;
-    CameraH = CameraW * (WinH*1.3333f / WinW);
+    // See Interface.cpp:SetVideoMode for why we use VideoCY (not
+    // VideoCX) and FovScaleFromDegrees(OptFov) here. Matches the
+    // SetVideoMode() formula so the per-frame camera matches the
+    // startup camera, with no drift between SetVideoMode and the
+    // per-frame reset.
+    CameraH = (float)VideoCY * FovScaleFromDegrees(OptFov);
+    CameraW = CameraH;
   }
 
 
@@ -2248,7 +2262,15 @@ SKIPYMOVE:
 	  CameraH *= WeapInfo[CurrentWeapon].Optic;
   }
 
-  FOVK =  CameraW / (VideoCX*1.25f);
+  // FOVK is a frustum-cull coefficient used by the renderer (e.g.
+  // RenderSoft.cpp: `if (fabs(xx*FOVK) > -zz + BackR) return;`). The
+  // correct coefficient for the new projection is CameraW/VideoCX:
+  // solving `|xx| * FOVK = -zz` for the screen edge gives
+  // FOVK = CameraW/VideoCX. The old `CameraW / (VideoCX*1.25f)` was
+  // tied to the previous CameraW = VideoCX*1.25f formula and gave
+  // FOVK = 1.0 at 4:3; the new projection is calibrated by V-FOV
+  // instead, so the 1.25f no longer applies.
+  FOVK = CameraW / (float)VideoCX;
 
   InitClips();
 

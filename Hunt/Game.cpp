@@ -1661,6 +1661,18 @@ void InitEngine()
   // resolution table to apply.
   EnumerateResolutions();
 
+  // OptFov is the vertical field-of-view in degrees, range [kFovMin,
+  // kFovMax]. It drives CameraH = VideoCY * FovScaleFromDegrees(OptFov)
+  // in SetVideoMode() and the per-frame camera setup in Hunt.cpp. The
+  // default is set unconditionally here because the global is otherwise
+  // uninitialized (0 would make FovScaleFromDegrees divide by zero).
+  // LoadTrophy() does not yet persist OptFov in C2 ME — that lands with
+  // the FOV slider UI work — so any value the menu writes (currently
+  // none) is overwritten by this default on every launch. When the
+  // FOV-save work lands, the disk read in LoadTrophy will overwrite
+  // this default if the profile has a valid value.
+  OptFov = kFovDefault;
+
   LoadTrophy();
 
   // CreateVideoDIB() must come after LoadTrophy() so WinW/WinH are set
