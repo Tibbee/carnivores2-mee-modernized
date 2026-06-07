@@ -1681,6 +1681,8 @@ void CopyHARDToDIB();
 void Hardware_ZBuffer(BOOL zb);
 void AllocateRenderTables(void);
 
+void EnumerateResolutions();
+
 //=========== loading =============
 void StartLoading();
 void EndLoading();

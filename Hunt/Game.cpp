@@ -97,47 +97,65 @@ void UploadGeometry()
 
 void SetupRes()
 {
-  if (!HARD3D)
-    if (OptRes>5) OptRes=5;
-  if (OptRes==0)
-  {
-    WinW = 320;
-    WinH=240;
-  }
-  if (OptRes==1)
-  {
-    WinW = 400;
-    WinH=300;
-  }
-  if (OptRes==2)
-  {
-    WinW = 512;
-    WinH=384;
-  }
-  if (OptRes==3)
-  {
-    WinW = 640;
-    WinH=480;
-  }
-  if (OptRes==4)
-  {
+  // OptRes is an index into ResolutionList[]. Fall back to the first
+  // 800x600 entry (or 0) if the saved index is out of range.
+  if (ResCount <= 0) {
     WinW = 800;
-    WinH=600;
+    WinH = 600;
+    return;
   }
-  if (OptRes==5)
-  {
-    WinW =1024;
-    WinH=768;
+  if (OptRes < 0 || OptRes >= ResCount) {
+    OptRes = 0;
+    for (int r = 0; r < ResCount; r++) {
+      if (ResolutionList[r].w == 800 && ResolutionList[r].h == 600) {
+        OptRes = r;
+        break;
+      }
+    }
   }
-  if (OptRes==6)
-  {
-    WinW =1280;
-    WinH=1024;
+  WinW = ResolutionList[OptRes].w;
+  WinH = ResolutionList[OptRes].h;
+}
+
+void EnumerateResolutions()
+{
+  // Populate ResolutionList[] from the display's available modes.
+  // Replaces the old hardcoded 8-entry table in SetupRes(). The list
+  // is built at startup, deduplicated, and capped at 128 entries.
+  // 16-bit minimum (matches the DIB depth in CreateVideoDIB).
+  ResCount = 0;
+  DEVMODE dm;
+  ZeroMemory(&dm, sizeof(dm));
+  dm.dmSize = sizeof(dm);
+  for (int i = 0; EnumDisplaySettings(NULL, i, &dm); i++) {
+    if (dm.dmBitsPerPel < 16) continue;
+    // Skip modes wider/taller than the desktop's current area. Going
+    // larger than the monitor can show will silently fail at SetVideoMode
+    // time and look worse than the lowest-available mode.
+    if (dm.dmPelsWidth  > GetSystemMetrics(SM_CXSCREEN) ||
+        dm.dmPelsHeight > GetSystemMetrics(SM_CYSCREEN))
+      continue;
+
+    BOOL found = FALSE;
+    for (int r = 0; r < ResCount; r++) {
+      if (ResolutionList[r].w == dm.dmPelsWidth &&
+          ResolutionList[r].h == dm.dmPelsHeight) {
+        found = TRUE;
+        break;
+      }
+    }
+    if (!found) {
+      ResolutionList[ResCount].w = dm.dmPelsWidth;
+      ResolutionList[ResCount].h = dm.dmPelsHeight;
+      ResCount++;
+      if (ResCount >= 128) break;
+    }
   }
-  if (OptRes==7)
-  {
-    WinW =1600;
-    WinH=1200;
+  // Guarantee at least one entry: 800x600 (the historical default).
+  if (ResCount == 0) {
+    ResolutionList[0].w = 800;
+    ResolutionList[0].h = 600;
+    ResCount = 1;
   }
 }
 
@@ -1612,6 +1630,13 @@ void InitEngine()
     Sun3dPos.z = + 3048;
     break;
   }
+
+  // EnumerateResolutions() must come before LoadTrophy() so SetupRes()
+  // (called inside LoadTrophy via ReadFile -> SetupRes) can use
+  // ResolutionList[] to translate the saved OptRes index into a real
+  // WinW/WinH. If we enumerated after, LoadTrophy would have no
+  // resolution table to apply.
+  EnumerateResolutions();
 
   LoadTrophy();
 
