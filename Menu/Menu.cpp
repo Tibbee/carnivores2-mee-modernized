@@ -472,6 +472,7 @@ void InitInterface()
 	MenuOptions[m].AddItem("Textures");
 	MenuOptions[m].AddItem("Alpha Source");
 	MenuOptions[m].AddItem("Brightness");
+	MenuOptions[m].AddItem("Field of View");
 	MenuOptions[m].Rect = { 40, 350, 380, 350 + static_cast<long>(MenuOptions[2].Count * 24) };
 
 	/************************************************************
@@ -1741,6 +1742,14 @@ void MenuEventInput(int32_t menu)
 							{
 								g_Options.Brightness = (int)(v * 255.f);
 							}
+							else if (mo.Hilite == 7) // Field of View
+							{
+								int fov = kFovMin + (int)(v * (float)(kFovMax - kFovMin));
+								fov = kFovMin + ((fov - kFovMin) / kFovStep) * kFovStep;
+								if (fov < kFovMin) fov = kFovMin;
+								if (fov > kFovMax) fov = kFovMax;
+								g_Options.FOV = fov;
+							}
 						}
 					}
 				}
@@ -2200,6 +2209,13 @@ void DrawMenuOptions()
 		else if (i == 4) DrawTextShadow(x1, y0, st_TextureText[g_Options.Textures], value_c, DTA_RIGHT);
 		else if (i == 5) DrawTextShadow(x1, y0, st_AlphaKeyText[g_Options.AlphaColorKey], value_c, DTA_RIGHT);
 		else if (i == 6) DrawSliderBar(x1 - tbw, y0 + 12, tbw, (float)g_Options.Brightness / 255.0f, label_c);
+		else if (i == 7) {
+			float t = (float)(g_Options.FOV - kFovMin) / (float)(kFovMax - kFovMin);
+			DrawSliderBar(x1 - tbw, y0 + 12, tbw, t, label_c);
+			static char fovStr[16];
+			sprintf(fovStr, "%d", g_Options.FOV);
+			DrawTextShadow(x1 - tbw - 30, y0, fovStr, value_c, DTA_RIGHT);
+		}
 	}
 
 	InterfaceSetFont(NULL);

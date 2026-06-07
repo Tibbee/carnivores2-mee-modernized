@@ -1025,7 +1025,15 @@ void TrophyLoad(Profile& profile, int pr)
 	fs.read((char*)&g_Options.RenderAPI, 4);
 	g_Options.SoundAPI = NormalizeAudioBackend(g_Options.SoundAPI);
 
-	// Append any data you want, the original games do not check the file size and stop reading at this point
+	// FOV was appended in the FOV-slider port. Pre-existing saves
+	// without this field are handled by the size check below.
+	if (fs.tellg() + static_cast<std::streamoff>(sizeof(int32_t)) <= file_size) {
+		fs.read((char*)&g_Options.FOV, 4);
+		if (g_Options.FOV < kFovMin || g_Options.FOV > kFovMax)
+			g_Options.FOV = kFovDefault;
+	} else {
+		g_Options.FOV = kFovDefault;
+	}
 
 	//Temporary:
 	int r = profile.Rank;
@@ -1085,12 +1093,8 @@ void TrophySave(Profile& profile)
 	fs.write((char*)&g_Options.OptSys, 4);
 	fs.write((char*)&g_Options.SoundAPI, 4);
 	fs.write((char*)&g_Options.RenderAPI, 4);
-
-	/*
-	You can append any data you want to once you remove the check for file size I added,
-	in the TrophyLoad(...) function.
-	The original games do not check the file size and stop reading at this point
-	*/
+	// FOV is appended at the end so old saves (no FOV) stay readable.
+	fs.write((char*)&g_Options.FOV, 4);
 
 	std::cout << "Profile Saved." << std::endl;
 }
@@ -1259,6 +1263,7 @@ void Options::Default()
 	this->Shadows = true;
 	this->MouseSensitivity = 128;
 	this->Brightness = 128;
+	this->FOV = kFovDefault;
 	// -- Set default controls
 	this->KeyMap.fkForward = 'W';
 	this->KeyMap.fkBackward = 'S';

@@ -24,6 +24,13 @@
 
 #include "Version.h"
 
+// Field of view (vertical, degrees) — modder-editable range
+// Kept in sync with Hunt/Hunt.h's kFov* defines.
+#define kFovMin      50
+#define kFovMax      90
+#define kFovStep     2
+#define kFovDefault  62
+
 #ifdef _MAIN_
 #	define EXTERNAL
 #else
@@ -512,6 +519,7 @@ public:
 	int32_t Textures;
 	int32_t ViewRange;
 	int32_t Brightness;
+	int32_t FOV; // Vertical FOV in degrees, [kFovMin..kFovMax]
 	int32_t AlphaColorKey;
 	int32_t RenderAPI; // The Render API/Version to use
 	bool Fog; // Render volumetric fog
