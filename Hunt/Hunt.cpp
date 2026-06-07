@@ -2159,10 +2159,18 @@ SKIPYMOVE:
 
   if (CLIP3D)
   {
-    if (sb<0) BackViewR = 320.f - 1024.f * sb;
-    else BackViewR = 320.f + 512.f * sb;
-    BackViewRR = 380 + (int)(1024 * fabs(sb));
-    if (UNDERWATER) BackViewR -= 512.f * (float)MIN(0,sb);
+    // Scale the cull distance by the aspect ratio so terrain triangles
+    // at the screen edges aren't culled on widescreen displays. At 4:3
+    // aspectScale=1.0 (no change vs the legacy hardcoded values); at
+    // 16:9 it's 1.333, at 21:9 it's 1.75. Floor at 1.0 so a taller
+    // screen never shrinks the cull distance. C1 has the same logic
+    // here and at the binocular near-model site in InsertModelList.
+    float aspectScale = ((float)WinW / (float)WinH) / (4.0f / 3.0f);
+    if (aspectScale < 1.0f) aspectScale = 1.0f;
+    if (sb<0) BackViewR = (320.f - 1024.f * sb) * aspectScale;
+    else BackViewR = (320.f + 512.f * sb) * aspectScale;
+    BackViewRR = (int)((380 + (int)(1024 * fabs(sb))) * aspectScale);
+    if (UNDERWATER) BackViewR -= 512.f * (float)MIN(0,sb) * aspectScale;
   }
   else
   {
