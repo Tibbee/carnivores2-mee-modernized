@@ -53,6 +53,19 @@
 #define pi 3.1415926535f
 #define ctMapSize 1024
 
+// Field of view (vertical, degrees) — modder-editable range
+#define kFovMin      50
+#define kFovMax      90
+#define kFovStep     2
+#define kFovDefault  62
+
+// 1.0 / tan(deg * pi / 360) — used to scale the vertical view so the
+// scene keeps its angular size when the FOV option changes.
+inline float FovScaleFromDegrees(int fovDeg)
+{
+	return 1.0f / tanf((float)fovDeg * pi / 360.0f);
+}
+
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
@@ -95,6 +108,11 @@ typedef struct _TRD
   int  RNumber, RVolume, RFreq;
   WORD REnvir, Flags;
 } TRD;
+
+typedef struct _TRes
+{
+  int w, h;
+} TRes;
 
 typedef struct _TAmbient
 {
@@ -1411,7 +1429,7 @@ _EXTORNOT   void* lpVideoRAM;
 _EXTORNOT   LPDIRECTDRAWSURFACE lpddsPrimary;
 _EXTORNOT   BOOL DirectActive, RestartMode;
 _EXTORNOT   BOOL LoDetailSky;
-_EXTORNOT   int  WinW,WinH,WinEX,WinEY,VideoCX,VideoCY,iBytesPerLine,ts,r,MapMinY;
+_EXTORNOT   int  WinW,WinH,WinEX,WinEY,VideoCX,VideoCY,VideoPitch,VideoPitchB,iBytesPerLine,ts,r,MapMinY;
 _EXTORNOT   float CameraW,CameraH,Soft_Persp_K, stepdy, stepdd, SunShadowK, FOVK;
 _EXTORNOT   CLIPPLANE ClipA,ClipB,ClipC,ClipD,ClipZ,ClipW;
 _EXTORNOT   int u,vused, CCX, CCY;
@@ -1600,6 +1618,9 @@ _EXTORNOT int  CameraFogI;
 _EXTORNOT int OptDayNight, OptAgres, OptDens, OptSens, OptRes, OptViewR,
           OptMsSens, OptBrightness, OptSound, OptRender,
           OptText, OptSys, WaitKey, OPT_ALPHA_COLORKEY;
+_EXTORNOT int  OptFov;
+_EXTORNOT int  CurRes, ResCount;
+_EXTORNOT TRes ResolutionList[128];
 _EXTORNOT BOOL SHADOWS3D,REVERSEMS;
 
 _EXTORNOT BOOL SLOW, DEBUG, MORPHP, MORPHA;
