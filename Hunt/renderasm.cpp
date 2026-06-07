@@ -101,7 +101,7 @@ void HLineTDGlass50( void )
     {
       mov      edi, Y1
       mov    esi,xa16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -185,7 +185,7 @@ void HLineTDGlass50( void )
     {
       mov      edi, Y1
       mov    esi,xb16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -309,7 +309,7 @@ void HLineTDGlass25( void )
     {
       mov      edi, Y1
       mov    esi,xa16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -393,7 +393,7 @@ void HLineTDGlass25( void )
     {
       mov      edi, Y1
       mov    esi,xb16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -517,7 +517,7 @@ void HLineTDGlass75( void )
     {
       mov      edi, Y1
       mov    esi,xa16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -600,7 +600,7 @@ void HLineTDGlass75( void )
     {
       mov      edi, Y1
       mov    esi,xb16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -732,7 +732,7 @@ void HLineTBGlass25( void )
     {
       mov      edi, Y1
       mov    esi,xa16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -815,7 +815,7 @@ void HLineTBGlass25( void )
     {
       mov      edi, Y1
       mov    esi,xb16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -962,7 +962,7 @@ void HLineTxGOURAUD( void )
     {
       mov      edi, Y1
       mov    esi,xa16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -1055,7 +1055,7 @@ void HLineTxGOURAUD( void )
     {
       mov      edi, Y1
       mov    esi,xb16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -1190,7 +1190,7 @@ void HLineTxB( void )
     {
       mov      edi, Y1
       mov    esi,xa16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -1282,7 +1282,7 @@ void HLineTxB( void )
     {
       mov      edi, Y1
       mov    esi,xb16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -1422,7 +1422,7 @@ void HLineTxC( void )
     {
       mov      edi, Y1
       mov    esi,xa16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -1511,7 +1511,7 @@ void HLineTxC( void )
     {
       mov      edi, Y1
       mov    esi,xb16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -1631,7 +1631,7 @@ void HLineTxModel( void )
     {
       mov      edi, Y1
       mov    esi,xa16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -1711,7 +1711,7 @@ void HLineTxModel( void )
     {
       mov      edi, Y1
       mov    esi,xb16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -1896,7 +1896,7 @@ void HLineTxModel2( void )
     {
       mov      edi, Y1
       mov    esi,xa16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -1976,7 +1976,7 @@ void HLineTxModel2( void )
     {
       mov      edi, Y1
       mov    esi,xb16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -2126,7 +2126,7 @@ void HLineTxModel3( void )
     {
       mov      edi, Y1
       mov    esi,xa16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -2206,7 +2206,7 @@ void HLineTxModel3( void )
     {
       mov      edi, Y1
       mov    esi,xb16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -2343,7 +2343,7 @@ void HLineTxModelBMP( void )
 
     mov      edi, Y1
     mov    esi,xa16
-    shl      edi, 11
+    imul     edi, VideoPitchB
     lea    esi,[esi*2]
     add      edi, lpVideoBuf
 
@@ -2463,7 +2463,7 @@ void HLineTxModel25( void )
     {
       mov      edi, Y1
       mov    esi,xa16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -2545,7 +2545,7 @@ void HLineTxModel25( void )
     {
       mov      edi, Y1
       mov    esi,xb16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -2676,7 +2676,7 @@ void HLineTxModel50( void )
     {
       mov      edi, Y1
       mov    esi,xa16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -2758,7 +2758,7 @@ void HLineTxModel50( void )
     {
       mov      edi, Y1
       mov    esi,xb16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -2890,7 +2890,7 @@ void HLineTxModel75( void )
     {
       mov      edi, Y1
       mov    esi,xa16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -2972,7 +2972,7 @@ void HLineTxModel75( void )
     {
       mov      edi, Y1
       mov    esi,xb16
-      shl      edi, 11
+      imul     edi, VideoPitchB
       lea    esi,[esi*2]
       add      edi, lpVideoBuf
 
@@ -4164,7 +4164,7 @@ void RenderSkyLine(int y)
 
     mov ecx,WinW
     mov edi,y
-    shl edi,11
+    imul     edi, VideoPitchB
     add edi,lpVideoBuf
 
     push ebp
@@ -4209,7 +4209,7 @@ void RenderSkyLineLo(int y)
     mov ecx,WinW
     shr ecx,1
     mov edi,y
-    shl edi,11
+    imul     edi, VideoPitchB
     add edi,lpVideoBuf
 
     push ebp
@@ -4257,7 +4257,7 @@ void RenderSkyLineFadeLo(int y, int FadeLevel)
     mov ecx,WinW
     shr ecx,1
     mov edi,y
-    shl edi,11
+    imul     edi, VideoPitchB
     add edi,lpVideoBuf
 
     mov eax,FadeLevel
@@ -4308,7 +4308,7 @@ void RenderSkyLineFade(int y, int FadeLevel)
 
     mov ecx,WinW
     mov edi,y
-    shl edi,11
+    imul     edi, VideoPitchB
     add edi,lpVideoBuf
 
     mov eax,FadeLevel
