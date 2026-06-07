@@ -2707,7 +2707,7 @@ void DrawPicture(int x, int y, TPicture &pic)
 {
   for (int yy=0; yy<pic.H; yy++)
     if ( (yy+y>=0) && (yy+y < WinH) )
-      memcpy( (WORD*)lpVideoBuf + ((yy+y)<<10) + x,
+      memcpy( (WORD*)lpVideoBuf + ((yy+y)*VideoPitch) + x,
               pic.lpImage + yy*pic.W,
               pic.W<<1);
 }
@@ -2716,7 +2716,7 @@ void DrawFlash(int x, int y, int w, int h, TPicture &pic)
 {
 	for (int yy = 0; yy < h; yy++)
 		if ((yy + y >= 0) && (yy + y < WinH))
-			memcpy((WORD*)lpVideoBuf + ((yy + y) << 10) + x,
+			memcpy((WORD*)lpVideoBuf + ((yy + y) *VideoPitch) + x,
 				pic.lpImage + yy * pic.W,
 				w << 1);
 }
@@ -2728,7 +2728,7 @@ void ClearVideoBuf()
 
   for(int y=0; y<WinH; y++)
   {
-    _FillMemoryWord( (int)lpVideoBuf + y*2048, WinW*2, w);
+    _FillMemoryWord( (int)lpVideoBuf + y*VideoPitchB, WinW*2, w);
   }
 }
 
@@ -2740,7 +2740,7 @@ int CircleCX, CircleCY;
 void PutPixel(int x, int y)
 {
   if (y<0 || y>=WinH) return;
-  *((WORD*)lpVideoBuf + (y<<10) + x) = 18<<5;
+  *((WORD*)lpVideoBuf + (y*VideoPitch) + x) = 18<<5;
 }
 
 void Put8pix(int X,int Y)
@@ -2779,31 +2779,31 @@ void DrawCircle(int cx, int cy, int R)
 
 void DrawBoxMystery(WORD *lfbPtr, int xx, int yy, WORD c)
 {
-	*((WORD*)lpVideoBuf + yy * 1024 + xx + 1) = c;
-	*((WORD*)lpVideoBuf + yy * 1024 + xx + 2) = c;
+	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 1) = c;
+	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 2) = c;
 	yy++;
-	*((WORD*)lpVideoBuf + yy * 1024 + xx + 1) = c;
+	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 1) = c;
 	yy+=2;
-	*((WORD*)lpVideoBuf + yy * 1024 + xx + 1) = c;
+	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 1) = c;
 	yy -= 4;
-	*((WORD*)lpVideoBuf + yy * 1024 + xx + 3) = c;
+	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 3) = c;
 	yy --;
-	*((WORD*)lpVideoBuf + yy * 1024 + xx) = c;
-	*((WORD*)lpVideoBuf + yy * 1024 + xx + 3) = c;
+	*((WORD*)lpVideoBuf + yy *VideoPitch + xx) = c;
+	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 3) = c;
 	yy--;
-	*((WORD*)lpVideoBuf + yy * 1024 + xx + 1) = c;
-	*((WORD*)lpVideoBuf + yy * 1024 + xx + 2) = c;
+	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 1) = c;
+	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 2) = c;
 }
 
 
 
 void DrawBox(WORD *lfbPtr, int xx, int yy, WORD c)
 {
-	*((WORD*)lpVideoBuf + yy * 1024 + xx) = c;
-	*((WORD*)lpVideoBuf + yy * 1024 + xx + 1) = c;
+	*((WORD*)lpVideoBuf + yy *VideoPitch + xx) = c;
+	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 1) = c;
 	yy++;
-	*((WORD*)lpVideoBuf + yy * 1024 + xx) = c;
-	*((WORD*)lpVideoBuf + yy * 1024 + xx + 1) = c;
+	*((WORD*)lpVideoBuf + yy *VideoPitch + xx) = c;
+	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 1) = c;
 }
 
 void DrawHMap()
@@ -2823,7 +2823,7 @@ void DrawHMap()
   if (yy>0 || yy<WinH)
   {
     DrawCircle(xx, yy, 17);
-	DrawBox((WORD*)lpVideoBuf, xx, yy, 31 << 10);
+	DrawBox((WORD*)lpVideoBuf, xx, yy, 31 *VideoPitch);
   }
 
   float _sonarPos;
@@ -2861,7 +2861,7 @@ void DrawHMap()
 			if (xx <= 0 || xx >= WinW) continue;
 
 			if (Characters[c].Clone == AI_HUNTDOG) {
-				DrawBox((WORD*)lpVideoBuf, xx, yy, DinoInfo[Characters[c].CType].radarColour555);//31<<10
+				DrawBox((WORD*)lpVideoBuf, xx, yy, DinoInfo[Characters[c].CType].radarColour555);//31*VideoPitch
 			}
 			else {
 				if (RadarMode || Characters[c].RTime) {
@@ -3234,7 +3234,7 @@ void ShowVideo()
   if (UNDERWATER & CORRECTION)
     for (int y=0; y<WinH; y++)
       for (int x=0; x<WinW; x++)
-        *((WORD*)lpVideoBuf + y*1024 + x) = FadeTab[64][*((WORD*)lpVideoBuf + y*1024 + x) & 0x7FFF];
+        *((WORD*)lpVideoBuf + y*VideoPitch + x) = FadeTab[64][*((WORD*)lpVideoBuf + y*VideoPitch + x) & 0x7FFF];
 
 
   RenderHealthBar();
@@ -3258,19 +3258,19 @@ void RenderHealthBar()
   int y0 = WinH / 40;
   int G = min( (MyHealth * 30 / 100000), 20);
   int R = min( ( (100000 - MyHealth) * 30 / 100000), 20);
-  int HCOLOR = (G<<5) + (R<<10);
+  int HCOLOR = (G<<5) + (R*VideoPitch);
 
   int L0 = (L * MyHealth) / 100000;
   int H = WinH / 200;
 
-  FillMemory((WORD*)lpVideoBuf + ((y0-1)<<10) + x0-1, L*2+4, 0);
-  FillMemory((WORD*)lpVideoBuf + ((y0+H+1)<<10) + x0-1, L*2+4, 0);
+  FillMemory((WORD*)lpVideoBuf + ((y0-1)*VideoPitch) + x0-1, L*2+4, 0);
+  FillMemory((WORD*)lpVideoBuf + ((y0+H+1)*VideoPitch) + x0-1, L*2+4, 0);
   for (int y=0; y<=H; y++)
   {
-    *((WORD*)lpVideoBuf + ((y0+y)<<10) + x0 - 1) = 0;
-    *((WORD*)lpVideoBuf + ((y0+y)<<10) + x0 + L) = 0;
+    *((WORD*)lpVideoBuf + ((y0+y)*VideoPitch) + x0 - 1) = 0;
+    *((WORD*)lpVideoBuf + ((y0+y)*VideoPitch) + x0 + L) = 0;
     for (int x=0; x<L0; x++)
-      *((WORD*)lpVideoBuf + ((y0+y)<<10) + x0 + x) = HCOLOR;
+      *((WORD*)lpVideoBuf + ((y0+y)*VideoPitch) + x0 + x) = HCOLOR;
   }
 }
 
@@ -3280,13 +3280,13 @@ void Render_Cross(int sx, int sy)
   int w = WinW / 12;
   for (int x=-w+1; x<w; x++)
   {
-    int offset = (sy<<10) + (sx+x);
+    int offset = (sy*VideoPitch) + (sx+x);
 	*((WORD*)lpVideoBuf + offset) = WeapInfo[CurrentWeapon].crossColour565;
   }
 
   for (int y=-w+1; y<w; y++)
   {
-    int offset = ((sy+y)<<10) + sx;
+    int offset = ((sy+y)*VideoPitch) + sx;
     *((WORD*)lpVideoBuf + offset) = WeapInfo[CurrentWeapon].crossColour565;
   }
 }
