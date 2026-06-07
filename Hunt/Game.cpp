@@ -1664,13 +1664,11 @@ void InitEngine()
   // OptFov is the vertical field-of-view in degrees, range [kFovMin,
   // kFovMax]. It drives CameraH = VideoCY * FovScaleFromDegrees(OptFov)
   // in SetVideoMode() and the per-frame camera setup in Hunt.cpp. The
-  // default is set unconditionally here because the global is otherwise
-  // uninitialized (0 would make FovScaleFromDegrees divide by zero).
-  // LoadTrophy() does not yet persist OptFov in C2 ME — that lands with
-  // the FOV slider UI work — so any value the menu writes (currently
-  // none) is overwritten by this default on every launch. When the
-  // FOV-save work lands, the disk read in LoadTrophy will overwrite
-  // this default if the profile has a valid value.
+  // default is set unconditionally here as a safety net for first
+  // launch (no save file) and for old saves written before the
+  // FOV-slider port that don't include the OptFov field. LoadTrophy()
+  // overwrites this default with the persisted value (or keeps this
+  // default if the saved value is missing/out-of-range).
   OptFov = kFovDefault;
 
   LoadTrophy();
@@ -3082,6 +3080,14 @@ void LoadTrophy()
   ReadFile(hfile, &OptRender, 4, &l, NULL);
   OptSound = NormalizeAudioBackend(OptSound);
 
+  // OptFov was appended at the end of the save file in the FOV-slider
+  // port. Pre-existing saves from before this change have 4 fewer
+  // bytes, so this ReadFile may return 0 bytes read and OptFov keeps
+  // the kFovDefault set in InitEngine(). The clamp below also handles
+  // any garbage value a modded save might have written.
+  ReadFile(hfile, &OptFov, 4, &l, NULL);
+  if (l != 4 || OptFov < kFovMin || OptFov > kFovMax) OptFov = kFovDefault;
+
 
   SetupRes();
 
@@ -3160,6 +3166,11 @@ void SaveTrophy()
   WriteFile(hfile, &OptSys, 4, &l, NULL);
   WriteFile(hfile, &OptSound, 4, &l, NULL);
   WriteFile(hfile, &OptRender, 4, &l, NULL);
+  // OptFov is appended at the end so old saves (no OptFov) stay
+  // readable. The matching ReadFile in LoadTrophy() clamps the value
+  // to [kFovMin, kFovMax] and falls back to kFovDefault for missing
+  // or invalid data.
+  WriteFile(hfile, &OptFov, 4, &l, NULL);
   CloseHandle(hfile);
   PrintLog("Trophy Saved.\n");
 
