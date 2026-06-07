@@ -215,13 +215,7 @@ void SetVideoMode(int W, int H)
   VideoCY = WinH / 2;
 
   CameraW = (float)VideoCX*1.25f;
-  // CameraH is the camera's vertical half-extent in world units. The
-  // projection maps CameraH world units to half the screen height, so
-  // for a non-4:3 screen the right ratio is CameraH/CameraW = WinH/WinW
-  // (square pixels: a square in world-space appears square on screen).
-  // The old WinH * 1.3333 / WinW formula hardcoded 4:3 and made the
-  // world look horizontally stretched on 16:9/16:10 displays.
-  CameraH = CameraW * ((float)WinH / (float)WinW);
+  CameraH = CameraW * (WinH * 1.3333f / WinW);
 
   // Reallocate the back-buffer DIB to match the new WinW/WinH so the
   // GDI pitch matches the runtime VideoPitchB. Required for widescreen
