@@ -149,13 +149,13 @@ void UpdateLoadingWindow()
 
 
   for (int y=0; y<LoadWall.H/2; y++)
-    memcpy( (WORD*)lpVideoBuf + y*1024,
+    memcpy( (WORD*)lpVideoBuf + y*VideoPitch,
             LoadWall.lpImage  + y*LoadWall.W,
             LoadWall.W*2);
 
   if (LoadCount)
     for (int y=0; y<LoadWall.H/2; y++)
-      memcpy( (WORD*)lpVideoBuf + y*1024,
+      memcpy( (WORD*)lpVideoBuf + y*VideoPitch,
               LoadWall.lpImage  + (y+LoadWall.H/2)*LoadWall.W,
               (LoadWall.W*LoadCount/8)*2);
 
@@ -187,7 +187,7 @@ void StartLoading()
 
 void EndLoading()
 {
-  FillMemory(lpVideoBuf, 1024*768*2, 0);
+  FillMemory(lpVideoBuf, VideoPitchB*768, 0);
   _HeapFree(Heap, 0, (void*)LoadWall.lpImage);
 }
 
@@ -205,6 +205,9 @@ void SetVideoMode(int W, int H)
 {
   WinW = W;
   WinH = H;
+
+  VideoPitch  = WinW;        // WORD index (pixels) for 16-bit video buffer
+  VideoPitchB = WinW * 2;    // byte index for 16-bit video buffer
 
   WinEX = WinW - 1;
   WinEY = WinH - 1;
