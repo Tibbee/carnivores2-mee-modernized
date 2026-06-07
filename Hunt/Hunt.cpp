@@ -2219,7 +2219,11 @@ SKIPYMOVE:
 	  if (MyHealth) {
 		CameraW = (float)VideoCX*(1.25f + (1.f + (float)cos(RealTime / 180.f)) / 30 + (1.f - (float)sin(UnderWaterT / 512.f*pi / 2)) / 1.5f);
 		CameraH = (float)VideoCX*(1.25f + (1.f + (float)sin(RealTime / 180.f)) / 30 - (1.f - (float)sin(UnderWaterT / 512.f*pi / 2)) / 16.f);
-		CameraH *= (WinH*1.3333f / WinW);
+		// CameraH is computed using VideoCX (a horizontal term) and then
+		// scaled by the screen aspect. The old WinH*1.3333/WinW assumed
+		// 4:3, which stretched the world on 16:9. Use WinH/WinW so the
+		// world appears with the correct proportions.
+		CameraH *= ((float)WinH / (float)WinW);
 
 		CameraAlpha += (float)cos(RealTime / 360.f) / 120;
 		CameraBeta += (float)sin(RealTime / 360.f) / 100;
@@ -2233,7 +2237,10 @@ SKIPYMOVE:
   else
   {
     CameraW = (float)VideoCX*1.25f;
-    CameraH = CameraW * (WinH*1.3333f / WinW);
+    // See Interface.cpp:SetVideoMode for why CameraH/CameraW must match
+    // the screen's WinH/WinW aspect (square pixels: world is not stretched
+    // on 16:9 / 16:10 displays).
+    CameraH = CameraW * ((float)WinH / (float)WinW);
   }
 
 
