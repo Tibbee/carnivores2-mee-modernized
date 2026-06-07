@@ -1120,6 +1120,7 @@ void SaveScreenShot();
 void CreateWaterTab();
 void CreateFadeTab();
 void CreateVideoDIB();
+void CreateVideoDIB(int W, int H);
 void RenderLightMap();
 
 void MulVectorsVect(const Vector3d& v1, const Vector3d& v2, Vector3d& r );

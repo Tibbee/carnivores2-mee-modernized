@@ -143,16 +143,28 @@ void CreateDivTable()
 
 void CreateVideoDIB()
 {
-  hdcMain=GetDC(hwndMain);
-  hdcCMain = CreateCompatibleDC(hdcMain);
+  CreateVideoDIB(WinW, WinH);
+}
 
-  SelectObject(hdcMain,  fnt_Midd);
-  SelectObject(hdcCMain, fnt_Midd);
+void CreateVideoDIB(int W, int H)
+{
+  if (hdcMain == nullptr) {
+    hdcMain = GetDC(hwndMain);
+    hdcCMain = CreateCompatibleDC(hdcMain);
+
+    SelectObject(hdcMain,  fnt_Midd);
+    SelectObject(hdcCMain, fnt_Midd);
+  }
+
+  if (hbmpVideoBuf) {
+    DeleteObject(hbmpVideoBuf);
+    hbmpVideoBuf = nullptr;
+  }
 
   BITMAPINFOHEADER bmih;
   bmih.biSize = sizeof( BITMAPINFOHEADER );
-  bmih.biWidth  =1024;
-  bmih.biHeight = -768;
+  bmih.biWidth  = W;
+  bmih.biHeight = -H;
   bmih.biPlanes = 1;
   bmih.biBitCount = 16;
   bmih.biCompression = BI_RGB;

@@ -1582,14 +1582,11 @@ void InitEngine()
 
   InitGameInfo();
 
-  CreateVideoDIB();
   CreateFadeTab();
   CreateDivTable();
   InitClips();
 
   TrophyRoom.RegNumber=0;
-
-  PlayerX = (ctMapSize / 3) * 256;
   PlayerZ = (ctMapSize / 3) * 256;
 
   ProcessCommandLine();
@@ -1617,6 +1614,11 @@ void InitEngine()
   }
 
   LoadTrophy();
+
+  // CreateVideoDIB() must come after LoadTrophy() so WinW/WinH are set
+  // from the saved OptRes, and the DIB is allocated at the right size
+  // to match the runtime VideoPitchB (WinW * 2).
+  CreateVideoDIB();
 
   ProcessCommandLine();
 
