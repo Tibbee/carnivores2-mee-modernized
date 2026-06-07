@@ -684,24 +684,29 @@ void InitClips2()
 
 void InitClips()
 {
-//	float XFOV = atan(CameraW , VideoCX); //1.6
-//	float YFOV = atan(CameraH , VideoCY);
-  float xx = (VideoCX+1) / (CameraW);
-  float yy = (VideoCY+2) / (CameraH);
-  float LX = sqrt(1.0 + xx * xx);
-  float LY = sqrt(1.0 + yy * yy);
+  // Build the 4 frustum clip plane normals (left/right/top/bottom)
+  // from the half-FOV angles. The + 0.01f widen is resolution-
+  // independent (~0.57 deg past the strict screen edge) and prevents
+  // terrain triangles right at the screen edge from being clipped
+  // when their projected vertices fall just past the screen. The
+  // previous C2 ME formula widened by 1-2 pixels, which is negligible
+  // at any modern resolution and caused visible culling on 16:9
+  // displays. C1 uses the same atan2-based formula with the same
+  // 0.01 radian widen.
+  float h_angle = (float)atan2((float)VideoCX, CameraW) + 0.01f;
+  float v_angle = (float)atan2((float)VideoCY, CameraH) + 0.01f;
 
-  ClipA.v1.x = - (float)xx / LX;
+  ClipA.v1.x = - (float)sin(h_angle);
   ClipA.v1.y = 0;
-  ClipA.v1.z =   (float)1 / LX;
+  ClipA.v1.z =   (float)cos(h_angle);
   ClipA.v2.x = 0;
   ClipA.v2.y = 1;
   ClipA.v2.z = 0;
   MulVectorsVect(ClipA.v1, ClipA.v2, ClipA.nv);
 
-  ClipC.v1.x = + (float)xx / LX;
+  ClipC.v1.x = + (float)sin(h_angle);
   ClipC.v1.y = 0;
-  ClipC.v1.z =   (float)1 / LX;
+  ClipC.v1.z =   (float)cos(h_angle);
   ClipC.v2.x = 0;
   ClipC.v2.y =-1;
   ClipC.v2.z = 0;
@@ -709,16 +714,16 @@ void InitClips()
 
 
   ClipB.v1.x = 0;
-  ClipB.v1.y =   (float)yy / LY;
-  ClipB.v1.z =   (float)1  / LY;
+  ClipB.v1.y =   (float)sin(v_angle);
+  ClipB.v1.z =   (float)cos(v_angle);
   ClipB.v2.x = 1;
   ClipB.v2.y = 0;
   ClipB.v2.z = 0;
   MulVectorsVect(ClipB.v1, ClipB.v2, ClipB.nv);
 
   ClipD.v1.x = 0;
-  ClipD.v1.y = - (float)yy / LY;
-  ClipD.v1.z =   (float)1  / LY;
+  ClipD.v1.y = - (float)sin(v_angle);
+  ClipD.v1.z =   (float)cos(v_angle);
   ClipD.v2.x =-1;
   ClipD.v2.y = 0;
   ClipD.v2.z = 0;
