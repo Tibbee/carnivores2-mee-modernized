@@ -1,8 +1,9 @@
 // ==========================================================================
 // GLRenderer.cpp — OpenGL 3.3 Core Profile renderer for Carnivores 2 ME
 //
-// Minimal skeleton for compilation. Methods are stubbed initially and will
-// be implemented incrementally by porting from C1's GLRenderer.
+// Ported from C1's GLRenderer, adapted to C2 ME data structures.
+// Currently implements context initialization only.
+// Rendering methods are stubs that will be implemented incrementally.
 // ==========================================================================
 
 #include "Hunt.h"
@@ -10,8 +11,40 @@
 
 #ifdef _gl
 
+#include "glad/glad.h"
 #include <cstdio>
 #include <cstring>
+
+// ============================================================================
+// WGL extension definitions (for creating modern GL context)
+// ============================================================================
+
+#define WGL_CONTEXT_MAJOR_VERSION_ARB     0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB     0x2092
+#define WGL_CONTEXT_PROFILE_MASK_ARB      0x2133
+#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB  0x00000001
+
+typedef HGLRC (WINAPI *PFNWGLCREATECONTEXTATTRIBSARBPROC)(HDC, HGLRC, const int*);
+
+// ============================================================================
+// GLAD loader for Windows
+// ============================================================================
+
+static HMODULE libGL = nullptr;
+
+static void* glad_get_proc(const char* name) {
+    void* p = (void*)wglGetProcAddress(name);
+    if (p == 0 || p == (void*)0x1 || p == (void*)0x2 || p == (void*)0x3 || p == (void*)-1) {
+        p = (void*)GetProcAddress(libGL, name);
+    }
+    return p;
+}
+
+// ============================================================================
+// Global GL renderer instance
+// ============================================================================
+
+GLRenderer* g_GLRenderer = nullptr;
 
 // ============================================================================
 // Construction / Destruction
@@ -29,150 +62,331 @@ GLRenderer::~GLRenderer()
 }
 
 // ============================================================================
+// Context Creation
+// ============================================================================
+
+bool GLRenderer::CreateContext()
+{
+    PrintLog("\n");
+    PrintLog("==Init OpenGL==\n");
+
+    // Get window handle
+    m_hwnd = hwndMain;
+    if (!m_hwnd) {
+        PrintLog("GL: ERROR - hwndMain is NULL!\n");
+        return false;
+    }
+    PrintLog("GL: Window handle obtained.\n");
+
+    // Get device context
+    m_hdc = GetDC(m_hwnd);
+    if (!m_hdc) {
+        PrintLog("GL: ERROR - GetDC failed!\n");
+        return false;
+    }
+    PrintLog("GL: Device context obtained.\n");
+
+    // Set up pixel format
+    PrintLog("GL: Setting up pixel format...\n");
+    PIXELFORMATDESCRIPTOR pfd = {
+        sizeof(PIXELFORMATDESCRIPTOR),
+        1,
+        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+        PFD_TYPE_RGBA,
+        32,             // Color bits
+        0, 0, 0, 0, 0, 0,
+        0,
+        0,
+        0,
+        0, 0, 0, 0,
+        24,             // Depth bits
+        8,              // Stencil bits
+        0,
+        PFD_MAIN_PLANE,
+        0,
+        0, 0, 0
+    };
+
+    int pixelFormat = ChoosePixelFormat(m_hdc, &pfd);
+    if (!pixelFormat) {
+        PrintLog("GL: ERROR - Failed to choose pixel format.\n");
+        return false;
+    }
+    PrintLog("GL: Pixel format chosen.\n");
+
+    if (!SetPixelFormat(m_hdc, pixelFormat, &pfd)) {
+        PrintLog("GL: ERROR - Failed to set pixel format.\n");
+        return false;
+    }
+    PrintLog("GL: Pixel format set.\n");
+
+    // Create temporary legacy context to load extensions
+    PrintLog("GL: Creating temporary context...\n");
+    HGLRC tempContext = wglCreateContext(m_hdc);
+    if (!tempContext) {
+        PrintLog("GL: ERROR - Failed to create temporary context.\n");
+        return false;
+    }
+
+    if (!wglMakeCurrent(m_hdc, tempContext)) {
+        PrintLog("GL: ERROR - Failed to make temporary context current.\n");
+        wglDeleteContext(tempContext);
+        return false;
+    }
+    PrintLog("GL: Temporary context created.\n");
+
+    // Try to create OpenGL 3.3 Core Profile context
+    PrintLog("GL: Looking for wglCreateContextAttribsARB...\n");
+    PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB =
+        (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
+
+    if (wglCreateContextAttribsARB) {
+        PrintLog("GL: Creating OpenGL 3.3 Core Profile context...\n");
+        int attribs[] = {
+            WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+            WGL_CONTEXT_MINOR_VERSION_ARB, 3,
+            WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+            0
+        };
+
+        m_hrc = wglCreateContextAttribsARB(m_hdc, 0, attribs);
+        if (m_hrc) {
+            // Success - destroy temporary context and use the new one
+            wglMakeCurrent(nullptr, nullptr);
+            wglDeleteContext(tempContext);
+            wglMakeCurrent(m_hdc, m_hrc);
+            PrintLog("GL: OpenGL 3.3 Core Profile context created.\n");
+        } else {
+            PrintLog("GL: WARNING - Failed to create 3.3 context, falling back to legacy.\n");
+            m_hrc = tempContext;
+        }
+    } else {
+        PrintLog("GL: WARNING - wglCreateContextAttribsARB not found, using legacy context.\n");
+        m_hrc = tempContext;
+    }
+
+    if (!m_hrc) {
+        PrintLog("GL: ERROR - Failed to create any context.\n");
+        return false;
+    }
+
+    // Initialize GLAD
+    PrintLog("GL: Loading opengl32.dll...\n");
+    libGL = LoadLibraryA("opengl32.dll");
+    if (!libGL) {
+        PrintLog("GL: ERROR - Failed to load opengl32.dll!\n");
+        return false;
+    }
+    PrintLog("GL: opengl32.dll loaded.\n");
+
+    PrintLog("GL: Initializing GLAD...\n");
+    if (!gladLoadGLLoader((GLADloadproc)glad_get_proc)) {
+        PrintLog("GL: ERROR - Failed to initialize GLAD.\n");
+        return false;
+    }
+    PrintLog("GL: GLAD initialized successfully.\n");
+
+    // Log GL info
+    char logMsg[512];
+    const char* version = (const char*)glGetString(GL_VERSION);
+    if (version) {
+        sprintf(logMsg, "GL: Version: %s\n", version);
+        PrintLog(logMsg);
+    } else {
+        PrintLog("GL: ERROR - glGetString(GL_VERSION) returned NULL!\n");
+    }
+
+    const char* vendor = (const char*)glGetString(GL_VENDOR);
+    if (vendor) {
+        sprintf(logMsg, "GL: Vendor: %s\n", vendor);
+        PrintLog(logMsg);
+    }
+
+    const char* rendererStr = (const char*)glGetString(GL_RENDERER);
+    if (rendererStr) {
+        sprintf(logMsg, "GL: Renderer: %s\n", rendererStr);
+        PrintLog(logMsg);
+    }
+
+    const char* glslVersion = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
+    if (glslVersion) {
+        sprintf(logMsg, "GL: GLSL Version: %s\n", glslVersion);
+        PrintLog(logMsg);
+    }
+
+    // Log extensions count
+    GLint numExtensions = 0;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
+    sprintf(logMsg, "GL: Extensions: %d\n", numExtensions);
+    PrintLog(logMsg);
+
+    PrintLog("==OpenGL Initialized==\n");
+    PrintLog("\n");
+
+    return true;
+}
+
+// ============================================================================
+// GL State Initialization
+// ============================================================================
+
+bool GLRenderer::InitGLState()
+{
+    PrintLog("GL: Initializing GL state...\n");
+
+    // Enable depth testing
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+
+    // Disable face culling for now (game uses alpha-blended faces)
+    glDisable(GL_CULL_FACE);
+
+    // Enable blending for alpha textures
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Set clear color (black)
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+    // Set viewport
+    glViewport(0, 0, WinW, WinH);
+
+    PrintLog("GL: GL state initialized.\n");
+    return true;
+}
+
+// ============================================================================
+// GL Extensions (placeholder)
+// ============================================================================
+
+void GLRenderer::LoadGLExtensions()
+{
+    // TODO: Load additional GL extensions if needed
+    PrintLog("GL: LoadGLExtensions() — no additional extensions needed yet.\n");
+}
+
+// ============================================================================
 // Lifecycle
 // ============================================================================
 
 bool GLRenderer::Initialize()
 {
-    PrintLog("OpenGL: Initializing...\n");
+    PrintLog("GL: Initialize() called.\n");
 
-    if (!InitGLContext()) {
-        PrintLog("OpenGL: Failed to create GL context\n");
+    if (!CreateContext()) {
+        PrintLog("GL: Initialize() failed at CreateContext().\n");
+        return false;
+    }
+
+    if (!InitGLState()) {
+        PrintLog("GL: Initialize() failed at InitGLState().\n");
         return false;
     }
 
     LoadGLExtensions();
-    InitGLState();
 
     m_Initialized = true;
-    PrintLog("OpenGL: Initialized successfully\n");
+    PrintLog("GL: Initialize() completed successfully.\n");
     return true;
 }
 
 void GLRenderer::Shutdown()
 {
-    if (!m_Initialized) return;
+    if (!m_Initialized && !m_hrc) return;
 
-    PrintLog("OpenGL: Shutting down...\n");
+    PrintLog("GL: Shutting down...\n");
 
-    // TODO: Release GL resources
+    // TODO: Release GL resources (textures, VAOs, VBOs, shaders)
+
+    // Destroy context
+    DestroyContext();
 
     m_Initialized = false;
+    PrintLog("GL: Shutdown complete.\n");
+}
+
+void GLRenderer::DestroyContext()
+{
+    if (m_hrc) {
+        if (wglGetCurrentContext() == m_hrc) {
+            wglMakeCurrent(nullptr, nullptr);
+        }
+        wglDeleteContext(m_hrc);
+        m_hrc = nullptr;
+        PrintLog("GL: Rendering context destroyed.\n");
+    }
+
+    if (m_hdc && m_hwnd) {
+        ReleaseDC(m_hwnd, m_hdc);
+        m_hdc = nullptr;
+        PrintLog("GL: Device context released.\n");
+    }
+
+    if (libGL) {
+        FreeLibrary(libGL);
+        libGL = nullptr;
+    }
 }
 
 // ============================================================================
-// GL Context Setup (stubs)
-// ============================================================================
-
-bool GLRenderer::InitGLContext()
-{
-    // TODO: Create OpenGL 3.3 Core Profile context using wglCreateContextAttribsARB
-    // Reference: C1 GLRenderer.cpp InitGLContext()
-    PrintLog("OpenGL: InitGLContext() — stub\n");
-    return true;
-}
-
-void GLRenderer::InitGLState()
-{
-    // TODO: Set up default OpenGL state
-    // - Enable depth testing
-    // - Set clear color
-    // - Configure blending
-    // Reference: C1 GLRenderer.cpp InitGLState()
-    PrintLog("OpenGL: InitGLState() — stub\n");
-}
-
-void GLRenderer::LoadGLExtensions()
-{
-    // TODO: Load OpenGL extensions via GLAD or manual loading
-    // Reference: C1 GLRenderer.cpp LoadGLExtensions()
-    PrintLog("OpenGL: LoadGLExtensions() — stub\n");
-}
-
-// ============================================================================
-// Scene Rendering
+// Scene Rendering (stubs)
 // ============================================================================
 
 void GLRenderer::DrawScene()
 {
     // TODO: Implement main scene rendering
-    // This is the core rendering function called each frame.
-    // Reference: C1 GLRenderer.cpp DrawScene()
-    //
-    // Should call in order:
-    // 1. RenderSkyPlane()
-    // 2. DrawHMap() / terrain
-    // 3. RenderModelsList()
-    // 4. Render3DHardwarePosts()
-    // 5. RenderWater() if needed
-    // 6. RenderElements()
 }
 
 void GLRenderer::DrawPostObjects()
 {
-    // TODO: Implement post-object rendering (overlays, HUD)
-    // Reference: C1 GLRenderer.cpp DrawPostObjects()
-    // and C2 ME Hunt.cpp DrawPostObjects()
+    // TODO: Implement post-object rendering
 }
 
 // ============================================================================
-// Resource Management
+// Resource Management (stubs)
 // ============================================================================
 
 void GLRenderer::RegisterTexture(TEXTURE* tptr)
 {
-    // TODO: Upload texture to GL
-    // Reference: C1 GLRenderer.cpp RegisterTexture()
     (void)tptr;
 }
 
 void GLRenderer::RegisterPicture(TPicture* pptr)
 {
-    // TODO: Upload picture to GL
-    // Reference: C1 GLRenderer.cpp RegisterPicture()
     (void)pptr;
 }
 
 void GLRenderer::ReleaseModelTextures(const TModel* mptr)
 {
-    // TODO: Release GL textures for model
-    // Reference: C1 GLRenderer.cpp ReleaseModelTextures()
     (void)mptr;
 }
 
 void GLRenderer::ResetTerrainTextureCache()
 {
-    // TODO: Reset terrain texture cache
-    // Reference: C1 GLRenderer.cpp ResetTerrainTextureCache()
 }
 
 void GLRenderer::ClearLevelTextureCache()
 {
-    // TODO: Clear all level textures from GL
-    // Reference: C1 GLRenderer.cpp ClearLevelTextureCache()
     memset(m_TextureUsed, 0, sizeof(m_TextureUsed));
 }
 
 // ============================================================================
-// Frame Management
+// Frame Management (stubs)
 // ============================================================================
 
 void GLRenderer::ClearVideoBuf()
 {
-    // TODO: Clear framebuffer
-    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void GLRenderer::WaitRetrace()
 {
     // TODO: VSync control
-    // wglSwapIntervalEXT(1) for vsync on, 0 for off
 }
 
 void GLRenderer::PostProcess()
 {
-    // TODO: Post-processing effects (fade, color shifts)
-    // Reference: C1 GLRenderer.cpp PostProcess()
+    // TODO: Post-processing effects
 }
 
 // ============================================================================
@@ -181,22 +395,16 @@ void GLRenderer::PostProcess()
 
 void GLRenderer::DrawTPlane(bool clip)
 {
-    // TODO: Render terrain plane
-    // Reference: C1 GLRenderer.cpp DrawTPlane()
     (void)clip;
 }
 
 void GLRenderer::DrawTPlaneClip(bool clip)
 {
-    // TODO: Render clipped terrain plane
-    // Reference: C1 GLRenderer.cpp DrawTPlaneClip()
     (void)clip;
 }
 
 void GLRenderer::DrawHMap()
 {
-    // TODO: Render heightmap (minimap)
-    // Reference: C1 GLRenderer.cpp DrawHMap()
 }
 
 // ============================================================================
@@ -206,8 +414,6 @@ void GLRenderer::DrawHMap()
 void GLRenderer::RenderModel(TModel* mptr, float x0, float y0, float z0,
                              int light, float al, float bt)
 {
-    // TODO: Render model (non-clipped)
-    // Reference: C1 GLRenderer.cpp RenderModel()
     (void)mptr; (void)x0; (void)y0; (void)z0;
     (void)light; (void)al; (void)bt;
 }
@@ -215,8 +421,6 @@ void GLRenderer::RenderModel(TModel* mptr, float x0, float y0, float z0,
 void GLRenderer::RenderModelClip(TModel* mptr, float x0, float y0, float z0,
                                  int light, float al, float bt)
 {
-    // TODO: Render model (clipped)
-    // Reference: C1 GLRenderer.cpp RenderModelClip()
     (void)mptr; (void)x0; (void)y0; (void)z0;
     (void)light; (void)al; (void)bt;
 }
@@ -224,8 +428,6 @@ void GLRenderer::RenderModelClip(TModel* mptr, float x0, float y0, float z0,
 void GLRenderer::RenderModelClipWater(TModel* mptr, float x0, float y0, float z0,
                                       int light, float al, float bt)
 {
-    // TODO: Render model (clipped, underwater)
-    // Reference: C1 GLRenderer.cpp RenderModelClipWater()
     (void)mptr; (void)x0; (void)y0; (void)z0;
     (void)light; (void)al; (void)bt;
 }
@@ -233,8 +435,6 @@ void GLRenderer::RenderModelClipWater(TModel* mptr, float x0, float y0, float z0
 void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
                                  int light, float al, float bt)
 {
-    // TODO: Render near model (binocular, weapon viewmodel)
-    // Reference: C1 GLRenderer.cpp RenderNearModel()
     (void)mptr; (void)x0; (void)y0; (void)z0;
     (void)light; (void)al; (void)bt;
 }
@@ -245,35 +445,25 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
 
 void GLRenderer::RenderCharacter(TCharacter* cptr)
 {
-    // TODO: Render character (dinosaur, ambient)
-    // Reference: C1 GLRenderer.cpp RenderCharacter()
     (void)cptr;
 }
 
 void GLRenderer::RenderExplosion(int index)
 {
-    // TODO: Render explosion effect
-    // Reference: C1 GLRenderer.cpp RenderExplosion()
     (void)index;
 }
 
 void GLRenderer::RenderShip()
 {
-    // TODO: Render ship (end-of-level)
-    // Reference: C1 GLRenderer.cpp RenderShip()
 }
 
 void GLRenderer::RenderPlayer(int index)
 {
-    // TODO: Render player hands/weapon
-    // Reference: C1 GLRenderer.cpp RenderPlayer()
     (void)index;
 }
 
 void GLRenderer::RenderSkyPlane()
 {
-    // TODO: Render sky plane
-    // Reference: C1 GLRenderer.cpp RenderSkyPlane()
 }
 
 // ============================================================================
@@ -282,42 +472,30 @@ void GLRenderer::RenderSkyPlane()
 
 void GLRenderer::DrawPicture(int x, int y, TPicture& pic)
 {
-    // TODO: Draw 2D picture
-    // Reference: C1 GLRenderer.cpp DrawPicture()
     (void)x; (void)y; (void)pic;
 }
 
 void GLRenderer::DrawScaledPicture(int x, int y, int w, int h, TPicture& pic)
 {
-    // TODO: Draw scaled 2D picture
-    // Reference: C1 GLRenderer.cpp DrawScaledPicture()
     (void)x; (void)y; (void)w; (void)h; (void)pic;
 }
 
 void GLRenderer::DrawTrophyText(int x, int y)
 {
-    // TODO: Draw trophy text
-    // Reference: C1 GLRenderer.cpp DrawTrophyText()
     (void)x; (void)y;
 }
 
 void GLRenderer::RenderHealthBar()
 {
-    // TODO: Render health bar
-    // Reference: C1 GLRenderer.cpp RenderHealthBar()
 }
 
 void GLRenderer::Render_Cross(int x, int y)
 {
-    // TODO: Render crosshair
-    // Reference: C1 GLRenderer.cpp Render_Cross()
     (void)x; (void)y;
 }
 
 void GLRenderer::Render_LifeInfo(int index)
 {
-    // TODO: Render life info (binocular scan)
-    // Reference: C1 GLRenderer.cpp Render_LifeInfo()
     (void)index;
 }
 
@@ -327,20 +505,16 @@ void GLRenderer::Render_LifeInfo(int index)
 
 void GLRenderer::SetVideoMode(int w, int h)
 {
-    // TODO: Set video mode / resize framebuffer
-    // Reference: C1 GLRenderer.cpp SetVideoMode()
-    (void)w; (void)h;
+    glViewport(0, 0, w, h);
 }
 
 void GLRenderer::SetFullScreen()
 {
     // TODO: Toggle fullscreen
-    // Reference: C1 GLRenderer.cpp SetFullScreen()
 }
 
 bool GLRenderer::IsSoftwareStyle() const
 {
-    // OpenGL renderer uses GPU-side rendering, not software rasterization
     return false;
 }
 

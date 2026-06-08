@@ -13,6 +13,7 @@
 #pragma once
 
 #include "IRenderer.h"
+#include <windows.h>
 
 class GLRenderer : public IRenderer {
 public:
@@ -22,6 +23,10 @@ public:
     // ── Lifecycle ──────────────────────────────────────────────────────
     bool Initialize() override;
     void Shutdown() override;
+
+    // ── GL Context (called from Init3DHardware) ────────────────────────
+    bool CreateContext();
+    void DestroyContext();
 
     // ── Scene ──────────────────────────────────────────────────────────
     void DrawScene() override;
@@ -75,14 +80,14 @@ public:
     bool IsSoftwareStyle() const override;
 
 private:
-    // Internal helpers (to be implemented)
-    bool InitGLContext();
-    void InitGLState();
+    // Internal helpers
+    bool InitGLState();
     void LoadGLExtensions();
 
-    // GL state
-    void* m_hDC = nullptr;      // HDC
-    void* m_hGLRC = nullptr;    // HGLRC
+    // GL context handles
+    HWND m_hwnd = nullptr;
+    HDC  m_hdc  = nullptr;
+    HGLRC m_hrc = nullptr;
     bool m_Initialized = false;
 
     // Texture management
@@ -90,5 +95,8 @@ private:
     unsigned int m_TextureCache[kMaxGLTextures] = {};
     bool m_TextureUsed[kMaxGLTextures] = {};
 };
+
+// Global GL renderer instance (created in Init3DHardware, destroyed in ShutDown3DHardware)
+extern GLRenderer* g_GLRenderer;
 
 #endif // GLRENDERER_H

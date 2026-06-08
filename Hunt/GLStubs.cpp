@@ -2,13 +2,16 @@
 // GLStubs.cpp — Global function stubs for OpenGL renderer
 //
 // These are free functions called by Hunt.cpp, Interface.cpp, etc.
-// They will be implemented incrementally as the GL renderer is developed.
-// For now, they are stubs that allow the GL build to link.
+// Init3DHardware creates the GLRenderer instance; other functions delegate
+// to g_GLRenderer where appropriate.
 // ==========================================================================
 
 #include "Hunt.h"
+#include "GLRenderer.h"
 
 #ifdef _gl
+
+#include "glad/glad.h"
 
 #include <cstdio>
 
@@ -18,17 +21,50 @@
 
 void Init3DHardware()
 {
-    PrintLog("GL: Init3DHardware() — stub\n");
+    PrintLog("\n");
+    PrintLog("==Init3DHardware (OpenGL)==\n");
+
+    if (g_GLRenderer) {
+        PrintLog("GL: WARNING - GLRenderer already exists, shutting down first.\n");
+        g_GLRenderer->Shutdown();
+        delete g_GLRenderer;
+        g_GLRenderer = nullptr;
+    }
+
+    g_GLRenderer = new GLRenderer();
+    if (!g_GLRenderer->Initialize()) {
+        PrintLog("GL: ERROR - GLRenderer::Initialize() failed!\n");
+        delete g_GLRenderer;
+        g_GLRenderer = nullptr;
+        DoHalt("OpenGL initialization failed. Check render.log for details.");
+    }
+
+    DirectActive = TRUE;
+    PrintLog("==Init3DHardware (OpenGL) Complete==\n");
+    PrintLog("\n");
 }
 
 void Activate3DHardware()
 {
-    PrintLog("GL: Activate3DHardware() — stub\n");
+    PrintLog("GL: Activate3DHardware()\n");
+
+    if (g_GLRenderer) {
+        // Set video mode if needed
+        g_GLRenderer->SetVideoMode(WinW, WinH);
+    }
 }
 
 void ShutDown3DHardware()
 {
-    PrintLog("GL: ShutDown3DHardware() — stub\n");
+    PrintLog("GL: ShutDown3DHardware()\n");
+
+    if (g_GLRenderer) {
+        g_GLRenderer->Shutdown();
+        delete g_GLRenderer;
+        g_GLRenderer = nullptr;
+    }
+
+    DirectActive = FALSE;
 }
 
 // ============================================================================
@@ -37,13 +73,23 @@ void ShutDown3DHardware()
 
 void ShowVideo()
 {
-    // TODO: Swap buffers (wglSwapBuffers)
+    // Swap buffers
+    if (g_GLRenderer && hwndMain) {
+        HDC hdc = GetDC(hwndMain);
+        if (hdc) {
+            SwapBuffers(hdc);
+            ReleaseDC(hwndMain, hdc);
+        }
+    }
 }
 
 void Hardware_ZBuffer(BOOL enable)
 {
-    // TODO: glEnable/glDisable(GL_DEPTH_TEST)
-    (void)enable;
+    if (enable) {
+        glEnable(GL_DEPTH_TEST);
+    } else {
+        glDisable(GL_DEPTH_TEST);
+    }
 }
 
 void CopyHARDToDIB()
@@ -57,7 +103,7 @@ void CopyHARDToDIB()
 
 void RenderSkyPlane()
 {
-    // TODO: Render sky using GL
+    if (g_GLRenderer) g_GLRenderer->RenderSkyPlane();
 }
 
 void RenderGround()
@@ -97,9 +143,7 @@ void DrawHMap()
 void RenderNearModel(TModel* mptr, float x0, float y0, float z0,
                      int light, float al, float bt)
 {
-    // TODO: Render near model using GL
-    (void)mptr; (void)x0; (void)y0; (void)z0;
-    (void)light; (void)al; (void)bt;
+    if (g_GLRenderer) g_GLRenderer->RenderNearModel(mptr, x0, y0, z0, light, al, bt);
 }
 
 void RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float z0,
@@ -124,8 +168,7 @@ void RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z0,
 
 void DrawPicture(int x, int y, TPicture& pic)
 {
-    // TODO: Draw 2D picture using GL
-    (void)x; (void)y; (void)pic;
+    if (g_GLRenderer) g_GLRenderer->DrawPicture(x, y, pic);
 }
 
 void DrawFlash(int x, int y, int w, int h, TPicture& pic)
@@ -136,8 +179,7 @@ void DrawFlash(int x, int y, int w, int h, TPicture& pic)
 
 void DrawTrophyText(int x, int y)
 {
-    // TODO: Draw trophy text using GL
-    (void)x; (void)y;
+    if (g_GLRenderer) g_GLRenderer->DrawTrophyText(x, y);
 }
 
 void DrawScoreText(int x, int y)
@@ -154,14 +196,12 @@ void DrawSurvivalText(int x, int y)
 
 void Render_Cross(int x, int y)
 {
-    // TODO: Draw crosshair using GL
-    (void)x; (void)y;
+    if (g_GLRenderer) g_GLRenderer->Render_Cross(x, y);
 }
 
 void Render_LifeInfo(int index)
 {
-    // TODO: Draw life info using GL
-    (void)index;
+    if (g_GLRenderer) g_GLRenderer->Render_LifeInfo(index);
 }
 
 void ShowControlElements()
