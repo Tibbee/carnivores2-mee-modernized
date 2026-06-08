@@ -607,9 +607,24 @@ void DrawPostObjects()
   if (DemoPoint.DemoTime) goto SKIPWEAPON;
 
   GlassL = 0;
+  // Keep near-model projection anchored to the classic 4:3 FOV so
+  // viewmodels and HUD-like near renders do not shrink or drift when
+  // the world FOV changes. The aspectScale correction makes binocular
+  // and scope overlays fill the widescreen width (C1 has the same
+  // logic in InsertModelList).
+  float nearModelScale = FovScaleFromDegrees(kFovDefault) / FovScaleFromDegrees(OptFov);
   if (BINMODE)
   {
+    float oldCW = CameraW;
+    float oldCH = CameraH;
+    float scale = nearModelScale;
+    float aspectScale = (float)WinW / ((float)WinH * 1.3333333f);
+    if (aspectScale > 1.0f) scale *= aspectScale;
+    CameraW *= scale;
+    CameraH *= scale;
     RenderNearModel(Binocular, 0, 0, 2*(216-72 * BinocularPower), 192,  0,0);
+    CameraW = oldCW;
+    CameraH = oldCH;
     ScanLifeForms();
     MapMode = FALSE;
   }
@@ -887,15 +902,35 @@ SKIPWIND:
   if (HARD3D) wpnlight = 96 + GetLandLt(PlayerX, PlayerZ) / 4;
   else wpnlight = 200;
 
-  if (Muzz && !UNDERWATER) {
-  CreateMorphedModelBetaGamma(MuzzModel.mptr,
-	  &MuzzModel.Animation[0], MuzzFTime, 1.0, 0, MuzzGamma);
-  RenderNearModel(MuzzModel.mptr, 0, wpshy, wpshz, wpnlight,
-	  -wpnDAlpha, -wpnDBeta + wpnb);
-  }
+  {
+    // Keep the near-model (weapon viewmodel, muzzle flash) projection
+    // anchored to the classic 4:3 FOV so viewmodels do not shrink or
+    // drift when the world FOV changes. In optic mode, also scale by
+    // the aspect ratio so the scope overlay fills the widescreen width.
+    // C1 has the same logic in InsertModelList.
+    float savedCW = CameraW;
+    float savedCH = CameraH;
+    float opticScale = nearModelScale;
+    if (OPTICMODE) {
+      float arScale = (float)WinW / ((float)WinH * 1.3333333f);
+      if (arScale > 1.0f) opticScale *= arScale;
+    }
+    CameraW *= opticScale;
+    CameraH *= opticScale;
 
-  RenderNearModel(wptr->chinfo[CurrentWeapon].mptr, 0, wpshy, wpshz, wpnlight,
-                  -wpnDAlpha, -wpnDBeta + wpnb);
+    if (Muzz && !UNDERWATER) {
+    CreateMorphedModelBetaGamma(MuzzModel.mptr,
+	    &MuzzModel.Animation[0], MuzzFTime, 1.0, 0, MuzzGamma);
+    RenderNearModel(MuzzModel.mptr, 0, wpshy, wpshz, wpnlight,
+	    -wpnDAlpha, -wpnDBeta + wpnb);
+    }
+
+    RenderNearModel(wptr->chinfo[CurrentWeapon].mptr, 0, wpshy, wpshz, wpnlight,
+                    -wpnDAlpha, -wpnDBeta + wpnb);
+
+    CameraW = savedCW;
+    CameraH = savedCH;
+  }
 
 
 #ifdef _soft
