@@ -1004,20 +1004,58 @@ void TrophyLoad(Profile& profile, int pr)
 	fs.read((char*)&g_Options.Sensitivity, 4);
 
 	fs.read((char*)&g_Options.Resolution, 4);
-	fs.read((char*)&g_Options.Fog, 4);
+	// The old menu (StartLegacy.exe) used a hardcoded 8-entry resolution
+	// table (320x240..1600x1200). Our dynamic list may differ. Convert
+	// the old index to an actual resolution, then find the matching index
+	// in the current list.
+	{
+		// Old hardcoded table (indices 0-7)
+		static const struct { int w, h; } kOldRes[] = {
+			{320,240}, {400,300}, {512,384}, {640,480},
+			{800,600}, {1024,768}, {1280,1024}, {1600,1200}
+		};
+		int oldIdx = g_Options.Resolution;
+		if (oldIdx >= 0 && oldIdx < 8) {
+			int w = kOldRes[oldIdx].w;
+			int h = kOldRes[oldIdx].h;
+			// Find the matching entry in the dynamic list
+			bool found = false;
+			for (int r = 0; r < g_ResCount; r++) {
+				if (g_ResolutionList[r].w == w && g_ResolutionList[r].h == h) {
+					g_Options.Resolution = r;
+					found = true;
+					break;
+				}
+			}
+			// If the old resolution isn't available (e.g. 320x240, 512x384),
+			// fall back to 800x600 or the first available resolution.
+			if (!found) {
+				g_Options.Resolution = 0;
+				for (int r = 0; r < g_ResCount; r++) {
+					if (g_ResolutionList[r].w == 800 && g_ResolutionList[r].h == 600) {
+						g_Options.Resolution = r;
+						break;
+					}
+				}
+			}
+		}
+	}
+	// Bool fields are 1 byte in the struct but 4 bytes on disk.
+	// Read into temporary int32_t to avoid adjacent-field overflow.
+	{ int32_t tmp; fs.read((char*)&tmp, 4); g_Options.Fog = (bool)tmp; }
 	fs.read((char*)&g_Options.Textures, 4);
 	fs.read((char*)&g_Options.ViewRange, 4);
-	fs.read((char*)&g_Options.Shadows, 4);
+	{ int32_t tmp; fs.read((char*)&tmp, 4); g_Options.Shadows = (bool)tmp; }
 	fs.read((char*)&g_Options.MouseSensitivity, 4);
 	fs.read((char*)&g_Options.Brightness, 4);
 
 	fs.read((char*)&g_Options.KeyMap, sizeof(TKeyMap));
-	fs.read((char*)&g_Options.MouseInvert, 4);
+	{ int32_t tmp; fs.read((char*)&tmp, 4); g_Options.MouseInvert = (bool)tmp; }
 
-	fs.read((char*)&g_Options.ScentMode, 4);
-	fs.read((char*)&g_Options.CamoMode, 4);
-	fs.read((char*)&g_Options.RadarMode, 4);
-	fs.read((char*)&g_Options.TranqMode, 4);
+	{ int32_t tmp; fs.read((char*)&tmp, 4); g_Options.ScentMode = (bool)tmp; }
+	{ int32_t tmp; fs.read((char*)&tmp, 4); g_Options.CamoMode = (bool)tmp; }
+	{ int32_t tmp; fs.read((char*)&tmp, 4); g_Options.RadarMode = (bool)tmp; }
+	{ int32_t tmp; fs.read((char*)&tmp, 4); g_Options.TranqMode = (bool)tmp; }
 	fs.read((char*)&g_Options.AlphaColorKey, 4);
 
 	fs.read((char*)&g_Options.OptSys, 4);
@@ -1071,18 +1109,20 @@ void TrophySave(Profile& profile)
 	fs.write((char*)&g_Options.Density, 4);
 	fs.write((char*)&g_Options.Sensitivity, 4);
 	fs.write((char*)&g_Options.Resolution, 4);
-	fs.write((char*)&g_Options.Fog, 4);
+	// Bool fields are 1 byte in the struct but 4 bytes on disk.
+	// Write via temporary int32_t to avoid adjacent-field overflow.
+	{ int32_t tmp = g_Options.Fog ? 1 : 0; fs.write((char*)&tmp, 4); }
 	fs.write((char*)&g_Options.Textures, 4);
 	fs.write((char*)&g_Options.ViewRange, 4);
-	fs.write((char*)&g_Options.Shadows, 4);
+	{ int32_t tmp = g_Options.Shadows ? 1 : 0; fs.write((char*)&tmp, 4); }
 	fs.write((char*)&g_Options.MouseSensitivity, 4);
 	fs.write((char*)&g_Options.Brightness, 4);
 	fs.write((char*)&g_Options.KeyMap, sizeof(TKeyMap));
-	fs.write((char*)&g_Options.MouseInvert, 4);
-	fs.write((char*)&g_Options.ScentMode, 4);
-	fs.write((char*)&g_Options.CamoMode, 4);
-	fs.write((char*)&g_Options.RadarMode, 4);
-	fs.write((char*)&g_Options.TranqMode, 4);
+	{ int32_t tmp = g_Options.MouseInvert ? 1 : 0; fs.write((char*)&tmp, 4); }
+	{ int32_t tmp = g_Options.ScentMode ? 1 : 0; fs.write((char*)&tmp, 4); }
+	{ int32_t tmp = g_Options.CamoMode ? 1 : 0; fs.write((char*)&tmp, 4); }
+	{ int32_t tmp = g_Options.RadarMode ? 1 : 0; fs.write((char*)&tmp, 4); }
+	{ int32_t tmp = g_Options.TranqMode ? 1 : 0; fs.write((char*)&tmp, 4); }
 	fs.write((char*)&g_Options.AlphaColorKey, 4);
 	fs.write((char*)&g_Options.OptSys, 4);
 	fs.write((char*)&g_Options.SoundAPI, 4);
