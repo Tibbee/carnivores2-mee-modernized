@@ -85,8 +85,11 @@ const char st_UnitText[2][10] = { "Metric", "Imperial" };
 const char st_HMLText[4][8] = { "Low", "Medium", "High", "Ultra" };
 const char st_TextureText[3][5] = { "Low", "High", "Auto" };
 const char st_AlphaKeyText[2][14] = { "Color Key", "Alpha Channel" };
-const char st_RenText[7][12] = { "Software", "3Dfx Glide", "Direct3D 7", "OpenGL", "Direct3D 9", "Direct3D 11", "Vulkan" };
-const char g_RendererFile[7][8] = { "v_soft", "v_3dfx", "v_d3d", "v_gl", "v_d3d9", "v_d3d11", "v_vulk" };
+// Index 1 was 3Dfx Glide in the original launcher; we repurpose it as
+// OpenGL so that old trophy saves with RenderAPI=1 still launch a
+// working renderer (v_gl.ren) instead of the removed 3DFX binary.
+const char st_RenText[7][12] = { "Software", "OpenGL", "Direct3D 7", "OpenGL", "Direct3D 9", "Direct3D 11", "Vulkan" };
+const char g_RendererFile[7][8] = { "v_soft", "v_gl", "v_d3d", "v_gl", "v_d3d9", "v_d3d11", "v_vulk" };
 const char st_AudText[2][16] = { "DirectSound", "OpenAL Soft" };
 
 

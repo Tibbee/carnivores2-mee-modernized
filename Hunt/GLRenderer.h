@@ -1,0 +1,94 @@
+// ==========================================================================
+// GLRenderer.h — OpenGL 3.3 Core Profile renderer for Carnivores 2 ME
+//
+// Ported from Carnivores 1's GLRenderer, adapted to C2 ME data structures.
+// Requires: OpenGL 3.3+, GLAD loader, GLShader module.
+//
+// Note: This header must be included AFTER Hunt.h.
+// ==========================================================================
+
+#ifndef GLRENDERER_H
+#define GLRENDERER_H
+
+#pragma once
+
+#include "IRenderer.h"
+
+class GLRenderer : public IRenderer {
+public:
+    GLRenderer();
+    ~GLRenderer() override;
+
+    // ── Lifecycle ──────────────────────────────────────────────────────
+    bool Initialize() override;
+    void Shutdown() override;
+
+    // ── Scene ──────────────────────────────────────────────────────────
+    void DrawScene() override;
+    void DrawPostObjects() override;
+
+    // ── Resource Management ────────────────────────────────────────────
+    void RegisterTexture(TEXTURE* tptr) override;
+    void RegisterPicture(TPicture* pptr) override;
+    void ReleaseModelTextures(const TModel* mptr) override;
+    void ResetTerrainTextureCache() override;
+    void ClearLevelTextureCache() override;
+
+    // ── Frame Management ───────────────────────────────────────────────
+    void ClearVideoBuf() override;
+    void WaitRetrace() override;
+    void PostProcess() override;
+
+    // ── 3D Rendering — Terrain ─────────────────────────────────────────
+    void DrawTPlane(bool clip) override;
+    void DrawTPlaneClip(bool clip) override;
+    void DrawHMap() override;
+
+    // ── 3D Rendering — Models ──────────────────────────────────────────
+    void RenderModel(TModel* mptr, float x0, float y0, float z0,
+                     int light, float al, float bt) override;
+    void RenderModelClip(TModel* mptr, float x0, float y0, float z0,
+                         int light, float al, float bt) override;
+    void RenderModelClipWater(TModel* mptr, float x0, float y0, float z0,
+                              int light, float al, float bt) override;
+    void RenderNearModel(TModel* mptr, float x0, float y0, float z0,
+                         int light, float al, float bt) override;
+
+    // ── Character / Entity Renders ─────────────────────────────────────
+    void RenderCharacter(TCharacter* cptr) override;
+    void RenderExplosion(int index) override;
+    void RenderShip() override;
+    void RenderPlayer(int index) override;
+    void RenderSkyPlane() override;
+
+    // ── 2D Rendering ───────────────────────────────────────────────────
+    void DrawPicture(int x, int y, TPicture& pic) override;
+    void DrawScaledPicture(int x, int y, int w, int h, TPicture& pic) override;
+    void DrawTrophyText(int x, int y) override;
+    void RenderHealthBar() override;
+    void Render_Cross(int x, int y) override;
+    void Render_LifeInfo(int index) override;
+
+    // ── System / State ─────────────────────────────────────────────────
+    void SetVideoMode(int w, int h) override;
+    void SetFullScreen() override;
+    bool IsSoftwareStyle() const override;
+
+private:
+    // Internal helpers (to be implemented)
+    bool InitGLContext();
+    void InitGLState();
+    void LoadGLExtensions();
+
+    // GL state
+    void* m_hDC = nullptr;      // HDC
+    void* m_hGLRC = nullptr;    // HGLRC
+    bool m_Initialized = false;
+
+    // Texture management
+    static const int kMaxGLTextures = 4096;
+    unsigned int m_TextureCache[kMaxGLTextures] = {};
+    bool m_TextureUsed[kMaxGLTextures] = {};
+};
+
+#endif // GLRENDERER_H

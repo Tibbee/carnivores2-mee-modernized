@@ -1429,6 +1429,7 @@ void SaveConfig()
 	fs << "# Carnivores 2 Modder's Engine configuration\n";
 	fs << "# Edit by hand if needed — values are validated on load.\n";
 	fs << "\n";
+	fs << "renderer " << g_Options.RenderAPI << "\n";
 	fs << "fov " << g_Options.FOV << "\n";
 
 	std::cout << "Config Saved (" << kConfigFile << ")." << std::endl;
@@ -1441,6 +1442,17 @@ static bool ParseConfigLine(const std::string& line)
 	std::string key;
 	if (!(iss >> key)) return false;
 	if (key[0] == '#') return false;  // comment
+
+	if (key == "renderer") {
+		int v;
+		if (iss >> v) {
+			// 0=Software, 1=OpenGL (was 3Dfx), 2=Direct3D 7
+			if (v < 0) v = 0;
+			if (v > 2) v = 0;
+			g_Options.RenderAPI = v;
+		}
+		return true;
+	}
 
 	if (key == "fov") {
 		int v;

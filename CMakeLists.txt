@@ -66,10 +66,12 @@ if(RENDERER)
     elseif(RENDERER STREQUAL "GL")
         add_definitions(-D_gl)
         set(RENDER_SRC
+            Hunt/IRenderer.h
             Hunt/GLRenderer.h
             Hunt/GLRenderer.cpp
             Hunt/GLShader.h
             Hunt/GLShader.cpp
+            Hunt/GLStubs.cpp
             deps/glad/glad.c
             Hunt/GLUI.cpp
         )
