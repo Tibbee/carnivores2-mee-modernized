@@ -245,8 +245,8 @@ bool GLRenderer::InitGLState()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Set clear color (black)
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    // Set clear color to cornflower blue (easy to see if rendering works)
+    glClearColor(0.392f, 0.584f, 0.929f, 1.0f);
 
     // Set viewport
     glViewport(0, 0, WinW, WinH);
@@ -285,6 +285,12 @@ bool GLRenderer::Initialize()
 
     LoadGLExtensions();
 
+    // Initialize test triangle (temporary - verifies GL rendering works)
+    if (!InitTestTriangle()) {
+        PrintLog("GL: WARNING - Test triangle initialization failed.\n");
+        // Non-fatal, continue without test triangle
+    }
+
     m_Initialized = true;
     PrintLog("GL: Initialize() completed successfully.\n");
     return true;
@@ -296,7 +302,10 @@ void GLRenderer::Shutdown()
 
     PrintLog("GL: Shutting down...\n");
 
-    // TODO: Release GL resources (textures, VAOs, VBOs, shaders)
+    // Release test triangle resources
+    ShutdownTestTriangle();
+
+    // TODO: Release other GL resources (textures, VAOs, VBOs, shaders)
 
     // Destroy context
     DestroyContext();
@@ -335,6 +344,7 @@ void GLRenderer::DestroyContext()
 void GLRenderer::DrawScene()
 {
     // TODO: Implement main scene rendering
+    // For now, clearing and test triangle are handled via RenderSkyPlane() stub
 }
 
 void GLRenderer::DrawPostObjects()
@@ -377,6 +387,9 @@ void GLRenderer::ClearLevelTextureCache()
 void GLRenderer::ClearVideoBuf()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Render test triangle (temporary - remove after verifying GL works)
+    RenderTestTriangle();
 }
 
 void GLRenderer::WaitRetrace()
@@ -516,6 +529,146 @@ void GLRenderer::SetFullScreen()
 bool GLRenderer::IsSoftwareStyle() const
 {
     return false;
+}
+
+// ============================================================================
+// Test Triangle (temporary - verifies GL rendering works)
+// ============================================================================
+
+// Simple vertex shader
+static const char* kVertexShaderSource = R"(
+#version 330 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aColor;
+out vec3 ourColor;
+void main()
+{
+    gl_Position = vec4(aPos, 1.0);
+    ourColor = aColor;
+}
+)";
+
+// Simple fragment shader
+static const char* kFragmentShaderSource = R"(
+#version 330 core
+in vec3 ourColor;
+out vec4 FragColor;
+void main()
+{
+    FragColor = vec4(ourColor, 1.0);
+}
+)";
+
+bool GLRenderer::InitTestTriangle()
+{
+    PrintLog("GL: Initializing test triangle...\n");
+
+    // Compile vertex shader
+    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, &kVertexShaderSource, nullptr);
+    glCompileShader(vertexShader);
+
+    int success;
+    char infoLog[512];
+    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(vertexShader, 512, nullptr, infoLog);
+        PrintLog("GL: ERROR - Vertex shader compilation failed:\n");
+        PrintLog(infoLog);
+        return false;
+    }
+    PrintLog("GL: Vertex shader compiled.\n");
+
+    // Compile fragment shader
+    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &kFragmentShaderSource, nullptr);
+    glCompileShader(fragmentShader);
+
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(fragmentShader, 512, nullptr, infoLog);
+        PrintLog("GL: ERROR - Fragment shader compilation failed:\n");
+        PrintLog(infoLog);
+        return false;
+    }
+    PrintLog("GL: Fragment shader compiled.\n");
+
+    // Link shader program
+    m_TestShader = glCreateProgram();
+    glAttachShader(m_TestShader, vertexShader);
+    glAttachShader(m_TestShader, fragmentShader);
+    glLinkProgram(m_TestShader);
+
+    glGetProgramiv(m_TestShader, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(m_TestShader, 512, nullptr, infoLog);
+        PrintLog("GL: ERROR - Shader program linking failed:\n");
+        PrintLog(infoLog);
+        return false;
+    }
+    PrintLog("GL: Shader program linked.\n");
+
+    // Delete shaders (no longer needed after linking)
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    // Triangle vertices: position (x,y,z) + color (r,g,b)
+    float vertices[] = {
+        // positions       // colors
+        -0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,  // bottom left - red
+         0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,  // bottom right - green
+         0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  // top - blue
+    };
+
+    // Create VAO and VBO
+    glGenVertexArrays(1, &m_TestVAO);
+    glGenBuffers(1, &m_TestVBO);
+
+    glBindVertexArray(m_TestVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, m_TestVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // Position attribute (location = 0)
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Color attribute (location = 1)
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindVertexArray(0);
+
+    m_TestTriangleReady = true;
+    PrintLog("GL: Test triangle initialized.\n");
+    return true;
+}
+
+void GLRenderer::RenderTestTriangle()
+{
+    if (!m_TestTriangleReady) return;
+
+    glUseProgram(m_TestShader);
+    glBindVertexArray(m_TestVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glBindVertexArray(0);
+}
+
+void GLRenderer::ShutdownTestTriangle()
+{
+    if (m_TestVAO) {
+        glDeleteVertexArrays(1, &m_TestVAO);
+        m_TestVAO = 0;
+    }
+    if (m_TestVBO) {
+        glDeleteBuffers(1, &m_TestVBO);
+        m_TestVBO = 0;
+    }
+    if (m_TestShader) {
+        glDeleteProgram(m_TestShader);
+        m_TestShader = 0;
+    }
+    m_TestTriangleReady = false;
 }
 
 #endif // _gl

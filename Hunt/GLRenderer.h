@@ -83,12 +83,21 @@ private:
     // Internal helpers
     bool InitGLState();
     void LoadGLExtensions();
+    bool InitTestTriangle();
+    void RenderTestTriangle();
+    void ShutdownTestTriangle();
 
     // GL context handles
     HWND m_hwnd = nullptr;
     HDC  m_hdc  = nullptr;
     HGLRC m_hrc = nullptr;
     bool m_Initialized = false;
+
+    // Test triangle resources
+    unsigned int m_TestShader = 0;
+    unsigned int m_TestVAO = 0;
+    unsigned int m_TestVBO = 0;
+    bool m_TestTriangleReady = false;
 
     // Texture management
     static const int kMaxGLTextures = 4096;

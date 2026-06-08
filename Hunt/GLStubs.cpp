@@ -48,9 +48,17 @@ void Activate3DHardware()
 {
     PrintLog("GL: Activate3DHardware()\n");
 
+    // Set video mode (this sets window size and position)
+    SetVideoMode(WinW, WinH);
+
     if (g_GLRenderer) {
-        // Set video mode if needed
         g_GLRenderer->SetVideoMode(WinW, WinH);
+    }
+
+    // Ensure window is in foreground
+    if (hwndMain) {
+        SetForegroundWindow(hwndMain);
+        SetFocus(hwndMain);
     }
 }
 
@@ -70,6 +78,11 @@ void ShutDown3DHardware()
 // ============================================================================
 // Frame management
 // ============================================================================
+
+void ClearVideoBuf()
+{
+    if (g_GLRenderer) g_GLRenderer->ClearVideoBuf();
+}
 
 void ShowVideo()
 {
@@ -103,7 +116,9 @@ void CopyHARDToDIB()
 
 void RenderSkyPlane()
 {
-    if (g_GLRenderer) g_GLRenderer->RenderSkyPlane();
+    // Clear the framebuffer at the start of each frame
+    // (matches software renderer behavior where RenderSkyPlane calls ClearVideoBuf)
+    if (g_GLRenderer) g_GLRenderer->ClearVideoBuf();
 }
 
 void RenderGround()
