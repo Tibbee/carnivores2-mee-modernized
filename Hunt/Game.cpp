@@ -1514,6 +1514,8 @@ void StartupClientCommsThread() {
 
 
 
+static void LoadConfig();
+
 void InitEngine()
 {
   DEBUG        = FALSE;
@@ -1672,6 +1674,11 @@ void InitEngine()
   OptFov = kFovDefault;
 
   LoadTrophy();
+
+  // Override settings from config.cfg (written by Carnivores2Menu).
+  // This file is the single source of truth for settings that are not
+  // part of the legacy binary trophy format (e.g. OptFov).
+  LoadConfig();
 
   // CreateVideoDIB() must come after LoadTrophy() so WinW/WinH are set
   // from the saved OptRes, and the DIB is allocated at the right size
@@ -3080,14 +3087,8 @@ void LoadTrophy()
   ReadFile(hfile, &OptRender, 4, &l, NULL);
   OptSound = NormalizeAudioBackend(OptSound);
 
-  // OptFov was appended at the end of the save file in the FOV-slider
-  // port. Pre-existing saves from before this change have 4 fewer
-  // bytes, so this ReadFile may return 0 bytes read and OptFov keeps
-  // the kFovDefault set in InitEngine(). The clamp below also handles
-  // any garbage value a modded save might have written.
-  ReadFile(hfile, &OptFov, 4, &l, NULL);
-  if (l != 4 || OptFov < kFovMin || OptFov > kFovMax) OptFov = kFovDefault;
-
+  // OptFov and other extended settings are now in config.cfg.
+  // LoadConfig() in InitEngine() will override OptFov after this point.
 
   SetupRes();
 
@@ -3166,15 +3167,67 @@ void SaveTrophy()
   WriteFile(hfile, &OptSys, 4, &l, NULL);
   WriteFile(hfile, &OptSound, 4, &l, NULL);
   WriteFile(hfile, &OptRender, 4, &l, NULL);
-  // OptFov is appended at the end so old saves (no OptFov) stay
-  // readable. The matching ReadFile in LoadTrophy() clamps the value
-  // to [kFovMin, kFovMax] and falls back to kFovDefault for missing
-  // or invalid data.
-  WriteFile(hfile, &OptFov, 4, &l, NULL);
+  // OptFov and other extended settings live in config.cfg, not here.
   CloseHandle(hfile);
   PrintLog("Trophy Saved.\n");
 
   SaveTrophy2(TrophyRoom.RegNumber);
 
+}
+
+
+// ================================================================
+// config.cfg — text-based settings file (shared with Carnivores2Menu)
+// ================================================================
+static const char* kConfigFile = "config.cfg";
+
+static void LoadConfig()
+{
+  HANDLE hfile = CreateFileA(kConfigFile, GENERIC_READ, FILE_SHARE_READ,
+                           NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (hfile == INVALID_HANDLE_VALUE) {
+    PrintLog("Config: config.cfg not found, using defaults.\n");
+    return;
+  }
+
+  char buf[4096];
+  DWORD bytesRead = 0;
+  if (!ReadFile(hfile, buf, sizeof(buf) - 1, &bytesRead, NULL) || bytesRead == 0) {
+    CloseHandle(hfile);
+    return;
+  }
+  buf[bytesRead] = '\0';
+  CloseHandle(hfile);
+
+  // Simple line-by-line parser: "key value"
+  char* ctx = NULL;
+  char* line = strtok_s(buf, "\r\n", &ctx);
+  while (line) {
+    // Skip comments and empty lines
+    if (line[0] == '#' || line[0] == '\0') {
+      line = strtok_s(NULL, "\r\n", &ctx);
+      continue;
+    }
+
+    char key[64];
+    int value = 0;
+    if (sscanf_s(line, "%63s %d", key, (unsigned)sizeof(key), &value) == 2) {
+      if (_stricmp(key, "fov") == 0) {
+        if (value >= kFovMin && value <= kFovMax) {
+          OptFov = value;
+        } else {
+          char msg[128];
+          wsprintfA(msg, "Config: fov %d out of range [%d..%d], ignoring.\n",
+                    value, kFovMin, kFovMax);
+          PrintLog(msg);
+        }
+      }
+      // Future settings: add else-if branches here
+    }
+
+    line = strtok_s(NULL, "\r\n", &ctx);
+  }
+
+  PrintLog("Config Loaded (config.cfg).\n");
 }
 

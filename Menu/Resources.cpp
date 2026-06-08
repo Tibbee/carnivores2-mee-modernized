@@ -1025,15 +1025,9 @@ void TrophyLoad(Profile& profile, int pr)
 	fs.read((char*)&g_Options.RenderAPI, 4);
 	g_Options.SoundAPI = NormalizeAudioBackend(g_Options.SoundAPI);
 
-	// FOV was appended in the FOV-slider port. Pre-existing saves
-	// without this field are handled by the size check below.
-	if (fs.tellg() + static_cast<std::streamoff>(sizeof(int32_t)) <= file_size) {
-		fs.read((char*)&g_Options.FOV, 4);
-		if (g_Options.FOV < kFovMin || g_Options.FOV > kFovMax)
-			g_Options.FOV = kFovDefault;
-	} else {
-		g_Options.FOV = kFovDefault;
-	}
+	// FOV and other extended settings are now in config.cfg, not here.
+	// Set defaults; LoadConfig() will override if the config file exists.
+	g_Options.FOV = kFovDefault;
 
 	//Temporary:
 	int r = profile.Rank;
@@ -1093,8 +1087,8 @@ void TrophySave(Profile& profile)
 	fs.write((char*)&g_Options.OptSys, 4);
 	fs.write((char*)&g_Options.SoundAPI, 4);
 	fs.write((char*)&g_Options.RenderAPI, 4);
-	// FOV is appended at the end so old saves (no FOV) stay readable.
-	fs.write((char*)&g_Options.FOV, 4);
+
+	// FOV and other extended settings live in config.cfg, not here.
 
 	std::cout << "Profile Saved." << std::endl;
 }
@@ -1369,4 +1363,74 @@ Picture& Picture::operator= (const Picture& rhs)
 bool Picture::IsValid() const
 {
 	return (m_Width > 0 && m_Height > 0 && m_Data);
+}
+
+
+// ================================================================
+// config.cfg — text-based settings file
+// ================================================================
+// Format: one setting per line, "key value".
+// Lines starting with '#' are comments.  Unknown keys are ignored.
+// This file is the single source of truth for settings that are
+// not part of the legacy binary trophy format.
+// ================================================================
+
+static const char* kConfigFile = "config.cfg";
+
+// Write the current FOV (and any future settings) to config.cfg.
+void SaveConfig()
+{
+	std::ofstream fs(kConfigFile, std::ios::trunc);
+	if (!fs.is_open()) {
+		std::cout << "Config: could not write " << kConfigFile << std::endl;
+		return;
+	}
+
+	fs << "# Carnivores 2 Modder's Engine configuration\n";
+	fs << "# Edit by hand if needed — values are validated on load.\n";
+	fs << "\n";
+	fs << "fov " << g_Options.FOV << "\n";
+
+	std::cout << "Config Saved (" << kConfigFile << ")." << std::endl;
+}
+
+// Parse a single "key value" line.  Returns true if the key was recognised.
+static bool ParseConfigLine(const std::string& line)
+{
+	std::istringstream iss(line);
+	std::string key;
+	if (!(iss >> key)) return false;
+	if (key[0] == '#') return false;  // comment
+
+	if (key == "fov") {
+		int v;
+		if (iss >> v) {
+			if (v < kFovMin) v = kFovMin;
+			if (v > kFovMax) v = kFovMax;
+			g_Options.FOV = v;
+		}
+		return true;
+	}
+
+	// Unknown key — ignore gracefully (forward-compat with newer configs)
+	return false;
+}
+
+// Read config.cfg and override g_Options fields.
+// If the file does not exist, write defaults (first-run migration).
+void LoadConfig()
+{
+	std::ifstream fs(kConfigFile);
+	if (!fs.is_open()) {
+		std::cout << "Config: " << kConfigFile << " not found — writing defaults." << std::endl;
+		SaveConfig();
+		return;
+	}
+
+	std::string line;
+	while (std::getline(fs, line)) {
+		ParseConfigLine(line);
+	}
+
+	std::cout << "Config Loaded (" << kConfigFile << ")." << std::endl;
 }

@@ -1525,6 +1525,7 @@ void MenuEventInput(int32_t menu)
 						g_UserProfile.New(g_TypingBuffer);
 						g_Options.Default();
 						TrophySave(g_UserProfile);
+						SaveConfig();
 						WaitForMouseRelease();
 						ChangeMenuState(MENU_REGISTRY_WAIVER);
 					}
@@ -1535,6 +1536,7 @@ void MenuEventInput(int32_t menu)
 				}
 				else {
 					TrophyLoad(g_UserProfile, g_ProfileIndex);
+					LoadConfig();
 					WaitForMouseRelease();
 					ChangeMenuState(MENU_MAIN);
 				}
@@ -1749,6 +1751,7 @@ void MenuEventInput(int32_t menu)
 								if (fov < kFovMin) fov = kFovMin;
 								if (fov > kFovMax) fov = kFovMax;
 								g_Options.FOV = fov;
+								SaveConfig();
 							}
 						}
 					}
@@ -2051,6 +2054,7 @@ void MenuEventInput(int32_t menu)
 					std::cout << "Launching...  `> " << renderer.str() << " " << params.str() << "`" << std::endl;
 					LaunchProcess(renderer.str(), params.str());
 					TrophyLoad(g_UserProfile, g_UserProfile.RegNumber); // Load the changes
+				LoadConfig();
 				}
 				else
 				{
@@ -2087,6 +2091,7 @@ void MenuEventInput(int32_t menu)
 					TrophySave(g_UserProfile); // Save the changes
 					LaunchProcess(renderer.str(), params.str());
 					TrophyLoad(g_UserProfile, g_UserProfile.RegNumber); // Load the changes
+				LoadConfig();
 				}
 				else if (id == 4) { ChangeMenuState(MENU_CREDITS); }
 				else if (id == 5) { ChangeMenuState(MENU_QUIT); }
