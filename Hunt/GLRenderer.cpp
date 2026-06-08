@@ -266,6 +266,279 @@ void GLRenderer::LoadGLExtensions()
 }
 
 // ============================================================================
+// Test functions (temporary - verifies GL rendering pipeline)
+// ============================================================================
+
+// Simple vertex shader (supports both colored and textured rendering)
+static const char* kVertexShaderSource = R"(
+#version 330 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aColor;
+layout (location = 2) in vec2 aTexCoord;
+out vec3 ourColor;
+out vec2 TexCoord;
+void main()
+{
+    gl_Position = vec4(aPos, 1.0);
+    ourColor = aColor;
+    TexCoord = aTexCoord;
+}
+)";
+
+// Simple fragment shader (supports both colored and textured rendering)
+static const char* kFragmentShaderSource = R"(
+#version 330 core
+in vec3 ourColor;
+in vec2 TexCoord;
+out vec4 FragColor;
+uniform sampler2D uTexture;
+uniform bool uUseTexture;
+void main()
+{
+    if (uUseTexture)
+        FragColor = texture(uTexture, TexCoord);
+    else
+        FragColor = vec4(ourColor, 1.0);
+}
+)";
+
+unsigned int GLRenderer::Expand1555to8888(unsigned short c)
+{
+    // X1R5G5B5: bits 14:10 = R, 9:5 = G, 4:0 = B
+    if (c == 0) return 0x00000000;  // Transparent black
+
+    unsigned int r = (c >> 10) & 0x1F;
+    unsigned int g = (c >> 5)  & 0x1F;
+    unsigned int b = (c)       & 0x1F;
+
+    // Expand 5-bit to 8-bit
+    r = (r << 3) | (r >> 2);
+    g = (g << 3) | (g >> 2);
+    b = (b << 3) | (b >> 2);
+
+    return 0xFF000000 | (b << 16) | (g << 8) | r;
+}
+
+bool GLRenderer::InitTestTriangle()
+{
+    PrintLog("GL: Initializing test triangle...\n");
+
+    // Compile vertex shader
+    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, &kVertexShaderSource, nullptr);
+    glCompileShader(vertexShader);
+
+    int success;
+    char infoLog[512];
+    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(vertexShader, 512, nullptr, infoLog);
+        PrintLog("GL: ERROR - Vertex shader compilation failed:\n");
+        PrintLog(infoLog);
+        return false;
+    }
+    PrintLog("GL: Vertex shader compiled.\n");
+
+    // Compile fragment shader
+    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &kFragmentShaderSource, nullptr);
+    glCompileShader(fragmentShader);
+
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(fragmentShader, 512, nullptr, infoLog);
+        PrintLog("GL: ERROR - Fragment shader compilation failed:\n");
+        PrintLog(infoLog);
+        return false;
+    }
+    PrintLog("GL: Fragment shader compiled.\n");
+
+    // Link shader program
+    m_TestShader = glCreateProgram();
+    glAttachShader(m_TestShader, vertexShader);
+    glAttachShader(m_TestShader, fragmentShader);
+    glLinkProgram(m_TestShader);
+
+    glGetProgramiv(m_TestShader, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(m_TestShader, 512, nullptr, infoLog);
+        PrintLog("GL: ERROR - Shader program linking failed:\n");
+        PrintLog(infoLog);
+        return false;
+    }
+    PrintLog("GL: Shader program linked.\n");
+
+    // Delete shaders (no longer needed after linking)
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    // Quad vertices: position (x,y,z) + color (r,g,b) + texcoord (u,v)
+    // Large quad covering most of the screen
+    float vertices[] = {
+        // positions        // colors          // texcoords
+        -0.9f, -0.9f, 0.0f,  1.0f, 1.0f, 1.0f,  0.0f, 0.0f,  // bottom left
+         0.9f, -0.9f, 0.0f,  1.0f, 1.0f, 1.0f,  1.0f, 0.0f,  // bottom right
+         0.9f,  0.9f, 0.0f,  1.0f, 1.0f, 1.0f,  1.0f, 1.0f,  // top right
+
+        -0.9f, -0.9f, 0.0f,  1.0f, 1.0f, 1.0f,  0.0f, 0.0f,  // bottom left
+         0.9f,  0.9f, 0.0f,  1.0f, 1.0f, 1.0f,  1.0f, 1.0f,  // top right
+        -0.9f,  0.9f, 0.0f,  1.0f, 1.0f, 1.0f,  0.0f, 1.0f,  // top left
+    };
+
+    // Create VAO and VBO
+    glGenVertexArrays(1, &m_TestVAO);
+    glGenBuffers(1, &m_TestVBO);
+
+    glBindVertexArray(m_TestVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, m_TestVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // Position attribute (location = 0)
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Color attribute (location = 1)
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    // Texture coordinate attribute (location = 2)
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    glBindVertexArray(0);
+
+    m_TestTriangleReady = true;
+    PrintLog("GL: Test quad initialized.\n");
+    return true;
+}
+
+bool GLRenderer::InitTestTexture()
+{
+    PrintLog("GL: Initializing test texture...\n");
+
+    // Try to load weapon texture (bullet1.tga) - more recognizable than terrain texture
+    TPicture pic = {};
+    const char* weaponPath = "HUNTDAT\\WEAPONS\\ammo\\bullet1.tga";
+    PrintLog("GL: Loading weapon texture: ");
+    PrintLog((LPSTR)weaponPath);
+    PrintLog("\n");
+
+    // Load TGA file
+    HANDLE hfile = CreateFile(weaponPath, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hfile == INVALID_HANDLE_VALUE) {
+        PrintLog("GL: Failed to open weapon texture, falling back to terrain texture.\n");
+        // Fallback to terrain texture
+        if (!Textures[0]) {
+            PrintLog("GL: No textures available.\n");
+            return false;
+        }
+        TEXTURE* tex = Textures[0];
+        pic.W = 128;
+        pic.H = 128;
+        pic.lpImage = (WORD*)tex->DataA;
+    } else {
+        // Read TGA header
+        DWORD l;
+        WORD w, h;
+        SetFilePointer(hfile, 12, 0, FILE_BEGIN);
+        ReadFile(hfile, &w, 2, &l, NULL);
+        ReadFile(hfile, &h, 2, &l, NULL);
+        SetFilePointer(hfile, 18, 0, FILE_BEGIN);
+
+        pic.W = w;
+        pic.H = h;
+        pic.lpImage = (WORD*)HeapAlloc(GetProcessHeap(), 0, w * h * 2);
+        ReadFile(hfile, pic.lpImage, w * h * 2, &l, NULL);
+        CloseHandle(hfile);
+
+        char sizeLog[128];
+        sprintf(sizeLog, "GL: Loaded TGA %dx%d\n", w, h);
+        PrintLog(sizeLog);
+    }
+
+    // Convert 16-bit X1R5G5B5 to 32-bit RGBA
+    int pixelCount = pic.W * pic.H;
+    unsigned int* buffer = (unsigned int*)HeapAlloc(GetProcessHeap(), 0, pixelCount * 4);
+    for (int i = 0; i < pixelCount; i++) {
+        buffer[i] = Expand1555to8888(pic.lpImage[i]);
+    }
+    PrintLog("GL: Texture expanded to 32-bit RGBA.\n");
+
+    // Debug: log first 4 pixels
+    char pixLog[256];
+    for (int i = 0; i < 4 && i < pixelCount; i++) {
+        unsigned int p = buffer[i];
+        sprintf(pixLog, "GL: Pixel[%d] = %08X => A=%02X R=%02X G=%02X B=%02X\n",
+                i, p, (p>>24)&0xFF, (p>>0)&0xFF, (p>>8)&0xFF, (p>>16)&0xFF);
+        PrintLog(pixLog);
+    }
+
+    // Create GL texture
+    glGenTextures(1, &m_TestTexture);
+    glBindTexture(GL_TEXTURE_2D, m_TestTexture);
+
+    // Set texture parameters (matching C1's terrain/model textures)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // Upload texture
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pic.W, pic.H, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
+    char sizeLog[128];
+    sprintf(sizeLog, "GL: Texture uploaded (%dx%d, GL_NEAREST)\n", pic.W, pic.H);
+    PrintLog(sizeLog);
+
+    // Clean up
+    HeapFree(GetProcessHeap(), 0, buffer);
+    if (pic.lpImage != (WORD*)Textures[0]->DataA) {
+        HeapFree(GetProcessHeap(), 0, pic.lpImage);
+    }
+
+    m_TestTextureReady = true;
+    PrintLog("GL: Test texture initialized successfully.\n");
+    return true;
+}
+
+void GLRenderer::RenderTestTriangle()
+{
+    if (!m_TestTriangleReady) return;
+
+    static int frameCount = 0;
+    frameCount++;
+
+    // Log every 60 frames to avoid spam
+    if (frameCount % 60 == 1) {
+        char dbg[256];
+        sprintf(dbg, "GL: RenderTestTriangle() called, frame=%d, texture=%u, ready=%d\n",
+                frameCount, m_TestTexture, m_TestTextureReady);
+        PrintLog(dbg);
+    }
+
+    glUseProgram(m_TestShader);
+
+    // Set texture uniform
+    GLint useTextureLoc = glGetUniformLocation(m_TestShader, "uUseTexture");
+    GLint textureLoc = glGetUniformLocation(m_TestShader, "uTexture");
+
+    if (m_TestTextureReady && m_TestTexture) {
+        // Render with texture
+        glUniform1i(useTextureLoc, 1);
+        glUniform1i(textureLoc, 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_TestTexture);
+    } else {
+        // Render with colors only
+        glUniform1i(useTextureLoc, 0);
+    }
+
+    glBindVertexArray(m_TestVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);  // 6 vertices for quad (2 triangles)
+    glBindVertexArray(0);
+}
+
+// ============================================================================
 // Lifecycle
 // ============================================================================
 
@@ -285,11 +558,14 @@ bool GLRenderer::Initialize()
 
     LoadGLExtensions();
 
-    // Initialize test triangle (temporary - verifies GL rendering works)
+    // Initialize test quad (temporary - verifies GL rendering works)
     if (!InitTestTriangle()) {
-        PrintLog("GL: WARNING - Test triangle initialization failed.\n");
-        // Non-fatal, continue without test triangle
+        PrintLog("GL: WARNING - Test quad initialization failed.\n");
+        // Non-fatal, continue without test quad
     }
+
+    // NOTE: InitTestTexture() is called in Activate3DHardware() because
+    // textures are not loaded yet when Initialize() runs.
 
     m_Initialized = true;
     PrintLog("GL: Initialize() completed successfully.\n");
@@ -531,129 +807,6 @@ bool GLRenderer::IsSoftwareStyle() const
     return false;
 }
 
-// ============================================================================
-// Test Triangle (temporary - verifies GL rendering works)
-// ============================================================================
-
-// Simple vertex shader
-static const char* kVertexShaderSource = R"(
-#version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aColor;
-out vec3 ourColor;
-void main()
-{
-    gl_Position = vec4(aPos, 1.0);
-    ourColor = aColor;
-}
-)";
-
-// Simple fragment shader
-static const char* kFragmentShaderSource = R"(
-#version 330 core
-in vec3 ourColor;
-out vec4 FragColor;
-void main()
-{
-    FragColor = vec4(ourColor, 1.0);
-}
-)";
-
-bool GLRenderer::InitTestTriangle()
-{
-    PrintLog("GL: Initializing test triangle...\n");
-
-    // Compile vertex shader
-    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &kVertexShaderSource, nullptr);
-    glCompileShader(vertexShader);
-
-    int success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(vertexShader, 512, nullptr, infoLog);
-        PrintLog("GL: ERROR - Vertex shader compilation failed:\n");
-        PrintLog(infoLog);
-        return false;
-    }
-    PrintLog("GL: Vertex shader compiled.\n");
-
-    // Compile fragment shader
-    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &kFragmentShaderSource, nullptr);
-    glCompileShader(fragmentShader);
-
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(fragmentShader, 512, nullptr, infoLog);
-        PrintLog("GL: ERROR - Fragment shader compilation failed:\n");
-        PrintLog(infoLog);
-        return false;
-    }
-    PrintLog("GL: Fragment shader compiled.\n");
-
-    // Link shader program
-    m_TestShader = glCreateProgram();
-    glAttachShader(m_TestShader, vertexShader);
-    glAttachShader(m_TestShader, fragmentShader);
-    glLinkProgram(m_TestShader);
-
-    glGetProgramiv(m_TestShader, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(m_TestShader, 512, nullptr, infoLog);
-        PrintLog("GL: ERROR - Shader program linking failed:\n");
-        PrintLog(infoLog);
-        return false;
-    }
-    PrintLog("GL: Shader program linked.\n");
-
-    // Delete shaders (no longer needed after linking)
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
-    // Triangle vertices: position (x,y,z) + color (r,g,b)
-    float vertices[] = {
-        // positions       // colors
-        -0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,  // bottom left - red
-         0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,  // bottom right - green
-         0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  // top - blue
-    };
-
-    // Create VAO and VBO
-    glGenVertexArrays(1, &m_TestVAO);
-    glGenBuffers(1, &m_TestVBO);
-
-    glBindVertexArray(m_TestVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, m_TestVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // Position attribute (location = 0)
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    // Color attribute (location = 1)
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    glBindVertexArray(0);
-
-    m_TestTriangleReady = true;
-    PrintLog("GL: Test triangle initialized.\n");
-    return true;
-}
-
-void GLRenderer::RenderTestTriangle()
-{
-    if (!m_TestTriangleReady) return;
-
-    glUseProgram(m_TestShader);
-    glBindVertexArray(m_TestVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-    glBindVertexArray(0);
-}
-
 void GLRenderer::ShutdownTestTriangle()
 {
     if (m_TestVAO) {
@@ -668,7 +821,12 @@ void GLRenderer::ShutdownTestTriangle()
         glDeleteProgram(m_TestShader);
         m_TestShader = 0;
     }
+    if (m_TestTexture) {
+        glDeleteTextures(1, &m_TestTexture);
+        m_TestTexture = 0;
+    }
     m_TestTriangleReady = false;
+    m_TestTextureReady = false;
 }
 
 #endif // _gl

@@ -53,6 +53,10 @@ void Activate3DHardware()
 
     if (g_GLRenderer) {
         g_GLRenderer->SetVideoMode(WinW, WinH);
+
+        // Initialize test texture now that textures are loaded
+        // (textures are loaded after Init3DHardware but before Activate3DHardware)
+        g_GLRenderer->InitTestTexture();
     }
 
     // Ensure window is in foreground

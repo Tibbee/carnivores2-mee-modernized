@@ -79,6 +79,9 @@ public:
     void SetFullScreen() override;
     bool IsSoftwareStyle() const override;
 
+    // ── Test functions (temporary - public for activation timing) ───────
+    bool InitTestTexture();
+
 private:
     // Internal helpers
     bool InitGLState();
@@ -99,10 +102,17 @@ private:
     unsigned int m_TestVBO = 0;
     bool m_TestTriangleReady = false;
 
+    // Test texture resources
+    unsigned int m_TestTexture = 0;
+    bool m_TestTextureReady = false;
+
     // Texture management
     static const int kMaxGLTextures = 4096;
     unsigned int m_TextureCache[kMaxGLTextures] = {};
     bool m_TextureUsed[kMaxGLTextures] = {};
+
+    // Helper: expand 16-bit X1R5G5B5 to 32-bit RGBA
+    static unsigned int Expand1555to8888(unsigned short c);
 };
 
 // Global GL renderer instance (created in Init3DHardware, destroyed in ShutDown3DHardware)
