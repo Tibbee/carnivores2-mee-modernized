@@ -47,13 +47,13 @@ public:
 
     // ── 3D Rendering — Models ──────────────────────────────────────────
     virtual void RenderModel(TModel* mptr, float x0, float y0, float z0,
-                             int light, float al, float bt) = 0;
+                             int light, int vt, float al, float bt) = 0;
     virtual void RenderModelClip(TModel* mptr, float x0, float y0, float z0,
-                                 int light, float al, float bt) = 0;
+                                 int light, int vt, float al, float bt) = 0;
     virtual void RenderModelClipWater(TModel* mptr, float x0, float y0, float z0,
-                                      int light, float al, float bt) = 0;
+                                      int light, int vt, float al, float bt) = 0;
     virtual void RenderNearModel(TModel* mptr, float x0, float y0, float z0,
-                                 int light, float al, float bt) = 0;
+                                 int light, int vt, float al, float bt) = 0;
 
     // ── Character / Entity Renders ─────────────────────────────────────
     virtual void RenderCharacter(TCharacter* cptr) = 0;

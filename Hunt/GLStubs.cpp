@@ -129,7 +129,7 @@ void RenderGround()
 
 void RenderModelsList()
 {
-    // TODO: Render models using GL
+    if (g_GLRenderer) g_GLRenderer->RenderModelsList();
 }
 
 void Render3DHardwarePosts()
@@ -159,7 +159,27 @@ void DrawHMap()
 void RenderNearModel(TModel* mptr, float x0, float y0, float z0,
                      int light, float al, float bt)
 {
-    if (g_GLRenderer) g_GLRenderer->RenderNearModel(mptr, x0, y0, z0, light, al, bt);
+    if (g_GLRenderer) g_GLRenderer->RenderNearModel(mptr, x0, y0, z0, light, 0, al, bt);
+}
+
+void RenderModel(TModel* mptr, float x0, float y0, float z0, int light, int vt, float al, float bt)
+{
+    if (g_GLRenderer) g_GLRenderer->RenderModel(mptr, x0, y0, z0, light, vt, al, bt);
+}
+
+void RenderModelClip(TModel* mptr, float x0, float y0, float z0, int light, int vt, float al, float bt)
+{
+    if (g_GLRenderer) g_GLRenderer->RenderModelClip(mptr, x0, y0, z0, light, vt, al, bt);
+}
+
+void RenderModelClipWater(TModel* mptr, float x0, float y0, float z0, int light, int vt, float al, float bt)
+{
+    if (g_GLRenderer) g_GLRenderer->RenderModelClipWater(mptr, x0, y0, z0, light, vt, al, bt);
+}
+
+void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
+{
+    if (g_GLRenderer) g_GLRenderer->RenderBMPModel(mptr, x0, y0, z0, light);
 }
 
 void RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float z0,

@@ -8,9 +8,11 @@
 #pragma once
 
 #include "IRenderer.h"
+#include "glad/glad.h"
 #include <windows.h>
 #include <array>
 #include <cstdint>
+#include <map>
 #include <vector>
 
 class GLRenderer : public IRenderer {
@@ -42,13 +44,13 @@ public:
     void DrawHMap() override;
 
     void RenderModel(TModel* mptr, float x0, float y0, float z0,
-                     int light, float al, float bt) override;
+                     int light, int vt, float al, float bt) override;
     void RenderModelClip(TModel* mptr, float x0, float y0, float z0,
-                         int light, float al, float bt) override;
+                         int light, int vt, float al, float bt) override;
     void RenderModelClipWater(TModel* mptr, float x0, float y0, float z0,
-                              int light, float al, float bt) override;
+                              int light, int vt, float al, float bt) override;
     void RenderNearModel(TModel* mptr, float x0, float y0, float z0,
-                         int light, float al, float bt) override;
+                         int light, int vt, float al, float bt) override;
 
     void RenderCharacter(TCharacter* cptr) override;
     void RenderExplosion(int index) override;
@@ -69,6 +71,10 @@ public:
 
     void RenderGround();
     void RenderWater();
+    void RenderObject(int x, int y);
+    void RenderMappedObject(int x, int y);
+    void RenderModelsList();
+    void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light);
 
 private:
     struct TerrainVertex {
@@ -81,15 +87,57 @@ private:
         float alpha;
     };
 
+    struct ModelVertex {
+        float x, y, z;
+        float u, v;
+        float light;
+        float fog;
+        float fogR, fogG, fogB;
+        float alpha;
+        float cutout;
+    };
+
+    struct ModelDrawItem {
+        GLuint texture;
+        float distance;
+        std::vector<ModelVertex> opaqueVertices;
+        std::vector<ModelVertex> cutoutVertices;
+        std::vector<ModelVertex> transparentVertices;
+    };
+
     bool InitGLState();
     void LoadGLExtensions();
     bool InitializeTerrainPipeline();
     void ShutdownTerrainPipeline();
+    bool InitializeModelPipeline();
+    void ShutdownModelPipeline();
     void BeginTerrainFrame();
     void BeginWaterFrame();
     void RenderTerrain();
     void RenderWaterSurface();
+    void RenderWorldModels();
     void DrawVertexBatch(const std::vector<TerrainVertex>& vertices) const;
+    GLuint UploadModelTexture(TModel* mptr);
+    GLuint UploadBMPModelTexture(TBMPModel* mptr);
+    bool BuildModelDrawItem(ModelDrawItem& outItem,
+                            TModel* mptr,
+                            float x0,
+                            float y0,
+                            float z0,
+                            int light,
+                            int vt,
+                            float al,
+                            float bt,
+                            bool waterClipped,
+                            bool disableFog,
+                            bool clippedVariant) const;
+    void DrawModelVertices(GLuint texture,
+                           const std::vector<ModelVertex>& vertices,
+                           const std::array<float, 16>& projection,
+                           bool depthTest,
+                           bool enableBlend);
+    bool NeedsNearestModelFiltering(const std::vector<ModelVertex>& vertices) const;
+    void SetModelTextureFiltering(GLuint texture, bool nearest);
     void EnsureTerrainTextureArray();
     void UploadTerrainLayer(int layer, const TEXTURE& texture);
     void CollectTerrainTile(int x, int y, int r);
@@ -140,6 +188,16 @@ private:
     unsigned int m_terrainVAO = 0;
     unsigned int m_terrainVBO = 0;
     unsigned int m_terrainTextureArray = 0;
+
+    unsigned int m_modelShader = 0;
+    unsigned int m_modelVAO = 0;
+    unsigned int m_modelVBO = 0;
+    std::map<const TModel*, GLuint> m_modelTextureCache;
+    std::map<const TBMPModel*, GLuint> m_bmpTextureCache;
+    std::map<GLuint, bool> m_modelTextureFilterState;
+    std::vector<ModelDrawItem> m_worldModelItems;
+    std::vector<const ModelDrawItem*> m_transparentModelItems;
+    std::vector<Vector2di> m_objectList;
 
     static const int kTerrainMipLevels = 4;
     static const int kMaxTerrainTextureLayers = 1024;

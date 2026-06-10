@@ -14,6 +14,8 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#include <map>
+#include <utility>
 #include <vector>
 
 #define WGL_CONTEXT_MAJOR_VERSION_ARB     0x2091
@@ -75,6 +77,154 @@ static GLuint LinkProgram(GLuint vertexShader, GLuint fragmentShader)
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
     return program;
+}
+
+constexpr float kModelNearClip = -16.0f;
+
+struct FogSample
+{
+    float amount;
+    Vector3d color;
+};
+
+struct ModelClipVertex
+{
+    Vector3d position;
+    Vector2df uv;
+    float light;
+};
+
+Vector3d DecodeFogColor(int rgb)
+{
+    return {
+        static_cast<float>(rgb & 0xFF) / 255.0f,
+        static_cast<float>((rgb >> 8) & 0xFF) / 255.0f,
+        static_cast<float>((rgb >> 16) & 0xFF) / 255.0f
+    };
+}
+
+Vector3d GetFogColor()
+{
+    if (UNDERWATER && FogsList[127].fogRGB) {
+        return DecodeFogColor(FogsList[127].fogRGB);
+    }
+
+    if (CAMERAINFOG && CameraFogI > 0) {
+        return DecodeFogColor(FogsList[CameraFogI].fogRGB);
+    }
+
+    if (FOGON && CurFogColor) {
+        return DecodeFogColor(CurFogColor);
+    }
+
+    return {
+        static_cast<float>(SkyR) / 255.0f,
+        static_cast<float>(SkyG) / 255.0f,
+        static_cast<float>(SkyB) / 255.0f
+    };
+}
+
+Vector2df DecodeLegacyFaceUV(float tx, float ty, int texHeight)
+{
+    // fp_conv() already converted int pixel coords to float for non-soft builds.
+    // For GL (non-d3d), fp_conv does: f = (float)i — raw pixel coords.
+    // Normalize to [0,1] by dividing by texture dimensions.
+    const float h = static_cast<float>((texHeight > 1) ? texHeight : 1);
+    return {
+        tx / 256.0f,
+        ty / h
+    };
+}
+
+Vector3d TransformModelVertex(const TPoint3d& source, float x0, float y0, float z0, float ca, float sa, float cb, float sb)
+{
+    Vector3d result;
+    result.x = source.x * ca + source.z * sa + x0;
+    const float vz = source.z * ca - source.x * sa;
+    result.y = source.y * cb - vz * sb + y0;
+    result.z = vz * cb + source.y * sb + z0;
+    return result;
+}
+
+bool ShouldCullModelFace(WORD flags, const Vector3d& p0, const Vector3d& p1, const Vector3d& p2)
+{
+    if ((flags & (sfDarkBack | sfNeedVC)) == 0) {
+        return false;
+    }
+
+    const Vector3d edge1 = {p1.x - p0.x, p1.y - p0.y, p1.z - p0.z};
+    const Vector3d edge2 = {p2.x - p0.x, p2.y - p0.y, p2.z - p0.z};
+    const Vector3d normal = {
+        edge1.y * edge2.z - edge1.z * edge2.y,
+        edge1.z * edge2.x - edge1.x * edge2.z,
+        edge1.x * edge2.y - edge1.y * edge2.x
+    };
+
+    const float facing = normal.x * p0.x + normal.y * p0.y + normal.z * p0.z;
+    return facing < 0.0f;
+}
+
+float DistanceToWaterPlane(const Vector3d& position)
+{
+    const float dx = position.x - waterclipbase.x;
+    const float dy = position.y - waterclipbase.y;
+    const float dz = position.z - waterclipbase.z;
+    return dx * ClipW.nv.x + dy * ClipW.nv.y + dz * ClipW.nv.z;
+}
+
+ModelClipVertex InterpolateClipVertex(const ModelClipVertex& a, const ModelClipVertex& b, float t)
+{
+    return {
+        {
+            a.position.x + (b.position.x - a.position.x) * t,
+            a.position.y + (b.position.y - a.position.y) * t,
+            a.position.z + (b.position.z - a.position.z) * t
+        },
+        {
+            a.uv.x + (b.uv.x - a.uv.x) * t,
+            a.uv.y + (b.uv.y - a.uv.y) * t
+        },
+        a.light + (b.light - a.light) * t
+    };
+}
+
+void ClipTriangleAgainstWater(const ModelClipVertex& a,
+                              const ModelClipVertex& b,
+                              const ModelClipVertex& c,
+                              std::vector<ModelClipVertex>& output)
+{
+    output.clear();
+    output.reserve(4);
+
+    const std::array<ModelClipVertex, 3> input = {a, b, c};
+    for (size_t i = 0; i < input.size(); ++i) {
+        const ModelClipVertex& current = input[i];
+        const ModelClipVertex& previous = input[(i + input.size() - 1) % input.size()];
+        const float currentDistance = DistanceToWaterPlane(current.position);
+        const float previousDistance = DistanceToWaterPlane(previous.position);
+        const bool currentInside = currentDistance >= 0.0f;
+        const bool previousInside = previousDistance >= 0.0f;
+
+        if (currentInside != previousInside) {
+            const float denom = previousDistance - currentDistance;
+            const float t = std::fabs(denom) < 0.0001f ? 0.0f : previousDistance / denom;
+            output.push_back(InterpolateClipVertex(previous, current, t));
+        }
+
+        if (currentInside) {
+            output.push_back(current);
+        }
+    }
+}
+
+FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog)
+{
+    if (disableFog) {
+        return {0.0f, GetFogColor()};
+    }
+
+    const float amount = std::clamp(CalcFogLevel(point) / 255.0f, 0.0f, 1.0f);
+    return {amount, GetFogColor()};
 }
 
 GLRenderer* g_GLRenderer = nullptr;
@@ -314,9 +464,76 @@ bool GLRenderer::Initialize()
         return false;
     }
 
+    const char* modelVertexSource =
+        "#version 330 core\n"
+        "layout (location = 0) in vec3 aPos;\n"
+        "layout (location = 1) in vec2 aTexCoord;\n"
+        "layout (location = 2) in float aLight;\n"
+        "layout (location = 3) in float aFog;\n"
+        "layout (location = 4) in vec3 aFogColor;\n"
+        "layout (location = 5) in float aAlpha;\n"
+        "layout (location = 6) in float aCutout;\n"
+        "uniform mat4 uProjection;\n"
+        "out vec2 vTexCoord;\n"
+        "out float vLight;\n"
+        "out float vFog;\n"
+        "out vec3 vFogColor;\n"
+        "out float vAlpha;\n"
+        "out float vCutout;\n"
+        "void main() {\n"
+        "   gl_Position = uProjection * vec4(aPos, 1.0);\n"
+        "   vTexCoord = aTexCoord;\n"
+        "   vLight = clamp(aLight / 255.0, 0.0, 1.0);\n"
+        "   vFog = clamp(aFog, 0.0, 1.0);\n"
+        "   vFogColor = aFogColor;\n"
+        "   vAlpha = clamp(aAlpha, 0.0, 1.0);\n"
+        "   vCutout = aCutout;\n"
+        "}\n";
+
+    const char* modelFragmentSource =
+        "#version 330 core\n"
+        "out vec4 FragColor;\n"
+        "in vec2 vTexCoord;\n"
+        "in float vLight;\n"
+        "in float vFog;\n"
+        "in vec3 vFogColor;\n"
+        "in float vAlpha;\n"
+        "in float vCutout;\n"
+        "uniform sampler2D uModelTexture;\n"
+        "void main() {\n"
+        "   vec4 texColor = texture(uModelTexture, vTexCoord);\n"
+        "   if (vCutout > 0.5 && dot(texColor.rgb, vec3(1.0)) < 0.01) discard;\n"
+        "   vec3 litColor = texColor.rgb * vLight;\n"
+        "   vec3 finalColor = mix(litColor, vFogColor, vFog);\n"
+        "   FragColor = vec4(finalColor, texColor.a * vAlpha);\n"
+        "}\n";
+
+    GLuint modelVertexShader = CompileShader(GL_VERTEX_SHADER, modelVertexSource);
+    if (!modelVertexShader) {
+        return false;
+    }
+
+    GLuint modelFragmentShader = CompileShader(GL_FRAGMENT_SHADER, modelFragmentSource);
+    if (!modelFragmentShader) {
+        glDeleteShader(modelVertexShader);
+        return false;
+    }
+
+    m_modelShader = LinkProgram(modelVertexShader, modelFragmentShader);
+    if (!m_modelShader) {
+        return false;
+    }
+
     if (!InitializeTerrainPipeline()) {
         return false;
     }
+
+    if (!InitializeModelPipeline()) {
+        return false;
+    }
+
+    glUseProgram(m_modelShader);
+    glUniform1i(glGetUniformLocation(m_modelShader, "uModelTexture"), 0);
 
     glUseProgram(m_terrainShader);
     glUniform1i(glGetUniformLocation(m_terrainShader, "uTerrainArray"), 0);
@@ -335,6 +552,7 @@ void GLRenderer::Shutdown()
     if (!m_Initialized && !m_hrc) return;
 
     ShutdownTerrainPipeline();
+    ShutdownModelPipeline();
 
     if (m_hrc) {
         if (wglGetCurrentContext() == m_hrc) {
@@ -405,6 +623,71 @@ bool GLRenderer::InitializeTerrainPipeline()
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     return true;
+}
+
+bool GLRenderer::InitializeModelPipeline()
+{
+    glGenVertexArrays(1, &m_modelVAO);
+    glGenBuffers(1, &m_modelVBO);
+
+    glBindVertexArray(m_modelVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
+    glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, x)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, u)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, light)));
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, fog)));
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, fogR)));
+    glEnableVertexAttribArray(5);
+    glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, alpha)));
+    glEnableVertexAttribArray(6);
+    glVertexAttribPointer(6, 1, GL_FLOAT, GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, cutout)));
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    return true;
+}
+
+void GLRenderer::ShutdownModelPipeline()
+{
+    for (const auto& item : m_modelTextureCache) {
+        if (item.second) {
+            glDeleteTextures(1, &item.second);
+        }
+    }
+    m_modelTextureCache.clear();
+
+    for (const auto& item : m_bmpTextureCache) {
+        if (item.second) {
+            glDeleteTextures(1, &item.second);
+        }
+    }
+    m_bmpTextureCache.clear();
+
+    m_modelTextureFilterState.clear();
+
+    if (m_modelVBO) {
+        glDeleteBuffers(1, &m_modelVBO);
+        m_modelVBO = 0;
+    }
+    if (m_modelVAO) {
+        glDeleteVertexArrays(1, &m_modelVAO);
+        m_modelVAO = 0;
+    }
+    if (m_modelShader) {
+        glDeleteProgram(m_modelShader);
+        m_modelShader = 0;
+    }
+
+    m_worldModelItems.clear();
+    m_transparentModelItems.clear();
+    m_objectList.clear();
 }
 
 void GLRenderer::ShutdownTerrainPipeline()
@@ -484,6 +767,557 @@ void GLRenderer::RenderWaterSurface()
     glDisable(GL_BLEND);
 
     glBindVertexArray(0);
+}
+
+GLuint GLRenderer::UploadModelTexture(TModel* mptr)
+{
+    if (!mptr || !mptr->lpTexture) {
+        return 0;
+    }
+
+    const auto cached = m_modelTextureCache.find(mptr);
+    if (cached != m_modelTextureCache.end()) {
+        return cached->second;
+    }
+
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+
+    const int height = mptr->TextureHeight > 1 ? mptr->TextureHeight : 256;
+    const int width = 256;
+    const size_t availableTexels = static_cast<size_t>(mptr->TextureSize) / sizeof(WORD);
+    const size_t texelCount = static_cast<size_t>(width) * height;
+    if (availableTexels < texelCount) {
+        return 0;
+    }
+
+    std::vector<uint32_t> expanded(texelCount);
+    for (size_t i = 0; i < texelCount; ++i) {
+        expanded[i] = Expand1555to8888(mptr->lpTexture[i]);
+    }
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, expanded.data());
+    m_modelTextureCache[mptr] = texture;
+    m_modelTextureFilterState[texture] = false;
+    return texture;
+}
+
+GLuint GLRenderer::UploadBMPModelTexture(TBMPModel* mptr)
+{
+    if (!mptr || !mptr->lpTexture) {
+        return 0;
+    }
+
+    const auto cached = m_bmpTextureCache.find(mptr);
+    if (cached != m_bmpTextureCache.end()) {
+        return cached->second;
+    }
+
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+
+    std::vector<uint32_t> expanded(128 * 128);
+    for (size_t i = 0; i < expanded.size(); ++i) {
+        expanded[i] = Expand1555to8888(mptr->lpTexture[i]);
+    }
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 128, 128, 0, GL_RGBA, GL_UNSIGNED_BYTE, expanded.data());
+    m_bmpTextureCache[mptr] = texture;
+    m_modelTextureFilterState[texture] = true;
+    return texture;
+}
+
+bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
+                                    TModel* mptr,
+                                    float x0,
+                                    float y0,
+                                    float z0,
+                                    int light,
+                                    int vt,
+                                    float al,
+                                    float bt,
+                                    bool waterClipped,
+                                    bool disableFog,
+                                    bool clippedVariant) const
+{
+    if (!mptr || !mptr->lpTexture || !mptr->gVertex || !mptr->gFace) {
+        return false;
+    }
+
+    const float ca = std::cos(al);
+    const float sa = std::sin(al);
+    const float cb = std::cos(bt);
+    const float sb = std::sin(bt);
+
+    const Vector3d unrotatedCenter = {
+        x0 * ca - z0 * sa,
+        y0,
+        z0 * ca + x0 * sa
+    };
+
+    static thread_local std::vector<Vector3d> transformed;
+    static thread_local std::vector<Vector3d> unrotated;
+    transformed.clear();
+    unrotated.clear();
+    transformed.reserve(mptr->VCount);
+    unrotated.reserve(mptr->VCount);
+
+    bool anyVisible = false;
+    for (int i = 0; i < mptr->VCount; ++i) {
+        transformed.push_back(TransformModelVertex(mptr->gVertex[i], x0, y0, z0, ca, sa, cb, sb));
+        unrotated.push_back(TransformModelVertex(mptr->gVertex[i], unrotatedCenter.x, unrotatedCenter.y, unrotatedCenter.z, 1.0f, 0.0f, 1.0f, 0.0f));
+        if (transformed.back().z < kModelNearClip) {
+            anyVisible = true;
+        }
+    }
+
+    if (!anyVisible) {
+        return false;
+    }
+
+    outItem = ModelDrawItem();
+    outItem.texture = 0;
+    outItem.distance = std::sqrt(x0 * x0 + y0 * y0 + z0 * z0);
+    const size_t reserveCount = static_cast<size_t>(mptr->FCount) * 3;
+    outItem.opaqueVertices.reserve(reserveCount);
+    outItem.cutoutVertices.reserve(reserveCount);
+    outItem.transparentVertices.reserve(reserveCount);
+
+    const int lightIndex = std::clamp(vt, 0, 3);
+    const float baseLight = static_cast<float>(light);
+    const float baseAlpha = std::clamp((255.0f - static_cast<float>(GlassL)) / 255.0f, 0.0f, 1.0f);
+    const float transparentScale = clippedVariant ? (0x70 / 255.0f) : (0x80 / 255.0f);
+    const bool forceDistanceBlend = baseAlpha < 0.999f;
+
+    auto appendTriangle = [&](const ModelClipVertex& a,
+                              const ModelClipVertex& b,
+                              const ModelClipVertex& c,
+                              const Vector3d& uA,
+                              const Vector3d& uB,
+                              const Vector3d& uC,
+                              bool transparent,
+                              bool cutout) {
+        const FogSample fogA = SampleFogAtPoint(uA, disableFog);
+        const FogSample fogB = SampleFogAtPoint(uB, disableFog);
+        const FogSample fogC = SampleFogAtPoint(uC, disableFog);
+        const float alpha = transparent ? baseAlpha * transparentScale : baseAlpha;
+        const float cutoutValue = cutout ? 1.0f : 0.0f;
+        const bool blended = transparent || forceDistanceBlend;
+        std::vector<ModelVertex>& target = blended ? outItem.transparentVertices : (cutout ? outItem.cutoutVertices : outItem.opaqueVertices);
+        target.push_back({a.position.x, a.position.y, a.position.z, a.uv.x, a.uv.y, a.light, fogA.amount, fogA.color.x, fogA.color.y, fogA.color.z, alpha, cutoutValue});
+        target.push_back({b.position.x, b.position.y, b.position.z, b.uv.x, b.uv.y, b.light, fogB.amount, fogB.color.x, fogB.color.y, fogB.color.z, alpha, cutoutValue});
+        target.push_back({c.position.x, c.position.y, c.position.z, c.uv.x, c.uv.y, c.light, fogC.amount, fogC.color.x, fogC.color.y, fogC.color.z, alpha, cutoutValue});
+    };
+
+    static thread_local std::vector<ModelClipVertex> polygon;
+    polygon.reserve(4);
+    polygon.clear();
+
+    for (int f = 0; f < mptr->FCount; ++f) {
+        const TFace& face = mptr->gFace[f];
+        const Vector3d& p0 = transformed[face.v1];
+        const Vector3d& p1 = transformed[face.v2];
+        const Vector3d& p2 = transformed[face.v3];
+
+        if (ShouldCullModelFace(face.Flags, p0, p1, p2)) {
+            continue;
+        }
+
+        const float l0 = std::clamp(baseLight + mptr->VLight[lightIndex][face.v1], 0.0f, 255.0f);
+        const float l1 = std::clamp(baseLight + mptr->VLight[lightIndex][face.v2], 0.0f, 255.0f);
+        const float l2 = std::clamp(baseLight + mptr->VLight[lightIndex][face.v3], 0.0f, 255.0f);
+
+        const int texHeight = (mptr->TextureHeight > 1) ? mptr->TextureHeight : 1;
+        // fp_conv() in CorrectModel already converted int UVs to float pixel coords.
+        ModelClipVertex v0{p0, DecodeLegacyFaceUV(face.tax, face.tay, texHeight), l0};
+        ModelClipVertex v1{p1, DecodeLegacyFaceUV(face.tbx, face.tby, texHeight), l1};
+        ModelClipVertex v2{p2, DecodeLegacyFaceUV(face.tcx, face.tcy, texHeight), l2};
+
+        if (waterClipped) {
+            ClipTriangleAgainstWater(v0, v1, v2, polygon);
+            if (polygon.size() < 3) {
+                continue;
+            }
+        } else {
+            polygon.clear();
+            polygon.reserve(3);
+            polygon.push_back(v0);
+            polygon.push_back(v1);
+            polygon.push_back(v2);
+        }
+
+        const bool isFaceTransparent = (face.Flags & sfTransparent) != 0;
+        const bool cutout = (face.Flags & (sfOpacity | sfTransparent)) != 0;
+        for (size_t i = 1; i + 1 < polygon.size(); ++i) {
+            appendTriangle(polygon[0], polygon[i], polygon[i + 1],
+                           unrotated[face.v1], unrotated[face.v2], unrotated[face.v3],
+                           isFaceTransparent, cutout);
+        }
+    }
+
+    return !outItem.opaqueVertices.empty() || !outItem.cutoutVertices.empty() || !outItem.transparentVertices.empty();
+}
+
+void GLRenderer::DrawModelVertices(GLuint texture,
+                                   const std::vector<ModelVertex>& vertices,
+                                   const std::array<float, 16>& projection,
+                                   bool depthTest,
+                                   bool enableBlend)
+{
+    if (!m_modelShader || texture == 0 || vertices.empty()) {
+        return;
+    }
+
+    glUseProgram(m_modelShader);
+    glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, projection.data());
+
+    if (depthTest) {
+        glEnable(GL_DEPTH_TEST);
+        if (!enableBlend) {
+            glDepthMask(GL_TRUE);
+        }
+    } else {
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask(GL_FALSE);
+    }
+
+    if (enableBlend) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDepthMask(GL_FALSE);
+    } else {
+        glDisable(GL_BLEND);
+    }
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindVertexArray(m_modelVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
+    const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(vertices.size() * sizeof(ModelVertex));
+    glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices.data());
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+    glBindVertexArray(0);
+
+    glDepthMask(GL_TRUE);
+    if (!depthTest) {
+        glEnable(GL_DEPTH_TEST);
+    }
+    if (enableBlend) {
+        glDisable(GL_BLEND);
+    }
+}
+
+bool GLRenderer::NeedsNearestModelFiltering(const std::vector<ModelVertex>& vertices) const
+{
+    return std::any_of(vertices.begin(), vertices.end(), [](const ModelVertex& vertex) {
+        return vertex.cutout > 0.5f;
+    });
+}
+
+void GLRenderer::SetModelTextureFiltering(GLuint texture, bool nearest)
+{
+    if (!texture) {
+        return;
+    }
+
+    const auto it = m_modelTextureFilterState.find(texture);
+    if (it != m_modelTextureFilterState.end() && it->second == nearest) {
+        return;
+    }
+
+    glBindTexture(GL_TEXTURE_2D, texture);
+    const GLint filter = nearest ? GL_NEAREST : GL_LINEAR;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+    m_modelTextureFilterState[texture] = nearest;
+}
+
+void GLRenderer::RenderWorldModels()
+{
+    if (m_worldModelItems.empty()) {
+        return;
+    }
+
+    const auto projection = BuildLegacyProjection();
+    for (const ModelDrawItem& item : m_worldModelItems) {
+        DrawModelVertices(item.texture, item.opaqueVertices, projection, true, false);
+
+        if (!item.cutoutVertices.empty()) {
+            SetModelTextureFiltering(item.texture, true);
+            DrawModelVertices(item.texture, item.cutoutVertices, projection, true, false);
+            SetModelTextureFiltering(item.texture, false);
+        }
+    }
+
+    m_transparentModelItems.clear();
+    m_transparentModelItems.reserve(m_worldModelItems.size());
+    for (const ModelDrawItem& item : m_worldModelItems) {
+        if (!item.transparentVertices.empty()) {
+            m_transparentModelItems.push_back(&item);
+        }
+    }
+
+    std::sort(m_transparentModelItems.begin(), m_transparentModelItems.end(),
+              [](const ModelDrawItem* a, const ModelDrawItem* b) {
+                  return a->distance > b->distance;
+              });
+
+    for (const ModelDrawItem* item : m_transparentModelItems) {
+        const bool useNearestFiltering = NeedsNearestModelFiltering(item->transparentVertices);
+        if (useNearestFiltering) {
+            SetModelTextureFiltering(item->texture, true);
+        }
+        DrawModelVertices(item->texture, item->transparentVertices, projection, true, true);
+        if (useNearestFiltering) {
+            SetModelTextureFiltering(item->texture, false);
+        }
+    }
+
+    m_worldModelItems.clear();
+    m_transparentModelItems.clear();
+}
+
+void GLRenderer::RenderObject(int x, int y)
+{
+    if (x < 0 || y < 0 || x >= ctMapSize || y >= ctMapSize) {
+        return;
+    }
+    if (OMap[y][x] == 255 || !MODELS) {
+        return;
+    }
+    if (m_objectList.size() >= 2048) {
+        return;
+    }
+
+    m_objectList.push_back({x, y});
+}
+
+void GLRenderer::RenderMappedObject(int x, int y)
+{
+    const int ob = OMap[y][x];
+    if (!MObjects[ob].model) {
+        return;
+    }
+
+    const int FI = (FMap[y][x] >> 2) & 3;
+    const float fi = CameraAlpha + static_cast<float>(FI) * 2.0f * pi / 4.0f;
+
+    int mlight;
+    if (MObjects[ob].info.flags & ofDEFLIGHT) {
+        mlight = MObjects[ob].info.DefLight;
+    } else if (MObjects[ob].info.flags & ofGRNDLIGHT) {
+        mlight = 128;
+        CalcModelGroundLight(MObjects[ob].model, x * 256 + 128, y * 256 + 128, FI);
+    } else {
+        mlight = -(RandomMap[y & 31][x & 31] >> 5) + (LMap[y][x] >> 1) + 96;
+    }
+
+    mlight = std::clamp(mlight, 64, 192);
+
+    Vector3d pos;
+    pos.x = x * 256 + 128 - CameraX;
+    pos.z = y * 256 + 128 - CameraZ;
+    pos.y = static_cast<float>(HMapO[y][x]) * ctHScale - CameraY;
+
+    const float zs = VectorLength(pos);
+    if (pos.y + MObjects[ob].info.YHi < (HMap[y][x] + HMap[y + 1][x + 1]) / 2 * ctHScale - CameraY) {
+        return;
+    }
+
+    waterclip = FALSE;
+    if (!UNDERWATER && (FMap[y][x] & fmWaterA) && HMapO[y][x] < WaterList[WMap[y][x]].wlevel) {
+        if (WaterList[WMap[y][x]].wlevel * ctHScale > HMapO[y][x] * ctHScale + MObjects[ob].info.YHi) {
+            return;
+        }
+
+        waterclipbase = pos;
+        waterclipbase.y = WaterList[WMap[y][x]].wlevel * ctHScale - CameraY;
+        waterclipbase = RotateVector(waterclipbase);
+        waterclip = TRUE;
+    }
+
+    pos = RotateVector(pos);
+    GlassL = 0;
+    if (zs > 256 * (ctViewR - 4))
+        GlassL = min(255, (int)(zs / 4 - 64 * (ctViewR - 4)));
+    if (GlassL == 255) {
+        return;
+    }
+
+    if ((MObjects[ob].info.flags & ofANIMATED) && MObjects[ob].info.LastAniTime != RealTime) {
+        MObjects[ob].info.LastAniTime = RealTime;
+        CreateMorphedObject(MObjects[ob].model, MObjects[ob].vtl, RealTime % MObjects[ob].vtl.AniTime);
+    }
+
+    float renderDistance = zs;
+    if (MObjects[ob].info.flags & ofNOBMP) {
+        renderDistance = 0.0f;
+    }
+
+    if (renderDistance > ctViewRM * 256) {
+        RenderBMPModel(&MObjects[ob].bmpmodel, pos.x, pos.y, pos.z, mlight - 16);
+    } else if (waterclip) {
+        RenderModelClipWater(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+    } else if (pos.z < -256 * 8) {
+        RenderModel(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+    } else {
+        RenderModelClip(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+    }
+}
+
+void GLRenderer::RenderModelsList()
+{
+    for (const Vector2di& object : m_objectList) {
+        RenderMappedObject(object.x, object.y);
+    }
+    m_objectList.clear();
+    RenderWorldModels();
+}
+
+void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
+{
+    if (!mptr) {
+        return;
+    }
+
+    const GLuint texture = UploadBMPModelTexture(mptr);
+    if (!texture) {
+        return;
+    }
+
+    std::vector<ModelVertex> vertices;
+    vertices.reserve(6);
+
+    const float baseLight = std::clamp(static_cast<float>(light), 0.0f, 255.0f);
+    const float alpha = std::clamp((255.0f - static_cast<float>(GlassL)) / 255.0f, 0.0f, 1.0f);
+    const FogSample fog = SampleFogAtPoint({x0, y0, z0}, false);
+
+    auto appendVertex = [&](int index, float u, float v) {
+        Vector3d pos;
+        pos.x = mptr->gVertex[index].x + x0;
+        pos.y = mptr->gVertex[index].y + y0;
+        pos.z = z0;
+        if (pos.z >= -256.0f) {
+            return;
+        }
+        vertices.push_back({pos.x, pos.y, pos.z, u, v, baseLight, fog.amount, fog.color.x, fog.color.y, fog.color.z, alpha, 0.0f});
+    };
+
+    appendVertex(0, 0.0f, 0.0f);
+    appendVertex(1, 1.0f, 0.0f);
+    appendVertex(2, 1.0f, 1.0f);
+    appendVertex(0, 0.0f, 0.0f);
+    appendVertex(2, 1.0f, 1.0f);
+    appendVertex(3, 0.0f, 1.0f);
+
+    if (vertices.size() < 6 || (vertices.size() % 6) != 0) {
+        return;
+    }
+
+    const auto projection = BuildLegacyProjection();
+    DrawModelVertices(texture, vertices, projection, true, true);
+}
+
+void GLRenderer::RenderModel(TModel* mptr, float x0, float y0, float z0,
+                             int light, int vt, float al, float bt)
+{
+    ModelDrawItem item;
+    if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, false, false, false)) {
+        return;
+    }
+    item.texture = UploadModelTexture(mptr);
+    if (!item.texture) {
+        return;
+    }
+    m_worldModelItems.push_back(std::move(item));
+}
+
+void GLRenderer::RenderModelClip(TModel* mptr, float x0, float y0, float z0,
+                                 int light, int vt, float al, float bt)
+{
+    ModelDrawItem item;
+    if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, false, false, true)) {
+        return;
+    }
+    item.texture = UploadModelTexture(mptr);
+    if (!item.texture) {
+        return;
+    }
+    m_worldModelItems.push_back(std::move(item));
+}
+
+void GLRenderer::RenderModelClipWater(TModel* mptr, float x0, float y0, float z0,
+                                      int light, int vt, float al, float bt)
+{
+    ModelDrawItem item;
+    if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, true, false, true)) {
+        return;
+    }
+    item.texture = UploadModelTexture(mptr);
+    if (!item.texture) {
+        return;
+    }
+    m_worldModelItems.push_back(std::move(item));
+}
+
+void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
+                                 int light, int vt, float al, float bt)
+{
+    ModelDrawItem item;
+    if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, false, true, true)) {
+        return;
+    }
+    item.texture = UploadModelTexture(mptr);
+    if (!item.texture) {
+        return;
+    }
+
+    const float ca = std::cos(al);
+    const float sa = std::sin(al);
+    const float cb = std::cos(bt);
+    const float sb = std::sin(bt);
+    for (int s = 0; s < mptr->VCount; ++s) {
+        rVertex[s].x = (mptr->gVertex[s].x * ca + mptr->gVertex[s].z * sa) + x0;
+        const float vz = mptr->gVertex[s].z * ca - mptr->gVertex[s].x * sa;
+        rVertex[s].y = (mptr->gVertex[s].y * cb - vz * sb) + y0;
+        rVertex[s].z = (vz * cb + mptr->gVertex[s].y * sb) + z0;
+    }
+
+    glClear(GL_DEPTH_BUFFER_BIT);
+    const auto projection = BuildLegacyProjection();
+    DrawModelVertices(item.texture, item.opaqueVertices, projection, true, false);
+    if (!item.cutoutVertices.empty()) {
+        SetModelTextureFiltering(item.texture, true);
+        DrawModelVertices(item.texture, item.cutoutVertices, projection, true, false);
+        SetModelTextureFiltering(item.texture, false);
+    }
+    if (!item.transparentVertices.empty()) {
+        const bool useNearestFiltering = NeedsNearestModelFiltering(item.transparentVertices);
+        if (useNearestFiltering) {
+            SetModelTextureFiltering(item.texture, true);
+        }
+        DrawModelVertices(item.texture, item.transparentVertices, projection, true, true);
+        if (useNearestFiltering) {
+            SetModelTextureFiltering(item.texture, false);
+        }
+    }
 }
 
 void GLRenderer::EnsureTerrainTextureArray()
@@ -768,11 +1602,6 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
         return;
     }
 
-    const int textureLayer = TMap1[y][x];
-    if (textureLayer < 0 || textureLayer >= kMaxTerrainTextureLayers || !Textures[textureLayer]) {
-        return;
-    }
-
     EPoint v10 = VMap[localY][localX + 1];
     EPoint v01 = VMap[localY + 1][localX];
     EPoint v11 = VMap[localY + 1][localX + 1];
@@ -797,13 +1626,18 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
     const Vector3d fog01 = GetFogColorForMapPoint(x, y + 1);
     const Vector3d fog11 = GetFogColorForMapPoint(x + 1, y + 1);
 
-    if (reverse) {
-        AppendTerrainTriangle(m_terrainVertices, v00, v10, v01, fog00, fog10, fog01, textureLayer, reverse, false, direction);
-        AppendTerrainTriangle(m_terrainVertices, v01, v10, v11, fog01, fog10, fog11, textureLayer, reverse, true, direction);
-    } else {
-        AppendTerrainTriangle(m_terrainVertices, v00, v10, v11, fog00, fog10, fog11, textureLayer, reverse, false, direction);
-        AppendTerrainTriangle(m_terrainVertices, v00, v11, v01, fog00, fog11, fog01, textureLayer, reverse, true, direction);
+    const int textureLayer = TMap1[y][x];
+    if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
+        if (reverse) {
+            AppendTerrainTriangle(m_terrainVertices, v00, v10, v01, fog00, fog10, fog01, textureLayer, reverse, false, direction);
+            AppendTerrainTriangle(m_terrainVertices, v01, v10, v11, fog01, fog10, fog11, textureLayer, reverse, true, direction);
+        } else {
+            AppendTerrainTriangle(m_terrainVertices, v00, v10, v11, fog00, fog10, fog11, textureLayer, reverse, false, direction);
+            AppendTerrainTriangle(m_terrainVertices, v00, v11, v01, fog00, fog11, fog01, textureLayer, reverse, true, direction);
+        }
     }
+
+    RenderObject(x, y);
 }
 
 void GLRenderer::CollectTerrainTile2(int x, int y, int r)
@@ -826,9 +1660,6 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
     }
 
     const int textureLayer = TMap2[y][x];
-    if (textureLayer < 0 || textureLayer >= kMaxTerrainTextureLayers || !Textures[textureLayer]) {
-        return;
-    }
 
     EPoint v20 = VMap[localY][localX + 2];
     EPoint v02 = VMap[localY + 2][localX];
@@ -853,8 +1684,15 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
     const Vector3d fog02 = GetFogColorForMapPoint(x, y + 2);
     const Vector3d fog22 = GetFogColorForMapPoint(x + 2, y + 2);
 
-    AppendTerrainTriangle(m_terrainVertices, v00, v20, v22, fog00, fog20, fog22, textureLayer, false, false, direction);
-    AppendTerrainTriangle(m_terrainVertices, v00, v22, v02, fog00, fog22, fog02, textureLayer, false, true, direction);
+    if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
+        AppendTerrainTriangle(m_terrainVertices, v00, v20, v22, fog00, fog20, fog22, textureLayer, false, false, direction);
+        AppendTerrainTriangle(m_terrainVertices, v00, v22, v02, fog00, fog22, fog02, textureLayer, false, true, direction);
+    }
+
+    RenderObject(x, y);
+    RenderObject(x + 1, y);
+    RenderObject(x, y + 1);
+    RenderObject(x + 1, y + 1);
 }
 
 void GLRenderer::CollectWaterTile(int x, int y, int r)
@@ -980,6 +1818,9 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
 void GLRenderer::RenderGround()
 {
     BeginTerrainFrame();
+    m_worldModelItems.clear();
+    m_transparentModelItems.clear();
+    m_objectList.clear();
 
     for (int rr = ctViewR; rr >= ctViewR1; rr -= 2) {
         for (int x = rr; x > 0; x -= 2) {
@@ -1167,7 +2008,22 @@ void GLRenderer::RegisterPicture(TPicture* pptr)
 
 void GLRenderer::ReleaseModelTextures(const TModel* mptr)
 {
-    (void)mptr;
+    if (!mptr) {
+        return;
+    }
+
+    const auto it = m_modelTextureCache.find(mptr);
+    if (it == m_modelTextureCache.end()) {
+        return;
+    }
+
+    const GLuint texture = it->second;
+    m_modelTextureCache.erase(it);
+    m_modelTextureFilterState.erase(texture);
+
+    if (texture && m_hrc) {
+        glDeleteTextures(1, &texture);
+    }
 }
 
 void GLRenderer::ResetTerrainTextureCache()
@@ -1210,34 +2066,6 @@ void GLRenderer::DrawTPlaneClip(bool clip)
 
 void GLRenderer::DrawHMap()
 {
-}
-
-void GLRenderer::RenderModel(TModel* mptr, float x0, float y0, float z0,
-                             int light, float al, float bt)
-{
-    (void)mptr; (void)x0; (void)y0; (void)z0;
-    (void)light; (void)al; (void)bt;
-}
-
-void GLRenderer::RenderModelClip(TModel* mptr, float x0, float y0, float z0,
-                                 int light, float al, float bt)
-{
-    (void)mptr; (void)x0; (void)y0; (void)z0;
-    (void)light; (void)al; (void)bt;
-}
-
-void GLRenderer::RenderModelClipWater(TModel* mptr, float x0, float y0, float z0,
-                                      int light, float al, float bt)
-{
-    (void)mptr; (void)x0; (void)y0; (void)z0;
-    (void)light; (void)al; (void)bt;
-}
-
-void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
-                                 int light, float al, float bt)
-{
-    (void)mptr; (void)x0; (void)y0; (void)z0;
-    (void)light; (void)al; (void)bt;
 }
 
 void GLRenderer::RenderCharacter(TCharacter* cptr)
