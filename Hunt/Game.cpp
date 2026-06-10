@@ -588,12 +588,79 @@ float GetLandQHNoObj(float CameraX, float CameraZ)
 }
 
 
+static bool equals_nocase(const char* lhs, const char* rhs)
+{
+  return _stricmp(lhs, rhs) == 0;
+}
+
+static bool starts_with_nocase(const char* text, const char* prefix)
+{
+  return _strnicmp(text, prefix, strlen(prefix)) == 0;
+}
+
 void ProcessCommandLine()
 {
+  auto parse_resolution = [&](const char* value, int& width, int& height) -> bool {
+    width = 0;
+    height = 0;
+
+    if (sscanf(value, "%dx%d", &width, &height) != 2 &&
+        sscanf(value, "%dX%d", &width, &height) != 2) {
+      return false;
+    }
+
+    return width > 0 && height > 0;
+  };
+
+  auto sync_resolution_option = [](int width, int height) {
+    for (int r = 0; r < ResCount; r++) {
+      if (ResolutionList[r].w == width && ResolutionList[r].h == height) {
+        CurRes = r;
+        OptRes = r;
+        return;
+      }
+    }
+  };
+
+  int requestedWidth = WinW;
+  int requestedHeight = WinH;
+  BOOL requestedFullscreen = FULLSCREEN;
+  bool hasRequestedResolution = false;
+  bool hasRequestedFullscreen = false;
 
   for (int a=0; a<__argc; a++)
   {
     LPSTR s = __argv[a];
+
+    if (equals_nocase(s, "/nofullscreen") || equals_nocase(s, "-nofullscreen") ||
+        equals_nocase(s, "/windowed") || equals_nocase(s, "-windowed")) {
+      requestedFullscreen = FALSE;
+      hasRequestedFullscreen = true;
+      continue;
+    }
+
+    if (equals_nocase(s, "/fullscreen") || equals_nocase(s, "-fullscreen")) {
+      requestedFullscreen = TRUE;
+      hasRequestedFullscreen = true;
+      continue;
+    }
+
+    if (equals_nocase(s, "/vmode1")) { requestedWidth = 320; requestedHeight = 240; hasRequestedResolution = true; continue; }
+    if (equals_nocase(s, "/vmode2")) { requestedWidth = 400; requestedHeight = 300; hasRequestedResolution = true; continue; }
+    if (equals_nocase(s, "/vmode3")) { requestedWidth = 512; requestedHeight = 384; hasRequestedResolution = true; continue; }
+    if (equals_nocase(s, "/vmode4")) { requestedWidth = 640; requestedHeight = 480; hasRequestedResolution = true; continue; }
+    if (equals_nocase(s, "/vmode5")) { requestedWidth = 800; requestedHeight = 600; hasRequestedResolution = true; continue; }
+
+    if (starts_with_nocase(s, "/res=") || starts_with_nocase(s, "-res=")) {
+      int width, height;
+      if (parse_resolution(strchr(s, '=') + 1, width, height)) {
+        requestedWidth = width;
+        requestedHeight = height;
+        hasRequestedResolution = true;
+      }
+      continue;
+    }
+
     if (strstr(s,"x="))
     {
       PlayerX = (float)atof(&s[2])*256.f;
@@ -616,7 +683,7 @@ void ProcessCommandLine()
     if (strstr(s,"-double"))  DoubleAmmo = TRUE;
 	if (strstr(s, "-huntdog"))  DogMode = TRUE;
     if (strstr(s,"-radar"))   RadarMode = TRUE;
-	if (strstr(s, "-survival"))   SurvivalMode = TRUE;
+	if (strstr(s, "-survival"))  SurvivalMode = TRUE;
 	if (strstr(s, "-sonar"))   SonarMode = TRUE;
 	if (strstr(s, "-scanner"))   ScannerMode = TRUE;
 	if (strstr(s, "-scent"))   ScentMode = TRUE;
@@ -643,6 +710,16 @@ void ProcessCommandLine()
 		if (got >= 6) ScoreMod_Observer = mods[5];
 	}
 
+  }
+
+  if (hasRequestedFullscreen) FULLSCREEN = requestedFullscreen;
+
+  if (hasRequestedResolution) {
+    if (ResCount > 0) {
+      sync_resolution_option(requestedWidth, requestedHeight);
+    }
+    WinW = requestedWidth;
+    WinH = requestedHeight;
   }
 }
 
@@ -1518,6 +1595,7 @@ static void LoadConfig();
 
 void InitEngine()
 {
+  FULLSCREEN   = TRUE;
   DEBUG        = FALSE;
 
   WATERANI     = TRUE;
@@ -1680,12 +1758,10 @@ void InitEngine()
   // part of the legacy binary trophy format (e.g. OptFov).
   LoadConfig();
 
-  // CreateVideoDIB() must come after LoadTrophy() so WinW/WinH are set
-  // from the saved OptRes, and the DIB is allocated at the right size
-  // to match the runtime VideoPitchB (WinW * 2).
-  CreateVideoDIB();
-
+  // CreateVideoDIB() must come after ProcessCommandLine() so WinW/WinH reflect
+  // any /res command-line override.
   ProcessCommandLine();
+  CreateVideoDIB();
 
   /*
   //Multiplayer

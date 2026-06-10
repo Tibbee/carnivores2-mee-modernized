@@ -28,9 +28,44 @@ char cheatcode[16] = "DEBUGUP";
 int  cheati = 0;
 
 
+void CaptureMouse(BOOL capture)
+{
+  if (!hwndMain) return;
+
+  if (capture) {
+    RECT rect;
+    GetClientRect(hwndMain, &rect);
+
+    POINT p1 = { rect.left, rect.top };
+    POINT p2 = { rect.right, rect.bottom };
+    ClientToScreen(hwndMain, &p1);
+    ClientToScreen(hwndMain, &p2);
+    SetRect(&rect, p1.x, p1.y, p2.x, p2.y);
+
+    ClipCursor(&rect);
+    while (ShowCursor(FALSE) >= 0);
+    ResetMousePos();
+  } else {
+    ClipCursor(NULL);
+    while (ShowCursor(TRUE) < 0);
+  }
+}
+
+
 void ResetMousePos()
 {
-  SetCursorPos(VideoCX, VideoCY);
+  if (!hwndMain) return;
+
+  if (FULLSCREEN) {
+    if (_GameState && !PAUSE)
+      SetCursorPos(VideoCX, VideoCY);
+  } else {
+    if (blActive && _GameState && !PAUSE) {
+      POINT p = { VideoCX, VideoCY };
+      ClientToScreen(hwndMain, &p);
+      SetCursorPos(p.x, p.y);
+    }
+  }
 }
 
 
@@ -1198,6 +1233,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 
     if (!blActive)
     {
+      CaptureMouse(FALSE);
       ShutDown3DHardware();
       NeedRVM = TRUE;
     }
@@ -1206,6 +1242,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     {
       Audio_Restore();
       NeedRVM = TRUE;
+      if (_GameState && !PAUSE) CaptureMouse(TRUE);
     }
 
   }
@@ -1349,6 +1386,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 		if (!SurvivalMode) {
       PAUSE = !PAUSE;
       EXITMODE = FALSE;
+      CaptureMouse(!PAUSE);
       ResetMousePos();
       break;
 		}
@@ -1365,8 +1403,8 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       }
       else
       {
-        if (PAUSE) PAUSE = FALSE;
-        else EXITMODE = !EXITMODE;
+        if (PAUSE) { PAUSE = FALSE; CaptureMouse(TRUE); }
+        else { EXITMODE = !EXITMODE; CaptureMouse(TRUE); }
         if (ExitTime) EXITMODE = FALSE;
         ResetMousePos();
       }
@@ -1705,6 +1743,7 @@ void ProcessPlayerMovement()
   POINT ms;
 
   GetCursorPos(&ms);
+  if (!FULLSCREEN) ScreenToClient(hwndMain, &ms);
   if (REVERSEMS) ms.y = -ms.y+VideoCY*2;
   rav += (float)(ms.x-VideoCX) * (OptMsSens+64) / 600.f / 192.f;
   rbv += (float)(ms.y-VideoCY) * (OptMsSens+64) / 600.f / 192.f;
@@ -2441,7 +2480,7 @@ void ProcessGame()
 
     PrintLog("Entered game\n");
     ReInitGame();
-    while (ShowCursor(FALSE)>=0);
+    CaptureMouse(TRUE);
 
 	if (Multiplayer) {
 		if (!_MultiplayerState) {

@@ -234,8 +234,25 @@ void SetVideoMode(int W, int H)
   // loading screen only.
   if (hwndMain) CreateVideoDIB(WinW, WinH);
 
-  SetWindowPos(hwndMain, HWND_TOP, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_SHOWWINDOW);
-  SetCursorPos(VideoCX, VideoCY);
+  if (FULLSCREEN) {
+    SetWindowLong(hwndMain, GWL_STYLE, WS_VISIBLE | WS_POPUP);
+    SetWindowPos(hwndMain, HWND_TOP, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_SHOWWINDOW);
+
+    POINT center = { VideoCX, VideoCY };
+    SetCursorPos(center.x, center.y);
+  } else {
+    DWORD style = WS_VISIBLE | WS_OVERLAPPEDWINDOW;
+    SetWindowLong(hwndMain, GWL_STYLE, style);
+
+    RECT r = { 0, 0, WinW, WinH };
+    AdjustWindowRect(&r, style, FALSE);
+
+    int ww = r.right - r.left;
+    int wh = r.bottom - r.top;
+    int sx = (GetSystemMetrics(SM_CXSCREEN) - ww) / 2;
+    int sy = (GetSystemMetrics(SM_CYSCREEN) - wh) / 2;
+    SetWindowPos(hwndMain, HWND_TOP, sx, sy, ww, wh, SWP_SHOWWINDOW);
+  }
 
   LoDetailSky =(W>400);
   SetCursor(hcArrow);

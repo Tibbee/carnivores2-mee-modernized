@@ -987,6 +987,8 @@ void HLineTBGlass25( void );
 
 
 void SetVideoMode(int, int);
+void CaptureMouse(BOOL);
+void ResetMousePos();
 
 void CreateDivTable();
 void DrawTexturedFace();
@@ -1428,7 +1430,7 @@ _EXTORNOT   LPDIRECTDRAW2 lpDD2;
 
 _EXTORNOT   void* lpVideoRAM;
 _EXTORNOT   LPDIRECTDRAWSURFACE lpddsPrimary;
-_EXTORNOT   BOOL DirectActive, RestartMode;
+_EXTORNOT   BOOL DirectActive, FULLSCREEN, RestartMode;
 _EXTORNOT   BOOL LoDetailSky;
 _EXTORNOT   int  WinW,WinH,WinEX,WinEY,VideoCX,VideoCY,VideoPitch,VideoPitchB,iBytesPerLine,ts,r,MapMinY;
 _EXTORNOT   float CameraW,CameraH,Soft_Persp_K, stepdy, stepdd, SunShadowK, FOVK;
