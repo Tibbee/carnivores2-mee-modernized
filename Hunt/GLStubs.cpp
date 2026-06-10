@@ -40,6 +40,7 @@ void Init3DHardware()
     }
 
     DirectActive = TRUE;
+    HARD3D = TRUE;
     PrintLog("==Init3DHardware (OpenGL) Complete==\n");
     PrintLog("\n");
 }
@@ -53,10 +54,6 @@ void Activate3DHardware()
 
     if (g_GLRenderer) {
         g_GLRenderer->SetVideoMode(WinW, WinH);
-
-        // Initialize test texture now that textures are loaded
-        // (textures are loaded after Init3DHardware but before Activate3DHardware)
-        g_GLRenderer->InitTestTexture();
     }
 
     // Ensure window is in foreground
@@ -127,7 +124,7 @@ void RenderSkyPlane()
 
 void RenderGround()
 {
-    // TODO: Render terrain using GL
+    if (g_GLRenderer) g_GLRenderer->RenderGround();
 }
 
 void RenderModelsList()
@@ -142,7 +139,7 @@ void Render3DHardwarePosts()
 
 void RenderWater()
 {
-    // TODO: Render water using GL
+    if (g_GLRenderer) g_GLRenderer->RenderWater();
 }
 
 void RenderElements()
