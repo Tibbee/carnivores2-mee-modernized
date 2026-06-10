@@ -86,7 +86,9 @@ private:
     bool InitializeTerrainPipeline();
     void ShutdownTerrainPipeline();
     void BeginTerrainFrame();
+    void BeginWaterFrame();
     void RenderTerrain();
+    void RenderWaterSurface();
     void DrawVertexBatch(const std::vector<TerrainVertex>& vertices) const;
     void EnsureTerrainTextureArray();
     void UploadTerrainLayer(int layer, const TEXTURE& texture);
@@ -113,6 +115,9 @@ private:
                              const EPoint& v1,
                              const EPoint& v2,
                              int textureLayer,
+                             bool reverse,
+                             bool second,
+                             int direction,
                              float alpha0,
                              float alpha1,
                              float alpha2);
@@ -121,6 +126,8 @@ private:
     static Vector3d GetCurrentFogColor();
     static Vector3d GetFogColorForMapPoint(int mapX, int mapY);
     static Vector3d DecodeFogColor(int rgb);
+    static bool IsWaterTriangleValid(const EPoint& v0, const EPoint& v1, const EPoint& v2, float backR);
+    static float CalcWaterAlpha(const EPoint& vertex, float zs);
     static float Clamp01(float value);
     static unsigned int Expand1555to8888(unsigned short c);
 

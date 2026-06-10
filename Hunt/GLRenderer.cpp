@@ -437,6 +437,55 @@ void GLRenderer::BeginTerrainFrame()
     m_waterVertices.clear();
 }
 
+void GLRenderer::BeginWaterFrame()
+{
+    m_waterVertices.clear();
+}
+
+void GLRenderer::RenderWaterSurface()
+{
+    if (m_waterVertices.empty()) {
+        return;
+    }
+
+    EnsureTerrainTextureArray();
+
+    std::array<bool, kMaxTerrainTextureLayers> usedLayers{};
+    for (const TerrainVertex& vertex : m_waterVertices) {
+        const int layer = static_cast<int>(vertex.layer + 0.5f);
+        if (layer >= 0 && layer < kMaxTerrainTextureLayers && Textures[layer]) {
+            usedLayers[layer] = true;
+        }
+    }
+
+    for (int layer = 0; layer < kMaxTerrainTextureLayers; ++layer) {
+        if (!usedLayers[layer] || !Textures[layer]) {
+            continue;
+        }
+        if (m_uploadedTerrainTextures[layer] != Textures[layer]) {
+            UploadTerrainLayer(layer, *Textures[layer]);
+            m_uploadedTerrainTextures[layer] = Textures[layer];
+        }
+    }
+
+    const auto projection = BuildLegacyProjection();
+    glUseProgram(m_terrainShader);
+    glUniformMatrix4fv(glGetUniformLocation(m_terrainShader, "uProjection"), 1, GL_FALSE, projection.data());
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);
+    glBindVertexArray(m_terrainVAO);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+    DrawVertexBatch(m_waterVertices);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+
+    glBindVertexArray(0);
+}
+
 void GLRenderer::EnsureTerrainTextureArray()
 {
     if (m_terrainTextureArray) {
@@ -624,6 +673,33 @@ float GLRenderer::Clamp01(float value)
     return value;
 }
 
+bool GLRenderer::IsWaterTriangleValid(const EPoint& v0, const EPoint& v1, const EPoint& v2, float backR)
+{
+    // Only cull if ALL vertices are beyond the far plane.
+    // OpenGL's hardware clipper handles near-plane and screen-edge
+    // clipping, so we must not CPU-cull based on DFlags (near plane
+    // or screen bounds) or individual-vertex far-plane checks.
+    if (v0.v.z > backR && v1.v.z > backR && v2.v.z > backR) {
+        return false;
+    }
+
+    return true;
+}
+
+float GLRenderer::CalcWaterAlpha(const EPoint& vertex, float zs)
+{
+    float alpha = Clamp01(vertex.ALPHA / 255.0f);
+
+    if (!UNDERWATER && zs > (ctViewR - 8) * 256.0f) {
+        const float zz = VectorLength(vertex.v) - 256.0f * (ctViewR - 4);
+        if (zz > 0.0f) {
+            alpha = Clamp01((255.0f - zz / 3.0f) / 255.0f);
+        }
+    }
+
+    return alpha;
+}
+
 void GLRenderer::AppendTerrainTriangle(std::vector<TerrainVertex>& vertices,
                                        const EPoint& v0,
                                        const EPoint& v1,
@@ -652,11 +728,14 @@ void GLRenderer::AppendWaterTriangle(std::vector<TerrainVertex>& vertices,
                                      const EPoint& v1,
                                      const EPoint& v2,
                                      int textureLayer,
+                                     bool reverse,
+                                     bool second,
+                                     int direction,
                                      float alpha0,
                                      float alpha1,
                                      float alpha2)
 {
-    const auto uv = GetTerrainUVs(false, false, 0);
+    const auto uv = GetTerrainUVs(reverse, second, direction);
     const float layer = static_cast<float>(textureLayer);
     const Vector3d fogColor = GetCurrentFogColor();
 
@@ -688,11 +767,6 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
     if (v00.v.z > backR) {
         return;
     }
-
-    const bool waterPatch = ((FMap[y][x] & fmWaterA) &&
-                             (FMap[y][x + 1] & fmWaterA) &&
-                             (FMap[y + 1][x] & fmWaterA) &&
-                             (FMap[y + 1][x + 1] & fmWaterA));
 
     const int textureLayer = TMap1[y][x];
     if (textureLayer < 0 || textureLayer >= kMaxTerrainTextureLayers || !Textures[textureLayer]) {
@@ -729,10 +803,6 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
     } else {
         AppendTerrainTriangle(m_terrainVertices, v00, v10, v11, fog00, fog10, fog11, textureLayer, reverse, false, direction);
         AppendTerrainTriangle(m_terrainVertices, v00, v11, v01, fog00, fog11, fog01, textureLayer, reverse, true, direction);
-    }
-
-    if (waterPatch) {
-        CollectWaterTile(x, y, r);
     }
 }
 
@@ -785,13 +855,6 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
 
     AppendTerrainTriangle(m_terrainVertices, v00, v20, v22, fog00, fog20, fog22, textureLayer, false, false, direction);
     AppendTerrainTriangle(m_terrainVertices, v00, v22, v02, fog00, fog22, fog02, textureLayer, false, true, direction);
-
-    if ((FMap[y][x] & fmWaterA) &&
-        (FMap[y][x + 2] & fmWaterA) &&
-        (FMap[y + 2][x] & fmWaterA) &&
-        (FMap[y + 2][x + 2] & fmWaterA)) {
-        CollectWaterTile2(x, y, r);
-    }
 }
 
 void GLRenderer::CollectWaterTile(int x, int y, int r)
@@ -799,6 +862,11 @@ void GLRenderer::CollectWaterTile(int x, int y, int r)
     (void)r;
 
     if (x >= ctMapSize - 1 || y >= ctMapSize - 1 || x < 0 || y < 0) {
+        return;
+    }
+
+    if (!((FMap[y][x] & fmWaterA) && (FMap[y][x + 1] & fmWaterA) &&
+          (FMap[y + 1][x] & fmWaterA) && (FMap[y + 1][x + 1] & fmWaterA))) {
         return;
     }
 
@@ -818,10 +886,6 @@ void GLRenderer::CollectWaterTile(int x, int y, int r)
     EPoint v01 = VMap2[localY + 1][localX];
     EPoint v11 = VMap2[localY + 1][localX + 1];
 
-    if ((v00.DFlags | v10.DFlags | v01.DFlags | v11.DFlags) & 128) {
-        return;
-    }
-
     const float xx = (v00.v.x + v11.v.x) * 0.5f;
     const float yy = (v00.v.y + v11.v.y) * 0.5f;
     const float zz = (v00.v.z + v11.v.z) * 0.5f;
@@ -835,17 +899,22 @@ void GLRenderer::CollectWaterTile(int x, int y, int r)
         return;
     }
 
-    const float a00 = Clamp01(v00.ALPHA / 255.0f);
-    const float a10 = Clamp01(v10.ALPHA / 255.0f);
-    const float a01 = Clamp01(v01.ALPHA / 255.0f);
-    const float a11 = Clamp01(v11.ALPHA / 255.0f);
+    const float a00 = CalcWaterAlpha(v00, zs);
+    const float a10 = CalcWaterAlpha(v10, zs);
+    const float a01 = CalcWaterAlpha(v01, zs);
+    const float a11 = CalcWaterAlpha(v11, zs);
 
-    if (a00 <= 0.0f && a10 <= 0.0f && a01 <= 0.0f && a11 <= 0.0f) {
-        return;
+    if (a00 > 0.0f || a10 > 0.0f || a11 > 0.0f) {
+        if (IsWaterTriangleValid(v00, v10, v11, BackViewR)) {
+            AppendWaterTriangle(m_waterVertices, v00, v10, v11, textureLayer, false, false, 0, a00, a10, a11);
+        }
     }
 
-    AppendWaterTriangle(m_waterVertices, v00, v10, v11, textureLayer, a00, a10, a11);
-    AppendWaterTriangle(m_waterVertices, v00, v11, v01, textureLayer, a00, a11, a01);
+    if (a00 > 0.0f || a11 > 0.0f || a01 > 0.0f) {
+        if (IsWaterTriangleValid(v00, v11, v01, BackViewR)) {
+            AppendWaterTriangle(m_waterVertices, v00, v11, v01, textureLayer, false, true, 0, a00, a11, a01);
+        }
+    }
 }
 
 void GLRenderer::CollectWaterTile2(int x, int y, int r)
@@ -853,6 +922,11 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
     (void)r;
 
     if (x >= ctMapSize - 2 || y >= ctMapSize - 2 || x < 0 || y < 0) {
+        return;
+    }
+
+    if (!((FMap[y][x] & fmWaterA) && (FMap[y][x + 2] & fmWaterA) &&
+          (FMap[y + 2][x] & fmWaterA) && (FMap[y + 2][x + 2] & fmWaterA))) {
         return;
     }
 
@@ -872,10 +946,6 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
     EPoint v02 = VMap2[localY + 2][localX];
     EPoint v22 = VMap2[localY + 2][localX + 2];
 
-    if ((v00.DFlags | v20.DFlags | v02.DFlags | v22.DFlags) & 128) {
-        return;
-    }
-
     const float xx = (v00.v.x + v22.v.x) * 0.5f;
     const float yy = (v00.v.y + v22.v.y) * 0.5f;
     const float zz = (v00.v.z + v22.v.z) * 0.5f;
@@ -889,17 +959,22 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
         return;
     }
 
-    const float a00 = Clamp01(v00.ALPHA / 255.0f);
-    const float a20 = Clamp01(v20.ALPHA / 255.0f);
-    const float a02 = Clamp01(v02.ALPHA / 255.0f);
-    const float a22 = Clamp01(v22.ALPHA / 255.0f);
+    const float a00 = CalcWaterAlpha(v00, zs);
+    const float a20 = CalcWaterAlpha(v20, zs);
+    const float a02 = CalcWaterAlpha(v02, zs);
+    const float a22 = CalcWaterAlpha(v22, zs);
 
-    if (a00 <= 0.0f && a20 <= 0.0f && a02 <= 0.0f && a22 <= 0.0f) {
-        return;
+    if (a00 > 0.0f || a20 > 0.0f || a22 > 0.0f) {
+        if (IsWaterTriangleValid(v00, v20, v22, BackViewR)) {
+            AppendWaterTriangle(m_waterVertices, v00, v20, v22, textureLayer, false, false, 0, a00, a20, a22);
+        }
     }
 
-    AppendWaterTriangle(m_waterVertices, v00, v20, v22, textureLayer, a00, a20, a22);
-    AppendWaterTriangle(m_waterVertices, v00, v22, v02, textureLayer, a00, a22, a02);
+    if (a00 > 0.0f || a22 > 0.0f || a02 > 0.0f) {
+        if (IsWaterTriangleValid(v00, v22, v02, BackViewR)) {
+            AppendWaterTriangle(m_waterVertices, v00, v22, v02, textureLayer, false, true, 0, a00, a22, a02);
+        }
+    }
 }
 
 void GLRenderer::RenderGround()
@@ -996,38 +1071,65 @@ void GLRenderer::RenderTerrain()
 
 void GLRenderer::RenderWater()
 {
-    if (m_waterVertices.empty()) {
+    if (!NeedWater) {
         return;
     }
 
-    EnsureTerrainTextureArray();
+    BeginWaterFrame();
 
-    for (int layer = 0; layer < kMaxTerrainTextureLayers; ++layer) {
-        if (!Textures[layer]) {
-            continue;
+    for (int r = ctViewR; r >= ctViewR1; r -= 2) {
+        for (int x = r; x > 0; x -= 2) {
+            CollectWaterTile2(CCX - x, CCY + r, r);
+            CollectWaterTile2(CCX + x, CCY + r, r);
+            CollectWaterTile2(CCX - x, CCY - r, r);
+            CollectWaterTile2(CCX + x, CCY - r, r);
         }
-        if (m_uploadedTerrainTextures[layer] != Textures[layer]) {
-            UploadTerrainLayer(layer, *Textures[layer]);
-            m_uploadedTerrainTextures[layer] = Textures[layer];
+
+        CollectWaterTile2(CCX, CCY - r, r);
+        CollectWaterTile2(CCX, CCY + r, r);
+
+        for (int y = r - 2; y > 0; y -= 2) {
+            CollectWaterTile2(CCX + r, CCY - y, r);
+            CollectWaterTile2(CCX + r, CCY + y, r);
+            CollectWaterTile2(CCX - r, CCY + y, r);
+            CollectWaterTile2(CCX - r, CCY - y, r);
         }
+
+        CollectWaterTile2(CCX - r, CCY, r);
+        CollectWaterTile2(CCX + r, CCY, r);
     }
 
-    const auto projection = BuildLegacyProjection();
-    glUseProgram(m_terrainShader);
-    glUniformMatrix4fv(glGetUniformLocation(m_terrainShader, "uProjection"), 1, GL_FALSE, projection.data());
+    int rr = ctViewR1 - 1;
+    for (int x = rr; x > -rr; --x) {
+        CollectWaterTile(CCX + rr, CCY + x, rr);
+        CollectWaterTile(CCX + x, CCY + rr, rr);
+    }
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);
-    glBindVertexArray(m_terrainVAO);
+    for (rr = ctViewR1 - 2; rr > 0; --rr) {
+        for (int x = rr; x > 0; --x) {
+            CollectWaterTile(CCX - x, CCY + rr, rr);
+            CollectWaterTile(CCX + x, CCY + rr, rr);
+            CollectWaterTile(CCX - x, CCY - rr, rr);
+            CollectWaterTile(CCX + x, CCY - rr, rr);
+        }
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask(GL_FALSE);
-    DrawVertexBatch(m_waterVertices);
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
+        CollectWaterTile(CCX, CCY - rr, rr);
+        CollectWaterTile(CCX, CCY + rr, rr);
 
-    glBindVertexArray(0);
+        for (int y = rr - 1; y > 0; --y) {
+            CollectWaterTile(CCX + rr, CCY - y, rr);
+            CollectWaterTile(CCX + rr, CCY + y, rr);
+            CollectWaterTile(CCX - rr, CCY + y, rr);
+            CollectWaterTile(CCX - rr, CCY - y, rr);
+        }
+
+        CollectWaterTile(CCX - rr, CCY, rr);
+        CollectWaterTile(CCX + rr, CCY, rr);
+    }
+
+    CollectWaterTile(CCX, CCY, 0);
+
+    RenderWaterSurface();
 }
 
 void GLRenderer::DrawVertexBatch(const std::vector<TerrainVertex>& vertices) const
