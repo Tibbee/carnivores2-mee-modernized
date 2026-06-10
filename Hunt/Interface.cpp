@@ -1,5 +1,8 @@
 #define INITGUID
 #include "Hunt.h"
+#ifdef _gl
+#include "GLRenderer.h"
+#endif
 #include "stdio.h"
 #include "timeapi.h"
 
@@ -125,6 +128,45 @@ void WaitRetrace()
   BOOL bv = FALSE;
   if (DirectActive)
     while (!bv)  lpDD->GetVerticalBlankStatus(&bv);
+}
+
+
+void SetFullScreen()
+{
+  HRESULT res = DD_OK;
+
+  if (!DirectActive) return;
+#ifndef _gl
+  if (HARD3D) return;
+#endif
+  if (!_GameState) return;
+
+  FULLSCREEN = !FULLSCREEN;
+
+#ifndef _gl
+  if (lpDD) {
+    if (FULLSCREEN)
+      res = lpDD->SetDisplayMode(WinW, WinH, 16);
+    else
+      res = lpDD->RestoreDisplayMode();
+
+    if (res != DD_OK) {
+      wsprintf(logt, "DDRAW: Error set video mode %dx%d\n", WinW, WinH);
+      PrintLog(logt);
+    }
+
+    lpVideoRAM = 0;
+  }
+#endif
+
+  SetVideoMode(WinW, WinH);
+
+#ifdef _gl
+  if (g_GLRenderer)
+    g_GLRenderer->SetVideoMode(WinW, WinH);
+#endif
+
+  ResetMousePos();
 }
 
 

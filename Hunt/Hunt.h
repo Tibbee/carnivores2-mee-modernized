@@ -987,6 +987,7 @@ void HLineTBGlass25( void );
 
 
 void SetVideoMode(int, int);
+void SetFullScreen();
 void CaptureMouse(BOOL);
 void ResetMousePos();
 

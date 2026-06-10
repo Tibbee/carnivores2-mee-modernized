@@ -1271,6 +1271,13 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
   case WM_CREATE:
     return 0;
 
+  case WM_SYSKEYDOWN:
+    if ((int)wParam == VK_RETURN && !SurvivalMode) {
+      SetFullScreen();
+      return 0;
+    }
+    break;
+
 
   case WM_KEYDOWN:
   {

@@ -3239,6 +3239,31 @@ void ShowVideo()
 
   RenderHealthBar();
 
+  if (!FULLSCREEN && WinW > 6 && WinH > 6) {
+    FillMemory((WORD*)lpVideoBuf, WinW*2, 0);
+    FillMemory((WORD*)lpVideoBuf+1*VideoPitch, WinW*2, 0);
+    FillMemory((WORD*)lpVideoBuf+2*VideoPitch, WinW*2, 0);
+
+    FillMemory((WORD*)lpVideoBuf+(WinH-1)*VideoPitch, WinW*2, 0);
+    FillMemory((WORD*)lpVideoBuf+(WinH-2)*VideoPitch, WinW*2, 0);
+    FillMemory((WORD*)lpVideoBuf+(WinH-3)*VideoPitch, WinW*2, 0);
+
+    for (int y=1; y<WinH-1; y++)
+    {
+      for (int x=0; x<3; x++) {
+        int c;
+        if (x==1) c=0x5294; else c=0;
+        *((WORD*)lpVideoBuf + (y*VideoPitch) + x) = c;
+        *((WORD*)lpVideoBuf + (y*VideoPitch) + WinW-x-1) = c;
+      }
+    }
+
+    for (int x=1; x<WinW-2; x++) {
+      *((WORD*)lpVideoBuf + (1*VideoPitch) + x) = 0x5294;
+      *((WORD*)lpVideoBuf + ((WinH-2)*VideoPitch) + x) = 0x5294;
+    }
+  }
+
   BitBlt(hdcMain,0,0,WinW,WinH, _hdc,0,0, SRCCOPY);
 
   SelectObject(_hdc,hbmpOld);
@@ -3319,6 +3344,8 @@ void Activate3DHardware()
   SetVideoMode(WinW, WinH);
 
   DWORD cl = DDSCL_EXCLUSIVE|DDSCL_FULLSCREEN;
+  if (!FULLSCREEN)
+    cl = DDSCL_NORMAL;
 
 
   HRESULT hres = lpDD->SetCooperativeLevel( hwndMain, cl);
@@ -3330,7 +3357,10 @@ void Activate3DHardware()
   }
   PrintLog("SetCooperativeLevel: Ok\n");
 
-  hres = lpDD->SetDisplayMode( WinW, WinH, 16);
+  if (FULLSCREEN)
+    hres = lpDD->SetDisplayMode( WinW, WinH, 16);
+  else
+    hres = DD_OK;
 
   if (hres != DD_OK)
   {
@@ -3341,8 +3371,10 @@ void Activate3DHardware()
 
 void ShutDown3DHardware()
 {
-  lpDD->RestoreDisplayMode();
-  lpDD->SetCooperativeLevel( hwndMain, DDSCL_NORMAL);
+  if (FULLSCREEN && lpDD)
+    lpDD->RestoreDisplayMode();
+  if (lpDD)
+    lpDD->SetCooperativeLevel( hwndMain, DDSCL_NORMAL);
 }
 
 
