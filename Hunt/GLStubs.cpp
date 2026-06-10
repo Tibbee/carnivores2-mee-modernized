@@ -117,9 +117,10 @@ void CopyHARDToDIB()
 
 void RenderSkyPlane()
 {
-    // Clear the framebuffer at the start of each frame
-    // (matches software renderer behavior where RenderSkyPlane calls ClearVideoBuf)
-    if (g_GLRenderer) g_GLRenderer->ClearVideoBuf();
+    if (g_GLRenderer) {
+        g_GLRenderer->ClearVideoBuf();
+        g_GLRenderer->RenderSkyPlane();
+    }
 }
 
 void RenderGround()

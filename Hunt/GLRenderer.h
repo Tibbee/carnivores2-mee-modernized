@@ -204,6 +204,16 @@ private:
     std::vector<TerrainVertex> m_terrainVertices;
     std::vector<TerrainVertex> m_waterVertices;
     std::array<TEXTURE*, kMaxTerrainTextureLayers> m_uploadedTerrainTextures{};
+
+    // Sky pipeline
+    unsigned int m_skyShader = 0;
+    unsigned int m_skyVAO = 0;
+    unsigned int m_skyTexture = 0;
+    bool m_skyTextureDirty = true;
+
+    void InitializeSkyPipeline();
+    void ShutdownSkyPipeline();
+    void UploadSkyTexture();
 };
 
 extern GLRenderer* g_GLRenderer;

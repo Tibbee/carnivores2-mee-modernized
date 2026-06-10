@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <cstring>
 #include <map>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -532,6 +533,8 @@ bool GLRenderer::Initialize()
         return false;
     }
 
+    InitializeSkyPipeline();
+
     glUseProgram(m_modelShader);
     glUniform1i(glGetUniformLocation(m_modelShader, "uModelTexture"), 0);
 
@@ -553,6 +556,7 @@ void GLRenderer::Shutdown()
 
     ShutdownTerrainPipeline();
     ShutdownModelPipeline();
+    ShutdownSkyPipeline();
 
     if (m_hrc) {
         if (wglGetCurrentContext() == m_hrc) {
@@ -2034,6 +2038,7 @@ void GLRenderer::ResetTerrainTextureCache()
 void GLRenderer::ClearLevelTextureCache()
 {
     m_uploadedTerrainTextures.fill(nullptr);
+    m_skyTextureDirty = true;
 }
 
 void GLRenderer::ClearVideoBuf()
@@ -2087,8 +2092,204 @@ void GLRenderer::RenderPlayer(int index)
     (void)index;
 }
 
+void GLRenderer::InitializeSkyPipeline()
+{
+    const char* vsSource =
+        "#version 330 core\n"
+        "out vec2 vNdc;\n"
+        "const vec2 kPositions[3] = vec2[3](\n"
+        "   vec2(-1.0, -1.0),\n"
+        "   vec2( 3.0, -1.0),\n"
+        "   vec2(-1.0,  3.0)\n"
+        ");\n"
+        "void main() {\n"
+        "   vec2 pos = kPositions[gl_VertexID];\n"
+        "   vNdc = pos;\n"
+        "   gl_Position = vec4(pos, 0.0, 1.0);\n"
+        "}";
+
+    const char* fsSource =
+        "#version 330 core\n"
+        "in vec2 vNdc;\n"
+        "out vec4 FragColor;\n"
+        "uniform sampler2D uSkyTexture;\n"
+        "uniform vec2 uViewport;\n"
+        "uniform vec2 uVideoCenter;\n"
+        "uniform vec3 uFogColor;\n"
+        "uniform vec3 uQ;\n"
+        "uniform vec3 uP;\n"
+        "uniform vec3 uR;\n"
+        "uniform float uSkyTime;\n"
+        "uniform float uForceFog;\n"
+        "void main() {\n"
+        "   vec2 pixel = vec2((vNdc.x * 0.5 + 0.5) * uViewport.x,\n"
+        "                     (1.0 - (vNdc.y * 0.5 + 0.5)) * uViewport.y);\n"
+        "   float sx = pixel.x - uVideoCenter.x;\n"
+        "   float sy = uVideoCenter.y - pixel.y;\n"
+        "   float sxQ = uQ.x * sx + uQ.y * sy + uQ.z;\n"
+        "   float q = sign(sxQ) * max(abs(sxQ), 0.001);\n"
+        "   float skyU = (uP.x * sx + uP.y * sy + uP.z) / q;\n"
+        "   float skyV = (uR.x * sx + uR.y * sy + uR.z) / q;\n"
+        "   float leftQ = uQ.x * (-uVideoCenter.x) + uQ.y * sy + uQ.z;\n"
+        "   float rightQ = uQ.x * uVideoCenter.x + uQ.y * sy + uQ.z;\n"
+        "   float leftU = (uP.x * (-uVideoCenter.x) + uP.y * sy + uP.z) / max(abs(leftQ), 0.001);\n"
+        "   float leftV = (uR.x * (-uVideoCenter.x) + uR.y * sy + uR.z) / max(abs(leftQ), 0.001);\n"
+        "   float rightU = (uP.x * uVideoCenter.x + uP.y * sy + uP.z) / max(abs(rightQ), 0.001);\n"
+        "   float rightV = (uR.x * uVideoCenter.x + uR.y * sy + uR.z) / max(abs(rightQ), 0.001);\n"
+        "   float dx = rightU - leftU;\n"
+        "   float dy = rightV - leftV;\n"
+        "   float dt = sqrt(dx*dx + dy*dy) / 96.0 - 6.0;\n"
+        "   dt = clamp(dt, 0.0, 10.0);\n"
+        "   float fogFactor = clamp(dt * 225.0 / 10.0 / 255.0, 0.0, 1.0);\n"
+        "   fogFactor = mix(fogFactor, 1.0, clamp(uForceFog, 0.0, 1.0));\n"
+        "   vec2 uv = vec2((skyU + uSkyTime) / 256.0, (skyV - uSkyTime) / 256.0);\n"
+        "   vec3 skyColor = texture(uSkyTexture, uv).rgb;\n"
+        "   FragColor = vec4(mix(skyColor, uFogColor, fogFactor), 1.0);\n"
+        "}";
+
+    GLuint vertexShader = CompileShader(GL_VERTEX_SHADER, vsSource);
+    GLuint fragmentShader = CompileShader(GL_FRAGMENT_SHADER, fsSource);
+    m_skyShader = LinkProgram(vertexShader, fragmentShader);
+    if (!m_skyShader) {
+        PrintLog("GLRenderer: Sky shader compilation... FAILED!\n");
+        return;
+    }
+    PrintLog("GLRenderer: Sky shader compilation... OK\n");
+
+    glGenVertexArrays(1, &m_skyVAO);
+    glGenTextures(1, &m_skyTexture);
+
+    glBindTexture(GL_TEXTURE_2D, m_skyTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 256, 256, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    m_skyTextureDirty = true;
+}
+
+void GLRenderer::ShutdownSkyPipeline()
+{
+    if (m_skyTexture) {
+        glDeleteTextures(1, &m_skyTexture);
+        m_skyTexture = 0;
+    }
+    if (m_skyVAO) {
+        glDeleteVertexArrays(1, &m_skyVAO);
+        m_skyVAO = 0;
+    }
+    if (m_skyShader) {
+        glDeleteProgram(m_skyShader);
+        m_skyShader = 0;
+    }
+}
+
+void GLRenderer::UploadSkyTexture()
+{
+    if (!m_skyTextureDirty || !m_skyTexture) {
+        return;
+    }
+    m_skyTextureDirty = false;
+
+    std::vector<uint32_t> expanded(256 * 256);
+    for (int i = 0; i < 256 * 256; ++i) {
+        expanded[i] = Expand1555to8888(SkyPic[i]);
+    }
+
+    glBindTexture(GL_TEXTURE_2D, m_skyTexture);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 256, GL_RGBA, GL_UNSIGNED_BYTE, expanded.data());
+}
+
 void GLRenderer::RenderSkyPlane()
 {
+    if (!m_skyVAO || !m_skyTexture || !m_skyShader) {
+        return;
+    }
+
+    UploadSkyTexture();
+
+    const float localCa = std::cos(CameraAlpha);
+    const float localSa = std::sin(CameraAlpha);
+    const float pitchCos = std::cos(CameraBeta);
+    const float pitchSin = std::sin(CameraBeta);
+
+    SKYDTime = RealTime & ((1 << 16) - 1);
+
+    const float skyPitchCos = std::cos(CameraBeta - 0.15f);
+    const float skyPitchSin = std::sin(CameraBeta - 0.15f);
+
+    Vector3d tx = {0.004f, 0.0f, 0.0f};
+    Vector3d ty = {0.0f, 0.0f, 0.004f};
+    Vector3d nv = {0.0f, -1.0f, 0.0f};
+
+    auto rotateSky = [&](Vector3d& v) {
+        // First rotate around Y axis (CameraAlpha)
+        float x = v.x * localCa - v.z * localSa;
+        float z = v.z * localCa + v.x * localSa;
+        // Then rotate around X axis (CameraBeta - 0.15)
+        float y = v.y * skyPitchCos + z * skyPitchSin;
+        float zz = z * skyPitchCos - v.y * skyPitchSin;
+
+        v.x = x;
+        v.y = y;
+        v.z = zz;
+    };
+
+    rotateSky(tx);
+    rotateSky(ty);
+    rotateSky(nv);
+
+    Vector3d vbase = {-CameraX, 4.0f * 512.0f * 16.0f, CameraZ};
+    rotateSky(vbase);
+
+    const float p = nv.x * vbase.x + nv.y * vbase.y + nv.z * vbase.z;
+    const float ddx = vbase.x * tx.x + vbase.y * tx.y + vbase.z * tx.z;
+    const float ddy = vbase.x * ty.x + vbase.y * ty.y + vbase.z * ty.z;
+
+    const float qx = CameraH * nv.x;
+    const float qy = CameraW * nv.y;
+    const float qz = CameraW * CameraH * nv.z;
+
+    float px = p * CameraH * tx.x;
+    float py = p * CameraW * tx.y;
+    float pz = p * CameraW * CameraH * tx.z;
+    float rx = p * CameraH * ty.x;
+    float ry = p * CameraW * ty.y;
+    float rz = p * CameraW * CameraH * ty.z;
+
+    px -= ddx * qx;
+    py -= ddx * qy;
+    pz -= ddx * qz;
+    rx -= ddy * qx;
+    ry -= ddy * qy;
+    rz -= ddy * qz;
+
+    const Vector3d fogColor = GetCurrentFogColor();
+
+    glUseProgram(m_skyShader);
+    glUniform1i(glGetUniformLocation(m_skyShader, "uSkyTexture"), 0);
+    glUniform2f(glGetUniformLocation(m_skyShader, "uViewport"), static_cast<float>(WinW), static_cast<float>(WinH));
+    glUniform2f(glGetUniformLocation(m_skyShader, "uVideoCenter"), static_cast<float>(VideoCX), static_cast<float>(VideoCY));
+    glUniform3f(glGetUniformLocation(m_skyShader, "uFogColor"), fogColor.x, fogColor.y, fogColor.z);
+    glUniform3f(glGetUniformLocation(m_skyShader, "uQ"), qx, qy, qz);
+    glUniform3f(glGetUniformLocation(m_skyShader, "uP"), px, py, pz);
+    glUniform3f(glGetUniformLocation(m_skyShader, "uR"), rx, ry, rz);
+    glUniform1f(glGetUniformLocation(m_skyShader, "uSkyTime"), static_cast<float>(SKYDTime) / 256.0f);
+    glUniform1f(glGetUniformLocation(m_skyShader, "uForceFog"), UNDERWATER ? 1.0f : 0.0f);
+
+    glDisable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_skyTexture);
+
+    glBindVertexArray(m_skyVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glBindVertexArray(0);
+
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
 }
 
 void GLRenderer::DrawPicture(int x, int y, TPicture& pic)
