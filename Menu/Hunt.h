@@ -31,6 +31,12 @@
 #define kFovStep     2
 #define kFovDefault  62
 
+enum HuntTimeEnum {
+	HUNT_DAWN = 0,
+	HUNT_DAY = 1,
+	HUNT_NIGHT = 2
+};
+
 #ifdef _MAIN_
 #	define EXTERNAL
 #else

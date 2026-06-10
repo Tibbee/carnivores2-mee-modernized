@@ -1326,7 +1326,7 @@ void Options::Default()
 	this->AlphaColorKey = 1;
 	this->OptSys = 1;
 	this->SoundAPI = AUDIO_OPENALSOFT; // Default to OpenAL Soft
-	this->RenderAPI = 0; // Default to software
+	this->RenderAPI = 1; // Default to OpenGL
 }
 
 

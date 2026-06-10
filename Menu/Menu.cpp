@@ -875,6 +875,9 @@ void MenuEventStart(int32_t menu_state)
 		Hunt License Menu */
 	case MENU_HUNT:
 	{
+		if (g_TimeOfDay < HUNT_DAWN || g_TimeOfDay > HUNT_NIGHT)
+			g_TimeOfDay = HUNT_DAY;
+
 		g_HuntInfo.first = -1;
 		g_HuntInfo.second = 0;
 
@@ -1709,6 +1712,7 @@ void MenuEventInput(int32_t menu)
 								g_Options.RenderAPI++;
 								if (g_Options.RenderAPI == 3)
 									g_Options.RenderAPI = 0;
+								SaveConfig();
 							}
 							if (mo.Hilite == 1) // Resolution
 							{

@@ -291,6 +291,7 @@ bool CreateMainWindow()
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLine, int nCmdShow) {
 	hInst = hInstance;
 	g_MenuScale = 2;  // 2x scale = 1600x1200 window
+	g_TimeOfDay = HUNT_DAY;
 	MSG msg = MSG();
 	Timer::Init();
 
@@ -305,6 +306,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 
 		LoadResourcesScript();
 		LoadResources();
+		LoadConfig();
 
 		// Build the dynamic resolution list (queried from the display) and
 		// clamp the saved profile's Resolution index to the new list. Must
