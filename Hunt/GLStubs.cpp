@@ -159,7 +159,7 @@ void RenderWater()
 
 void RenderElements()
 {
-    // TODO: Render elements using GL
+    if (g_GLRenderer) g_GLRenderer->RenderElements();
 }
 
 void DrawHMap()

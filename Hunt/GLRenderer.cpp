@@ -655,6 +655,14 @@ bool GLRenderer::InitializeModelPipeline()
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // Create 1x1 white texture for flat-color rendering (circles, overlays)
+    glGenTextures(1, &m_whiteTexture);
+    glBindTexture(GL_TEXTURE_2D, m_whiteTexture);
+    const uint32_t white = 0xFFFFFFFF;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &white);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
     return true;
 }
 
@@ -687,6 +695,10 @@ void GLRenderer::ShutdownModelPipeline()
     if (m_modelShader) {
         glDeleteProgram(m_modelShader);
         m_modelShader = 0;
+    }
+    if (m_whiteTexture) {
+        glDeleteTextures(1, &m_whiteTexture);
+        m_whiteTexture = 0;
     }
 
     m_worldModelItems.clear();
@@ -1427,6 +1439,189 @@ void GLRenderer::Render3DHardwarePosts()
 
     // Flush all queued models (characters, ships, bullets) to GPU
     RenderWorldModels();
+}
+
+void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGBA, uint32_t RGBA2)
+{
+    // The game stores colors in ABGR format (R in bits 0-7, B in bits 16-23).
+    // D3D vertex colors are ARGB, so D3D inherently swaps R↔B when reading.
+    // We must do the same: extract ABGR and pass as-is to the shader.
+    auto unpackABGR = [](uint32_t c, float& r, float& g, float& b, float& a) {
+        a = static_cast<float>((c >> 24) & 0xFF) / 255.0f;
+        b = static_cast<float>((c >> 16) & 0xFF) / 255.0f;
+        g = static_cast<float>((c >> 8) & 0xFF) / 255.0f;
+        r = static_cast<float>(c & 0xFF) / 255.0f;
+    };
+
+    float cr, cg, cb, ca;
+    float er, eg, eb, ea;
+    unpackABGR(RGBA, cr, cg, cb, ca);
+    unpackABGR(RGBA2, er, eg, eb, ea);
+
+    // Clamp radius to sub-pixel precision (matching D3D)
+    float r  = floorf(R * 16.0f) / 16.0f;
+    float r2 = floorf(0.65f * R * 16.0f) / 16.0f;
+
+    // Convert screen-space position to NDC (-1 to 1)
+    float ndcX = (cx - VideoCX) / VideoCX;
+    float ndcY = (VideoCY - cy) / VideoCY;
+
+    // Use the model shader with fog=1.0 to output flat color
+    struct CircleVertex {
+        float x, y, z, u, v, light, fog, fogR, fogG, fogB, alpha, cutout;
+    };
+
+    // 8 triangles forming an octagon with alternating outer/inner radius
+    // Matches D3D: angle 0=R, 45=R2, 90=R, 135=R2, ...
+    std::vector<CircleVertex> vertices;
+    vertices.reserve(24);
+
+    for (int i = 0; i < 8; i++) {
+        int next = (i + 1) % 8;
+
+        // Radius alternates: even indices use R (outer), odd indices use R2 (inner)
+        float rad_i = (i % 2 == 0) ? r : r2;
+        float rad_next = (next % 2 == 0) ? r : r2;
+
+        float angle_i = i * pi / 4.0f;
+        float angle_next = next * pi / 4.0f;
+
+        // Center vertex (color RGBA)
+        vertices.push_back({ndcX, ndcY, 0.0001f, 0, 0, 255, 1.0f, cr, cg, cb, ca, 0});
+
+        // Edge vertex i (color RGBA2)
+        float ex1 = ndcX + cosf(angle_i) * rad_i / VideoCX;
+        float ey1 = ndcY + sinf(angle_i) * rad_i / VideoCY;
+        vertices.push_back({ex1, ey1, 0.0001f, 0, 0, 255, 1.0f, er, eg, eb, ea, 0});
+
+        // Edge vertex i+1 (color RGBA2)
+        float ex2 = ndcX + cosf(angle_next) * rad_next / VideoCX;
+        float ey2 = ndcY + sinf(angle_next) * rad_next / VideoCY;
+        vertices.push_back({ex2, ey2, 0.0001f, 0, 0, 255, 1.0f, er, eg, eb, ea, 0});
+    }
+
+    // Identity projection for NDC-space rendering
+    const float identity[16] = {
+        1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1
+    };
+
+    glUseProgram(m_modelShader);
+    glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, identity);
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_FALSE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_whiteTexture);
+    glBindVertexArray(m_modelVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
+    const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(vertices.size() * sizeof(CircleVertex));
+    glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices.data());
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+    glBindVertexArray(0);
+
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+}
+
+void GLRenderer::RenderElements()
+{
+    // ── Regular elements (muzzle flashes, impact sparks, etc.) ─────
+    for (int eg = 0; eg < ElCount; eg++) {
+        for (int e = 0; e < Elements[eg].ECount; e++) {
+            TElement* el = &Elements[eg].EList[e];
+            Vector3d rpos;
+            rpos.x = el->pos.x - CameraX;
+            rpos.y = el->pos.y - CameraY;
+            rpos.z = el->pos.z - CameraZ;
+            float r = el->R;
+
+            rpos = RotateVector(rpos);
+            if (rpos.z > -64) continue;
+            if (fabs(rpos.x) > -rpos.z) continue;
+            if (fabs(rpos.y) > -rpos.z) continue;
+
+            float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.0f;
+            float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.0f;
+            RenderCircle(sx, sy, rpos.z, -r * CameraW * 0.64f / rpos.z,
+                         Elements[eg].RGBA, Elements[eg].RGBA2);
+        }
+    }
+
+    // ── Blood trails ──────────────────────────────────────────────
+    for (int b = 0; b < BloodTrail.Count; b++) {
+        Vector3d rpos = BloodTrail.Trail[b].pos;
+        uint32_t A1 = (0xE0 * BloodTrail.Trail[b].LTime / 20000);
+        if (A1 > 0xE0) A1 = 0xE0;
+        uint32_t A2 = (0x20 * BloodTrail.Trail[b].LTime / 20000);
+        if (A2 > 0x20) A2 = 0x20;
+
+        rpos.x = rpos.x - CameraX;
+        rpos.y = rpos.y - CameraY;
+        rpos.z = rpos.z - CameraZ;
+
+        rpos = RotateVector(rpos);
+        if (rpos.z > -64) continue;
+        if (fabs(rpos.x) > -rpos.z) continue;
+        if (fabs(rpos.y) > -rpos.z) continue;
+
+        float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.0f;
+        float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.0f;
+
+        // Blood colors are constructed in ARGB format (R<<16 | G<<8 | B).
+        // conv_xGx processes them but returns unchanged in daytime.
+        // RenderCircle expects ABGR, so convert: swap R and B channels.
+        int dr = DinoInfo[BloodTrail.Trail[b].Owner].bloodRed;
+        int dg = DinoInfo[BloodTrail.Trail[b].Owner].bloodGreen;
+        int db = DinoInfo[BloodTrail.Trail[b].Owner].bloodBlue;
+        uint32_t centerColor = (A1 << 24) | conv_xGx((db << 16) | (dg << 8) | dr);
+        uint32_t edgeColor   = (A2 << 24) | conv_xGx((db/2 << 16) | (dg/2 << 8) | dr/2);
+
+        RenderCircle(sx, sy, rpos.z, -12.0f * CameraW * 0.64f / rpos.z,
+                     centerColor, edgeColor);
+    }
+
+    // ── Snow particles ────────────────────────────────────────────
+    for (int st = 0; st < SnowCh; st++) {
+        for (int s = SnowInfo[st].addr; s < SnowInfo[st].addr + SnowInfo[st].SnCount; s++) {
+            Vector3d rpos = Snow[s].pos;
+            rpos.x = rpos.x - CameraX;
+            rpos.y = rpos.y - CameraY;
+            rpos.z = rpos.z - CameraZ;
+
+            rpos = RotateVector(rpos);
+            if (rpos.z > -64) continue;
+            if (fabs(rpos.x) > -rpos.z) continue;
+            if (fabs(rpos.y) > -rpos.z) continue;
+
+            float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.0f;
+            float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.0f;
+
+            uint32_t A11 = SnowInfo[st].snow_a;
+            if (Snow[s].ftime) {
+                A11 = A11 * (2000 - Snow[s].ftime) / 2000;
+            }
+
+            // Snow colors use conv_xGx which expects ABGR (R in bits 0-7)
+            uint32_t centerColor = (A11 << 24) |
+                conv_xGx((SnowInfo[st].snow_b << 16) |
+                (SnowInfo[st].snow_g << 8) |
+                SnowInfo[st].snow_r);
+
+            uint32_t edgeColor = ((A11 / 7) << 24) |
+                conv_xGx((SnowInfo[st].snow_b / 2 << 16) |
+                (SnowInfo[st].snow_g / 2 << 8) |
+                SnowInfo[st].snow_r / 2);
+
+            RenderCircle(sx, sy, rpos.z,
+                         -8.0f * CameraW * 0.64f / rpos.z * SnowInfo[st].snow_rad,
+                         centerColor, edgeColor);
+        }
+    }
 }
 
 void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)

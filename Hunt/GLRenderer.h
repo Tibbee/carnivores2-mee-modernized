@@ -76,6 +76,8 @@ public:
     void RenderModelsList();
     void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light);
     void Render3DHardwarePosts();
+    void RenderCircle(float cx, float cy, float z, float R, uint32_t RGBA, uint32_t RGBA2);
+    void RenderElements();
 
 private:
     struct TerrainVertex {
@@ -193,6 +195,7 @@ private:
     unsigned int m_modelShader = 0;
     unsigned int m_modelVAO = 0;
     unsigned int m_modelVBO = 0;
+    unsigned int m_whiteTexture = 0;  // 1x1 white texture for flat-color rendering
     std::map<const TModel*, GLuint> m_modelTextureCache;
     std::map<const TBMPModel*, GLuint> m_bmpTextureCache;
     std::map<GLuint, bool> m_modelTextureFilterState;
