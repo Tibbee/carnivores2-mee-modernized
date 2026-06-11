@@ -1195,6 +1195,240 @@ void GLRenderer::RenderModelsList()
     RenderWorldModels();
 }
 
+void GLRenderer::Render3DHardwarePosts()
+{
+    // ── Characters (dinosaurs, hunters) ──────────────────────────────
+    for (int c = 0; c < ChCount; c++) {
+        TCharacter* cptr = &Characters[c];
+        cptr->rpos.x = cptr->pos.x - CameraX;
+        cptr->rpos.y = cptr->pos.y - CameraY;
+        cptr->rpos.z = cptr->pos.z - CameraZ;
+
+        float r = static_cast<float>((std::max)(fabs(cptr->rpos.x), fabs(cptr->rpos.z)));
+        int ri = -1 + static_cast<int>(r / 256.0f + 0.5f);
+        if (ri < 0) ri = 0;
+        if (ri > ctViewR) continue;
+
+        cptr->rpos = RotateVector(cptr->rpos);
+
+        float br = BackViewR + DinoInfo[cptr->CType].Radius;
+        if (cptr->rpos.z > br) continue;
+        if (fabs(cptr->rpos.x) > -cptr->rpos.z + br) continue;
+        if (fabs(cptr->rpos.y) > -cptr->rpos.z + br) continue;
+
+        // Morph the character model
+        CreateChMorphedModel(cptr);
+
+        float zs = sqrtf(cptr->rpos.x * cptr->rpos.x +
+                         cptr->rpos.y * cptr->rpos.y +
+                         cptr->rpos.z * cptr->rpos.z);
+        if (zs > ctViewR * 256.0f) continue;
+
+        GlassL = 0;
+        if (zs > 256.0f * (ctViewR - 4))
+            GlassL = (std::min)(255, static_cast<int>(zs / 4.0f - 64.0f * (ctViewR - 4)));
+
+        waterclip = FALSE;
+
+        if (cptr->rpos.z > -256.0f * 10.0f)
+            RenderModelClip(cptr->pinfo->mptr,
+                            cptr->rpos.x, cptr->rpos.y, cptr->rpos.z, 210, 0,
+                            -cptr->alpha + pi / 2.0f + CameraAlpha,
+                            CameraBeta);
+        else
+            RenderModel(cptr->pinfo->mptr,
+                        cptr->rpos.x, cptr->rpos.y, cptr->rpos.z, 210, 0,
+                        -cptr->alpha + pi / 2.0f + CameraAlpha,
+                        CameraBeta);
+    }
+
+    // ── Multiplayer players ──────────────────────────────────────────
+    if (Multiplayer) {
+        for (int c = 0; c < 1; c++) {
+            TCharacter* cptr = &MPlayers[c];
+            cptr->rpos.x = cptr->pos.x - CameraX;
+            cptr->rpos.y = cptr->pos.y - CameraY;
+            cptr->rpos.z = cptr->pos.z - CameraZ;
+
+            float r = static_cast<float>((std::max)(fabs(cptr->rpos.x), fabs(cptr->rpos.z)));
+            int ri = -1 + static_cast<int>(r / 256.0f + 0.5f);
+            if (ri < 0) ri = 0;
+            if (ri > ctViewR) continue;
+
+            cptr->rpos = RotateVector(cptr->rpos);
+
+            float br = BackViewR + DinoInfo[cptr->CType].Radius;
+            if (cptr->rpos.z > br) continue;
+            if (fabs(cptr->rpos.x) > -cptr->rpos.z + br) continue;
+            if (fabs(cptr->rpos.y) > -cptr->rpos.z + br) continue;
+
+            CreateChMorphedModel(cptr);
+
+            float zs = sqrtf(cptr->rpos.x * cptr->rpos.x +
+                             cptr->rpos.y * cptr->rpos.y +
+                             cptr->rpos.z * cptr->rpos.z);
+            if (zs > ctViewR * 256.0f) continue;
+
+            GlassL = 0;
+            if (zs > 256.0f * (ctViewR - 4))
+                GlassL = (std::min)(255, static_cast<int>(zs / 4.0f - 64.0f * (ctViewR - 4)));
+
+            waterclip = FALSE;
+
+            if (cptr->rpos.z > -256.0f * 10.0f)
+                RenderModelClip(cptr->pinfo->mptr,
+                                cptr->rpos.x, cptr->rpos.y, cptr->rpos.z, 210, 0,
+                                -cptr->alpha + pi / 2.0f + CameraAlpha,
+                                CameraBeta);
+            else
+                RenderModel(cptr->pinfo->mptr,
+                            cptr->rpos.x, cptr->rpos.y, cptr->rpos.z, 210, 0,
+                            -cptr->alpha + pi / 2.0f + CameraAlpha,
+                            CameraBeta);
+        }
+    }
+
+    // ── Ship ─────────────────────────────────────────────────────────
+    Ship.rpos.x = Ship.pos.x - CameraX;
+    Ship.rpos.y = Ship.pos.y - CameraY;
+    Ship.rpos.z = Ship.pos.z - CameraZ;
+    {
+        float r = static_cast<float>((std::max)(fabs(Ship.rpos.x), fabs(Ship.rpos.z)));
+        int ri = -1 + static_cast<int>(r / 256.0f + 0.2f);
+        if (ri < 0) ri = 0;
+        if (ri < ctViewR) {
+            Ship.rpos = RotateVector(Ship.rpos);
+            if (Ship.rpos.z <= BackViewR &&
+                fabs(Ship.rpos.x) <= -Ship.rpos.z + BackViewR) {
+                if (Ship.State != -1) {
+                    GlassL = 0;
+                    float zs = VectorLength(Ship.rpos);
+                    if (zs > 256.0f * (ctViewR - 4))
+                        GlassL = (std::min)(255, static_cast<int>((zs - 256.0f * (ctViewR - 4)) / 4.0f));
+
+                    CreateMorphedModel(ShipModel.mptr, &ShipModel.Animation[0], Ship.FTime, 1.0);
+
+                    if (fabs(Ship.rpos.z) < 4000.0f)
+                        RenderModelClip(ShipModel.mptr,
+                                        Ship.rpos.x, Ship.rpos.y, Ship.rpos.z, 210, 0,
+                                        -Ship.alpha - pi / 2.0f + CameraAlpha, CameraBeta);
+                    else
+                        RenderModel(ShipModel.mptr,
+                                    Ship.rpos.x, Ship.rpos.y, Ship.rpos.z, 210, 0,
+                                    -Ship.alpha - pi / 2.0f + CameraAlpha, CameraBeta);
+                }
+            }
+        }
+    }
+
+    // ── Super Ship ───────────────────────────────────────────────────
+    SShip.rpos.x = SShip.pos.x - CameraX;
+    SShip.rpos.y = SShip.pos.y - CameraY;
+    SShip.rpos.z = SShip.pos.z - CameraZ;
+    {
+        float r = static_cast<float>((std::max)(fabs(SShip.rpos.x), fabs(SShip.rpos.z)));
+        int ri = -1 + static_cast<int>(r / 256.0f + 0.2f);
+        if (ri < 0) ri = 0;
+        if (ri < ctViewR) {
+            SShip.rpos = RotateVector(SShip.rpos);
+            if (SShip.rpos.z <= BackViewR &&
+                fabs(SShip.rpos.x) <= -SShip.rpos.z + BackViewR) {
+                if (SShip.State >= 1) {
+                    GlassL = 0;
+                    float zs = VectorLength(SShip.rpos);
+                    if (zs > 256.0f * (ctViewR - 4))
+                        GlassL = (std::min)(255, static_cast<int>((zs - 256.0f * (ctViewR - 4)) / 4.0f));
+
+                    CreateMorphedModelBetaGamma(SShipModel.mptr, &SShipModel.Animation[0],
+                                                SShip.FTime, 1.0, SShip.beta, SShip.gamma);
+
+                    if (fabs(SShip.rpos.z) < 4000.0f)
+                        RenderModelClip(SShipModel.mptr,
+                                        SShip.rpos.x, SShip.rpos.y, SShip.rpos.z, 210, 0,
+                                        -SShip.alpha - pi / 2.0f + CameraAlpha, CameraBeta);
+                    else
+                        RenderModel(SShipModel.mptr,
+                                    SShip.rpos.x, SShip.rpos.y, SShip.rpos.z, 210, 0,
+                                    -SShip.alpha - pi / 2.0f + CameraAlpha, CameraBeta);
+                }
+            }
+        }
+    }
+
+    // ── Ammo Bag ─────────────────────────────────────────────────────
+    AmmoBag.rpos.x = AmmoBag.pos.x - CameraX;
+    AmmoBag.rpos.y = AmmoBag.pos.y - CameraY;
+    AmmoBag.rpos.z = AmmoBag.pos.z - CameraZ;
+    {
+        float r = static_cast<float>((std::max)(fabs(AmmoBag.rpos.x), fabs(AmmoBag.rpos.z)));
+        int ri = -1 + static_cast<int>(r / 256.0f + 0.2f);
+        if (ri < 0) ri = 0;
+        if (ri < ctViewR) {
+            AmmoBag.rpos = RotateVector(AmmoBag.rpos);
+            if (AmmoBag.rpos.z <= BackViewR &&
+                fabs(AmmoBag.rpos.x) <= -AmmoBag.rpos.z + BackViewR) {
+                if (AmmoBag.State >= 1) {
+                    GlassL = 0;
+                    float zs = VectorLength(AmmoBag.rpos);
+                    if (zs > 256.0f * (ctViewR - 4))
+                        GlassL = (std::min)(255, static_cast<int>((zs - 256.0f * (ctViewR - 4)) / 4.0f));
+
+                    CreateMorphedModel(BagModel.mptr, &BagModel.Animation[0], AmmoBag.FTime, 1.0);
+
+                    if (fabs(AmmoBag.rpos.z) < 4000.0f)
+                        RenderModelClip(BagModel.mptr,
+                                        AmmoBag.rpos.x, AmmoBag.rpos.y, AmmoBag.rpos.z, 210, 0,
+                                        -pi / 2.0f + CameraAlpha, CameraBeta);
+                    else
+                        RenderModel(BagModel.mptr,
+                                    AmmoBag.rpos.x, AmmoBag.rpos.y, AmmoBag.rpos.z, 210, 0,
+                                    -pi / 2.0f + CameraAlpha, CameraBeta);
+                }
+            }
+        }
+    }
+
+    // ── Bullets ──────────────────────────────────────────────────────
+    for (int b = 0; b < bulletCh; b++) {
+        if (!WeapInfo[bullet[b].parent].bullet) continue;
+
+        bullet[b].rpos.x = bullet[b].a.x - CameraX;
+        bullet[b].rpos.y = bullet[b].a.y - CameraY;
+        bullet[b].rpos.z = bullet[b].a.z - CameraZ;
+        float r = static_cast<float>((std::max)(fabs(bullet[b].rpos.x), fabs(bullet[b].rpos.z)));
+        int ri = -1 + static_cast<int>(r / 256.0f + 0.2f);
+        if (ri < 0) ri = 0;
+        if (ri < ctViewR) {
+            bullet[b].rpos = RotateVector(bullet[b].rpos);
+            if (bullet[b].rpos.z <= BackViewR &&
+                fabs(bullet[b].rpos.x) <= -bullet[b].rpos.z + BackViewR) {
+                GlassL = 0;
+                float zs = VectorLength(bullet[b].rpos);
+                if (zs > 256.0f * (ctViewR - 4))
+                    GlassL = (std::min)(255, static_cast<int>((zs - 256.0f * (ctViewR - 4)) / 4.0f));
+
+                CreateMorphedModelBetaGamma(Weapon.Bullet[bullet[b].parent].mptr,
+                                            &Weapon.Bullet[bullet[b].parent].Animation[0],
+                                            bullet[b].FTime, 1.0, bullet[b].beta, 0.0f);
+
+                if (fabs(bullet[b].rpos.z) < 4000.0f)
+                    RenderModelClip(Weapon.Bullet[bullet[b].parent].mptr,
+                                    bullet[b].rpos.x, bullet[b].rpos.y, bullet[b].rpos.z, 210, 0,
+                                    -bullet[b].alpha - pi / 2.0f + CameraAlpha,
+                                    -bullet[b].beta - pi / 2.0f + CameraBeta);
+                else
+                    RenderModel(Weapon.Bullet[bullet[b].parent].mptr,
+                                bullet[b].rpos.x, bullet[b].rpos.y, bullet[b].rpos.z, 210, 0,
+                                -bullet[b].alpha - pi / 2.0f + CameraAlpha,
+                                -bullet[b].beta - pi / 2.0f + CameraBeta);
+            }
+        }
+    }
+
+    // Flush all queued models (characters, ships, bullets) to GPU
+    RenderWorldModels();
+}
+
 void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
 {
     if (!mptr) {

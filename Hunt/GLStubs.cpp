@@ -149,7 +149,7 @@ void RenderModelsList()
 
 void Render3DHardwarePosts()
 {
-    // TODO: Render hardware posts using GL
+    if (g_GLRenderer) g_GLRenderer->Render3DHardwarePosts();
 }
 
 void RenderWater()

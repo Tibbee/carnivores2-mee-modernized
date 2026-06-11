@@ -75,6 +75,7 @@ public:
     void RenderMappedObject(int x, int y);
     void RenderModelsList();
     void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light);
+    void Render3DHardwarePosts();
 
 private:
     struct TerrainVertex {
