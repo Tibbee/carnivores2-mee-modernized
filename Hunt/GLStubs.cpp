@@ -87,6 +87,20 @@ void ClearVideoBuf()
 
 void ShowVideo()
 {
+    // Apply depth-based sun occlusion after the full scene is rendered
+    if (g_GLRenderer) {
+        g_GLRenderer->ApplySunDepthOcclusion();
+    }
+
+    // Apply sun glare/blinding effect (matching D3D/3DFX ShowVideo)
+    if (g_GLRenderer) {
+        float sunLight = g_GLRenderer->GetSunLight();
+        if (!UNDERWATER && sunLight > 1.0f) {
+            uint32_t glareColor = 0xFFFFC0 | (static_cast<uint32_t>(sunLight) << 24);
+            g_GLRenderer->RenderFSRect(glareColor);
+        }
+    }
+
     // Swap buffers
     if (g_GLRenderer && hwndMain) {
         HDC hdc = GetDC(hwndMain);

@@ -2200,6 +2200,246 @@ void GLRenderer::UploadSkyTexture()
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 256, GL_RGBA, GL_UNSIGNED_BYTE, expanded.data());
 }
 
+float GLRenderer::GetTraceK(int x, int y)
+{
+    if (x < 8 || y < 8 || x > WinW - 8 || y > WinH - 8) return 0.0f;
+
+    float k = 0.0f;
+    // Sample 9 points around the sun position on the depth buffer
+    const int offsets[][2] = {
+        {0, 0}, {10, 0}, {-10, 0}, {0, 10}, {0, -10},
+        {8, 8}, {8, -8}, {-8, 8}, {-8, -8}
+    };
+    for (const auto& off : offsets) {
+        float depth = 1.0f;
+        glReadPixels(x + off[0], WinH - (y + off[1]), 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
+        // Depth near 1.0 means sky (nothing occluding)
+        if (depth > 0.9999f) k += 1.0f;
+    }
+    k /= 9.0f;
+
+    DeltaFunc(m_traceK, k, TimeDt / 1024.0f);
+    return m_traceK;
+}
+
+float GLRenderer::GetSkyK(int x, int y)
+{
+    if (x < 10 || y < 10 || x > WinW - 10 || y > WinH - 10) return 0.5f;
+
+    float skySumR = 0.0f, skySumG = 0.0f, skySumB = 0.0f;
+
+    // Sample 9 points around the sun position on the color buffer
+    const int offsets[][2] = {
+        {0, 0}, {6, 0}, {-6, 0}, {0, 6}, {0, -6},
+        {4, 4}, {4, -4}, {-4, 4}, {-4, -4}
+    };
+    for (const auto& off : offsets) {
+        unsigned char pixel[4];
+        glReadPixels(x + off[0], WinH - (y + off[1]), 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+        // GL returns BGR in byte order for glReadPixels
+        skySumR += pixel[0];
+        skySumG += pixel[1];
+        skySumB += pixel[2];
+    }
+
+    // Subtract the expected sky color (target)
+    skySumR -= SkyTR * 9.0f;
+    skySumG -= SkyTG * 9.0f;
+    skySumB -= SkyTB * 9.0f;
+
+    float k = std::sqrt(skySumR * skySumR + skySumG * skySumG + skySumB * skySumB) / 9.0f;
+    if (k > 80.0f) k = 80.0f;
+    if (k < 0.0f) k = 0.0f;
+    k = 1.0f - k / 80.0f;
+    if (k < 0.2f) k = 0.2f;
+    if (OptDayNight == 2) k = 0.3f + k / 2.75f;
+
+    DeltaFunc(m_skyTraceK, k, (0.07f + std::fabs(k - m_skyTraceK)) * (TimeDt / 512.0f));
+    return m_skyTraceK;
+}
+
+void GLRenderer::RenderSun(float x, float y, float z)
+{
+    m_sunScrX = VideoCX + static_cast<int>(x / (-z) * CameraW);
+    m_sunScrY = VideoCY - static_cast<int>(y / (-z) * CameraH);
+    GetSkyK(m_sunScrX, m_sunScrY);
+
+    float d = std::sqrt(x * x + y * y);
+    if (d < 2048.0f) {
+        m_sunLight = 220.0f - d * 220.0f / 2048.0f;
+        if (m_sunLight > 140.0f) m_sunLight = 140.0f;
+        m_sunLight *= m_skyTraceK;
+    }
+
+    if (d > 812.0f) d = 812.0f;
+    d = (2048.0f + d) / 3048.0f;
+    d += (1.0f - m_skyTraceK) / 2.0f;
+    if (OptDayNight == 2) d = 1.5f;
+
+    RenderModelSun(SunModel, x * d, y * d, z * d, static_cast<int>(200.0f * m_skyTraceK));
+}
+
+void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int alpha)
+{
+    if (!mptr || !mptr->lpTexture || !mptr->gVertex || !mptr->gFace) return;
+
+    const GLuint texture = UploadModelTexture(mptr);
+    if (!texture) return;
+
+    m_sunModelVertices.clear();
+    const size_t reserveCount = static_cast<size_t>(mptr->FCount) * 3;
+    m_sunModelVertices.reserve(reserveCount);
+    const float alphaVal = static_cast<float>(alpha) / 255.0f;
+
+    for (int f = 0; f < mptr->FCount; ++f) {
+        const TFace& face = mptr->gFace[f];
+        const int texHeight = (mptr->TextureHeight > 1) ? mptr->TextureHeight : 1;
+
+        auto makeVertex = [&](int vIdx, int tx, int ty) -> ModelVertex {
+            const Vector2df uv = DecodeLegacyFaceUV(static_cast<float>(tx), static_cast<float>(ty), texHeight);
+            return {
+                mptr->gVertex[vIdx].x + x0,
+                mptr->gVertex[vIdx].y + y0,
+                mptr->gVertex[vIdx].z + z0,
+                uv.x, uv.y,
+                255.0f,  // full brightness
+                0.0f,    // no fog
+                0.0f, 0.0f, 0.0f,  // fog color (unused)
+                alphaVal,
+                0.0f     // no cutout
+            };
+        };
+
+        m_sunModelVertices.push_back(makeVertex(face.v1, face.tax, face.tay));
+        m_sunModelVertices.push_back(makeVertex(face.v2, face.tbx, face.tby));
+        m_sunModelVertices.push_back(makeVertex(face.v3, face.tcx, face.tcy));
+    }
+
+    if (m_sunModelVertices.empty()) return;
+
+    const auto projection = BuildLegacyProjection();
+    glUseProgram(m_modelShader);
+    glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, projection.data());
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);  // additive blending for sun
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_FALSE);  // don't write depth for sun
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindVertexArray(m_modelVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
+    const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(m_sunModelVertices.size() * sizeof(ModelVertex));
+    glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, m_sunModelVertices.data());
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(m_sunModelVertices.size()));
+
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+    glBindVertexArray(0);
+}
+
+void GLRenderer::UpdateSunVisibility()
+{
+    if (m_sunScrX < 10 || m_sunScrY < 10 || m_sunScrX > WinW - 10 || m_sunScrY > WinH - 10) {
+        m_skyTraceK = 0.5f;
+        return;
+    }
+
+    // Rate-limit to ~15 Hz (66ms) to avoid GPU stalls from glReadPixels
+    if (m_sunScrX == m_lastSunVisibilityScrX &&
+        m_sunScrY == m_lastSunVisibilityScrY &&
+        RealTime - m_lastSunVisibilityUpdate < 66) {
+        return;
+    }
+
+    m_lastSunVisibilityUpdate = RealTime;
+    m_lastSunVisibilityScrX = m_sunScrX;
+    m_lastSunVisibilityScrY = m_sunScrY;
+
+    // Depth-based occlusion (GetTraceK): is terrain/models blocking the sun?
+    float traceK = GetTraceK(m_sunScrX, m_sunScrY);
+
+    // Color-based cloud occlusion (GetSkyK): are clouds dimming the sky?
+    float skyK = GetSkyK(m_sunScrX, m_sunScrY);
+
+    // Final visibility is the product
+    float visibility = traceK * skyK;
+
+    // Smooth transition
+    float delta = (0.07f + std::fabs(visibility - m_skyTraceK)) * (static_cast<float>(TimeDt) / 512.0f);
+    if (visibility > m_skyTraceK) {
+        m_skyTraceK = (std::min)(visibility, m_skyTraceK + delta);
+    } else {
+        m_skyTraceK = (std::max)(visibility, m_skyTraceK - delta);
+    }
+}
+
+void GLRenderer::ApplySunDepthOcclusion()
+{
+    // Called from ShowVideo() after the full scene is rendered.
+    // Samples the depth buffer at the sun's screen position to check
+    // if terrain/models are occluding the sun.
+    m_sunLight *= GetTraceK(m_sunScrX, m_sunScrY);
+}
+
+void GLRenderer::RenderFSRect(uint32_t color)
+{
+    float a = static_cast<float>((color >> 24) & 0xFF) / 255.0f;
+    float r = static_cast<float>((color >> 16) & 0xFF) / 255.0f;
+    float g = static_cast<float>((color >> 8) & 0xFF) / 255.0f;
+    float b = static_cast<float>(color & 0xFF) / 255.0f;
+
+    // Create a 1x1 white texture for flat-color rendering
+    GLuint whiteTex = 0;
+    glGenTextures(1, &whiteTex);
+    glBindTexture(GL_TEXTURE_2D, whiteTex);
+    const uint32_t white = 0xFFFFFFFF;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &white);
+
+    // Build a fullscreen quad — use fog=1.0 so the model shader
+    // outputs the fog color (our desired glare color) instead of the texture
+    struct FSVertex { float x, y, z, u, v, light, fog, fogR, fogG, fogB, alpha, cutout; };
+    const FSVertex quad[6] = {
+        {-1.0f, -1.0f, 0.0001f, 0, 0, 255, 1.0f, r, g, b, a, 0},
+        { 1.0f, -1.0f, 0.0001f, 0, 0, 255, 1.0f, r, g, b, a, 0},
+        { 1.0f,  1.0f, 0.0001f, 0, 0, 255, 1.0f, r, g, b, a, 0},
+        {-1.0f, -1.0f, 0.0001f, 0, 0, 255, 1.0f, r, g, b, a, 0},
+        { 1.0f,  1.0f, 0.0001f, 0, 0, 255, 1.0f, r, g, b, a, 0},
+        {-1.0f,  1.0f, 0.0001f, 0, 0, 255, 1.0f, r, g, b, a, 0},
+    };
+
+    // Identity projection — vertices are already in NDC
+    const float identity[16] = {
+        1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1
+    };
+
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);  // additive blending for glare
+
+    glUseProgram(m_modelShader);
+    glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, identity);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, whiteTex);
+    glBindVertexArray(m_modelVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad), nullptr, GL_STREAM_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(quad), quad);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+
+    glDeleteTextures(1, &whiteTex);
+}
+
 void GLRenderer::RenderSkyPlane()
 {
     if (!m_skyVAO || !m_skyTexture || !m_skyShader) {
@@ -2290,6 +2530,19 @@ void GLRenderer::RenderSkyPlane()
 
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
+
+    // Render sun on top of sky (matching D3D/3DFX: sky plane renders sun)
+    if (SunModel && !UNDERWATER) {
+        m_sunLight = 0.0f;
+        Vector3d sunDir = {-2048.0f, 4048.0f, -2048.0f};
+        sunDir = RotateVector(sunDir);
+        if (sunDir.z < -2024.0f) {
+            RenderSun(sunDir.x, sunDir.y, sunDir.z);
+            // GetSkyK is called inside RenderSun for cloud occlusion.
+            // GetTraceK (depth-based) is deferred to ShowVideo() after the
+            // full scene is rendered, so the depth buffer has terrain/models.
+        }
+    }
 }
 
 void GLRenderer::DrawPicture(int x, int y, TPicture& pic)

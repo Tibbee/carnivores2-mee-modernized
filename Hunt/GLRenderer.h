@@ -214,6 +214,28 @@ private:
     void InitializeSkyPipeline();
     void ShutdownSkyPipeline();
     void UploadSkyTexture();
+
+    // Sun rendering
+    float m_sunLight = 0.0f;
+    float m_skyTraceK = 1.0f;
+    float m_traceK = 1.0f;
+    int m_sunScrX = 0;
+    int m_sunScrY = 0;
+    int m_lastSunVisibilityScrX = 0;
+    int m_lastSunVisibilityScrY = 0;
+    unsigned int m_lastSunVisibilityUpdate = 0;
+    std::vector<ModelVertex> m_sunModelVertices;
+
+    void RenderSun(float x, float y, float z);
+    void RenderModelSun(TModel* mptr, float x0, float y0, float z0, int alpha);
+    float GetSkyK(int x, int y);
+    float GetTraceK(int x, int y);
+    void UpdateSunVisibility();
+
+public:
+    float GetSunLight() const { return m_sunLight; }
+    void RenderFSRect(uint32_t color);
+    void ApplySunDepthOcclusion();
 };
 
 extern GLRenderer* g_GLRenderer;
