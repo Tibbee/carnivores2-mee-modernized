@@ -248,6 +248,72 @@ void SetVideoMode(int W, int H)
   WinW = W;
   WinH = H;
 
+  // Reallocate the back-buffer DIB to match the new WinW/WinH so the
+  // GDI pitch matches the runtime VideoPitchB. Required for widescreen
+  // support; before this the DIB was always 1024x768 and the renderer
+  // assumed a 2048-byte stride. No-op for the very first call (when
+  // hwndMain is not yet created) — that path uses the old hardcoded
+  // 1024x768 DIB which is fine because the initial render is the
+  // loading screen only.
+  if (hwndMain) CreateVideoDIB(WinW, WinH);
+
+  if (FULLSCREEN) {
+    SetWindowLong(hwndMain, GWL_STYLE, WS_VISIBLE | WS_POPUP);
+    // SWP_FRAMECHANGED: required after SetWindowLong changes the style, otherwise
+    // the frame (title bar/borders) is not recalculated and the client area
+    // ends up at the wrong size. This caused HUD elements (ammo counter etc.)
+    // to be hidden behind the title bar in windowed mode, especially at
+    // resolutions where the window extends off-screen (e.g. 2560x1440 windowed
+    // on a 2560x1440 desktop).
+    SetWindowPos(hwndMain, HWND_TOP, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+
+    POINT center = { VideoCX, VideoCY };
+    SetCursorPos(center.x, center.y);
+  } else {
+    DWORD style = WS_VISIBLE | WS_OVERLAPPEDWINDOW;
+    SetWindowLong(hwndMain, GWL_STYLE, style);
+
+    RECT r = { 0, 0, WinW, WinH };
+    AdjustWindowRect(&r, style, FALSE);
+
+    int ww = r.right - r.left;
+    int wh = r.bottom - r.top;
+    int sx = (GetSystemMetrics(SM_CXSCREEN) - ww) / 2;
+    int sy = (GetSystemMetrics(SM_CYSCREEN) - wh) / 2;
+    // SWP_FRAMECHANGED: see comment above. Without it the new
+    // WS_OVERLAPPEDWINDOW frame is not applied and the client area is wrong.
+    SetWindowPos(hwndMain, HWND_TOP, sx, sy, ww, wh, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+  }
+
+  // Sync WinW/WinH and all derived values to the ACTUAL client area the OS
+  // gave us. AdjustWindowRect predicts the frame chrome, but the real chrome
+  // (title bar height, border width, DPI scale) can differ slightly, and at
+  // resolutions that match or exceed the desktop the window can also be
+  // clamped by Windows. If we kept WinW/WinH at the requested size while the
+  // client area is smaller, the DIB and the OpenGL viewport would be larger
+  // than the visible area and the top/bottom of the HUD would be clipped
+  // (e.g. ammo counter hidden behind the title bar at 2560x1440 windowed on
+  // a 2560x1440 desktop).
+  if (hwndMain) {
+    RECT clientRect;
+    GetClientRect(hwndMain, &clientRect);
+    int actualW = clientRect.right - clientRect.left;
+    int actualH = clientRect.bottom - clientRect.top;
+    if (actualW > 0 && actualH > 0 &&
+        (actualW != WinW || actualH != WinH)) {
+      char logt[128];
+      wsprintf(logt, "Client area adjusted: requested %dx%d, actual %dx%d\n",
+               WinW, WinH, actualW, actualH);
+      PrintLog(logt);
+      WinW = actualW;
+      WinH = actualH;
+      // DIB was allocated at the old WinW/WinH; reallocate to match the
+      // actual client area so GDI TextOut/DrawPicture don't write past the
+      // visible region.
+      CreateVideoDIB(WinW, WinH);
+    }
+  }
+
   VideoPitch  = WinW;        // WORD index (pixels) for 16-bit video buffer
   VideoPitchB = WinW * 2;    // byte index for 16-bit video buffer
 
@@ -266,35 +332,6 @@ void SetVideoMode(int W, int H)
   // that the old 4:3-hardcoded formula produced on 16:9 displays.
   CameraH = (float)VideoCY * FovScaleFromDegrees(OptFov);
   CameraW = CameraH;
-
-  // Reallocate the back-buffer DIB to match the new WinW/WinH so the
-  // GDI pitch matches the runtime VideoPitchB. Required for widescreen
-  // support; before this the DIB was always 1024x768 and the renderer
-  // assumed a 2048-byte stride. No-op for the very first call (when
-  // hwndMain is not yet created) — that path uses the old hardcoded
-  // 1024x768 DIB which is fine because the initial render is the
-  // loading screen only.
-  if (hwndMain) CreateVideoDIB(WinW, WinH);
-
-  if (FULLSCREEN) {
-    SetWindowLong(hwndMain, GWL_STYLE, WS_VISIBLE | WS_POPUP);
-    SetWindowPos(hwndMain, HWND_TOP, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_SHOWWINDOW);
-
-    POINT center = { VideoCX, VideoCY };
-    SetCursorPos(center.x, center.y);
-  } else {
-    DWORD style = WS_VISIBLE | WS_OVERLAPPEDWINDOW;
-    SetWindowLong(hwndMain, GWL_STYLE, style);
-
-    RECT r = { 0, 0, WinW, WinH };
-    AdjustWindowRect(&r, style, FALSE);
-
-    int ww = r.right - r.left;
-    int wh = r.bottom - r.top;
-    int sx = (GetSystemMetrics(SM_CXSCREEN) - ww) / 2;
-    int sy = (GetSystemMetrics(SM_CYSCREEN) - wh) / 2;
-    SetWindowPos(hwndMain, HWND_TOP, sx, sy, ww, wh, SWP_SHOWWINDOW);
-  }
 
   LoDetailSky =(W>400);
   SetCursor(hcArrow);
