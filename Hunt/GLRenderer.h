@@ -181,7 +181,6 @@ private:
     static float CalcWaterAlpha(const EPoint& vertex, float zs);
     static float Clamp01(float value);
     static unsigned int Expand1555to8888(unsigned short c);
-    static unsigned int Expand565to8888(unsigned short c);
 
     HWND m_hwnd = nullptr;
     HDC m_hdc = nullptr;
@@ -237,14 +236,18 @@ private:
     float GetTraceK(int x, int y);
     void UpdateSunVisibility();
 
-    // HUD pipeline — renders lpVideoBuf as a fullscreen overlay
-    GLuint m_hudTexture = 0;
-    GLuint m_hudVAO = 0;
-    GLuint m_hudVBO = 0;
-    bool m_hudPipelineReady = false;
+    // HUD/UI overlay pipeline — uploads lpVideoBuf as a fullscreen quad on top of the 3D scene
+    GLuint m_uiShader = 0;
+    GLuint m_uiVAO = 0;
+    GLuint m_uiVBO = 0;
+    GLuint m_uiTexture = 0;
+    int m_uiTextureWidth = 0;
+    int m_uiTextureHeight = 0;
+    std::vector<uint32_t> m_uiPixels;
     void InitializeHudPipeline();
     void ShutdownHudPipeline();
-    void UploadHudOverlay();
+    void EnsureUITexture();
+    void UpdateUIPixels();
 
 public:
     float GetSunLight() const { return m_sunLight; }

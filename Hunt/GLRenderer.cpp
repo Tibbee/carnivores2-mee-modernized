@@ -534,6 +534,7 @@ bool GLRenderer::Initialize()
     }
 
     InitializeSkyPipeline();
+    InitializeHudPipeline();
 
     glUseProgram(m_modelShader);
     glUniform1i(glGetUniformLocation(m_modelShader, "uModelTexture"), 0);
@@ -557,6 +558,7 @@ void GLRenderer::Shutdown()
     ShutdownTerrainPipeline();
     ShutdownModelPipeline();
     ShutdownSkyPipeline();
+    ShutdownHudPipeline();
 
     if (m_hrc) {
         if (wglGetCurrentContext() == m_hrc) {
@@ -1821,22 +1823,6 @@ unsigned int GLRenderer::Expand1555to8888(unsigned short c)
     return 0xFF000000 | (b << 16) | (g << 8) | r;
 }
 
-unsigned int GLRenderer::Expand565to8888(unsigned short c)
-{
-    if (c == 0) return 0x00000000;
-
-    // R5G6B5: bits 15-11 = R, 10-5 = G, 4-0 = B
-    unsigned int r = (c >> 11) & 0x1F;
-    unsigned int g = (c >> 5) & 0x3F;
-    unsigned int b = c & 0x1F;
-
-    r = (r << 3) | (r >> 2);
-    g = (g << 2) | (g >> 4);
-    b = (b << 3) | (b >> 2);
-
-    return 0xFF000000 | (b << 16) | (g << 8) | r;
-}
-
 std::array<Vector2df, 3> GLRenderer::GetTerrainUVs(bool reverse, bool second, int direction)
 {
     const float tcMin = static_cast<float>(TCMIN) / (128.0f * 65536.0f);
@@ -2991,53 +2977,122 @@ void GLRenderer::RenderSkyPlane()
 
 void GLRenderer::InitializeHudPipeline()
 {
-    if (m_hudPipelineReady) return;
+    const char* vsSource =
+        "#version 330 core\n"
+        "layout (location = 0) in vec2 aPos;\n"
+        "layout (location = 1) in vec2 aTexCoord;\n"
+        "out vec2 vTexCoord;\n"
+        "void main() {\n"
+        "   gl_Position = vec4(aPos, 0.0, 1.0);\n"
+        "   vTexCoord = aTexCoord;\n"
+        "}\n";
 
-    glGenVertexArrays(1, &m_hudVAO);
-    glGenBuffers(1, &m_hudVBO);
+    const char* fsSource =
+        "#version 330 core\n"
+        "in vec2 vTexCoord;\n"
+        "out vec4 FragColor;\n"
+        "uniform sampler2D uTexture;\n"
+        "void main() {\n"
+        "   FragColor = texture(uTexture, vTexCoord);\n"
+        "}\n";
 
-    glBindVertexArray(m_hudVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, m_hudVBO);
+    GLuint vertexShader = CompileShader(GL_VERTEX_SHADER, vsSource);
+    GLuint fragmentShader = CompileShader(GL_FRAGMENT_SHADER, fsSource);
+    m_uiShader = LinkProgram(vertexShader, fragmentShader);
+    if (!m_uiShader) {
+        PrintLog("GLRenderer: UI shader compilation... FAILED!\n");
+        return;
+    }
+    PrintLog("GLRenderer: UI shader compilation... OK\n");
 
-    // Same vertex layout as ModelVertex: x,y,z, u,v, light, fog, fogR,fogG,fogB, alpha, cutout
-    constexpr GLsizei stride = sizeof(ModelVertex);
+    // Static fullscreen quad in NDC: (x, y, u, v) per vertex
+    // Texture is flipped vertically in UpdateUIPixels, so:
+    //   tex (0,0) = bottom-left of image, tex (0,1) = top-left of image
+    //   Screen top-left (-1,1) should show tex (0,1) = top of image
+    constexpr float kQuadVertices[] = {
+        -1.0f,  1.0f, 0.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f, 1.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+         1.0f,  1.0f, 1.0f, 1.0f,
+    };
+
+    glGenVertexArrays(1, &m_uiVAO);
+    glGenBuffers(1, &m_uiVBO);
+
+    glBindVertexArray(m_uiVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_uiVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(kQuadVertices), kQuadVertices, GL_STATIC_DRAW);
+
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, stride, (void*)(5 * sizeof(float)));
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, stride, (void*)(7 * sizeof(float)));
-    glEnableVertexAttribArray(5);
-    glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, stride, (void*)(10 * sizeof(float)));
-    glEnableVertexAttribArray(6);
-    glVertexAttribPointer(6, 1, GL_FLOAT, GL_FALSE, stride, (void*)(11 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    // Create the HUD overlay texture (will be updated each frame)
-    if (!m_hudTexture) {
-        glGenTextures(1, &m_hudTexture);
-        glBindTexture(GL_TEXTURE_2D, m_hudTexture);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    }
-
-    m_hudPipelineReady = true;
+    glUseProgram(m_uiShader);
+    glUniform1i(glGetUniformLocation(m_uiShader, "uTexture"), 0);
 }
 
 void GLRenderer::ShutdownHudPipeline()
 {
-    if (m_hudTexture && m_hrc) { glDeleteTextures(1, &m_hudTexture); m_hudTexture = 0; }
-    if (m_hudVBO && m_hrc) { glDeleteBuffers(1, &m_hudVBO); m_hudVBO = 0; }
-    if (m_hudVAO && m_hrc) { glDeleteVertexArrays(1, &m_hudVAO); m_hudVAO = 0; }
-    m_hudPipelineReady = false;
+    if (m_uiTexture && m_hrc) { glDeleteTextures(1, &m_uiTexture); m_uiTexture = 0; }
+    if (m_uiVBO && m_hrc) { glDeleteBuffers(1, &m_uiVBO); m_uiVBO = 0; }
+    if (m_uiVAO && m_hrc) { glDeleteVertexArrays(1, &m_uiVAO); m_uiVAO = 0; }
+    if (m_uiShader && m_hrc) { glDeleteProgram(m_uiShader); m_uiShader = 0; }
+    m_uiTextureWidth = 0;
+    m_uiTextureHeight = 0;
+    m_uiPixels.clear();
+}
+
+void GLRenderer::EnsureUITexture()
+{
+    if (WinW <= 0 || WinH <= 0) return;
+    if (m_uiTexture && m_uiTextureWidth == WinW && m_uiTextureHeight == WinH) return;
+
+    if (!m_uiTexture) glGenTextures(1, &m_uiTexture);
+    glBindTexture(GL_TEXTURE_2D, m_uiTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, WinW, WinH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    m_uiTextureWidth = WinW;
+    m_uiTextureHeight = WinH;
+    m_uiPixels.assign((size_t)WinW * WinH, 0);
+}
+
+void GLRenderer::UpdateUIPixels()
+{
+    if (!lpVideoBuf || WinW <= 0 || WinH <= 0) return;
+
+    const uint16_t* src = (const uint16_t*)lpVideoBuf;
+    for (int y = 0; y < WinH; y++) {
+        // GDI DIB is top-down (row 0 = top), OpenGL textures are bottom-up (row 0 = bottom).
+        // Flip vertically.
+        int destY = WinH - 1 - y;
+        int srcOffset = y * VideoPitch;
+        int dstOffset = destY * WinW;
+        for (int x = 0; x < WinW; x++) {
+            uint16_t c = src[srcOffset + x];
+            if (c == 0) {
+                // Pixel 0 = transparent (HUD background)
+                m_uiPixels[dstOffset + x] = 0x00000000;
+            } else {
+                // lpVideoBuf is 555 (X1R5G5B5): XRRRRRGGGGGBBBBB
+                uint32_t r = (c >> 10) & 0x1F;
+                uint32_t g = (c >> 5) & 0x1F;
+                uint32_t b = c & 0x1F;
+                r = (r << 3) | (r >> 2);
+                g = (g << 3) | (g >> 2);
+                b = (b << 3) | (b >> 2);
+                m_uiPixels[dstOffset + x] = 0xFF000000 | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
 }
 
 void GLRenderer::RegisterPicture(TPicture* pptr)
@@ -3091,73 +3146,22 @@ void GLRenderer::DrawScaledPicture(int x, int y, int w, int h, TPicture& pic)
 // Called after all HUD elements have been drawn to lpVideoBuf.
 void GLRenderer::DrawHUDOverlay()
 {
-    if (!m_hudPipelineReady) InitializeHudPipeline();
-    if (!m_hudPipelineReady || !lpVideoBuf || WinW <= 0 || WinH <= 0) return;
+    if (!m_uiShader || !lpVideoBuf || WinW <= 0 || WinH <= 0) return;
 
-    // Convert 16-bit lpVideoBuf to RGBA
-    // lpVideoBuf is a 16-bit DIB in 555 format (X1R5G5B5)
-    // DrawPicture converts 565→555, GDI text is also 555
-    static std::vector<uint32_t> rgbaPixels;
-    rgbaPixels.resize(WinW * WinH);
+    EnsureUITexture();
+    UpdateUIPixels();
 
-    const uint16_t* src = (const uint16_t*)lpVideoBuf;
-    for (int y = 0; y < WinH; y++) {
-        // GDI DIB is top-down (row 0 = top), GL textures are bottom-up (row 0 = bottom)
-        // Flip vertically
-        int destY = WinH - 1 - y;
-        int srcOffset = y * VideoPitch;
-        int dstOffset = destY * WinW;
-        for (int x = 0; x < WinW; x++) {
-            uint16_t c = src[srcOffset + x];
-            if (c == 0) {
-                // Pixel 0 = transparent (HUD background)
-                rgbaPixels[dstOffset + x] = 0x00000000;
-            } else {
-                // 555 format: XRRRRRGGGGGBBBBB
-                uint32_t r = (c >> 10) & 0x1F;
-                uint32_t g = (c >> 5) & 0x1F;
-                uint32_t b = c & 0x1F;
-                r = (r << 3) | (r >> 2);
-                g = (g << 3) | (g >> 2);
-                b = (b << 3) | (b >> 2);
-                rgbaPixels[dstOffset + x] = 0xFF000000 | (b << 16) | (g << 8) | r;
-            }
-        }
-    }
-
-    // Upload to texture
-    glBindTexture(GL_TEXTURE_2D, m_hudTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WinW, WinH, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgbaPixels.data());
-
-    // Draw fullscreen quad
-    // NDC: (-1,-1) = bottom-left, (1,1) = top-right
-    // Texture is flipped vertically in UpdateUIPixels, so:
-    //   tex (0,0) = bottom-left of image, tex (0,1) = top-left of image
-    //   Screen top-left (-1,1) should show tex (0,1) = top of image
-    ModelVertex quad[6] = {
-        { -1.0f,  1.0f, 0.0001f, 0, 1, 255, 0, 1, 1, 1, 1, 0 },  // top-left → tex (0,1)
-        { -1.0f, -1.0f, 0.0001f, 0, 0, 255, 0, 1, 1, 1, 1, 0 },  // bottom-left → tex (0,0)
-        {  1.0f, -1.0f, 0.0001f, 1, 0, 255, 0, 1, 1, 1, 1, 0 },  // bottom-right → tex (1,0)
-        { -1.0f,  1.0f, 0.0001f, 0, 1, 255, 0, 1, 1, 1, 1, 0 },  // top-left → tex (0,1)
-        {  1.0f, -1.0f, 0.0001f, 1, 0, 255, 0, 1, 1, 1, 1, 0 },  // bottom-right → tex (1,0)
-        {  1.0f,  1.0f, 0.0001f, 1, 1, 255, 0, 1, 1, 1, 1, 0 },  // top-right → tex (1,1)
-    };
+    glBindTexture(GL_TEXTURE_2D, m_uiTexture);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WinW, WinH, GL_RGBA, GL_UNSIGNED_BYTE, m_uiPixels.data());
 
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    glUseProgram(m_modelShader);
-    glUniform1i(glGetUniformLocation(m_modelShader, "uModelTexture"), 0);
-    glUniform1f(glGetUniformLocation(m_modelShader, "uFogDist"), 0.0f);
-    // Set identity projection since quad vertices are already in NDC
-    float identity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
-    glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, identity);
-
-    glBindVertexArray(m_hudVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, m_hudVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_DYNAMIC_DRAW);
+    glUseProgram(m_uiShader);
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(m_uiVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
 
