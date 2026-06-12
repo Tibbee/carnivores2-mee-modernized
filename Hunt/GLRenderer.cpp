@@ -872,7 +872,8 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
                                     float bt,
                                     bool waterClipped,
                                     bool disableFog,
-                                    bool clippedVariant) const
+                                    bool clippedVariant,
+                                    bool additive) const
 {
     if (!mptr || !mptr->lpTexture || !mptr->gVertex || !mptr->gFace) {
         return false;
@@ -911,6 +912,7 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
 
     outItem = ModelDrawItem();
     outItem.texture = 0;
+    outItem.additive = additive;
     outItem.distance = std::sqrt(x0 * x0 + y0 * y0 + z0 * z0);
     const size_t reserveCount = static_cast<size_t>(mptr->FCount) * 3;
     outItem.opaqueVertices.reserve(reserveCount);
@@ -996,7 +998,8 @@ void GLRenderer::DrawModelVertices(GLuint texture,
                                    const std::vector<ModelVertex>& vertices,
                                    const std::array<float, 16>& projection,
                                    bool depthTest,
-                                   bool enableBlend)
+                                   bool enableBlend,
+                                   bool additive)
 {
     if (!m_modelShader || texture == 0 || vertices.empty()) {
         return;
@@ -1017,7 +1020,11 @@ void GLRenderer::DrawModelVertices(GLuint texture,
 
     if (enableBlend) {
         glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        if (additive) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);  // additive — used by water circles
+        } else {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }
         glDepthMask(GL_FALSE);
     } else {
         glDisable(GL_BLEND);
@@ -1075,11 +1082,11 @@ void GLRenderer::RenderWorldModels()
 
     const auto projection = BuildLegacyProjection();
     for (const ModelDrawItem& item : m_worldModelItems) {
-        DrawModelVertices(item.texture, item.opaqueVertices, projection, true, false);
+        DrawModelVertices(item.texture, item.opaqueVertices, projection, true, false, false);
 
         if (!item.cutoutVertices.empty()) {
             SetModelTextureFiltering(item.texture, true);
-            DrawModelVertices(item.texture, item.cutoutVertices, projection, true, false);
+            DrawModelVertices(item.texture, item.cutoutVertices, projection, true, false, false);
             SetModelTextureFiltering(item.texture, false);
         }
     }
@@ -1102,7 +1109,7 @@ void GLRenderer::RenderWorldModels()
         if (useNearestFiltering) {
             SetModelTextureFiltering(item->texture, true);
         }
-        DrawModelVertices(item->texture, item->transparentVertices, projection, true, true);
+        DrawModelVertices(item->texture, item->transparentVertices, projection, true, true, item->additive);
         if (useNearestFiltering) {
             SetModelTextureFiltering(item->texture, false);
         }
@@ -1667,14 +1674,14 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
     }
 
     const auto projection = BuildLegacyProjection();
-    DrawModelVertices(texture, vertices, projection, true, true);
+    DrawModelVertices(texture, vertices, projection, true, true, false);  // standard alpha blend
 }
 
 void GLRenderer::RenderModel(TModel* mptr, float x0, float y0, float z0,
                              int light, int vt, float al, float bt)
 {
     ModelDrawItem item;
-    if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, false, false, false)) {
+    if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, false, false, false, false)) {
         return;
     }
     item.texture = UploadModelTexture(mptr);
@@ -1688,7 +1695,7 @@ void GLRenderer::RenderModelClip(TModel* mptr, float x0, float y0, float z0,
                                  int light, int vt, float al, float bt)
 {
     ModelDrawItem item;
-    if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, false, false, true)) {
+    if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, false, false, true, false)) {
         return;
     }
     item.texture = UploadModelTexture(mptr);
@@ -1702,7 +1709,7 @@ void GLRenderer::RenderModelClipWater(TModel* mptr, float x0, float y0, float z0
                                       int light, int vt, float al, float bt)
 {
     ModelDrawItem item;
-    if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, true, false, true)) {
+    if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, true, false, true, false)) {
         return;
     }
     item.texture = UploadModelTexture(mptr);
@@ -1716,7 +1723,7 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
                                  int light, int vt, float al, float bt)
 {
     ModelDrawItem item;
-    if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, false, true, true)) {
+    if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, false, true, true, false)) {
         return;
     }
     item.texture = UploadModelTexture(mptr);
@@ -1737,10 +1744,10 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
 
     glClear(GL_DEPTH_BUFFER_BIT);
     const auto projection = BuildLegacyProjection();
-    DrawModelVertices(item.texture, item.opaqueVertices, projection, true, false);
+    DrawModelVertices(item.texture, item.opaqueVertices, projection, true, false, false);
     if (!item.cutoutVertices.empty()) {
         SetModelTextureFiltering(item.texture, true);
-        DrawModelVertices(item.texture, item.cutoutVertices, projection, true, false);
+        DrawModelVertices(item.texture, item.cutoutVertices, projection, true, false, false);
         SetModelTextureFiltering(item.texture, false);
     }
     if (!item.transparentVertices.empty()) {
@@ -1748,7 +1755,7 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
         if (useNearestFiltering) {
             SetModelTextureFiltering(item.texture, true);
         }
-        DrawModelVertices(item.texture, item.transparentVertices, projection, true, true);
+        DrawModelVertices(item.texture, item.transparentVertices, projection, true, true, false);
         if (useNearestFiltering) {
             SetModelTextureFiltering(item.texture, false);
         }
@@ -2406,6 +2413,75 @@ void GLRenderer::RenderWater()
     CollectWaterTile(CCX, CCY, 0);
 
     RenderWaterSurface();
+}
+
+void GLRenderer::RenderWCircles()
+{
+    // Water circles are wave ripples spawned by wading dinosaurs, the player,
+    // and projectile impacts. They are full 3D morphed models (WCircleModel),
+    // not 2D circles — so we use the model pipeline with CreateMorphedModel.
+    // The D3D/3DFX legacy renderers call RenderWCircles() from inside their
+    // own RenderWater() and use additive blending. We follow the same pattern
+    // by routing through the IRenderer hook and drawing with additive=true.
+    // See Hunt/RendererD3D.cpp:3288 and Hunt/Render3DFX.cpp:2184 for the
+    // reference implementations.
+
+    if (WCCount <= 0) {
+        return;
+    }
+
+    Vector3d rpos;
+    for (int c = 0; c < WCCount; c++) {
+        TWCircle* wptr = &WCircles[c];
+        rpos.x = wptr->pos.x - CameraX;
+        rpos.y = wptr->pos.y - CameraY;
+        rpos.z = wptr->pos.z - CameraZ;
+
+        // Distance cull against ctViewR (matches D3D/3DFX ring-based cull).
+        const float r = static_cast<float>(MAX(fabs(rpos.x), fabs(rpos.z)));
+        int ri = -1 + static_cast<int>(r / 256.0f + 0.4f);
+        if (ri < 0) ri = 0;
+        if (ri > ctViewR) continue;
+
+        rpos = RotateVector(rpos);
+
+        // Frustum cull against BackViewR (matches D3D/3DFX cone test).
+        if (rpos.z > BackViewR) continue;
+        if (fabs(rpos.x) > -rpos.z + BackViewR) continue;
+        if (fabs(rpos.y) > -rpos.z + BackViewR) continue;
+
+        // Alpha fades from ~52 down to 0 as FTime advances from 0 to 2000.
+        // D3D: GlassL = 255 - (2000 - FTime) / 38   => baseAlpha = (255 - GlassL) / 255
+        // i.e. the alpha is exactly the same expression the shader reads from GlassL.
+        GlassL = 255 - (2000 - wptr->FTime) / 38;
+
+        CreateMorphedModel(WCircleModel.mptr, &WCircleModel.Animation[0],
+                           static_cast<int>(wptr->FTime), wptr->scale);
+
+        // Build the draw item directly with additive=true. We can't go through
+        // RenderModelClip / RenderModelClipWater because the public IRenderer
+        // overrides don't expose the additive flag (other renderers don't need it).
+        ModelDrawItem item;
+        const bool closeEnough = fabs(rpos.z) + fabs(rpos.x) < 1000.0f;
+        if (!BuildModelDrawItem(item, WCircleModel.mptr,
+                                rpos.x, rpos.y, rpos.z, 250, 0, 0, CameraBeta,
+                                false, false, closeEnough, /*additive=*/true)) {
+            continue;
+        }
+        item.texture = UploadModelTexture(WCircleModel.mptr);
+        if (!item.texture) {
+            continue;
+        }
+        m_worldModelItems.push_back(std::move(item));
+    }
+
+    GlassL = 0;  // reset for subsequent pass
+
+    // Drain the water-circle items we just queued with additive blending.
+    // m_worldModelItems should only contain water circles at this point:
+    // RenderGround() clears it at the start of the frame, and RenderModelsList()
+    // (which calls RenderWorldModels()) already drained it before we got here.
+    RenderWorldModels();
 }
 
 void GLRenderer::DrawVertexBatch(const std::vector<TerrainVertex>& vertices) const

@@ -144,6 +144,11 @@ void RenderSkyPlane()
     }
 }
 
+void RenderWCircles()
+{
+    if (g_GLRenderer) g_GLRenderer->RenderWCircles();
+}
+
 void RenderGround()
 {
     if (g_GLRenderer) g_GLRenderer->RenderGround();
@@ -161,7 +166,13 @@ void Render3DHardwarePosts()
 
 void RenderWater()
 {
-    if (g_GLRenderer) g_GLRenderer->RenderWater();
+    if (!g_GLRenderer) return;
+    g_GLRenderer->RenderWater();
+    // D3D/3DFX call RenderWCircles() from inside their own RenderWater();
+    // the GL flow has RenderWater() on the renderer return, so we route the
+    // call through the IRenderer hook here. RenderWCircles() pushes the
+    // morphed ripple models with additive blending and drains them.
+    g_GLRenderer->RenderWCircles();
 }
 
 void RenderElements()

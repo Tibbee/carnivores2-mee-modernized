@@ -62,6 +62,13 @@ public:
     virtual void RenderPlayer(int index) = 0;
     virtual void RenderSkyPlane() = 0;
 
+    // Water circles (wave ripples around wading dinosaurs, player, projectiles).
+    // The D3D/3DFX/Soft renderers invoke their own internal RenderWCircles from
+    // inside RenderWater; the GL renderer routes it through this method so the
+    // water-surface pass and the circle pass can share the same world-model
+    // pipeline with additive blending. Default no-op for legacy renderers.
+    virtual void RenderWCircles() {}
+
     // ── 2D Rendering ───────────────────────────────────────────────────
     virtual void DrawPicture(int x, int y, TPicture& pic) = 0;
     virtual void DrawScaledPicture(int x, int y, int w, int h, TPicture& pic) = 0;

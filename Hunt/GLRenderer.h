@@ -57,6 +57,7 @@ public:
     void RenderShip() override;
     void RenderPlayer(int index) override;
     void RenderSkyPlane() override;
+    void RenderWCircles() override;
 
     void DrawPicture(int x, int y, TPicture& pic) override;
     void DrawScaledPicture(int x, int y, int w, int h, TPicture& pic) override;
@@ -103,6 +104,7 @@ private:
     struct ModelDrawItem {
         GLuint texture;
         float distance;
+        bool additive;  // true => draw with GL_BLEND_FUNC(SRC_ALPHA, ONE), no depth write
         std::vector<ModelVertex> opaqueVertices;
         std::vector<ModelVertex> cutoutVertices;
         std::vector<ModelVertex> transparentVertices;
@@ -133,12 +135,14 @@ private:
                             float bt,
                             bool waterClipped,
                             bool disableFog,
-                            bool clippedVariant) const;
+                            bool clippedVariant,
+                            bool additive) const;
     void DrawModelVertices(GLuint texture,
                            const std::vector<ModelVertex>& vertices,
                            const std::array<float, 16>& projection,
                            bool depthTest,
-                           bool enableBlend);
+                           bool enableBlend,
+                           bool additive);
     bool NeedsNearestModelFiltering(const std::vector<ModelVertex>& vertices) const;
     void SetModelTextureFiltering(GLuint texture, bool nearest);
     void EnsureTerrainTextureArray();
