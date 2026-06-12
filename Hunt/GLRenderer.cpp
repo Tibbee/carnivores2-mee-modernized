@@ -3115,27 +3115,60 @@ void GLRenderer::RenderSkyPlane()
     ry -= ddy * qy;
     rz -= ddy * qz;
 
-    const Vector3d fogColor = GetCurrentFogColor();
+    // Compute a stable sky fog color that does NOT depend on the
+    // CurFogColor side effect of CalcFogLevel (which can come from any
+    // cell's lookup, including our probe or a far vertex). The sky
+    // should be tinted by the volume the camera is actually in (or by
+    // the sky color when not in a volume), not by an arbitrary cell
+    // the probe happened to be in.
+    Vector3d targetSkyFogColor;
+    if (UNDERWATER && FogsList[127].fogRGB) {
+        targetSkyFogColor = DecodeFogColor(FogsList[127].fogRGB);
+    } else if (CAMERAINFOG && CameraFogI > 0) {
+        targetSkyFogColor = DecodeFogColor(FogsList[CameraFogI].fogRGB);
+    } else {
+        targetSkyFogColor = {
+            static_cast<float>(SkyR) / 255.0f,
+            static_cast<float>(SkyG) / 255.0f,
+            static_cast<float>(SkyB) / 255.0f
+        };
+    }
+
+    // Temporal low-pass filter on the sky color so that crossing a
+    // fog volume boundary produces a smooth color blend across a few
+    // frames instead of an instant pop. k=0.15 means ~7-frame settle
+    // (~0.12s at 60fps), fast enough to feel responsive but smooth
+    // enough to hide the volume-boundary jump.
+    if (!m_smoothedSkyFogColorInit) {
+        m_smoothedSkyFogColor = targetSkyFogColor;
+        m_smoothedSkyFogColorInit = true;
+    } else {
+        constexpr float k = 0.15f;
+        m_smoothedSkyFogColor.x += (targetSkyFogColor.x - m_smoothedSkyFogColor.x) * k;
+        m_smoothedSkyFogColor.y += (targetSkyFogColor.y - m_smoothedSkyFogColor.y) * k;
+        m_smoothedSkyFogColor.z += (targetSkyFogColor.z - m_smoothedSkyFogColor.z) * k;
+    }
 
     glUseProgram(m_skyShader);
     glUniform1i(glGetUniformLocation(m_skyShader, "uSkyTexture"), 0);
     glUniform2f(glGetUniformLocation(m_skyShader, "uViewport"), static_cast<float>(WinW), static_cast<float>(WinH));
     glUniform2f(glGetUniformLocation(m_skyShader, "uVideoCenter"), static_cast<float>(VideoCX), static_cast<float>(VideoCY));
-    glUniform3f(glGetUniformLocation(m_skyShader, "uFogColor"), fogColor.x, fogColor.y, fogColor.z);
+    glUniform3f(glGetUniformLocation(m_skyShader, "uFogColor"),
+                m_smoothedSkyFogColor.x, m_smoothedSkyFogColor.y, m_smoothedSkyFogColor.z);
     glUniform3f(glGetUniformLocation(m_skyShader, "uQ"), qx, qy, qz);
     glUniform3f(glGetUniformLocation(m_skyShader, "uP"), px, py, pz);
     glUniform3f(glGetUniformLocation(m_skyShader, "uR"), rx, ry, rz);
     glUniform1f(glGetUniformLocation(m_skyShader, "uSkyTime"), static_cast<float>(SKYDTime) / 256.0f);
     glUniform1f(glGetUniformLocation(m_skyShader, "uForceFog"), UNDERWATER ? 1.0f : 0.0f);
 
-    // Sample CalcFogLevel at a point in front of the camera at the sky height
-    // (4*512*16) and use it as a minimum for the per-pixel sky fog gradient.
-    // Without this floor, the sky shader returns fogFactor=0 at the zenith
-    // (where dt=0), showing the full sky texture. With the floor, even the
-    // top of the sky is tinted toward the fog color, matching the legacy
-    // D3D/3DFX behavior and the C1 GL reference (RenderLegacySky in
-    // Carnivores1/Hunt/GLRenderer.cpp).
-    const Vector3d fogProbe = {512.0f, 4.0f * 512.0f * 16.0f, 0.0f};
+    // Sample CalcFogLevel directly above the camera (X=0, Z=0 in
+    // camera-relative space) at sky height to get the base fog amount
+    // for the per-pixel sky gradient. Using (0, ...) instead of
+    // (512, ...) keeps the probe in the same map cell as the camera,
+    // so the resulting fog amount matches the volume the camera is in
+    // (when CAMERAINFOG) and doesn't jump as the camera crosses cell
+    // boundaries along the X axis.
+    const Vector3d fogProbe = {0.0f, 4.0f * 512.0f * 16.0f, 0.0f};
     const float fogBase = CalcFogLevel(fogProbe);
     glUniform1f(glGetUniformLocation(m_skyShader, "uFogBase"), fogBase);
 
