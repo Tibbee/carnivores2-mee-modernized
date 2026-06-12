@@ -2212,8 +2212,19 @@ SKIPYMOVE:
                     fxStep[(RealTime % 3)].lpData, 24+(int)(VSpeed*50.f));
   stepdd = d;
 
-  if (PlayerBeta> 1.46f) PlayerBeta= 1.46f;
-  if (PlayerBeta<-1.26f) PlayerBeta=-1.26f;
+  if (PlayerBeta> 1.46f) {
+    PlayerBeta= 1.46f;
+    // Don't let rbv keep accumulating against the clamp — when the user
+    // reverses direction the accumulated positive rbv would otherwise
+    // need 3-10 frames to decay before the new negative deltas can move
+    // PlayerBeta back down, causing a sluggish "push through" section
+    // and a jittery release near the vertical extremes.
+    if (rbv > 0) rbv = 0;
+  }
+  if (PlayerBeta<-1.26f) {
+    PlayerBeta=-1.26f;
+    if (rbv < 0) rbv = 0;
+  }
 
 
 //======== set camera pos ===================//
