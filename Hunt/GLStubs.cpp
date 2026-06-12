@@ -133,6 +133,9 @@ void RenderSkyPlane()
 {
     if (g_GLRenderer) {
         g_GLRenderer->ClearVideoBuf();
+        // Clear lpVideoBuf at the start of each frame for HUD overlay
+        if (lpVideoBuf && VideoPitchB > 0 && WinH > 0)
+            memset(lpVideoBuf, 0, (size_t)VideoPitchB * WinH);
         g_GLRenderer->RenderSkyPlane();
     }
 }
@@ -162,9 +165,47 @@ void RenderElements()
     if (g_GLRenderer) g_GLRenderer->RenderElements();
 }
 
+static void PutPixelBuf(int x, int y, WORD color)
+{
+    if (!lpVideoBuf || x < 0 || x >= WinW || y < 0 || y >= WinH) return;
+    ((WORD*)lpVideoBuf)[y * VideoPitch + x] = color;
+}
+
+static void DrawBoxBuf(int x, int y, int size, WORD color)
+{
+    for (int dy = 0; dy < size; dy++)
+        for (int dx = 0; dx < size; dx++)
+            PutPixelBuf(x + dx, y + dy, color);
+}
+
 void DrawHMap()
 {
-    // TODO: Render minimap using GL
+    if (SurvivalMode) return;
+    if (!lpVideoBuf || !MapPic.lpImage) return;
+
+    // Draw map background
+    DrawPicture(VideoCX - MapPic.W / 2, VideoCY - MapPic.H / 2 - 6, MapPic);
+
+    // Player marker
+    int xx = VideoCX - 128 + (CCX >> 2);
+    int yy = VideoCY - 128 + (CCY >> 2);
+    if (yy >= 0 && yy < WinH && xx >= 0 && xx < WinW) {
+        DrawBoxBuf(xx + 1, yy + 1, 2, (WORD)(8 << 11));   // dark red shadow
+        DrawBoxBuf(xx, yy, 2, (WORD)(30 << 11));           // bright red
+    }
+
+    // Dinosaur markers (if radar mode)
+    if (RadarMode) {
+        for (int c = 0; c < ChCount; c++) {
+            if (!DinoInfo[Characters[c].CType].onRadar && !Characters[c].RTime) continue;
+            if (!Characters[c].Health && !Characters[c].RTime) continue;
+
+            int dx = VideoCX - 128 + (int)Characters[c].pos.x / 1024;
+            int dy = VideoCY - 128 + (int)Characters[c].pos.z / 1024;
+            if (dy <= 0 || dy >= WinH || dx <= 0 || dx >= WinW) continue;
+            DrawBoxBuf(dx, dy, 2, DinoInfo[Characters[c].CType].radarColour565);
+        }
+    }
 }
 
 // ============================================================================
@@ -217,15 +258,62 @@ void RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z0,
 // 2D rendering (called from DrawPostObjects, Interface.cpp)
 // ============================================================================
 
+// Convert 565 to 555 format for lpVideoBuf (16-bit BI_RGB DIB)
+static inline WORD Conv565to555(WORD c) {
+    // 565: RRRRRGGGGGGBBBBB
+    // 555: XRRRRRGGGGGBBBBB
+    // Split 565 into components
+    int r = (c >> 11) & 0x1F;
+    int g = (c >> 5) & 0x3F;
+    int b = c & 0x1F;
+    // Pack as 555 (drop lowest G bit)
+    return (r << 10) | ((g >> 1) << 5) | b;
+}
+
 void DrawPicture(int x, int y, TPicture& pic)
 {
-    if (g_GLRenderer) g_GLRenderer->DrawPicture(x, y, pic);
+    if (!pic.lpImage || pic.W <= 0 || pic.H <= 0 || !lpVideoBuf) return;
+
+    // Pictures are in 565 format (after conv_pic). Copy to lpVideoBuf (555 DIB)
+    // with 565→555 conversion.
+    WORD* dst = (WORD*)lpVideoBuf;
+    for (int yy = 0; yy < pic.H; yy++) {
+        int dstY = yy + y;
+        if (dstY < 0 || dstY >= WinH) continue;
+        int copyW = pic.W;
+        int srcX = 0;
+        int dstX = x;
+        if (dstX < 0) { srcX = -dstX; copyW += dstX; dstX = 0; }
+        if (dstX + copyW > WinW) copyW = WinW - dstX;
+        if (copyW <= 0) continue;
+        const WORD* src = pic.lpImage + yy * pic.W + srcX;
+        WORD* d = dst + dstY * VideoPitch + dstX;
+        for (int i = 0; i < copyW; i++) {
+            d[i] = Conv565to555(src[i]);
+        }
+    }
 }
 
 void DrawFlash(int x, int y, int w, int h, TPicture& pic)
 {
-    // TODO: Draw flash effect using GL
-    (void)x; (void)y; (void)w; (void)h; (void)pic;
+    // Flash effect: copy raw pixels to lpVideoBuf (no transparency)
+    if (!pic.lpImage || w <= 0 || h <= 0 || !lpVideoBuf) return;
+    WORD* dst = (WORD*)lpVideoBuf;
+    for (int yy = 0; yy < h; yy++) {
+        int dstY = yy + y;
+        if (dstY < 0 || dstY >= WinH) continue;
+        int copyW = w;
+        int srcX = 0;
+        int dstX = x;
+        if (dstX < 0) { srcX = -dstX; copyW += dstX; dstX = 0; }
+        if (dstX + copyW > WinW) copyW = WinW - dstX;
+        if (copyW <= 0) continue;
+        const WORD* src = pic.lpImage + yy * pic.W + srcX;
+        WORD* d = dst + dstY * VideoPitch + dstX;
+        for (int i = 0; i < copyW; i++) {
+            d[i] = Conv565to555(src[i]);
+        }
+    }
 }
 
 void DrawTrophyText(int x, int y)
@@ -235,14 +323,74 @@ void DrawTrophyText(int x, int y)
 
 void DrawScoreText(int x, int y)
 {
-    // TODO: Draw score text using GL
-    (void)x; (void)y;
+    // Draw score text onto lpVideoBuf via GDI
+    if (!hdcMain || !hbmpVideoBuf || !lpVideoBuf) return;
+
+    HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
+    SetBkMode(hdcCMain, TRANSPARENT);
+    HFONT oldFont = NULL;
+    if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
+
+    char t[32];
+    int tx = x + 14;
+    int ty = y + 18;
+
+    auto textOut = [&](int px, int py, const char* str, int color) {
+        SetTextColor(hdcCMain, 0x00101010);
+        TextOut(hdcCMain, px + 1, py + 1, str, (int)strlen(str));
+        SetTextColor(hdcCMain, color);
+        TextOut(hdcCMain, px, py, str, (int)strlen(str));
+    };
+
+    textOut(tx, ty, "Unclaimed Kill - Score Added: ", 0x00BFBFBF);
+    SIZE sz;
+    GetTextExtentPoint32(hdcCMain, "Unclaimed Kill - Score Added: ", 31, &sz);
+    tx += sz.cx;
+    wsprintf(t, "%d", ScoreDisp);
+    textOut(tx, ty, t, 0x0000BFBF);
+
+    if (oldFont) SelectObject(hdcCMain, oldFont);
+    SelectObject(hdcCMain, hbmpOld);
 }
 
 void DrawSurvivalText(int x, int y)
 {
-    // TODO: Draw survival text using GL
-    (void)x; (void)y;
+    // Draw survival text onto lpVideoBuf via GDI
+    if (!hdcMain || !hbmpVideoBuf || !lpVideoBuf) return;
+
+    HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
+    SetBkMode(hdcCMain, TRANSPARENT);
+    HFONT oldFont = NULL;
+    if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
+
+    char t[32];
+
+    auto textOut = [&](int px, int py, const char* str, int color) {
+        SetTextColor(hdcCMain, 0x00101010);
+        TextOut(hdcCMain, px + 1, py + 1, str, (int)strlen(str));
+        SetTextColor(hdcCMain, color);
+        TextOut(hdcCMain, px, py, str, (int)strlen(str));
+    };
+
+    int tx = x + 40;
+    int ty = y + 98;
+    textOut(tx, ty, "Waves Survived: ", 0x00BFBFBF);
+    SIZE sz;
+    GetTextExtentPoint32(hdcCMain, "Waves Survived: ", 16, &sz);
+    tx += sz.cx;
+    wsprintf(t, "%i", SurvivalWave - 1);
+    textOut(tx, ty, t, 0x0000BFBF);
+
+    tx = x + 40;
+    ty = y + 124;
+    textOut(tx, ty, "High Score: ", 0x00BFBFBF);
+    GetTextExtentPoint32(hdcCMain, "High Score: ", 12, &sz);
+    tx += sz.cx;
+    wsprintf(t, "%i", TrophyRoom2.survivalHighScore);
+    textOut(tx, ty, t, 0x0000BFBF);
+
+    if (oldFont) SelectObject(hdcCMain, oldFont);
+    SelectObject(hdcCMain, hbmpOld);
 }
 
 void Render_Cross(int x, int y)
@@ -257,7 +405,58 @@ void Render_LifeInfo(int index)
 
 void ShowControlElements()
 {
-    // TODO: Show control elements using GL
+    if (!hdcMain || !hbmpVideoBuf || !lpVideoBuf) return;
+
+    char buf[128];
+
+    // Draw text elements onto lpVideoBuf via GDI
+    HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
+    SetBkMode(hdcCMain, TRANSPARENT);
+    HFONT oldFont = NULL;
+    if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
+
+    auto textOut = [&](int px, int py, const char* str, int color) {
+        SetTextColor(hdcCMain, 0x00101010);
+        TextOut(hdcCMain, px + 1, py + 1, str, (int)strlen(str));
+        SetTextColor(hdcCMain, color);
+        TextOut(hdcCMain, px, py, str, (int)strlen(str));
+    };
+
+    if (TIMER)
+    {
+        wsprintf(buf, "msc: %d", TimeDt);
+        textOut(WinEX - 81, 11, buf, 0x0020A0A0);
+        wsprintf(buf, "polys: %d", dFacesCount);
+        textOut(WinEX - 90, 24, buf, 0x0020A0A0);
+    }
+
+    if (MessageList.timeleft)
+    {
+        if (RealTime > MessageList.timeleft) MessageList.timeleft = 0;
+        textOut(10, 10, MessageList.mtext, 0x0020A0A0);
+    }
+
+    if (ExitTime)
+    {
+        int yline = WinH / 3;
+        wsprintf(buf, "Preparing for evacuation...");
+        textOut(VideoCX - GetTextW(hdcMain, buf) / 2, yline, buf, 0x0060C0D0);
+        wsprintf(buf, "%d seconds left.", 1 + ExitTime / 1000);
+        textOut(VideoCX - GetTextW(hdcMain, buf) / 2, yline + 18, buf, 0x0060C0D0);
+    }
+
+    if (WaveNoteTime)
+    {
+        int yline = WinH / 3;
+        wsprintf(buf, "Waves Survived: %i", SurvivalWave - 1);
+        textOut(VideoCX - GetTextW(hdcMain, buf) / 2, yline, buf, 0x0060C0D0);
+    }
+
+    if (oldFont) SelectObject(hdcCMain, oldFont);
+    SelectObject(hdcCMain, hbmpOld);
+
+    // Upload lpVideoBuf overlay to GL
+    if (g_GLRenderer) g_GLRenderer->DrawHUDOverlay();
 }
 
 // ============================================================================
@@ -266,9 +465,7 @@ void ShowControlElements()
 
 void AllocateRenderTables()
 {
-    // TODO: Allocate render tables for GL
-    // In software renderer, this allocates rVertex, ChRenderList, etc.
-    // GL renderer may not need these, but the function must exist.
+    // GL renderer doesn't need software render tables.
 }
 
 #endif // _gl

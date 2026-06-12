@@ -1821,6 +1821,22 @@ unsigned int GLRenderer::Expand1555to8888(unsigned short c)
     return 0xFF000000 | (b << 16) | (g << 8) | r;
 }
 
+unsigned int GLRenderer::Expand565to8888(unsigned short c)
+{
+    if (c == 0) return 0x00000000;
+
+    // R5G6B5: bits 15-11 = R, 10-5 = G, 4-0 = B
+    unsigned int r = (c >> 11) & 0x1F;
+    unsigned int g = (c >> 5) & 0x3F;
+    unsigned int b = c & 0x1F;
+
+    r = (r << 3) | (r >> 2);
+    g = (g << 2) | (g >> 4);
+    b = (b << 3) | (b >> 2);
+
+    return 0xFF000000 | (b << 16) | (g << 8) | r;
+}
+
 std::array<Vector2df, 3> GLRenderer::GetTerrainUVs(bool reverse, bool second, int direction)
 {
     const float tcMin = static_cast<float>(TCMIN) / (128.0f * 65536.0f);
@@ -2434,11 +2450,6 @@ void GLRenderer::RegisterTexture(TEXTURE* tptr)
     (void)tptr;
 }
 
-void GLRenderer::RegisterPicture(TPicture* pptr)
-{
-    (void)pptr;
-}
-
 void GLRenderer::ReleaseModelTextures(const TModel* mptr)
 {
     if (!mptr) {
@@ -2974,33 +2985,312 @@ void GLRenderer::RenderSkyPlane()
     }
 }
 
+// ============================================================================
+// HUD Pipeline
+// ============================================================================
+
+void GLRenderer::InitializeHudPipeline()
+{
+    if (m_hudPipelineReady) return;
+
+    glGenVertexArrays(1, &m_hudVAO);
+    glGenBuffers(1, &m_hudVBO);
+
+    glBindVertexArray(m_hudVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_hudVBO);
+
+    // Same vertex layout as ModelVertex: x,y,z, u,v, light, fog, fogR,fogG,fogB, alpha, cutout
+    constexpr GLsizei stride = sizeof(ModelVertex);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, stride, (void*)(5 * sizeof(float)));
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, stride, (void*)(7 * sizeof(float)));
+    glEnableVertexAttribArray(5);
+    glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, stride, (void*)(10 * sizeof(float)));
+    glEnableVertexAttribArray(6);
+    glVertexAttribPointer(6, 1, GL_FLOAT, GL_FALSE, stride, (void*)(11 * sizeof(float)));
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // Create the HUD overlay texture (will be updated each frame)
+    if (!m_hudTexture) {
+        glGenTextures(1, &m_hudTexture);
+        glBindTexture(GL_TEXTURE_2D, m_hudTexture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    }
+
+    m_hudPipelineReady = true;
+}
+
+void GLRenderer::ShutdownHudPipeline()
+{
+    if (m_hudTexture && m_hrc) { glDeleteTextures(1, &m_hudTexture); m_hudTexture = 0; }
+    if (m_hudVBO && m_hrc) { glDeleteBuffers(1, &m_hudVBO); m_hudVBO = 0; }
+    if (m_hudVAO && m_hrc) { glDeleteVertexArrays(1, &m_hudVAO); m_hudVAO = 0; }
+    m_hudPipelineReady = false;
+}
+
+void GLRenderer::RegisterPicture(TPicture* pptr)
+{
+    // No-op: we copy to lpVideoBuf in DrawPicture instead
+    (void)pptr;
+}
+
+// Copy picture pixels directly to lpVideoBuf (matching C1 and D3D/3DFX approach).
+// lpVideoBuf is a 16-bit DIB section, pictures are already in 565 format after conv_pic.
 void GLRenderer::DrawPicture(int x, int y, TPicture& pic)
 {
-    (void)x; (void)y; (void)pic;
+    if (!pic.lpImage || pic.W <= 0 || pic.H <= 0 || !lpVideoBuf) return;
+
+    WORD* dst = (WORD*)lpVideoBuf;
+    for (int yy = 0; yy < pic.H; yy++) {
+        int dstY = yy + y;
+        if (dstY < 0 || dstY >= WinH) continue;
+        int copyW = pic.W;
+        int srcX = 0;
+        int dstX = x;
+        if (dstX < 0) { srcX = -dstX; copyW += dstX; dstX = 0; }
+        if (dstX + copyW > WinW) copyW = WinW - dstX;
+        if (copyW <= 0) continue;
+        memcpy(dst + dstY * VideoPitch + dstX,
+               pic.lpImage + yy * pic.W + srcX,
+               copyW * sizeof(WORD));
+    }
 }
 
 void GLRenderer::DrawScaledPicture(int x, int y, int w, int h, TPicture& pic)
 {
-    (void)x; (void)y; (void)w; (void)h; (void)pic;
+    if (!pic.lpImage || pic.W <= 0 || pic.H <= 0 || !lpVideoBuf) return;
+
+    WORD* dst = (WORD*)lpVideoBuf;
+    for (int yy = 0; yy < h; yy++) {
+        int dstY = yy + y;
+        if (dstY < 0 || dstY >= WinH) continue;
+        int sy = yy * pic.H / h;
+        for (int xx = 0; xx < w; xx++) {
+            int dstX = xx + x;
+            if (dstX < 0 || dstX >= WinW) continue;
+            int sx = xx * pic.W / w;
+            WORD c = pic.lpImage[sy * pic.W + sx];
+            if (c != 0) dst[dstY * VideoPitch + dstX] = c;
+        }
+    }
+}
+
+// Upload lpVideoBuf as a texture and draw as a fullscreen overlay.
+// Called after all HUD elements have been drawn to lpVideoBuf.
+void GLRenderer::DrawHUDOverlay()
+{
+    if (!m_hudPipelineReady) InitializeHudPipeline();
+    if (!m_hudPipelineReady || !lpVideoBuf || WinW <= 0 || WinH <= 0) return;
+
+    // Convert 16-bit lpVideoBuf to RGBA
+    // lpVideoBuf is a 16-bit DIB in 555 format (X1R5G5B5)
+    // DrawPicture converts 565→555, GDI text is also 555
+    static std::vector<uint32_t> rgbaPixels;
+    rgbaPixels.resize(WinW * WinH);
+
+    const uint16_t* src = (const uint16_t*)lpVideoBuf;
+    for (int y = 0; y < WinH; y++) {
+        // GDI DIB is top-down (row 0 = top), GL textures are bottom-up (row 0 = bottom)
+        // Flip vertically
+        int destY = WinH - 1 - y;
+        int srcOffset = y * VideoPitch;
+        int dstOffset = destY * WinW;
+        for (int x = 0; x < WinW; x++) {
+            uint16_t c = src[srcOffset + x];
+            if (c == 0) {
+                // Pixel 0 = transparent (HUD background)
+                rgbaPixels[dstOffset + x] = 0x00000000;
+            } else {
+                // 555 format: XRRRRRGGGGGBBBBB
+                uint32_t r = (c >> 10) & 0x1F;
+                uint32_t g = (c >> 5) & 0x1F;
+                uint32_t b = c & 0x1F;
+                r = (r << 3) | (r >> 2);
+                g = (g << 3) | (g >> 2);
+                b = (b << 3) | (b >> 2);
+                rgbaPixels[dstOffset + x] = 0xFF000000 | (b << 16) | (g << 8) | r;
+            }
+        }
+    }
+
+    // Upload to texture
+    glBindTexture(GL_TEXTURE_2D, m_hudTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WinW, WinH, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgbaPixels.data());
+
+    // Draw fullscreen quad
+    // NDC: (-1,-1) = bottom-left, (1,1) = top-right
+    // Texture is flipped vertically in UpdateUIPixels, so:
+    //   tex (0,0) = bottom-left of image, tex (0,1) = top-left of image
+    //   Screen top-left (-1,1) should show tex (0,1) = top of image
+    ModelVertex quad[6] = {
+        { -1.0f,  1.0f, 0.0001f, 0, 1, 255, 0, 1, 1, 1, 1, 0 },  // top-left → tex (0,1)
+        { -1.0f, -1.0f, 0.0001f, 0, 0, 255, 0, 1, 1, 1, 1, 0 },  // bottom-left → tex (0,0)
+        {  1.0f, -1.0f, 0.0001f, 1, 0, 255, 0, 1, 1, 1, 1, 0 },  // bottom-right → tex (1,0)
+        { -1.0f,  1.0f, 0.0001f, 0, 1, 255, 0, 1, 1, 1, 1, 0 },  // top-left → tex (0,1)
+        {  1.0f, -1.0f, 0.0001f, 1, 0, 255, 0, 1, 1, 1, 1, 0 },  // bottom-right → tex (1,0)
+        {  1.0f,  1.0f, 0.0001f, 1, 1, 255, 0, 1, 1, 1, 1, 0 },  // top-right → tex (1,1)
+    };
+
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glUseProgram(m_modelShader);
+    glUniform1i(glGetUniformLocation(m_modelShader, "uModelTexture"), 0);
+    glUniform1f(glGetUniformLocation(m_modelShader, "uFogDist"), 0.0f);
+    // Set identity projection since quad vertices are already in NDC
+    float identity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+    glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, identity);
+
+    glBindVertexArray(m_hudVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_hudVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_DYNAMIC_DRAW);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+
+    glDisable(GL_BLEND);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
 }
 
 void GLRenderer::DrawTrophyText(int x, int y)
 {
-    (void)x; (void)y;
+    // Trophy text is rendered via GDI onto the lpVideoBuf.
+    // D3D/3DFX call ddTextOut/FXTextOut which write to the backbuffer.
+    // For GL, we draw text onto lpVideoBuf using GDI, then DrawHUDOverlay uploads it.
+    // We need to use the hdcCMain + hbmpVideoBuf to draw onto lpVideoBuf.
+
+    if (!hdcCMain || !hbmpVideoBuf || !lpVideoBuf) return;
+
+    HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
+    SetBkMode(hdcCMain, TRANSPARENT);
+    HFONT oldFont = NULL;
+    if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
+
+    int dtype = TrophyDisplayBody.ctype;
+    int time  = TrophyDisplayBody.time;
+    int date  = TrophyDisplayBody.date;
+    int wep   = TrophyDisplayBody.weapon;
+    int score = TrophyDisplayBody.score;
+    float scale = TrophyDisplayBody.scale;
+    float range = TrophyDisplayBody.range;
+    char t[64];
+
+    // D3D/3DFX draw at (x0+14, y0+18)
+    int tx = x + 14;
+    int ty = y + 18;
+    int lineStep = 16;
+
+    auto textOut = [&](int px, int py, const char* str, int color) {
+        SetTextColor(hdcCMain, 0x00101010);
+        TextOut(hdcCMain, px + 1, py + 1, str, (int)strlen(str));
+        SetTextColor(hdcCMain, color);
+        TextOut(hdcCMain, px, py, str, (int)strlen(str));
+    };
+
+    SIZE sz;
+    auto drawLine = [&](const char* label, const char* value, int color) {
+        textOut(tx, ty, label, color);
+        GetTextExtentPoint32(hdcCMain, label, (int)strlen(label), &sz);
+        int lw = sz.cx;
+        textOut(tx + lw, ty, value, 0x0000BFBF);
+        ty += lineStep;
+    };
+
+    drawLine("Name: ", DinoInfo[dtype].Name, 0x00BFBFBF);
+
+    if (OptSys) sprintf(t, "%3.2ft ", DinoInfo[dtype].Mass * scale * scale / 0.907f);
+    else        sprintf(t, "%3.2fT ", DinoInfo[dtype].Mass * scale * scale);
+    drawLine("Weight: ", t, 0x00BFBFBF);
+
+    if (OptSys) sprintf(t, "%3.2fft", DinoInfo[dtype].Length * scale / 0.3f);
+    else        sprintf(t, "%3.2fm", DinoInfo[dtype].Length * scale);
+    drawLine("Length: ", t, 0x00BFBFBF);
+
+    wsprintf(t, "%s    ", WeapInfo[wep].Name);
+    drawLine("Weapon: ", t, 0x00BFBFBF);
+
+    wsprintf(t, "%d", score);
+    drawLine("Score: ", t, 0x00BFBFBF);
+
+    if (OptSys) sprintf(t, "%3.1fft", range / 0.3f);
+    else        sprintf(t, "%3.1fm", range);
+    drawLine("Range of kill: ", t, 0x00BFBFBF);
+
+    if (OptSys) wsprintf(t, "%d.%d.%d   ", ((date>>10) & 255), (date & 255), date>>20);
+    else        wsprintf(t, "%d.%d.%d   ", (date & 255), ((date>>10) & 255), date>>20);
+    drawLine("Date: ", t, 0x00BFBFBF);
+
+    wsprintf(t, "%d:%02d", ((time>>10) & 255), (time & 255));
+    drawLine("Time: ", t, 0x00BFBFBF);
+
+    if (oldFont) SelectObject(hdcCMain, oldFont);
+    SelectObject(hdcCMain, hbmpOld);
 }
 
 void GLRenderer::RenderHealthBar()
 {
+    // TODO: health bar overlay
 }
 
 void GLRenderer::Render_Cross(int x, int y)
 {
     (void)x; (void)y;
+    // Crosshair is drawn by DrawOpticCross in Hunt.cpp via model rendering.
+    // No additional GL code needed here.
 }
 
 void GLRenderer::Render_LifeInfo(int index)
 {
-    (void)index;
+    // Draw dino info when looking through binoculars
+    if (!hdcCMain || !hbmpVideoBuf || !lpVideoBuf) return;
+    if (index < 0 || index >= ChCount) return;
+
+    HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
+    SetBkMode(hdcCMain, TRANSPARENT);
+    HFONT oldFont = NULL;
+    if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
+
+    int ctype = Characters[index].CType;
+    float scale = Characters[index].scale;
+    char t[32];
+
+    int x = VideoCX + WinW / 64;
+    int y = VideoCY + (int)(WinH / 6.8);
+
+    auto textOut = [&](int px, int py, const char* str, int color) {
+        SetTextColor(hdcCMain, 0x00000000);
+        TextOut(hdcCMain, px + 1, py + 1, str, (int)strlen(str));
+        SetTextColor(hdcCMain, color);
+        TextOut(hdcCMain, px, py, str, (int)strlen(str));
+    };
+
+    textOut(x, y, DinoInfo[ctype].Name, 0x0000b000);
+
+    if (OptSys) sprintf(t, "Weight: %3.2ft ", DinoInfo[ctype].Mass * scale * scale / 0.907f);
+    else        sprintf(t, "Weight: %3.2fT ", DinoInfo[ctype].Mass * scale * scale);
+    textOut(x, y + 16, t, 0x0000b000);
+
+    int R = (int)(VectorLength(SubVectors(Characters[index].pos, PlayerPos)) * 3 / 64.0f);
+    if (OptSys) sprintf(t, "Distance: %dft ", R);
+    else        sprintf(t, "Distance: %dm  ", R / 3);
+    textOut(x, y + 32, t, 0x0000b000);
+
+    if (oldFont) SelectObject(hdcCMain, oldFont);
+    SelectObject(hdcCMain, hbmpOld);
 }
 
 void GLRenderer::SetVideoMode(int w, int h)

@@ -181,6 +181,7 @@ private:
     static float CalcWaterAlpha(const EPoint& vertex, float zs);
     static float Clamp01(float value);
     static unsigned int Expand1555to8888(unsigned short c);
+    static unsigned int Expand565to8888(unsigned short c);
 
     HWND m_hwnd = nullptr;
     HDC m_hdc = nullptr;
@@ -236,10 +237,20 @@ private:
     float GetTraceK(int x, int y);
     void UpdateSunVisibility();
 
+    // HUD pipeline — renders lpVideoBuf as a fullscreen overlay
+    GLuint m_hudTexture = 0;
+    GLuint m_hudVAO = 0;
+    GLuint m_hudVBO = 0;
+    bool m_hudPipelineReady = false;
+    void InitializeHudPipeline();
+    void ShutdownHudPipeline();
+    void UploadHudOverlay();
+
 public:
     float GetSunLight() const { return m_sunLight; }
     void RenderFSRect(uint32_t color);
     void ApplySunDepthOcclusion();
+    void DrawHUDOverlay();
 };
 
 extern GLRenderer* g_GLRenderer;
