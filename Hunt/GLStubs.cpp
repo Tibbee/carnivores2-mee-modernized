@@ -403,6 +403,49 @@ void Render_LifeInfo(int index)
     if (g_GLRenderer) g_GLRenderer->Render_LifeInfo(index);
 }
 
+// Top-right health bar. Matches the layout used by Soft/D3D/3DFX
+// (L = WinW/4, top-right with WinW/20 margin, WinH/40 from top).
+// The bar is drawn into lpVideoBuf; DrawHUDOverlay uploads it.
+//
+// Note: in the GDI-to-lpVideoBuf HUD pipeline, a value of 0 is treated as
+// transparent in the overlay upload (see GLRenderer::UpdateUIPixels), so
+// the bar's black borders must use a non-zero value. 0x0001 expands to a
+// near-black opaque pixel in the overlay.
+void RenderHealthBar()
+{
+    if (MyHealth >= 100000) return;
+    if (MyHealth == 0) return;
+    if (!lpVideoBuf) return;
+
+    int L  = WinW / 4;
+    int x0 = WinW - (WinW / 20) - L;
+    int y0 = WinH / 40;
+    int G  = (MyHealth * 30 / 100000);            if (G > 20) G = 20;
+    int R  = ((100000 - MyHealth) * 30 / 100000); if (R > 20) R = 20;
+    int HCOLOR = (G << 5) | (R << 10);            // 555: G at bits 5-9, R at 10-14
+
+    int L0 = (L * MyHealth) / 100000;
+    int H  = WinH / 200;
+    if (H < 1) H = 1;
+
+    if (x0 < 1 || x0 + L >= WinW || y0 < 1 || y0 + H + 1 >= WinH) return;
+
+    const WORD BORDER = 0x0001; // non-zero so the overlay treats it as opaque
+
+    // Top and bottom border rows (full width of bar + corners)
+    FillMemory((WORD*)lpVideoBuf + ((y0 - 1) * VideoPitch) + x0 - 1, (L + 2) * 2, BORDER);
+    FillMemory((WORD*)lpVideoBuf + ((y0 + H + 1) * VideoPitch) + x0 - 1, (L + 2) * 2, BORDER);
+
+    // Bar body
+    for (int y = 0; y <= H; y++) {
+        WORD* row = (WORD*)lpVideoBuf + ((y0 + y) * VideoPitch);
+        row[x0 - 1] = BORDER;
+        row[x0 + L] = BORDER;
+        for (int x = 0; x < L0; x++)
+            row[x0 + x] = (WORD)HCOLOR;
+    }
+}
+
 void ShowControlElements()
 {
     if (!hdcMain || !hbmpVideoBuf || !lpVideoBuf) return;
@@ -454,6 +497,10 @@ void ShowControlElements()
 
     if (oldFont) SelectObject(hdcCMain, oldFont);
     SelectObject(hdcCMain, hbmpOld);
+
+    // Health bar is drawn into lpVideoBuf after the text elements so it
+    // sits on top in the overlay upload.
+    RenderHealthBar();
 
     // Upload lpVideoBuf overlay to GL
     if (g_GLRenderer) g_GLRenderer->DrawHUDOverlay();
