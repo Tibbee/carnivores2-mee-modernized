@@ -71,9 +71,8 @@ if(RENDERER)
             Hunt/GLRenderer.cpp
             Hunt/GLShader.h
             Hunt/GLShader.cpp
-            Hunt/GLStubs.cpp
-            deps/glad/glad.c
             Hunt/GLUI.cpp
+            deps/glad/glad.c
         )
         message(STATUS "Building with OpenGL Renderer")
     else()
