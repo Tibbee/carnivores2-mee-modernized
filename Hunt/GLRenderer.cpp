@@ -2003,6 +2003,9 @@ void GLRenderer::AppendWaterTriangle(std::vector<TerrainVertex>& vertices,
                                      const EPoint& v0,
                                      const EPoint& v1,
                                      const EPoint& v2,
+                                     const Vector3d& fogColor0,
+                                     const Vector3d& fogColor1,
+                                     const Vector3d& fogColor2,
                                      int textureLayer,
                                      bool reverse,
                                      bool second,
@@ -2013,11 +2016,10 @@ void GLRenderer::AppendWaterTriangle(std::vector<TerrainVertex>& vertices,
 {
     const auto uv = GetTerrainUVs(reverse, second, direction);
     const float layer = static_cast<float>(textureLayer);
-    const Vector3d fogColor = GetCurrentFogColor();
 
-    vertices.push_back({v0.v.x, v0.v.y, v0.v.z, uv[0].x, uv[0].y, layer, static_cast<float>(v0.Light), v0.Fog, fogColor.x, fogColor.y, fogColor.z, alpha0});
-    vertices.push_back({v1.v.x, v1.v.y, v1.v.z, uv[1].x, uv[1].y, layer, static_cast<float>(v1.Light), v1.Fog, fogColor.x, fogColor.y, fogColor.z, alpha1});
-    vertices.push_back({v2.v.x, v2.v.y, v2.v.z, uv[2].x, uv[2].y, layer, static_cast<float>(v2.Light), v2.Fog, fogColor.x, fogColor.y, fogColor.z, alpha2});
+    vertices.push_back({v0.v.x, v0.v.y, v0.v.z, uv[0].x, uv[0].y, layer, static_cast<float>(v0.Light), v0.Fog, fogColor0.x, fogColor0.y, fogColor0.z, alpha0});
+    vertices.push_back({v1.v.x, v1.v.y, v1.v.z, uv[1].x, uv[1].y, layer, static_cast<float>(v1.Light), v1.Fog, fogColor1.x, fogColor1.y, fogColor1.z, alpha1});
+    vertices.push_back({v2.v.x, v2.v.y, v2.v.z, uv[2].x, uv[2].y, layer, static_cast<float>(v2.Light), v2.Fog, fogColor2.x, fogColor2.y, fogColor2.z, alpha2});
 }
 
 void GLRenderer::CollectTerrainTile(int x, int y, int r)
@@ -2184,15 +2186,27 @@ void GLRenderer::CollectWaterTile(int x, int y, int r)
     const float a01 = CalcWaterAlpha(v01, zs);
     const float a11 = CalcWaterAlpha(v11, zs);
 
+    // Per-corner map-based fog color (mirrors the terrain path in
+    // CollectTerrainTile). GetFogColorForMapPoint looks up the active
+    // fog volume for each map cell, so water straddling a fog boundary
+    // gets a per-vertex fog color that smoothly interpolates across the
+    // surface. The previous version used GetCurrentFogColor() for all
+    // three vertices, which lost the per-volume color and produced
+    // a uniform tint across the whole water body.
+    const Vector3d fog00 = GetFogColorForMapPoint(x, y);
+    const Vector3d fog10 = GetFogColorForMapPoint(x + 1, y);
+    const Vector3d fog01 = GetFogColorForMapPoint(x, y + 1);
+    const Vector3d fog11 = GetFogColorForMapPoint(x + 1, y + 1);
+
     if (a00 > 0.0f || a10 > 0.0f || a11 > 0.0f) {
         if (IsWaterTriangleValid(v00, v10, v11, BackViewR)) {
-            AppendWaterTriangle(m_waterVertices, v00, v10, v11, textureLayer, false, false, 0, a00, a10, a11);
+            AppendWaterTriangle(m_waterVertices, v00, v10, v11, fog00, fog10, fog11, textureLayer, false, false, 0, a00, a10, a11);
         }
     }
 
     if (a00 > 0.0f || a11 > 0.0f || a01 > 0.0f) {
         if (IsWaterTriangleValid(v00, v11, v01, BackViewR)) {
-            AppendWaterTriangle(m_waterVertices, v00, v11, v01, textureLayer, false, true, 0, a00, a11, a01);
+            AppendWaterTriangle(m_waterVertices, v00, v11, v01, fog00, fog11, fog01, textureLayer, false, true, 0, a00, a11, a01);
         }
     }
 }
@@ -2244,15 +2258,23 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
     const float a02 = CalcWaterAlpha(v02, zs);
     const float a22 = CalcWaterAlpha(v22, zs);
 
+    // Per-corner map-based fog color (far-detail water path; mirrors
+    // the near-detail CollectWaterTile and the terrain path in
+    // CollectTerrainTile2).
+    const Vector3d fog00 = GetFogColorForMapPoint(x, y);
+    const Vector3d fog20 = GetFogColorForMapPoint(x + 2, y);
+    const Vector3d fog02 = GetFogColorForMapPoint(x, y + 2);
+    const Vector3d fog22 = GetFogColorForMapPoint(x + 2, y + 2);
+
     if (a00 > 0.0f || a20 > 0.0f || a22 > 0.0f) {
         if (IsWaterTriangleValid(v00, v20, v22, BackViewR)) {
-            AppendWaterTriangle(m_waterVertices, v00, v20, v22, textureLayer, false, false, 0, a00, a20, a22);
+            AppendWaterTriangle(m_waterVertices, v00, v20, v22, fog00, fog20, fog22, textureLayer, false, false, 0, a00, a20, a22);
         }
     }
 
     if (a00 > 0.0f || a22 > 0.0f || a02 > 0.0f) {
         if (IsWaterTriangleValid(v00, v22, v02, BackViewR)) {
-            AppendWaterTriangle(m_waterVertices, v00, v22, v02, textureLayer, false, true, 0, a00, a22, a02);
+            AppendWaterTriangle(m_waterVertices, v00, v22, v02, fog00, fog22, fog02, textureLayer, false, true, 0, a00, a22, a02);
         }
     }
 }
