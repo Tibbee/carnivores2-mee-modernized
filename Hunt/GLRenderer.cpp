@@ -421,6 +421,7 @@ bool GLRenderer::Initialize()
         "out float vFog;\n"
         "out vec3 vFogColor;\n"
         "out float vAlpha;\n"
+        "out float vViewZ;\n"
         "void main() {\n"
         "   gl_Position = uProjection * vec4(aPos, 1.0);\n"
         "   vTexCoord = aTexCoord;\n"
@@ -429,6 +430,7 @@ bool GLRenderer::Initialize()
         "   vFog = clamp(aFog / 255.0, 0.0, 1.0);\n"
         "   vFogColor = aFogColor;\n"
         "   vAlpha = clamp(aAlpha, 0.0, 1.0);\n"
+        "   vViewZ = max(-aPos.z, 0.0);\n"
         "}\n";
 
     const char* terrainFragmentSource =
@@ -440,12 +442,24 @@ bool GLRenderer::Initialize()
         "in float vFog;\n"
         "in vec3 vFogColor;\n"
         "in float vAlpha;\n"
+        "in float vViewZ;\n"
         "uniform sampler2DArray uTerrainArray;\n"
+        "uniform float uFogDistance;\n"
+        "uniform float uFogFadeStart;\n"
         "void main() {\n"
         "   vec4 texColor = texture(uTerrainArray, vec3(vTexCoord, float(vLayer)));\n"
         "   if (texColor.a < 0.05) discard;\n"
         "   vec3 litColor = texColor.rgb * vLight;\n"
-        "   vec3 finalColor = mix(litColor, vFogColor, vFog);\n"
+        "   // Per-vertex volumetric fog (volume-specific color and amount).\n"
+        "   vec3 volumetricFogColor = mix(litColor, vFogColor, vFog);\n"
+        "   // Per-pixel distance fog: smooth ramp from uFogFadeStart (no extra\n"
+        "   // fog) to uFogDistance (100% vFogColor). The volumetric FLimit\n"
+        "   // caps the per-vertex fog at 200/255 (78%) so the terrain never\n"
+        "   // reaches the sky's full fog color; this per-pixel ramp fills\n"
+        "   the missing 22% and removes the abrupt cutoff at the cull\n"
+        "   distance, smoothing the transition from terrain to sky.\n"
+        "   float distanceFog = clamp((vViewZ - uFogFadeStart) / max(uFogDistance - uFogFadeStart, 1.0), 0.0, 1.0);\n"
+        "   vec3 finalColor = mix(volumetricFogColor, vFogColor, distanceFog);\n"
         "   FragColor = vec4(finalColor, texColor.a * vAlpha);\n"
         "}\n";
 
@@ -481,6 +495,7 @@ bool GLRenderer::Initialize()
         "out vec3 vFogColor;\n"
         "out float vAlpha;\n"
         "out float vCutout;\n"
+        "out float vViewZ;\n"
         "void main() {\n"
         "   gl_Position = uProjection * vec4(aPos, 1.0);\n"
         "   vTexCoord = aTexCoord;\n"
@@ -489,6 +504,7 @@ bool GLRenderer::Initialize()
         "   vFogColor = aFogColor;\n"
         "   vAlpha = clamp(aAlpha, 0.0, 1.0);\n"
         "   vCutout = aCutout;\n"
+        "   vViewZ = max(-aPos.z, 0.0);\n"
         "}\n";
 
     const char* modelFragmentSource =
@@ -500,12 +516,21 @@ bool GLRenderer::Initialize()
         "in vec3 vFogColor;\n"
         "in float vAlpha;\n"
         "in float vCutout;\n"
+        "in float vViewZ;\n"
         "uniform sampler2D uModelTexture;\n"
+        "uniform float uFogDistance;\n"
+        "uniform float uFogFadeStart;\n"
         "void main() {\n"
         "   vec4 texColor = texture(uModelTexture, vTexCoord);\n"
         "   if (vCutout > 0.5 && dot(texColor.rgb, vec3(1.0)) < 0.01) discard;\n"
         "   vec3 litColor = texColor.rgb * vLight;\n"
-        "   vec3 finalColor = mix(litColor, vFogColor, vFog);\n"
+        "   // Per-vertex volumetric fog (volume color and amount per vertex).\n"
+        "   vec3 volumetricFogColor = mix(litColor, vFogColor, vFog);\n"
+        "   // Per-pixel distance fog ramp, matching the terrain shader. The\n"
+        "   // alpha fade (GlassL) is in vAlpha and is independent of the\n"
+        "   // color fade; the two together give a smooth distance fade-out.\n"
+        "   float distanceFog = clamp((vViewZ - uFogFadeStart) / max(uFogDistance - uFogFadeStart, 1.0), 0.0, 1.0);\n"
+        "   vec3 finalColor = mix(volumetricFogColor, vFogColor, distanceFog);\n"
         "   FragColor = vec4(finalColor, texColor.a * vAlpha);\n"
         "}\n";
 
@@ -772,6 +797,13 @@ void GLRenderer::RenderWaterSurface()
     const auto projection = BuildLegacyProjection();
     glUseProgram(m_terrainShader);
     glUniformMatrix4fv(glGetUniformLocation(m_terrainShader, "uProjection"), 1, GL_FALSE, projection.data());
+    // Per-pixel distance fog: uFogDistance is the view distance (ctViewR*256
+    // in world units); uFogFadeStart is where the per-pixel ramp begins,
+    // 1024 units (4 cells) before that. Between fade-start and distance the
+    // terrain blends from the per-vertex volumetric fog color toward the
+    // volume's full fog color, smoothing the terrain-to-sky transition.
+    glUniform1f(glGetUniformLocation(m_terrainShader, "uFogDistance"), static_cast<float>(ctViewR) * 256.0f);
+    glUniform1f(glGetUniformLocation(m_terrainShader, "uFogFadeStart"), static_cast<float>(ctViewR) * 256.0f - 1024.0f);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);
@@ -1007,6 +1039,8 @@ void GLRenderer::DrawModelVertices(GLuint texture,
 
     glUseProgram(m_modelShader);
     glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, projection.data());
+    glUniform1f(glGetUniformLocation(m_modelShader, "uFogDistance"), static_cast<float>(ctViewR) * 256.0f);
+    glUniform1f(glGetUniformLocation(m_modelShader, "uFogFadeStart"), static_cast<float>(ctViewR) * 256.0f - 1024.0f);
 
     if (depthTest) {
         glEnable(GL_DEPTH_TEST);
@@ -1516,6 +1550,8 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
 
     glUseProgram(m_modelShader);
     glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, identity);
+    glUniform1f(glGetUniformLocation(m_modelShader, "uFogDistance"), static_cast<float>(ctViewR) * 256.0f);
+    glUniform1f(glGetUniformLocation(m_modelShader, "uFogFadeStart"), static_cast<float>(ctViewR) * 256.0f - 1024.0f);
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -2406,6 +2442,8 @@ void GLRenderer::RenderTerrain()
     const auto projection = BuildLegacyProjection();
     glUseProgram(m_terrainShader);
     glUniformMatrix4fv(glGetUniformLocation(m_terrainShader, "uProjection"), 1, GL_FALSE, projection.data());
+    glUniform1f(glGetUniformLocation(m_terrainShader, "uFogDistance"), static_cast<float>(ctViewR) * 256.0f);
+    glUniform1f(glGetUniformLocation(m_terrainShader, "uFogFadeStart"), static_cast<float>(ctViewR) * 256.0f - 1024.0f);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);
@@ -2889,6 +2927,8 @@ void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int 
     const auto projection = BuildLegacyProjection();
     glUseProgram(m_modelShader);
     glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, projection.data());
+    glUniform1f(glGetUniformLocation(m_modelShader, "uFogDistance"), static_cast<float>(ctViewR) * 256.0f);
+    glUniform1f(glGetUniformLocation(m_modelShader, "uFogFadeStart"), static_cast<float>(ctViewR) * 256.0f - 1024.0f);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);  // additive blending for sun
@@ -2992,6 +3032,8 @@ void GLRenderer::RenderFSRect(uint32_t color)
 
     glUseProgram(m_modelShader);
     glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, identity);
+    glUniform1f(glGetUniformLocation(m_modelShader, "uFogDistance"), static_cast<float>(ctViewR) * 256.0f);
+    glUniform1f(glGetUniformLocation(m_modelShader, "uFogFadeStart"), static_cast<float>(ctViewR) * 256.0f - 1024.0f);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, whiteTex);
