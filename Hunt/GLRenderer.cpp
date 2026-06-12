@@ -2623,6 +2623,7 @@ void GLRenderer::InitializeSkyPipeline()
         "uniform vec3 uR;\n"
         "uniform float uSkyTime;\n"
         "uniform float uForceFog;\n"
+        "uniform float uFogBase;\n"
         "void main() {\n"
         "   vec2 pixel = vec2((vNdc.x * 0.5 + 0.5) * uViewport.x,\n"
         "                     (1.0 - (vNdc.y * 0.5 + 0.5)) * uViewport.y);\n"
@@ -2642,7 +2643,7 @@ void GLRenderer::InitializeSkyPipeline()
         "   float dy = rightV - leftV;\n"
         "   float dt = sqrt(dx*dx + dy*dy) / 96.0 - 6.0;\n"
         "   dt = clamp(dt, 0.0, 10.0);\n"
-        "   float fogFactor = clamp(dt * 225.0 / 10.0 / 255.0, 0.0, 1.0);\n"
+        "   float fogFactor = clamp(max(dt * 225.0 / 10.0, uFogBase) / 255.0, 0.0, 1.0);\n"
         "   fogFactor = mix(fogFactor, 1.0, clamp(uForceFog, 0.0, 1.0));\n"
         "   vec2 uv = vec2((skyU + uSkyTime) / 256.0, (skyV - uSkyTime) / 256.0);\n"
         "   vec3 skyColor = texture(uSkyTexture, uv).rgb;\n"
@@ -3018,6 +3019,17 @@ void GLRenderer::RenderSkyPlane()
     glUniform3f(glGetUniformLocation(m_skyShader, "uR"), rx, ry, rz);
     glUniform1f(glGetUniformLocation(m_skyShader, "uSkyTime"), static_cast<float>(SKYDTime) / 256.0f);
     glUniform1f(glGetUniformLocation(m_skyShader, "uForceFog"), UNDERWATER ? 1.0f : 0.0f);
+
+    // Sample CalcFogLevel at a point in front of the camera at the sky height
+    // (4*512*16) and use it as a minimum for the per-pixel sky fog gradient.
+    // Without this floor, the sky shader returns fogFactor=0 at the zenith
+    // (where dt=0), showing the full sky texture. With the floor, even the
+    // top of the sky is tinted toward the fog color, matching the legacy
+    // D3D/3DFX behavior and the C1 GL reference (RenderLegacySky in
+    // Carnivores1/Hunt/GLRenderer.cpp).
+    const Vector3d fogProbe = {512.0f, 4.0f * 512.0f * 16.0f, 0.0f};
+    const float fogBase = CalcFogLevel(fogProbe);
+    glUniform1f(glGetUniformLocation(m_skyShader, "uFogBase"), fogBase);
 
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
