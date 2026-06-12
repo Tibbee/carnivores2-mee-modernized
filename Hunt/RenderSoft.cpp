@@ -3283,7 +3283,7 @@ void RenderHealthBar()
   int y0 = WinH / 40;
   int G = min( (MyHealth * 30 / 100000), 20);
   int R = min( ( (100000 - MyHealth) * 30 / 100000), 20);
-  int HCOLOR = (G<<5) + (R*VideoPitch);
+  int HCOLOR = (G<<5) | (R<<10); // 555: G at bits 5-9, R at bits 10-14
 
   int L0 = (L * MyHealth) / 100000;
   int H = WinH / 200;
