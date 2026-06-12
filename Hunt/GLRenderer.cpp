@@ -1537,6 +1537,37 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
     glDisable(GL_BLEND);
 }
 
+// Blend an ABGR color (R in bits 0-7, B in 16-23, A in 24-31) toward the
+// current fog color at the given world position, preserving the source
+// alpha. Used to fog particles, blood trails, and snow — the legacy D3D/3DFX
+// renderers pre-baked fog into the element RGBA in Game.cpp, but the GL
+// pipeline doesn't reuse that, so we apply the fog here at draw time using
+// the same CalcFogLevel() the rest of the scene uses.
+static uint32_t ApplyFogToABGR(uint32_t abgr, const Vector3d& worldPos)
+{
+    const FogSample fog = SampleFogAtPoint(worldPos, false);
+    if (fog.amount <= 0.0f) {
+        return abgr;
+    }
+
+    const float a = static_cast<float>((abgr >> 24) & 0xFF) / 255.0f;
+    const float b = static_cast<float>((abgr >> 16) & 0xFF) / 255.0f;
+    const float g = static_cast<float>((abgr >> 8) & 0xFF) / 255.0f;
+    const float r = static_cast<float>(abgr & 0xFF) / 255.0f;
+
+    const float k = fog.amount;
+    const float outR = r * (1.0f - k) + fog.color.x * k;
+    const float outG = g * (1.0f - k) + fog.color.y * k;
+    const float outB = b * (1.0f - k) + fog.color.z * k;
+
+    const uint32_t A = static_cast<uint32_t>(a * 255.0f);
+    const uint32_t R = static_cast<uint32_t>(outR * 255.0f);
+    const uint32_t G = static_cast<uint32_t>(outG * 255.0f);
+    const uint32_t B = static_cast<uint32_t>(outB * 255.0f);
+
+    return (A << 24) | (B << 16) | (G << 8) | R;
+}
+
 void GLRenderer::RenderElements()
 {
     // ── Regular elements (muzzle flashes, impact sparks, etc.) ─────
@@ -1549,6 +1580,11 @@ void GLRenderer::RenderElements()
             rpos.z = el->pos.z - CameraZ;
             float r = el->R;
 
+            // Sample fog at the world-relative position before we rotate
+            // into view space (CalcFogLevel expects world coords).
+            const uint32_t fogRGBA = ApplyFogToABGR(Elements[eg].RGBA, rpos);
+            const uint32_t fogRGBA2 = ApplyFogToABGR(Elements[eg].RGBA2, rpos);
+
             rpos = RotateVector(rpos);
             if (rpos.z > -64) continue;
             if (fabs(rpos.x) > -rpos.z) continue;
@@ -1557,7 +1593,7 @@ void GLRenderer::RenderElements()
             float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.0f;
             float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.0f;
             RenderCircle(sx, sy, rpos.z, -r * CameraW * 0.64f / rpos.z,
-                         Elements[eg].RGBA, Elements[eg].RGBA2);
+                         fogRGBA, fogRGBA2);
         }
     }
 
@@ -1573,14 +1609,6 @@ void GLRenderer::RenderElements()
         rpos.y = rpos.y - CameraY;
         rpos.z = rpos.z - CameraZ;
 
-        rpos = RotateVector(rpos);
-        if (rpos.z > -64) continue;
-        if (fabs(rpos.x) > -rpos.z) continue;
-        if (fabs(rpos.y) > -rpos.z) continue;
-
-        float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.0f;
-        float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.0f;
-
         // Blood colors are constructed in ARGB format (R<<16 | G<<8 | B).
         // conv_xGx processes them but returns unchanged in daytime.
         // RenderCircle expects ABGR, so convert: swap R and B channels.
@@ -1590,8 +1618,20 @@ void GLRenderer::RenderElements()
         uint32_t centerColor = (A1 << 24) | conv_xGx((db << 16) | (dg << 8) | dr);
         uint32_t edgeColor   = (A2 << 24) | conv_xGx((db/2 << 16) | (dg/2 << 8) | dr/2);
 
+        // Apply fog at the world-relative position before rotation.
+        const uint32_t fogCenter = ApplyFogToABGR(centerColor, rpos);
+        const uint32_t fogEdge   = ApplyFogToABGR(edgeColor, rpos);
+
+        rpos = RotateVector(rpos);
+        if (rpos.z > -64) continue;
+        if (fabs(rpos.x) > -rpos.z) continue;
+        if (fabs(rpos.y) > -rpos.z) continue;
+
+        float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.0f;
+        float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.0f;
+
         RenderCircle(sx, sy, rpos.z, -12.0f * CameraW * 0.64f / rpos.z,
-                     centerColor, edgeColor);
+                     fogCenter, fogEdge);
     }
 
     // ── Snow particles ────────────────────────────────────────────
@@ -1601,14 +1641,6 @@ void GLRenderer::RenderElements()
             rpos.x = rpos.x - CameraX;
             rpos.y = rpos.y - CameraY;
             rpos.z = rpos.z - CameraZ;
-
-            rpos = RotateVector(rpos);
-            if (rpos.z > -64) continue;
-            if (fabs(rpos.x) > -rpos.z) continue;
-            if (fabs(rpos.y) > -rpos.z) continue;
-
-            float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.0f;
-            float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.0f;
 
             uint32_t A11 = SnowInfo[st].snow_a;
             if (Snow[s].ftime) {
@@ -1626,9 +1658,21 @@ void GLRenderer::RenderElements()
                 (SnowInfo[st].snow_g / 2 << 8) |
                 SnowInfo[st].snow_r / 2);
 
+            // Apply fog at the world-relative position before rotation.
+            const uint32_t fogCenter = ApplyFogToABGR(centerColor, rpos);
+            const uint32_t fogEdge   = ApplyFogToABGR(edgeColor, rpos);
+
+            rpos = RotateVector(rpos);
+            if (rpos.z > -64) continue;
+            if (fabs(rpos.x) > -rpos.z) continue;
+            if (fabs(rpos.y) > -rpos.z) continue;
+
+            float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.0f;
+            float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.0f;
+
             RenderCircle(sx, sy, rpos.z,
                          -8.0f * CameraW * 0.64f / rpos.z * SnowInfo[st].snow_rad,
-                         centerColor, edgeColor);
+                         fogCenter, fogEdge);
         }
     }
 }
