@@ -145,24 +145,8 @@ float Mul2dVectors(float vx, float vy, float ux, float uy)
 
 float FindVectorAlpha(float vx, float vy)
 {
-  float adx, ady, alpha, dalpha;
-
-  adx=static_cast<float>(fabs(vx));
-  ady=static_cast<float>(fabs(vy));
-
-  alpha = pi / 4.f;
-  dalpha = pi / 8.f;
-
-  for (int i=1; i<=10; i++)
-  {
-    alpha=alpha-dalpha*SGN(Mul2dVectors(adx,ady, static_cast<float>(cos(alpha)), static_cast<float>(sin(alpha))));
-    dalpha/=2;
-  }
-
-  if (vx<0) if (vy<0) alpha+=pi;
-    else alpha=pi-alpha;
-  else if (vy<0) alpha=2.f*pi-alpha;
-
+  float alpha = atan2f(vy, vx);
+  if (alpha < 0) alpha += 2.f * pi;
   return alpha;
 }
 
