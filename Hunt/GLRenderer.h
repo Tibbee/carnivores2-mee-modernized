@@ -222,12 +222,9 @@ private:
     unsigned int m_skyTexture = 0;
     bool m_skyTextureDirty = true;
 
-    // Smoothed sky fog color (temporal filter to absorb volume-boundary
-    // color jumps when the camera crosses fog volume edges). The sky's
-    // target color is derived from CameraFogI (not the CurFogColor
-    // side-effect, which can come from any cell's CalcFogLevel call),
-    // and is low-pass filtered across frames so volume transitions look
-    // like a smooth color blend rather than an instant pop.
+    // Smoothed sky fog color (temporal filter to absorb day/night sky
+    // color changes without frame-to-frame popping). The target color is
+    // the global distance-fog color, not the current fixed fog volume.
     Vector3d m_smoothedSkyFogColor = {0.0f, 0.0f, 0.0f};
     bool m_smoothedSkyFogColorInit = false;
 

@@ -128,6 +128,34 @@ Vector3d GetFogColor()
     };
 }
 
+Vector3d GetDistanceFogColor()
+{
+    // Distance fog is the global horizon fade. It must not inherit the
+    // color of fixed map fog volumes; those are applied separately as
+    // local volumetric fog inside their boundaries.
+    if (UNDERWATER && FogsList[127].fogRGB) {
+        int rgb = FogsList[127].fogRGB;
+        return {
+            static_cast<float>((rgb >> 16) & 0xFF) / 255.0f,
+            static_cast<float>((rgb >> 8) & 0xFF) / 255.0f,
+            static_cast<float>(rgb & 0xFF) / 255.0f
+        };
+    }
+
+    return {
+        static_cast<float>(SkyR) / 255.0f,
+        static_cast<float>(SkyG) / 255.0f,
+        static_cast<float>(SkyB) / 255.0f
+    };
+}
+
+int GetFogIndexForMapPoint(int mapX, int mapY)
+{
+    const int fogX = (mapX & (ctMapSize - 1)) >> 1;
+    const int fogY = (mapY & (ctMapSize - 1)) >> 1;
+    return FogsMap[fogY][fogX];
+}
+
 Vector2df DecodeLegacyFaceUV(float tx, float ty, int texHeight)
 {
     // fp_conv() already converted int pixel coords to float for non-soft builds.
@@ -224,7 +252,7 @@ void ClipTriangleAgainstWater(const ModelClipVertex& a,
 FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog)
 {
     if (disableFog) {
-        return {0.0f, GetFogColor()};
+        return {0.0f, GetDistanceFogColor()};
     }
 
     float d = VectorLength(point);
@@ -266,21 +294,10 @@ FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog)
         }};
     }
 
-    // Camera in a fog pocket: use the camera's pocket for all objects.
-    // This gives uniform distance-based fog from the camera's volume,
-    // preventing cross-pocket contamination where a tree in a green
-    // pocket would turn solid green while the camera is in a blue one.
-    if (CAMERAINFOG && CameraFogI > 0) {
-        const TFogEntity& fog = FogsList[CameraFogI];
-        bool vinFog = true;
-        const float fl = computeFog(fog, vinFog);
-        const float amount = std::clamp(fl / 255.0f, 0.0f, fog.FLimit / 255.0f);
-        return {amount, DecodeFogColor(fog.fogRGB)};
-    }
-
-    // Camera NOT in a fog pocket: check if the VERTEX is inside one.
-    // Objects inside a fog volume should still show fog even when
-    // the camera is looking in from clear air.
+    // Fixed fog volumes are local: only sample the volume that contains
+    // the point being fogged. Do not use the camera's current pocket as a
+    // blanket fog source, or distant objects outside the volume will inherit
+    // the volume color.
     const int worldX = static_cast<int>(point.x + CameraX);
     const int worldZ = static_cast<int>(point.z + CameraZ);
     const int cf = FogsMap[(worldZ >> 9) & 511][(worldX >> 9) & 511];
@@ -295,10 +312,9 @@ FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog)
     }
 
     // Distance-only fog: fades all objects (including BMP billboards)
-    // to the sky color at the view horizon. Uses the same ramp as the
-    // terrain shader (50% to 100% of view distance). This masks the
-    // pop-in of distant models the same way terrain triangles are
-    // masked.
+    // to the global horizon color at the view horizon. Uses the same ramp
+    // as the terrain shader (75% to 100% of view distance). This masks
+    // distant pop-in without letting local fog volumes tint the horizon.
     {
         const float fogDistance = static_cast<float>(ctViewR) * 256.0f;
         const float fogFadeStart = static_cast<float>(ctViewR) * 192.0f;
@@ -307,11 +323,11 @@ FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog)
             (d - fogFadeStart) / (fadeRange > 1.0f ? fadeRange : 1.0f),
             0.0f, 1.0f);
         if (distanceFog > 0.0f) {
-            return {distanceFog, GetFogColor()};
+            return {distanceFog, GetDistanceFogColor()};
         }
     }
 
-    return {0.0f, GetFogColor()};
+    return {0.0f, GetDistanceFogColor()};
 }
 
 GLRenderer* g_GLRenderer = nullptr;
@@ -540,9 +556,9 @@ bool GLRenderer::Initialize()
         "   // Per-vertex volumetric fog (volume-specific color and amount).\n"
         "   vec3 volumetricFogColor = mix(litColor, vFogColor, vFog);\n"
         "   // Per-pixel distance fog: smooth ramp from uFogFadeStart to\n"
-        "   // uFogDistance. Uses uDistanceFogColor (sky or camera pocket\n"
-        "   // color) instead of per-vertex vFogColor, which prevents\n"
-        "   // nearby fog volumes from bleeding into the horizon fade.\n"
+        "   // uFogDistance. Uses the global horizon color instead of the\n"
+        "   // per-vertex vFogColor, which prevents local fog volumes from\n"
+        "   // bleeding into the horizon fade.\n"
         "   float distanceFog = clamp((vViewZ - uFogFadeStart) / max(uFogDistance - uFogFadeStart, 1.0), 0.0, 1.0);\n"
         "   vec3 finalColor = mix(volumetricFogColor, uDistanceFogColor, distanceFog);\n"
         "   FragColor = vec4(finalColor, texColor.a * vAlpha);\n"
@@ -649,7 +665,7 @@ bool GLRenderer::Initialize()
     glUseProgram(m_terrainShader);
     glUniform1i(glGetUniformLocation(m_terrainShader, "uTerrainArray"), 0);
 
-    Vector3d fogColor = GetCurrentFogColor();
+    Vector3d fogColor = GetDistanceFogColor();
     glClearColor(fogColor.x, fogColor.y, fogColor.z, 1.0f);
 
     m_uploadedTerrainTextures.fill(nullptr);
@@ -883,10 +899,11 @@ void GLRenderer::RenderWaterSurface()
     // in world units); uFogFadeStart is where the per-pixel ramp begins,
     // at 75% of the view distance. Between fade-start and distance the
     // terrain blends from the per-vertex volumetric fog color toward the
-    // volume's full fog color, smoothing the terrain-to-sky transition.
+    // global horizon fog color, keeping local volume colors from tinting
+    // the far horizon.
     glUniform1f(glGetUniformLocation(m_terrainShader, "uFogDistance"), static_cast<float>(ctViewR) * 256.0f);
     glUniform1f(glGetUniformLocation(m_terrainShader, "uFogFadeStart"), static_cast<float>(ctViewR) * 192.0f);
-    const Vector3d distFogColor = GetCurrentFogColor();
+    const Vector3d distFogColor = GetDistanceFogColor();
     glUniform3f(glGetUniformLocation(m_terrainShader, "uDistanceFogColor"), distFogColor.x, distFogColor.y, distFogColor.z);
 
     glActiveTexture(GL_TEXTURE0);
@@ -2149,22 +2166,16 @@ Vector3d GLRenderer::GetCurrentFogColor()
 
 Vector3d GLRenderer::GetFogColorForMapPoint(int mapX, int mapY)
 {
-    if (UNDERWATER || !FOGON) {
-        return GetCurrentFogColor();
+    if (UNDERWATER) {
+        return GetDistanceFogColor();
     }
 
-    const int fogX = (mapX & (ctMapSize - 1)) >> 1;
-    const int fogY = (mapY & (ctMapSize - 1)) >> 1;
-    int fogIndex = FogsMap[fogY][fogX];
-    if (!fogIndex && CAMERAINFOG) {
-        fogIndex = CameraFogI;
-    }
-
-    if (fogIndex > 0) {
+    const int fogIndex = GetFogIndexForMapPoint(mapX, mapY);
+    if (FOGON && fogIndex > 0) {
         return DecodeFogColor(FogsList[fogIndex].fogRGB);
     }
 
-    return GetCurrentFogColor();
+    return GetDistanceFogColor();
 }
 
 float GLRenderer::Clamp01(float value)
@@ -2185,6 +2196,26 @@ bool GLRenderer::IsWaterTriangleValid(const EPoint& v0, const EPoint& v1, const 
     }
 
     return true;
+}
+
+static float CalcTerrainAlpha(const EPoint& vertex)
+{
+    if (UNDERWATER) {
+        return 1.0f;
+    }
+
+    const float distance = VectorLength(vertex.v);
+    const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
+    if (distance <= fadeStart) {
+        return 1.0f;
+    }
+
+    const float zz = distance - 256.0f * static_cast<float>(ctViewR - 4);
+    if (zz <= 0.0f) {
+        return 1.0f;
+    }
+
+    return std::clamp((255.0f - zz / 3.0f) / 255.0f, 0.0f, 1.0f);
 }
 
 float GLRenderer::CalcWaterAlpha(const EPoint& vertex, float zs)
@@ -2222,6 +2253,19 @@ void GLRenderer::AppendTerrainTriangle(std::vector<TerrainVertex>& vertices,
     vertices.push_back({v0.v.x, v0.v.y, v0.v.z, uv[0].x, uv[0].y, layer, static_cast<float>(v0.Light), v0.Fog, fogColor0.x, fogColor0.y, fogColor0.z, alpha0});
     vertices.push_back({v1.v.x, v1.v.y, v1.v.z, uv[1].x, uv[1].y, layer, static_cast<float>(v1.Light), v1.Fog, fogColor1.x, fogColor1.y, fogColor1.z, alpha1});
     vertices.push_back({v2.v.x, v2.v.y, v2.v.z, uv[2].x, uv[2].y, layer, static_cast<float>(v2.Light), v2.Fog, fogColor2.x, fogColor2.y, fogColor2.z, alpha2});
+}
+
+float GetTerrainFogAmountForMapPoint(int mapX, int mapY, int legacyFog)
+{
+    if (UNDERWATER) {
+        return static_cast<float>(legacyFog);
+    }
+
+    if (!FOGON || GetFogIndexForMapPoint(mapX, mapY) <= 0) {
+        return 0.0f;
+    }
+
+    return static_cast<float>(std::clamp(legacyFog, 0, 255));
 }
 
 void GLRenderer::AppendWaterTriangle(std::vector<TerrainVertex>& vertices,
@@ -2275,6 +2319,11 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
     EPoint v01 = VMap[localY + 1][localX];
     EPoint v11 = VMap[localY + 1][localX + 1];
 
+    v00.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x, y, v00.Fog));
+    v10.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x + 1, y, v10.Fog));
+    v01.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x, y + 1, v01.Fog));
+    v11.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x + 1, y + 1, v11.Fog));
+
     const float xx = (v00.v.x + v11.v.x) * 0.5f;
     const float yy = (v00.v.y + v11.v.y) * 0.5f;
     const float zz = (v00.v.z + v11.v.z) * 0.5f;
@@ -2294,15 +2343,19 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
     const Vector3d fog10 = GetFogColorForMapPoint(x + 1, y);
     const Vector3d fog01 = GetFogColorForMapPoint(x, y + 1);
     const Vector3d fog11 = GetFogColorForMapPoint(x + 1, y + 1);
+    const float alpha00 = CalcTerrainAlpha(v00);
+    const float alpha10 = CalcTerrainAlpha(v10);
+    const float alpha01 = CalcTerrainAlpha(v01);
+    const float alpha11 = CalcTerrainAlpha(v11);
 
     const int textureLayer = TMap1[y][x];
     if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
         if (reverse) {
-            AppendTerrainTriangle(m_terrainVertices, v00, v10, v01, fog00, fog10, fog01, textureLayer, reverse, false, direction);
-            AppendTerrainTriangle(m_terrainVertices, v01, v10, v11, fog01, fog10, fog11, textureLayer, reverse, true, direction);
+            AppendTerrainTriangle(m_terrainVertices, v00, v10, v01, fog00, fog10, fog01, textureLayer, reverse, false, direction, alpha00, alpha10, alpha01);
+            AppendTerrainTriangle(m_terrainVertices, v01, v10, v11, fog01, fog10, fog11, textureLayer, reverse, true, direction, alpha01, alpha10, alpha11);
         } else {
-            AppendTerrainTriangle(m_terrainVertices, v00, v10, v11, fog00, fog10, fog11, textureLayer, reverse, false, direction);
-            AppendTerrainTriangle(m_terrainVertices, v00, v11, v01, fog00, fog11, fog01, textureLayer, reverse, true, direction);
+            AppendTerrainTriangle(m_terrainVertices, v00, v10, v11, fog00, fog10, fog11, textureLayer, reverse, false, direction, alpha00, alpha10, alpha11);
+            AppendTerrainTriangle(m_terrainVertices, v00, v11, v01, fog00, fog11, fog01, textureLayer, reverse, true, direction, alpha00, alpha11, alpha01);
         }
     }
 
@@ -2334,6 +2387,11 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
     EPoint v02 = VMap[localY + 2][localX];
     EPoint v22 = VMap[localY + 2][localX + 2];
 
+    v00.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x, y, v00.Fog));
+    v20.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x + 2, y, v20.Fog));
+    v02.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x, y + 2, v02.Fog));
+    v22.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x + 2, y + 2, v22.Fog));
+
     const float xx = (v00.v.x + v22.v.x) * 0.5f;
     const float yy = (v00.v.y + v22.v.y) * 0.5f;
     const float zz = (v00.v.z + v22.v.z) * 0.5f;
@@ -2352,10 +2410,14 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
     const Vector3d fog20 = GetFogColorForMapPoint(x + 2, y);
     const Vector3d fog02 = GetFogColorForMapPoint(x, y + 2);
     const Vector3d fog22 = GetFogColorForMapPoint(x + 2, y + 2);
+    const float alpha00 = CalcTerrainAlpha(v00);
+    const float alpha20 = CalcTerrainAlpha(v20);
+    const float alpha02 = CalcTerrainAlpha(v02);
+    const float alpha22 = CalcTerrainAlpha(v22);
 
     if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
-        AppendTerrainTriangle(m_terrainVertices, v00, v20, v22, fog00, fog20, fog22, textureLayer, false, false, direction);
-        AppendTerrainTriangle(m_terrainVertices, v00, v22, v02, fog00, fog22, fog02, textureLayer, false, true, direction);
+        AppendTerrainTriangle(m_terrainVertices, v00, v20, v22, fog00, fog20, fog22, textureLayer, false, false, direction, alpha00, alpha20, alpha22);
+        AppendTerrainTriangle(m_terrainVertices, v00, v22, v02, fog00, fog22, fog02, textureLayer, false, true, direction, alpha00, alpha22, alpha02);
     }
 
     RenderObject(x, y);
@@ -2589,14 +2651,15 @@ void GLRenderer::RenderTerrain()
     glUniformMatrix4fv(glGetUniformLocation(m_terrainShader, "uProjection"), 1, GL_FALSE, projection.data());
     glUniform1f(glGetUniformLocation(m_terrainShader, "uFogDistance"), static_cast<float>(ctViewR) * 256.0f);
     glUniform1f(glGetUniformLocation(m_terrainShader, "uFogFadeStart"), static_cast<float>(ctViewR) * 192.0f);
-    const Vector3d distFogColor2 = GetCurrentFogColor();
+    const Vector3d distFogColor2 = GetDistanceFogColor();
     glUniform3f(glGetUniformLocation(m_terrainShader, "uDistanceFogColor"), distFogColor2.x, distFogColor2.y, distFogColor2.z);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);
     glBindVertexArray(m_terrainVAO);
 
-    glDisable(GL_BLEND);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_TRUE);
     DrawVertexBatch(m_terrainVertices);
 
@@ -2796,7 +2859,7 @@ void GLRenderer::ClearLevelTextureCache()
 
 void GLRenderer::ClearVideoBuf()
 {
-    const Vector3d fogColor = GetCurrentFogColor();
+    const Vector3d fogColor = GetDistanceFogColor();
     glClearColor(fogColor.x, fogColor.y, fogColor.z, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
@@ -3258,35 +3321,13 @@ void GLRenderer::RenderSkyPlane()
     ry -= ddy * qy;
     rz -= ddy * qz;
 
-    // Compute a stable sky fog color that does NOT depend on the
-    // CurFogColor side effect of CalcFogLevel (which can come from any
-    // cell's lookup, including our probe or a far vertex). The sky
-    // should be tinted by the volume the camera is actually in (or by
-    // the sky color when not in a volume), not by an arbitrary cell
-    // the probe happened to be in.
-    Vector3d targetSkyFogColor;
-    if (UNDERWATER && FogsList[127].fogRGB) {
-        int rgb = FogsList[127].fogRGB;
-        targetSkyFogColor = {
-            static_cast<float>((rgb >> 16) & 0xFF) / 255.0f,
-            static_cast<float>((rgb >> 8) & 0xFF) / 255.0f,
-            static_cast<float>(rgb & 0xFF) / 255.0f
-        };
-    } else if (CAMERAINFOG && CameraFogI > 0) {
-        targetSkyFogColor = DecodeFogColor(FogsList[CameraFogI].fogRGB);
-    } else {
-        targetSkyFogColor = {
-            static_cast<float>(SkyR) / 255.0f,
-            static_cast<float>(SkyG) / 255.0f,
-            static_cast<float>(SkyB) / 255.0f
-        };
-    }
+    // The sky's distance-fog color is global, not the color of the
+    // fixed fog volume the camera is currently inside. Local volumes are
+    // still applied to terrain/models by their per-vertex fog color.
+    const Vector3d targetSkyFogColor = GetDistanceFogColor();
 
-    // Temporal low-pass filter on the sky color so that crossing a
-    // fog volume boundary produces a smooth color blend across a few
-    // frames instead of an instant pop. k=0.15 means ~7-frame settle
-    // (~0.12s at 60fps), fast enough to feel responsive but smooth
-    // enough to hide the volume-boundary jump.
+    // Temporal low-pass filter on the sky color so day/night sky changes
+    // settle smoothly instead of popping between frames.
     if (!m_smoothedSkyFogColorInit) {
         m_smoothedSkyFogColor = targetSkyFogColor;
         m_smoothedSkyFogColorInit = true;
