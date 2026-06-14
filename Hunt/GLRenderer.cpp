@@ -107,7 +107,12 @@ Vector3d DecodeFogColor(int rgb)
 Vector3d GetFogColor()
 {
     if (UNDERWATER && FogsList[127].fogRGB) {
-        return DecodeFogColor(FogsList[127].fogRGB);
+        int rgb = FogsList[127].fogRGB;
+        return {
+            static_cast<float>((rgb >> 16) & 0xFF) / 255.0f,
+            static_cast<float>((rgb >> 8) & 0xFF) / 255.0f,
+            static_cast<float>(rgb & 0xFF) / 255.0f
+        };
     }
 
     if (CAMERAINFOG && CameraFogI > 0) {
@@ -221,6 +226,24 @@ void ClipTriangleAgainstWater(const ModelClipVertex& a,
 FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog)
 {
     if (disableFog) {
+        return {0.0f, GetFogColor()};
+    }
+
+    // Camera-state gate (C2 transformation of the C1 model-fog
+    // technique). C1 samples CalcFogLevel for every model vertex
+    // and lets a vertex inside a volumetric pocket saturate to 1.0
+    // with the pocket's color, which makes a tree in a green
+    // pocket look solid green when the player walks by in clear
+    // air. C2 has the same per-vertex CalcFogLevel path, but the
+    // C2 fog pockets are world-authored: they only "exist" for
+    // the player when the camera is in one. So we gate the per-
+    // vertex volumetric fog on CAMERAINFOG. Underwater is the
+    // exception -- the underwater volume (FogsList[127]) is the
+    // camera's own volume, so we always apply the underwater
+    // fog there even if the camera cell happens to sit above the
+    // pocket's YBegin (the closest seabed rocks are below the
+    // YBegin in many maps and would otherwise get no fog at all).
+    if (!CAMERAINFOG && !UNDERWATER) {
         return {0.0f, GetFogColor()};
     }
 
@@ -911,24 +934,43 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
     const float sa = std::sin(al);
     const float cb = std::cos(bt);
     const float sb = std::sin(bt);
-
-    const Vector3d unrotatedCenter = {
-        x0 * ca - z0 * sa,
-        y0,
-        z0 * ca + x0 * sa
-    };
-
     static thread_local std::vector<Vector3d> transformed;
     static thread_local std::vector<Vector3d> unrotated;
-    transformed.clear();
-    unrotated.clear();
     transformed.reserve(mptr->VCount);
     unrotated.reserve(mptr->VCount);
+    transformed.clear();
+    unrotated.clear();
+
+    // C1 technique for model fog. The view rotation in
+    // RenderMappedObject is RotateVector = R_x(CameraBeta) * R_y(CameraAlpha)
+    // (Math.cpp:52, applied at GLRenderer.cpp:1227). The model center
+    // (x0, y0, z0) is in view space, so its world-relative position is
+    //     unrotatedCenter = R_view^-1 * viewCenter = R_y^-1 * R_x^-1 * viewCenter
+    // Then for each model vertex, the "unrotated" position used for the
+    // fog calculation is unrotatedCenter + gVertex[i] -- the world-
+    // relative position of the model center plus the model vertex's raw
+    // offset in model space. The model's own rotation (al, bt) is
+    // intentionally NOT applied here, matching Carnivores 1 exactly
+    // (see Carnivores1/Hunt/GLRenderer.cpp:1138, 1148). For small
+    // objects this is a good approximation, and CalcFogLevel is smooth
+    // enough that the small error is invisible in practice.
+    const float ucY = ::cb * y0 + ::sb * z0;
+    const float ucZ = ::cb * z0 - ::sb * y0;
+    const Vector3d unrotatedCenter = {
+        ::ca * x0 - ::sa * ucZ,
+        ucY,
+        ::sa * x0 + ::ca * ucZ
+    };
 
     bool anyVisible = false;
     for (int i = 0; i < mptr->VCount; ++i) {
+        // View-space position of the vertex (with model rotation applied).
         transformed.push_back(TransformModelVertex(mptr->gVertex[i], x0, y0, z0, ca, sa, cb, sb));
+        // Unrotated position: unrotatedCenter + gVertex[i] (identity
+        // model rotation). The fog for this vertex is computed from
+        // this position in the triangle loop via SampleFogAtPoint.
         unrotated.push_back(TransformModelVertex(mptr->gVertex[i], unrotatedCenter.x, unrotatedCenter.y, unrotatedCenter.z, 1.0f, 0.0f, 1.0f, 0.0f));
+
         if (transformed.back().z < kModelNearClip) {
             anyVisible = true;
         }
@@ -961,6 +1003,10 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
                               const Vector3d& uC,
                               bool transparent,
                               bool cutout) {
+        // Per-triangle-vertex fog, exactly like Carnivores 1. The fog
+        // is computed from the *original* face unrotated positions
+        // (not interpolated during clipping -- matches C1 and is fine
+        // because fog is a smooth function of position).
         const FogSample fogA = SampleFogAtPoint(uA, disableFog);
         const FogSample fogB = SampleFogAtPoint(uB, disableFog);
         const FogSample fogC = SampleFogAtPoint(uC, disableFog);
@@ -971,9 +1017,7 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
         target.push_back({a.position.x, a.position.y, a.position.z, a.uv.x, a.uv.y, a.light, fogA.amount, fogA.color.x, fogA.color.y, fogA.color.z, alpha, cutoutValue});
         target.push_back({b.position.x, b.position.y, b.position.z, b.uv.x, b.uv.y, b.light, fogB.amount, fogB.color.x, fogB.color.y, fogB.color.z, alpha, cutoutValue});
         target.push_back({c.position.x, c.position.y, c.position.z, c.uv.x, c.uv.y, c.light, fogC.amount, fogC.color.x, fogC.color.y, fogC.color.z, alpha, cutoutValue});
-    };
-
-    static thread_local std::vector<ModelClipVertex> polygon;
+    };    static thread_local std::vector<ModelClipVertex> polygon;
     polygon.reserve(4);
     polygon.clear();
 
@@ -993,6 +1037,11 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
 
         const int texHeight = (mptr->TextureHeight > 1) ? mptr->TextureHeight : 1;
         // fp_conv() in CorrectModel already converted int UVs to float pixel coords.
+        // C1's ModelClipVertex carries only position/uv/light: the per-vertex
+        // fog is recomputed in appendTriangle from the original face's
+        // unrotated positions (unrotated[face.v1/2/3]) rather than
+        // interpolated through the water clipper. Match that here so the
+        // build compiles and the model fog behavior is identical to C1.
         ModelClipVertex v0{p0, DecodeLegacyFaceUV(face.tax, face.tay, texHeight), l0};
         ModelClipVertex v1{p1, DecodeLegacyFaceUV(face.tbx, face.tby, texHeight), l1};
         ModelClipVertex v2{p2, DecodeLegacyFaceUV(face.tcx, face.tcy, texHeight), l2};
@@ -1013,6 +1062,9 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
         const bool isFaceTransparent = (face.Flags & sfTransparent) != 0;
         const bool cutout = (face.Flags & (sfOpacity | sfTransparent)) != 0;
         for (size_t i = 1; i + 1 < polygon.size(); ++i) {
+            // Pass the original face unrotated positions to
+            // appendTriangle so the fog is computed from the
+            // un-clipped vertices (matches C1 behavior).
             appendTriangle(polygon[0], polygon[i], polygon[i + 1],
                            unrotated[face.v1], unrotated[face.v2], unrotated[face.v3],
                            isFaceTransparent, cutout);
@@ -1976,7 +2028,12 @@ Vector3d GLRenderer::DecodeFogColor(int rgb)
 Vector3d GLRenderer::GetCurrentFogColor()
 {
     if (UNDERWATER && FogsList[127].fogRGB) {
-        return DecodeFogColor(FogsList[127].fogRGB);
+        int rgb = FogsList[127].fogRGB;
+        return {
+            static_cast<float>((rgb >> 16) & 0xFF) / 255.0f,
+            static_cast<float>((rgb >> 8) & 0xFF) / 255.0f,
+            static_cast<float>(rgb & 0xFF) / 255.0f
+        };
     }
 
     if (CAMERAINFOG && CameraFogI > 0) {
@@ -3111,7 +3168,12 @@ void GLRenderer::RenderSkyPlane()
     // the probe happened to be in.
     Vector3d targetSkyFogColor;
     if (UNDERWATER && FogsList[127].fogRGB) {
-        targetSkyFogColor = DecodeFogColor(FogsList[127].fogRGB);
+        int rgb = FogsList[127].fogRGB;
+        targetSkyFogColor = {
+            static_cast<float>((rgb >> 16) & 0xFF) / 255.0f,
+            static_cast<float>((rgb >> 8) & 0xFF) / 255.0f,
+            static_cast<float>(rgb & 0xFF) / 255.0f
+        };
     } else if (CAMERAINFOG && CameraFogI > 0) {
         targetSkyFogColor = DecodeFogColor(FogsList[CameraFogI].fogRGB);
     } else {
