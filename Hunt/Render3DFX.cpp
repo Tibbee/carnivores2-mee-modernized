@@ -292,7 +292,7 @@ void guDownLoad(int fxm, int FXTstartAddress, LPVOID tptr, int w, int h)
 
   FxMemMap[fxm].FXTbaseaddr = FXTstartAddress;
   FxMemMap[fxm].size = textureSize;
-  FxMemMap[fxm].cpuaddr = static_cast<int>(tptr);
+  FxMemMap[fxm].cpuaddr = reinterpret_cast<int>(tptr);
 
   FxMemLoaded+=textureSize;
 
@@ -402,12 +402,12 @@ int FXDownLoadTexture(LPVOID tptr, int w, int h)
 
 void SetFXTexture(LPVOID tptr, int w, int h)
 {
-  if (FxMemMap[FxLastTexture].cpuaddr == static_cast<int>(tptr)) return;
+  if (FxMemMap[FxLastTexture].cpuaddr == reinterpret_cast<int>(tptr)) return;
 
   int fxm = -1;
   for (int m=0; m<fxmemmapsize; m++)
   {
-    if (FxMemMap[m].cpuaddr == static_cast<int>(tptr))
+    if (FxMemMap[m].cpuaddr == reinterpret_cast<int>(tptr))
     {
       fxm = m;
       break;
