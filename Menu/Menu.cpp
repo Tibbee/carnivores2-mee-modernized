@@ -340,28 +340,28 @@ void InitInterface()
 {
 	std::cout << "Interface: Creating GDI Font handles..." << std::endl;
 	fnt_Big = CreateFont(
-		23, 10, 0, 0,
+		23, 0, 0, 0,
 		600, 0, 0, 0,
 		ANSI_CHARSET,
-		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
+		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
 	g_FontOptions = CreateFont(
-		21, 9, 0, 0,
+		21, 0, 0, 0,
 		500, 0, 0, 0,
 		ANSI_CHARSET,
-		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
+		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
 	fnt_Small = CreateFont(
-		14, 5, 0, 0,
+		14, 0, 0, 0,
 		100, 0, 0, 0,
 		ANSI_CHARSET,
-		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
+		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
 	fnt_Midd = CreateFont(
-		16, 7, 0, 0,
+		16, 0, 0, 0,
 		550, 0, 0, 0,
 		ANSI_CHARSET,
-		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
+		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
 	if (!fnt_Small)
 		std::cout << "Interface : Failed to create Small Font" << std::endl;
@@ -429,14 +429,14 @@ void InitInterface()
 	MenuOptions[m].AddItem("Agressivity");
 	MenuOptions[m].AddItem("Density");
 	MenuOptions[m].AddItem("Sensitivity");
-	MenuOptions[m].AddItem("View range");
+	MenuOptions[m].AddItem("View distance");
 	MenuOptions[m].AddItem("Measurement");
 	MenuOptions[m].AddItem("Sound API");
 	MenuOptions[m].Rect = { 40, 75, 380, 75 + static_cast<long>(MenuOptions[0].Count * 24) };
 
 	m = OPT_KEYBINDINGS;
 	MenuOptions[m].x0 = 422;
-	MenuOptions[m].y0 = 75;
+	MenuOptions[m].y0 = 130;
 	MenuOptions[m].Padding = 20;
 	MenuOptions[m].Count = 0;
 	MenuOptions[m].AddItem("Forward");
@@ -461,7 +461,7 @@ void InitInterface()
 #endif //_iceage
 	MenuOptions[m].AddItem("Invert Mouse");
 	MenuOptions[m].AddItem("Mouse sensitivity");
-	MenuOptions[m].Rect = { 422, 75, 760, 75 + static_cast<long>(MenuOptions[1].Count * 24) };
+	MenuOptions[m].Rect = { 422, 130, 760, 130 + static_cast<long>(MenuOptions[1].Count * 22) };
 
 	m = OPT_VIDEO;
 	MenuOptions[m].x0 = 70;
@@ -476,6 +476,7 @@ void InitInterface()
 	MenuOptions[m].AddItem("Alpha Source");
 	MenuOptions[m].AddItem("Brightness");
 	MenuOptions[m].AddItem("Field of View");
+	MenuOptions[m].AddItem("Object detail");
 	MenuOptions[m].Rect = { 40, 350, 380, 350 + static_cast<long>(MenuOptions[2].Count * 24) };
 
 	/************************************************************
@@ -651,6 +652,25 @@ void DrawSliderBar(int x, int y, int w, float v, int slider_rgb = RGB(239, 228, 
 }
 
 
+int MenuViewOptFromSlider(float v)
+{
+	int opt = kViewOptMin + static_cast<int>((v * static_cast<float>(kViewOptMax - kViewOptMin)));
+	if (opt < kViewOptMin) opt = kViewOptMin;
+	if (opt > kViewOptMax) opt = kViewOptMax;
+	return opt;
+}
+
+
+int MenuObjectDetailFromSlider(float v)
+{
+	int value = kObjectDetailMin + static_cast<int>((v * static_cast<float>(kObjectDetailMax - kObjectDetailMin)));
+	value = kObjectDetailMin + ((value - kObjectDetailMin) / kObjectDetailStep) * kObjectDetailStep;
+	if (value < kObjectDetailMin) value = kObjectDetailMin;
+	if (value > kObjectDetailMax) value = kObjectDetailMax;
+	return value;
+}
+
+
 void DrawPicture(int x, int y, Picture& pic)
 {
 	if (pic.m_Data == nullptr || pic.m_Width == 0 || pic.m_Height == 0)
@@ -760,6 +780,7 @@ void DrawTextShadow(int x, int y, const std::string& text, uint32_t color, int a
 }
 
 
+
 void DrawURLShadow(int x, int y, const std::string& text, uint32_t color, int align = DTA_LEFT)
 {
 	int W = GetTextW(hdcCMain, text);
@@ -813,13 +834,9 @@ void InterfaceClear(WORD Color)
 
 void InterfaceBlt()
 {
-	if (g_MenuScale > 1) {
-		SetStretchBltMode(hdcMain, HALFTONE);
-		StretchBlt(hdcMain, 0, 0, MENU_BASE_WIDTH * g_MenuScale, MENU_BASE_HEIGHT * g_MenuScale,
-		           hdcCMain, 0, 0, MENU_BASE_WIDTH, MENU_BASE_HEIGHT, SRCCOPY);
-	} else {
-		BitBlt(hdcMain, 0, 0, MENU_BASE_WIDTH, MENU_BASE_HEIGHT, hdcCMain, 0, 0, SRCCOPY);
-	}
+	SetStretchBltMode(hdcMain, HALFTONE);
+	StretchBlt(hdcMain, 0, 0, g_ClientWidth, g_ClientHeight,
+	           hdcCMain, 0, 0, MENU_BASE_WIDTH, MENU_BASE_HEIGHT, SRCCOPY);
 	SelectObject(hdcCMain, hfntOld);
 	SelectObject(hdcCMain, hbmpOld);
 }
@@ -1661,7 +1678,7 @@ void MenuEventInput(int32_t menu)
 							}
 							else if (mo.Hilite == 3)
 							{
-								g_Options.ViewRange = static_cast<int>((v * 255.f));
+								g_Options.ViewRange = MenuViewOptFromSlider(v);
 							}
 							else if (mo.Hilite == 4) // Metric or Imperial(US)
 							{
@@ -1760,7 +1777,12 @@ void MenuEventInput(int32_t menu)
 								g_Options.FOV = fov;
 								SaveConfig();
 							}
-						}
+							else if (mo.Hilite == 8) // Object detail
+							{
+								g_Options.ObjectDetail = MenuObjectDetailFromSlider(v);
+								SaveConfig();
+							}
+							}
 					}
 				}
 				else
@@ -2157,7 +2179,7 @@ void DrawMenuOptions()
 		if (i == 0) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.Aggression) / 255.0f, label_c);
 		if (i == 1) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.Density) / 255.0f, label_c);
 		if (i == 2) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.Sensitivity) / 255.0f, label_c);
-		if (i == 3) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.ViewRange) / 255.0f, label_c);
+		if (i == 3) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>((g_Options.ViewRange - kViewOptMin)) / static_cast<float>((kViewOptMax - kViewOptMin)), label_c);
 		if (i == 4) DrawTextShadow(x1, y0, st_UnitText[g_Options.OptSys], value_c, DTA_RIGHT);
 		if (i == 5) DrawTextShadow(x1, y0, st_AudText[NormalizeAudioBackend(g_Options.SoundAPI)], value_c, DTA_RIGHT);
 	}
@@ -2224,9 +2246,10 @@ void DrawMenuOptions()
 		else if (i == 7) {
 			float t = static_cast<float>((g_Options.FOV - kFovMin)) / static_cast<float>((kFovMax - kFovMin));
 			DrawSliderBar(x1 - tbw, y0 + 12, tbw, t, label_c);
-			static char fovStr[16];
-			sprintf(fovStr, "%d", g_Options.FOV);
-			DrawTextShadow(x1 - tbw - 30, y0, fovStr, value_c, DTA_RIGHT);
+		}
+		else if (i == 8) {
+			float t = static_cast<float>((g_Options.ObjectDetail - kObjectDetailMin)) / static_cast<float>((kObjectDetailMax - kObjectDetailMin));
+			DrawSliderBar(x1 - tbw, y0 + 12, tbw, t, label_c);
 		}
 	}
 
@@ -2254,10 +2277,10 @@ void ProcessMenu()
 	ScreenToClient(hwndMain, &g_CursorPos);
 
 	// Scale mouse coordinates from scaled window to internal 800x600 space
-	if (g_MenuScale > 1) {
-		g_CursorPos.x = g_CursorPos.x / g_MenuScale;
-		g_CursorPos.y = g_CursorPos.y / g_MenuScale;
-	}
+	if (g_ScaleX > 0.0f)
+		g_CursorPos.x = static_cast<int>(g_CursorPos.x / g_ScaleX);
+	if (g_ScaleY > 0.0f)
+		g_CursorPos.y = static_cast<int>(g_CursorPos.y / g_ScaleY);
 
 	// Restrict the virtual cursor to the client area
 	if (g_CursorPos.x < 0) g_CursorPos.x = 0;

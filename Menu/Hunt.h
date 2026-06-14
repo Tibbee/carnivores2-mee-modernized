@@ -31,6 +31,46 @@
 #define kFovStep     2
 #define kFovDefault  62
 
+// View distance option stored as OptViewR in trophy0N.sav.
+// Kept in sync with Hunt/Hunt.h's view distance constants.
+#define kViewOptMin      0
+#define kViewOptMax      255
+#define kViewOptDefault  128
+#define kViewDistanceMin 42
+#define kViewDistanceMax 160
+
+// Bitmap sprite LOD distance stored in config.cfg.
+#define kObjectDetailMin     24
+#define kObjectDetailMax     96
+#define kObjectDetailStep    4
+#define kObjectDetailDefault 48
+
+inline int ClampMenuViewOpt(int value)
+{
+	if (value < kViewOptMin) return kViewOptMin;
+	if (value > kViewOptMax) return kViewOptMax;
+	return value;
+}
+
+inline int ViewOptToCtViewR(int opt)
+{
+	opt = ClampMenuViewOpt(opt);
+
+	// Preserve the legacy 0..127 OptViewR curve, then use the upper half
+	// of the menu's 0..255 range for the extended view-distance cap.
+	if (opt <= 127)
+		return 42 + (opt / 8) * 2;
+
+	return 72 + ((opt - 127) * (kViewDistanceMax - 72)) / (kViewOptMax - 127);
+}
+
+inline int ClampMenuObjectDetail(int value)
+{
+	if (value < kObjectDetailMin) return kObjectDetailMin;
+	if (value > kObjectDetailMax) return kObjectDetailMax;
+	return value;
+}
+
 enum HuntTimeEnum {
 	HUNT_DAWN = 0,
 	HUNT_DAY = 1,
@@ -523,7 +563,8 @@ public:
 
 	int32_t	Resolution; // ResolutionsEnum
 	int32_t Textures;
-	int32_t ViewRange;
+	int32_t ViewRange; // OptViewR, 0..255; mapped to ctViewR by the engine
+	int32_t ObjectDetail; // ctViewRM, bitmap sprite LOD distance in map cells
 	int32_t Brightness;
 	int32_t FOV; // Vertical FOV in degrees, [kFovMin..kFovMax]
 	int32_t AlphaColorKey;
@@ -622,9 +663,14 @@ EXTERNAL HFONT					g_FontOptions;
 EXTERNAL HFONT					fnt_Big;
 
 // Menu scaling: 1 = 800x600, 2 = 1600x1200, etc.
+// Fullscreen mode stretches the 800x600 buffer to the primary monitor.
 #define MENU_BASE_WIDTH  800
 #define MENU_BASE_HEIGHT 600
 EXTERNAL int					g_MenuScale;
+EXTERNAL int					g_ClientWidth;
+EXTERNAL int					g_ClientHeight;
+EXTERNAL float				g_ScaleX;
+EXTERNAL float				g_ScaleY;
 
 EXTERNAL MenuItem				g_MenuItem;
 EXTERNAL std::int32_t			g_PrevMenuState;

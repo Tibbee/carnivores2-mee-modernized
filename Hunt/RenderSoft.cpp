@@ -28,7 +28,7 @@ struct TCharListLine
   TCharListItem Items[256];
 };
 
-TCharListLine ChRenderList[128];
+TCharListLine ChRenderList[kViewDistanceMax + 1];
 
 
 Vector2di ORList[2][2048];
@@ -566,73 +566,24 @@ void RenderGround()
   rmlistselector = 0;
   ORLCount[0] = 0;
   ORLCount[1] = 0;
-
-
-  for (r=ctViewR; r>=ctViewR1-2; r-=2)
-  {
-    if (r<ctViewR1) LockWater = true;
-    for (int x=r; x>0; x-=2)
-    {
-      ProcessMap2(CCX-x, CCY+r, r);
-      ProcessMap2(CCX+x, CCY+r, r);
-      ProcessMap2(CCX-x, CCY-r, r);
-      ProcessMap2(CCX+x, CCY-r, r);
-    }
-
-    ProcessMap2(CCX, CCY-r, r);
-    ProcessMap2(CCX, CCY+r, r);
-
-    for (int y=r-2; y>0; y-=2)
-    {
-      ProcessMap2(CCX+r, CCY-y, r);
-      ProcessMap2(CCX+r, CCY+y, r);
-      ProcessMap2(CCX-r, CCY+y, r);
-      ProcessMap2(CCX-r, CCY-y, r);
-    }
-    ProcessMap2(CCX-r, CCY, r);
-    ProcessMap2(CCX+r, CCY, r);
-    RenderMList();
-    RenderMList();
-    RenderChList(r);
-    RenderChList(r-1);
-  }
-
   LockWater = false;
 
-  r = ctViewR1-1;
-  for (int x=r; x>-r; x--)
+
+  for (r=ctViewR; r>0; r--)
   {
-    ProcessMap(CCX+r, CCY+x, r);
-    ProcessMap(CCX+x, CCY+r, r);
-  }
-
-
-  for (r=ctViewR1-2; r>0; r--)
-  {
-
-    for (int x=r; x>0; x--)
+    for (int x=-r; x<=r; x++)
     {
-      ProcessMap(CCX-x, CCY+r, r);
       ProcessMap(CCX+x, CCY+r, r);
-      ProcessMap(CCX-x, CCY-r, r);
       ProcessMap(CCX+x, CCY-r, r);
     }
-
-    ProcessMap(CCX, CCY-r, r);
-    ProcessMap(CCX, CCY+r, r);
-
-    for (int y=r-1; y>0; y--)
+    for (int y=-r+1; y<r; y++)
     {
-      ProcessMap(CCX+r, CCY-y, r);
       ProcessMap(CCX+r, CCY+y, r);
       ProcessMap(CCX-r, CCY+y, r);
-      ProcessMap(CCX-r, CCY-y, r);
     }
-    ProcessMap(CCX-r, CCY, r);
-    ProcessMap(CCX+r, CCY, r);
+    RenderMList();
     RenderMList();
     RenderChList(r);
-
   }
 
   ProcessMap(CCX, CCY, 0);
@@ -669,7 +620,7 @@ void ProcessMap2(int x, int y, int r)
   float BackR = BackViewR;
   if (OMap[y][x]!=255) BackR+=MObjects[OMap[y][x]].info.BoundR;
 
-  ev[0] = VMap[y-CCY+128][x-CCX+128];
+  ev[0] = VMap[y - CCY + kViewGridCenter][x - CCX + kViewGridCenter];
   if (ev[0].v.z>BackR) return;
 
 
@@ -682,8 +633,8 @@ void ProcessMap2(int x, int y, int r)
 
   int _x = x;
   int _y = y;
-  x = x - CCX + 128;
-  y = y - CCY + 128;
+  x = x - CCX + kViewGridCenter;
+  y = y - CCY + kViewGridCenter;
   ev[1] = VMap[y][x+2];
   if (ReverseOn) ev[2] = VMap[y+2][x];
   else ev[2] = VMap[y+2][x+2];
@@ -773,8 +724,8 @@ S1:
   DrawTPlane(true);
 S2:
 
-  x = x + CCX - 128;
-  y = y + CCY - 128;
+  x = x + CCX - kViewGridCenter;
+  y = y + CCY - kViewGridCenter;
 
   if (!LockWater)
   {
@@ -800,7 +751,7 @@ void ProcessMap(int x, int y, int r)
   int hw = WaterList[ WMap[y][x] ].wlevel;
 
 
-  ev[0] = VMap[y-CCY+128][x-CCX+128];
+  ev[0] = VMap[y - CCY + kViewGridCenter][x - CCX + kViewGridCenter];
   if (ev[0].v.z>BackR) return;
 
   BOOL
@@ -820,8 +771,8 @@ void ProcessMap(int x, int y, int r)
 
   int _x = x;
   int _y = y;
-  x = x - CCX + 128;
-  y = y - CCY + 128;
+  x = x - CCX + kViewGridCenter;
+  y = y - CCY + kViewGridCenter;
 
 
   ev[1] = VMap[y][x+1];
@@ -902,8 +853,8 @@ S1:
   if (r>6) DrawTPlane(true);
   else DrawTPlaneClip(true);
 S2:
-  x = x + CCX - 128;
-  y = y + CCY - 128;
+  x = x + CCX - kViewGridCenter;
+  y = y + CCY - kViewGridCenter;
 
 SKIP:
 
@@ -928,7 +879,7 @@ void ProcessMapW(int x, int y, int r)
   int t1 = WaterList[ WMap[y][x] ].tindex;
   int hw = WaterList[ WMap[y][x] ].wlevel;
 
-  ev[0] = VMap2[y-CCY+128][x-CCX+128];
+  ev[0] = VMap2[y - CCY + kViewGridCenter][x - CCX + kViewGridCenter];
   if (ev[0].v.z>BackViewR) return;
 
 
@@ -941,8 +892,8 @@ void ProcessMapW(int x, int y, int r)
   int _x = x;
   int _y = y;
 
-  x = x - CCX + 128;
-  y = y - CCY + 128;
+  x = x - CCX + kViewGridCenter;
+  y = y - CCY + kViewGridCenter;
   ev[1] = VMap2[y][x+1];
   if (ReverseOn) ev[2] = VMap2[y+1][x];
   else ev[2] = VMap2[y+1][x+1];
@@ -1044,7 +995,7 @@ void ProcessMapW2(int x, int y, int r)
   int t1 = WaterList[ WMap[y][x] ].tindex;
   int hw = WaterList[ WMap[y][x] ].wlevel;
 
-  ev[0] = VMap2[y-CCY+128][x-CCX+128];
+  ev[0] = VMap2[y - CCY + kViewGridCenter][x - CCX + kViewGridCenter];
   if (ev[0].v.z>BackViewR) return;
 
 
@@ -1056,8 +1007,8 @@ void ProcessMapW2(int x, int y, int r)
   int _x = x;
   int _y = y;
 
-  x = x - CCX + 128;
-  y = y - CCY + 128;
+  x = x - CCX + kViewGridCenter;
+  y = y - CCY + kViewGridCenter;
   ev[1] = VMap2[y][x+2];
   if (ReverseOn) ev[2] = VMap2[y+2][x];
   else ev[2] = VMap2[y+2][x+2];

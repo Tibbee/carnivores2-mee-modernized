@@ -3014,15 +3014,15 @@ void ProcessMap(int x, int y, int r)
 
   if (OMap[y][x]!=255) BackR+=MObjects[OMap[y][x]].info.BoundR;
 
-  ev[0] = VMap[y-CCY+128][x-CCX+128];
+  ev[0] = VMap[y - CCY + kViewGridCenter][x - CCX + kViewGridCenter];
   if (ev[0].v.z>BackR) return;
 
   int t1 = TMap1[y][x];
   ReverseOn = (FMap[y][x] & fmReverse);
   TDirection = (FMap[y][x] & 3);
 
-  x = x - CCX + 128;
-  y = y - CCY + 128;
+  x = x - CCX + kViewGridCenter;
+  y = y - CCY + kViewGridCenter;
 
   ev[1] = VMap[y][x+1];
   if (ReverseOn) ev[2] = VMap[y+1][x];
@@ -3058,8 +3058,8 @@ void ProcessMap(int x, int y, int r)
   if (r>8) DrawTPlane(true);
   else DrawTPlaneClip(true);
 
-  x = x + CCX - 128;
-  y = y + CCY - 128;
+  x = x + CCX - kViewGridCenter;
+  y = y + CCY - kViewGridCenter;
 
   if (OMap[y][x]==255) return;
 
@@ -3076,15 +3076,15 @@ void ProcessMap2(int x, int y, int r)
   if (x>=ctMapSize-1 || y>=ctMapSize-1 ||
       x<0 || y<0) return;
 
-  ev[0] = VMap[y-CCY+128][x-CCX+128];
+  ev[0] = VMap[y - CCY + kViewGridCenter][x - CCX + kViewGridCenter];
   if (ev[0].v.z>BackViewR) return;
 
   int t1 = TMap2[y][x];
   TDirection = ((FMap[y][x]>>8) & 3);
   ReverseOn = false;
 
-  x = x - CCX + 128;
-  y = y - CCY + 128;
+  x = x - CCX + kViewGridCenter;
+  y = y - CCY + kViewGridCenter;
 
   ev[1] = VMap[y][x+2];
   if (ReverseOn) ev[2] = VMap[y+2][x];
@@ -3119,8 +3119,8 @@ void ProcessMap2(int x, int y, int r)
   DrawTPlane(true);
 
 
-  x = x + CCX - 128;
-  y = y + CCY - 128;
+  x = x + CCX - kViewGridCenter;
+  y = y + CCY - kViewGridCenter;
 
   RenderObject(x, y);
   RenderObject(x+1, y);
@@ -3143,14 +3143,14 @@ void ProcessMapW(int x, int y, int r)
   WATERREVERSE = true;
   int t1 = WaterList[ WMap[y][x] ].tindex;
 
-  ev[0] = VMap2[y-CCY+128][x-CCX+128];
+  ev[0] = VMap2[y - CCY + kViewGridCenter][x - CCX + kViewGridCenter];
   if (ev[0].v.z>BackViewR) return;
 
   ReverseOn = false;
   TDirection = 0;
 
-  x = x - CCX + 128;
-  y = y - CCY + 128;
+  x = x - CCX + kViewGridCenter;
+  y = y - CCY + kViewGridCenter;
   ev[1] = VMap2[y][x+1];
   ev[2] = VMap2[y+1][x+1];
 
@@ -3190,15 +3190,15 @@ void ProcessMapW2(int x, int y, int r)
 
   int t1 = WaterList[ WMap[y][x] ].tindex;
 
-  ev[0] = VMap2[y-CCY+128][x-CCX+128];
+  ev[0] = VMap2[y - CCY + kViewGridCenter][x - CCX + kViewGridCenter];
   if (ev[0].v.z>BackViewR) return;
 
   //WATERREVERSE = true;
   ReverseOn = false;
   TDirection = 0;
 
-  x = x - CCX + 128;
-  y = y - CCY + 128;
+  x = x - CCX + kViewGridCenter;
+  y = y - CCY + kViewGridCenter;
   ev[1] = VMap2[y][x+2];
   ev[2] = VMap2[y+2][x+2];
 
@@ -3226,64 +3226,18 @@ void ProcessMapW2(int x, int y, int r)
 
 void RenderGround()
 {
-  for (r=ctViewR; r>=ctViewR1; r-=2)
+  for (r=ctViewR; r>0; r--)
   {
-
-    for (int x=r; x>0; x-=2)
+    for (int x=-r; x<=r; x++)
     {
-      ProcessMap2(CCX-x, CCY+r, r);
-      ProcessMap2(CCX+x, CCY+r, r);
-      ProcessMap2(CCX-x, CCY-r, r);
-      ProcessMap2(CCX+x, CCY-r, r);
-    }
-
-    ProcessMap2(CCX, CCY-r, r);
-    ProcessMap2(CCX, CCY+r, r);
-
-    for (int y=r-2; y>0; y-=2)
-    {
-      ProcessMap2(CCX+r, CCY-y, r);
-      ProcessMap2(CCX+r, CCY+y, r);
-      ProcessMap2(CCX-r, CCY+y, r);
-      ProcessMap2(CCX-r, CCY-y, r);
-    }
-    ProcessMap2(CCX-r, CCY, r);
-    ProcessMap2(CCX+r, CCY, r);
-
-  }
-
-
-  r = ctViewR1-1;
-  for (int x=r; x>-r; x--)
-  {
-    ProcessMap(CCX+r, CCY+x, r);
-    ProcessMap(CCX+x, CCY+r, r);
-  }
-
-  for (r=ctViewR1-2; r>0; r--)
-  {
-
-    for (int x=r; x>0; x--)
-    {
-      ProcessMap(CCX-x, CCY+r, r);
       ProcessMap(CCX+x, CCY+r, r);
-      ProcessMap(CCX-x, CCY-r, r);
       ProcessMap(CCX+x, CCY-r, r);
     }
-
-    ProcessMap(CCX, CCY-r, r);
-    ProcessMap(CCX, CCY+r, r);
-
-    for (int y=r-1; y>0; y--)
+    for (int y=-r+1; y<r; y++)
     {
-      ProcessMap(CCX+r, CCY-y, r);
       ProcessMap(CCX+r, CCY+y, r);
       ProcessMap(CCX-r, CCY+y, r);
-      ProcessMap(CCX-r, CCY-y, r);
     }
-    ProcessMap(CCX-r, CCY, r);
-    ProcessMap(CCX+r, CCY, r);
-
   }
 
   ProcessMap(CCX, CCY, 0);
@@ -3337,34 +3291,19 @@ void RenderWater()
   SetRenderStates(false, D3DBLEND_INVSRCALPHA);
 
 
-  for (int r=ctViewR; r>=ctViewR1; r-=2)
+  for (int r=ctViewR; r>0; r--)
   {
-
-    for (int x=r; x>0; x-=2)
+    for (int x=-r; x<=r; x++)
     {
-      ProcessMapW2(CCX-x, CCY+r, r);
-      ProcessMapW2(CCX+x, CCY+r, r);
-      ProcessMapW2(CCX-x, CCY-r, r);
-      ProcessMapW2(CCX+x, CCY-r, r);
+      ProcessMapW(CCX+x, CCY+r, r);
+      ProcessMapW(CCX+x, CCY-r, r);
     }
-
-    ProcessMapW2(CCX, CCY-r, r);
-    ProcessMapW2(CCX, CCY+r, r);
-
-    for (int y=r-2; y>0; y-=2)
+    for (int y=-r+1; y<r; y++)
     {
-      ProcessMapW2(CCX+r, CCY-y, r);
-      ProcessMapW2(CCX+r, CCY+y, r);
-      ProcessMapW2(CCX-r, CCY+y, r);
-      ProcessMapW2(CCX-r, CCY-y, r);
+      ProcessMapW(CCX+r, CCY+y, r);
+      ProcessMapW(CCX-r, CCY+y, r);
     }
-    ProcessMapW2(CCX-r, CCY, r);
-    ProcessMapW2(CCX+r, CCY, r);
   }
-
-  for (int y=-ctViewR1+2; y<ctViewR1; y++)
-    for (int x=-ctViewR1+2; x<ctViewR1; x++)
-      ProcessMapW(CCX+x, CCY+y, MAX(abs(x), abs(y)));
 
 
 

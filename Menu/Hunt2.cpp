@@ -213,12 +213,9 @@ void ShowErrorMessage(const std::string& error_text)
 
 void HuntWindowResize()
 {
-	// Resize the window so the client (drawing) area is scaled, reposition to center of screen
-	int scaledW = MENU_BASE_WIDTH * g_MenuScale;
-	int scaledH = MENU_BASE_HEIGHT * g_MenuScale;
-	int WX = (GetSystemMetrics(SM_CXSCREEN) / 2) - (scaledW / 2);
-	int WY = (GetSystemMetrics(SM_CYSCREEN) / 2) - (scaledH / 2);
-	RECT rc = { WX, WY, WX + scaledW, WY + scaledH };
+	// Fullscreen borderless client area. The 800x600 menu buffer is
+	// stretched by InterfaceBlt(), while input is mapped back with g_ScaleX/Y.
+	RECT rc = { 0, 0, g_ClientWidth, g_ClientHeight };
 	AdjustWindowRect(&rc, GetWindowLong(hwndMain, GWL_STYLE), false);
 	SetWindowPos(hwndMain, HWND_TOP, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, SWP_SHOWWINDOW);
 	UpdateWindow(hwndMain);
@@ -253,7 +250,7 @@ bool CreateMainWindow()
 	hwndMain = CreateWindowEx(0,
 		wc.lpszClassName,
 		"",
-		WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_VISIBLE |  WS_POPUP,
+		WS_POPUP | WS_VISIBLE,
 		CW_USEDEFAULT, 0, 800, 600,
 		HWND_DESKTOP, 0, hInst, nullptr
 	);
@@ -290,7 +287,11 @@ bool CreateMainWindow()
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLine, int nCmdShow) {
 	hInst = hInstance;
-	g_MenuScale = 2;  // 2x scale = 1600x1200 window
+	g_MenuScale = 1;
+	g_ClientWidth = GetSystemMetrics(SM_CXSCREEN);
+	g_ClientHeight = GetSystemMetrics(SM_CYSCREEN);
+	g_ScaleX = static_cast<float>(g_ClientWidth) / static_cast<float>(MENU_BASE_WIDTH);
+	g_ScaleY = static_cast<float>(g_ClientHeight) / static_cast<float>(MENU_BASE_HEIGHT);
 	g_TimeOfDay = HUNT_DAY;
 	MSG msg = MSG();
 	Timer::Init();

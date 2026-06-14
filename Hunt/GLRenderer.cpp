@@ -2741,9 +2741,9 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
         backR += MObjects[OMap[y][x]].info.BoundR;
     }
 
-    const int localX = x - CCX + 128;
-    const int localY = y - CCY + 128;
-    if (localX < 0 || localY < 0 || localX + 1 >= 256 || localY + 1 >= 256) {
+    const int localX = x - CCX + kViewGridCenter;
+    const int localY = y - CCY + kViewGridCenter;
+    if (localX < 0 || localY < 0 || localX + 1 >= kViewGridSize || localY + 1 >= kViewGridSize) {
         return;
     }
 
@@ -2813,9 +2813,9 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
         return;
     }
 
-    const int localX = x - CCX + 128;
-    const int localY = y - CCY + 128;
-    if (localX < 0 || localY < 0 || localX + 2 >= 256 || localY + 2 >= 256) {
+    const int localX = x - CCX + kViewGridCenter;
+    const int localY = y - CCY + kViewGridCenter;
+    if (localX < 0 || localY < 0 || localX + 2 >= kViewGridSize || localY + 2 >= kViewGridSize) {
         return;
     }
 
@@ -2893,9 +2893,9 @@ void GLRenderer::CollectWaterTile(int x, int y, int r)
         return;
     }
 
-    const int localX = x - CCX + 128;
-    const int localY = y - CCY + 128;
-    if (localX < 0 || localY < 0 || localX + 1 >= 256 || localY + 1 >= 256) {
+    const int localX = x - CCX + kViewGridCenter;
+    const int localY = y - CCY + kViewGridCenter;
+    if (localX < 0 || localY < 0 || localX + 1 >= kViewGridSize || localY + 1 >= kViewGridSize) {
         return;
     }
 
@@ -2971,9 +2971,9 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
         return;
     }
 
-    const int localX = x - CCX + 128;
-    const int localY = y - CCY + 128;
-    if (localX < 0 || localY < 0 || localX + 2 >= 256 || localY + 2 >= 256) {
+    const int localX = x - CCX + kViewGridCenter;
+    const int localY = y - CCY + kViewGridCenter;
+    if (localX < 0 || localY < 0 || localX + 2 >= kViewGridSize || localY + 2 >= kViewGridSize) {
         return;
     }
 
@@ -3034,54 +3034,15 @@ void GLRenderer::RenderGround()
     m_transparentModelItems.clear();
     m_objectList.clear();
 
-    for (int rr = ctViewR; rr >= ctViewR1; rr -= 2) {
-        for (int x = rr; x > 0; x -= 2) {
-            CollectTerrainTile2(CCX - x, CCY + rr, rr);
-            CollectTerrainTile2(CCX + x, CCY + rr, rr);
-            CollectTerrainTile2(CCX - x, CCY - rr, rr);
-            CollectTerrainTile2(CCX + x, CCY - rr, rr);
+    for (int r = ctViewR; r > 0; --r) {
+        for (int x = -r; x <= r; ++x) {
+            CollectTerrainTile(CCX + x, CCY + r, r);
+            CollectTerrainTile(CCX + x, CCY - r, r);
         }
-
-        CollectTerrainTile2(CCX, CCY - rr, rr);
-        CollectTerrainTile2(CCX, CCY + rr, rr);
-
-        for (int y = rr - 2; y > 0; y -= 2) {
-            CollectTerrainTile2(CCX + rr, CCY - y, rr);
-            CollectTerrainTile2(CCX + rr, CCY + y, rr);
-            CollectTerrainTile2(CCX - rr, CCY + y, rr);
-            CollectTerrainTile2(CCX - rr, CCY - y, rr);
+        for (int y = -r + 1; y < r; ++y) {
+            CollectTerrainTile(CCX + r, CCY + y, r);
+            CollectTerrainTile(CCX - r, CCY + y, r);
         }
-
-        CollectTerrainTile2(CCX - rr, CCY, rr);
-        CollectTerrainTile2(CCX + rr, CCY, rr);
-    }
-
-    int rr = ctViewR1 - 1;
-    for (int x = rr; x > -rr; --x) {
-        CollectTerrainTile(CCX + rr, CCY + x, rr);
-        CollectTerrainTile(CCX + x, CCY + rr, rr);
-    }
-
-    for (rr = ctViewR1 - 2; rr > 0; --rr) {
-        for (int x = rr; x > 0; --x) {
-            CollectTerrainTile(CCX - x, CCY + rr, rr);
-            CollectTerrainTile(CCX + x, CCY + rr, rr);
-            CollectTerrainTile(CCX - x, CCY - rr, rr);
-            CollectTerrainTile(CCX + x, CCY - rr, rr);
-        }
-
-        CollectTerrainTile(CCX, CCY - rr, rr);
-        CollectTerrainTile(CCX, CCY + rr, rr);
-
-        for (int y = rr - 1; y > 0; --y) {
-            CollectTerrainTile(CCX + rr, CCY - y, rr);
-            CollectTerrainTile(CCX + rr, CCY + y, rr);
-            CollectTerrainTile(CCX - rr, CCY + y, rr);
-            CollectTerrainTile(CCX - rr, CCY - y, rr);
-        }
-
-        CollectTerrainTile(CCX - rr, CCY, rr);
-        CollectTerrainTile(CCX + rr, CCY, rr);
     }
 
     CollectTerrainTile(CCX, CCY, 0);
@@ -3135,54 +3096,15 @@ void GLRenderer::RenderWater()
 
     BeginWaterFrame();
 
-    for (int r = ctViewR; r >= ctViewR1; r -= 2) {
-        for (int x = r; x > 0; x -= 2) {
-            CollectWaterTile2(CCX - x, CCY + r, r);
-            CollectWaterTile2(CCX + x, CCY + r, r);
-            CollectWaterTile2(CCX - x, CCY - r, r);
-            CollectWaterTile2(CCX + x, CCY - r, r);
+    for (int r = ctViewR; r > 0; --r) {
+        for (int x = -r; x <= r; ++x) {
+            CollectWaterTile(CCX + x, CCY + r, r);
+            CollectWaterTile(CCX + x, CCY - r, r);
         }
-
-        CollectWaterTile2(CCX, CCY - r, r);
-        CollectWaterTile2(CCX, CCY + r, r);
-
-        for (int y = r - 2; y > 0; y -= 2) {
-            CollectWaterTile2(CCX + r, CCY - y, r);
-            CollectWaterTile2(CCX + r, CCY + y, r);
-            CollectWaterTile2(CCX - r, CCY + y, r);
-            CollectWaterTile2(CCX - r, CCY - y, r);
+        for (int y = -r + 1; y < r; ++y) {
+            CollectWaterTile(CCX + r, CCY + y, r);
+            CollectWaterTile(CCX - r, CCY + y, r);
         }
-
-        CollectWaterTile2(CCX - r, CCY, r);
-        CollectWaterTile2(CCX + r, CCY, r);
-    }
-
-    int rr = ctViewR1 - 1;
-    for (int x = rr; x > -rr; --x) {
-        CollectWaterTile(CCX + rr, CCY + x, rr);
-        CollectWaterTile(CCX + x, CCY + rr, rr);
-    }
-
-    for (rr = ctViewR1 - 2; rr > 0; --rr) {
-        for (int x = rr; x > 0; --x) {
-            CollectWaterTile(CCX - x, CCY + rr, rr);
-            CollectWaterTile(CCX + x, CCY + rr, rr);
-            CollectWaterTile(CCX - x, CCY - rr, rr);
-            CollectWaterTile(CCX + x, CCY - rr, rr);
-        }
-
-        CollectWaterTile(CCX, CCY - rr, rr);
-        CollectWaterTile(CCX, CCY + rr, rr);
-
-        for (int y = rr - 1; y > 0; --y) {
-            CollectWaterTile(CCX + rr, CCY - y, rr);
-            CollectWaterTile(CCX + rr, CCY + y, rr);
-            CollectWaterTile(CCX - rr, CCY + y, rr);
-            CollectWaterTile(CCX - rr, CCY - y, rr);
-        }
-
-        CollectWaterTile(CCX - rr, CCY, rr);
-        CollectWaterTile(CCX + rr, CCY, rr);
     }
 
     CollectWaterTile(CCX, CCY, 0);

@@ -1045,6 +1045,7 @@ void TrophyLoad(Profile& profile, int pr)
 	{ int32_t tmp; fs.read(reinterpret_cast<char*>(&tmp), 4); g_Options.Fog = (bool)tmp; }
 	fs.read(reinterpret_cast<char*>(&g_Options.Textures), 4);
 	fs.read(reinterpret_cast<char*>(&g_Options.ViewRange), 4);
+	g_Options.ViewRange = ClampMenuViewOpt(g_Options.ViewRange);
 	{ int32_t tmp; fs.read(reinterpret_cast<char*>(&tmp), 4); g_Options.Shadows = (bool)tmp; }
 	fs.read(reinterpret_cast<char*>(&g_Options.MouseSensitivity), 4);
 	fs.read(reinterpret_cast<char*>(&g_Options.Brightness), 4);
@@ -1066,6 +1067,8 @@ void TrophyLoad(Profile& profile, int pr)
 	// FOV and other extended settings are now in config.cfg, not here.
 	// Set defaults; LoadConfig() will override if the config file exists.
 	g_Options.FOV = kFovDefault;
+	g_Options.ViewRange = ClampMenuViewOpt(g_Options.ViewRange);
+	g_Options.ObjectDetail = kObjectDetailDefault;
 
 	//Temporary:
 	int r = profile.Rank;
@@ -1293,10 +1296,11 @@ void Options::Default()
 	this->Resolution = 5;
 	this->Fog = true;
 	this->Textures = 1;
-	this->ViewRange = 128;
+	this->ViewRange = kViewOptDefault;
+	this->ObjectDetail = kObjectDetailDefault;
+	this->Brightness = 128;
 	this->Shadows = true;
 	this->MouseSensitivity = 128;
-	this->Brightness = 128;
 	this->FOV = kFovDefault;
 	// -- Set default controls
 	this->KeyMap.fkForward = 'W';
@@ -1431,6 +1435,7 @@ void SaveConfig()
 	fs << "\n";
 	fs << "renderer " << g_Options.RenderAPI << "\n";
 	fs << "fov " << g_Options.FOV << "\n";
+	fs << "object_detail " << g_Options.ObjectDetail << "\n";
 
 	std::cout << "Config Saved (" << kConfigFile << ")." << std::endl;
 }
@@ -1460,6 +1465,15 @@ static bool ParseConfigLine(const std::string& line)
 			if (v < kFovMin) v = kFovMin;
 			if (v > kFovMax) v = kFovMax;
 			g_Options.FOV = v;
+		}
+		return true;
+	}
+
+	if (key == "object_detail") {
+		int v;
+		if (iss >> v) {
+			v = ClampMenuObjectDetail(v);
+			g_Options.ObjectDetail = v;
 		}
 		return true;
 	}

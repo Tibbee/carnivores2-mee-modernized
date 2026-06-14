@@ -150,8 +150,6 @@ void PreCashGroundModel()
     {
 
       int r = MAX((MAX(y,-y)), (MAX(x,-x)));
-      if ( r>ctViewR1+4 )
-        if ( (x & 1) + (y & 1) > 0) continue;
 
       int xx = (CCX + x) & 1023;
       int yy = (CCY + y) & 1023;
@@ -171,23 +169,23 @@ void PreCashGroundModel()
 
         float wdelta = static_cast<float>(sin(-pi/2 + RandomMap[yy & 31][xx & 31]/128+RealTime/200.f));
 
-        if ( (FMap[yy][xx] & fmWater) && (r < ctViewR1-4))
+        if ( (FMap[yy][xx] & fmWater) && (r < ctViewR-4))
         {
           rv.x+=static_cast<float>(sin(xx+yy + RealTime/200.f)) * 16.f;
           rv.z+=static_cast<float>(sin(pi/2.f + xx+yy + RealTime/200.f)) * 16.f;
         }
 
         rv = RotateVector(rv);
-        VMap2[128+y][128+x].v = rv;
+        VMap2[kViewGridCenter + y][kViewGridCenter + x].v = rv;
 
         if (fabs(rv.x) > -rv.z + 1524)
         {
-          VMap2[128+y][128+x].DFlags = 128;
+          VMap2[kViewGridCenter + y][kViewGridCenter + x].DFlags = 128;
         }
         else
         {
           NeedWater = true;
-          VMap2[128+y][128+x].Light = 168-static_cast<int>((wdelta*24));
+          VMap2[kViewGridCenter + y][kViewGridCenter + x].Light = 168-static_cast<int>((wdelta*24));
 
           float Alpha;
           if (UNDERWATER)
@@ -195,7 +193,7 @@ void PreCashGroundModel()
             Alpha =	160 - VectorLength(rv)* 160 / 220 / ctViewR;
             if (Alpha<10) Alpha=10;
           }
-          else if (r < ctViewR1+2)
+          else if (r < ctViewR+2)
           {
             int wi = WMap[yy][xx];
             Alpha = static_cast<float>(((WaterList[wi].wlevel - HMap[yy][xx])*2+4))*WaterList[wi].transp;
@@ -211,32 +209,32 @@ void PreCashGroundModel()
           }
           else Alpha = 255.f;
 
-          VMap2[128+y][128+x].ALPHA=static_cast<int>(Alpha);
-          VMap2[128+y][128+x].Fog = 0;
+          VMap2[kViewGridCenter + y][kViewGridCenter + x].ALPHA=static_cast<int>(Alpha);
+          VMap2[kViewGridCenter + y][kViewGridCenter + x].Fog = 0;
 
-          if (rv.z>-256.0) VMap2[128+y][128+x].DFlags=128;
+          if (rv.z>-256.0) VMap2[kViewGridCenter + y][kViewGridCenter + x].DFlags=128;
           else
           {
 #ifdef _soft
-            VMap2[128+y][128+x].scrx = VideoCX - static_cast<int>((rv.x / rv.z * CameraW));
-            VMap2[128+y][128+x].scry = VideoCY + static_cast<int>((rv.y / rv.z * CameraH));
+            VMap2[kViewGridCenter + y][kViewGridCenter + x].scrx = VideoCX - static_cast<int>((rv.x / rv.z * CameraW));
+            VMap2[kViewGridCenter + y][kViewGridCenter + x].scry = VideoCY + static_cast<int>((rv.y / rv.z * CameraH));
 
             int DF = 0;
-            if (VMap2[128+y][128+x].scrx < 0)     DF+=1;
-            if (VMap2[128+y][128+x].scrx > WinEX) DF+=2;
-            if (VMap2[128+y][128+x].scry < 0)     DF+=4;
-            if (VMap2[128+y][128+x].scry > WinEY) DF+=8;
+            if (VMap2[kViewGridCenter + y][kViewGridCenter + x].scrx < 0)     DF+=1;
+            if (VMap2[kViewGridCenter + y][kViewGridCenter + x].scrx > WinEX) DF+=2;
+            if (VMap2[kViewGridCenter + y][kViewGridCenter + x].scry < 0)     DF+=4;
+            if (VMap2[kViewGridCenter + y][kViewGridCenter + x].scry > WinEY) DF+=8;
 #else
-            VMap2[128+y][128+x].scrx = VideoCX16 - static_cast<int>((rv.x / rv.z * CameraW16));
-            VMap2[128+y][128+x].scry = VideoCY16 + static_cast<int>((rv.y / rv.z * CameraH16));
+            VMap2[kViewGridCenter + y][kViewGridCenter + x].scrx = VideoCX16 - static_cast<int>((rv.x / rv.z * CameraW16));
+            VMap2[kViewGridCenter + y][kViewGridCenter + x].scry = VideoCY16 + static_cast<int>((rv.y / rv.z * CameraH16));
 
             int DF = 0;
-            if (VMap2[128+y][128+x].scrx < 0)        DF+=1;
-            if (VMap2[128+y][128+x].scrx > WinEX*16) DF+=2;
-            if (VMap2[128+y][128+x].scry < 0)        DF+=4;
-            if (VMap2[128+y][128+x].scry > WinEY*16) DF+=8;
+            if (VMap2[kViewGridCenter + y][kViewGridCenter + x].scrx < 0)        DF+=1;
+            if (VMap2[kViewGridCenter + y][kViewGridCenter + x].scrx > WinEX*16) DF+=2;
+            if (VMap2[kViewGridCenter + y][kViewGridCenter + x].scry < 0)        DF+=4;
+            if (VMap2[kViewGridCenter + y][kViewGridCenter + x].scry > WinEY*16) DF+=8;
 #endif
-            VMap2[128+y][128+x].DFlags = DF;
+            VMap2[kViewGridCenter + y][kViewGridCenter + x].DFlags = DF;
 
           }
         }
@@ -246,22 +244,6 @@ void PreCashGroundModel()
 
 #ifdef _soft
 #else
-      if (r>ctViewR1-20 && r<ctViewR1+8)
-        if ( (x & 1) + (y & 1) > 0)
-        {
-          float y1;
-          float zd = static_cast<float>(sqrt(v[0].x*v[0].x + v[0].z*v[0].z)) / 256.f;
-          float k = (zd - (ctViewR1-8)) / 4.f;
-          if (k<0) k=0;
-          if (k>1) k=1;
-
-          if ((y & 1)==0) y1 = static_cast<float>((static_cast<int>(HMap[yy][xx-1])+HMap[yy][xx+1]))*ctHScale/2 - CameraY;
-          else if ((x & 1)==0) y1 = static_cast<float>((static_cast<int>(HMap[yy-1][xx])+HMap[yy+1][xx]))*ctHScale/2 - CameraY;
-          else
-            y1 = static_cast<float>((static_cast<int>(HMap[yy-1][xx-1])+HMap[yy+1][xx+1]))*ctHScale/2 - CameraY;
-
-          v[0].y = ((v[0].y+2) * (1-k) + (y1+8) * k);
-        }
 #endif
 
       rv = RotateVector(v[0]);
@@ -269,19 +251,19 @@ void PreCashGroundModel()
 
       if (fabs(rv.x * FOVK) > -rv.z + 1600)
       {
-        VMap[128+y][128+x].v = rv;
-        VMap[128+y][128+x].DFlags = 128;
+        VMap[kViewGridCenter + y][kViewGridCenter + x].v = rv;
+        VMap[kViewGridCenter + y][kViewGridCenter + x].DFlags = 128;
         continue;
       }
 
 
       if (HARD3D)
         if (  ((FMap[yy][xx] & fmWater)==0) || UNDERWATER)
-          VMap[128+y][128+x].Fog = CalcFogLevel(v[0]);
+          VMap[kViewGridCenter + y][kViewGridCenter + x].Fog = CalcFogLevel(v[0]);
         else
-          VMap[128+y][128+x].Fog = 0;
+          VMap[kViewGridCenter + y][kViewGridCenter + x].Fog = 0;
 
-      VMap[128+y][128+x].ALPHA = 255;
+      VMap[kViewGridCenter + y][kViewGridCenter + x].ALPHA = 255;
 
       v[0]=rv;
 
@@ -289,7 +271,7 @@ void PreCashGroundModel()
         if (FOGENABLE)
           if (FogsMap[yy>>1][xx>>1]) FogFound = true;
 
-      VMap[128+y][128+x].v = v[0];
+      VMap[kViewGridCenter + y][kViewGridCenter + x].v = v[0];
 
       int  DF = 0;
       int  db = 0;
@@ -315,7 +297,7 @@ void PreCashGroundModel()
 
         int clt = LMap[yy][xx];
         clt= MAX(64, clt-db);
-        VMap[128+y][128+x].Light = clt;
+        VMap[kViewGridCenter + y][kViewGridCenter + x].Light = clt;
       }
 
 
@@ -325,26 +307,26 @@ void PreCashGroundModel()
       {
 
 #ifdef _soft
-        VMap[128+y][128+x].scrx = VideoCX - static_cast<int>((v[0].x / v[0].z * CameraW));
-        VMap[128+y][128+x].scry = VideoCY + static_cast<int>((v[0].y / v[0].z * CameraH));
+        VMap[kViewGridCenter + y][kViewGridCenter + x].scrx = VideoCX - static_cast<int>((v[0].x / v[0].z * CameraW));
+        VMap[kViewGridCenter + y][kViewGridCenter + x].scry = VideoCY + static_cast<int>((v[0].y / v[0].z * CameraH));
 
-        if (VMap[128+y][128+x].scrx < 0)        DF+=1;
-        if (VMap[128+y][128+x].scrx > WinEX)    DF+=2;
-        if (VMap[128+y][128+x].scry < 0)        DF+=4;
-        if (VMap[128+y][128+x].scry > WinEY)    DF+=8;
+        if (VMap[kViewGridCenter + y][kViewGridCenter + x].scrx < 0)        DF+=1;
+        if (VMap[kViewGridCenter + y][kViewGridCenter + x].scrx > WinEX)    DF+=2;
+        if (VMap[kViewGridCenter + y][kViewGridCenter + x].scry < 0)        DF+=4;
+        if (VMap[kViewGridCenter + y][kViewGridCenter + x].scry > WinEY)    DF+=8;
 #else
-        VMap[128+y][128+x].scrx = VideoCX16 - static_cast<int>((v[0].x / v[0].z * CameraW16));
-        VMap[128+y][128+x].scry = VideoCY16 + static_cast<int>((v[0].y / v[0].z * CameraH16));
+        VMap[kViewGridCenter + y][kViewGridCenter + x].scrx = VideoCX16 - static_cast<int>((v[0].x / v[0].z * CameraW16));
+        VMap[kViewGridCenter + y][kViewGridCenter + x].scry = VideoCY16 + static_cast<int>((v[0].y / v[0].z * CameraH16));
 
-        if (VMap[128+y][128+x].scrx < 0)        DF+=1;
-        if (VMap[128+y][128+x].scrx > WinEX*16) DF+=2;
-        if (VMap[128+y][128+x].scry < 0)        DF+=4;
-        if (VMap[128+y][128+x].scry > WinEY*16) DF+=8;
+        if (VMap[kViewGridCenter + y][kViewGridCenter + x].scrx < 0)        DF+=1;
+        if (VMap[kViewGridCenter + y][kViewGridCenter + x].scrx > WinEX*16) DF+=2;
+        if (VMap[kViewGridCenter + y][kViewGridCenter + x].scry < 0)        DF+=4;
+        if (VMap[kViewGridCenter + y][kViewGridCenter + x].scry > WinEY*16) DF+=8;
 #endif
 
       }
 
-      VMap[128+y][128+x].DFlags = DF;
+      VMap[kViewGridCenter + y][kViewGridCenter + x].DFlags = DF;
     }
 
   FOGON = FogFound || UNDERWATER;
@@ -367,9 +349,9 @@ void AddShadowCircle(int x, int y, int R, int D)
       int ty = (cy+yy)*256;
       int r = static_cast<int>(sqrt(static_cast<float>(((tx-x)*(tx-x) + (ty-y)*(ty-y))) ));
       if (r>R) continue;
-      VMap[cy+yy - CCY + 128][cx+xx - CCX + 128].Light-= D * (R-r) / R;
-      if (VMap[cy+yy - CCY + 128][cx+xx - CCX + 128].Light < 32)
-        VMap[cy+yy - CCY + 128][cx+xx - CCX + 128].Light = 32;
+      VMap[cy + yy - CCY + kViewGridCenter][cx + xx - CCX + kViewGridCenter].Light-= D * (R-r) / R;
+      if (VMap[cy + yy - CCY + kViewGridCenter][cx + xx - CCX + kViewGridCenter].Light < 32)
+        VMap[cy + yy - CCY + kViewGridCenter][cx + xx - CCX + kViewGridCenter].Light = 32;
     }
 }
 
@@ -1276,18 +1258,16 @@ void SwitchMode(LPSTR lps, BOOL& b)
 void ChangeViewR(int d1, int d2, int d3)
 {
   char buf[200];
+  (void)d2;
   ctViewR +=d1;
-  ctViewR1+=d2;
   ctViewRM+=d3;
-  if (ctViewR<20) ctViewR = 20;
-  if (ctViewR>122) ctViewR = 122;
+  if (ctViewR<kViewDistanceMin) ctViewR = kViewDistanceMin;
+  if (ctViewR>kViewDistanceMax) ctViewR = kViewDistanceMax;
+  ctViewR1 = ctViewR;
+  if (ctViewRM < kObjectDetailMin) ctViewRM = kObjectDetailMin;
+  if (ctViewRM > kObjectDetailMax) ctViewRM = kObjectDetailMax;
 
-  if (ctViewR1 < 12) ctViewR1=12;
-  if (ctViewR1 > ctViewR-10) ctViewR1=ctViewR-10;
-  if (ctViewRM <  4) ctViewRM = 4;
-  if (ctViewRM > 60) ctViewRM = 60;
-
-  wsprintf(buf,"ViewR = %d (%d + %d) BMP at %d", ctViewR, ctViewR1, ctViewR-ctViewR1, ctViewRM);
+  wsprintf(buf,"ViewR = %d BMP at %d", ctViewR, ctViewRM);
   //MessageBeep(0xFFFFFFFF);
   AddMessage(buf);
 

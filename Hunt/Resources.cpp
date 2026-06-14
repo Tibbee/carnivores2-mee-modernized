@@ -1344,7 +1344,7 @@ void LoadResources()
   {
     TrophyMode = true;
     ctViewR = 60;
-    ctViewR1 = 48;
+    ctViewR1 = ctViewR;
   }
   wsprintf(MapName,"%s%s", ProjectName, ".map");
   wsprintf(RscName,"%s%s", ProjectName, ".rsc");

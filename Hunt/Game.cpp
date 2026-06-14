@@ -286,10 +286,10 @@ float GetLandLt2(float x, float y)
   int dx = static_cast<int>(x) % 512;
   int dy = static_cast<int>(y) % 512;
 
-  int h1 = VMap[CY+128][CX+128].Light;
-  int h2 = VMap[CY+128][CX+2+128].Light;
-  int h3 = VMap[CY+2+128][CX+2+128].Light;
-  int h4 = VMap[CY+2+128][CX+128].Light;
+  int h1 = VMap[CY+kViewGridCenter][CX+kViewGridCenter].Light;
+  int h2 = VMap[CY+kViewGridCenter][CX+2+kViewGridCenter].Light;
+  int h3 = VMap[CY+2+kViewGridCenter][CX+2+kViewGridCenter].Light;
+  int h4 = VMap[CY+2+kViewGridCenter][CX+kViewGridCenter].Light;
 
   float h = static_cast<float>((h1   * (512-dx) + h2 * dx)) * (512-dy) +
             (h4   * (512-dx) + h3 * dx) * dy;
@@ -1748,8 +1748,11 @@ void InitEngine()
   // overwrites this default with the persisted value (or keeps this
   // default if the saved value is missing/out-of-range).
   OptFov = kFovDefault;
+  OptViewR = kViewOptDefault;
+  OptObjectDetail = kObjectDetailDefault;
 
   LoadTrophy();
+  OptViewR = ClampViewOpt(OptViewR);
 
   // Override settings from config.cfg (written by Carnivores2Menu).
   // This file is the single source of truth for settings that are not
@@ -1761,48 +1764,11 @@ void InitEngine()
   ProcessCommandLine();
   CreateVideoDIB();
 
-  /*
-  //Multiplayer
-  if (Multiplayer) {
-	  if (Host) {
+  if (SurvivalMode) OptViewR = kViewOptMax;
 
-		  
-
-		  //test end
-
-
-	  } else {
-
-
-
-
-	  }
-  }
-  */
-
-
-
-  //ctViewR  = 72;
-  //ctViewR1 = 28;
-  //ctViewRM = 24;
-
-  if (SurvivalMode) OptViewR = 127;
-
-  ctViewR = 42 + static_cast<int>((OptViewR / 8)) * 2;
-  ctViewR1 = 28;
-  ctViewRM = 24;
-  
-
-  /*
-  //TEST VERSION - INTRODUCE QUAILTY SLIDER?
-  ctViewR  = 42 + static_cast<int>((OptViewR / 3.1875));
-  ctViewR1 = ctViewR - 10; // 28 + static_cast<int>((OptViewR / 1.175115207373272));
-  ctViewRM = 24; //leave as 24 default
-  if (ctViewR < 20) ctViewR = 20;
-  if (ctViewR > 122) ctViewR = 122;
-  //if (ctViewR1 < 12) ctViewR1 = 12;
-  //if (ctViewR1 > ctViewR - 10) ctViewR1 = ctViewR - 10;
-  */
+  ctViewR = ViewOptToCtViewR(OptViewR);
+  ctViewR1 = ctViewR; // Terrain LOD is disabled; ctViewR1 remains for compatibility.
+  ctViewRM = ClampObjectDetail(OptObjectDetail);
 
   Soft_Persp_K = 1.5f;
   HeadY = 220;
@@ -3149,6 +3115,8 @@ void LoadTrophy()
   ReadFile(hfile, &FOGENABLE, 4, &l, nullptr);
   ReadFile(hfile, &OptText, 4, &l, nullptr);
   ReadFile(hfile, &OptViewR, 4, &l, nullptr);
+  if (l != 4) OptViewR = kViewOptDefault;
+  OptViewR = ClampViewOpt(OptViewR);
   ReadFile(hfile, &SHADOWS3D, 4, &l, nullptr);
   ReadFile(hfile, &OptMsSens, 4, &l, nullptr);
   ReadFile(hfile, &OptBrightness, 4, &l, nullptr);
@@ -3297,6 +3265,16 @@ static void LoadConfig()
           char msg[128];
           wsprintfA(msg, "Config: fov %d out of range [%d..%d], ignoring.\n",
                     value, kFovMin, kFovMax);
+          PrintLog(msg);
+        }
+      }
+      else if (_stricmp(key, "object_detail") == 0) {
+        if (value >= kObjectDetailMin && value <= kObjectDetailMax) {
+          OptObjectDetail = value;
+        } else {
+          char msg[128];
+          wsprintfA(msg, "Config: object_detail %d out of range [%d..%d], ignoring.\n",
+                    value, kObjectDetailMin, kObjectDetailMax);
           PrintLog(msg);
         }
       }

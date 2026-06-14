@@ -53,6 +53,50 @@ inline constexpr int TROPHY2_COUNT = 128; //.sab
 
 inline constexpr float pi = 3.1415926535f;
 inline constexpr int ctMapSize = 1024;
+inline constexpr int kViewGridCenter = 256;
+inline constexpr int kViewGridSize = kViewGridCenter * 2;
+
+// View distance option is stored as OptViewR in the 1660-byte trophy file.
+// ctViewR is the derived terrain/entity/audio radius in 256-unit map cells.
+inline constexpr int kViewOptMin = 0;
+inline constexpr int kViewOptMax = 255;
+inline constexpr int kViewOptDefault = 128;
+inline constexpr int kViewDistanceMin = 42;
+inline constexpr int kViewDistanceMax = 160;
+inline constexpr int kViewDistanceDefault = 72;
+
+inline int ClampViewOpt(int value)
+{
+	if (value < kViewOptMin) return kViewOptMin;
+	if (value > kViewOptMax) return kViewOptMax;
+	return value;
+}
+
+inline int ViewOptToCtViewR(int opt)
+{
+	opt = ClampViewOpt(opt);
+
+	// Preserve the legacy 0..127 OptViewR curve, then use the upper half
+	// of the menu's 0..255 range for the extended view-distance cap.
+	if (opt <= 127)
+		return 42 + (opt / 8) * 2;
+
+	return 72 + ((opt - 127) * (kViewDistanceMax - 72)) / (kViewOptMax - 127);
+}
+
+// Bitmap sprite LOD distance. Higher values keep objects as 3D models farther out.
+// This is stored in config.cfg because the legacy trophy format has no spare field.
+inline constexpr int kObjectDetailMin = 24;
+inline constexpr int kObjectDetailMax = 96;
+inline constexpr int kObjectDetailStep = 4;
+inline constexpr int kObjectDetailDefault = 48;
+
+inline int ClampObjectDetail(int value)
+{
+	if (value < kObjectDetailMin) return kObjectDetailMin;
+	if (value > kObjectDetailMax) return kObjectDetailMax;
+	return value;
+}
 
 // Field of view (vertical, degrees) — modder-editable range
 inline constexpr int kFovMin = 50;
@@ -1459,8 +1503,8 @@ _EXTORNOT   DWORD Mask1,Mask2;
 _EXTORNOT   DWORD HeapAllocated, HeapReleased;
 
 
-_EXTORNOT   EPoint VMap[256][256];
-_EXTORNOT   EPoint VMap2[256][256];
+_EXTORNOT   EPoint VMap[kViewGridSize][kViewGridSize];
+_EXTORNOT   EPoint VMap2[kViewGridSize][kViewGridSize];
 _EXTORNOT   EPoint ev[3];
 
 _EXTORNOT   ClipPoint cp[16];
@@ -1637,7 +1681,7 @@ _EXTORNOT BOOL WATERANI,Clouds,SKY,GOURAUD,
           SWIM, FLY, PAUSE, OPTICMODE, BINMODE, EXITMODE, MapMode, RunMode, CrouchMode;
 _EXTORNOT int  CameraFogI;
 _EXTORNOT int OptDayNight, OptAgres, OptDens, OptSens, OptRes, OptViewR,
-          OptMsSens, OptBrightness, OptSound, OptRender,
+          OptMsSens, OptBrightness, OptSound, OptRender, OptObjectDetail,
           OptText, OptSys, WaitKey, OPT_ALPHA_COLORKEY;
 _EXTORNOT int  OptFov;
 _EXTORNOT float UIScale;
