@@ -119,10 +119,8 @@ Vector3d GetFogColor()
         return DecodeFogColor(FogsList[CameraFogI].fogRGB);
     }
 
-    if (FOGON && CurFogColor) {
-        return DecodeFogColor(CurFogColor);
-    }
-
+    // When not in a fog volume, always return the sky color.
+    // CurFogColor is a CalcFogLevel side-effect that can be stale.
     return {
         static_cast<float>(SkyR) / 255.0f,
         static_cast<float>(SkyG) / 255.0f,
@@ -229,26 +227,91 @@ FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog)
         return {0.0f, GetFogColor()};
     }
 
-    // Camera-state gate (C2 transformation of the C1 model-fog
-    // technique). C1 samples CalcFogLevel for every model vertex
-    // and lets a vertex inside a volumetric pocket saturate to 1.0
-    // with the pocket's color, which makes a tree in a green
-    // pocket look solid green when the player walks by in clear
-    // air. C2 has the same per-vertex CalcFogLevel path, but the
-    // C2 fog pockets are world-authored: they only "exist" for
-    // the player when the camera is in one. So we gate the per-
-    // vertex volumetric fog on CAMERAINFOG. Underwater is the
-    // exception -- the underwater volume (FogsList[127]) is the
-    // camera's own volume, so we always apply the underwater
-    // fog there even if the camera cell happens to sit above the
-    // pocket's YBegin (the closest seabed rocks are below the
-    // YBegin in many maps and would otherwise get no fog at all).
-    if (!CAMERAINFOG && !UNDERWATER) {
-        return {0.0f, GetFogColor()};
+    float d = VectorLength(point);
+
+    // Helper: compute fog using the given pocket's parameters.
+    // Mirrors CalcFogLevel's (fla+flb) * distance formula.
+    // fla = vertex depth below pocket's YBegin
+    // flb = camera depth below pocket's YBegin
+    auto computeFog = [&](const TFogEntity& fog, bool& outVinFog) -> float {
+        float fla = -(point.y + CameraY - fog.YBegin * ctHScale) / ctHScale;
+        float flb = -(CameraY - fog.YBegin * ctHScale) / ctHScale;
+
+        if (!outVinFog && fla > 0.0f) fla = 0.0f;
+
+        if (fla < 0.0f && flb < 0.0f) return 0.0f;
+
+        if (fla < 0.0f) { d *= flb / (flb - fla); fla = 0.0f; }
+        if (flb < 0.0f) { d *= fla / (fla - flb); flb = 0.0f; }
+
+        float fl = (fla + flb) * (d + fog.Transp * 0.5f) / fog.Transp;
+        return std::clamp(fl, 0.0f, fog.FLimit);
+    };
+
+    if (UNDERWATER) {
+        const TFogEntity& fog = FogsList[127];
+        bool vinFog = true;
+        float fl = computeFog(fog, vinFog);
+
+        if (fl <= 0.0f) {
+            fl = (d + fog.Transp * 0.5f) / fog.Transp;
+        }
+
+        const float amount = std::clamp(fl / 255.0f, 0.0f, fog.FLimit / 255.0f);
+        const int rgb = fog.fogRGB;
+        return {amount, {
+            static_cast<float>((rgb >> 16) & 0xFF) / 255.0f,
+            static_cast<float>((rgb >> 8) & 0xFF) / 255.0f,
+            static_cast<float>(rgb & 0xFF) / 255.0f
+        }};
     }
 
-    const float amount = std::clamp(CalcFogLevel(point) / 255.0f, 0.0f, 1.0f);
-    return {amount, GetFogColor()};
+    // Camera in a fog pocket: use the camera's pocket for all objects.
+    // This gives uniform distance-based fog from the camera's volume,
+    // preventing cross-pocket contamination where a tree in a green
+    // pocket would turn solid green while the camera is in a blue one.
+    if (CAMERAINFOG && CameraFogI > 0) {
+        const TFogEntity& fog = FogsList[CameraFogI];
+        bool vinFog = true;
+        const float fl = computeFog(fog, vinFog);
+        const float amount = std::clamp(fl / 255.0f, 0.0f, fog.FLimit / 255.0f);
+        return {amount, DecodeFogColor(fog.fogRGB)};
+    }
+
+    // Camera NOT in a fog pocket: check if the VERTEX is inside one.
+    // Objects inside a fog volume should still show fog even when
+    // the camera is looking in from clear air.
+    const int worldX = static_cast<int>(point.x + CameraX);
+    const int worldZ = static_cast<int>(point.z + CameraZ);
+    const int cf = FogsMap[(worldZ >> 9) & 511][(worldX >> 9) & 511];
+    if (cf > 0) {
+        const TFogEntity& fog = FogsList[cf];
+        bool vinFog = true;
+        const float fl = computeFog(fog, vinFog);
+        const float amount = std::clamp(fl / 255.0f, 0.0f, fog.FLimit / 255.0f);
+        if (amount > 0.0f) {
+            return {amount, DecodeFogColor(fog.fogRGB)};
+        }
+    }
+
+    // Distance-only fog: fades all objects (including BMP billboards)
+    // to the sky color at the view horizon. Uses the same ramp as the
+    // terrain shader (50% to 100% of view distance). This masks the
+    // pop-in of distant models the same way terrain triangles are
+    // masked.
+    {
+        const float fogDistance = static_cast<float>(ctViewR) * 256.0f;
+        const float fogFadeStart = static_cast<float>(ctViewR) * 192.0f;
+        const float fadeRange = fogDistance - fogFadeStart;
+        const float distanceFog = std::clamp(
+            (d - fogFadeStart) / (fadeRange > 1.0f ? fadeRange : 1.0f),
+            0.0f, 1.0f);
+        if (distanceFog > 0.0f) {
+            return {distanceFog, GetFogColor()};
+        }
+    }
+
+    return {0.0f, GetFogColor()};
 }
 
 GLRenderer* g_GLRenderer = nullptr;
@@ -469,6 +532,7 @@ bool GLRenderer::Initialize()
         "uniform sampler2DArray uTerrainArray;\n"
         "uniform float uFogDistance;\n"
         "uniform float uFogFadeStart;\n"
+        "uniform vec3 uDistanceFogColor;\n"
         "void main() {\n"
         "   vec4 texColor = texture(uTerrainArray, vec3(vTexCoord, float(vLayer)));\n"
         "   if (texColor.a < 0.05) discard;\n"
@@ -476,12 +540,11 @@ bool GLRenderer::Initialize()
         "   // Per-vertex volumetric fog (volume-specific color and amount).\n"
         "   vec3 volumetricFogColor = mix(litColor, vFogColor, vFog);\n"
         "   // Per-pixel distance fog: smooth ramp from uFogFadeStart to\n"
-        "   // uFogDistance. Gated by vFog so the per-pixel ramp only fills\n"
-        "   // the FLimit cap on vertices already inside a fog volume;\n"
-        "   // clear-air vertices (vFog=0) keep their full texture color,\n"
-        "   // matching the legacy D3D/3DFX behavior.\n"
-        "   float distanceFog = clamp((vViewZ - uFogFadeStart) / max(uFogDistance - uFogFadeStart, 1.0), 0.0, 1.0) * vFog;\n"
-        "   vec3 finalColor = mix(volumetricFogColor, vFogColor, distanceFog);\n"
+        "   // uFogDistance. Uses uDistanceFogColor (sky or camera pocket\n"
+        "   // color) instead of per-vertex vFogColor, which prevents\n"
+        "   // nearby fog volumes from bleeding into the horizon fade.\n"
+        "   float distanceFog = clamp((vViewZ - uFogFadeStart) / max(uFogDistance - uFogFadeStart, 1.0), 0.0, 1.0);\n"
+        "   vec3 finalColor = mix(volumetricFogColor, uDistanceFogColor, distanceFog);\n"
         "   FragColor = vec4(finalColor, texColor.a * vAlpha);\n"
         "}\n";
 
@@ -818,11 +881,13 @@ void GLRenderer::RenderWaterSurface()
     glUniformMatrix4fv(glGetUniformLocation(m_terrainShader, "uProjection"), 1, GL_FALSE, projection.data());
     // Per-pixel distance fog: uFogDistance is the view distance (ctViewR*256
     // in world units); uFogFadeStart is where the per-pixel ramp begins,
-    // 1024 units (4 cells) before that. Between fade-start and distance the
+    // at 75% of the view distance. Between fade-start and distance the
     // terrain blends from the per-vertex volumetric fog color toward the
     // volume's full fog color, smoothing the terrain-to-sky transition.
     glUniform1f(glGetUniformLocation(m_terrainShader, "uFogDistance"), static_cast<float>(ctViewR) * 256.0f);
-    glUniform1f(glGetUniformLocation(m_terrainShader, "uFogFadeStart"), static_cast<float>(ctViewR) * 256.0f - 1024.0f);
+    glUniform1f(glGetUniformLocation(m_terrainShader, "uFogFadeStart"), static_cast<float>(ctViewR) * 192.0f);
+    const Vector3d distFogColor = GetCurrentFogColor();
+    glUniform3f(glGetUniformLocation(m_terrainShader, "uDistanceFogColor"), distFogColor.x, distFogColor.y, distFogColor.z);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);
@@ -1768,37 +1833,68 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
         return;
     }
 
-    std::vector<ModelVertex> vertices;
-    vertices.reserve(6);
+    // Queue into m_worldModelItems instead of drawing immediately.
+    // This ensures BMP models participate in the same depth-sorted
+    // rendering pipeline as regular models. Previously they were
+    // drawn with enableBlend=true (no depth writes), which let
+    // water and other models overdraw them.
+    ModelDrawItem item;
+    item.texture = texture;
+    item.distance = std::sqrt(x0 * x0 + y0 * y0 + z0 * z0);
+    item.additive = false;
 
     const float baseLight = std::clamp(static_cast<float>(light), 0.0f, 255.0f);
     const float alpha = std::clamp((255.0f - static_cast<float>(GlassL)) / 255.0f, 0.0f, 1.0f);
-    const FogSample fog = SampleFogAtPoint({x0, y0, z0}, false);
 
-    auto appendVertex = [&](int index, float u, float v) {
-        Vector3d pos;
-        pos.x = mptr->gVertex[index].x + x0;
-        pos.y = mptr->gVertex[index].y + y0;
-        pos.z = z0;
-        if (pos.z >= -256.0f) {
-            return;
-        }
-        vertices.push_back({pos.x, pos.y, pos.z, u, v, baseLight, fog.amount, fog.color.x, fog.color.y, fog.color.z, alpha, 0.0f});
+    // Unrotate view-space (x0,y0,z0) back to world-relative
+    // coordinates for fog sampling. RotateVector was applied in
+    // RenderMappedObject — we invert it here so SampleFogAtPoint
+    // sees a stable world-space position independent of camera
+    // angle. Regular models do this in BuildModelDrawItem; BMP
+    // models must do it here since they bypass that path.
+    const float ucY = ::cb * y0 + ::sb * z0;
+    const float ucZ = ::cb * z0 - ::sb * y0;
+    const Vector3d worldRel = {
+        ::ca * x0 - ::sa * ucZ,
+        ucY,
+        ::sa * x0 + ::ca * ucZ
+    };
+    const FogSample fog = SampleFogAtPoint(worldRel, false);
+    const bool hasFade = alpha < 0.999f;
+
+    // Visibility check: all 4 billboard corners share the same z.
+    if (z0 >= -256.0f) return;
+
+    // Build two triangles (0-1-2, 0-2-3) for the billboard quad.
+    auto makeVertex = [&](int index, float u, float v) -> ModelVertex {
+        return {
+            mptr->gVertex[index].x + x0,
+            mptr->gVertex[index].y + y0,
+            z0,
+            u, v,
+            baseLight,
+            fog.amount, fog.color.x, fog.color.y, fog.color.z,
+            alpha,
+            hasFade ? 0.0f : 1.0f  // cutout when no fade, opaque when fading
+        };
     };
 
-    appendVertex(0, 0.0f, 0.0f);
-    appendVertex(1, 1.0f, 0.0f);
-    appendVertex(2, 1.0f, 1.0f);
-    appendVertex(0, 0.0f, 0.0f);
-    appendVertex(2, 1.0f, 1.0f);
-    appendVertex(3, 0.0f, 1.0f);
+    const ModelVertex v0 = makeVertex(0, 0.0f, 0.0f);
+    const ModelVertex v1 = makeVertex(1, 1.0f, 0.0f);
+    const ModelVertex v2 = makeVertex(2, 1.0f, 1.0f);
+    const ModelVertex v3 = makeVertex(3, 0.0f, 1.0f);
 
-    if (vertices.size() < 6 || (vertices.size() % 6) != 0) {
-        return;
-    }
+    // When GlassL==0 (no distance fade): use cutoutVertices so the
+    // billboard writes depth (discarding black pixels). This prevents
+    // water and other models from overdraw.
+    // When GlassL>0 (distance fade): use transparentVertices for
+    // alpha blending, sorted back-to-front with other transparent items.
+    auto& target = hasFade ? item.transparentVertices : item.cutoutVertices;
+    target.reserve(6);
+    target.push_back(v0); target.push_back(v1); target.push_back(v2);
+    target.push_back(v0); target.push_back(v2); target.push_back(v3);
 
-    const auto projection = BuildLegacyProjection();
-    DrawModelVertices(texture, vertices, projection, true, true, false);  // standard alpha blend
+    m_worldModelItems.push_back(std::move(item));
 }
 
 void GLRenderer::RenderModel(TModel* mptr, float x0, float y0, float z0,
@@ -2040,10 +2136,10 @@ Vector3d GLRenderer::GetCurrentFogColor()
         return DecodeFogColor(FogsList[CameraFogI].fogRGB);
     }
 
-    if (FOGON && CurFogColor) {
-        return DecodeFogColor(CurFogColor);
-    }
-
+    // When not in a fog volume, always return the sky color.
+    // The previous code fell through to CurFogColor (a CalcFogLevel
+    // side-effect) which could be a stale fog pocket color from a
+    // terrain vertex lookup, causing a color mismatch with the sky.
     return {
         static_cast<float>(SkyR) / 255.0f,
         static_cast<float>(SkyG) / 255.0f,
@@ -2492,7 +2588,9 @@ void GLRenderer::RenderTerrain()
     glUseProgram(m_terrainShader);
     glUniformMatrix4fv(glGetUniformLocation(m_terrainShader, "uProjection"), 1, GL_FALSE, projection.data());
     glUniform1f(glGetUniformLocation(m_terrainShader, "uFogDistance"), static_cast<float>(ctViewR) * 256.0f);
-    glUniform1f(glGetUniformLocation(m_terrainShader, "uFogFadeStart"), static_cast<float>(ctViewR) * 256.0f - 1024.0f);
+    glUniform1f(glGetUniformLocation(m_terrainShader, "uFogFadeStart"), static_cast<float>(ctViewR) * 192.0f);
+    const Vector3d distFogColor2 = GetCurrentFogColor();
+    glUniform3f(glGetUniformLocation(m_terrainShader, "uDistanceFogColor"), distFogColor2.x, distFogColor2.y, distFogColor2.z);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);
