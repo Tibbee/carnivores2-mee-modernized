@@ -2596,6 +2596,11 @@ float GLRenderer::Clamp01(float value)
     return value;
 }
 
+static float VertexDistanceSq(const Vector3d& v)
+{
+    return v.x * v.x + v.y * v.y + v.z * v.z;
+}
+
 bool GLRenderer::IsWaterTriangleValid(const EPoint& v0, const EPoint& v1, const EPoint& v2, float backR)
 {
     // Only cull if ALL vertices are beyond the far plane.
@@ -2609,19 +2614,18 @@ bool GLRenderer::IsWaterTriangleValid(const EPoint& v0, const EPoint& v1, const 
     return true;
 }
 
-static float CalcTerrainAlpha(const EPoint& vertex)
+static float CalcTerrainAlpha(float distanceSq, float fadeStart, float fadeStartSq, float fadeEnd)
 {
     if (UNDERWATER) {
         return 1.0f;
     }
 
-    const float distance = VectorLength(vertex.v);
-    const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
-    if (distance <= fadeStart) {
+    if (distanceSq <= fadeStartSq) {
         return 1.0f;
     }
 
-    const float zz = distance - 256.0f * static_cast<float>(ctViewR - 4);
+    const float distance = std::sqrt(distanceSq);
+    const float zz = distance - fadeEnd;
     if (zz <= 0.0f) {
         return 1.0f;
     }
@@ -2629,14 +2633,17 @@ static float CalcTerrainAlpha(const EPoint& vertex)
     return std::clamp((255.0f - zz / 3.0f) / 255.0f, 0.0f, 1.0f);
 }
 
-float GLRenderer::CalcWaterAlpha(const EPoint& vertex, float zs)
+float GLRenderer::CalcWaterAlpha(const EPoint& vertex, float centerDistanceSq, float fadeStart, float fadeStartSq, float fadeEnd)
 {
     float alpha = Clamp01(vertex.ALPHA / 255.0f);
 
-    if (!UNDERWATER && zs > (ctViewR - 8) * 256.0f) {
-        const float zz = VectorLength(vertex.v) - 256.0f * (ctViewR - 4);
-        if (zz > 0.0f) {
-            alpha = Clamp01((255.0f - zz / 3.0f) / 255.0f);
+    if (!UNDERWATER && centerDistanceSq > fadeStartSq) {
+        const float distanceSq = VertexDistanceSq(vertex.v);
+        if (distanceSq > fadeStartSq) {
+            const float zz = std::sqrt(distanceSq) - fadeEnd;
+            if (zz > 0.0f) {
+                alpha = Clamp01((255.0f - zz / 3.0f) / 255.0f);
+            }
         }
     }
 
@@ -2721,6 +2728,12 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
         return;
     }
 
+    const float viewDistance = static_cast<float>(ctViewR * 256);
+    const float viewDistanceSq = viewDistance * viewDistance;
+    const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
+    const float fadeStartSq = fadeStart * fadeStart;
+    const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
+
     EPoint v00 = VMap[localY][localX];
     if (v00.v.z > backR) {
         return;
@@ -2743,8 +2756,8 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
         return;
     }
 
-    const float zs = std::sqrt(xx * xx + yy * yy + zz * zz);
-    if (zs > ctViewR * 256.0f) {
+    const float distanceSq = xx * xx + yy * yy + zz * zz;
+    if (distanceSq > viewDistanceSq) {
         return;
     }
 
@@ -2754,10 +2767,10 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
     const Vector3d fog10 = GetFogColorForMapPoint(x + 1, y);
     const Vector3d fog01 = GetFogColorForMapPoint(x, y + 1);
     const Vector3d fog11 = GetFogColorForMapPoint(x + 1, y + 1);
-    const float alpha00 = CalcTerrainAlpha(v00);
-    const float alpha10 = CalcTerrainAlpha(v10);
-    const float alpha01 = CalcTerrainAlpha(v01);
-    const float alpha11 = CalcTerrainAlpha(v11);
+    const float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd);
+    const float alpha10 = CalcTerrainAlpha(VertexDistanceSq(v10.v), fadeStart, fadeStartSq, fadeEnd);
+    const float alpha01 = CalcTerrainAlpha(VertexDistanceSq(v01.v), fadeStart, fadeStartSq, fadeEnd);
+    const float alpha11 = CalcTerrainAlpha(VertexDistanceSq(v11.v), fadeStart, fadeStartSq, fadeEnd);
 
     const int textureLayer = TMap1[y][x];
     if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
@@ -2787,6 +2800,12 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
         return;
     }
 
+    const float viewDistance = static_cast<float>(ctViewR * 256);
+    const float viewDistanceSq = viewDistance * viewDistance;
+    const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
+    const float fadeStartSq = fadeStart * fadeStart;
+    const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
+
     EPoint v00 = VMap[localY][localX];
     if (v00.v.z > BackViewR) {
         return;
@@ -2811,8 +2830,8 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
         return;
     }
 
-    const float zs = std::sqrt(xx * xx + yy * yy + zz * zz);
-    if (zs > ctViewR * 256.0f) {
+    const float distanceSq = xx * xx + yy * yy + zz * zz;
+    if (distanceSq > viewDistanceSq) {
         return;
     }
 
@@ -2821,10 +2840,10 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
     const Vector3d fog20 = GetFogColorForMapPoint(x + 2, y);
     const Vector3d fog02 = GetFogColorForMapPoint(x, y + 2);
     const Vector3d fog22 = GetFogColorForMapPoint(x + 2, y + 2);
-    const float alpha00 = CalcTerrainAlpha(v00);
-    const float alpha20 = CalcTerrainAlpha(v20);
-    const float alpha02 = CalcTerrainAlpha(v02);
-    const float alpha22 = CalcTerrainAlpha(v22);
+    const float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd);
+    const float alpha20 = CalcTerrainAlpha(VertexDistanceSq(v20.v), fadeStart, fadeStartSq, fadeEnd);
+    const float alpha02 = CalcTerrainAlpha(VertexDistanceSq(v02.v), fadeStart, fadeStartSq, fadeEnd);
+    const float alpha22 = CalcTerrainAlpha(VertexDistanceSq(v22.v), fadeStart, fadeStartSq, fadeEnd);
 
     if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
         AppendTerrainTriangle(m_terrainVertices, v00, v20, v22, fog00, fog20, fog22, textureLayer, false, false, direction, alpha00, alpha20, alpha22);
@@ -2861,6 +2880,12 @@ void GLRenderer::CollectWaterTile(int x, int y, int r)
         return;
     }
 
+    const float viewDistance = static_cast<float>(ctViewR * 256);
+    const float viewDistanceSq = viewDistance * viewDistance;
+    const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
+    const float fadeStartSq = fadeStart * fadeStart;
+    const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
+
     EPoint v00 = VMap2[localY][localX];
     EPoint v10 = VMap2[localY][localX + 1];
     EPoint v01 = VMap2[localY + 1][localX];
@@ -2874,15 +2899,15 @@ void GLRenderer::CollectWaterTile(int x, int y, int r)
         return;
     }
 
-    const float zs = std::sqrt(xx * xx + yy * yy + zz * zz);
-    if (zs > ctViewR * 256.0f) {
+    const float centerDistanceSq = xx * xx + yy * yy + zz * zz;
+    if (centerDistanceSq > viewDistanceSq) {
         return;
     }
 
-    const float a00 = CalcWaterAlpha(v00, zs);
-    const float a10 = CalcWaterAlpha(v10, zs);
-    const float a01 = CalcWaterAlpha(v01, zs);
-    const float a11 = CalcWaterAlpha(v11, zs);
+    const float a00 = CalcWaterAlpha(v00, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
+    const float a10 = CalcWaterAlpha(v10, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
+    const float a01 = CalcWaterAlpha(v01, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
+    const float a11 = CalcWaterAlpha(v11, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
 
     // Per-corner map-based fog color (mirrors the terrain path in
     // CollectTerrainTile). GetFogColorForMapPoint looks up the active
@@ -2933,6 +2958,12 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
         return;
     }
 
+    const float viewDistance = static_cast<float>(ctViewR * 256);
+    const float viewDistanceSq = viewDistance * viewDistance;
+    const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
+    const float fadeStartSq = fadeStart * fadeStart;
+    const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
+
     EPoint v00 = VMap2[localY][localX];
     EPoint v20 = VMap2[localY][localX + 2];
     EPoint v02 = VMap2[localY + 2][localX];
@@ -2946,15 +2977,15 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
         return;
     }
 
-    const float zs = std::sqrt(xx * xx + yy * yy + zz * zz);
-    if (zs > ctViewR * 256.0f) {
+    const float centerDistanceSq = xx * xx + yy * yy + zz * zz;
+    if (centerDistanceSq > viewDistanceSq) {
         return;
     }
 
-    const float a00 = CalcWaterAlpha(v00, zs);
-    const float a20 = CalcWaterAlpha(v20, zs);
-    const float a02 = CalcWaterAlpha(v02, zs);
-    const float a22 = CalcWaterAlpha(v22, zs);
+    const float a00 = CalcWaterAlpha(v00, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
+    const float a20 = CalcWaterAlpha(v20, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
+    const float a02 = CalcWaterAlpha(v02, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
+    const float a22 = CalcWaterAlpha(v22, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
 
     // Per-corner map-based fog color (far-detail water path; mirrors
     // the near-detail CollectWaterTile and the terrain path in

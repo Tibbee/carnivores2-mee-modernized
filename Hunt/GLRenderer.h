@@ -202,7 +202,7 @@ private:
     static Vector3d GetFogColorForMapPoint(int mapX, int mapY);
     static Vector3d DecodeFogColor(int rgb);
     static bool IsWaterTriangleValid(const EPoint& v0, const EPoint& v1, const EPoint& v2, float backR);
-    static float CalcWaterAlpha(const EPoint& vertex, float zs);
+    static float CalcWaterAlpha(const EPoint& vertex, float centerDistanceSq, float fadeStart, float fadeStartSq, float fadeEnd);
     static float Clamp01(float value);
     static unsigned int Expand1555to8888(unsigned short c);
 
