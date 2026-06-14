@@ -1696,20 +1696,28 @@ void GLRenderer::RenderMappedObject(int x, int y)
         CreateMorphedObject(MObjects[ob].model, MObjects[ob].vtl, RealTime % MObjects[ob].vtl.AniTime);
     }
 
-    if (MObjects[ob].info.flags & ofNOBMP) {
+    bool renderAsBMP = false;
+    if (!(MObjects[ob].info.flags & ofNOBMP)) {
         const float bmpDistanceLimit = ctViewRM * 256.0f;
-        const bool pastDistanceLimit = GlassL > 0 ?
-            zs > bmpDistanceLimit :
-            distanceSq > bmpDistanceLimit * bmpDistanceLimit;
-        if (pastDistanceLimit) {
-            RenderBMPModel(&MObjects[ob].bmpmodel, pos.x, pos.y, pos.z, mlight - 16);
-        } else if (waterclip) {
-            RenderModelClipWater(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
-        } else if (pos.z < -256 * 8) {
-            RenderModel(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
-        } else {
-            RenderModelClip(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+        const float bmpDistanceLimitSq = bmpDistanceLimit * bmpDistanceLimit;
+        if (distanceSq > bmpDistanceLimitSq) {
+            if (GlassL > 0) {
+                renderAsBMP = zs > bmpDistanceLimit;
+            } else {
+                const float distance = static_cast<float>(std::sqrt(distanceSq));
+                renderAsBMP = distance > bmpDistanceLimit;
+            }
         }
+    }
+
+    if (renderAsBMP) {
+        RenderBMPModel(&MObjects[ob].bmpmodel, pos.x, pos.y, pos.z, mlight - 16);
+    } else if (waterclip) {
+        RenderModelClipWater(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+    } else if (pos.z < -256 * 8) {
+        RenderModel(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+    } else {
+        RenderModelClip(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
     }
 }
 
