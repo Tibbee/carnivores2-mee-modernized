@@ -1660,7 +1660,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
     pos.z = y * 256 + 128 - CameraZ;
     pos.y = static_cast<float>(HMapO[y][x]) * ctHScale - CameraY;
 
-    const float zs = VectorLength(pos);
+    const float distanceSq = VectorLengthSq(pos);
     if (pos.y + MObjects[ob].info.YHi < (HMap[y][x] + HMap[y + 1][x + 1]) / 2 * ctHScale - CameraY) {
         return;
     }
@@ -1678,9 +1678,15 @@ void GLRenderer::RenderMappedObject(int x, int y)
     }
 
     pos = RotateVector(pos);
-    GlassL = 0;
-    if (zs > 256 * (ctViewR - 4))
-        GlassL = min(255, static_cast<int>((zs / 4 - 64 * (ctViewR - 4))));
+    float zs = 0.0f;
+    const float fadeStart = 256.0f * (ctViewR - 4);
+    const float fadeStartSq = fadeStart * fadeStart;
+    if (distanceSq > fadeStartSq) {
+        zs = static_cast<float>(std::sqrt(distanceSq));
+        GlassL = (std::min)(255, static_cast<int>((zs - fadeStart) / 4.0f));
+    } else {
+        GlassL = 0;
+    }
     if (GlassL == 255) {
         return;
     }
@@ -1690,19 +1696,20 @@ void GLRenderer::RenderMappedObject(int x, int y)
         CreateMorphedObject(MObjects[ob].model, MObjects[ob].vtl, RealTime % MObjects[ob].vtl.AniTime);
     }
 
-    float renderDistance = zs;
     if (MObjects[ob].info.flags & ofNOBMP) {
-        renderDistance = 0.0f;
-    }
-
-    if (renderDistance > ctViewRM * 256) {
-        RenderBMPModel(&MObjects[ob].bmpmodel, pos.x, pos.y, pos.z, mlight - 16);
-    } else if (waterclip) {
-        RenderModelClipWater(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
-    } else if (pos.z < -256 * 8) {
-        RenderModel(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
-    } else {
-        RenderModelClip(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+        const float bmpDistanceLimit = ctViewRM * 256.0f;
+        const bool pastDistanceLimit = GlassL > 0 ?
+            zs > bmpDistanceLimit :
+            distanceSq > bmpDistanceLimit * bmpDistanceLimit;
+        if (pastDistanceLimit) {
+            RenderBMPModel(&MObjects[ob].bmpmodel, pos.x, pos.y, pos.z, mlight - 16);
+        } else if (waterclip) {
+            RenderModelClipWater(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+        } else if (pos.z < -256 * 8) {
+            RenderModel(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+        } else {
+            RenderModelClip(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+        }
     }
 }
 
@@ -1714,6 +1721,20 @@ void GLRenderer::RenderModelsList()
     m_objectList.clear();
     RenderWorldModels();
 }
+
+static void ApplyGLModelDistanceFade(const Vector3d& rpos)
+{
+    const float distanceSq = VectorLengthSq(rpos);
+    const float fadeStart = 256.0f * (ctViewR - 4);
+    const float fadeStartSq = fadeStart * fadeStart;
+
+    GlassL = 0;
+    if (distanceSq > fadeStartSq) {
+        const float distance = std::sqrt(distanceSq);
+        GlassL = (std::min)(255, static_cast<int>((distance - fadeStart) / 4.0f));
+    }
+}
+
 
 void GLRenderer::Render3DHardwarePosts()
 {
@@ -1821,10 +1842,7 @@ void GLRenderer::Render3DHardwarePosts()
             if (Ship.rpos.z <= BackViewR &&
                 fabs(Ship.rpos.x) <= -Ship.rpos.z + BackViewR) {
                 if (Ship.State != -1) {
-                    GlassL = 0;
-                    float zs = VectorLength(Ship.rpos);
-                    if (zs > 256.0f * (ctViewR - 4))
-                        GlassL = (std::min)(255, static_cast<int>((zs - 256.0f * (ctViewR - 4)) / 4.0f));
+                    ApplyGLModelDistanceFade(Ship.rpos);
 
                     CreateMorphedModel(ShipModel.mptr, &ShipModel.Animation[0], Ship.FTime, 1.0);
 
@@ -1854,10 +1872,7 @@ void GLRenderer::Render3DHardwarePosts()
             if (SShip.rpos.z <= BackViewR &&
                 fabs(SShip.rpos.x) <= -SShip.rpos.z + BackViewR) {
                 if (SShip.State >= 1) {
-                    GlassL = 0;
-                    float zs = VectorLength(SShip.rpos);
-                    if (zs > 256.0f * (ctViewR - 4))
-                        GlassL = (std::min)(255, static_cast<int>((zs - 256.0f * (ctViewR - 4)) / 4.0f));
+                    ApplyGLModelDistanceFade(SShip.rpos);
 
                     CreateMorphedModelBetaGamma(SShipModel.mptr, &SShipModel.Animation[0],
                                                 SShip.FTime, 1.0, SShip.beta, SShip.gamma);
@@ -1888,10 +1903,7 @@ void GLRenderer::Render3DHardwarePosts()
             if (AmmoBag.rpos.z <= BackViewR &&
                 fabs(AmmoBag.rpos.x) <= -AmmoBag.rpos.z + BackViewR) {
                 if (AmmoBag.State >= 1) {
-                    GlassL = 0;
-                    float zs = VectorLength(AmmoBag.rpos);
-                    if (zs > 256.0f * (ctViewR - 4))
-                        GlassL = (std::min)(255, static_cast<int>((zs - 256.0f * (ctViewR - 4)) / 4.0f));
+                    ApplyGLModelDistanceFade(AmmoBag.rpos);
 
                     CreateMorphedModel(BagModel.mptr, &BagModel.Animation[0], AmmoBag.FTime, 1.0);
 
@@ -1922,10 +1934,7 @@ void GLRenderer::Render3DHardwarePosts()
             bullet[b].rpos = RotateVector(bullet[b].rpos);
             if (bullet[b].rpos.z <= BackViewR &&
                 fabs(bullet[b].rpos.x) <= -bullet[b].rpos.z + BackViewR) {
-                GlassL = 0;
-                float zs = VectorLength(bullet[b].rpos);
-                if (zs > 256.0f * (ctViewR - 4))
-                    GlassL = (std::min)(255, static_cast<int>((zs - 256.0f * (ctViewR - 4)) / 4.0f));
+                ApplyGLModelDistanceFade(bullet[b].rpos);
 
                 CreateMorphedModelBetaGamma(Weapon.Bullet[bullet[b].parent].mptr,
                                             &Weapon.Bullet[bullet[b].parent].Animation[0],
