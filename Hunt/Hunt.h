@@ -5,6 +5,7 @@
 #include <ws2tcpip.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <type_traits>
 
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Mswsock.lib")
@@ -15,10 +16,10 @@
 //1.0.6		=6
 //1.0.6.1	=7
 //1.1		=8
-#define MODDERS_EDITION_VERSION_ID	9 //1.1.1
+inline constexpr int MODDERS_EDITION_VERSION_ID = 9; //1.1.1
 
-#define DEFAULT_BUFLEN 512
-#define DEFAULT_PORT "1986"
+inline constexpr int DEFAULT_BUFLEN = 512;
+inline constexpr char DEFAULT_PORT[] = "1986";
 
 #include "math.h"
 #include "windows.h"
@@ -32,17 +33,17 @@
 #include "d3d.h"
 #endif
 
-#define ctHScale  64
-#define PMORPHTIME 256
-#define HiColor(R,G,B) ( ((R)<<10) + ((G)<<5) + (B) )
+inline constexpr int ctHScale = 64;
+inline constexpr int PMORPHTIME = 256;
+inline constexpr int HiColor(int R, int G, int B) { return ((R) << 10) + ((G) << 5) + (B); }
 
 
-#define TCMAX ((128<<16)-62024)
-#define TCMIN ((000<<16)+62024)
+inline constexpr int TCMAX = (128 << 16) - 62024;
+inline constexpr int TCMIN = (000 << 16) + 62024;
 
-#define DINOINFO_MAX	128
-#define TROPHY_COUNT	24
-#define TROPHY2_COUNT	128 //.sab
+inline constexpr int DINOINFO_MAX = 128;
+inline constexpr int TROPHY_COUNT = 24;
+inline constexpr int TROPHY2_COUNT = 128; //.sab
 
 #ifdef _MAIN_
 #define _EXTORNOT
@@ -50,14 +51,14 @@
 #define _EXTORNOT extern
 #endif
 
-#define pi 3.1415926535f
-#define ctMapSize 1024
+inline constexpr float pi = 3.1415926535f;
+inline constexpr int ctMapSize = 1024;
 
 // Field of view (vertical, degrees) — modder-editable range
-#define kFovMin      50
-#define kFovMax      90
-#define kFovStep     2
-#define kFovDefault  62
+inline constexpr int kFovMin = 50;
+inline constexpr int kFovMax = 90;
+inline constexpr int kFovStep = 2;
+inline constexpr int kFovDefault = 62;
 
 // 1.0 / tan(deg * pi / 360) — used to scale the vertical view so the
 // scene keeps its angular size when the FOV option changes.
@@ -66,8 +67,17 @@ inline float FovScaleFromDegrees(int fovDeg)
 	return 1.0f / tanf((float)fovDeg * pi / 360.0f);
 }
 
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#define MAX(a,b) (((a)>(b))?(a):(b))
+template <typename T, typename U>
+inline constexpr std::common_type_t<T, U> MIN(T a, U b)
+{
+	return (a < b) ? a : b;
+}
+
+template <typename T, typename U>
+inline constexpr std::common_type_t<T, U> MAX(T a, U b)
+{
+	return (a > b) ? a : b;
+}
 
 typedef struct tagMessageList
 {
@@ -1493,115 +1503,115 @@ _EXTORNOT   struct _t
 } KeyMap;
 
 
-#define kfForward     0x00000001
-#define kfBackward    0x00000002
-#define kfLeft        0x00000004
-#define kfRight       0x00000008
-#define kfLookUp      0x00000010
-#define kfLookDn      0x00000020
-#define kfJump        0x00000040
-#define kfDown        0x00000080
-#define kfCall        0x00000100
+inline constexpr DWORD kfForward = 0x00000001;
+inline constexpr DWORD kfBackward = 0x00000002;
+inline constexpr DWORD kfLeft = 0x00000004;
+inline constexpr DWORD kfRight = 0x00000008;
+inline constexpr DWORD kfLookUp = 0x00000010;
+inline constexpr DWORD kfLookDn = 0x00000020;
+inline constexpr DWORD kfJump = 0x00000040;
+inline constexpr DWORD kfDown = 0x00000080;
+inline constexpr DWORD kfCall = 0x00000100;
 
-#define kfSLeft       0x00001000
-#define kfSRight      0x00002000
-#define kfStrafe      0x00004000
+inline constexpr DWORD kfSLeft = 0x00001000;
+inline constexpr DWORD kfSRight = 0x00002000;
+inline constexpr DWORD kfStrafe = 0x00004000;
 
-#define fmWater   0x0080
-#define fmWater2  0x8000
-#define fmNOWAY   0x0020
-#define fmReverse 0x0010
+inline constexpr DWORD fmWater = 0x0080;
+inline constexpr DWORD fmWater2 = 0x8000;
+inline constexpr DWORD fmNOWAY = 0x0020;
+inline constexpr DWORD fmReverse = 0x0010;
 
-#define fmWaterA  0x8080
-
-
-#define tresGround 1
-#define tresWater  2
-#define tresModel  3
-#define tresHunter  4
-#define tresChar   5
-
-#define sfDoubleSide         1
-#define sfDarkBack           2
-#define sfOpacity            4
-#define sfTransparent        8
-#define sfMortal        0x0010
-#define sfPhong         0x0030
-#define sfEnvMap        0x0050
-
-#define sfNeedVC        0x0080
-#define sfDark          0x8000
-
-#define ofPLACEWATER       1
-#define ofPLACEGROUND      2
-#define ofPLACEUSER        4
-#define ofCIRCLE           8
-#define ofBOUND            16
-#define ofNOBMP            32
-#define ofNOLIGHT          64
-#define ofDEFLIGHT         128
-#define ofGRNDLIGHT        256
-#define ofNOSOFT           512
-#define ofNOSOFT2          1024
-#define ofANIMATED         0x80000000
-
-#define csONWATER          0x00010000
-#define MAX_HEALTH         128000
-
-#define HUNT_EAT      0
-#define HUNT_BREATH   1
-#define HUNT_FALL     2
-#define HUNT_KILL     3
+inline constexpr DWORD fmWaterA = 0x8080;
 
 
+inline constexpr int tresGround = 1;
+inline constexpr int tresWater = 2;
+inline constexpr int tresModel = 3;
+inline constexpr int tresHunter = 4;
+inline constexpr int tresChar = 5;
+
+inline constexpr DWORD sfDoubleSide = 1;
+inline constexpr DWORD sfDarkBack = 2;
+inline constexpr DWORD sfOpacity = 4;
+inline constexpr DWORD sfTransparent = 8;
+inline constexpr DWORD sfMortal = 0x0010;
+inline constexpr DWORD sfPhong = 0x0030;
+inline constexpr DWORD sfEnvMap = 0x0050;
+
+inline constexpr DWORD sfNeedVC = 0x0080;
+inline constexpr DWORD sfDark = 0x8000;
+
+inline constexpr DWORD ofPLACEWATER = 1;
+inline constexpr DWORD ofPLACEGROUND = 2;
+inline constexpr DWORD ofPLACEUSER = 4;
+inline constexpr DWORD ofCIRCLE = 8;
+inline constexpr DWORD ofBOUND = 16;
+inline constexpr DWORD ofNOBMP = 32;
+inline constexpr DWORD ofNOLIGHT = 64;
+inline constexpr DWORD ofDEFLIGHT = 128;
+inline constexpr DWORD ofGRNDLIGHT = 256;
+inline constexpr DWORD ofNOSOFT = 512;
+inline constexpr DWORD ofNOSOFT2 = 1024;
+inline constexpr DWORD ofANIMATED = 0x80000000;
+
+inline constexpr DWORD csONWATER = 0x00010000;
+inline constexpr int MAX_HEALTH = 128000;
+
+inline constexpr int HUNT_EAT = 0;
+inline constexpr int HUNT_BREATH = 1;
+inline constexpr int HUNT_FALL = 2;
+inline constexpr int HUNT_KILL = 3;
 
 
 
-#define AI_MOSH       1
-#define AI_GALL       2
-#define AI_DIMOR      3
-#define AI_PTERA      4
-#define AI_DIMET      5
-#define AI_PIG        6
 
 
-#define AI_HUNTDOG    9
-
-#define AI_PARA       10
-#define AI_ANKY       11
-#define AI_STEGO      12
-#define AI_ALLO       13
-#define AI_CHASM      14
-#define AI_VELO       15
-#define AI_SPINO      16
-#define AI_CERAT      17
-#define AI_TREX       18
+inline constexpr int AI_MOSH = 1;
+inline constexpr int AI_GALL = 2;
+inline constexpr int AI_DIMOR = 3;
+inline constexpr int AI_PTERA = 4;
+inline constexpr int AI_DIMET = 5;
+inline constexpr int AI_PIG = 6;
 
 
-#define AI_PACH       19
+inline constexpr int AI_HUNTDOG = 9;
 
-#define AI_BRONT      20
-#define AI_HOG        21
-#define AI_WOLF       22
-#define AI_RHINO      23
-#define AI_DEER       24
-#define AI_SMILO      25
-#define AI_MAMM       26
-#define AI_BEAR       27
-
-#define AI_TITAN      28
-#define AI_MICRO      29
+inline constexpr int AI_PARA = 10;
+inline constexpr int AI_ANKY = 11;
+inline constexpr int AI_STEGO = 12;
+inline constexpr int AI_ALLO = 13;
+inline constexpr int AI_CHASM = 14;
+inline constexpr int AI_VELO = 15;
+inline constexpr int AI_SPINO = 16;
+inline constexpr int AI_CERAT = 17;
+inline constexpr int AI_TREX = 18;
 
 
-#define AI_BRACH       30
-#define AI_ICTH        31
-#define AI_FISH        32
-#define AI_MOSA        33
-#define AI_BRACHDANGER 34
-#define AI_LANDBRACH   35
+inline constexpr int AI_PACH = 19;
+
+inline constexpr int AI_BRONT = 20;
+inline constexpr int AI_HOG = 21;
+inline constexpr int AI_WOLF = 22;
+inline constexpr int AI_RHINO = 23;
+inline constexpr int AI_DEER = 24;
+inline constexpr int AI_SMILO = 25;
+inline constexpr int AI_MAMM = 26;
+inline constexpr int AI_BEAR = 27;
+
+inline constexpr int AI_TITAN = 28;
+inline constexpr int AI_MICRO = 29;
 
 
-#define AI_POACHER     8
+inline constexpr int AI_BRACH = 30;
+inline constexpr int AI_ICTH = 31;
+inline constexpr int AI_FISH = 32;
+inline constexpr int AI_MOSA = 33;
+inline constexpr int AI_BRACHDANGER = 34;
+inline constexpr int AI_LANDBRACH = 35;
+
+
+inline constexpr int AI_POACHER = 8;
 
 //#define AI_FINAL	  29 //Last AI of max huntable roster (menu can only display 10)
 
