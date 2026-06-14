@@ -3096,8 +3096,10 @@ void ProcessMap2(int x, int y, int r)
 
   if ( fabs(xx*FOVK) > -zz + BackViewR) return;
 
-  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
-  if (zs>ctViewR*256) return;
+  const float distanceSq = xx*xx + zz*zz + yy*yy;
+  const float viewDistance = ctViewR * 256.0f;
+  if (distanceSq > viewDistance * viewDistance) return;
+  zs = static_cast<int>(sqrt(distanceSq));
 
   d3dSetTexture(Textures[t1]->DataB, 64, 64);
 
@@ -3158,8 +3160,10 @@ void ProcessMapW(int x, int y, int r)
 
   if ( fabs(xx*FOVK) > -zz + BackViewR) return;
 
-  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
-  if (zs > ctViewR*256) return;
+  const float distanceSq = xx*xx + zz*zz + yy*yy;
+  const float viewDistance = ctViewR * 256.0f;
+  if (distanceSq > viewDistance * viewDistance) return;
+  zs = static_cast<int>(sqrt(distanceSq));
 
   if (MIPMAP && (zs > 256 * 10 && t1 || LOWRESTX)) d3dSetTexture(Textures[t1]->DataB, 64, 64);
   else d3dSetTexture(Textures[t1]->DataA, 128, 128);
@@ -3204,8 +3208,10 @@ void ProcessMapW2(int x, int y, int r)
 
   if ( fabs(xx*FOVK) > -zz + BackViewR) return;
 
-  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
-  if (zs > ctViewR*256) return;
+  const float distanceSq = xx*xx + zz*zz + yy*yy;
+  const float viewDistance = ctViewR * 256.0f;
+  if (distanceSq > viewDistance * viewDistance) return;
+  zs = static_cast<int>(sqrt(distanceSq));
 
 
   d3dSetTexture(Textures[t1]->DataB, 64, 64);

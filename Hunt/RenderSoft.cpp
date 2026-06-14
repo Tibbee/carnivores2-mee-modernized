@@ -695,8 +695,10 @@ void ProcessMap2(int x, int y, int r)
 
   if ( fabs(xx) > -zz + BackR) return;
 
-  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
-  if (zs > ctViewR*256) return;
+  const float distanceSq = xx*xx + zz*zz + yy*yy;
+  const float viewDistance = ctViewR * 256.0f;
+  if (distanceSq > viewDistance * viewDistance) return;
+  zs = static_cast<int>(sqrt(distanceSq));
   GlassL = 0;
 
   if (MIPMAP) ts = static_cast<int>(CameraW) * 4 * 128 / zs;
@@ -833,8 +835,10 @@ void ProcessMap(int x, int y, int r)
 
   if ( fabs(xx) > -zz + BackR) return;
 
-  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
-  if (zs > ctViewR*256) return;
+  const float distanceSq = xx*xx + zz*zz + yy*yy;
+  const float viewDistance = ctViewR * 256.0f;
+  if (distanceSq > viewDistance * viewDistance) return;
+  zs = static_cast<int>(sqrt(distanceSq));
 
   GlassL = 0;
 
@@ -951,8 +955,10 @@ void ProcessMapW(int x, int y, int r)
 
   if ( fabs(xx*FOVK) > -zz + BackViewR) return;
 
-  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
-  if (zs > ctViewR*256) return;
+  const float distanceSq = xx*xx + zz*zz + yy*yy;
+  const float viewDistance = ctViewR * 256.0f;
+  if (distanceSq > viewDistance * viewDistance) return;
+  zs = static_cast<int>(sqrt(distanceSq));
 
   GlassL = 0;
 
@@ -1064,8 +1070,10 @@ void ProcessMapW2(int x, int y, int r)
 
   if ( fabs(xx*FOVK) > -zz + BackViewR) return;
 
-  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
-  if (zs > ctViewR*256) return;
+  const float distanceSq = xx*xx + zz*zz + yy*yy;
+  const float viewDistance = ctViewR * 256.0f;
+  if (distanceSq > viewDistance * viewDistance) return;
+  zs = static_cast<int>(sqrt(distanceSq));
 
 
   GlassL = 0;
