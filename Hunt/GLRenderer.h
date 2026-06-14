@@ -75,6 +75,7 @@ public:
     bool IsSoftwareStyle() const override;
 
     void RenderGround();
+    void RenderProjectedShadows();
     void RenderWater();
     void RenderObject(int x, int y);
     void RenderMappedObject(int x, int y);
@@ -125,6 +126,7 @@ private:
     void RenderTerrain();
     void RenderWaterSurface();
     void RenderWorldModels();
+    void RenderProjectedCharacterShadow(const TCharacter& character, float alpha);
     void DrawVertexBatch(const std::vector<TerrainVertex>& vertices) const;
     GLuint UploadModelTexture(TModel* mptr);
     GLuint UploadBMPModelTexture(TBMPModel* mptr);

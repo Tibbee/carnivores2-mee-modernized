@@ -184,6 +184,11 @@ void Render3DHardwarePosts()
     if (g_GLRenderer) g_GLRenderer->Render3DHardwarePosts();
 }
 
+void RenderProjectedShadows()
+{
+    if (g_GLRenderer) g_GLRenderer->RenderProjectedShadows();
+}
+
 void RenderWater()
 {
     if (!g_GLRenderer) return;

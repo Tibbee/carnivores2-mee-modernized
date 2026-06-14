@@ -408,6 +408,8 @@ void DrawScene()
 
   Render3DHardwarePosts();
 
+  RenderProjectedShadows();
+
   if (NeedWater) RenderWater();
 
   RenderElements();

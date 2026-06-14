@@ -1000,6 +1000,7 @@ void wait_mouse_release();
 void ShowControlElements();
 void InsertModelList(TModel* mptr, float x0, float y0, float z0, int light, float al, float bt);
 void RenderGround();
+void RenderProjectedShadows();
 void RenderWater();
 void RenderElements();
 void CreateChRenderList();
