@@ -5195,21 +5195,21 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
+	float tdistSq = targetdx * targetdx + targetdz * targetdz;
 
 	bool pdistMulti = false;
 	int pCh = 1;
-	float pdist[4];
+	float pdistSq[4];
 	float playerdx[4];
 	float playerdz[4];
 	playerdx[0] = PlayerX - cptr->pos.x;
 	playerdz[0] = PlayerZ - cptr->pos.z;
-	pdist[0] = static_cast<float>(sqrt(playerdx[0] * playerdx[0] + playerdz[0] * playerdz[0]));
+	pdistSq[0] = playerdx[0] * playerdx[0] + playerdz[0] * playerdz[0];
 	if (Multiplayer) {
 		//for loop 1 to hunter count
 		playerdx[pCh] = MPlayers[pCh].pos.x - cptr->pos.x;
 		playerdz[pCh] = MPlayers[pCh].pos.z - cptr->pos.z;
-		pdist[pCh] = static_cast<float>(sqrt(playerdx[pCh] * playerdx[pCh] + playerdz[pCh] * playerdz[pCh]));
+		pdistSq[pCh] = playerdx[pCh] * playerdx[pCh] + playerdz[pCh] * playerdz[pCh];
 		pCh += 1;
 		//
 	}
@@ -5230,7 +5230,7 @@ TBEGIN:
 		{
 			pdistMulti = false;
 			for (int pNo = 0; pNo < pCh; pNo++) {
-				if (pdist[pNo] < 2048.f) pdistMulti = true;
+				if (pdistSq[pNo] < 2048.f * 2048.f) pdistMulti = true;
 			}
 			if (pdistMulti) {
 				if (cptr->Clone == AI_GALL) cptr->State = 1;
@@ -5242,7 +5242,7 @@ TBEGIN:
 
 			pdistMulti = true;
 			for (int pNo = 0; pNo < pCh; pNo++) {
-				if (!(pdist[pNo] > 4096.f)) pdistMulti = false;
+				if (!(pdistSq[pNo] > 4096.f * 4096.f)) pdistMulti = false;
 			}
 			if (pdistMulti)
 			{
@@ -5270,7 +5270,7 @@ TBEGIN:
 		cptr->tgtime = 0;
 	}
 
-	if (pdist[0] > (ctViewR + 20) * 256 && cptr->CType)
+	if (pdistSq[0] > ((ctViewR + 20) * 256) * ((ctViewR + 20) * 256) && cptr->CType)
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 
@@ -5280,7 +5280,7 @@ TBEGIN:
 		cptr->AfraidTime = 0;
 		pdistMulti = false;
 		for (int pNo = 0; pNo < pCh; pNo++) {
-			if (pdist[pNo] < 812.f) pdistMulti = true;
+			if (pdistSq[pNo] < 812.f * 812.f) pdistMulti = true;
 		}
 		if (pdistMulti)
 		{
@@ -5293,10 +5293,10 @@ TBEGIN:
 		if (cptr->packId >= 0) {
 			float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 			float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-			float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
+			float leaderdistSq = leaderdx * leaderdx + leaderdz * leaderdz;
 
 			if (cptr->followLeader) {
-				if (leaderdist < cptr->packDensity * 128 * 0.6)
+				if (leaderdistSq < (cptr->packDensity * 128 * 0.6) * (cptr->packDensity * 128 * 0.6))
 				{
 					cptr->followLeader = false;
 					SetNewTargetPlace(cptr, 2048.f);
@@ -5304,7 +5304,7 @@ TBEGIN:
 				}
 			}
 			else {
-				if (leaderdist > cptr->packDensity * 128 * 1.3)
+				if (leaderdistSq > (cptr->packDensity * 128 * 1.3) * (cptr->packDensity * 128 * 1.3))
 				{
 					cptr->followLeader = true;
 				}
@@ -5316,7 +5316,7 @@ TBEGIN:
 			cptr->tgx = Packs[cptr->packId].leader->pos.x;
 			cptr->tgz = Packs[cptr->packId].leader->pos.z;
 		}
-		else if (tdist < 456)
+		else if (tdistSq < 456 * 456)
 		{
 			SetNewTargetPlace(cptr, 2048.f);
 			goto TBEGIN;
@@ -5331,7 +5331,7 @@ TBEGIN:
 	{
 		cptr->tgalpha = CorrectedAlpha(FindVectorAlpha(targetdx, targetdz), cptr->alpha);//FindVectorAlpha(targetdx, targetdz);
 
-		if (cptr->State && pdist[0] > DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
+		if (cptr->State && pdistSq[0] > DinoInfo[cptr->CType].weaveRange * DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
 		{
 			cptr->tgalpha += static_cast<float>(sin(RealTime / 824.f)) / 2.f;
 			if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
