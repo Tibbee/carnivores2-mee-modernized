@@ -1000,7 +1000,9 @@ void wait_mouse_release();
 void ShowControlElements();
 void InsertModelList(TModel* mptr, float x0, float y0, float z0, int light, float al, float bt);
 void RenderGround();
+#ifdef _gl
 void RenderProjectedShadows();
+#endif
 void RenderWater();
 void RenderElements();
 void CreateChRenderList();
@@ -1037,6 +1039,9 @@ void RenderModelClipWater(TModel*, float, float, float, int, int, float, float);
 void RenderModelClip     (TModel*, float, float, float, int, int, float, float);
 void RenderNearModel     (TModel*, float, float, float, int, float, float);
 void DrawPicture         (int x, int y, TPicture &pic);
+#ifdef _gl
+void DrawScaledPicture   (int x, int y, int w, int h, TPicture &pic);
+#endif
 void DrawFlash		 (int x, int y, int w, int h, TPicture &pic);
 
 void InitClips();
@@ -1624,6 +1629,7 @@ _EXTORNOT int OptDayNight, OptAgres, OptDens, OptSens, OptRes, OptViewR,
           OptMsSens, OptBrightness, OptSound, OptRender,
           OptText, OptSys, WaitKey, OPT_ALPHA_COLORKEY;
 _EXTORNOT int  OptFov;
+_EXTORNOT float UIScale;
 _EXTORNOT int  CurRes, ResCount;
 _EXTORNOT TRes ResolutionList[128];
 _EXTORNOT BOOL SHADOWS3D,REVERSEMS;

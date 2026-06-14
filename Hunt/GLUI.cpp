@@ -461,24 +461,46 @@ void DrawPicture(int x, int y, TPicture& pic)
     }
 }
 
+void DrawScaledPicture(int x, int y, int w, int h, TPicture& pic)
+{
+    if (g_GLRenderer) g_GLRenderer->DrawScaledPicture(x, y, w, h, pic);
+}
+
 void DrawFlash(int x, int y, int w, int h, TPicture& pic)
 {
-    // Flash effect: copy raw pixels to lpVideoBuf (no transparency)
-    if (!pic.lpImage || w <= 0 || h <= 0 || !lpVideoBuf) return;
+    // Flash effect: copy raw pixels to lpVideoBuf (no transparency).
+    // When w/h differ from the source picture, nearest-neighbor scale the
+    // destination region so scaled ammo muzzle flashes do not read past the
+    // source bitmap.
+    if (!pic.lpImage || pic.W <= 0 || pic.H <= 0 || w <= 0 || h <= 0 || !lpVideoBuf) return;
+
     WORD* dst = (WORD*)lpVideoBuf;
+    if (w == pic.W && h == pic.H) {
+        for (int yy = 0; yy < h; yy++) {
+            int dstY = yy + y;
+            if (dstY < 0 || dstY >= WinH) continue;
+            int copyW = w;
+            int srcX = 0;
+            int dstX = x;
+            if (dstX < 0) { srcX = -dstX; copyW += dstX; dstX = 0; }
+            if (dstX + copyW > WinW) copyW = WinW - dstX;
+            if (copyW <= 0) continue;
+            const WORD* src = pic.lpImage + yy * pic.W + srcX;
+            WORD* d = dst + dstY * VideoPitch + dstX;
+            memcpy(d, src, copyW * sizeof(WORD));
+        }
+        return;
+    }
+
     for (int yy = 0; yy < h; yy++) {
         int dstY = yy + y;
         if (dstY < 0 || dstY >= WinH) continue;
-        int copyW = w;
-        int srcX = 0;
-        int dstX = x;
-        if (dstX < 0) { srcX = -dstX; copyW += dstX; dstX = 0; }
-        if (dstX + copyW > WinW) copyW = WinW - dstX;
-        if (copyW <= 0) continue;
-        const WORD* src = pic.lpImage + yy * pic.W + srcX;
-        WORD* d = dst + dstY * VideoPitch + dstX;
-        for (int i = 0; i < copyW; i++) {
-            d[i] = Conv565to555(src[i]);
+        int sy = yy * pic.H / h;
+        for (int xx = 0; xx < w; xx++) {
+            int dstX = xx + x;
+            if (dstX < 0 || dstX >= WinW) continue;
+            int sx = xx * pic.W / w;
+            dst[dstY * VideoPitch + dstX] = pic.lpImage[sy * pic.W + sx];
         }
     }
 }

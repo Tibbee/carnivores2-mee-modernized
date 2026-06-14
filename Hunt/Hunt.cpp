@@ -408,7 +408,9 @@ void DrawScene()
 
   Render3DHardwarePosts();
 
+#ifdef _gl
   RenderProjectedShadows();
+#endif
 
   if (NeedWater) RenderWater();
 
@@ -674,15 +676,36 @@ void DrawPostObjects()
     {
       BOOL lr = LOWRESTX;
       LOWRESTX = TRUE;
-      VideoCX = WinW / 5;
-      VideoCY = WinH - (WinH / 3);
-      VideoCY = WinH - (WinH * 10 / 23);
-      CreateMorphedModel(WindModel.mptr, &WindModel.Animation[0], (int)(Wind.speed*50.f), 1.0);
-      RenderNearModel(WindModel.mptr, -10, -37, -96, 192,  CameraAlpha-Wind.alpha,0);
 
-      VideoCX = WinW - (WinW / 5);
-      VideoCY = WinH - (WinH * 10 / 23);
-      RenderNearModel(CompasModel, +8, -38, -96, 192,  CameraAlpha,0);
+      const int hudCenter = WinW / 2;
+      const int hudSpread = (int)((float)WinW / 3.0f * UIScale);
+      const int hudBottomInset = (int)((float)WinH * 0.012f);
+      const int hudY = WinH - (WinH * 10 / 23) - hudBottomInset;
+
+      VideoCX = hudCenter - hudSpread;
+      VideoCY = hudY;
+      CreateMorphedModel(WindModel.mptr, &WindModel.Animation[0], (int)(Wind.speed*50.f), 1.0);
+      {
+        const float savedCW = CameraW;
+        const float savedCH = CameraH;
+        CameraW *= nearModelScale;
+        CameraH *= nearModelScale;
+        RenderNearModel(WindModel.mptr, -10, -37, -96, 192,  CameraAlpha-Wind.alpha,0);
+        CameraW = savedCW;
+        CameraH = savedCH;
+      }
+
+      VideoCX = hudCenter + hudSpread;
+      VideoCY = hudY;
+      {
+        const float savedCW = CameraW;
+        const float savedCH = CameraH;
+        CameraW *= nearModelScale;
+        CameraH *= nearModelScale;
+        RenderNearModel(CompasModel, +8, -38, -96, 192,  CameraAlpha,0);
+        CameraW = savedCW;
+        CameraH = savedCH;
+      }
 
       VideoCX = WinW / 2;
       VideoCY = WinH / 2;
@@ -1017,6 +1040,10 @@ SKIPWEAPON:
 					Chambered[w] = WeapInfo[w].Reload;
 		*/
 
+#ifdef _gl
+      const float uiscale = (float)WinH / 600.0f * UIScale;
+#endif
+
 		int ind = 9;
 		int ch = 1;
 		if (WeapInfo[CurrentWeapon].Reload) ch = WeapInfo[CurrentWeapon].Reload;
@@ -1024,13 +1051,30 @@ SKIPWEAPON:
 		int y2 = Weapon.BulletPic[CurrentWeapon].H + 9;
 		int x1 = 0;
 		int x2 = 0;
+#ifdef _gl
+      const int bulletW = MAX(1, (int)(Weapon.BulletPic[CurrentWeapon].W * uiscale));
+      const int bulletH = MAX(1, (int)(Weapon.BulletPic[CurrentWeapon].H * uiscale));
+      const int chamberW = MAX(1, (int)(Weapon.ChambPic[CurrentWeapon].W * uiscale));
+      const int chamberH = MAX(1, (int)(Weapon.ChambPic[CurrentWeapon].H * uiscale));
+      const int hudGap = (int)(3.0f * uiscale);
+      y0 = (int)(5.0f * uiscale);
+      y1 = y0;
+      y2 = (int)((Weapon.BulletPic[CurrentWeapon].H + 9.0f) * uiscale);
+      ind = (int)(9.0f * uiscale);
+#else
+      const int bulletW = Weapon.BulletPic[CurrentWeapon].W;
+      const int bulletH = Weapon.BulletPic[CurrentWeapon].H;
+      const int chamberW = Weapon.ChambPic[CurrentWeapon].W;
+      const int chamberH = Weapon.ChambPic[CurrentWeapon].H;
+      const int hudGap = 3;
+#endif
 
 		if (wptr->state == 4 || wptr->state == 5) {
 			float d = -cos(pi/2+(pi/2 * ((float)wptr->FTime / (float)wptr->chinfo[CurrentWeapon].Animation[phas].AniTime)));
 			if (WeapInfo[CurrentWeapon].Reload) {
-				x1 -= d * Weapon.BulletPic[CurrentWeapon].W * wptr->ammoIn;
+				x1 -= d * bulletW * wptr->ammoIn;
 				//x2 -= d * ((Weapon.BulletPic[CurrentWeapon].W * wptr->ammoIn) + 3);
-				x2 -= d * ((Weapon.BulletPic[CurrentWeapon].W * (WeapInfo[CurrentWeapon].Reload - Chambered[CurrentWeapon])) + 3);
+				x2 -= d * ((bulletW * (WeapInfo[CurrentWeapon].Reload - Chambered[CurrentWeapon])) + hudGap);
 			} else {
 				d *= (y2 - y1);
 				y1 += d;
@@ -1042,61 +1086,132 @@ SKIPWEAPON:
 			float d = ((float)wptr->FTime / (float)wptr->chinfo[CurrentWeapon].Animation[phas].AniTime);
 			d = 0.5*(1 - cos(pi * ((float)wptr->FTime / (float)wptr->chinfo[CurrentWeapon].Animation[phas].AniTime)));
 			wptr->ammoIn = 1;
-			x1 -= d * Weapon.BulletPic[CurrentWeapon].W * wptr->ammoIn;
-			x2 -= d * ((Weapon.BulletPic[CurrentWeapon].W * wptr->ammoIn) + 3);
+			x1 -= d * bulletW * wptr->ammoIn;
+			x2 -= d * ((bulletW * wptr->ammoIn) + hudGap);
 		}
 
 		if (WeapInfo[CurrentWeapon].picch)
+#ifdef _gl
+			DrawScaledPicture((int)(5.0f * uiscale),
+				(y0 - (int)uiscale) + (bulletH - (chamberH - 2 * (int)uiscale)),
+				chamberW, chamberH,
+				Weapon.ChambPic[CurrentWeapon]);
+#else
 			DrawPicture(5, (y0-1) + (Weapon.BulletPic[CurrentWeapon].H-(Weapon.ChambPic[CurrentWeapon].H-2)),
 				Weapon.ChambPic[CurrentWeapon]);
+#endif
 
 		if (wptr->FlashP) {
 			wptr->FlashP++;
 			if (wptr->FlashP > 4)wptr->FlashP = 0;
+#ifdef _gl
+			else DrawFlash((int)(6.0f * uiscale) + Chambered[CurrentWeapon] * bulletW,
+					y0,
+					bulletW,
+					bulletH,
+					wptr->Flash[wptr->FlashP - 1]
+				);
+#else
 			else DrawFlash(6 + Chambered[CurrentWeapon] * Weapon.BulletPic[CurrentWeapon].W,
 					y0,
 					Weapon.BulletPic[CurrentWeapon].W,
 					Weapon.BulletPic[CurrentWeapon].H,
 					wptr->Flash[wptr->FlashP - 1]
 				);
+#endif
 		}
 
 		for (int bl = 0; bl < Chambered[CurrentWeapon]; bl++)
+#ifdef _gl
+			DrawScaledPicture((int)(6.0f * uiscale) + bl * bulletW, y0, bulletW, bulletH, Weapon.BulletPic[CurrentWeapon]);
+#else
 			DrawPicture(6 + bl * Weapon.BulletPic[CurrentWeapon].W, y0, Weapon.BulletPic[CurrentWeapon]);
+#endif
 
 		for (int bl = 0; bl < ShotsLeft[CurrentWeapon]; bl++) {
+#ifdef _gl
+			if (bl < wptr->ammoIn) DrawScaledPicture(ind + x2 + ch * bulletW + bl * bulletW, y1, bulletW, bulletH, Weapon.BulletPic[CurrentWeapon]);
+			else DrawScaledPicture(ind + x1 + ch * bulletW + bl * bulletW, y1, bulletW, bulletH, Weapon.BulletPic[CurrentWeapon]);
+#else
 			if (bl < wptr->ammoIn) DrawPicture(ind + x2 + ch * Weapon.BulletPic[CurrentWeapon].W + bl * Weapon.BulletPic[CurrentWeapon].W, y1, Weapon.BulletPic[CurrentWeapon]);
 			else DrawPicture(ind + x1 + ch * Weapon.BulletPic[CurrentWeapon].W + bl * Weapon.BulletPic[CurrentWeapon].W, y1, Weapon.BulletPic[CurrentWeapon]);
+#endif
 		}
 
+#ifdef _gl
+	  if (AmmoMag[CurrentWeapon])
+		  for (int bl=0; bl< MagShotsLeft[CurrentWeapon]; bl++)
+			  DrawScaledPicture(ind + ch * bulletW + bl*bulletW, y2, bulletW, bulletH, Weapon.BulletPic[CurrentWeapon]);
+#else
 	  if (AmmoMag[CurrentWeapon])
 		  for (int bl=0; bl< MagShotsLeft[CurrentWeapon]; bl++)
 			  DrawPicture(ind + ch * Weapon.BulletPic[CurrentWeapon].W + bl*Weapon.BulletPic[CurrentWeapon].W, y2, Weapon.BulletPic[CurrentWeapon]);
+#endif
 	}
   }
 
 
   if (TrophyMode)
+#ifdef _gl
+  {
+    const float uiscale = (float)WinH / 600.0f * UIScale;
+    DrawScaledPicture(VideoCX - (int)(TrophyExit.W * uiscale) / 2, 2,
+      (int)(TrophyExit.W * uiscale), (int)(TrophyExit.H * uiscale), TrophyExit);
+  }
+#else
     DrawPicture( VideoCX - TrophyExit.W / 2, 2, TrophyExit);
+#endif
 
   if (EXITMODE) {
+#ifdef _gl
+	  const float uiscale = (float)WinH / 600.0f * UIScale;
+	  const int exitW = (int)(ExitPic.W * uiscale);
+	  const int exitH = (int)(ExitPic.H * uiscale);
+	  DrawScaledPicture((WinW - exitW) / 2, (WinH - exitH) / 2, exitW, exitH, ExitPic);
+#else
 	  DrawPicture((WinW - ExitPic.W) / 2, (WinH - ExitPic.H) / 2, ExitPic);
+#endif
 	  if (SurvivalMode) {
+#ifdef _gl
+		  DrawSurvivalText(
+			  (WinW - exitW) / 2,
+			  (WinH - exitH) / 2
+		  );
+#else
 		  DrawSurvivalText(
 			  (WinW - ExitPic.W) / 2,
 			  (WinH - ExitPic.H) / 2
 		  );
+#endif
 	  }
   }
 
   if (PAUSE)
+#ifdef _gl
+  {
+    const float uiscale = (float)WinH / 600.0f * UIScale;
+    DrawScaledPicture((WinW - (int)(PausePic.W * uiscale)) / 2,
+      (WinH - (int)(PausePic.H * uiscale)) / 2,
+      (int)(PausePic.W * uiscale), (int)(PausePic.H * uiscale), PausePic);
+  }
+#else
     DrawPicture( (WinW - PausePic.W) / 2, (WinH - PausePic.H) / 2, PausePic);
+#endif
 
   if (ScoreDispTime) {
 
+#ifdef _gl
+	  const float uiscale = (float)WinH / 600.0f * UIScale;
+	  const int scoreW = (int)(ScorePic.W * uiscale);
+	  const int scoreH = (int)(ScorePic.H * uiscale);
+	  int x0 = VideoCX - scoreW /2;
+	  int y0 = WinH - scoreH - (int)(12.0f * uiscale);
+	  DrawScaledPicture(x0, y0, scoreW, scoreH, ScorePic);
+#else
 	  int x0 = VideoCX - ScorePic.W /2;
 	  int y0 = WinH - ScorePic.H - 12;
 	  DrawPicture(x0, y0, ScorePic);
+#endif
 	  DrawScoreText(x0, y0);
 
 	  if (ScoreDispTime)
@@ -1110,6 +1225,21 @@ SKIPWEAPON:
 	  if (TrophyMode || TrophyDisplay)
 		  if (TrophyBody != -1 || TrophyDisplay)
 		  {
+#ifdef _gl
+			  const float uiscale = (float)WinH / 600.0f * UIScale;
+			  TPicture *Pic = &TrophyPic;
+			  if (!TrophyMode && (Tranq || Characters[TrophyDisplayC].claimed)) {
+				  Pic = &TrophyNoCollectPic;
+			  }
+			  const int trophyW = (int)(Pic->W * uiscale);
+			  const int trophyH = (int)(Pic->H * uiscale);
+			  int x0 = WinW - trophyW - (int)(16.0f * uiscale);
+			  int y0 = WinH - trophyH - (int)(12.0f * uiscale);
+			  if (!TrophyMode)
+				  x0 = VideoCX - trophyW / 2;
+
+			  DrawScaledPicture(x0, y0, trophyW, trophyH, *Pic);
+#else
 			  TPicture *Pic = &TrophyPic;
 			  if (!TrophyMode && (Tranq || Characters[TrophyDisplayC].claimed)) {
 				  Pic = &TrophyNoCollectPic;
@@ -1120,6 +1250,7 @@ SKIPWEAPON:
 				  x0 = VideoCX - Pic->W / 2;
 
 			  DrawPicture(x0, y0, *Pic);
+#endif
 			  DrawTrophyText(x0, y0);
 
 		  }

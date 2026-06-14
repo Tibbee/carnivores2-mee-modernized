@@ -1604,6 +1604,7 @@ void InitEngine()
   CORRECTION   = TRUE;
   FOGON        = TRUE;
   FOGENABLE    = TRUE;
+  UIScale      = 1.0f;
   Clouds       = TRUE;
   SKY          = TRUE;
   GOURAUD      = TRUE;
@@ -1646,7 +1647,7 @@ void InitEngine()
   result = NULL;
 
   fnt_BIG = CreateFont(
-              23, 10, 0, 0,
+              (int)(23 * UIScale), (int)(10 * UIScale), 0, 0,
               600, 0,0,0,
 #ifdef __rus
               RUSSIAN_CHARSET,
@@ -1659,7 +1660,7 @@ void InitEngine()
 
 
   fnt_Small = CreateFont(
-                16, 7, 0, 0,
+                (int)(16 * UIScale), (int)(7 * UIScale), 0, 0,
 				100, 0,0,0,
 	  
 	  //14, 5, 0, 0,
@@ -1673,7 +1674,7 @@ void InitEngine()
 
 
   fnt_Midd  = CreateFont(
-			    16, 7, 0, 0,
+			    (int)(16 * UIScale), (int)(7 * UIScale), 0, 0,
 	            550, 0, 0, 0,
 #ifdef __rus
                 RUSSIAN_CHARSET,
