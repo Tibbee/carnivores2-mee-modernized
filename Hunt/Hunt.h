@@ -79,62 +79,62 @@ inline constexpr std::common_type_t<T, U> MAX(T a, U b)
 	return (a > b) ? a : b;
 }
 
-typedef struct tagMessageList
+struct TMessageList
 {
   int timeleft;
   char mtext[256];
-} TMessageList;
+};
 
-typedef struct tagTRGB
+struct TRGB
 {
   BYTE B;
   BYTE G;
   BYTE R;
-} TRGB;
+};
 
-typedef struct _Animation
+struct TAni
 {
   char aniName[32];
   int aniKPS, FramesCount, AniTime;
   short int* aniData;
-} TAni;
+};
 
-typedef struct _VTLdata
+struct TVTL
 {
   int aniKPS, FramesCount, AniTime;
   short int* aniData;
-} TVTL;
+};
 
-typedef struct _SoundFX
+struct TSFX
 {
   int  length;
   short int* lpData;
-} TSFX;
+};
 
 
 
-typedef struct _TRD
+struct TRD
 {
   int  RNumber, RVolume, RFreq;
   WORD REnvir, Flags;
-} TRD;
+};
 
-typedef struct _TRes
+struct TRes
 {
   int w, h;
-} TRes;
+};
 
-typedef struct _TAmbient
+struct TAmbient
 {
   TSFX sfx;
   TRD  rdata[16];
   int  RSFXCount;
   int  AVolume;
   int  RndTime;
-} TAmbient;
+};
 
 
-typedef struct TagTEXTURE
+struct TEXTURE
 {
   WORD DataA[128*128];
   WORD DataB[64*64];
@@ -142,39 +142,39 @@ typedef struct TagTEXTURE
   WORD DataD[16*16];
   WORD SDataC[2][32*32];
   int mR, mG, mB;
-} TEXTURE;
+};
 
 
 
-typedef struct _TPicture
+struct TPicture
 {
   int W,H;
   WORD* lpImage;
-} TPicture;
+};
 
 
-typedef struct TagVector3d
+struct Vector3d
 {
   float x,y,z;
-} Vector3d;
+};
 
-typedef struct TagPoint3di
+struct TPoint3di
 {
   int x,y,z;
-} TPoint3di;
+};
 
-typedef struct TagVector2di
+struct Vector2di
 {
   int x,y;
-} Vector2di;
+};
 
-typedef struct TagVector2df
+struct Vector2df
 {
   float x,y;
-} Vector2df;
+};
 
 
-typedef struct TagScrPoint
+struct ScrPoint
 {
 #ifdef _soft
   int   x,y, tx,ty;
@@ -183,52 +183,52 @@ typedef struct TagScrPoint
 #endif
 
   int Light, z, r2, r3;
-} ScrPoint;
+};
 
-typedef struct TagMScrPoint
+struct MScrPoint
 {
   int x,y, tx,ty;
-} MScrPoint;
+};
 
-typedef struct tagClipPlane
+struct CLIPPLANE
 {
   Vector3d v1,v2,nv;
-} CLIPPLANE;
+};
 
 
 
 
 
-typedef struct TagEPoint
+struct EPoint
 {
   Vector3d v;
   WORD DFlags;
   short int ALPHA;
   int  scrx, scry, Light;
   float Fog;
-} EPoint;
+};
 
 
-typedef struct TagClipPoint
+struct ClipPoint
 {
   EPoint ev;
   float tx, ty;
-} ClipPoint;
+};
 
 
 //================= MODEL ========================
-typedef struct _Point3d
+struct TPoint3d
 {
   float x;
   float y;
   float z;
   short owner;
   short hide;
-} TPoint3d;
+};
 
 
 
-typedef struct _Face
+struct TFace
 {
   int v1, v2, v3;
 #ifdef _soft
@@ -239,21 +239,21 @@ typedef struct _Face
   WORD Flags,DMask;
   int Distant, Next, group;
   char reserv[12];
-} TFace;
+};
 
 
-typedef struct _Facef
+struct TFacef
 {
   int v1, v2, v3;
   float tax, tbx, tcx, tay, tby, tcy;
   WORD Flags,DMask;
   int Distant, Next, group;
   char reserv[12];
-} TFacef;
+};
 
 
 
-typedef struct _Obj
+struct TObj
 {
   char OName [32];
   float ox;
@@ -261,10 +261,10 @@ typedef struct _Obj
   float oz;
   short owner;
   short hide;
-} TObj;
+};
 
 
-typedef struct TagMODEL
+struct TModel
 {
   int VCount, FCount, TextureSize, TextureHeight;
   TPoint3d *gVertex;
@@ -279,13 +279,13 @@ typedef struct TagMODEL
 #else
   float*    VLight[4];
 #endif
-} TModel;
+};
 
 
 //=========== END MODEL ==============================//
 
 
-typedef struct _ObjInfo
+struct TObjInfo
 {
   int  Radius;
   int  YLo, YHi;
@@ -297,30 +297,30 @@ typedef struct _ObjInfo
   int  LastAniTime;
   float BoundR;
   BYTE res[16];
-} TObjInfo;
+};
 
-typedef struct _TBMPModel
+struct TBMPModel
 {
   Vector3d  gVertex[4];
   WORD     *lpTexture;
-} TBMPModel;
+};
 
-typedef struct _TBound
+struct TBound
 {
   float cx, cy, a, b,  y1, y2;
-} TBound;
+};
 
-typedef struct TagObject
+struct TObject
 {
   TObjInfo info;
   TBound   bound[8];
   TBMPModel bmpmodel;
   TModel  *model;
   TVTL    vtl;
-} TObject;
+};
 
 
-typedef struct _TCharacterInfo
+struct TCharacterInfo
 {
   char ModelName[32];
   int AniCount,SfxCount;
@@ -328,9 +328,9 @@ typedef struct _TCharacterInfo
   TAni Animation[64];
   TSFX SoundFX[64];
   int  Anifx[64];
-} TCharacterInfo;
+};
 
-typedef struct _TWeapon
+struct TWeapon
 {
   TCharacterInfo chinfo[10];
   TPicture       BulletPic[10];
@@ -347,10 +347,10 @@ typedef struct _TWeapon
   bool HoldBreath;
   int breathPressed;
   int ammoIn;
-} TWeapon;
+};
 
 
-typedef struct _TBullet
+struct TBullet
 {
 	float fallTotal;
 	byte aqState; //0 land //1 aqua //2 min
@@ -362,16 +362,16 @@ typedef struct _TBullet
 	bool cDanger;//damage creature
 	bool enemy;//damage creature
 //	float power, speed, fall;
-} TBullet;
+};
 
-typedef struct _TWCircle
+struct TWCircle
 {
   Vector3d pos;
   float scale;
   int FTime;
-} TWCircle;
+};
 
-typedef struct _TSnowType {
+struct TSnowType  {
 	int snow_vSpd;//vertical
 	int snow_hSpd;//horizontal
 	int snow_dens;//density
@@ -380,16 +380,16 @@ typedef struct _TSnowType {
 	float snow_rad;//radius
 	int addr; //start address in snow particle array
 	int SnCount;//total number of snow particles
-} TSnowType;
+};
 
 
-typedef struct _TSnowElement {
+struct TSnowElement  {
 	Vector3d pos;
 	float hl, ftime;
-} TSnowElement;
+};
 
 
-typedef struct _TCharacter
+struct TCharacter
 {
   int CType, Clone;
   TCharacterInfo *pinfo;
@@ -479,11 +479,11 @@ typedef struct _TCharacter
   //poacher
   int ammo;
 
-} TCharacter;
+};
 
 
 
-typedef struct tagPlayer
+struct TPlayer
 {
   BOOL Active;
   unsigned int IPaddr;
@@ -491,84 +491,84 @@ typedef struct tagPlayer
   float alpha, beta, vspeed;
   int kbState;
   char NickName[16];
-} TPlayer;
+};
 
 
-typedef struct _TDemoPoint
+struct TDemoPoint
 {
   Vector3d pos;
   int DemoTime, CIndex;
-} TDemoPoint;
+};
 
-typedef struct tagLevelDef
+struct TLevelDef
 {
   char FileName[64];
   char MapName[128];
   DWORD DinosAvail;
   WORD *lpMapImage;
-} TLevelDef;
+};
 
 
-typedef struct tagShipTask
+struct TShipTask
 {
   int tcount;
   int clist[255];
-} TShipTask;
+};
 
-typedef struct tagShip
+struct TShip
 {
   Vector3d pos, rpos, tgpos, retpos;
   float alpha, tgalpha, speed, rspeed, DeltaY, beta, gamma, gspeed, bspeed;
   int State, cindex, FTime;
-} TShip;
+};
 
-typedef struct _TBag
+struct TBag
 {
 	Vector3d pos, rpos;
 	int State;
 	int FTime;
-} TBag;
+};
 
-typedef struct _THitBox
+struct THitBox
 {
 	Vector3d pos, rpos;
 	float alpha;
 	int phase;
-} THitBox;
+};
 
 
-typedef struct tagLandingList
+struct TLandingList
 {
   int PCount;
   Vector2di list[64];
-} TLandingList;
+};
 
 
-typedef struct _TPlayerR
+struct TPlayerR
 {
   char PName[128];
   int  RegNumber;
   int  Score, Rank;
-} TPlayerR;
+};
 
-typedef struct _TTrophyItem
+struct TTrophyItem
 {
   int ctype, weapon, phase,
       height, weight, score,
       date, time;
   float scale, range;
   int r1, r2, r3, r4;
-} TTrophyItem;
+};
 
 
-typedef struct _TStats
+struct TStats
 {
   int smade, success;
   float path, time;
-} TStats;
+};
 
 
-typedef struct _TTrophyRoom
+struct TTrophyRoom
 {
   char PlayerName[128];
   int  RegNumber;
@@ -577,30 +577,30 @@ typedef struct _TTrophyRoom
   TStats Last, Total;
 
   TTrophyItem Body[TROPHY_COUNT];
-} TTrophyRoom;
+};
 
 
 
-typedef struct _TTrophyItem2 //Add neccesary stuff here! (later, not now)
+struct TTrophyItem2  //Add neccesary stuff here! (later, not now)
 {
 	int ctype, weapon, phase,
 		height, weight, score,
 		date, time;
 	float scale, range;
 	int r1, r2, r3, r4;
-} TTrophyItem2;
+};
 
 
 
-typedef struct _TTrophyRoom2
+struct TTrophyRoom2
 {
 	int versionID;
 	int survivalHighScore;
 	TTrophyItem2 Body[TROPHY2_COUNT];
-} TTrophyRoom2;
+};
 
 
-typedef struct _TDinoKill
+struct TDinoKill
 {
 	int anim;
 	int offset;
@@ -609,9 +609,9 @@ typedef struct _TDinoKill
 	BOOL elevate, carryCorpse;
 	BOOL dontloop;
 	BOOL scream;
-} TDinoKill;
+};
 
-typedef struct _TTrophyType
+struct TTrophyType
 {
 	int group = -1;
 	int ctype[TROPHY2_COUNT];
@@ -623,28 +623,28 @@ typedef struct _TTrophyType
 	int anim;
 	int trophyPos;
 	bool playAnim;
-} TTrophyType;
+};
 
-typedef struct _TPackMember
+struct TPackMember
 {
 	int ctype;
 	float ratio;
-} TPackMember;
+};
 
-typedef struct _TPackMember2
+struct TPackMember2
 {
 	int packGroup;
 	float ratio;
-} TPackMember2;
+};
 
 
-typedef struct _TSpawnInfo
+struct TSpawnInfo
 {
 	int spawnGroup;//, spawnMax;
 	float spawnRatio;
-} TSpawnInfo;
+};
 
-typedef struct _TPackType
+struct TPackType
 {
 	TSpawnInfo SpawnInfo[32];
 	TPackMember packMember[32];
@@ -652,17 +652,17 @@ typedef struct _TPackType
 	int SpawnInfoCh = 0;
 	int packMax, packMin;
 	float packDensity;
-} TPackType;
+};
 
-typedef struct _TDinoDeathType
+struct TDinoDeathType
 {
 	int die;
 	int sleep;
 	int fall;
 	bool nosleep;
-} TDinoDeathType;
+};
 
-typedef struct _TDinoIdleType
+struct TDinoIdleType
 {
 	int anim[32];
 	int count;
@@ -671,14 +671,14 @@ typedef struct _TDinoIdleType
 	bool endOnAny;
 	bool startOnAny;
 	bool instantRepeat;
-} TDinoIdleType;
+};
 
-typedef struct _TMenuDinoInfo
+struct TMenuDinoInfo
 {
 	TPicture CallIcon;
-} TMenuDinoInfo;
+};
 
-typedef struct _TDinoInfo
+struct TDinoInfo
 {
 	int menuDino = -1;
 
@@ -737,7 +737,7 @@ typedef struct _TDinoInfo
 //  int trophyCode;
 //  int trophyLocTotal1;//CURRENTLY IN SAVE FILE
 //  int trophyLocTotal2;//CURRENTLY IN SESSION - REPLACE WITH tlt1 UPON RESTART
-  
+ 
   bool trophy = false;//counts the number of trophy slots
 //  int tCounter; // used to count off trophy locs
 
@@ -750,17 +750,17 @@ typedef struct _TDinoInfo
   TDinoIdleType idle2Group[32];
   int idle2GroupCount;
 
-  
+ 
   int lookAnim[32];//trex look
   int lookCount;
-  
+ 
   int smellAnim[32]; //icth wateridle   trex smell
   int smellCount;
-  
+ 
 
   int roarAnim[32];
   int roarCount;
-  
+ 
   bool canSwim;
   int waterLevel;
 
@@ -794,18 +794,18 @@ typedef struct _TDinoInfo
   int Weapon;
   int Reload;
 
-} TDinoInfo;
+};
 
-typedef struct _TPack
+struct TPack
 {
 	TCharacter *leader;
 	bool alert;
 	bool _alert;
 	bool attack;
 	bool _attack;
-} TPack;
+};
 
-typedef struct _TAIInfo {
+struct TAIInfo  {
 	float targetDistance;
 	int noWayCntMin;
 	int noFindWayMed;
@@ -831,14 +831,14 @@ typedef struct _TAIInfo {
 
 	bool sniffer;
 
-} TAIInfo;
+};
 
-typedef struct _TSpawnRegion
+struct TSpawnRegion
 {
 	int XMax, YMax, XMin, YMin;
-} TSpawnRegion;
+};
 
-typedef struct _TSpawnGroup
+struct TSpawnGroup
 {
 	int SpawnMax, SpawnMin;
 	float SpawnRate;
@@ -852,10 +852,10 @@ typedef struct _TSpawnGroup
 	int packIndexCh;
 	int packIndex[128];
 	int spawnInfoIndex[128];
-} TSpawnGroup;
+};
 
 
-typedef struct _TWeapInfo
+struct TWeapInfo
 {
 	bool pic2b = false;
 	bool picch = false;
@@ -914,65 +914,65 @@ typedef struct _TWeapInfo
 
   int recoil;
 
-} TWeapInfo;
+};
 
 
-typedef struct _TFogEntity
+struct TFogEntity
 {
   int fogRGB;
   float YBegin;
   BOOL  Mortal;
   float Transp, FLimit;
-} TFogEntity;
+};
 
 
-typedef struct _TWaterEntity
+struct TWaterEntity
 {
   int tindex, wlevel;
   float transp;
   int fogRGB;
-} TWaterEntity;
+};
 
 
-typedef struct _TWind
+struct TWind
 {
   float alpha;
   float speed;
   Vector3d nv;
-} TWind;
+};
 
 
 
 
-typedef struct _TElement
+struct TElement
 {
   Vector3d pos, speed;
   int     Flags;
   float   R;
-} TElement;
+};
 
-typedef struct _TElements
+struct TElements
 {
   int Type, ECount, EDone, LifeTime;
   int Param1, Param2, Param3;
   DWORD RGBA, RGBA2;
   Vector3d pos;
   TElement EList[32];
-} TElements;
+};
 
 
-typedef struct _TBloodP
+struct TBloodP
 {
   int LTime;
   Vector3d pos;
   int Owner;
-} TBloodP;
+};
 
-typedef struct _TBTrail
+struct TBTrail
 {
   int Count;
   TBloodP Trail[512];
-} TBTrail;
+};
 
 
 //============= functions ==========================//
@@ -1302,7 +1302,7 @@ _EXTORNOT int SnowCh;
 _EXTORNOT int TargetDino, TargetArea, TargetWeapon, WeaponPres, TargetCall,
           ObservMode, Tranq, ObjectsOnLook, RenderHitBox,
           CurrentWeapon, ShotsLeft[10], AmmoMag[10],
-	MagShotsLeft[10], Chambered[10], FiringMode[10]; //TrophyTime, 
+	MagShotsLeft[10], Chambered[10], FiringMode[10]; //TrophyTime,
 
 //firing mode 0-semiauto 1-fullauto
 
@@ -1677,13 +1677,13 @@ void Audio_Shutdown();
 void Audio_SetEnvironment(int, float);
 void Audio_UploadGeometry();
 //=================================
-typedef struct tagAudioQuad
+struct AudioQuad
 {
   float x1,y1,z1;
   float x2,y2,z2;
   float x3,y3,z3;
   float x4,y4,z4;
-} AudioQuad;
+};
 _EXTORNOT int AudioFCount;
 _EXTORNOT AudioQuad data[8192];
 _EXTORNOT void UploadGeometry();
