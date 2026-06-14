@@ -146,12 +146,18 @@ void CalcHitPoint(CLIPPLANE& C, Vector3d& a, Vector3d& b, Vector3d& hp)
 }
 
 
-float PointToVectorD(Vector3d A, Vector3d AB, Vector3d C)
+float PointToVectorDSq(Vector3d A, Vector3d AB, Vector3d C)
 {
   Vector3d AC = SubVectors(C,A);
   Vector3d vm;
   MulVectorsVect(AB, AC, vm);
-  return VectorLength(vm);
+  return vm.x*vm.x + vm.y*vm.y + vm.z*vm.z;
+}
+
+
+float PointToVectorD(Vector3d A, Vector3d AB, Vector3d C)
+{
+  return static_cast<float>(sqrt(PointToVectorDSq(A, AB, C)));
 }
 
 
@@ -345,7 +351,7 @@ void TraceModel(int xx, int zz, int o)
   v[0].y = static_cast<float>((HMapO[zz][xx])) * ctHScale;
 
   v[0].y+=700.f;
-  if (PointToVectorD(TraceA, TraceNv, v[0]) >1400.f) return;
+  if (PointToVectorDSq(TraceA, TraceNv, v[0]) > 1400.f * 1400.f) return;
   v[0].y-=700.f;
 
   float malp = static_cast<float>(((FMap[zz][xx] >> 2) & 7)) * 2.f*pi / 8.f;
@@ -378,7 +384,7 @@ void TraceHitBox()
 {
 	THitBox *cptr = &HitBox;
 
-	if (PointToVectorD(TraceA, TraceNv, cptr->pos) > 1024.f) return;
+	if (PointToVectorDSq(TraceA, TraceNv, cptr->pos) > 1024.f * 1024.f) return;
 
 	TModel *mptr = HitBoxModel.mptr;
 	CreateMorphedModel(HitBoxModel.mptr, &HitBoxModel.Animation[HitBox.phase], 0, 1.0);
@@ -412,7 +418,7 @@ void TraceCharacter(int c)
 {
   TCharacter *cptr = &Characters[c];
 
-  if (PointToVectorD(TraceA, TraceNv, cptr->pos) > 1024.f) return;
+  if (PointToVectorDSq(TraceA, TraceNv, cptr->pos) > 1024.f * 1024.f) return;
 
   TModel *mptr = cptr->pinfo->mptr;
   CreateChMorphedModel(cptr);
@@ -531,7 +537,7 @@ int  TraceLook(float ax, float ay, float az,
         MulVectorsScal( SubVectors(v[0], TraceA), TraceNv, s2);
 
         if (s1>0 && s2>0)
-          if (PointToVectorD(TraceA, TraceNvP, v[0]) < 180.f)
+          if (PointToVectorDSq(TraceA, TraceNvP, v[0]) < 180.f * 180.f)
           {
             ObjectsOnLook++;
             if (MObjects[o].info.Radius > 32)	ObjectsOnLook++;
