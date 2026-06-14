@@ -3682,12 +3682,12 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
+	float tdistSq = targetdx * targetdx + targetdz * targetdz;
 
 	float playerdx, playerdz;
 	playerdx = PlayerX - cptr->pos.x - cptr->lookx * 108;
 	playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
-	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
+	float pdistSq = playerdx * playerdx + playerdz * playerdz;
 
 
 
@@ -3712,7 +3712,7 @@ TBEGIN:
 
 		bool fleeMode = false;
 		if (!SurvivalMode) {
-			if (pdist > aDist ||
+			if (pdistSq > aDist * aDist ||
 				DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
 			}
@@ -3729,7 +3729,7 @@ TBEGIN:
 
 		Vector3d tree;
 		cptr->gottaClimb = false;
-		if (pdist > 1000 && !cptr->gliding) {
+		if (pdistSq > 1000 * 1000 && !cptr->gliding) {
 			tree = LookForATree(cptr);
 			if (tree.x) cptr->gottaClimb = true;
 		}
@@ -3780,7 +3780,7 @@ TBEGIN:
 
 
 
-		if (pdist < DinoInfo[cptr->CType].killDist && DinoInfo[cptr->CType].killDist > 0) {
+		if (pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist && DinoInfo[cptr->CType].killDist > 0) {
 			int killAlt = DinoInfo[cptr->CType].waterLevel;
 			if (killAlt < 256) killAlt = 256;
 			if (fabs(PlayerY - cptr->pos.y) < killAlt + 20)
@@ -3819,10 +3819,10 @@ TBEGIN:
 		if (cptr->packId >= 0) {
 			float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 			float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-			float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
+			float leaderdistSq = leaderdx * leaderdx + leaderdz * leaderdz;
 
 			if (cptr->followLeader) {
-				if (leaderdist < cptr->packDensity * 128 * 0.6)
+				if (leaderdistSq < (cptr->packDensity * 128 * 0.6) * (cptr->packDensity * 128 * 0.6))
 				{
 					cptr->followLeader = false;
 					SetNewTargetPlace(cptr, AIInfo[cptr->Clone].targetDistance);
@@ -3830,7 +3830,7 @@ TBEGIN:
 				}
 			}
 			else {
-				if (leaderdist > cptr->packDensity * 128 * 1.3)
+				if (leaderdistSq > (cptr->packDensity * 128 * 1.3) * (cptr->packDensity * 128 * 1.3))
 				{
 					cptr->followLeader = true;
 				}
@@ -3845,7 +3845,7 @@ TBEGIN:
 			cptr->tgx = Packs[cptr->packId].leader->pos.x;
 			cptr->tgz = Packs[cptr->packId].leader->pos.z;
 		}
-		else if (tdist < tdst)
+		else if (tdistSq < tdst * tdst)
 		{
 			SetNewTargetPlace(cptr, AIInfo[cptr->Clone].targetDistance);
 			goto TBEGIN;
@@ -3856,13 +3856,13 @@ TBEGIN:
 	}
 
 NOTHINK:
-	if (pdist < AIInfo[cptr->Clone].pWMin && !cptr->gliding) cptr->NoFindCnt = 0;
+	if (pdistSq < AIInfo[cptr->Clone].pWMin * AIInfo[cptr->Clone].pWMin && !cptr->gliding) cptr->NoFindCnt = 0;
 	if (cptr->NoFindCnt && !cptr->gliding) cptr->NoFindCnt--;
 	else
 	{
 		cptr->tgalpha = CorrectedAlpha(FindVectorAlpha(targetdx, targetdz), cptr->alpha);//FindVectorAlpha(targetdx, targetdz);
 
-		if (cptr->State && (pdist > DinoInfo[cptr->CType].weaveRange || !cptr->gottaClimb) && !DinoInfo[cptr->CType].dontWeave)
+		if (cptr->State && (pdistSq > DinoInfo[cptr->CType].weaveRange * DinoInfo[cptr->CType].weaveRange || !cptr->gottaClimb) && !DinoInfo[cptr->CType].dontWeave)
 		{
 			float rTD;
 			rTD = 824.f;
@@ -4647,11 +4647,11 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
+	float tdistSq = targetdx * targetdx + targetdz * targetdz;
 
 	float playerdx = PlayerX - cptr->pos.x - cptr->lookx * 108;
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
-	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
+	float pdistSq = playerdx * playerdx + playerdz * playerdz;
 	float palpha = FindVectorAlpha(playerdx, playerdz);
 	//if (cptr->State==2) { NewPhase=true; cptr->State=1; }
 
@@ -4730,7 +4730,7 @@ TBEGIN:
 
 
 
-		if (pdist < DinoInfo[cptr->CType].killDist && DinoInfo[cptr->CType].killDist > 0 && MyHealth)
+		if (pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist && DinoInfo[cptr->CType].killDist > 0 && MyHealth)
 		{
 			int killAlt = DinoInfo[cptr->CType].waterLevel;
 			if (killAlt < 256) killAlt = 256;
@@ -4763,7 +4763,7 @@ TBEGIN:
 
 	}
 
-	if (pdist > (ctViewR + 20) * 256)
+	if (pdistSq > ((ctViewR + 20) * 256) * ((ctViewR + 20) * 256))
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 	if (!cptr->State) {
@@ -4772,10 +4772,10 @@ TBEGIN:
 		if (cptr->packId >= 0) {
 			float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 			float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-			float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
+			float leaderdistSq = leaderdx * leaderdx + leaderdz * leaderdz;
 
 			if (cptr->followLeader) {
-				if (leaderdist < cptr->packDensity * 128 * 0.6)
+				if (leaderdistSq < (cptr->packDensity * 128 * 0.6) * (cptr->packDensity * 128 * 0.6))
 				{
 					cptr->followLeader = false;
 					SetNewTargetPlace(cptr, 8048.f);
@@ -4783,7 +4783,7 @@ TBEGIN:
 				}
 			}
 			else {
-				if (leaderdist > cptr->packDensity * 128 * 1.3)
+				if (leaderdistSq > (cptr->packDensity * 128 * 1.3) * (cptr->packDensity * 128 * 1.3))
 				{
 					cptr->followLeader = true;
 				}
@@ -4795,7 +4795,7 @@ TBEGIN:
 			cptr->tgx = Packs[cptr->packId].leader->pos.x;
 			cptr->tgz = Packs[cptr->packId].leader->pos.z;
 		}
-		else if (tdist < 1224)
+		else if (tdistSq < 1224 * 1224)
 		{
 			SetNewTargetPlace(cptr, 8048.f);
 			goto TBEGIN;
@@ -4804,13 +4804,13 @@ TBEGIN:
 
 
 NOTHINK:
-	if (pdist < 2048) cptr->NoFindCnt = 0;
+	if (pdistSq < 2048 * 2048) cptr->NoFindCnt = 0;
 	if (cptr->NoFindCnt) cptr->NoFindCnt--;
 	else
 	{
 		cptr->tgalpha = CorrectedAlpha(FindVectorAlpha(targetdx, targetdz), cptr->alpha);//FindVectorAlpha(targetdx, targetdz);
 
-		if (cptr->State && pdist > DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
+		if (cptr->State && pdistSq > DinoInfo[cptr->CType].weaveRange * DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
 		{
 			cptr->tgalpha += static_cast<float>(sin(RealTime / 824.f)) / 6.f;
 			if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
