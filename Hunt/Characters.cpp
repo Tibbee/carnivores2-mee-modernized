@@ -3011,7 +3011,7 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
+	float tdistSq = targetdx * targetdx + targetdz * targetdz;
 
 	float playerdx, playerdz;
 	if (cptr->Clone == AI_ALLO) {
@@ -3029,7 +3029,7 @@ TBEGIN:
 		playerdz = PlayerZ - cptr->pos.z;
 	}
 
-	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
+	float pdistSq = playerdx * playerdx + playerdz * playerdz;
 
 	
 
@@ -3052,12 +3052,12 @@ TBEGIN:
 			aDist = ctViewR * DinoInfo[cptr->CType].aggress + OptAgres / AIInfo[cptr->Clone].agressMulti;
 		} else {
 			aDist = AIInfo[cptr->Clone].agressMulti * DinoInfo[cptr->CType].aggress + OptAgres / 8;
-			if (pdist < 6000 && cptr->Clone != AI_DEER) cptr->AfraidTime = 8000;
+			if (pdistSq < 6000 * 6000 && cptr->Clone != AI_DEER) cptr->AfraidTime = 8000;
 		}
 
 		bool fleeMode = false;
 		if (!SurvivalMode) {
-			if (pdist > aDist ||
+			if (pdistSq > aDist * aDist ||
 				DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
 			}
@@ -3111,12 +3111,12 @@ TBEGIN:
 
 		if (AIInfo[cptr->Clone].jumper) {
 			if (!(cptr->StateF & csONWATER))
-				if (pdist < 1324 * cptr->scale && pdist>900 * cptr->scale)
+				if (pdistSq < (1324 * cptr->scale) * (1324 * cptr->scale) && pdistSq > (900 * cptr->scale) * (900 * cptr->scale))
 					if (AngleDifference(cptr->alpha, FindVectorAlpha(playerdx, playerdz)) < 0.2f)
 						cptr->Phase = DinoInfo[cptr->CType].jumpAnim;
 		}
 
-		if (pdist < DinoInfo[cptr->CType].killDist && DinoInfo[cptr->CType].killDist > 0) {
+		if (pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist && DinoInfo[cptr->CType].killDist > 0) {
 			int killAlt = DinoInfo[cptr->CType].waterLevel;
 			if (killAlt < 256) killAlt = 256;
 			if (fabs(PlayerY - cptr->pos.y) < killAlt + 20)
@@ -3149,7 +3149,7 @@ TBEGIN:
 	}
 
 
-	if (pdist > (ctViewR + 20) * 256)
+	if (pdistSq > ((ctViewR + 20) * 256) * ((ctViewR + 20) * 256))
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 
@@ -3157,7 +3157,7 @@ TBEGIN:
 	{
 		if (cptr->Clone == AI_VELO || cptr->Clone == AI_CERAT || !AIInfo[cptr->Clone].carnivore) cptr->AfraidTime = 0;
 
-		if (pdist < 1024.f && cptr->Clone == AI_DEER && !ObservMode && !DEBUG) {
+		if (pdistSq < 1024.f * 1024.f && cptr->Clone == AI_DEER && !ObservMode && !DEBUG) {
 			cptr->State = 1;
 			cptr->AfraidTime = (6 + rRand(8)) * 1024;
 			cptr->Phase = DinoInfo[cptr->CType].runAnim;
@@ -3168,10 +3168,10 @@ TBEGIN:
 		if (cptr->packId >= 0) {
 			float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 			float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-			float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
+			float leaderdistSq = leaderdx * leaderdx + leaderdz * leaderdz;
 
 			if (cptr->followLeader) {
-				if (leaderdist < cptr->packDensity * 128 * 0.6)
+				if (leaderdistSq < (cptr->packDensity * 128 * 0.6) * (cptr->packDensity * 128 * 0.6))
 				{
 					cptr->followLeader = false;
 					SetNewTargetPlace(cptr, AIInfo[cptr->Clone].targetDistance);
@@ -3179,7 +3179,7 @@ TBEGIN:
 				}
 			}
 			else {
-				if (leaderdist > cptr->packDensity * 128 * 1.3)
+				if (leaderdistSq > (cptr->packDensity * 128 * 1.3) * (cptr->packDensity * 128 * 1.3))
 				{
 					cptr->followLeader = true;
 				}
@@ -3191,7 +3191,7 @@ TBEGIN:
 			cptr->tgx = Packs[cptr->packId].leader->pos.x;
 			cptr->tgz = Packs[cptr->packId].leader->pos.z;
 		}
-		else if (tdist < 456)
+		else if (tdistSq < 456 * 456)
 		{
 			SetNewTargetPlace(cptr, AIInfo[cptr->Clone].targetDistance);
 			goto TBEGIN;
@@ -3202,7 +3202,7 @@ TBEGIN:
 	}
 
 NOTHINK:
-	if (pdist < AIInfo[cptr->Clone].pWMin && (AIInfo[cptr->Clone].carnivore || AIInfo[cptr->Clone].iceAge)) cptr->NoFindCnt = 0;
+	if (pdistSq < AIInfo[cptr->Clone].pWMin * AIInfo[cptr->Clone].pWMin && (AIInfo[cptr->Clone].carnivore || AIInfo[cptr->Clone].iceAge)) cptr->NoFindCnt = 0;
 	if (cptr->NoFindCnt) cptr->NoFindCnt--;
 	else
 	{
@@ -3225,7 +3225,7 @@ NOTHINK:
 
 		//if (!AIInfo[cptr->Clone].carnivore || AIInfo[cptr->Clone].iceAge) weaveCondition = weaveCondition && cptr->AfraidTime;
 
-		if (cptr->State && pdist > DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
+		if (cptr->State && pdistSq > DinoInfo[cptr->CType].weaveRange * DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
 		{
 			float rTD;
 			if (AIInfo[cptr->Clone].carnivore && !AIInfo[cptr->Clone].iceAge) {
@@ -4336,12 +4336,12 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
+	float tdistSq = targetdx * targetdx + targetdz * targetdz;
 
 	float playerdx = PlayerX - cptr->pos.x;
 	float playerdz = PlayerZ - cptr->pos.z;
 
-	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
+	float pdistSq = playerdx * playerdx + playerdz * playerdz;
 
 
 	if (GetLandUpH(cptr->pos.x, cptr->pos.z) - GetLandH(cptr->pos.x, cptr->pos.z) > DinoInfo[cptr->CType].waterLevel * cptr->scale)
@@ -4359,7 +4359,7 @@ TBEGIN:
 		cptr->tgz = PlayerZ;
 		cptr->tgtime = 0;
 
-		if (pdist < 3 * 256) {
+		if (pdistSq < (3 * 256) * (3 * 256)) {
 			cptr->State = 0;
 			SetNewTargetPlace(cptr, 8048.f);
 		}
@@ -4373,19 +4373,19 @@ TBEGIN:
 			cptr->State = 2;
 		} else {
 
-			if (tdist < 456)
+			if (tdistSq < 456 * 456)
 			{
 				SetNewTargetPlace(cptr, 8048.f);
 				goto TBEGIN;
 			}
 
-			if (pdist > 4 * 256) {
+			if (pdistSq > (4 * 256) * (4 * 256)) {
 				cptr->tgx = PlayerX;
 				cptr->tgz = PlayerZ;
 				cptr->tgtime = 0;
 			}
 
-			if (pdist > 8 * 256) {
+			if (pdistSq > (8 * 256) * (8 * 256)) {
 				cptr->State = 1;
 			}
 
@@ -4395,11 +4395,11 @@ TBEGIN:
 
 	if (cptr->State == 2) {
 
-		if (pdist > 17 * 256) {
+		if (pdistSq > (17 * 256) * (17 * 256)) {
 			cptr->State = 1;
 		}
 
-		if (tdist < 456 || !Characters[cptr->dogPrey].Health)
+		if (tdistSq < 456 * 456 || !Characters[cptr->dogPrey].Health)
 		{
 			if (!huntDogSearch(cptr)) {
 				cptr->State = 0;

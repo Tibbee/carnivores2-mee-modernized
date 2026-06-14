@@ -256,11 +256,19 @@ void CheckCollision(float &cx, float &cz)
         }
         else if (MObjects[ob].info.flags & ofCIRCLE)
         {
-          float r = static_cast<float>(sqrt( (ox-cx)*(ox-cx) + (oz-cz)*(oz-cz) ));
-          if (r<CR)
+          float dx = ox - cx;
+          float dz = oz - cz;
+          float distSq = dx * dx + dz * dz;
+          float crSq = CR * CR;
+          if (distSq < crSq)
           {
-            cx = cx - (ox - cx) * (CR-r)/r;
-            cz = cz - (oz - cz) * (CR-r)/r;
+            float r = static_cast<float>(sqrt(distSq));
+            if (r > 0.0f)
+            {
+              float push = (CR - r) / r;
+              cx = cx - dx * push;
+              cz = cz - dz * push;
+            }
           }
         }
         else
@@ -282,11 +290,19 @@ void CheckCollision(float &cx, float &cz)
     float px = Characters[c].pos.x;
     float pz = Characters[c].pos.z;
     float CR = DinoInfo[ Characters[c].CType ].Radius;
-    float r = static_cast<float>(sqrt( (px-cx)*(px-cx) + (pz-cz)*(pz-cz) ));
-    if (r<CR)
+    float dx = px - cx;
+    float dz = pz - cz;
+    float distSq = dx * dx + dz * dz;
+    float crSq = CR * CR;
+    if (distSq < crSq)
     {
-      cx = cx - (px - cx) * (CR-r)/r;
-      cz = cz - (pz - cz) * (CR-r)/r;
+      float r = static_cast<float>(sqrt(distSq));
+      if (r > 0.0f)
+      {
+        float push = (CR - r) / r;
+        cx = cx - dx * push;
+        cz = cz - dz * push;
+      }
     }
 
   }

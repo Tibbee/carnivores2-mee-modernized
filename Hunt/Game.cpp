@@ -1894,15 +1894,19 @@ void MakeCall()
   sendHunterCall = TargetCall - 10;
   sendHunterCallType = NextCall;
 
-  float dmin = 512*256;
+  float dminSq = (512 * 256) * (512 * 256);
   int ai = -1;
 
   for (int c=0; c<ChCount; c++)
   {
     TCharacter *cptr = &Characters[c];
 
-	float d = VectorLength(SubVectors(PlayerPos, cptr->pos));
-	bool canHear = d < (ctViewR * 400)  * (DinoInfo[cptr->CType].HearK * 2);
+	float dx = PlayerX - cptr->pos.x;
+	float dy = PlayerY - cptr->pos.y;
+	float dz = PlayerZ - cptr->pos.z;
+	float dSq = dx * dx + dy * dy + dz * dz;
+	float hearRange = (ctViewR * 400) * (DinoInfo[cptr->CType].HearK * 2);
+	bool canHear = dSq < hearRange * hearRange;
 
 	if (DinoInfo[cptr->CType].fearCall[TargetCall-10] && canHear
 		&& DinoInfo[cptr->CType].Clone != AI_DIMOR && DinoInfo[cptr->CType].Clone != AI_PTERA
@@ -1929,9 +1933,9 @@ void MakeCall()
     if (canHear)
     {
       if (rRand(128) > 32)
-        if (d<dmin)
+        if (dSq<dminSq)
         {
-          dmin = d;
+          dminSq = dSq;
           ai = c;
         }
       cptr->tgx = PlayerX + siRand(1800);
