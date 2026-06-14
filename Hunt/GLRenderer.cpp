@@ -2172,8 +2172,11 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
         rVertex[s].z = (vz * cb + mptr->gVertex[s].y * sb) + z0;
     }
 
-    glClear(GL_DEPTH_BUFFER_BIT);
     const auto projection = BuildLegacyProjection();
+    m_lastNearModelProjection = projection;
+    m_hasLastNearModelProjection = true;
+
+    glClear(GL_DEPTH_BUFFER_BIT);
     DrawModelVertices(item.texture, item.opaqueVertices, projection, true, false, false);
     if (!item.cutoutVertices.empty()) {
         SetModelTextureFiltering(item.texture, true);
@@ -2221,7 +2224,9 @@ void GLRenderer::RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float
         return;
     }
 
-    const auto projection = BuildLegacyProjection();
+    const auto projection = m_hasLastNearModelProjection
+        ? m_lastNearModelProjection
+        : BuildLegacyProjection();
     DrawModelVertices(texture, vertices, projection, true, true, true, true);
 }
 
@@ -2247,7 +2252,9 @@ void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z
         return;
     }
 
-    const auto projection = BuildLegacyProjection();
+    const auto projection = m_hasLastNearModelProjection
+        ? m_lastNearModelProjection
+        : BuildLegacyProjection();
     DrawModelVertices(texture, vertices, projection, true, true, true, true);
 }
 

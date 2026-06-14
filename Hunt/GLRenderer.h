@@ -220,6 +220,8 @@ private:
     unsigned int m_whiteTexture = 0;  // 1x1 white texture for flat-color rendering
     unsigned int m_phongTexture = 0;
     unsigned int m_envTexture = 0;
+    bool m_hasLastNearModelProjection = false;
+    std::array<float, 16> m_lastNearModelProjection{};
     std::map<const TModel*, GLuint> m_modelTextureCache;
     std::map<const TBMPModel*, GLuint> m_bmpTextureCache;
     std::map<GLuint, bool> m_modelTextureFilterState;
