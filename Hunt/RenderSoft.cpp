@@ -158,7 +158,7 @@ void _RenderObject(int x, int y)
   v[0].z = y*256+128 - CameraZ;
   v[0].y = static_cast<float>((HMapO[y][x])) * ctHScale - CameraY;
 
-  waterclip = FALSE;
+  waterclip = false;
 
   if (!UNDERWATER)
     if (FMap[y][x] & fmWaterA)
@@ -171,7 +171,7 @@ void _RenderObject(int x, int y)
         waterclipbase  = v[0];
         waterclipbase.y = WaterList[ WMap[y][x] ].wlevel * ctHScale - CameraY;
         waterclipbase = RotateVector(waterclipbase);
-        waterclip = TRUE;
+        waterclip = true;
       }
 
 
@@ -497,7 +497,7 @@ void RenderChList(int r)
 
 void ProcessWaterMap(int x, int y, int r)
 {
-  //WATERREVERSE = TRUE;
+  //WATERREVERSE = true;
   ReverseOn = (FMap[y][x] & fmReverse);
   TDirection = (FMap[y][x] & 3);
 
@@ -524,8 +524,8 @@ void ProcessWaterMap(int x, int y, int r)
   HLineT = (void*) HLineTBGlass25;
 
   if (!t1)
-    if (r>4) DrawTPlane(FALSE);
-    else DrawTPlaneClip(FALSE);
+    if (r>4) DrawTPlane(false);
+    else DrawTPlaneClip(false);
 
   if (ReverseOn)
   {
@@ -542,8 +542,8 @@ void ProcessWaterMap(int x, int y, int r)
 
 
   if (!t2)
-    if (r>4) DrawTPlane(TRUE);
-    else DrawTPlaneClip(TRUE);
+    if (r>4) DrawTPlane(true);
+    else DrawTPlaneClip(true);
 }
 
 
@@ -570,7 +570,7 @@ void RenderGround()
 
   for (r=ctViewR; r>=ctViewR1-2; r-=2)
   {
-    if (r<ctViewR1) LockWater = TRUE;
+    if (r<ctViewR1) LockWater = true;
     for (int x=r; x>0; x-=2)
     {
       ProcessMap2(CCX-x, CCY+r, r);
@@ -597,7 +597,7 @@ void RenderGround()
     RenderChList(r-1);
   }
 
-  LockWater = FALSE;
+  LockWater = false;
 
   r = ctViewR1-1;
   for (int x=r; x>-r; x--)
@@ -662,7 +662,7 @@ void RenderObject(int x, int y)
 
 void ProcessMap2(int x, int y, int r)
 {
-  //WATERREVERSE = FALSE;
+  //WATERREVERSE = false;
   if (x>=ctMapSize-1 || y>=ctMapSize-1 ||
       x<0 || y<0) return;
 
@@ -676,7 +676,7 @@ void ProcessMap2(int x, int y, int r)
   int t1 = TMap2[y][x];
   int hw = WaterList[ WMap[y][x] ].wlevel-1;
 
-  ReverseOn = FALSE;
+  ReverseOn = false;
   TDirection = ((FMap[y][x]>>8) & 3);
 
 
@@ -743,7 +743,7 @@ void ProcessMap2(int x, int y, int r)
       if ( (HMap[_y][_x]<hw) && (HMap[_y][_x+2]<hw) && (HMap[_y+2][_x+1]<hw) )   goto S1;
     }
 
-  DrawTPlane(FALSE);
+  DrawTPlane(false);
 
 S1:
 
@@ -768,7 +768,7 @@ S1:
     ev[2] = VMap[y+2][x];
   }
 
-  DrawTPlane(TRUE);
+  DrawTPlane(true);
 S2:
 
   x = x + CCX - 128;
@@ -870,8 +870,8 @@ void ProcessMap(int x, int y, int r)
       }
 
 
-  if (r>6) DrawTPlane(FALSE);
-  else DrawTPlaneClip(FALSE);
+  if (r>6) DrawTPlane(false);
+  else DrawTPlaneClip(false);
 S1:
   if (ReverseOn)
   {
@@ -895,8 +895,8 @@ S1:
         if ( (HMap[_y][_x]<hw) || (HMap[_y+1][_x+1]<hw) || (HMap[_y+1][_x]<hw) )   goto S2;
       }
 
-  if (r>6) DrawTPlane(TRUE);
-  else DrawTPlaneClip(TRUE);
+  if (r>6) DrawTPlane(true);
+  else DrawTPlaneClip(true);
 S2:
   x = x + CCX - 128;
   y = y + CCY - 128;
@@ -930,7 +930,7 @@ void ProcessMapW(int x, int y, int r)
 
   ReverseOn = (FMap[y][x] & fmReverse);
   TDirection = 0;
-//   if ( (HMap[y][x]>hw) || (HMap[y+1][x+1]>hw) ) ReverseOn = TRUE;
+//   if ( (HMap[y][x]>hw) || (HMap[y+1][x+1]>hw) ) ReverseOn = true;
 
 
 
@@ -994,8 +994,8 @@ void ProcessMapW(int x, int y, int r)
     if ( (HMap[_y][_x]>hw) || (HMap[_y][_x+1]>hw) || (HMap[_y+1][_x+1]>hw) )   goto S1;
   }
 
-  if (r>6) DrawTPlane(FALSE);
-  else DrawTPlaneClip(FALSE);
+  if (r>6) DrawTPlane(false);
+  else DrawTPlaneClip(false);
 S1:
   if (ReverseOn)
   {
@@ -1017,10 +1017,10 @@ S1:
     if ( (HMap[_y][_x]>hw) || (HMap[_y+1][_x+1]>hw) || (HMap[_y+1][_x]>hw) )   goto S2;
   }
 
-  if (r>6) DrawTPlane(TRUE);
-  else DrawTPlaneClip(TRUE);
+  if (r>6) DrawTPlane(true);
+  else DrawTPlaneClip(true);
 S2:
-  WATERREVERSE = FALSE;
+  WATERREVERSE = false;
 }
 
 
@@ -1044,7 +1044,7 @@ void ProcessMapW2(int x, int y, int r)
 
 // ReverseOn = (FMap[y][x] & fmReverse);
   TDirection = 0;
-  if ( (HMap[y][x]>hw) || (HMap[y+2][x+2]>hw) ) ReverseOn = TRUE;
+  if ( (HMap[y][x]>hw) || (HMap[y+2][x+2]>hw) ) ReverseOn = true;
 
 
   int _x = x;
@@ -1097,8 +1097,8 @@ void ProcessMapW2(int x, int y, int r)
     if ( (HMap[_y][_x]>hw) && (HMap[_y][_x+2]>hw) && (HMap[_y+2][_x+2]>hw) )   goto S1;
   }
 
-  if (r>6) DrawTPlane(FALSE);
-  else DrawTPlaneClip(FALSE);
+  if (r>6) DrawTPlane(false);
+  else DrawTPlaneClip(false);
 S1:
   if (ReverseOn)
   {
@@ -1120,10 +1120,10 @@ S1:
     if ( (HMap[_y][_x]>hw) && (HMap[_y+2][_x+2]>hw) && (HMap[_y+2][_x]>hw) )   goto S2;
   }
 
-  if (r>6) DrawTPlane(TRUE);
-  else DrawTPlaneClip(TRUE);
+  if (r>6) DrawTPlane(true);
+  else DrawTPlaneClip(true);
 S2:
-  WATERREVERSE = FALSE;
+  WATERREVERSE = false;
 }
 
 void ClipVector(CLIPPLANE& C, int vn)
@@ -1873,14 +1873,14 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
   HLineT = (void*) HLineTxModel;
   lpTextureAddr = (void*) mptr->lpTexture;
 
-  BOOL BL = FALSE;
+  BOOL BL = false;
   for (int s=0; s<mptr->VCount; s++)
   {
     rVertex[s].x = (mptr->gVertex[s].x * ca + mptr->gVertex[s].z * sa)   + x0;
     float vz = mptr->gVertex[s].z * ca - mptr->gVertex[s].x * sa;
     rVertex[s].y = (mptr->gVertex[s].y * cb - vz * sb) + y0;
     rVertex[s].z = (vz * cb + mptr->gVertex[s].y * sb) + z0;
-    if (rVertex[s].z<0) BL=TRUE;
+    if (rVertex[s].z<0) BL=true;
 
     if (rVertex[s].z>-64)
     {
@@ -2091,7 +2091,7 @@ void RenderModelClipWater(TModel* _mptr, float x0, float y0, float z0, int light
 
 
 
-  BOOL BL = FALSE;
+  BOOL BL = false;
   float sg;
   for (int s=0; s<mptr->VCount; s++)
   {
@@ -2105,7 +2105,7 @@ void RenderModelClipWater(TModel* _mptr, float x0, float y0, float z0, int light
     if (sg>=0) gScrp[s].x = 0;
     else gScrp[s].x=1;
 
-    if (rVertex[s].z<0) BL=TRUE;
+    if (rVertex[s].z<0) BL=true;
   }
 
   if (!BL) return;
@@ -2420,14 +2420,14 @@ void RenderNearModel(TModel* _mptr, float x0, float y0, float z0, int light, flo
   HLineT = (void*) HLineTxModel;
   lpTextureAddr = (void*) mptr->lpTexture;
 
-  BOOL BL = FALSE;
+  BOOL BL = false;
   for (int s=0; s<mptr->VCount; s++)
   {
     rVertex[s].x = (mptr->gVertex[s].x * ca + mptr->gVertex[s].z * sa)   + x0;
     float vz = mptr->gVertex[s].z * ca - mptr->gVertex[s].x * sa;
     rVertex[s].y = (mptr->gVertex[s].y * cb - vz * sb) + y0;
     rVertex[s].z = (vz * cb + mptr->gVertex[s].y * sb) + z0;
-    if (rVertex[s].z<0) BL=TRUE;
+    if (rVertex[s].z<0) BL=true;
   }
 
   if (!BL) return;
@@ -2518,7 +2518,7 @@ void RenderCharacter(TCharacter *cptr)
 
 
   float wh = GetLandUpH(cptr->pos.x, cptr->pos.z);
-  waterclip = FALSE;
+  waterclip = false;
 
   if (!UNDERWATER)
     if (wh > cptr->pos.y + 32*2)
@@ -2527,7 +2527,7 @@ void RenderCharacter(TCharacter *cptr)
       waterclipbase.y = wh - CameraY;
       waterclipbase.z = cptr->pos.z - CameraZ;
       waterclipbase = RotateVector(waterclipbase);
-      waterclip = TRUE;
+      waterclip = true;
     }
 
 
@@ -2881,13 +2881,13 @@ void DrawHMap()
 
 					if (pd < 38) {
 						if (pd >= _sonarPos && pd <= sonarPos) {
-							Characters[c].showSonar = TRUE;
+							Characters[c].showSonar = true;
 							Characters[c].sonar.x = xx;
 							Characters[c].sonar.y = yy;
 							AddVoicev(fxBlip.length, fxBlip.lpData, 256);
 						}
 					}
-					else Characters[c].showSonar = FALSE;
+					else Characters[c].showSonar = false;
 
 					if (Characters[c].showSonar && !Characters[c].RTime) {
 						if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery(static_cast<WORD*>(lpVideoBuf), Characters[c].sonar.x, Characters[c].sonar.y, DinoInfo[Characters[c].CType].radarColour555);
@@ -3334,7 +3334,7 @@ void Init3DHardware()
 
   PrintLog("Direct Draw activated.\n");
   PrintLog("\n");
-  DirectActive = TRUE;
+  DirectActive = true;
 }
 
 

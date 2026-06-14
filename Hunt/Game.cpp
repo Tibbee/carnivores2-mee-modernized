@@ -320,7 +320,7 @@ BOOL PointOnBound(float &H, float px, float py, float cx, float cy, float oy, TB
   float ca = static_cast<float>(cos(angle*pi / 2.f));
   float sa = static_cast<float>(sin(angle*pi / 2.f));
 
-  BOOL _on = FALSE;
+  BOOL _on = false;
   H=-1000;
 
   for (int o=0; o<8; o++)
@@ -346,7 +346,7 @@ BOOL PointOnBound(float &H, float px, float py, float cx, float cy, float oy, TB
 
     if ( ( fabs(px - ccx) < a) &&  (fabs(py - ccy) < b) )
     {
-      _on=TRUE;
+      _on=true;
       if (H < bound[o].y2) H = bound[o].y2;
     }
   }
@@ -364,7 +364,7 @@ BOOL PointUnBound(float &H, float px, float py, float cx, float cy, float oy, TB
   float ca = static_cast<float>(cos(angle*pi / 2.f));
   float sa = static_cast<float>(sin(angle*pi / 2.f));
 
-  BOOL _on = FALSE;
+  BOOL _on = false;
   H=+1000;
 
   for (int o=0; o<8; o++)
@@ -390,7 +390,7 @@ BOOL PointUnBound(float &H, float px, float py, float cx, float cy, float oy, TB
 
     if ( ( fabs(px - ccx) < a) &&  (fabs(py - ccy) < b) )
     {
-      _on=TRUE;
+      _on=true;
       if (H > bound[o].y1) H = bound[o].y1;
     }
   }
@@ -631,13 +631,13 @@ void ProcessCommandLine()
 
     if (equals_nocase(s, "/nofullscreen") || equals_nocase(s, "-nofullscreen") ||
         equals_nocase(s, "/windowed") || equals_nocase(s, "-windowed")) {
-      requestedFullscreen = FALSE;
+      requestedFullscreen = false;
       hasRequestedFullscreen = true;
       continue;
     }
 
     if (equals_nocase(s, "/fullscreen") || equals_nocase(s, "-fullscreen")) {
-      requestedFullscreen = TRUE;
+      requestedFullscreen = true;
       hasRequestedFullscreen = true;
       continue;
     }
@@ -661,12 +661,12 @@ void ProcessCommandLine()
     if (strstr(s,"x="))
     {
       PlayerX = static_cast<float>(atof(&s[2]))*256.f;
-      LockLanding = TRUE;
+      LockLanding = true;
     }
     if (strstr(s,"y="))
     {
       PlayerZ = static_cast<float>(atof(&s[2]))*256.f;
-      LockLanding = TRUE;
+      LockLanding = true;
     }
 
     if (strstr(s,"reg=")) TrophyRoom.RegNumber = atoi(&s[4]);
@@ -676,20 +676,20 @@ void ProcessCommandLine()
 	if (strstr(s, "dtm=")) OptDayNight = atoi(&s[4]);
     if (strstr(s, "server=")) strcpy(ServerAddress, (s + 7));
 
-    if (strstr(s,"-debug"))   DEBUG = TRUE;
-    if (strstr(s,"-double"))  DoubleAmmo = TRUE;
-	if (strstr(s, "-huntdog"))  DogMode = TRUE;
-    if (strstr(s,"-radar"))   RadarMode = TRUE;
-	if (strstr(s, "-survival"))  SurvivalMode = TRUE;
-	if (strstr(s, "-sonar"))   SonarMode = TRUE;
-	if (strstr(s, "-scanner"))   ScannerMode = TRUE;
-	if (strstr(s, "-scent"))   ScentMode = TRUE;
-	if (strstr(s, "-camo"))   CamoMode = TRUE;
-	if (strstr(s, "-multiplayer"))   Multiplayer = TRUE;
-	if (strstr(s, "-host"))   Host = TRUE;
-	if (strstr(s, "-cisk"))   CiskMode = TRUE;
-    if (strstr(s,"-tranq")) Tranq = TRUE;
-    if (strstr(s,"-observ")) ObservMode = TRUE;
+    if (strstr(s,"-debug"))   DEBUG = true;
+    if (strstr(s,"-double"))  DoubleAmmo = true;
+	if (strstr(s, "-huntdog"))  DogMode = true;
+    if (strstr(s,"-radar"))   RadarMode = true;
+	if (strstr(s, "-survival"))  SurvivalMode = true;
+	if (strstr(s, "-sonar"))   SonarMode = true;
+	if (strstr(s, "-scanner"))   ScannerMode = true;
+	if (strstr(s, "-scent"))   ScentMode = true;
+	if (strstr(s, "-camo"))   CamoMode = true;
+	if (strstr(s, "-multiplayer"))   Multiplayer = true;
+	if (strstr(s, "-host"))   Host = true;
+	if (strstr(s, "-cisk"))   CiskMode = true;
+    if (strstr(s,"-tranq")) Tranq = true;
+    if (strstr(s,"-observ")) ObservMode = true;
 
 	// smod=camo,radar,scent,double,tranq,observer
 	// Order must match the Menu's assembly in Menu.cpp and the defaults
@@ -868,7 +868,7 @@ void HideWeapon()
   if (wptr->state == 0)
   {  
 	//if (!ShotsLeft[CurrentWeapon]) return;
-    if (WeapInfo[CurrentWeapon].Optic) OPTICMODE = TRUE;
+    if (WeapInfo[CurrentWeapon].Optic) OPTICMODE = true;
     
 	if (UNDERWATER) {
 		if (WeapInfo[CurrentWeapon].getAqSnd >= 0)
@@ -881,8 +881,8 @@ void HideWeapon()
 	}
     wptr->FTime = 0;
     wptr->state = 1;
-    BINMODE = FALSE;
-    MapMode = FALSE;
+    BINMODE = false;
+    MapMode = false;
     wptr->shakel = WeapInfo[CurrentWeapon].shake * 4.f;
 	wptr->breath = 0.f;
 	wptr->breathPressed = 0;
@@ -902,7 +902,7 @@ void HideWeapon()
   }
   wptr->state = 3;
   wptr->FTime = 0;
-  OPTICMODE = FALSE;
+  OPTICMODE = false;
   return ;
 }
 
@@ -1000,7 +1000,7 @@ void InitGameInfo()
   	DinoInfo[ 8].ScaleA = 600;
   	DinoInfo[ 8].SmellK = 1.0f; DinoInfo[ 7].HearK = 0.3f; DinoInfo[ 7].LookK = 0.5f;
   	DinoInfo[ 8].ShDelta = 32;
-  	DinoInfo[ 8].DangerCall = TRUE;
+	DinoInfo[ 8].DangerCall = true;
 
   	DinoInfo[ 9].Name = "Chasmosaurus";
   	DinoInfo[ 9].Mass = 3.f;
@@ -1021,7 +1021,7 @@ void InitGameInfo()
   	DinoInfo[10].ScaleA = 400;
   	DinoInfo[10].SmellK = 1.0f; DinoInfo[ 9].HearK = 0.5f; DinoInfo[ 9].LookK = 0.4f;
   	DinoInfo[10].ShDelta =-24;
-  	DinoInfo[10].DangerCall = TRUE;
+	DinoInfo[10].DangerCall = true;
 
   	DinoInfo[11].Name = "T-Rex";
       DinoInfo[11].Mass = 6.f;
@@ -1031,7 +1031,7 @@ void InitGameInfo()
   	DinoInfo[11].BaseScore = 20;
   	DinoInfo[11].SmellK = 0.85f; DinoInfo[10].HearK = 0.8f; DinoInfo[10].LookK = 0.8f;
   	DinoInfo[11].ShDelta = 168;
-  	DinoInfo[11].DangerCall = TRUE;
+	DinoInfo[11].DangerCall = true;
 
   	DinoInfo[ 4].Name = "Brahiosaurus";
       DinoInfo[ 4].Mass = 9.f;
@@ -1041,7 +1041,7 @@ void InitGameInfo()
   	DinoInfo[ 4].BaseScore = 0;
   	DinoInfo[ 4].SmellK = 0.85f; DinoInfo[16].HearK = 0.8f; DinoInfo[16].LookK = 0.8f;
   	DinoInfo[ 4].ShDelta = 168;
-  	DinoInfo[ 4].DangerCall = FALSE;
+	DinoInfo[ 4].DangerCall = false;
   */
   LoadResourcesScript();
 }
@@ -1141,9 +1141,9 @@ bool RecvPacket(SOCKET *socket, int bufSize, bool init){
 			}
 		}
 
-		return TRUE;
+		return true;
 	}
-	else return FALSE;
+	else return false;
 }
 
 void SendPacket(SOCKET *socket, const int bufSize, bool init) {
@@ -1228,18 +1228,18 @@ void SendPacket(SOCKET *socket, const int bufSize, bool init) {
 
 DWORD WINAPI ServerCommsThread(LPVOID lpParameter)
 {
-	bool init = TRUE;
+	bool init = true;
 
 	while (HaltThread) {
 
-		bool result = RecvPacket(&ClientSocket, bufSizeClient, FALSE);
+		bool result = RecvPacket(&ClientSocket, bufSizeClient, false);
 		if (result) {
 
 			if (init) {
-				SendPacket(&ClientSocket, bufSizeHostInit, TRUE);
-				init = FALSE;
+				SendPacket(&ClientSocket, bufSizeHostInit, true);
+				init = false;
 				PrintLog("INIT_PACKET_SENT\n");//TEST
-			} else SendPacket(&ClientSocket, bufSizeHost, FALSE);
+			} else SendPacket(&ClientSocket, bufSizeHost, false);
 
 		} else if (iResult != 0) {
 			PrintLog("recv failed\n");
@@ -1254,20 +1254,20 @@ DWORD WINAPI ServerCommsThread(LPVOID lpParameter)
 
 DWORD WINAPI ClientCommsThread(LPVOID lpParameter)
 {
-	bool init = TRUE;
+	bool init = true;
 
 	while (HaltThread) {
 
-		SendPacket(&ConnectSocket,bufSizeClient, FALSE);
+		SendPacket(&ConnectSocket,bufSizeClient, false);
 
 		// Receive until the peer closes the connection
-		bool responded = FALSE;
+		bool responded = false;
 		do {
 
 			if (init) {
-				responded = RecvPacket(&ConnectSocket, bufSizeHostInit, TRUE);
+				responded = RecvPacket(&ConnectSocket, bufSizeHostInit, true);
 			}
-			else responded = RecvPacket(&ConnectSocket, bufSizeHost, FALSE);
+			else responded = RecvPacket(&ConnectSocket, bufSizeHost, false);
 
 			if (!responded && iResult != 0) {
 				PrintLog("recv failed\n");
@@ -1276,7 +1276,7 @@ DWORD WINAPI ClientCommsThread(LPVOID lpParameter)
 		} while (!responded);
 
 		if (init) PrintLog("INIT_PACKET_RECV\n");//TEST
-		init = FALSE;
+		init = false;
 
 		//Sleep(10);//test
 		// if laggy, add sleep statement
@@ -1289,7 +1289,7 @@ void ShutDownServer() {
 
 	//shutdown thread
 	PrintLog("Server Comms Thread Shutting Down...\n");
-	HaltThread = FALSE;
+	HaltThread = false;
 	WaitForSingleObject(CommsThreadHandle, INFINITE);
 	CloseHandle(CommsThreadHandle);
 
@@ -1327,7 +1327,7 @@ void ShutDownClient() {
 
 	//shutdown thread
 	PrintLog("Client Comms Thread Shutting Down...\n");
-	HaltThread = FALSE;
+	HaltThread = false;
 	WaitForSingleObject(CommsThreadHandle, INFINITE);
 	CloseHandle(CommsThreadHandle);
 
@@ -1545,7 +1545,7 @@ void _StartupClient() {
 	PrintLog("\n");
 
 	// Receive until the peer closes the connection
-	bool responded = FALSE;
+	bool responded = false;
 	do {
 		iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
 		if (iResult > 0)
@@ -1556,7 +1556,7 @@ void _StartupClient() {
 			_itoa(iResult, bytesSent, 10);
 			PrintLog(bytesSent);
 			PrintLog("\n");
-			responded = TRUE;
+			responded = true;
 		}
 		else if (iResult == 0) {
 			//PrintLog("Connection closed\n");
@@ -1592,36 +1592,36 @@ static void LoadConfig();
 
 void InitEngine()
 {
-  FULLSCREEN   = TRUE;
-  DEBUG        = FALSE;
+  FULLSCREEN   = true;
+  DEBUG        = false;
 
-  WATERANI     = TRUE;
-  NODARKBACK   = TRUE;
-  LoDetailSky  = TRUE;
-  CORRECTION   = TRUE;
-  FOGON        = TRUE;
-  FOGENABLE    = TRUE;
+  WATERANI     = true;
+  NODARKBACK   = true;
+  LoDetailSky  = true;
+  CORRECTION   = true;
+  FOGON        = true;
+  FOGENABLE    = true;
   UIScale      = 1.0f;
-  Clouds       = TRUE;
-  SKY          = TRUE;
-  GOURAUD      = TRUE;
-  MODELS       = TRUE;
+  Clouds       = true;
+  SKY          = true;
+  GOURAUD      = true;
+  MODELS       = true;
   TIMER        = DEBUG;
-  BITMAPP      = FALSE;
-  MIPMAP       = TRUE;
-  NOCLIP       = FALSE;
-  CLIP3D       = TRUE;
+  BITMAPP      = false;
+  MIPMAP       = true;
+  NOCLIP       = false;
+  CLIP3D       = true;
 
 
-  SLOW         = FALSE;
-  LOWRESTX     = FALSE;
-  MORPHP       = TRUE;
-  MORPHA       = TRUE;
+  SLOW         = false;
+  LOWRESTX     = false;
+  MORPHP       = true;
+  MORPHA       = true;
 
   _GameState = 0;
   _MultiplayerState = 0;
 
-  RadarMode    = FALSE;
+  RadarMode    = false;
 
   // Accessory score multipliers. Defaults match the legacy hardcoded
   // values that used to live in SubmitDinoScore() so legacy hunts
@@ -1634,9 +1634,9 @@ void InitEngine()
   ScoreMod_Observer = 1.0f;
 
   //multiplayer
-  Multiplayer = FALSE;
-  HaltThread = TRUE;
-  Host = FALSE;
+  Multiplayer = false;
+  HaltThread = true;
+  Host = false;
   ListenSocket = INVALID_SOCKET;
   ClientSocket = INVALID_SOCKET;
   ConnectSocket = INVALID_SOCKET;
@@ -1813,7 +1813,7 @@ void InitEngine()
   FogsList[0].FLimit = 000;
 
   FogsList[127].fogRGB = 0x00504000;
-  FogsList[127].Mortal = FALSE;
+  FogsList[127].Mortal = false;
   FogsList[127].Transp = 460;
   FogsList[127].FLimit = 200;
 
@@ -2111,11 +2111,11 @@ int AnimateBullet(float ax, float ay, float az,
 
 //ENDTRACE:
 
-	bool poon = FALSE;
+	bool poon = false;
 	if (WeapInfo[bullet[b].parent].harpoon &&
 		GetLandUpH(bx, bz) > GetLandH(bx, bz) &&
 		GetLandUpH(bx, bz) > by) {
-		poon = TRUE;
+		poon = true;
 		if (!bullet[b].state) AddElements(bx, by, bz, partBubble, 1);
 	}
   if (sres==-1) return sres;
@@ -2165,7 +2165,7 @@ int AnimateBullet(float ax, float ay, float az,
 	  if (UNDERWATER && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData, bx, by, bz, 256); //change this to aquatic sound
 
 	  if (sres == tresHunter) {
-		AddDeadBody(nullptr, HUNT_EAT, TRUE);
+		AddDeadBody(nullptr, HUNT_EAT, true);
 		Characters[ChCount - 1].alpha = PlayerAlpha - pi / 2;
 		return sres;
 	  } else if (!Characters[ShotDino].Health) return sres;
@@ -2242,8 +2242,8 @@ void AnimateBullets() {
 		}
 
 		if (bullet[b].state) {
-			bullet[b].Danger = FALSE;
-			bullet[b].cDanger = FALSE;
+			bullet[b].Danger = false;
+			bullet[b].cDanger = false;
 			if (VectorLength(SubVectors(PlayerPos, bullet[b].a)) < 300.f) {
 
 				int maxAm = WeapInfo[bullet[b].parent].Shots;
@@ -2265,18 +2265,18 @@ void AnimateBullets() {
 
 			if (!bullet[b].Danger)
 				if (VectorLength(SubVectors(bullet[b].a, bullet[b].orig)) > 128.f)
-					bullet[b].Danger = TRUE;
+					bullet[b].Danger = true;
 			
 			if (!bullet[b].cDanger)
 				if (VectorLength(SubVectors(bullet[b].a, bullet[b].orig)) > 128.f)
-					bullet[b].cDanger = TRUE;
+					bullet[b].cDanger = true;
 
 			Vector3d d = bullet[b].dif;
-			bool poon = FALSE;
+			bool poon = false;
 			if (WeapInfo[bullet[b].parent].harpoon &&
 				GetLandUpH(bullet[b].a.x, bullet[b].a.z) > GetLandH(bullet[b].a.x, bullet[b].a.z) &&
 				GetLandUpH(bullet[b].a.x, bullet[b].a.z) > bullet[b].a.y)
-				poon = TRUE;
+				poon = true;
 
 			if (bullet[b].aqState<2)
 				if ((poon && bullet[b].aqState == 0) ||
@@ -2367,7 +2367,7 @@ void registerDamage(int Dino, bool enemyBullet) {
 	}
 	else
 	{
-		Characters[Dino].awareHunter = TRUE;
+		Characters[Dino].awareHunter = true;
 		Characters[Dino].AfraidTime = 60 * 1000;
 		if (Characters[Dino].Clone != AI_TREX || Characters[Dino].State == 0)
 			Characters[Dino].State = 2;
@@ -2930,7 +2930,7 @@ void AnimateElements()
 	  NormVector(nv, (4 + Wind.speed) * SnowInfo[st].snow_hSpd * TimeDt / 1000);//4
 
 	  while (SnowInfo[st].SnCount < SnowInfo[st].snow_dens) {//2000
-		  RespawnSnow(st, SnowInfo[st].addr + SnowInfo[st].SnCount, TRUE);
+		  RespawnSnow(st, SnowInfo[st].addr + SnowInfo[st].SnCount, true);
 		  SnowInfo[st].SnCount++;
 	  }
 
@@ -2961,7 +2961,7 @@ void AnimateElements()
 		  else {
 			  Snow[s].ftime += TimeDt;
 			  Snow[s].pos.y -= TimeDt * (SnowInfo[st].snow_vSpd / 64) / 1000.f; //3
-			  if (Snow[s].ftime > (2000 / (SnowInfo[st].snow_vSpd / 192)))  RespawnSnow(st, s, FALSE); //2000
+			  if (Snow[s].ftime > (2000 / (SnowInfo[st].snow_vSpd / 192)))  RespawnSnow(st, s, false); //2000
 		  }
 
 	  }

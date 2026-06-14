@@ -16,7 +16,7 @@ std::unordered_map<short*, ALuint> bufferCache;
 HANDLE      hAudioThread = nullptr;
 DWORD       AudioTId;
 CRITICAL_SECTION AudioCS;
-static volatile BOOL g_AudioShutdown = FALSE;
+static volatile BOOL g_AudioShutdown = false;
 
 int iSoundActive = 0;
 CHANNEL channel[MAX_CHANNEL]{};
@@ -220,7 +220,7 @@ void InitAudioSystem(HWND hw, HANDLE hlog, int driver)
             PrintLog("DirectSound: legacy audio DLL loaded\n");
             if (g_LegacyInitAudioSystem)
                 g_LegacyInitAudioSystem(hw, hlog);
-            g_AudioShutdown = FALSE;
+            g_AudioShutdown = false;
             iSoundActive = 1;
             return;
         }
@@ -314,7 +314,7 @@ void InitAudioSystem(HWND hw, HANDLE hlog, int driver)
         PrintLog("OpenAL: EFX functions not loaded\n");
     }
 
-    g_AudioShutdown = FALSE;
+    g_AudioShutdown = false;
     iSoundActive = 1;
 
     // Start the background thread (same pattern as original audio DLLs)
@@ -339,13 +339,13 @@ void Audio_Shutdown()
             g_LegacyAudioShutdown();
         UnloadLegacyAudioBackend();
         iSoundActive = 0;
-        g_AudioShutdown = TRUE;
+        g_AudioShutdown = true;
         return;
     }
 
     if (!iSoundActive) return;
 
-    g_AudioShutdown = TRUE;
+    g_AudioShutdown = true;
 
     if (hAudioThread) {
         WaitForSingleObject(hAudioThread, 5000);

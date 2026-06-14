@@ -1068,7 +1068,7 @@ void CalcBoundBox(TModel* mptr, TBound *bound)
 
   for (int o=0; o<8; o++)
   {
-    first = TRUE;
+    first = true;
     bound[o].a=-1;
 
 
@@ -1086,7 +1086,7 @@ void CalcBoundBox(TModel* mptr, TBound *bound)
         y2 = p.y+1.0f;
         z1 = p.z-1.0f;
         z2 = p.z+1.0f;
-        first = FALSE;
+        first = false;
       }
 
       if (p.x < x1) x1=p.x;

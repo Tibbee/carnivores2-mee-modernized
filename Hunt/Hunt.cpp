@@ -6,16 +6,16 @@ float rav=0;
 float rbv=0;
 
 #ifdef _soft
-BOOL PHONG = FALSE;
-BOOL GOUR  = FALSE;
-BOOL ENVMAP = FALSE;
+BOOL PHONG = false;
+BOOL GOUR  = false;
+BOOL ENVMAP = false;
 #else
-BOOL PHONG = TRUE;
-BOOL GOUR  = TRUE;
-BOOL ENVMAP = TRUE;
+BOOL PHONG = true;
+BOOL GOUR  = true;
+BOOL ENVMAP = true;
 #endif
 
-BOOL NeedRVM = TRUE;
+BOOL NeedRVM = true;
 float BinocularPower  = 2.5;
 float wpshy = 0;
 float wpshz = 0;
@@ -43,11 +43,11 @@ void CaptureMouse(BOOL capture)
     SetRect(&rect, p1.x, p1.y, p2.x, p2.y);
 
     ClipCursor(&rect);
-    while (ShowCursor(FALSE) >= 0);
+    while (ShowCursor(false) >= 0);
     ResetMousePos();
   } else {
     ClipCursor(nullptr);
-    while (ShowCursor(TRUE) < 0);
+    while (ShowCursor(true) < 0);
   }
 }
 
@@ -73,7 +73,7 @@ void ResetMousePos()
 float CalcFogLevel(Vector3d v)
 {
   if (!FOGON) return 0;
-  BOOL vinfog = TRUE;
+  BOOL vinfog = true;
   int cf;
   if (!UNDERWATER)
   {
@@ -81,7 +81,7 @@ float CalcFogLevel(Vector3d v)
     if ((!cf) && CAMERAINFOG)
     {
       cf = CameraFogI;
-      vinfog = FALSE;
+      vinfog = false;
     }
   }
   else cf = 127;
@@ -138,8 +138,8 @@ void PreCashGroundModel()
   float CameraW16 = CameraW * 16;
   float CameraH16 = CameraH * 16;
 
-  BOOL FogFound = FALSE;
-  NeedWater = FALSE;
+  BOOL FogFound = false;
+  NeedWater = false;
 
   MapMinY = 10241024;
   Vector3d rv;
@@ -186,7 +186,7 @@ void PreCashGroundModel()
         }
         else
         {
-          NeedWater = TRUE;
+          NeedWater = true;
           VMap2[128+y][128+x].Light = 168-static_cast<int>((wdelta*24));
 
           float Alpha;
@@ -287,7 +287,7 @@ void PreCashGroundModel()
 
       if (v[0].z<1024)
         if (FOGENABLE)
-          if (FogsMap[yy>>1][xx>>1]) FogFound = TRUE;
+          if (FogsMap[yy>>1][xx>>1]) FogFound = true;
 
       VMap[128+y][128+x].v = v[0];
 
@@ -641,7 +641,7 @@ void DrawPostObjects()
   float b;
   TWeapon* wptr = &Weapon;
 
-  Hardware_ZBuffer(FALSE);
+  Hardware_ZBuffer(false);
 
   if (DemoPoint.DemoTime) goto SKIPWEAPON;
 
@@ -665,7 +665,7 @@ void DrawPostObjects()
     CameraW = oldCW;
     CameraH = oldCH;
     ScanLifeForms();
-    MapMode = FALSE;
+    MapMode = false;
   }
 
   //goto SKIPWIND;
@@ -675,7 +675,7 @@ void DrawPostObjects()
     if (!KeyboardState[VK_CAPITAL] & 1)
     {
       BOOL lr = LOWRESTX;
-      LOWRESTX = TRUE;
+      LOWRESTX = true;
 
       const int hudCenter = WinW / 2;
       const int hudSpread = static_cast<int>((static_cast<float>(WinW) / 3.0f * UIScale));
@@ -723,7 +723,7 @@ SKIPWIND:
 	  goto SKIPWEAPON;
   }
 
-  MapMode = FALSE;
+  MapMode = false;
 
   if (!SurvivalMode) {
 	  float tempT = static_cast<float>(TimeDt) / 10000.f;
@@ -1026,7 +1026,7 @@ SKIPWEAPON:
 		MenuDinoInfo[TargetCall-10].CallIcon);
   }
 
-  Hardware_ZBuffer(TRUE);
+  Hardware_ZBuffer(true);
 
   if (Weapon.state && MyHealth)
   {
@@ -1316,7 +1316,7 @@ void ToggleBinocular()
   if (UNDERWATER) return;
   if (!MyHealth) return;
   BINMODE = !BINMODE;
-  MapMode = FALSE;
+  MapMode = false;
 }
 
 
@@ -1366,16 +1366,16 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 
     if (!blActive)
     {
-      CaptureMouse(FALSE);
+      CaptureMouse(false);
       ShutDown3DHardware();
-      NeedRVM = TRUE;
+      NeedRVM = true;
     }
 
     if (blActive)
     {
       Audio_Restore();
-      NeedRVM = TRUE;
-      if (_GameState && !PAUSE) CaptureMouse(TRUE);
+      NeedRVM = true;
+      if (_GameState && !PAUSE) CaptureMouse(true);
     }
 
   }
@@ -1525,14 +1525,14 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     case VK_PAUSE:
 		if (!SurvivalMode) {
       PAUSE = !PAUSE;
-      EXITMODE = FALSE;
+      EXITMODE = false;
       CaptureMouse(!PAUSE);
       ResetMousePos();
       break;
 		}
 
     case 'N':
-      if (EXITMODE) EXITMODE = FALSE;
+      if (EXITMODE) EXITMODE = false;
       break;
 
     case VK_ESCAPE:
@@ -1543,9 +1543,9 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       }
       else
       {
-        if (PAUSE) { PAUSE = FALSE; CaptureMouse(TRUE); }
-        else { EXITMODE = !EXITMODE; CaptureMouse(TRUE); }
-        if (ExitTime) EXITMODE = FALSE;
+        if (PAUSE) { PAUSE = false; CaptureMouse(true); }
+        else { EXITMODE = !EXITMODE; CaptureMouse(true); }
+        if (ExitTime) EXITMODE = false;
         ResetMousePos();
       }
       break;
@@ -1555,7 +1555,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 		{
 			if (MyHealth) ExitTime = 4000;
 			else ExitTime = 1;
-			EXITMODE = FALSE;
+			EXITMODE = false;
 		}
 		break;
 
@@ -1564,7 +1564,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       {
 		if (MyHealth && !SurvivalMode) ExitTime = 4000;
         else ExitTime = 1;
-        EXITMODE = FALSE;
+        EXITMODE = false;
       }
       break;
 
@@ -1572,7 +1572,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 		if (EXITMODE && SurvivalMode)
 		{
 			ExitTime = 1;
-			EXITMODE = FALSE;
+			EXITMODE = false;
 		}
 		break;
 
@@ -1585,7 +1585,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 			  ChCount = 0;
 		  }
 		  else LoadTrophy();
-        RestartMode = TRUE;
+        RestartMode = true;
 		
         _GameState = 0;
         //DoHalt("");
@@ -1644,7 +1644,7 @@ BOOL CreateMainWindow()
   wc.lpszMenuName = nullptr;
   //wc.lpfnWndProc  = nullptr;
   wc.lpszClassName = "HuntRenderWindow";
-  if (!RegisterClass(&wc)) return FALSE;
+  if (!RegisterClass(&wc)) return false;
 
   hwndMain = CreateWindow(
                "HuntRenderWindow","Carnivores 2 Renderer",
@@ -1654,7 +1654,7 @@ BOOL CreateMainWindow()
   if (hwndMain)
     PrintLog("Ok.\n");
 
-  return TRUE;
+  return true;
 }
 
 
@@ -2105,15 +2105,15 @@ void ProcessPlayerMovement()
 
 void ProcessDemoMovement()
 {
-  BINMODE = FALSE;
+  BINMODE = false;
 
-  PAUSE = FALSE;
-  MapMode = FALSE;
+  PAUSE = false;
+  MapMode = false;
 
   if (DemoPoint.DemoTime>6*1000)
     if (!PAUSE)
     {
-      EXITMODE = TRUE;
+      EXITMODE = true;
       ResetMousePos();
     }
 
@@ -2326,11 +2326,11 @@ void ProcessControls()
 
 SKIPYMOVE:
 
-  SWIM = FALSE;
+  SWIM = false;
   if (!UNDERWATER && (KeyFlags & kfJump) )
     if (PlayerY<hwater-148)
     {
-      SWIM = TRUE;
+      SWIM = true;
       PlayerY = hwater-148;
       YSpeed = 0;
     }
@@ -2435,7 +2435,7 @@ SKIPYMOVE:
     {
       HeadY-=20;
       CameraY-=20;
-      BINMODE = FALSE;
+      BINMODE = false;
       AddVoicev(fxWaterIn.length, fxWaterIn.lpData, 256);
       AddWCircle(CameraX, CameraZ, 2.0);
     }
@@ -2447,7 +2447,7 @@ SKIPYMOVE:
       MyHealth-=TimeDt*12;
       //if ( !(Takt & 31)) AddElements(CameraX + sa*64*cb, CameraY - 32 - sb*64, CameraZ - ca*64*cb, 4);
       if (MyHealth<=0)
-        AddDeadBody(nullptr, HUNT_BREATH, TRUE);
+        AddDeadBody(nullptr, HUNT_BREATH, true);
     }
 
   if (UNDERWATER && !WeapInfo[CurrentWeapon].harpoon)
@@ -2531,7 +2531,7 @@ SKIPYMOVE:
   if (FogsList[CameraFogI].YBegin*ctHScale> CameraY)
     CAMERAINFOG = (CameraFogI>0);
   else
-    CAMERAINFOG = FALSE;
+    CAMERAINFOG = false;
 
   if (CAMERAINFOG)
     if (MyHealth)
@@ -2540,7 +2540,7 @@ SKIPYMOVE:
         if (MyHealth>100000) MyHealth = 100000;
         MyHealth-=TimeDt*64;
         if (MyHealth<=0)
-          AddDeadBody(nullptr, HUNT_EAT, TRUE);
+          AddDeadBody(nullptr, HUNT_EAT, true);
       }
 
   int CameraAmb = AmbMap [(static_cast<int>(CameraZ))>>9][(static_cast<int>(CameraX))>>9];
@@ -2615,7 +2615,7 @@ void ProcessGame()
   {
     ShutDown3DHardware();
     AudioStop();
-    NeedRVM = TRUE;
+    NeedRVM = true;
 
   }
 
@@ -2641,7 +2641,7 @@ void ProcessGame()
 
     PrintLog("Entered game\n");
     ReInitGame();
-    CaptureMouse(TRUE);
+    CaptureMouse(true);
 
 	if (Multiplayer) {
 		if (!_MultiplayerState) {
@@ -2700,7 +2700,7 @@ void ProcessGame()
 	SetWindowPos(hwndMain, HWND_TOP, 0,0,0,0,  SWP_SHOWWINDOW);
 	SetFocus(hwndMain);
 	Activate3DHardware();
-	NeedRVM = FALSE;
+	NeedRVM = false;
   }
 
   ProcessSyncro();
@@ -2847,7 +2847,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   EndLoading();
 
   ProcessSyncro();
-  blActive = TRUE;
+  blActive = true;
 
   alreadyFired = false;
 
@@ -2882,7 +2882,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
   ShutDownEngine();
 
-  ShowCursor(TRUE);
+  ShowCursor(true);
   PrintLog("Game normal shutdown.\n");
 
   CloseLog();

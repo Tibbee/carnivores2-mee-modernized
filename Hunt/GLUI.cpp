@@ -45,8 +45,8 @@ void Init3DHardware()
         DoHalt("OpenGL initialization failed. Check render.log for details.");
     }
 
-    DirectActive = TRUE;
-    HARD3D = TRUE;
+    DirectActive = true;
+    HARD3D = true;
     PrintLog("==Init3DHardware (OpenGL) Complete==\n");
     PrintLog("\n");
 }
@@ -79,7 +79,7 @@ void ShutDown3DHardware()
         g_GLRenderer = nullptr;
     }
 
-    DirectActive = FALSE;
+    DirectActive = false;
 }
 
 // ============================================================================
@@ -349,19 +349,19 @@ void DrawHMap()
             {
                 if (distance >= static_cast<int>(previousSonarPos) && distance <= static_cast<int>(sonarPos))
                 {
-                    Characters[c].showSonar = TRUE;
+                    Characters[c].showSonar = true;
                     Characters[c].sonar.x = xx;
                     Characters[c].sonar.y = yy;
                     AddVoicev(fxBlip.length, fxBlip.lpData, 256);
                 }
                 else
                 {
-                    Characters[c].showSonar = FALSE;
+                    Characters[c].showSonar = false;
                 }
             }
             else
             {
-                Characters[c].showSonar = FALSE;
+                Characters[c].showSonar = false;
             }
 
             if (Characters[c].showSonar && !Characters[c].RTime)

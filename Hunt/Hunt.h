@@ -860,8 +860,8 @@ struct TWeapInfo
 	bool pic2b = false;
 	bool picch = false;
   char Name[48], FName[48], BFName[48], CFName[48], BLName[48], SFXName[48];
-  bool MGSSound = FALSE;
-  bool bullet = FALSE;
+  bool MGSSound = false;
+  bool bullet = false;
   bool retrieve;
   float Power, Prec, Loud, Rate, Veloc, Fall;
   int Shots, TraceC, Reload, SFXIndex;

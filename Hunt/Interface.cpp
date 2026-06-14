@@ -27,7 +27,7 @@ int MaxDino, AreaMax, LoadCount;
 #define REGLISTX 320
 #define REGLISTY 370
 
-BOOL NEWPLAYER = FALSE;
+BOOL NEWPLAYER = false;
 
 int  MapVKKey(int k)
 {
@@ -96,7 +96,7 @@ void DoHalt(LPSTR Mess)
   Audio_Shutdown();
 
   ShutDown3DHardware();
-  EnableWindow(hwndMain, FALSE);
+  EnableWindow(hwndMain, false);
 
   CloseLog();
   TerminateProcess(GetCurrentProcess(), 0);
@@ -109,7 +109,7 @@ void DoHalt2(LPSTR Mess)
 //	Audio_Shutdown();
 
 //	ShutDown3DHardware();
-	EnableWindow(hwndMain, FALSE);
+	EnableWindow(hwndMain, false);
 	if (strlen(Mess))
 	{
 		PrintLog("ABNORMAL_HALT: ");
@@ -125,7 +125,7 @@ void DoHalt2(LPSTR Mess)
 
 void WaitRetrace()
 {
-  BOOL bv = FALSE;
+  BOOL bv = false;
   if (DirectActive)
     while (!bv)  lpDD->GetVerticalBlankStatus(&bv);
 }
@@ -274,7 +274,7 @@ void SetVideoMode(int W, int H)
     SetWindowLong(hwndMain, GWL_STYLE, style);
 
     RECT r = { 0, 0, WinW, WinH };
-    AdjustWindowRect(&r, style, FALSE);
+    AdjustWindowRect(&r, style, false);
 
     int ww = r.right - r.left;
     int wh = r.bottom - r.top;
@@ -335,7 +335,7 @@ void SetVideoMode(int W, int H)
 
   LoDetailSky =(W>400);
   SetCursor(hcArrow);
-  while (ShowCursor(FALSE)>=0) ;
+  while (ShowCursor(false)>=0) ;
 }
 
 

@@ -39,7 +39,7 @@ LPD3DTRIANGLE           lpTriangle;
 LPD3DLINE               lpLine;
 LPD3DSTATE              lpState;
 
-BOOL                    fDeviceFound              = FALSE;
+BOOL                    fDeviceFound              = false;
 DWORD                   dwDeviceBitDepth          = 0UL;
 GUID                    guidDevice;
 char                    szDeviceName[256];
@@ -72,7 +72,7 @@ int d3dMemUsageCount;
 int d3dMemLoaded;
 int GVCnt;
 
-BOOL LINEARFILTER = TRUE;
+BOOL LINEARFILTER = true;
 
 int zs;
 float SunLight;
@@ -265,11 +265,11 @@ void d3dStartBufferGBMP()
   lpState = reinterpret_cast<LPD3DSTATE>(lpInstructionG);
 
   lpState->drstRenderStateType = D3DRENDERSTATE_COLORKEYENABLE;
-  lpState->dwArg[0] = TRUE;
+  lpState->dwArg[0] = true;
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_ALPHATESTENABLE;
-  lpState->dwArg[0] = TRUE;
+  lpState->dwArg[0] = true;
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREMAG;
@@ -290,7 +290,7 @@ void d3dStartBufferGBMP()
   }
 
   lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
-  LINEARFILTER = FALSE;
+  LINEARFILTER = false;
 }
 
 
@@ -308,11 +308,11 @@ void d3dEndBufferG(BOOL ColorKey)
     lpState = reinterpret_cast<LPD3DSTATE>(lpInstructionG);
 
     lpState->drstRenderStateType = D3DRENDERSTATE_COLORKEYENABLE;
-    lpState->dwArg[0] = FALSE;
+    lpState->dwArg[0] = false;
     lpState++;
 
     lpState->drstRenderStateType = D3DRENDERSTATE_ALPHATESTENABLE;
-    lpState->dwArg[0] = FALSE;
+    lpState->dwArg[0] = false;
     lpState++;
 
     lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREMAG;
@@ -353,7 +353,7 @@ void d3dEndBufferG(BOOL ColorKey)
   GVCnt          = 0;
 
   hRes = lpd3dDevice->Execute(lpd3dExecuteBufferG, lpd3dViewport, D3DEXECUTE_UNCLIPPED);
-  LINEARFILTER = TRUE;
+  LINEARFILTER = true;
 
 }
 
@@ -425,11 +425,11 @@ void d3dFlushBuffer(int fproc1, int fproc2)
     lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
     lpState->drstRenderStateType = D3DRENDERSTATE_COLORKEYENABLE;
-    lpState->dwArg[0] = TRUE;
+    lpState->dwArg[0] = true;
     lpState++;
 
     lpState->drstRenderStateType = D3DRENDERSTATE_ALPHATESTENABLE;
-    lpState->dwArg[0] = TRUE;
+    lpState->dwArg[0] = true;
     lpState++;
 
     lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREMAG;
@@ -466,11 +466,11 @@ void d3dFlushBuffer(int fproc1, int fproc2)
     lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
     lpState->drstRenderStateType = D3DRENDERSTATE_COLORKEYENABLE;
-    lpState->dwArg[0] = FALSE;
+    lpState->dwArg[0] = false;
     lpState++;
 
     lpState->drstRenderStateType = D3DRENDERSTATE_ALPHATESTENABLE;
-    lpState->dwArg[0] = FALSE;
+    lpState->dwArg[0] = false;
     lpState++;
 
     lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREMAG;
@@ -490,7 +490,7 @@ void d3dFlushBuffer(int fproc1, int fproc2)
   lpInstruction->wCount  = 0U;
 
   lpd3dExecuteBuffer->Unlock( );
-  LINEARFILTER = TRUE;
+  LINEARFILTER = true;
 
   hRes = lpd3dDevice->Execute(lpd3dExecuteBuffer, lpd3dViewport, D3DEXECUTE_UNCLIPPED);
   //if (FAILED(hRes)) DoHalt("Error execute buffer");
@@ -562,11 +562,11 @@ HRESULT FillExecuteBuffer_State( LPDIRECT3DEXECUTEBUFFER lpd3dExecuteBuffer)
   lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
   lpState->drstRenderStateType = D3DRENDERSTATE_ZENABLE;
-  lpState->dwArg[0] = TRUE;
+  lpState->dwArg[0] = true;
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_ZWRITEENABLE;
-  lpState->dwArg[0] = TRUE;
+  lpState->dwArg[0] = true;
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_ZFUNC;
@@ -574,7 +574,7 @@ HRESULT FillExecuteBuffer_State( LPDIRECT3DEXECUTEBUFFER lpd3dExecuteBuffer)
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREPERSPECTIVE;
-  lpState->dwArg[0] = TRUE;
+  lpState->dwArg[0] = true;
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREMAPBLEND;
@@ -596,7 +596,7 @@ HRESULT FillExecuteBuffer_State( LPDIRECT3DEXECUTEBUFFER lpd3dExecuteBuffer)
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_DITHERENABLE;
-  lpState->dwArg[0] = TRUE;
+  lpState->dwArg[0] = true;
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_CULLMODE;
@@ -604,20 +604,20 @@ HRESULT FillExecuteBuffer_State( LPDIRECT3DEXECUTEBUFFER lpd3dExecuteBuffer)
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_BLENDENABLE;
-  lpState->dwArg[0] = TRUE;
+  lpState->dwArg[0] = true;
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_COLORKEYENABLE;
-  lpState->dwArg[0] = FALSE;
+  lpState->dwArg[0] = false;
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_ALPHABLENDENABLE;
-  lpState->dwArg[0] = TRUE;
+  lpState->dwArg[0] = true;
   lpState++;
 
 
   lpState->drstRenderStateType = D3DRENDERSTATE_ALPHATESTENABLE;
-  lpState->dwArg[0] = FALSE;
+  lpState->dwArg[0] = false;
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_ALPHAREF;
@@ -631,7 +631,7 @@ HRESULT FillExecuteBuffer_State( LPDIRECT3DEXECUTEBUFFER lpd3dExecuteBuffer)
 
 
   lpState->drstRenderStateType = D3DRENDERSTATE_SPECULARENABLE;
-  lpState->dwArg[0] = FALSE;
+  lpState->dwArg[0] = false;
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_FOGENABLE;
@@ -652,15 +652,15 @@ HRESULT FillExecuteBuffer_State( LPDIRECT3DEXECUTEBUFFER lpd3dExecuteBuffer)
 
 
   lpState->drstRenderStateType = D3DRENDERSTATE_STIPPLEDALPHA;
-  lpState->dwArg[0] = FALSE;
+  lpState->dwArg[0] = false;
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_WRAPU;
-  lpState->dwArg[0] = FALSE;
+  lpState->dwArg[0] = false;
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_WRAPV;
-  lpState->dwArg[0] = FALSE;
+  lpState->dwArg[0] = false;
   lpState++;
 
 
@@ -750,7 +750,7 @@ HRESULT WINAPI EnumDeviceCallback(
   if( !(lpd3dDeviceDesc->dpcTriCaps.dwShadeCaps & D3DPSHADECAPS_COLORGOURAUDRGB) )
     return D3DENUMRET_OK;
 
-  fDeviceFound = TRUE;
+  fDeviceFound = true;
   CopyMemory( &guidDevice, lpGUID, sizeof(GUID) );
   strcpy( szDeviceDesc, lpszDeviceDesc );
   strcpy( szDeviceName, lpszDeviceName );
@@ -819,7 +819,7 @@ HRESULT CreateDirect3D( HWND hwnd )
 
   dwDeviceBitDepth = BitDepthToFlags(ddsd.ddpfPixelFormat.dwRGBBitCount);
 
-  fDeviceFound = FALSE;
+  fDeviceFound = false;
   hRes = lpd3d->EnumDevices( EnumDeviceCallback, &fDeviceFound);
   if (FAILED(hRes) ) DoHalt("EnumDevices failed.\n");
   if (!fDeviceFound ) DoHalt("No devices found.\n");
@@ -983,7 +983,7 @@ HRESULT CreateScene(void)
 
 void Init3DHardware()
 {
-  HARD3D = TRUE;
+  HARD3D = true;
   PrintLog("\n");
   PrintLog("==Init Direct Draw==\n");
   HRESULT hres;
@@ -996,7 +996,7 @@ void Init3DHardware()
   }
   PrintLog("DirectDrawCreate: Ok\n");
 
-  DirectActive = TRUE;
+  DirectActive = true;
 }
 
 
@@ -1032,8 +1032,8 @@ void d3dDetectCaps()
   ddsd.dwSize = sizeof(DDSURFACEDESC);
   if( lpddBack->Lock( nullptr, &ddsd, DDLOCK_WAIT, nullptr ) != DD_OK ) return;
   lpddBack->Unlock(ddsd.lpSurface);
-  if (ddsd.ddpfPixelFormat.dwGBitMask == 0x3E0) VMFORMAT565=FALSE;
-  else VMFORMAT565=TRUE;
+  if (ddsd.ddpfPixelFormat.dwGBitMask == 0x3E0) VMFORMAT565=false;
+  else VMFORMAT565=true;
   if (VMFORMAT565)
     PrintLog("DETECTED: PixelFormat RGB565\n");
   else
@@ -1041,7 +1041,7 @@ void d3dDetectCaps()
     PrintLog("DETECTED: PixelFormat RGB555\n");
     if (!STARTCONV555)
     {
-      STARTCONV555 = TRUE;
+      STARTCONV555 = true;
       conv_pic555(PausePic);
       conv_pic555(ExitPic);
       conv_pic555(TrophyExit);
@@ -1120,7 +1120,7 @@ int  d3dTestAlpha()
 //========= test opacity ==========//
 
   //d3dSetTexture(TFX_SPECULAR.lpImage, TFX_SPECULAR.W, TFX_SPECULAR.W);
-  SetRenderStates(FALSE, D3DBLEND_INVSRCALPHA);
+  SetRenderStates(false, D3DBLEND_INVSRCALPHA);
 
   d3dTestDrawTri(0xFFFFFFFF, 0.0);
 
@@ -1163,7 +1163,7 @@ int  d3dTestAlpha()
      Sleep(1000);
   */
 //=========== test env map ==================//
-  SetRenderStates(FALSE, D3DBLEND_ONE);
+  SetRenderStates(false, D3DBLEND_ONE);
 
   lpd3dDevice->BeginScene( );
   ddbltfx.dwSize = sizeof( DDBLTFX );
@@ -1186,7 +1186,7 @@ int  d3dTestAlpha()
      lpd3dDevice->BeginScene( );
      Sleep(1000);
   */
-  SetRenderStates(TRUE, D3DBLEND_INVSRCALPHA);
+  SetRenderStates(true, D3DBLEND_INVSRCALPHA);
   lpd3dDevice->EndScene( );
   return RF;
 }
@@ -1210,11 +1210,11 @@ void Activate3DHardware()
 
   d3dDetectCaps();
 
-  OPT_ALPHA_COLORKEY=FALSE;
+  OPT_ALPHA_COLORKEY=false;
   PrintLog("TEST COLOR KEY: ");
   int r1 = d3dTestAlpha();
 
-  OPT_ALPHA_COLORKEY=TRUE;
+  OPT_ALPHA_COLORKEY=true;
   PrintLog("TEST ALPHA KEY: ");
   int r2 = d3dTestAlpha();
   OPT_ALPHA_COLORKEY = (r2>=r1);
@@ -1223,12 +1223,12 @@ void Activate3DHardware()
 
   hRes = lpd3dDevice->BeginScene( );
 
-  if (OptText==0) LOWRESTX = TRUE;
-  if (OptText==1) LOWRESTX = FALSE;
-  if (OptText==2) LOWRESTX = FALSE;
+  if (OptText==0) LOWRESTX = true;
+  if (OptText==1) LOWRESTX = false;
+  if (OptText==2) LOWRESTX = false;
   d3dMemLoaded = 0;
 
-  D3DACTIVE = TRUE;
+  D3DACTIVE = true;
 
   d3dLastTexture = d3dmemmapsize+1;
   PrintLog("=== Direct3D started === \n");
@@ -1239,7 +1239,7 @@ void Activate3DHardware()
 
 void ResetTextureMap()
 {
-  d3dEndBufferG(FALSE);
+  d3dEndBufferG(false);
 
   d3dMemUsageCount = 0;
   //d3dMemLoaded = 0;
@@ -1260,7 +1260,7 @@ void ResetTextureMap()
 
 void ShutDown3DHardware()
 {
-  D3DACTIVE = FALSE;
+  D3DACTIVE = false;
 
   if (lpd3dDevice)
     hRes = lpd3dDevice->EndScene();
@@ -1360,7 +1360,7 @@ BOOL d3dAllocTexture(int i, int w, int h)
   if (FAILED(hRes))
   {
     d3dMemMap[i].lpddTexture = nullptr;
-    return FALSE;
+    return false;
   }
 
 
@@ -1368,7 +1368,7 @@ BOOL d3dAllocTexture(int i, int w, int h)
   ddck.dwColorSpaceLowValue = ddck.dwColorSpaceHighValue = 0x0000;
   d3dMemMap[i].lpddTexture->SetColorKey(DDCKEY_SRCBLT, &ddck);
 
-  return TRUE;
+  return true;
 }
 
 
@@ -1614,7 +1614,7 @@ void TryHiResTx()
     AddMessage(logt);
   */
   if (UsedMem*4 < static_cast<int>(d3dTexturesMem))
-    LOWRESTX = FALSE;
+    LOWRESTX = false;
 }
 
 
@@ -1630,12 +1630,12 @@ void ShowVideo()
   else LowHardMemory=0;
   if (LowHardMemory>2)
   {
-    LOWRESTX = TRUE;
+    LOWRESTX = true;
     LowHardMemory = 0;
   }
 
-  if (OptText==0) LOWRESTX = TRUE;
-  if (OptText==1) LOWRESTX = FALSE;
+  if (OptText==0) LOWRESTX = true;
+  if (OptText==1) LOWRESTX = false;
   if (OptText==2)
     if (LOWRESTX && (Takt & 63)==0) TryHiResTx();
 
@@ -1780,7 +1780,7 @@ void ddTextOut(int x, int y, LPSTR t, int color)
 
 void DrawSurvivalText(int x0, int y0)
 {
-	SmallFont = TRUE;
+	SmallFont = true;
 	HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 
 	int x = x0;
@@ -1795,14 +1795,14 @@ void DrawSurvivalText(int x0, int y0)
 	wsprintf(t, "%i", TrophyRoom2.survivalHighScore);
 	ddTextOut(40 + x, 124 + y0, t, 0x0000BFBF);
 
-	SmallFont = FALSE;
+	SmallFont = false;
 
 	SelectObject(hdcMain, oldfont);
 }
 
 void DrawScoreText(int x0, int y0) {
 	int x;
-	SmallFont = TRUE;
+	SmallFont = true;
 	HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 
 	char t[32];
@@ -1816,7 +1816,7 @@ void DrawScoreText(int x0, int y0) {
 	wsprintf(t, "%d", ScoreDisp);
 	ddTextOut(x - 5, y0, t, 0x0000BFBF);
 
-	SmallFont = FALSE;
+	SmallFont = false;
 
 	SelectObject(hdcMain, oldfont);
 }
@@ -1824,7 +1824,7 @@ void DrawScoreText(int x0, int y0) {
 void DrawTrophyText(int x0, int y0)
 {
   int x;
-  SmallFont = TRUE;
+  SmallFont = true;
   HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 
   int   dtype = TrophyDisplayBody.ctype;
@@ -1898,7 +1898,7 @@ void DrawTrophyText(int x0, int y0)
   wsprintf(t,"%d:%02d", ((time>>10) & 255), (time & 255));
   ddTextOut(x, y0+64, t, 0x0000BFBF);
 
-  SmallFont = FALSE;
+  SmallFont = false;
 
   SelectObject(hdcMain, oldfont);
 
@@ -1910,7 +1910,7 @@ void DrawTrophyText(int x0, int y0)
 void Render_LifeInfo(int li)
 {
   int x,y;
-  SmallFont = TRUE;
+  SmallFont = true;
   //HFONT oldfont = SelectObject(hdcMain, fnt_Small);
 
   int    ctype = Characters[li].CType;
@@ -1933,7 +1933,7 @@ void Render_LifeInfo(int li)
 
   ddTextOut(x, y+32, t, 0x0000b000);
 
-  SmallFont = FALSE;
+  SmallFont = false;
   //SelectObject(hdcMain, oldfont);
 }
 
@@ -2292,7 +2292,7 @@ void DrawTPlaneClip(BOOL SECONT)
 
   if (GVCnt>380)
   {
-    if (lpVertexG) d3dEndBufferG(FALSE);
+    if (lpVertexG) d3dEndBufferG(false);
     d3dStartBufferG();
   }
 
@@ -2572,7 +2572,7 @@ void DrawTPlane(BOOL SECONT)
 
   if (GVCnt>380)
   {
-    if (lpVertexG) d3dEndBufferG(FALSE);
+    if (lpVertexG) d3dEndBufferG(false);
     d3dStartBufferG();
   }
 
@@ -2835,7 +2835,7 @@ void DrawTPlaneW(BOOL SECONT)
 
   if (GVCnt>380)
   {
-    if (lpVertexG) d3dEndBufferG(FALSE);
+    if (lpVertexG) d3dEndBufferG(false);
     d3dStartBufferG();
   }
 
@@ -2997,16 +2997,16 @@ void RenderObject(int x, int y)
 
 void RenderModelsList()
 {
-  d3dEndBufferG(FALSE);
+  d3dEndBufferG(false);
   for (int o=0; o<ORLCount; o++)
     _RenderObject(ORList[o].x, ORList[o].y);
   ORLCount=0;
-  d3dEndBufferG(TRUE);
+  d3dEndBufferG(true);
 }
 
 void ProcessMap(int x, int y, int r)
 {
-  //WATERREVERSE = FALSE;
+  //WATERREVERSE = false;
   if (x>=ctMapSize-1 || y>=ctMapSize-1 ||
       x<0 || y<0) return;
 
@@ -3041,8 +3041,8 @@ void ProcessMap(int x, int y, int r)
   if (MIPMAP && (zs > 256 * 10 && t1 || LOWRESTX)) d3dSetTexture(Textures[t1]->DataB, 64, 64);
   else d3dSetTexture(Textures[t1]->DataA, 128, 128);
 
-  if (r>8) DrawTPlane(FALSE);
-  else DrawTPlaneClip(FALSE);
+  if (r>8) DrawTPlane(false);
+  else DrawTPlaneClip(false);
 
   if (ReverseOn)
   {
@@ -3055,8 +3055,8 @@ void ProcessMap(int x, int y, int r)
     ev[2] = VMap[y+1][x];
   }
 
-  if (r>8) DrawTPlane(TRUE);
-  else DrawTPlaneClip(TRUE);
+  if (r>8) DrawTPlane(true);
+  else DrawTPlaneClip(true);
 
   x = x + CCX - 128;
   y = y + CCY - 128;
@@ -3072,7 +3072,7 @@ void ProcessMap(int x, int y, int r)
 
 void ProcessMap2(int x, int y, int r)
 {
-  //WATERREVERSE = FALSE;
+  //WATERREVERSE = false;
   if (x>=ctMapSize-1 || y>=ctMapSize-1 ||
       x<0 || y<0) return;
 
@@ -3081,7 +3081,7 @@ void ProcessMap2(int x, int y, int r)
 
   int t1 = TMap2[y][x];
   TDirection = ((FMap[y][x]>>8) & 3);
-  ReverseOn = FALSE;
+  ReverseOn = false;
 
   x = x - CCX + 128;
   y = y - CCY + 128;
@@ -3101,7 +3101,7 @@ void ProcessMap2(int x, int y, int r)
 
   d3dSetTexture(Textures[t1]->DataB, 64, 64);
 
-  DrawTPlane(FALSE);
+  DrawTPlane(false);
 
   if (ReverseOn)
   {
@@ -3114,7 +3114,7 @@ void ProcessMap2(int x, int y, int r)
     ev[2] = VMap[y+2][x];
   }
 
-  DrawTPlane(TRUE);
+  DrawTPlane(true);
 
 
   x = x + CCX - 128;
@@ -3138,13 +3138,13 @@ void ProcessMapW(int x, int y, int r)
          (FMap[y+1][x+1] & fmWaterA) )) return;
 
 
-  WATERREVERSE = TRUE;
+  WATERREVERSE = true;
   int t1 = WaterList[ WMap[y][x] ].tindex;
 
   ev[0] = VMap2[y-CCY+128][x-CCX+128];
   if (ev[0].v.z>BackViewR) return;
 
-  ReverseOn = FALSE;
+  ReverseOn = false;
   TDirection = 0;
 
   x = x - CCX + 128;
@@ -3164,15 +3164,15 @@ void ProcessMapW(int x, int y, int r)
   if (MIPMAP && (zs > 256 * 10 && t1 || LOWRESTX)) d3dSetTexture(Textures[t1]->DataB, 64, 64);
   else d3dSetTexture(Textures[t1]->DataA, 128, 128);
 
-  if (r>8) DrawTPlaneW(FALSE);
-  else DrawTPlaneClip(FALSE);
+  if (r>8) DrawTPlaneW(false);
+  else DrawTPlaneClip(false);
 
   ev[1] = ev[2];
   ev[2] = VMap2[y+1][x];
 
-  if (r>8) DrawTPlaneW(TRUE);
-  else DrawTPlaneClip(TRUE);
-  WATERREVERSE = FALSE;
+  if (r>8) DrawTPlaneW(true);
+  else DrawTPlaneClip(true);
+  WATERREVERSE = false;
 
 }
 
@@ -3189,8 +3189,8 @@ void ProcessMapW2(int x, int y, int r)
   ev[0] = VMap2[y-CCY+128][x-CCX+128];
   if (ev[0].v.z>BackViewR) return;
 
-  //WATERREVERSE = TRUE;
-  ReverseOn = FALSE;
+  //WATERREVERSE = true;
+  ReverseOn = false;
   TDirection = 0;
 
   x = x - CCX + 128;
@@ -3210,11 +3210,11 @@ void ProcessMapW2(int x, int y, int r)
 
   d3dSetTexture(Textures[t1]->DataB, 64, 64);
 
-  DrawTPlaneW(FALSE);
+  DrawTPlaneW(false);
   ev[1] = ev[2];
   ev[2] = VMap2[y+2][x];
 
-  DrawTPlaneW(TRUE);
+  DrawTPlaneW(true);
 }
 
 
@@ -3328,7 +3328,7 @@ void RenderWCircles()
 
 void RenderWater()
 {
-  SetRenderStates(FALSE, D3DBLEND_INVSRCALPHA);
+  SetRenderStates(false, D3DBLEND_INVSRCALPHA);
 
 
   for (int r=ctViewR; r>=ctViewR1; r-=2)
@@ -3362,12 +3362,12 @@ void RenderWater()
 
 
 
-  d3dEndBufferG(FALSE);
+  d3dEndBufferG(false);
 
   FogYBase = 0;
-  SetRenderStates(FALSE, D3DBLEND_ONE);
+  SetRenderStates(false, D3DBLEND_ONE);
   RenderWCircles();
-  SetRenderStates(TRUE, D3DBLEND_INVSRCALPHA);
+  SetRenderStates(true, D3DBLEND_INVSRCALPHA);
 }
 
 
@@ -3722,7 +3722,7 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
 
   if (GVCnt>380)
   {
-    if (lpVertexG) d3dEndBufferG(TRUE);
+    if (lpVertexG) d3dEndBufferG(true);
     d3dStartBufferGBMP();
   }
 
@@ -3913,7 +3913,7 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
   int fproc1 = 0;
   int fproc2 = 0;
   f = Current;
-  BOOL CKEY = FALSE;
+  BOOL CKEY = false;
   while( f!=-1 )
   {
     TFace *fptr = & mptr->gFace[f];
@@ -3990,7 +3990,7 @@ void RenderShadowClip(TModel* _mptr,
   float sb = static_cast<float>(sin(bt));
 
 
-  BOOL BL = FALSE;
+  BOOL BL = false;
   for (int s=0; s<mptr->VCount; s++)
   {
     float mrx = mptr->gVertex[s].x * cla + mptr->gVertex[s].z * sla;
@@ -4004,7 +4004,7 @@ void RenderShadowClip(TModel* _mptr,
     float vz = shz * ca - shx * sa;
     rVertex[s].y = (shy * cb - vz * sb) + y0;
     rVertex[s].z = (vz * cb + shy * sb) + z0;
-    if (rVertex[s].z<0) BL=TRUE;
+    if (rVertex[s].z<0) BL=true;
 
     if (rVertex[s].z>-256)
     {
@@ -4152,7 +4152,7 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
   DWORD alphamask = (255-GlassL)<<24;
 
 
-  BOOL BL = FALSE;
+  BOOL BL = false;
   BOOL FOGACTIVE = (FOGON && (FogYBase>0));
 
   for (int s=0; s<mptr->VCount; s++)
@@ -4171,7 +4171,7 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
     float vz = mptr->gVertex[s].z * ca - mptr->gVertex[s].x * sa;
     rVertex[s].y = (mptr->gVertex[s].y * cb - vz * sb) /* * mdlScale */ + y0;
     rVertex[s].z = (vz * cb + mptr->gVertex[s].y * sb) /* * mdlScale */ + z0;
-    if (rVertex[s].z<0) BL=TRUE;
+    if (rVertex[s].z<0) BL=true;
 
     if (rVertex[s].z>-256)
     {
@@ -4207,7 +4207,7 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
   f = Current;
   int fproc1 = 0;
   int fproc2 = 0;
-  BOOL CKEY = FALSE;
+  BOOL CKEY = false;
 
   while( f!=-1 )
   {
@@ -4318,7 +4318,7 @@ void RenderModelClipEnvMap(TModel* _mptr, float x0, float y0, float z0, float al
 
   DWORD PHCOLOR = 0xFFFFFFFF;
 
-  BOOL BL = FALSE;
+  BOOL BL = false;
 
 
   for (int s=0; s<mptr->VCount; s++)
@@ -4328,7 +4328,7 @@ void RenderModelClipEnvMap(TModel* _mptr, float x0, float y0, float z0, float al
     float vz = mptr->gVertex[s].z * ca - mptr->gVertex[s].x * sa;
     rVertex[s].y = (mptr->gVertex[s].y * cb - vz * sb) /* * mdlScale */ + y0;
     rVertex[s].z = (vz * cb + mptr->gVertex[s].y * sb) /* * mdlScale */ + z0;
-    if (rVertex[s].z<0) BL=TRUE;
+    if (rVertex[s].z<0) BL=true;
 
     if (rVertex[s].z>-256)
     {
@@ -4354,7 +4354,7 @@ void RenderModelClipEnvMap(TModel* _mptr, float x0, float y0, float z0, float al
 
 
   d3dSetTexture(TFX_ENVMAP.lpImage, TFX_ENVMAP.W, TFX_ENVMAP.W);
-  SetRenderStates(FALSE, D3DBLEND_ONE);
+  SetRenderStates(false, D3DBLEND_ONE);
 
   BuildTreeClipNoSort();
 
@@ -4445,7 +4445,7 @@ LNEXT:
   }
 
   d3dFlushBuffer(fproc1, 0);
-  SetRenderStates(TRUE, D3DBLEND_INVSRCALPHA);
+  SetRenderStates(true, D3DBLEND_INVSRCALPHA);
 }
 
 
@@ -4468,7 +4468,7 @@ void RenderModelClipPhongMap(TModel* _mptr, float x0, float y0, float z0, float 
   if (bv>255) bv = 255;
   DWORD PHCOLOR = 0xFF000000 + (rv<<16) + (gv<<8) + bv;
 
-  BOOL BL = FALSE;
+  BOOL BL = false;
 
   for (int s=0; s<mptr->VCount; s++)
   {
@@ -4477,7 +4477,7 @@ void RenderModelClipPhongMap(TModel* _mptr, float x0, float y0, float z0, float 
     float vz = mptr->gVertex[s].z * ca - mptr->gVertex[s].x * sa;
     rVertex[s].y = (mptr->gVertex[s].y * cb - vz * sb) /* * mdlScale */ + y0;
     rVertex[s].z = (vz * cb + mptr->gVertex[s].y * sb) /* * mdlScale */ + z0;
-    if (rVertex[s].z<0) BL=TRUE;
+    if (rVertex[s].z<0) BL=true;
 
     if (rVertex[s].z>-256)
     {
@@ -4502,7 +4502,7 @@ void RenderModelClipPhongMap(TModel* _mptr, float x0, float y0, float z0, float 
   }
 
   d3dSetTexture(TFX_SPECULAR.lpImage, TFX_SPECULAR.W, TFX_SPECULAR.W);
-  SetRenderStates(FALSE, D3DBLEND_ONE);
+  SetRenderStates(false, D3DBLEND_ONE);
 
   BuildTreeClipNoSort();
 
@@ -4590,7 +4590,7 @@ LNEXT:
   }
 
   d3dFlushBuffer(fproc1, 0);
-  SetRenderStates(TRUE, D3DBLEND_INVSRCALPHA);
+  SetRenderStates(true, D3DBLEND_INVSRCALPHA);
 }
 
 void RenderModelSun(TModel* _mptr, float x0, float y0, float z0, int Alpha)
@@ -4746,7 +4746,7 @@ void RenderModelSun(TModel* _mptr, float x0, float y0, float z0, int Alpha)
   lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
   lpState->drstRenderStateType = D3DRENDERSTATE_COLORKEYENABLE;
-  lpState->dwArg[0] = FALSE;
+  lpState->dwArg[0] = false;
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREMAG;
@@ -4788,7 +4788,7 @@ void RenderNearModel(TModel* _mptr, float x0, float y0, float z0, int light, flo
   CalcFogLevel_Gradient(v);
   FogYGrad = 0;
 
-  LOWRESTX = FALSE;
+  LOWRESTX = false;
   RenderModelClip(_mptr, x0, y0, z0, light, 0, al, bt);
   LOWRESTX = b;
 }
@@ -4965,7 +4965,7 @@ void RenderCharacterPost(TCharacter *cptr)
     GlassL = MIN(255, (zs/4 - 64*(ctViewR-4)));
 
 
-  waterclip = FALSE;
+  waterclip = false;
 
 
   if ( cptr->rpos.z >-256*10)
@@ -5469,13 +5469,13 @@ void DrawHMap()
 
 			  if (pd < 38) {
 				  if (pd >= _sonarPos && pd <= sonarPos) {
-					  Characters[c].showSonar = TRUE;
+					  Characters[c].showSonar = true;
 					  Characters[c].sonar.x = xx;
 					  Characters[c].sonar.y = yy;
 					  AddVoicev(fxBlip.length, fxBlip.lpData, 256);
 				  }
 			  }
-			  else Characters[c].showSonar = FALSE;
+			  else Characters[c].showSonar = false;
 
 			  if (Characters[c].showSonar && !Characters[c].RTime) {
 				  if (VMFORMAT565) {
@@ -5879,7 +5879,7 @@ void RenderSkyPlane()
 
   hRes = lpd3dDevice->Execute(lpd3dExecuteBufferG, lpd3dViewport, D3DEXECUTE_UNCLIPPED);
 
-  LINEARFILTER = TRUE;
+  LINEARFILTER = true;
 
   nv = RotateVector(Sun3dPos);
   SunLight = 0;

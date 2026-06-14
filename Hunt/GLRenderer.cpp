@@ -1664,7 +1664,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
         return;
     }
 
-    waterclip = FALSE;
+    waterclip = false;
     if (!UNDERWATER && (FMap[y][x] & fmWaterA) && HMapO[y][x] < WaterList[WMap[y][x]].wlevel) {
         if (WaterList[WMap[y][x]].wlevel * ctHScale > HMapO[y][x] * ctHScale + MObjects[ob].info.YHi) {
             return;
@@ -1673,7 +1673,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
         waterclipbase = pos;
         waterclipbase.y = WaterList[WMap[y][x]].wlevel * ctHScale - CameraY;
         waterclipbase = RotateVector(waterclipbase);
-        waterclip = TRUE;
+        waterclip = true;
     }
 
     pos = RotateVector(pos);
@@ -1747,7 +1747,7 @@ void GLRenderer::Render3DHardwarePosts()
         if (zs > 256.0f * (ctViewR - 4))
             GlassL = (std::min)(255, static_cast<int>(zs / 4.0f - 64.0f * (ctViewR - 4)));
 
-        waterclip = FALSE;
+        waterclip = false;
 
         if (cptr->rpos.z > -256.0f * 10.0f)
             RenderModelClip(cptr->pinfo->mptr,
@@ -1792,7 +1792,7 @@ void GLRenderer::Render3DHardwarePosts()
             if (zs > 256.0f * (ctViewR - 4))
                 GlassL = (std::min)(255, static_cast<int>(zs / 4.0f - 64.0f * (ctViewR - 4)));
 
-            waterclip = FALSE;
+            waterclip = false;
 
             if (cptr->rpos.z > -256.0f * 10.0f)
                 RenderModelClip(cptr->pinfo->mptr,

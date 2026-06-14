@@ -106,7 +106,7 @@ void Init3DHardware()
   }
 
   grSstSelect( 0 );
-  HARD3D = TRUE;
+  HARD3D = true;
 
   FXConstTstartAddress = grTexMinAddress(GR_TMU0);
   FXConstTendAddress   = grTexMaxAddress(GR_TMU0);
@@ -541,7 +541,7 @@ void TryHiResTx()
   }
 
   if (UsedMem*3 < static_cast<int>(FXConstTendAddress))
-    LOWRESTX = FALSE;
+    LOWRESTX = false;
 }
 
 
@@ -698,12 +698,12 @@ void ShowVideo()
   else LowHardMemory=0;
   if (LowHardMemory>2)
   {
-    LOWRESTX = TRUE;
+    LOWRESTX = true;
     LowHardMemory = 0;
   }
 
-  if (OptText==0) LOWRESTX = TRUE;
-  if (OptText==1) LOWRESTX = FALSE;
+  if (OptText==0) LOWRESTX = true;
+  if (OptText==1) LOWRESTX = false;
   if (OptText==2)
     if (LOWRESTX && (Takt & 63)==0) TryHiResTx();
   /*
@@ -898,7 +898,7 @@ void FXTextOut(int x, int y, LPSTR t, int color)
 
 void DrawSurvivalText(int x0, int y0)
 {
-	SmallFont = TRUE;
+	SmallFont = true;
 	HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 	int x = x0;
 	FXTextOut(40 + x0, 98+ y0, "Waves Survived: ", 0x00BFBFBF);
@@ -911,13 +911,13 @@ void DrawSurvivalText(int x0, int y0)
 	x += GetTextW(hdcMain, "High Score: ");
 	wsprintf(t, "%i", TrophyRoom2.survivalHighScore);
 	FXTextOut(40 + x, 124 + y0, t, 0x0000BFBF);
-	SmallFont = FALSE;
+	SmallFont = false;
 	SelectObject(hdcMain, oldfont);
 }
 
 void DrawScoreText(int x0, int y0) {
 	int x;
-	SmallFont = TRUE;
+	SmallFont = true;
 	HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 
 	char t[32];
@@ -931,7 +931,7 @@ void DrawScoreText(int x0, int y0) {
 	wsprintf(t, "%d", ScoreDisp);
 	FXTextOut(x-5, y0, t, 0x0000BFBF);
 
-	SmallFont = FALSE;
+	SmallFont = false;
 
 	SelectObject(hdcMain, oldfont);
 }
@@ -939,7 +939,7 @@ void DrawScoreText(int x0, int y0) {
 void DrawTrophyText(int x0, int y0)
 {
   int x;
-  SmallFont = TRUE;
+  SmallFont = true;
   HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 //  int tc = TrophyBody;
 
@@ -1015,7 +1015,7 @@ void DrawTrophyText(int x0, int y0)
   wsprintf(t,"%d:%02d", ((time>>10) & 255), (time & 255));
   FXTextOut(x, y0+64, t, 0x0000BFBF);
 
-  SmallFont = FALSE;
+  SmallFont = false;
 
   SelectObject(hdcMain, oldfont);
 }
@@ -1026,7 +1026,7 @@ void DrawTrophyText(int x0, int y0)
 void Render_LifeInfo(int li)
 {
   int x,y;
-  SmallFont = TRUE;
+  SmallFont = true;
   HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 
   int   ctype = Characters[li].CType;
@@ -1053,7 +1053,7 @@ void Render_LifeInfo(int li)
 
 
 
-  SmallFont = FALSE;
+  SmallFont = false;
   SelectObject(hdcMain, oldfont);
 }
 
@@ -1737,7 +1737,7 @@ void DrawTPlaneClipW(BOOL SECOND)
 void DrawTPlane(BOOL SECOND)
 {
   int n;
-  BOOL SecondPass = FALSE;
+  BOOL SecondPass = false;
 
 
   MulVectorsVect(SubVectors(ev[1].v, ev[0].v), SubVectors(ev[2].v, ev[0].v), nv);
@@ -1762,7 +1762,7 @@ void DrawTPlane(BOOL SECOND)
   {
     guAlphaSource(GR_ALPHASOURCE_ITERATED_ALPHA);
     grFogMode(GR_FOG_DISABLE);
-    SecondPass = TRUE;
+    SecondPass = true;
 
     float zz;
     zz = VectorLength(ev[0].v) - 256 * (ctViewR-4);
@@ -1850,7 +1850,7 @@ void DrawTPlane(BOOL SECOND)
 void DrawTPlaneW(BOOL SECOND)
 {
   int n;
-  BOOL SecondPass = FALSE;
+  BOOL SecondPass = false;
 
   Mask1=0x007F;
   for (n=0; n<3; n++)
@@ -2035,7 +2035,7 @@ void ProcessMapW(int x, int y, int r)
   ev[0] = VMap2[y-CCY+128][x-CCX+128];
   if (ev[0].v.z>BackViewR) return;
 
-  ReverseOn = FALSE;
+  ReverseOn = false;
   TDirection = 0;
 
   x = x - CCX + 128;
@@ -2056,14 +2056,14 @@ void ProcessMapW(int x, int y, int r)
   if (MIPMAP && (zs > 256 * 10 && t1 || LOWRESTX)) SetFXTexture(Textures[t1]->DataB, 64, 64);
   else SetFXTexture(Textures[t1]->DataA, 128, 128);
 
-  if (r>8) DrawTPlaneW(FALSE);
-  else DrawTPlaneClipW(FALSE);
+  if (r>8) DrawTPlaneW(false);
+  else DrawTPlaneClipW(false);
 
   ev[1] = ev[2];
   ev[2] = VMap2[y+1][x];
 
-  if (r>8) DrawTPlaneW(TRUE);
-  else DrawTPlaneClipW(TRUE);
+  if (r>8) DrawTPlaneW(true);
+  else DrawTPlaneClipW(true);
 
 }
 
@@ -2083,7 +2083,7 @@ void ProcessMapW2(int x, int y, int r)
   if (ev[0].v.z>BackViewR) return;
 
 
-  ReverseOn = FALSE;
+  ReverseOn = false;
   TDirection = 0;
 
   x = x - CCX + 128;
@@ -2104,12 +2104,12 @@ void ProcessMapW2(int x, int y, int r)
 
   SetFXTexture(Textures[t1]->DataB, 64, 64);
 
-  DrawTPlaneW(FALSE);
+  DrawTPlaneW(false);
 
   ev[1] = ev[2];
   ev[2] = VMap2[y+2][x];
 
-  DrawTPlaneW(TRUE);
+  DrawTPlaneW(true);
 }
 
 
@@ -2345,8 +2345,8 @@ void ProcessMap(int x, int y, int r)
   if (MIPMAP && (zs > 256 * 10 || LOWRESTX)) SetFXTexture(Textures[t1]->DataB, 64, 64);
   else SetFXTexture(Textures[t1]->DataA, 128, 128);
 
-  if (r>8) DrawTPlane(FALSE);
-  else DrawTPlaneClip(FALSE);
+  if (r>8) DrawTPlane(false);
+  else DrawTPlaneClip(false);
 
   if (ReverseOn)
   {
@@ -2360,8 +2360,8 @@ void ProcessMap(int x, int y, int r)
   }
 
 
-  if (r>8) DrawTPlane(TRUE);
-  else DrawTPlaneClip(TRUE);
+  if (r>8) DrawTPlane(true);
+  else DrawTPlaneClip(true);
 
   x = x + CCX - 128;
   y = y + CCY - 128;
@@ -2405,7 +2405,7 @@ void ProcessMap2(int x, int y, int r)
   int t1 = TMap2[y][x];
   TDirection = ((FMap[y][x]>>8) & 3);
 
-  ReverseOn = FALSE;
+  ReverseOn = false;
 
   x = x - CCX + 128;
   y = y - CCY + 128;
@@ -2426,7 +2426,7 @@ void ProcessMap2(int x, int y, int r)
   grConstantColorValue( 0xFF000000);
   SetFXTexture(Textures[t1]->DataB, 64, 64);
 
-  DrawTPlane(FALSE);
+  DrawTPlane(false);
 
   if (ReverseOn)
   {
@@ -2440,7 +2440,7 @@ void ProcessMap2(int x, int y, int r)
   }
 
 
-  DrawTPlane(TRUE);
+  DrawTPlane(true);
 
   x = x + CCX - 128;
   y = y + CCY - 128;
@@ -2856,7 +2856,7 @@ void RenderShadowClip(TModel* _mptr,
   float flight = 0;
 
 
-  BOOL BL = FALSE;
+  BOOL BL = false;
   for (int s=0; s<mptr->VCount; s++)
   {
     float mrx = mptr->gVertex[s].x * cla + mptr->gVertex[s].z * sla;
@@ -2870,7 +2870,7 @@ void RenderShadowClip(TModel* _mptr,
     float vz = shz * ca - shx * sa;
     rVertex[s].y = (shy * cb - vz * sb) + y0;
     rVertex[s].z = (vz * cb + shy * sb) + z0;
-    if (rVertex[s].z<0) BL=TRUE;
+    if (rVertex[s].z<0) BL=true;
 
     if (rVertex[s].z>-256)
     {
@@ -3012,7 +3012,7 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
 
 
 
-  BOOL BL = FALSE;
+  BOOL BL = false;
   BOOL FOGACTIVE = (FOGON && (FogYBase>0));
 
   for (int s=0; s<mptr->VCount; s++)
@@ -3030,7 +3030,7 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
     float vz = mptr->gVertex[s].z * ca - mptr->gVertex[s].x * sa;
     rVertex[s].y = (mptr->gVertex[s].y * cb - vz * sb) /* * mdlScale */ + y0;
     rVertex[s].z = (vz * cb + mptr->gVertex[s].y * sb) /* * mdlScale */ + z0;
-    if (rVertex[s].z<0) BL=TRUE;
+    if (rVertex[s].z<0) BL=true;
 
     if (rVertex[s].z>-256)
     {
@@ -3190,7 +3190,7 @@ LNEXT:
 void RenderModelClipEnvMap(TModel* _mptr, float x0, float y0, float z0, float al, float bt)
 {
   int f,CMASK;
-  BOOL BL = FALSE;
+  BOOL BL = false;
 
   mptr = _mptr;
 
@@ -3208,7 +3208,7 @@ void RenderModelClipEnvMap(TModel* _mptr, float x0, float y0, float z0, float al
     float vz = mptr->gVertex[s].z * ca - mptr->gVertex[s].x * sa;
     rVertex[s].y = (mptr->gVertex[s].y * cb - vz * sb)  + y0;
     rVertex[s].z = (vz * cb + mptr->gVertex[s].y * sb)  + z0;
-    if (rVertex[s].z<0) BL=TRUE;
+    if (rVertex[s].z<0) BL=true;
 
     if (rVertex[s].z>-256)
     {
@@ -3340,7 +3340,7 @@ LNEXT:
 void RenderModelClipPhongMap(TModel* _mptr, float x0, float y0, float z0, float al, float bt)
 {
   int f,CMASK;
-  BOOL BL = FALSE;
+  BOOL BL = false;
 
   mptr = _mptr;
 
@@ -3365,7 +3365,7 @@ void RenderModelClipPhongMap(TModel* _mptr, float x0, float y0, float z0, float 
     float vz = mptr->gVertex[s].z * ca - mptr->gVertex[s].x * sa;
     rVertex[s].y = (mptr->gVertex[s].y * cb - vz * sb)  + y0;
     rVertex[s].z = (vz * cb + mptr->gVertex[s].y * sb)  + z0;
-    if (rVertex[s].z<0) BL=TRUE;
+    if (rVertex[s].z<0) BL=true;
 
     if (rVertex[s].z>-256)
     {
@@ -3624,7 +3624,7 @@ void RenderNearModel(TModel* _mptr, float x0, float y0, float z0, int light, flo
   FogYGrad = 0;
 
 
-  LOWRESTX = FALSE;
+  LOWRESTX = false;
   RenderModelClip(_mptr, x0, y0, z0, light, 0, al, bt);
 
   LOWRESTX = bl;
@@ -3665,7 +3665,7 @@ void RenderCharacterPost(TCharacter *cptr)
     if (GlassL>255) GlassL=255;
   }
 
-  waterclip = FALSE;
+  waterclip = false;
 
   grConstantColorValue( (255-GlassL) << 24);
   if ( cptr->rpos.z >-256*10)
@@ -4588,12 +4588,12 @@ void DrawHMap()
 
 					if (pd < 38) {
 						if (pd >= _sonarPos && pd <= sonarPos) {
-							Characters[c].showSonar = TRUE;
+							Characters[c].showSonar = true;
 							Characters[c].sonar.x = xx;
 							Characters[c].sonar.y = yy;
 							AddVoicev(fxBlip.length, fxBlip.lpData, 256);
 						}
-					} else Characters[c].showSonar = FALSE;
+					} else Characters[c].showSonar = false;
 
 					if (Characters[c].showSonar && !Characters[c].RTime) {
 						if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery(static_cast<WORD*>(linfo.lfbPtr), lsw, Characters[c].sonar.x, Characters[c].sonar.y, DinoInfo[Characters[c].CType].radarColour565);

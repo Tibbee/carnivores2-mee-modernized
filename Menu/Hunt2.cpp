@@ -86,7 +86,7 @@ int LaunchProcess(const std::string& exe_name, std::string cmd_line)
 
 	// Create the process
 	BOOL result = CreateProcess(exe_name.c_str(), const_cast<char*>(cmd_line.c_str()),
-		nullptr, nullptr, FALSE,
+		nullptr, nullptr, false,
 		NORMAL_PRIORITY_CLASS,
 		nullptr, nullptr, &startupInfo, &processInformation);
 

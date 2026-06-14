@@ -27,7 +27,7 @@ BOOL _HeapFree(HANDLE hHeap,
                DWORD  dwFlags,
                LPVOID lpMem)
 {
-  if (!lpMem) return FALSE;
+  if (!lpMem) return false;
 
   HeapReleased+=
     HeapSize(hHeap, HEAP_NO_SERIALIZE, lpMem);
@@ -275,12 +275,12 @@ void CreateTMap()
           WMap[y][x] = WMap[y-1][x  ];
         }
 
-        BOOL l = TRUE;
+        BOOL l = true;
 
 #ifdef _soft
         if (FMap[y][x] & fmWater2)
         {
-          l = FALSE;
+          l = false;
           if (HMap[y][x] > WaterList[WMap[y][x]].wlevel) HMap[y][x]=WaterList[WMap[y][x]].wlevel;
           HMap[y][x]=WaterList[WMap[y][x]].wlevel;
         }
@@ -1132,11 +1132,11 @@ void GenerateAlphaFlags(TModel *mptr)
 #ifdef _d3d
 
   int w;
-  BOOL Opacity = FALSE;
+  BOOL Opacity = false;
   WORD* tptr = mptr->lpTexture;
 
   for (w=0; w<mptr->FCount; w++)
-    if ((mptr->gFace[w].Flags & sfOpacity)>0) Opacity = TRUE;
+    if ((mptr->gFace[w].Flags & sfOpacity)>0) Opacity = true;
 
   if (Opacity)
   {
@@ -1342,7 +1342,7 @@ void LoadResources()
   HeapAllocated=0;
   if (strstr(ProjectName, "trophy"))
   {
-    TrophyMode = TRUE;
+    TrophyMode = true;
     ctViewR = 60;
     ctViewR1 = 48;
   }
@@ -1617,10 +1617,10 @@ void LoadCharacters()
 {
   BOOL pres[DINOINFO_MAX];
   FillMemory(pres, sizeof(pres), 0);
-  pres[0]=TRUE;
+  pres[0]=true;
   for (int c=0; c<ChCount; c++)
   {
-    pres[Characters[c].CType] = TRUE;
+    pres[Characters[c].CType] = true;
   }
 
   for (int c=0; c<TotalC; c++) if (pres[c] || (SurvivalMode && DinoInfo[c].survivalDino))
@@ -1816,7 +1816,7 @@ void ReInitGame()
 
   LoadCharacters();
 
-  LockLanding = FALSE;
+  LockLanding = false;
   Wind.alpha = rRand(1024) * 2.f * pi / 1024.f;
   Wind.speed = 10;
   MyHealth = MAX_HEALTH;
@@ -1838,15 +1838,15 @@ void ReInitGame()
   WCCount = 0;
   ElCount = 0;
   BloodTrail.Count = 0;
-  BINMODE = FALSE;
-  OPTICMODE = FALSE;
-  EXITMODE = FALSE;
-  PAUSE = FALSE;
+  BINMODE = false;
+  OPTICMODE = false;
+  EXITMODE = false;
+  PAUSE = false;
 
   if (SurvivalMode) {
 	  PlayerAlpha = pi * 2 * SurvivalSpawnA / 360.f;
 	  Weapon.state = 2;
-	  if (WeapInfo[CurrentWeapon].Optic) OPTICMODE = TRUE;
+	  if (WeapInfo[CurrentWeapon].Optic) OPTICMODE = true;
   }
 
   Ship.pos.x = PlayerX;
@@ -1868,7 +1868,7 @@ void ReInitGame()
   }
 
   DemoPoint.DemoTime = 0;
-  RestartMode = FALSE;
+  RestartMode = false;
   TrophyDisplay=false;
   answtime = 0;
   ExitTime = 0;
@@ -2039,10 +2039,10 @@ BOOL TraceVector(Vector3d v, Vector3d lv)
     v.x-=lv.x;
     v.y-=lv.y/6;
     v.z-=lv.z;
-    if (v.y>255 * ctHScale) return TRUE;
-    if (GetLandH(v.x, v.z) > v.y) return FALSE;
+    if (v.y>255 * ctHScale) return true;
+    if (GetLandH(v.x, v.z) > v.y) return false;
   }
-  return TRUE;
+  return true;
 }
 
 
@@ -2207,13 +2207,13 @@ void SaveScreenShot()
 
 
 void readBool(char *value, BOOL &out) {
-	if (strstr(value, "TRUE")) out = TRUE;
-	if (strstr(value, "FALSE")) out = FALSE;
+	if (strstr(value, "TRUE")) out = true;
+	if (strstr(value, "FALSE")) out = false;
 }
 
 void readBool(char *value, bool &out) {
-	if (strstr(value, "TRUE")) out = TRUE;
-	if (strstr(value, "FALSE")) out = FALSE;
+	if (strstr(value, "TRUE")) out = true;
+	if (strstr(value, "FALSE")) out = false;
 }
 
 void SkipSector(FILE *stream)
@@ -3027,7 +3027,7 @@ void ReadAreaTable (FILE *stream, int areaNumber)
 						ReadSnowType(stream);
 					}
 
-					if (strstr(line, "tree")) TreeTable[atoi(value)] = TRUE;
+					if (strstr(line, "tree")) TreeTable[atoi(value)] = true;
 
 					if (strstr(line, "survivalPlayerX")) SurvivalSpawnX = atoi(value);
 					if (strstr(line, "survivalPlayerY")) SurvivalSpawnZ = atoi(value);
@@ -3146,7 +3146,7 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 		if (!value) DoHalt("Script loading error: Weapons gunshot");
 		value[strlen(value) - 2] = 0;
 		strcpy(WeapInfo[TotalW].SFXName, &value[1]);
-		WeapInfo[TotalW].MGSSound = TRUE;
+		WeapInfo[TotalW].MGSSound = true;
 	}
 
 
@@ -3165,7 +3165,7 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 		if (!value) DoHalt("Script loading error: Chamber pic");
 		value[strlen(value) - 2] = 0;
 		strcpy(WeapInfo[TotalW].CFName, &value[1]);
-		WeapInfo[TotalW].picch = TRUE;
+		WeapInfo[TotalW].picch = true;
 	}
 
 
@@ -3175,7 +3175,7 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 		if (!value) DoHalt("Script loading error: Weapons bullet");
 		value[strlen(value) - 2] = 0;
 		strcpy(WeapInfo[TotalW].BLName, &value[1]);
-		WeapInfo[TotalW].bullet = TRUE;
+		WeapInfo[TotalW].bullet = true;
 	}
 
 }
@@ -3222,8 +3222,8 @@ void ReadWeapons(FILE *stream)
 			WeapInfo[TotalW].crossColour565 = ((WeapInfo[TotalW].crossRed >> 3) << 11) | ((WeapInfo[TotalW].crossGreen >> 2) << 5) | (WeapInfo[TotalW].crossBlue >> 3);
 			WeapInfo[TotalW].crossColour555 = ((WeapInfo[TotalW].crossRed >> 3) << 10) | ((WeapInfo[TotalW].crossGreen >> 3) << 5) | (WeapInfo[TotalW].crossBlue >> 3);
 
-			if (WeapInfo[TotalW].Veloc > WeapInfo[TotalW].VelocAq) WeapInfo[TotalW].aqLow = TRUE;
-			else WeapInfo[TotalW].aqLow = FALSE;
+			if (WeapInfo[TotalW].Veloc > WeapInfo[TotalW].VelocAq) WeapInfo[TotalW].aqLow = true;
+			else WeapInfo[TotalW].aqLow = false;
 
           TotalW++;
           break;
@@ -3676,8 +3676,8 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	if (strstr(line, "shipdelta")) DinoInfo[TotalC].ShDelta = static_cast<float>(atof(value));
 	if (strstr(line, "scale0")) DinoInfo[TotalC].Scale0 = atoi(value);
 	if (strstr(line, "scaleA")) DinoInfo[TotalC].ScaleA = atoi(value);
-	if (strstr(line, "fearCall")) DinoInfo[TotalC].fearCall[atoi(value)] = TRUE; //DIFFERANT TO STND BOOL!!!! e.g. fearcall = 1
-	if (strstr(line, "dontFear")) DinoInfo[TotalC].fearCall[atoi(value)] = FALSE; //DIFFERANT TO STND BOOL!!!!
+	if (strstr(line, "fearCall")) DinoInfo[TotalC].fearCall[atoi(value)] = true; //DIFFERANT TO STND BOOL!!!! e.g. fearcall = 1
+	if (strstr(line, "dontFear")) DinoInfo[TotalC].fearCall[atoi(value)] = false; //DIFFERANT TO STND BOOL!!!!
 	if (strstr(line, "maxdepth")) DinoInfo[TotalC].maxDepth = atoi(value);
 	if (strstr(line, "maxalt")) DinoInfo[TotalC].maxDepth = atoi(value);
 	if (strstr(line, "mindepth")) DinoInfo[TotalC].minDepth = atoi(value);
@@ -3700,7 +3700,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 
 
 	if (strstr(line, "survivalIndex")) {
-		DinoInfo[TotalC].survivalDino = TRUE;
+		DinoInfo[TotalC].survivalDino = true;
 		SurvivalIndex[atoi(value)] = TotalC;
 		SurvivalIndexCh++;
 	}
@@ -3839,7 +3839,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	/*
 	if (strstr(line, "trophy")) {
 		if (!DinoInfo[TotalC].trophyCode) {
-			bool temp = FALSE;
+			bool temp = false;
 			readBool(value, temp);
 			if (temp) {
 				TotalTrophy++;
@@ -4020,9 +4020,9 @@ void ReadCharacters(FILE *stream)
           //AI_to_CIndex[_ctype] = TotalC;
 		  if (DinoInfo[TotalC].Clone == AI_MOSA ||
 			  DinoInfo[TotalC].Clone == AI_FISH) {
-			  DinoInfo[TotalC].Aquatic = TRUE;
+			  DinoInfo[TotalC].Aquatic = true;
 		  } else {
-			  DinoInfo[TotalC].Aquatic = FALSE;
+			  DinoInfo[TotalC].Aquatic = false;
 		  }
 	
 		  DinoInfo[TotalC].radarColour565 = ((DinoInfo[TotalC].radarRed>>3) << 11) | ((DinoInfo[TotalC].radarGreen>>2) << 5) | (DinoInfo[TotalC].radarBlue>>3);
@@ -4226,26 +4226,26 @@ void LoadResourcesScript()
 	//gall waterlevel 100
 
 	//these ai can detect player with sight or scent. Maybe make this a res option at some point.
-	AIInfo[AI_PARA].sniffer = TRUE;
-	AIInfo[AI_ANKY].sniffer = TRUE;
-	AIInfo[AI_STEGO].sniffer = TRUE;
-	AIInfo[AI_CHASM].sniffer = TRUE;
-	AIInfo[AI_ALLO].sniffer = TRUE;
-	AIInfo[AI_VELO].sniffer = TRUE;
-	AIInfo[AI_SPINO].sniffer = TRUE;
-	AIInfo[AI_CERAT].sniffer = TRUE;
-	AIInfo[AI_TREX].sniffer = TRUE;
-	AIInfo[AI_PACH].sniffer = TRUE;
-	AIInfo[AI_MICRO].sniffer = TRUE;
-	AIInfo[AI_TITAN].sniffer = TRUE;
-	AIInfo[AI_BRONT].sniffer = TRUE;
-	AIInfo[AI_HOG].sniffer = TRUE;
-	AIInfo[AI_WOLF].sniffer = TRUE;
-	AIInfo[AI_RHINO].sniffer = TRUE;
-	AIInfo[AI_DEER].sniffer = TRUE;
-	AIInfo[AI_SMILO].sniffer = TRUE;
-	AIInfo[AI_MAMM].sniffer = TRUE;
-	AIInfo[AI_BEAR].sniffer = TRUE;
+	AIInfo[AI_PARA].sniffer = true;
+	AIInfo[AI_ANKY].sniffer = true;
+	AIInfo[AI_STEGO].sniffer = true;
+	AIInfo[AI_CHASM].sniffer = true;
+	AIInfo[AI_ALLO].sniffer = true;
+	AIInfo[AI_VELO].sniffer = true;
+	AIInfo[AI_SPINO].sniffer = true;
+	AIInfo[AI_CERAT].sniffer = true;
+	AIInfo[AI_TREX].sniffer = true;
+	AIInfo[AI_PACH].sniffer = true;
+	AIInfo[AI_MICRO].sniffer = true;
+	AIInfo[AI_TITAN].sniffer = true;
+	AIInfo[AI_BRONT].sniffer = true;
+	AIInfo[AI_HOG].sniffer = true;
+	AIInfo[AI_WOLF].sniffer = true;
+	AIInfo[AI_RHINO].sniffer = true;
+	AIInfo[AI_DEER].sniffer = true;
+	AIInfo[AI_SMILO].sniffer = true;
+	AIInfo[AI_MAMM].sniffer = true;
+	AIInfo[AI_BEAR].sniffer = true;
 
 	AIInfo[AI_HUNTDOG].targetDistance = 8048.f;
 	AIInfo[AI_HUNTDOG].noWayCntMin = 8;
@@ -4453,7 +4453,7 @@ void LoadResourcesScript()
 	AIInfo[AI_SMILO].rot2 = 1.5f;
 	//AIInfo[AI_SMILO].weaveRange = 3072;
 	AIInfo[AI_SMILO].pWMin = 2048;
-	AIInfo[AI_SMILO].jumper = TRUE;
+	AIInfo[AI_SMILO].jumper = true;
 
 
 
@@ -4481,7 +4481,7 @@ void LoadResourcesScript()
 	AIInfo[AI_WOLF].rot2 = 1.5f;
 	//AIInfo[AI_WOLF].weaveRange = 3072;
 	AIInfo[AI_WOLF].pWMin = 2048;
-	AIInfo[AI_WOLF].jumper = TRUE;
+	AIInfo[AI_WOLF].jumper = true;
 
 
 
@@ -4741,7 +4741,7 @@ void LoadResourcesScript()
 		  strcpy(tempProjectName, (s + 4));
 		  //break;
 	  }
-	  if (strstr(s, "-survival")) SurvivalMode = TRUE;
+	  if (strstr(s, "-survival")) SurvivalMode = true;
   }
   
 
