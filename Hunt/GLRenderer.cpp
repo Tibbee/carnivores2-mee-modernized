@@ -3622,6 +3622,10 @@ void GLRenderer::UpdateSunVisibility()
 
     // Depth-based occlusion (GetTraceK): is terrain/models blocking the sun?
     float traceK = GetTraceK(m_sunScrX, m_sunScrY);
+    m_lastSunTraceK = traceK;
+    m_lastSunTraceScrX = m_sunScrX;
+    m_lastSunTraceScrY = m_sunScrY;
+    m_lastSunTraceFrame = RealTime;
 
     // Color-based cloud occlusion (GetSkyK): are clouds dimming the sky?
     float skyK = GetSkyK(m_sunScrX, m_sunScrY);
@@ -3643,7 +3647,21 @@ void GLRenderer::ApplySunDepthOcclusion()
     // Called from ShowVideo() after the full scene is rendered.
     // Samples the depth buffer at the sun's screen position to check
     // if terrain/models are occluding the sun.
-    m_sunLight *= GetTraceK(m_sunScrX, m_sunScrY);
+    // Depth-based occlusion sample is cached for the current frame so
+    // ApplySunDepthOcclusion() can reuse the value computed by UpdateSunVisibility().
+    float traceK = 0.0f;
+    if (m_sunScrX == m_lastSunTraceScrX &&
+        m_sunScrY == m_lastSunTraceScrY &&
+        RealTime == m_lastSunTraceFrame) {
+        traceK = m_lastSunTraceK;
+    } else {
+        traceK = GetTraceK(m_sunScrX, m_sunScrY);
+        m_lastSunTraceK = traceK;
+        m_lastSunTraceScrX = m_sunScrX;
+        m_lastSunTraceScrY = m_sunScrY;
+        m_lastSunTraceFrame = RealTime;
+    }
+    m_sunLight *= traceK;
 }
 
 void GLRenderer::RenderFSRect(uint32_t color)

@@ -262,6 +262,10 @@ private:
     int m_lastSunVisibilityScrX = 0;
     int m_lastSunVisibilityScrY = 0;
     unsigned int m_lastSunVisibilityUpdate = 0;
+    int m_lastSunTraceScrX = -1;
+    int m_lastSunTraceScrY = -1;
+    unsigned int m_lastSunTraceFrame = 0;
+    float m_lastSunTraceK = 1.0f;
     std::vector<ModelVertex> m_sunModelVertices;
 
     void RenderSun(float x, float y, float z);
