@@ -3915,6 +3915,14 @@ void GLRenderer::RegisterPicture(TPicture* pptr)
     (void)pptr;
 }
 
+static WORD Conv565to555(WORD c)
+{
+    int r = (c >> 11) & 0x1F;
+    int g = (c >> 5) & 0x3F;
+    int b = c & 0x1F;
+    return (r << 10) | ((g >> 1) << 5) | b;
+}
+
 // Copy picture pixels directly to lpVideoBuf (matching C1 and D3D/3DFX approach).
 // lpVideoBuf is a 16-bit DIB section, pictures are already in 565 format after conv_pic.
 void GLRenderer::DrawPicture(int x, int y, TPicture& pic)
@@ -3931,9 +3939,11 @@ void GLRenderer::DrawPicture(int x, int y, TPicture& pic)
         if (dstX < 0) { srcX = -dstX; copyW += dstX; dstX = 0; }
         if (dstX + copyW > WinW) copyW = WinW - dstX;
         if (copyW <= 0) continue;
-        memcpy(dst + dstY * VideoPitch + dstX,
-               pic.lpImage + yy * pic.W + srcX,
-               copyW * sizeof(WORD));
+        const WORD* src = pic.lpImage + yy * pic.W + srcX;
+        WORD* d = dst + dstY * VideoPitch + dstX;
+        for (int i = 0; i < copyW; i++) {
+            d[i] = Conv565to555(src[i]);
+        }
     }
 }
 
@@ -3951,7 +3961,7 @@ void GLRenderer::DrawScaledPicture(int x, int y, int w, int h, TPicture& pic)
             if (dstX < 0 || dstX >= WinW) continue;
             int sx = xx * pic.W / w;
             WORD c = pic.lpImage[sy * pic.W + sx];
-            if (c != 0) dst[dstY * VideoPitch + dstX] = c;
+            if (c != 0) dst[dstY * VideoPitch + dstX] = Conv565to555(c);
         }
     }
 }
