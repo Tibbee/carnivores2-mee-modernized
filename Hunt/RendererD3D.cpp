@@ -97,7 +97,7 @@ typedef struct _d3dmemmap
 Td3dmemmap d3dMemMap[d3dmemmapsize+2];
 
 void AllocateRenderTables(void) {
-  vFogT = (int*)_HeapAlloc(Heap, 0, sizeof(int) * MaxObjectVCount);
+  vFogT = static_cast<int*>(_HeapAlloc(Heap, 0, sizeof(int) * MaxObjectVCount));
 }
 
 WORD conv_555(WORD c)
@@ -160,7 +160,7 @@ void d3dStartBuffer()
   d3dExeBufDesc.dwSize = sizeof(d3dExeBufDesc);
   hRes = lpd3dExecuteBuffer->Lock( &d3dExeBufDesc );
   if (FAILED(hRes)) DoHalt("Error locking execute buffer");
-  lpVertex = (LPD3DTLVERTEX)d3dExeBufDesc.lpData;
+  lpVertex = reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDesc.lpData);
 }
 
 
@@ -175,15 +175,15 @@ void d3dStartBufferG()
   GVCnt     = 0;
   hGTexture = -1;
 
-  lpVertexG = (LPD3DTLVERTEX)d3dExeBufDescG.lpData;
-  lpInstructionG = (LPD3DINSTRUCTION) ((LPD3DTLVERTEX)d3dExeBufDescG.lpData + 400*3);
+  lpVertexG = reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDescG.lpData);
+  lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>((reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDescG.lpData) + 400*3));
 
   lpInstructionG->bOpcode = D3DOP_PROCESSVERTICES;
   lpInstructionG->bSize   = sizeof(D3DPROCESSVERTICES);
   lpInstructionG->wCount  = 1U;
   lpInstructionG++;
 
-  lpProcessVertices = (LPD3DPROCESSVERTICES)lpInstructionG;
+  lpProcessVertices = reinterpret_cast<LPD3DPROCESSVERTICES>(lpInstructionG);
   lpProcessVertices->dwFlags    = D3DPROCESSVERTICES_COPY;
   lpProcessVertices->wStart     = 0U;
   lpProcessVertices->wDest      = 0U;
@@ -191,7 +191,7 @@ void d3dStartBufferG()
   lpProcessVertices->dwReserved = 0UL;
   lpProcessVertices++;
 
-  lpInstructionG = (LPD3DINSTRUCTION)lpProcessVertices;
+  lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpProcessVertices);
 
   if (!LINEARFILTER)
   {
@@ -199,7 +199,7 @@ void d3dStartBufferG()
     lpInstructionG->bSize = sizeof(D3DSTATE);
     lpInstructionG->wCount = 2;
     lpInstructionG++;
-    lpState = (LPD3DSTATE)lpInstructionG;
+    lpState = reinterpret_cast<LPD3DSTATE>(lpInstructionG);
     lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREMAG;
     lpState->dwArg[0] = D3DFILTER_LINEAR;
     lpState++;
@@ -207,7 +207,7 @@ void d3dStartBufferG()
     lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREMIN;
     lpState->dwArg[0] = D3DFILTER_LINEAR;
     lpState++;
-    lpInstructionG = (LPD3DINSTRUCTION)lpState;
+    lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
   }
 
   if (FOGENABLE)
@@ -216,12 +216,12 @@ void d3dStartBufferG()
     lpInstructionG->bSize = sizeof(D3DSTATE);
     lpInstructionG->wCount = 1;
     lpInstructionG++;
-    lpState = (LPD3DSTATE)lpInstructionG;
+    lpState = reinterpret_cast<LPD3DSTATE>(lpInstructionG);
     lpState->drstRenderStateType = D3DRENDERSTATE_FOGCOLOR;
     lpState->dwArg[0] = CurFogColor;
 
     lpState++;
-    lpInstructionG = (LPD3DINSTRUCTION)lpState;
+    lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
   }
 
 }
@@ -238,15 +238,15 @@ void d3dStartBufferGBMP()
   GVCnt     = 0;
   hGTexture = -1;
 
-  lpVertexG = (LPD3DTLVERTEX)d3dExeBufDescG.lpData;
-  lpInstructionG = (LPD3DINSTRUCTION) ((LPD3DTLVERTEX)d3dExeBufDescG.lpData + 400*3);
+  lpVertexG = reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDescG.lpData);
+  lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>((reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDescG.lpData) + 400*3));
 
   lpInstructionG->bOpcode = D3DOP_PROCESSVERTICES;
   lpInstructionG->bSize   = sizeof(D3DPROCESSVERTICES);
   lpInstructionG->wCount  = 1U;
   lpInstructionG++;
 
-  lpProcessVertices = (LPD3DPROCESSVERTICES)lpInstructionG;
+  lpProcessVertices = reinterpret_cast<LPD3DPROCESSVERTICES>(lpInstructionG);
   lpProcessVertices->dwFlags    = D3DPROCESSVERTICES_COPY;
   lpProcessVertices->wStart     = 0U;
   lpProcessVertices->wDest      = 0U;
@@ -254,7 +254,7 @@ void d3dStartBufferGBMP()
   lpProcessVertices->dwReserved = 0UL;
   lpProcessVertices++;
 
-  lpInstructionG = (LPD3DINSTRUCTION)lpProcessVertices;
+  lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpProcessVertices);
 
 
   lpInstructionG->bOpcode = D3DOP_STATERENDER;
@@ -262,7 +262,7 @@ void d3dStartBufferGBMP()
   if (FOGENABLE) lpInstructionG->wCount = 5;
   else lpInstructionG->wCount = 4;
   lpInstructionG++;
-  lpState = (LPD3DSTATE)lpInstructionG;
+  lpState = reinterpret_cast<LPD3DSTATE>(lpInstructionG);
 
   lpState->drstRenderStateType = D3DRENDERSTATE_COLORKEYENABLE;
   lpState->dwArg[0] = TRUE;
@@ -289,7 +289,7 @@ void d3dStartBufferGBMP()
     lpState++;
   }
 
-  lpInstructionG = (LPD3DINSTRUCTION)lpState;
+  lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
   LINEARFILTER = FALSE;
 }
 
@@ -305,7 +305,7 @@ void d3dEndBufferG(BOOL ColorKey)
     lpInstructionG->wCount = 4;
     lpInstructionG++;
 
-    lpState = (LPD3DSTATE)lpInstructionG;
+    lpState = reinterpret_cast<LPD3DSTATE>(lpInstructionG);
 
     lpState->drstRenderStateType = D3DRENDERSTATE_COLORKEYENABLE;
     lpState->dwArg[0] = FALSE;
@@ -322,21 +322,21 @@ void d3dEndBufferG(BOOL ColorKey)
     lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREMIN;
     lpState->dwArg[0] = D3DFILTER_LINEAR;
     lpState++;
-    lpInstructionG = (LPD3DINSTRUCTION)lpState;
+    lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
   }
 
   lpInstructionG->bOpcode = D3DOP_EXIT;
   lpInstructionG->bSize   = 0UL;
   lpInstructionG->wCount  = 0U;
 
-  lpInstructionG = (LPD3DINSTRUCTION) ((LPD3DTLVERTEX)d3dExeBufDescG.lpData + 400*3);
+  lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>((reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDescG.lpData) + 400*3));
 
   lpInstructionG->bOpcode = D3DOP_PROCESSVERTICES;
   lpInstructionG->bSize   = sizeof(D3DPROCESSVERTICES);
   lpInstructionG->wCount  = 1U;
   lpInstructionG++;
 
-  lpProcessVertices = (LPD3DPROCESSVERTICES)lpInstructionG;
+  lpProcessVertices = reinterpret_cast<LPD3DPROCESSVERTICES>(lpInstructionG);
   lpProcessVertices->dwFlags    = D3DPROCESSVERTICES_COPY;
   lpProcessVertices->wStart     = 0U;
   lpProcessVertices->wDest      = 0U;
@@ -363,13 +363,13 @@ void d3dFlushBuffer(int fproc1, int fproc2)
 {
   BOOL ColorKey = (fproc2>0);
 
-  lpInstruction = (LPD3DINSTRUCTION) ((LPD3DTLVERTEX)d3dExeBufDesc.lpData + 1024*3);
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>((reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDesc.lpData) + 1024*3));
   lpInstruction->bOpcode = D3DOP_STATERENDER;
   lpInstruction->bSize = sizeof(D3DSTATE);
 
   lpInstruction->wCount = 3;
   lpInstruction++;
-  lpState = (LPD3DSTATE)lpInstruction;
+  lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
   lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREHANDLE;
   lpState->dwArg[0] = hTexture;
@@ -383,13 +383,13 @@ void d3dFlushBuffer(int fproc1, int fproc2)
   lpState->dwArg[0] = D3DFILTER_LINEAR;
   lpState++;
 
-  lpInstruction = (LPD3DINSTRUCTION)lpState;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
   lpInstruction->bOpcode = D3DOP_PROCESSVERTICES;
   lpInstruction->bSize   = sizeof(D3DPROCESSVERTICES);
   lpInstruction->wCount  = 1U;
   lpInstruction++;
 
-  lpProcessVertices = (LPD3DPROCESSVERTICES)lpInstruction;
+  lpProcessVertices = reinterpret_cast<LPD3DPROCESSVERTICES>(lpInstruction);
   lpProcessVertices->dwFlags    = D3DPROCESSVERTICES_COPY;
   lpProcessVertices->wStart     = 0U;
   lpProcessVertices->wDest      = 0U;
@@ -397,12 +397,12 @@ void d3dFlushBuffer(int fproc1, int fproc2)
   lpProcessVertices->dwReserved = 0UL;
   lpProcessVertices++;
 
-  lpInstruction = (LPD3DINSTRUCTION)lpProcessVertices;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpProcessVertices);
   lpInstruction->bOpcode = D3DOP_TRIANGLE;
   lpInstruction->bSize   = sizeof(D3DTRIANGLE);
   lpInstruction->wCount  = fproc1;
   lpInstruction++;
-  lpTriangle             = (LPD3DTRIANGLE)lpInstruction;
+  lpTriangle             = reinterpret_cast<LPD3DTRIANGLE>(lpInstruction);
 
   int ii = 0;
   for (int i=0; i<fproc1; i++)
@@ -414,7 +414,7 @@ void d3dFlushBuffer(int fproc1, int fproc2)
     lpTriangle++;
   }
 
-  lpInstruction = (LPD3DINSTRUCTION)lpTriangle;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpTriangle);
 
   if (ColorKey)
   {
@@ -422,7 +422,7 @@ void d3dFlushBuffer(int fproc1, int fproc2)
     lpInstruction->bSize = sizeof(D3DSTATE);
     lpInstruction->wCount = 4;
     lpInstruction++;
-    lpState = (LPD3DSTATE)lpInstruction;
+    lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
     lpState->drstRenderStateType = D3DRENDERSTATE_COLORKEYENABLE;
     lpState->dwArg[0] = TRUE;
@@ -440,13 +440,13 @@ void d3dFlushBuffer(int fproc1, int fproc2)
     lpState->dwArg[0] = D3DFILTER_NEAREST;
     lpState++;
 
-    lpInstruction = (LPD3DINSTRUCTION)lpState;
+    lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
 
     lpInstruction->bOpcode = D3DOP_TRIANGLE;
     lpInstruction->bSize   = sizeof(D3DTRIANGLE);
     lpInstruction->wCount  = fproc2;
     lpInstruction++;
-    lpTriangle             = (LPD3DTRIANGLE)lpInstruction;
+    lpTriangle             = reinterpret_cast<LPD3DTRIANGLE>(lpInstruction);
 
     for (int i=0; i<fproc2; i++)
     {
@@ -457,13 +457,13 @@ void d3dFlushBuffer(int fproc1, int fproc2)
       lpTriangle++;
     }
 
-    lpInstruction = (LPD3DINSTRUCTION)lpTriangle;
+    lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpTriangle);
 
     lpInstruction->bOpcode = D3DOP_STATERENDER;
     lpInstruction->bSize = sizeof(D3DSTATE);
     lpInstruction->wCount = 4;
     lpInstruction++;
-    lpState = (LPD3DSTATE)lpInstruction;
+    lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
     lpState->drstRenderStateType = D3DRENDERSTATE_COLORKEYENABLE;
     lpState->dwArg[0] = FALSE;
@@ -480,7 +480,7 @@ void d3dFlushBuffer(int fproc1, int fproc2)
     lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREMIN;
     lpState->dwArg[0] = D3DFILTER_LINEAR;
     lpState++;
-    lpInstruction = (LPD3DINSTRUCTION)lpState;
+    lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
 
   }
 
@@ -554,12 +554,12 @@ HRESULT FillExecuteBuffer_State( LPDIRECT3DEXECUTEBUFFER lpd3dExecuteBuffer)
   }
 
 
-  lpInstruction = (LPD3DINSTRUCTION) ((LPD3DTLVERTEX)d3dExeBufDesc.lpData + 1024*3);
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>((reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDesc.lpData) + 1024*3));
   lpInstruction->bOpcode = D3DOP_STATERENDER;
   lpInstruction->bSize = sizeof(D3DSTATE);
   lpInstruction->wCount = 24;
   lpInstruction++;
-  lpState = (LPD3DSTATE)lpInstruction;
+  lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
   lpState->drstRenderStateType = D3DRENDERSTATE_ZENABLE;
   lpState->dwArg[0] = TRUE;
@@ -665,7 +665,7 @@ HRESULT FillExecuteBuffer_State( LPDIRECT3DEXECUTEBUFFER lpd3dExecuteBuffer)
 
 
 
-  lpInstruction = (LPD3DINSTRUCTION)lpState;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
   lpInstruction->bOpcode = D3DOP_EXIT;
   lpInstruction->bSize   = 0UL;
   lpInstruction->wCount  = 0U;
@@ -698,12 +698,12 @@ void SetRenderStates(BOOL ZWRITE, int DST_BLEND)
   }
 
 
-  lpInstruction = (LPD3DINSTRUCTION) ((LPD3DTLVERTEX)d3dExeBufDesc.lpData + 1024*3);
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>((reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDesc.lpData) + 1024*3));
   lpInstruction->bOpcode = D3DOP_STATERENDER;
   lpInstruction->bSize = sizeof(D3DSTATE);
   lpInstruction->wCount = 2;
   lpInstruction++;
-  lpState = (LPD3DSTATE)lpInstruction;
+  lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
 
   lpState->drstRenderStateType = D3DRENDERSTATE_ZWRITEENABLE;
@@ -714,7 +714,7 @@ void SetRenderStates(BOOL ZWRITE, int DST_BLEND)
   lpState->dwArg[0] = DST_BLEND;
   lpState++;
 
-  lpInstruction = (LPD3DINSTRUCTION)lpState;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
   lpInstruction->bOpcode = D3DOP_EXIT;
   lpInstruction->bSize   = 0UL;
   lpInstruction->wCount  = 0U;
@@ -910,10 +910,10 @@ HRESULT CreateScene(void)
   d3dViewport.dwSize   = sizeof(d3dViewport);
   d3dViewport.dwX      = 0UL;
   d3dViewport.dwY      = 0UL;
-  d3dViewport.dwWidth  = (DWORD)WinW;
-  d3dViewport.dwHeight = (DWORD)WinH;
-  d3dViewport.dvScaleX = D3DVAL((float)d3dViewport.dwWidth / 2.0);
-  d3dViewport.dvScaleY = D3DVAL((float)d3dViewport.dwHeight / 2.0);
+  d3dViewport.dwWidth  = static_cast<DWORD>(WinW);
+  d3dViewport.dwHeight = static_cast<DWORD>(WinH);
+  d3dViewport.dvScaleX = D3DVAL(static_cast<float>(d3dViewport.dwWidth) / 2.0);
+  d3dViewport.dvScaleY = D3DVAL(static_cast<float>(d3dViewport.dwHeight) / 2.0);
   d3dViewport.dvMaxX   = D3DVAL(1.0);
   d3dViewport.dvMaxY   = D3DVAL(1.0);
 
@@ -1126,7 +1126,7 @@ int  d3dTestAlpha()
 
 
   CopyBackToDIB();
-  if (*((WORD*)lpVideoBuf)==0) PrintLog("[OPACITY: Failed] ");
+  if (*(static_cast<WORD*>(lpVideoBuf))==0) PrintLog("[OPACITY: Failed] ");
   else
   {
     PrintLog("[OPACITY: Ok.] ");
@@ -1149,7 +1149,7 @@ int  d3dTestAlpha()
   d3dTestDrawTri(0x00FFFFFF, 0.5);
 
   CopyBackToDIB();
-  if (*((WORD*)lpVideoBuf)!=0) PrintLog("[TRANSPARENT: Failed] ");
+  if (*(static_cast<WORD*>(lpVideoBuf))!=0) PrintLog("[TRANSPARENT: Failed] ");
   else
   {
     PrintLog("[TRANSPARENT: Ok.] ");
@@ -1173,7 +1173,7 @@ int  d3dTestAlpha()
   d3dTestDrawTri(0x00FFFFFF, 0.5);
 
   CopyBackToDIB();
-  if (*((WORD*)lpVideoBuf)!=0) PrintLog("[ENV.BLEND : Failed]\n");
+  if (*(static_cast<WORD*>(lpVideoBuf))!=0) PrintLog("[ENV.BLEND : Failed]\n");
   else
   {
     PrintLog("[ENV.BLEND : Ok.]\n");
@@ -1200,7 +1200,7 @@ void Activate3DHardware()
   HRESULT hRes = CreateDirect3D(hwndMain);
   if (FAILED(hRes)) DoHalt("CreateDirect3D Failed.\n");
 
-  hRes = CreateDevice((DWORD)WinW, (DWORD)WinH);
+  hRes = CreateDevice(static_cast<DWORD>(WinW), static_cast<DWORD>(WinH));
   if (FAILED(hRes))  DoHalt("Create Device Failed.\n");
 
   d3dClearBuffers();
@@ -1392,7 +1392,7 @@ void d3dDownLoadTexture(int i, int w, int h, LPVOID tptr)
   if( Texture->GetHandle( lpd3dDevice, &d3dMemMap[i].hTexture ) != D3D_OK ) return;
   Texture->Release( );
 
-  d3dMemMap[i].cpuaddr = (int) tptr;
+  d3dMemMap[i].cpuaddr = static_cast<int>(reinterpret_cast<intptr_t>(tptr));
   d3dMemMap[i].size    = w*h*2;
   d3dMemLoaded+=w*h*2;
   //---------------------------------------------------------------------------
@@ -1462,12 +1462,12 @@ int DownLoadTexture(LPVOID tptr, int w, int h)
 void d3dSetTexture(LPVOID tptr, int w, int h)
 {
 
-  if (d3dMemMap[d3dLastTexture].cpuaddr == (int)tptr) return;
+  if (d3dMemMap[d3dLastTexture].cpuaddr == static_cast<int>(reinterpret_cast<intptr_t>(tptr))) return;
 
   int fxm = -1;
   for (int m=0; m<d3dmemmapsize; m++)
   {
-    if (d3dMemMap[m].cpuaddr == (int)tptr)
+    if (d3dMemMap[m].cpuaddr == static_cast<int>(reinterpret_cast<intptr_t>(tptr)))
     {
       fxm = m;
       break;
@@ -1506,16 +1506,16 @@ float GetTraceK(int x, int y)
 
   WORD CC = 200;
   int bw = (ddsd.lPitch>>1);
-  if ( *((WORD*)ddsd.lpSurface + (y+0)*bw  + x+0) < CC ) k+=1.f;
-  if ( *((WORD*)ddsd.lpSurface + (y+10)*bw + x+0) < CC ) k+=1.f;
-  if ( *((WORD*)ddsd.lpSurface + (y-10)*bw + x+0) < CC ) k+=1.f;
-  if ( *((WORD*)ddsd.lpSurface + (y+0)*bw  + x+10) < CC ) k+=1.f;
-  if ( *((WORD*)ddsd.lpSurface + (y+0)*bw  + x-10) < CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(ddsd.lpSurface) + (y+0)*bw  + x+0) < CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(ddsd.lpSurface) + (y+10)*bw + x+0) < CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(ddsd.lpSurface) + (y-10)*bw + x+0) < CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(ddsd.lpSurface) + (y+0)*bw  + x+10) < CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(ddsd.lpSurface) + (y+0)*bw  + x-10) < CC ) k+=1.f;
 
-  if ( *((WORD*)ddsd.lpSurface + (y+8)*bw + x+8) < CC ) k+=1.f;
-  if ( *((WORD*)ddsd.lpSurface + (y+8)*bw + x-8) < CC ) k+=1.f;
-  if ( *((WORD*)ddsd.lpSurface + (y-8)*bw + x+8) < CC ) k+=1.f;
-  if ( *((WORD*)ddsd.lpSurface + (y-8)*bw + x-8) < CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(ddsd.lpSurface) + (y+8)*bw + x+8) < CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(ddsd.lpSurface) + (y+8)*bw + x-8) < CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(ddsd.lpSurface) + (y-8)*bw + x+8) < CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(ddsd.lpSurface) + (y-8)*bw + x-8) < CC ) k+=1.f;
 
   lpddZBuffer->Unlock(ddsd.lpSurface);
   k/=9.f;
@@ -1566,16 +1566,16 @@ float GetSkyK(int x, int y)
   }
 
   int bw = (ddsd.lPitch>>1);
-  AddSkySum(*((WORD*)ddsd.lpSurface + (y+0)*bw + x+0));
-  AddSkySum(*((WORD*)ddsd.lpSurface + (y+6)*bw + x+0));
-  AddSkySum(*((WORD*)ddsd.lpSurface + (y-6)*bw + x+0));
-  AddSkySum(*((WORD*)ddsd.lpSurface + (y+0)*bw + x+6));
-  AddSkySum(*((WORD*)ddsd.lpSurface + (y+0)*bw + x-6));
+  AddSkySum(*(static_cast<WORD*>(ddsd.lpSurface) + (y+0)*bw + x+0));
+  AddSkySum(*(static_cast<WORD*>(ddsd.lpSurface) + (y+6)*bw + x+0));
+  AddSkySum(*(static_cast<WORD*>(ddsd.lpSurface) + (y-6)*bw + x+0));
+  AddSkySum(*(static_cast<WORD*>(ddsd.lpSurface) + (y+0)*bw + x+6));
+  AddSkySum(*(static_cast<WORD*>(ddsd.lpSurface) + (y+0)*bw + x-6));
 
-  AddSkySum(*((WORD*)ddsd.lpSurface + (y+4)*bw + x+4));
-  AddSkySum(*((WORD*)ddsd.lpSurface + (y+4)*bw + x-4));
-  AddSkySum(*((WORD*)ddsd.lpSurface + (y-4)*bw + x+4));
-  AddSkySum(*((WORD*)ddsd.lpSurface + (y-4)*bw + x-4));
+  AddSkySum(*(static_cast<WORD*>(ddsd.lpSurface) + (y+4)*bw + x+4));
+  AddSkySum(*(static_cast<WORD*>(ddsd.lpSurface) + (y+4)*bw + x-4));
+  AddSkySum(*(static_cast<WORD*>(ddsd.lpSurface) + (y-4)*bw + x+4));
+  AddSkySum(*(static_cast<WORD*>(ddsd.lpSurface) + (y-4)*bw + x-4));
 
   lpddBack->Unlock(ddsd.lpSurface);
 
@@ -1583,14 +1583,14 @@ float GetSkyK(int x, int y)
   SkySumG-=SkyTG*9;
   SkySumB-=SkyTB*9;
 
-  k = (float)sqrt((float)(SkySumR*SkySumR + SkySumG*SkySumG + SkySumB*SkySumB)) / 9;
+  k = static_cast<float>(sqrt(static_cast<float>((SkySumR*SkySumR + SkySumG*SkySumG + SkySumB*SkySumB)))) / 9;
 
   if (k>80) k = 80;
   if (k<  0) k = 0;
   k = 1.0f - k/80.f;
   if (k<0.2) k=0.2f;
   if (OptDayNight==2) k=0.3 + k/2.75;
-  DeltaFunc(SkyTraceK, k, (0.07f + (float)fabs(k-SkyTraceK)) * (TimeDt / 512.f) );
+  DeltaFunc(SkyTraceK, k, (0.07f + static_cast<float>(fabs(k-SkyTraceK))) * (TimeDt / 512.f) );
   return SkyTraceK;
 }
 
@@ -1613,7 +1613,7 @@ void TryHiResTx()
     wsprintf(logt, "TOTALL: %d USED: %d", d3dTexturesMem, UsedMem);
     AddMessage(logt);
   */
-  if (UsedMem*4 < (int)d3dTexturesMem)
+  if (UsedMem*4 < static_cast<int>(d3dTexturesMem))
     LOWRESTX = FALSE;
 }
 
@@ -1647,7 +1647,7 @@ void ShowVideo()
   if (OptDayNight!=2)
     if (!UNDERWATER && (SunLight>1.0f) )
     {
-      RenderFSRect(0xFFFFC0 + ((int)SunLight<<24));
+      RenderFSRect(0xFFFFC0 + (static_cast<int>(SunLight)<<24));
     }
 
   RenderHealthBar();
@@ -1676,11 +1676,11 @@ void CopyBackToDIB()
   ddsd.dwSize = sizeof(DDSURFACEDESC);
   if( lpddBack->Lock( nullptr, &ddsd, DDLOCK_WAIT, nullptr ) != DD_OK ) return;
 
-  WORD *lpVMem = (WORD*) ddsd.lpSurface;
+  WORD *lpVMem = static_cast<WORD*>(ddsd.lpSurface);
   ddsd.lPitch/=2;
 
   for (int y=0; y<=256; y++)
-    CopyMemory( (WORD*)lpVideoBuf + y*1024,
+    CopyMemory( static_cast<WORD*>(lpVideoBuf) + y*1024,
                 lpVMem + y*ddsd.lPitch,
                 256*2);
 
@@ -1694,11 +1694,11 @@ void CopyHARDToDIB()
   ddsd.dwSize = sizeof(DDSURFACEDESC);
   if( lpddPrimary->Lock( nullptr, &ddsd, DDLOCK_WAIT, nullptr ) != DD_OK ) return;
 
-  WORD *lpVMem = (WORD*) ddsd.lpSurface;
+  WORD *lpVMem = static_cast<WORD*>(ddsd.lpSurface);
   ddsd.lPitch/=2;
 
   for (int y=0; y<=WinH; y++)
-    CopyMemory( (WORD*)lpVideoBuf + y*1024,
+    CopyMemory( static_cast<WORD*>(lpVideoBuf) + y*1024,
                 lpVMem + y*ddsd.lPitch,
                 WinW*2);
 
@@ -1716,12 +1716,12 @@ void FXPutBitMap(int x0, int y0, int w, int h, int smw, LPVOID lpData)
   ddsd.dwSize = sizeof(DDSURFACEDESC);
   if( lpddBack->Lock( nullptr, &ddsd, DDLOCK_WAIT, nullptr ) != DD_OK ) return;
 
-  WORD *lpVMem = (WORD*) ddsd.lpSurface;
+  WORD *lpVMem = static_cast<WORD*>(ddsd.lpSurface);
   ddsd.lPitch/=2;
   lpVMem+=x0+y0 * ddsd.lPitch;
 
   for (int y=0; y<h; y++)
-    CopyMemory( lpVMem + y*ddsd.lPitch, ((WORD*)lpData)+y*smw, w*2);
+    CopyMemory( lpVMem + y*ddsd.lPitch, (static_cast<WORD*>(lpData))+y*smw, w*2);
 
   lpddBack->Unlock(ddsd.lpSurface);
 }
@@ -1746,12 +1746,12 @@ void DrawFlash(int x0, int y0, int w, int h, TPicture &pic)
 	ddsd.dwSize = sizeof(DDSURFACEDESC);
 	if (lpddBack->Lock(nullptr, &ddsd, DDLOCK_WAIT, nullptr) != DD_OK) return;
 
-	WORD *lpVMem = (WORD*)ddsd.lpSurface;
+	WORD *lpVMem = static_cast<WORD*>(ddsd.lpSurface);
 	ddsd.lPitch /= 2;
 	lpVMem += x0 + y0 * ddsd.lPitch;
 
 	for (int y = 0; y < h; y++)
-		CopyMemory(lpVMem + y * ddsd.lPitch, ((WORD*)lpData) + y * smw, w * 2);
+		CopyMemory(lpVMem + y * ddsd.lPitch, (static_cast<WORD*>(lpData)) + y * smw, w * 2);
 
 	lpddBack->Unlock(ddsd.lpSurface);
 }
@@ -1764,7 +1764,7 @@ void ddTextOut(int x, int y, LPSTR t, int color)
   SetBkMode( ddBackDC, TRANSPARENT );
 
   HFONT oldfont{};
-  if (SmallFont) oldfont = (HFONT)SelectObject(ddBackDC, fnt_Small);
+  if (SmallFont) oldfont = reinterpret_cast<HFONT>(SelectObject(ddBackDC, fnt_Small));
 
   SetTextColor(ddBackDC, 0x00101010);
   TextOut(ddBackDC, x+2, y+1, t, strlen(t));
@@ -1781,7 +1781,7 @@ void ddTextOut(int x, int y, LPSTR t, int color)
 void DrawSurvivalText(int x0, int y0)
 {
 	SmallFont = TRUE;
-	HFONT oldfont = (HFONT)SelectObject(hdcMain, fnt_Small);
+	HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 
 	int x = x0;
 	ddTextOut(40 + x0, 98 + y0, "Waves Survived: ", 0x00BFBFBF);
@@ -1803,7 +1803,7 @@ void DrawSurvivalText(int x0, int y0)
 void DrawScoreText(int x0, int y0) {
 	int x;
 	SmallFont = TRUE;
-	HFONT oldfont = (HFONT)SelectObject(hdcMain, fnt_Small);
+	HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 
 	char t[32];
 
@@ -1825,7 +1825,7 @@ void DrawTrophyText(int x0, int y0)
 {
   int x;
   SmallFont = TRUE;
-  HFONT oldfont = (HFONT)SelectObject(hdcMain, fnt_Small);
+  HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 
   int   dtype = TrophyDisplayBody.ctype;
   int   time  = TrophyDisplayBody.time;
@@ -1918,7 +1918,7 @@ void Render_LifeInfo(int li)
   char t[32];
 
   x = VideoCX + WinW / 64;
-  y = VideoCY + (int)(WinH / 6.8);
+  y = VideoCY + static_cast<int>((WinH / 6.8));
 
   ddTextOut(x, y, DinoInfo[ctype].Name, 0x0000b000);
 
@@ -1927,7 +1927,7 @@ void Render_LifeInfo(int li)
 
   ddTextOut(x, y+16, t, 0x0000b000);
 
-  int R  = (int)(VectorLength( SubVectors(Characters[li].pos, PlayerPos) )*3 / 64.f);
+  int R  = static_cast<int>((VectorLength( SubVectors(Characters[li].pos, PlayerPos) )*3 / 64.f));
   if (OptSys) sprintf(t,"Distance: %dft ", R);
   else        sprintf(t,"Distance: %dm  ", R/3);
 
@@ -2031,8 +2031,8 @@ void ClipVector(CLIPPLANE& C, int vn)
 
     hleft.tx = cp[vn].tx + ((cp[vleft].tx - cp[vn].tx) * lc);
     hleft.ty = cp[vn].ty + ((cp[vleft].ty - cp[vn].ty) * lc);
-    hleft.ev.Light = cp[vn].ev.Light + (int)((cp[vleft].ev.Light - cp[vn].ev.Light) * lc);
-    hleft.ev.ALPHA = cp[vn].ev.ALPHA + (int)((cp[vleft].ev.ALPHA - cp[vn].ev.ALPHA) * lc);
+    hleft.ev.Light = cp[vn].ev.Light + static_cast<int>(((cp[vleft].ev.Light - cp[vn].ev.Light) * lc));
+    hleft.ev.ALPHA = cp[vn].ev.ALPHA + static_cast<int>(((cp[vleft].ev.ALPHA - cp[vn].ev.ALPHA) * lc));
     hleft.ev.Fog   = cp[vn].ev.Fog   +      ((cp[vleft].ev.Fog   - cp[vn].ev.Fog  ) * lc);
   }
 
@@ -2053,8 +2053,8 @@ void ClipVector(CLIPPLANE& C, int vn)
 
     hright.tx = cp[vn].tx + ((cp[vright].tx - cp[vn].tx) * lc);
     hright.ty = cp[vn].ty + ((cp[vright].ty - cp[vn].ty) * lc);
-    hright.ev.Light = cp[vn].ev.Light + (int)((cp[vright].ev.Light - cp[vn].ev.Light) * lc);
-    hright.ev.ALPHA = cp[vn].ev.ALPHA + (int)((cp[vright].ev.ALPHA - cp[vn].ev.ALPHA) * lc);
+    hright.ev.Light = cp[vn].ev.Light + static_cast<int>(((cp[vright].ev.Light - cp[vn].ev.Light) * lc));
+    hright.ev.ALPHA = cp[vn].ev.ALPHA + static_cast<int>(((cp[vright].ev.ALPHA - cp[vn].ev.ALPHA) * lc));
     hright.ev.Fog   = cp[vn].ev.Fog   +      ((cp[vright].ev.Fog   - cp[vn].ev.Fog  ) * lc);
   }
 
@@ -2282,8 +2282,8 @@ void DrawTPlaneClip(BOOL SECONT)
 
   for (u=0; u<vused; u++)
   {
-    cp[u].ev.scrx = (VideoCX)*16 - (int)(16.f * cp[u].ev.v.x / cp[u].ev.v.z * CameraW);
-    cp[u].ev.scry = (VideoCY)*16 + (int)(16.f * cp[u].ev.v.y / cp[u].ev.v.z * CameraH);
+    cp[u].ev.scrx = (VideoCX)*16 - static_cast<int>((16.f * cp[u].ev.v.x / cp[u].ev.v.z * CameraW));
+    cp[u].ev.scry = (VideoCY)*16 + static_cast<int>((16.f * cp[u].ev.v.y / cp[u].ev.v.z * CameraH));
   }
 
 
@@ -2303,11 +2303,11 @@ void DrawTPlaneClip(BOOL SECONT)
     lpInstructionG->bSize = sizeof(D3DSTATE);
     lpInstructionG->wCount = 1;
     lpInstructionG++;
-    lpState = (LPD3DSTATE)lpInstructionG;
+    lpState = reinterpret_cast<LPD3DSTATE>(lpInstructionG);
     lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREHANDLE;
     lpState->dwArg[0] = hTexture;
     lpState++;
-    lpInstructionG = (LPD3DINSTRUCTION)lpState;
+    lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
 
     lpwTriCount = &(lpInstructionG->wCount);
     lpInstructionG->bOpcode = D3DOP_TRIANGLE;
@@ -2318,39 +2318,39 @@ void DrawTPlaneClip(BOOL SECONT)
   }
 
 
-  lpTriangle             = (LPD3DTRIANGLE)lpInstructionG;
+  lpTriangle             = reinterpret_cast<LPD3DTRIANGLE>(lpInstructionG);
 
   for (u=0; u<vused-2; u++)
   {
 
-    lpVertexG->sx       = (float)cp[0].ev.scrx / 16.f;
-    lpVertexG->sy       = (float)cp[0].ev.scry / 16.f;
+    lpVertexG->sx       = static_cast<float>(cp[0].ev.scrx) / 16.f;
+    lpVertexG->sy       = static_cast<float>(cp[0].ev.scry) / 16.f;
     lpVertexG->sz       = _ZSCALE / cp[0].ev.v.z;
     lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
-    lpVertexG->color    = (int)(cp[0].ev.Light) * 0x00010101 | ((int)cp[0].ev.ALPHA<<24);
-    lpVertexG->specular = (255-(int)cp[0].ev.Fog)<<24;//0x7F000000;
-    lpVertexG->tu       = (float)(cp[0].tx) / (128.f*65536.f);
-    lpVertexG->tv       = (float)(cp[0].ty) / (128.f*65536.f);
+    lpVertexG->color    = static_cast<int>((cp[0].ev.Light)) * 0x00010101 | (static_cast<int>(cp[0].ev.ALPHA)<<24);
+    lpVertexG->specular = (255-static_cast<int>(cp[0].ev.Fog))<<24;//0x7F000000;
+    lpVertexG->tu       = static_cast<float>((cp[0].tx)) / (128.f*65536.f);
+    lpVertexG->tv       = static_cast<float>((cp[0].ty)) / (128.f*65536.f);
     lpVertexG++;
 
-    lpVertexG->sx       = (float)cp[u+1].ev.scrx / 16.f;
-    lpVertexG->sy       = (float)cp[u+1].ev.scry / 16.f;
+    lpVertexG->sx       = static_cast<float>(cp[u+1].ev.scrx) / 16.f;
+    lpVertexG->sy       = static_cast<float>(cp[u+1].ev.scry) / 16.f;
     lpVertexG->sz       = _ZSCALE / cp[u+1].ev.v.z;
     lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
-    lpVertexG->color    = (int)(cp[u+1].ev.Light) * 0x00010101 | ((int)cp[u+1].ev.ALPHA<<24);
-    lpVertexG->specular = (255-(int)cp[u+1].ev.Fog)<<24;//0x7F000000;
-    lpVertexG->tu       = (float)(cp[u+1].tx) / (128.f*65536.f);
-    lpVertexG->tv       = (float)(cp[u+1].ty) / (128.f*65536.f);
+    lpVertexG->color    = static_cast<int>((cp[u+1].ev.Light)) * 0x00010101 | (static_cast<int>(cp[u+1].ev.ALPHA)<<24);
+    lpVertexG->specular = (255-static_cast<int>(cp[u+1].ev.Fog))<<24;//0x7F000000;
+    lpVertexG->tu       = static_cast<float>((cp[u+1].tx)) / (128.f*65536.f);
+    lpVertexG->tv       = static_cast<float>((cp[u+1].ty)) / (128.f*65536.f);
     lpVertexG++;
 
-    lpVertexG->sx       = (float)cp[u+2].ev.scrx / 16.f;
-    lpVertexG->sy       = (float)cp[u+2].ev.scry / 16.f;
+    lpVertexG->sx       = static_cast<float>(cp[u+2].ev.scrx) / 16.f;
+    lpVertexG->sy       = static_cast<float>(cp[u+2].ev.scry) / 16.f;
     lpVertexG->sz       = _ZSCALE / cp[u+2].ev.v.z;
     lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
-    lpVertexG->color    = (int)(cp[u+2].ev.Light) * 0x00010101 | ((int)cp[u+2].ev.ALPHA<<24);
-    lpVertexG->specular = (255-(int)cp[u+2].ev.Fog)<<24;//0x7F000000;
-    lpVertexG->tu       = (float)(cp[u+2].tx) / (128.f*65536.f);
-    lpVertexG->tv       = (float)(cp[u+2].ty) / (128.f*65536.f);
+    lpVertexG->color    = static_cast<int>((cp[u+2].ev.Light)) * 0x00010101 | (static_cast<int>(cp[u+2].ev.ALPHA)<<24);
+    lpVertexG->specular = (255-static_cast<int>(cp[u+2].ev.Fog))<<24;//0x7F000000;
+    lpVertexG->tu       = static_cast<float>((cp[u+2].tx)) / (128.f*65536.f);
+    lpVertexG->tv       = static_cast<float>((cp[u+2].ty)) / (128.f*65536.f);
     lpVertexG++;
 
     lpTriangle->wV1    = GVCnt;
@@ -2363,7 +2363,7 @@ void DrawTPlaneClip(BOOL SECONT)
     GVCnt+=3;
   }
 
-  lpInstructionG = (LPD3DINSTRUCTION)lpTriangle;
+  lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpTriangle);
 }
 
 
@@ -2554,15 +2554,15 @@ void DrawTPlane(BOOL SECONT)
   if (zs > (ctViewR-8)<<8)
   {
     int zz;
-    zz = (int)VectorLength(ev[0].v) - 256 * (ctViewR-4);
+    zz = static_cast<int>(VectorLength(ev[0].v)) - 256 * (ctViewR-4);
     if (zz > 0) alpha1 = MAX(0, 255 - zz / 3);
     else alpha1 = 255;
 
-    zz = (int)VectorLength(ev[1].v) - 256 * (ctViewR-4);
+    zz = static_cast<int>(VectorLength(ev[1].v)) - 256 * (ctViewR-4);
     if (zz > 0) alpha2 = MAX(0, 255 - zz / 3);
     else alpha2 = 255;
 
-    zz = (int)VectorLength(ev[2].v) - 256 * (ctViewR-4);
+    zz = static_cast<int>(VectorLength(ev[2].v)) - 256 * (ctViewR-4);
     if (zz > 0) alpha3 = MAX(0, 255 - zz / 3);
     else alpha3 = 255;
   }
@@ -2576,34 +2576,34 @@ void DrawTPlane(BOOL SECONT)
     d3dStartBufferG();
   }
 
-  lpVertexG->sx       = (float)ev[0].scrx / 16;
-  lpVertexG->sy       = (float)ev[0].scry / 16;
+  lpVertexG->sx       = static_cast<float>(ev[0].scrx) / 16;
+  lpVertexG->sy       = static_cast<float>(ev[0].scry) / 16;
   lpVertexG->sz       = _ZSCALE / ev[0].v.z;
   lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
-  lpVertexG->color    = (int)(ev[0].Light) * 0x00010101 | alpha1<<24;
-  lpVertexG->specular = (255-(int)ev[0].Fog)<<24;//0x7F000000;
-  lpVertexG->tu       = (float)(scrp[0].tx) / (128.f*65536.f);
-  lpVertexG->tv       = (float)(scrp[0].ty) / (128.f*65536.f);
+  lpVertexG->color    = static_cast<int>((ev[0].Light)) * 0x00010101 | alpha1<<24;
+  lpVertexG->specular = (255-static_cast<int>(ev[0].Fog))<<24;//0x7F000000;
+  lpVertexG->tu       = static_cast<float>((scrp[0].tx)) / (128.f*65536.f);
+  lpVertexG->tv       = static_cast<float>((scrp[0].ty)) / (128.f*65536.f);
   lpVertexG++;
 
-  lpVertexG->sx       = (float)ev[1].scrx / 16;
-  lpVertexG->sy       = (float)ev[1].scry / 16;
+  lpVertexG->sx       = static_cast<float>(ev[1].scrx) / 16;
+  lpVertexG->sy       = static_cast<float>(ev[1].scry) / 16;
   lpVertexG->sz       = _ZSCALE / ev[1].v.z;
   lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
-  lpVertexG->color    = (int)(ev[1].Light) * 0x00010101 | alpha2<<24;
-  lpVertexG->specular = (255-(int)ev[1].Fog)<<24;//0x7F000000;
-  lpVertexG->tu       = (float)(scrp[1].tx) / (128.f*65536.f);
-  lpVertexG->tv       = (float)(scrp[1].ty) / (128.f*65536.f);
+  lpVertexG->color    = static_cast<int>((ev[1].Light)) * 0x00010101 | alpha2<<24;
+  lpVertexG->specular = (255-static_cast<int>(ev[1].Fog))<<24;//0x7F000000;
+  lpVertexG->tu       = static_cast<float>((scrp[1].tx)) / (128.f*65536.f);
+  lpVertexG->tv       = static_cast<float>((scrp[1].ty)) / (128.f*65536.f);
   lpVertexG++;
 
-  lpVertexG->sx       = (float)ev[2].scrx / 16;
-  lpVertexG->sy       = (float)ev[2].scry / 16;
+  lpVertexG->sx       = static_cast<float>(ev[2].scrx) / 16;
+  lpVertexG->sy       = static_cast<float>(ev[2].scry) / 16;
   lpVertexG->sz       = _ZSCALE / ev[2].v.z;
   lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
-  lpVertexG->color    = (int)(ev[2].Light) * 0x00010101 | alpha3<<24;
-  lpVertexG->specular = (255-(int)ev[2].Fog)<<24;//0x7F000000;
-  lpVertexG->tu       = (float)(scrp[2].tx) / (128.f*65536.f);
-  lpVertexG->tv       = (float)(scrp[2].ty) / (128.f*65536.f);
+  lpVertexG->color    = static_cast<int>((ev[2].Light)) * 0x00010101 | alpha3<<24;
+  lpVertexG->specular = (255-static_cast<int>(ev[2].Fog))<<24;//0x7F000000;
+  lpVertexG->tu       = static_cast<float>((scrp[2].tx)) / (128.f*65536.f);
+  lpVertexG->tv       = static_cast<float>((scrp[2].ty)) / (128.f*65536.f);
   lpVertexG++;
 
   if (hGTexture!=hTexture)
@@ -2613,11 +2613,11 @@ void DrawTPlane(BOOL SECONT)
     lpInstructionG->bSize = sizeof(D3DSTATE);
     lpInstructionG->wCount = 1;
     lpInstructionG++;
-    lpState = (LPD3DSTATE)lpInstructionG;
+    lpState = reinterpret_cast<LPD3DSTATE>(lpInstructionG);
     lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREHANDLE;
     lpState->dwArg[0] = hTexture;
     lpState++;
-    lpInstructionG = (LPD3DINSTRUCTION)lpState;
+    lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
 
     lpwTriCount = (&lpInstructionG->wCount);
     lpInstructionG->bOpcode = D3DOP_TRIANGLE;
@@ -2626,14 +2626,14 @@ void DrawTPlane(BOOL SECONT)
     lpInstructionG++;
   }
 
-  lpTriangle             = (LPD3DTRIANGLE)lpInstructionG;
+  lpTriangle             = reinterpret_cast<LPD3DTRIANGLE>(lpInstructionG);
   lpTriangle->wV1    = GVCnt;
   lpTriangle->wV2    = GVCnt+1;
   lpTriangle->wV3    = GVCnt+2;
   lpTriangle->wFlags = 0;
   lpTriangle++;
   *lpwTriCount = (*lpwTriCount) + 1;
-  lpInstructionG = (LPD3DINSTRUCTION)lpTriangle;
+  lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpTriangle);
 
   GVCnt+=3;
 }
@@ -2655,8 +2655,8 @@ void DrawTPlaneW(BOOL SECONT)
 
   /*
   for (n=0; n<3; n++) {
-    scrp[n].x = (float)(VideoCX) - (ev[n].v.x / ev[n].v.z * CameraW);
-   scrp[n].y = (float)(VideoCY) + (ev[n].v.y / ev[n].v.z * CameraH);
+    scrp[n].x = static_cast<float>((VideoCX)) - (ev[n].v.x / ev[n].v.z * CameraW);
+   scrp[n].y = static_cast<float>((VideoCY)) + (ev[n].v.y / ev[n].v.z * CameraH);
    scrp[n].Light = ev[n].Light;
   } */
 
@@ -2839,34 +2839,34 @@ void DrawTPlaneW(BOOL SECONT)
     d3dStartBufferG();
   }
 
-  lpVertexG->sx       = (float)ev[0].scrx / 16;
-  lpVertexG->sy       = (float)ev[0].scry / 16;
+  lpVertexG->sx       = static_cast<float>(ev[0].scrx) / 16;
+  lpVertexG->sy       = static_cast<float>(ev[0].scry) / 16;
   lpVertexG->sz       = _ZSCALE / ev[0].v.z;
   lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
-  lpVertexG->color    = (int)(ev[0].Light) * 0x00010101 | ev[0].ALPHA<<24;
-  lpVertexG->specular = (255-(int)ev[0].Fog)<<24;
-  lpVertexG->tu       = (float)(scrp[0].tx) / (128.f*65536.f);
-  lpVertexG->tv       = (float)(scrp[0].ty) / (128.f*65536.f);
+  lpVertexG->color    = static_cast<int>((ev[0].Light)) * 0x00010101 | ev[0].ALPHA<<24;
+  lpVertexG->specular = (255-static_cast<int>(ev[0].Fog))<<24;
+  lpVertexG->tu       = static_cast<float>((scrp[0].tx)) / (128.f*65536.f);
+  lpVertexG->tv       = static_cast<float>((scrp[0].ty)) / (128.f*65536.f);
   lpVertexG++;
 
-  lpVertexG->sx       = (float)ev[1].scrx / 16;
-  lpVertexG->sy       = (float)ev[1].scry / 16;
+  lpVertexG->sx       = static_cast<float>(ev[1].scrx) / 16;
+  lpVertexG->sy       = static_cast<float>(ev[1].scry) / 16;
   lpVertexG->sz       = _ZSCALE / ev[1].v.z;
   lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
-  lpVertexG->color    = (int)(ev[1].Light) * 0x00010101 | ev[1].ALPHA<<24;
-  lpVertexG->specular = (255-(int)ev[1].Fog)<<24;
-  lpVertexG->tu       = (float)(scrp[1].tx) / (128.f*65536.f);
-  lpVertexG->tv       = (float)(scrp[1].ty) / (128.f*65536.f);
+  lpVertexG->color    = static_cast<int>((ev[1].Light)) * 0x00010101 | ev[1].ALPHA<<24;
+  lpVertexG->specular = (255-static_cast<int>(ev[1].Fog))<<24;
+  lpVertexG->tu       = static_cast<float>((scrp[1].tx)) / (128.f*65536.f);
+  lpVertexG->tv       = static_cast<float>((scrp[1].ty)) / (128.f*65536.f);
   lpVertexG++;
 
-  lpVertexG->sx       = (float)ev[2].scrx / 16;
-  lpVertexG->sy       = (float)ev[2].scry / 16;
+  lpVertexG->sx       = static_cast<float>(ev[2].scrx) / 16;
+  lpVertexG->sy       = static_cast<float>(ev[2].scry) / 16;
   lpVertexG->sz       = _ZSCALE / ev[2].v.z;
   lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
-  lpVertexG->color    = (int)(ev[2].Light) * 0x00010101 | ev[2].ALPHA<<24;
-  lpVertexG->specular = (255-(int)ev[2].Fog)<<24;
-  lpVertexG->tu       = (float)(scrp[2].tx) / (128.f*65536.f);
-  lpVertexG->tv       = (float)(scrp[2].ty) / (128.f*65536.f);
+  lpVertexG->color    = static_cast<int>((ev[2].Light)) * 0x00010101 | ev[2].ALPHA<<24;
+  lpVertexG->specular = (255-static_cast<int>(ev[2].Fog))<<24;
+  lpVertexG->tu       = static_cast<float>((scrp[2].tx)) / (128.f*65536.f);
+  lpVertexG->tv       = static_cast<float>((scrp[2].ty)) / (128.f*65536.f);
   lpVertexG++;
 
   if (hGTexture!=hTexture)
@@ -2876,11 +2876,11 @@ void DrawTPlaneW(BOOL SECONT)
     lpInstructionG->bSize = sizeof(D3DSTATE);
     lpInstructionG->wCount = 1;
     lpInstructionG++;
-    lpState = (LPD3DSTATE)lpInstructionG;
+    lpState = reinterpret_cast<LPD3DSTATE>(lpInstructionG);
     lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREHANDLE;
     lpState->dwArg[0] = hTexture;
     lpState++;
-    lpInstructionG = (LPD3DINSTRUCTION)lpState;
+    lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
 
     lpwTriCount = (&lpInstructionG->wCount);
     lpInstructionG->bOpcode = D3DOP_TRIANGLE;
@@ -2889,14 +2889,14 @@ void DrawTPlaneW(BOOL SECONT)
     lpInstructionG++;
   }
 
-  lpTriangle             = (LPD3DTRIANGLE)lpInstructionG;
+  lpTriangle             = reinterpret_cast<LPD3DTRIANGLE>(lpInstructionG);
   lpTriangle->wV1    = GVCnt;
   lpTriangle->wV2    = GVCnt+1;
   lpTriangle->wV3    = GVCnt+2;
   lpTriangle->wFlags = 0;
   lpTriangle++;
   *lpwTriCount = (*lpwTriCount) + 1;
-  lpInstructionG = (LPD3DINSTRUCTION)lpTriangle;
+  lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpTriangle);
 
   GVCnt+=3;
 }
@@ -2916,7 +2916,7 @@ void _RenderObject(int x, int y)
 
   //int mlight = -(RandomMap[y & 31][x & 31] >> 5) + (LMap[y][x]>>1) + 96;
   int FI = (FMap[y][x] >> 2) & 3;
-  float fi = CameraAlpha + (float)(FI * 2.f*pi / 4.f);
+  float fi = CameraAlpha + static_cast<float>((FI * 2.f*pi / 4.f));
 
 
   int mlight;
@@ -2937,12 +2937,12 @@ void _RenderObject(int x, int y)
 
   v[0].x = x*256+128 - CameraX;
   v[0].z = y*256+128 - CameraZ;
-  v[0].y = (float)(HMapO[y][x]) * ctHScale - CameraY;
+  v[0].y = static_cast<float>((HMapO[y][x])) * ctHScale - CameraY;
 
   float zs = VectorLength(v[0]);
 
 
-  //if (v[0].y + MObjects[ob].info.YHi < (int)(HMap[y][x]+HMap[y+1][x+1]) / 2 * ctHScale - CameraY) return;
+  //if (v[0].y + MObjects[ob].info.YHi < static_cast<int>((HMap[y][x]+HMap[y+1][x+1])) / 2 * ctHScale - CameraY) return;
 
   CalcFogLevel_Gradient(v[0]);
 
@@ -2951,7 +2951,7 @@ void _RenderObject(int x, int y)
   GlassL = 0;
 
   if (zs > 256 * (ctViewR-8))
-    GlassL=MIN(255,(int)(zs - 256 * (ctViewR-8)) / 4);
+    GlassL=MIN(255,static_cast<int>((zs - 256 * (ctViewR-8))) / 4);
 
   if (GlassL==255) return;
 
@@ -2969,7 +2969,7 @@ void _RenderObject(int x, int y)
   if (MObjects[ob].info.flags & ofNOBMP) zs = 0;
   /*
   	  if (!NeedWater && zs>ctViewRM*256 && zs<(ctViewRM+1)*256) {
-         GlassL = 255-(int)(zs - ctViewRM*256);
+         GlassL = 255-static_cast<int>((zs - ctViewRM*256));
   	   RenderBMPModel(&MObjects[ob].bmpmodel, v[0].x, v[0].y, v[0].z, mlight-32);
   	   GlassL=255-GlassL;
   	   RenderModel(MObjects[ob].model, v[0].x, v[0].y, v[0].z, mlight, FI, fi, CameraBeta);
@@ -3035,7 +3035,7 @@ void ProcessMap(int x, int y, int r)
   if ( fabs(xx*FOVK) > -zz + BackR) return;
 
 
-  zs = (int)sqrt( xx*xx + zz*zz + yy*yy);
+  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
 
 
   if (MIPMAP && (zs > 256 * 10 && t1 || LOWRESTX)) d3dSetTexture(Textures[t1]->DataB, 64, 64);
@@ -3096,7 +3096,7 @@ void ProcessMap2(int x, int y, int r)
 
   if ( fabs(xx*FOVK) > -zz + BackViewR) return;
 
-  zs = (int)sqrt( xx*xx + zz*zz + yy*yy);
+  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
   if (zs>ctViewR*256) return;
 
   d3dSetTexture(Textures[t1]->DataB, 64, 64);
@@ -3158,7 +3158,7 @@ void ProcessMapW(int x, int y, int r)
 
   if ( fabs(xx*FOVK) > -zz + BackViewR) return;
 
-  zs = (int)sqrt( xx*xx + zz*zz + yy*yy);
+  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
   if (zs > ctViewR*256) return;
 
   if (MIPMAP && (zs > 256 * 10 && t1 || LOWRESTX)) d3dSetTexture(Textures[t1]->DataB, 64, 64);
@@ -3204,7 +3204,7 @@ void ProcessMapW2(int x, int y, int r)
 
   if ( fabs(xx*FOVK) > -zz + BackViewR) return;
 
-  zs = (int)sqrt( xx*xx + zz*zz + yy*yy);
+  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
   if (zs > ctViewR*256) return;
 
 
@@ -3298,8 +3298,8 @@ void RenderWCircles()
     rpos.y = wptr->pos.y - CameraY;
     rpos.z = wptr->pos.z - CameraZ;
 
-    float r = (float)MAX( fabs(rpos.x), fabs(rpos.z) );
-    int ri = -1 + (int)(r / 256.f + 0.4f);
+    float r = static_cast<float>(MAX( fabs(rpos.x), fabs(rpos.z) ));
+    int ri = -1 + static_cast<int>((r / 256.f + 0.4f));
     if (ri < 0) ri = 0;
     if (ri > ctViewR) continue;
 
@@ -3313,7 +3313,7 @@ void RenderWCircles()
 
     GlassL = 255 - (2000-wptr->FTime) / 38;
 
-    CreateMorphedModel(WCircleModel.mptr, &WCircleModel.Animation[0], (int)(wptr->FTime), wptr->scale);
+    CreateMorphedModel(WCircleModel.mptr, &WCircleModel.Animation[0], static_cast<int>((wptr->FTime)), wptr->scale);
 
     if ( fabs(rpos.z) + fabs(rpos.x) < 1000)
       RenderModelClip(WCircleModel.mptr,
@@ -3378,8 +3378,8 @@ void RenderCircle(float cx, float cy, float z, float _R, DWORD RGBA, DWORD RGBA2
     RGBA = (RGBA  & 0xFF00FF00) + ((RGBA  & 0x000000FF)<<16) + ((RGBA  & 0x00FF0000)>>16);
     RGBA2= (RGBA2 & 0xFF00FF00) + ((RGBA2 & 0x000000FF)<<16) + ((RGBA2 & 0x00FF0000)>>16);
     */
-  float  R = (float)((int)(      _R*16.f)) / 16.f;
-  float R2 = (float)((int)(0.65f*_R*16.f)) / 16.f;
+  float  R = static_cast<float>((static_cast<int>((      _R*16.f)))) / 16.f;
+  float R2 = static_cast<float>((static_cast<int>((0.65f*_R*16.f)))) / 16.f;
   float sz = _ZSCALE / z;
 
   lpVertex->sx       = cx;
@@ -3682,7 +3682,7 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
 
     if (FOGACTIVE)
     {
-      vFogT[s] = 255-(int) (FogYBase + mptr->gVertex[s].y * FogYGrad);
+      vFogT[s] = 255-static_cast<int>((FogYBase + mptr->gVertex[s].y * FogYGrad));
       if (vFogT[s]<0  ) vFogT[s] = 0;
       if (vFogT[s]>255) vFogT[s]=255;
       vFogT[s]<<=24;
@@ -3695,8 +3695,8 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
 
     if (rVertex[s].z<-256)
     {
-      gScrp[s].x = VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      gScrp[s].y = VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      gScrp[s].x = VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      gScrp[s].y = VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
     }
     else return;
 
@@ -3711,7 +3711,7 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
 
   int argb = light * 0x00010101 + ((255-GlassL)<<24);
 
-  float d = (float) sqrt(x0*x0 + y0*y0 + z0*z0);
+  float d = static_cast<float>(sqrt(x0*x0 + y0*y0 + z0*z0));
   d3dSetTexture(mptr->lpTexture, 128, 128);
 
 
@@ -3727,66 +3727,66 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
   }
 
 
-  lpVertexG->sx       = (float)gScrp[0].x;
-  lpVertexG->sy       = (float)gScrp[0].y;
+  lpVertexG->sx       = static_cast<float>(gScrp[0].x);
+  lpVertexG->sy       = static_cast<float>(gScrp[0].y);
   lpVertexG->sz       = _ZSCALE / rVertex[0].z;
   lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
   lpVertexG->color    = argb;
   lpVertexG->specular = vFogT[0];
-  lpVertexG->tu       = (float)(0.0f);
-  lpVertexG->tv       = (float)(0.0f);
+  lpVertexG->tu       = static_cast<float>((0.0f));
+  lpVertexG->tv       = static_cast<float>((0.0f));
   lpVertexG++;
 
-  lpVertexG->sx       = (float)gScrp[1].x;
-  lpVertexG->sy       = (float)gScrp[1].y;
+  lpVertexG->sx       = static_cast<float>(gScrp[1].x);
+  lpVertexG->sy       = static_cast<float>(gScrp[1].y);
   lpVertexG->sz       = _ZSCALE / rVertex[1].z;
   lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
   lpVertexG->color    = argb;
   lpVertexG->specular = vFogT[1];
-  lpVertexG->tu       = (float)(0.995f);
-  lpVertexG->tv       = (float)(0.0f);
+  lpVertexG->tu       = static_cast<float>((0.995f));
+  lpVertexG->tv       = static_cast<float>((0.0f));
   lpVertexG++;
 
-  lpVertexG->sx       = (float)gScrp[2].x;
-  lpVertexG->sy       = (float)gScrp[2].y;
+  lpVertexG->sx       = static_cast<float>(gScrp[2].x);
+  lpVertexG->sy       = static_cast<float>(gScrp[2].y);
   lpVertexG->sz       = _ZSCALE / rVertex[2].z;
   lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
   lpVertexG->color    = argb;
   lpVertexG->specular = vFogT[2];
-  lpVertexG->tu       = (float)(0.995f);
-  lpVertexG->tv       = (float)(0.995f);
+  lpVertexG->tu       = static_cast<float>((0.995f));
+  lpVertexG->tv       = static_cast<float>((0.995f));
   lpVertexG++;
 
 //=========//
 
-  lpVertexG->sx       = (float)gScrp[0].x;
-  lpVertexG->sy       = (float)gScrp[0].y;
+  lpVertexG->sx       = static_cast<float>(gScrp[0].x);
+  lpVertexG->sy       = static_cast<float>(gScrp[0].y);
   lpVertexG->sz       = _ZSCALE / rVertex[0].z;
   lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
   lpVertexG->color    = argb;
   lpVertexG->specular = vFogT[0];
-  lpVertexG->tu       = (float)(0.0f);
-  lpVertexG->tv       = (float)(0.0f);
+  lpVertexG->tu       = static_cast<float>((0.0f));
+  lpVertexG->tv       = static_cast<float>((0.0f));
   lpVertexG++;
 
-  lpVertexG->sx       = (float)gScrp[2].x;
-  lpVertexG->sy       = (float)gScrp[2].y;
+  lpVertexG->sx       = static_cast<float>(gScrp[2].x);
+  lpVertexG->sy       = static_cast<float>(gScrp[2].y);
   lpVertexG->sz       = _ZSCALE / rVertex[2].z;
   lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
   lpVertexG->color    = argb;
   lpVertexG->specular = vFogT[2];
-  lpVertexG->tu       = (float)(0.995f);
-  lpVertexG->tv       = (float)(0.995f);
+  lpVertexG->tu       = static_cast<float>((0.995f));
+  lpVertexG->tv       = static_cast<float>((0.995f));
   lpVertexG++;
 
-  lpVertexG->sx       = (float)gScrp[3].x;
-  lpVertexG->sy       = (float)gScrp[3].y;
+  lpVertexG->sx       = static_cast<float>(gScrp[3].x);
+  lpVertexG->sy       = static_cast<float>(gScrp[3].y);
   lpVertexG->sz       = _ZSCALE / rVertex[3].z;
   lpVertexG->rhw      = lpVertexG->sz * _AZSCALE;
   lpVertexG->color    = argb;
   lpVertexG->specular = vFogT[3];
-  lpVertexG->tu       = (float)(0.0f);
-  lpVertexG->tv       = (float)(0.995f);
+  lpVertexG->tu       = static_cast<float>((0.0f));
+  lpVertexG->tv       = static_cast<float>((0.995f));
   lpVertexG++;
 
   //d3dFlushBuffer(0, 2);
@@ -3798,11 +3798,11 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
     lpInstructionG->bSize = sizeof(D3DSTATE);
     lpInstructionG->wCount = 1;
     lpInstructionG++;
-    lpState = (LPD3DSTATE)lpInstructionG;
+    lpState = reinterpret_cast<LPD3DSTATE>(lpInstructionG);
     lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREHANDLE;
     lpState->dwArg[0] = hTexture;
     lpState++;
-    lpInstructionG = (LPD3DINSTRUCTION)lpState;
+    lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
 
     lpwTriCount = (&lpInstructionG->wCount);
     lpInstructionG->bOpcode = D3DOP_TRIANGLE;
@@ -3811,7 +3811,7 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
     lpInstructionG++;
   }
 
-  lpTriangle             = (LPD3DTRIANGLE)lpInstructionG;
+  lpTriangle             = reinterpret_cast<LPD3DTRIANGLE>(lpInstructionG);
   lpTriangle->wV1    = GVCnt;
   lpTriangle->wV2    = GVCnt+1;
   lpTriangle->wV3    = GVCnt+2;
@@ -3825,7 +3825,7 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
   lpTriangle++;
 
   *lpwTriCount = (*lpwTriCount) + 2;
-  lpInstructionG = (LPD3DINSTRUCTION)lpTriangle;
+  lpInstructionG = reinterpret_cast<LPD3DINSTRUCTION>(lpTriangle);
 
   GVCnt+=6;
 }
@@ -3839,11 +3839,11 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
 
   mptr = _mptr;
 
-  float ca = (float)cos(al);
-  float sa = (float)sin(al);
+  float ca = static_cast<float>(cos(al));
+  float sa = static_cast<float>(sin(al));
 
-  float cb = (float)cos(bt);
-  float sb = (float)sin(bt);
+  float cb = static_cast<float>(cos(bt));
+  float sb = static_cast<float>(sin(bt));
 
   int minx = 10241024;
   int maxx =-10241024;
@@ -3862,7 +3862,7 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
 
     if (FOGACTIVE)
     {
-      vFogT[s] = 255-(int)(FogYBase + p.y * FogYGrad);
+      vFogT[s] = 255-static_cast<int>((FogYBase + p.y * FogYGrad));
       if (vFogT[s]<5  ) vFogT[s] = 5;
       if (vFogT[s]>255) vFogT[s]=255;
       vFogT[s]<<=24;
@@ -3880,8 +3880,8 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
 
     if (rVertex[s].z<-64)
     {
-      gScrp[s].x = VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      gScrp[s].y = VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      gScrp[s].x = VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      gScrp[s].y = VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
     }
     else gScrp[s].x = 0xFFFFFF;
 
@@ -3897,7 +3897,7 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
 
   BuildTreeNoSort();
 
-  float d = (float) sqrt(x0*x0 + y0*y0 + z0*z0);
+  float d = static_cast<float>(sqrt(x0*x0 + y0*y0 + z0*z0));
   if (LOWRESTX) d = 14*256;
 
   if (MIPMAP && (d > 12*256)) d3dSetTexture(mptr->lpTexture2, 128, 128);
@@ -3928,36 +3928,36 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
     else fproc1++;
 
     int _ml = ml + mptr->VLight[VT][fptr->v1];
-    lpVertex->sx       = (float)gScrp[fptr->v1].x;
-    lpVertex->sy       = (float)gScrp[fptr->v1].y;
+    lpVertex->sx       = static_cast<float>(gScrp[fptr->v1].x);
+    lpVertex->sy       = static_cast<float>(gScrp[fptr->v1].y);
     lpVertex->sz       = _ZSCALE / rVertex[fptr->v1].z;
     lpVertex->rhw      = 1.f;
     lpVertex->color    = _ml * 0x00010101 | alphamask;
     lpVertex->specular = vFogT[fptr->v1];
-    lpVertex->tu       = (float)(fptr->tax);
-    lpVertex->tv       = (float)(fptr->tay);
+    lpVertex->tu       = static_cast<float>((fptr->tax));
+    lpVertex->tv       = static_cast<float>((fptr->tay));
     lpVertex++;
 
     _ml = ml + mptr->VLight[VT][fptr->v2];
-    lpVertex->sx       = (float)gScrp[fptr->v2].x;
-    lpVertex->sy       = (float)gScrp[fptr->v2].y;
+    lpVertex->sx       = static_cast<float>(gScrp[fptr->v2].x);
+    lpVertex->sy       = static_cast<float>(gScrp[fptr->v2].y);
     lpVertex->sz       = _ZSCALE / rVertex[fptr->v2].z;
     lpVertex->rhw      = 1.f;
     lpVertex->color    = _ml * 0x00010101 | alphamask;;
     lpVertex->specular = vFogT[fptr->v2];
-    lpVertex->tu       = (float)(fptr->tbx);
-    lpVertex->tv       = (float)(fptr->tby);
+    lpVertex->tu       = static_cast<float>((fptr->tbx));
+    lpVertex->tv       = static_cast<float>((fptr->tby));
     lpVertex++;
 
     _ml = ml + mptr->VLight[VT][fptr->v3];
-    lpVertex->sx       = (float)gScrp[fptr->v3].x;
-    lpVertex->sy       = (float)gScrp[fptr->v3].y;
+    lpVertex->sx       = static_cast<float>(gScrp[fptr->v3].x);
+    lpVertex->sy       = static_cast<float>(gScrp[fptr->v3].y);
     lpVertex->sz       = _ZSCALE / rVertex[fptr->v3].z;
     lpVertex->rhw      = 1.f;
     lpVertex->color    = _ml * 0x00010101 | alphamask;;
     lpVertex->specular = vFogT[fptr->v3];
-    lpVertex->tu       = (float)(fptr->tcx);
-    lpVertex->tv       = (float)(fptr->tcy);
+    lpVertex->tu       = static_cast<float>((fptr->tcx));
+    lpVertex->tv       = static_cast<float>((fptr->tcy));
     lpVertex++;
 
 
@@ -3980,14 +3980,14 @@ void RenderShadowClip(TModel* _mptr,
   int f,CMASK,j;
   mptr = _mptr;
 
-  float cla = (float)cos(cal);
-  float sla = (float)sin(cal);
+  float cla = static_cast<float>(cos(cal));
+  float sla = static_cast<float>(sin(cal));
 
-  float ca = (float)cos(al);
-  float sa = (float)sin(al);
+  float ca = static_cast<float>(cos(al));
+  float sa = static_cast<float>(sin(al));
 
-  float cb = (float)cos(bt);
-  float sb = (float)sin(bt);
+  float cb = static_cast<float>(cos(bt));
+  float sb = static_cast<float>(sin(bt));
 
 
   BOOL BL = FALSE;
@@ -4014,8 +4014,8 @@ void RenderShadowClip(TModel* _mptr,
     else
     {
       int f = 0;
-      int sx =  VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      int sy =  VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      int sx =  VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      int sy =  VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
 
       if (sx>=WinEX) f+=1;
       if (sx<=0    ) f+=2;
@@ -4031,7 +4031,7 @@ void RenderShadowClip(TModel* _mptr,
   if (!BL) return;
 
 
-  float d = (float) sqrt(x0*x0 + y0*y0 + z0*z0);
+  float d = static_cast<float>(sqrt(x0*x0 + y0*y0 + z0*z0));
   if (LOWRESTX) d = 14*256;
   if (MIPMAP && (d > 12*256)) d3dSetTexture(mptr->lpTexture2, 128, 128);
   else d3dSetTexture(mptr->lpTexture, 256, 256);
@@ -4083,8 +4083,8 @@ void RenderShadowClip(TModel* _mptr,
     for (j=0; j<vused-2; j++)
     {
       u = 0;
-      lpVertex->sx       = (float)(VideoCX - (int)(cp[u].ev.v.x / cp[u].ev.v.z * CameraW));
-      lpVertex->sy       = (float)(VideoCY + (int)(cp[u].ev.v.y / cp[u].ev.v.z * CameraH));
+      lpVertex->sx       = static_cast<float>((VideoCX - static_cast<int>((cp[u].ev.v.x / cp[u].ev.v.z * CameraW))));
+      lpVertex->sy       = static_cast<float>((VideoCY + static_cast<int>((cp[u].ev.v.y / cp[u].ev.v.z * CameraH))));
       lpVertex->sz       = (_ZSCALE-0.5f) / cp[u].ev.v.z;
       lpVertex->rhw      = 1.f;
       lpVertex->color    = GlassL;
@@ -4094,8 +4094,8 @@ void RenderShadowClip(TModel* _mptr,
       lpVertex++;
 
       u = j+1;
-      lpVertex->sx       = (float)(VideoCX - (int)(cp[u].ev.v.x / cp[u].ev.v.z * CameraW));
-      lpVertex->sy       = (float)(VideoCY + (int)(cp[u].ev.v.y / cp[u].ev.v.z * CameraH));
+      lpVertex->sx       = static_cast<float>((VideoCX - static_cast<int>((cp[u].ev.v.x / cp[u].ev.v.z * CameraW))));
+      lpVertex->sy       = static_cast<float>((VideoCY + static_cast<int>((cp[u].ev.v.y / cp[u].ev.v.z * CameraH))));
       lpVertex->sz       = (_ZSCALE-0.5f) / cp[u].ev.v.z;
       lpVertex->rhw      = 1.f;
       lpVertex->color    = GlassL;
@@ -4105,8 +4105,8 @@ void RenderShadowClip(TModel* _mptr,
       lpVertex++;
 
       u = j+2;
-      lpVertex->sx       = (float)(VideoCX - (int)(cp[u].ev.v.x / cp[u].ev.v.z * CameraW));
-      lpVertex->sy       = (float)(VideoCY + (int)(cp[u].ev.v.y / cp[u].ev.v.z * CameraH));
+      lpVertex->sx       = static_cast<float>((VideoCX - static_cast<int>((cp[u].ev.v.x / cp[u].ev.v.z * CameraW))));
+      lpVertex->sy       = static_cast<float>((VideoCY + static_cast<int>((cp[u].ev.v.y / cp[u].ev.v.z * CameraH))));
       lpVertex->sz       = (_ZSCALE-0.5f) / cp[u].ev.v.z;
       lpVertex->rhw      = 1.f;
       lpVertex->color    = GlassL;
@@ -4140,14 +4140,14 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
 
   mptr = _mptr;
 
-  float ca = (float)cos(al);
-  float sa = (float)sin(al);
+  float ca = static_cast<float>(cos(al));
+  float sa = static_cast<float>(sin(al));
 
-  float cb = (float)cos(bt);
-  float sb = (float)sin(bt);
+  float cb = static_cast<float>(cos(bt));
+  float sb = static_cast<float>(sin(bt));
 
 
-  int flight = (int)light;
+  int flight = static_cast<int>(light);
   DWORD almask;
   DWORD alphamask = (255-GlassL)<<24;
 
@@ -4160,7 +4160,7 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
 
     if (FOGACTIVE)
     {
-      vFogT[s] = 255-(int)(FogYBase + mptr->gVertex[s].y * FogYGrad);
+      vFogT[s] = 255-static_cast<int>((FogYBase + mptr->gVertex[s].y * FogYGrad));
       if (vFogT[s]<5  ) vFogT[s] = 5;
       if (vFogT[s]>255) vFogT[s]=255;
     }
@@ -4181,8 +4181,8 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
     else
     {
       int f = 0;
-      int sx =  VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      int sy =  VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      int sx =  VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      int sy =  VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
 
       if (sx>=WinEX) f+=1;
       if (sx<=0    ) f+=2;
@@ -4261,36 +4261,36 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
     for (u=0; u<vused-2; u++)
     {
       int _flight = flight + cp[0].ev.Light;
-      lpVertex->sx       = (float)(VideoCX - (int)(cp[0].ev.v.x / cp[0].ev.v.z * CameraW));
-      lpVertex->sy       = (float)(VideoCY + (int)(cp[0].ev.v.y / cp[0].ev.v.z * CameraH));
+      lpVertex->sx       = static_cast<float>((VideoCX - static_cast<int>((cp[0].ev.v.x / cp[0].ev.v.z * CameraW))));
+      lpVertex->sy       = static_cast<float>((VideoCY + static_cast<int>((cp[0].ev.v.y / cp[0].ev.v.z * CameraH))));
       lpVertex->sz       = _ZSCALE / cp[0].ev.v.z;
       lpVertex->rhw      = lpVertex->sz * _AZSCALE;
       lpVertex->color    = _flight * 0x00010101 | almask;
-      lpVertex->specular = ((int)cp[0].ev.Fog)<<24;
-      lpVertex->tu       = (float)(cp[0].tx);
-      lpVertex->tv       = (float)(cp[0].ty);
+      lpVertex->specular = (static_cast<int>(cp[0].ev.Fog))<<24;
+      lpVertex->tu       = static_cast<float>((cp[0].tx));
+      lpVertex->tv       = static_cast<float>((cp[0].ty));
       lpVertex++;
 
       _flight = flight + cp[u+1].ev.Light;
-      lpVertex->sx       = (float)(VideoCX - (int)(cp[u+1].ev.v.x / cp[u+1].ev.v.z * CameraW));
-      lpVertex->sy       = (float)(VideoCY + (int)(cp[u+1].ev.v.y / cp[u+1].ev.v.z * CameraH));
+      lpVertex->sx       = static_cast<float>((VideoCX - static_cast<int>((cp[u+1].ev.v.x / cp[u+1].ev.v.z * CameraW))));
+      lpVertex->sy       = static_cast<float>((VideoCY + static_cast<int>((cp[u+1].ev.v.y / cp[u+1].ev.v.z * CameraH))));
       lpVertex->sz       = _ZSCALE / cp[u+1].ev.v.z;
       lpVertex->rhw      = lpVertex->sz * _AZSCALE;
       lpVertex->color    = _flight * 0x00010101 | almask;
-      lpVertex->specular = ((int)cp[u+1].ev.Fog)<<24;
-      lpVertex->tu       = (float)(cp[u+1].tx);
-      lpVertex->tv       = (float)(cp[u+1].ty);
+      lpVertex->specular = (static_cast<int>(cp[u+1].ev.Fog))<<24;
+      lpVertex->tu       = static_cast<float>((cp[u+1].tx));
+      lpVertex->tv       = static_cast<float>((cp[u+1].ty));
       lpVertex++;
 
       _flight = flight + cp[u+2].ev.Light;
-      lpVertex->sx       = (float)(VideoCX - (int)(cp[u+2].ev.v.x / cp[u+2].ev.v.z * CameraW));
-      lpVertex->sy       = (float)(VideoCY + (int)(cp[u+2].ev.v.y / cp[u+2].ev.v.z * CameraH));
+      lpVertex->sx       = static_cast<float>((VideoCX - static_cast<int>((cp[u+2].ev.v.x / cp[u+2].ev.v.z * CameraW))));
+      lpVertex->sy       = static_cast<float>((VideoCY + static_cast<int>((cp[u+2].ev.v.y / cp[u+2].ev.v.z * CameraH))));
       lpVertex->sz       = _ZSCALE / cp[u+2].ev.v.z;
       lpVertex->rhw      = lpVertex->sz * _AZSCALE;
       lpVertex->color    = _flight * 0x00010101 | almask;
-      lpVertex->specular = ((int)cp[u+2].ev.Fog)<<24;
-      lpVertex->tu       = (float)(cp[u+2].tx);
-      lpVertex->tv       = (float)(cp[u+2].ty);
+      lpVertex->specular = (static_cast<int>(cp[u+2].ev.Fog))<<24;
+      lpVertex->tu       = static_cast<float>((cp[u+2].tx));
+      lpVertex->tv       = static_cast<float>((cp[u+2].ty));
       lpVertex++;
 
       if (fptr->Flags & (sfOpacity | sfTransparent)) fproc2++;
@@ -4311,10 +4311,10 @@ void RenderModelClipEnvMap(TModel* _mptr, float x0, float y0, float z0, float al
   int f,CMASK;
   mptr = _mptr;
 
-  float ca = (float)cos(al);
-  float sa = (float)sin(al);
-  float cb = (float)cos(bt);
-  float sb = (float)sin(bt);
+  float ca = static_cast<float>(cos(al));
+  float sa = static_cast<float>(sin(al));
+  float cb = static_cast<float>(cos(bt));
+  float sb = static_cast<float>(sin(bt));
 
   DWORD PHCOLOR = 0xFFFFFFFF;
 
@@ -4338,8 +4338,8 @@ void RenderModelClipEnvMap(TModel* _mptr, float x0, float y0, float z0, float al
     else
     {
       int f = 0;
-      int sx =  VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      int sy =  VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      int sx =  VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      int sy =  VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
 
       if (sx>=WinEX) f+=1;
       if (sx<=0    ) f+=2;
@@ -4408,34 +4408,34 @@ void RenderModelClipEnvMap(TModel* _mptr, float x0, float y0, float z0, float al
 
     for (u=0; u<vused-2; u++)
     {
-      lpVertex->sx       = (float)(VideoCX - (int)(cp[0].ev.v.x / cp[0].ev.v.z * CameraW));
-      lpVertex->sy       = (float)(VideoCY + (int)(cp[0].ev.v.y / cp[0].ev.v.z * CameraH));
+      lpVertex->sx       = static_cast<float>((VideoCX - static_cast<int>((cp[0].ev.v.x / cp[0].ev.v.z * CameraW))));
+      lpVertex->sy       = static_cast<float>((VideoCY + static_cast<int>((cp[0].ev.v.y / cp[0].ev.v.z * CameraH))));
       lpVertex->sz       = _ZSCALE / cp[0].ev.v.z;
       lpVertex->rhw      = lpVertex->sz * _AZSCALE;
       lpVertex->color    = PHCOLOR;
       lpVertex->specular = 0xFF000000;
-      lpVertex->tu       = (float)(cp[0].tx);
-      lpVertex->tv       = (float)(cp[0].ty);
+      lpVertex->tu       = static_cast<float>((cp[0].tx));
+      lpVertex->tv       = static_cast<float>((cp[0].ty));
       lpVertex++;
 
-      lpVertex->sx       = (float)(VideoCX - (int)(cp[u+1].ev.v.x / cp[u+1].ev.v.z * CameraW));
-      lpVertex->sy       = (float)(VideoCY + (int)(cp[u+1].ev.v.y / cp[u+1].ev.v.z * CameraH));
+      lpVertex->sx       = static_cast<float>((VideoCX - static_cast<int>((cp[u+1].ev.v.x / cp[u+1].ev.v.z * CameraW))));
+      lpVertex->sy       = static_cast<float>((VideoCY + static_cast<int>((cp[u+1].ev.v.y / cp[u+1].ev.v.z * CameraH))));
       lpVertex->sz       = _ZSCALE / cp[u+1].ev.v.z;
       lpVertex->rhw      = lpVertex->sz * _AZSCALE;
       lpVertex->color    = PHCOLOR;
       lpVertex->specular = 0xFF000000;
-      lpVertex->tu       = (float)(cp[u+1].tx);
-      lpVertex->tv       = (float)(cp[u+1].ty);
+      lpVertex->tu       = static_cast<float>((cp[u+1].tx));
+      lpVertex->tv       = static_cast<float>((cp[u+1].ty));
       lpVertex++;
 
-      lpVertex->sx       = (float)(VideoCX - (int)(cp[u+2].ev.v.x / cp[u+2].ev.v.z * CameraW));
-      lpVertex->sy       = (float)(VideoCY + (int)(cp[u+2].ev.v.y / cp[u+2].ev.v.z * CameraH));
+      lpVertex->sx       = static_cast<float>((VideoCX - static_cast<int>((cp[u+2].ev.v.x / cp[u+2].ev.v.z * CameraW))));
+      lpVertex->sy       = static_cast<float>((VideoCY + static_cast<int>((cp[u+2].ev.v.y / cp[u+2].ev.v.z * CameraH))));
       lpVertex->sz       = _ZSCALE / cp[u+2].ev.v.z;
       lpVertex->rhw      = lpVertex->sz * _AZSCALE;
       lpVertex->color    = PHCOLOR;
       lpVertex->specular = 0xFF000000;
-      lpVertex->tu       = (float)(cp[u+2].tx);
-      lpVertex->tv       = (float)(cp[u+2].ty);
+      lpVertex->tu       = static_cast<float>((cp[u+2].tx));
+      lpVertex->tv       = static_cast<float>((cp[u+2].ty));
       lpVertex++;
 
       fproc1++;
@@ -4455,10 +4455,10 @@ void RenderModelClipPhongMap(TModel* _mptr, float x0, float y0, float z0, float 
   int f,CMASK;
   mptr = _mptr;
 
-  float ca = (float)cos(al);
-  float sa = (float)sin(al);
-  float cb = (float)cos(bt);
-  float sb = (float)sin(bt);
+  float ca = static_cast<float>(cos(al));
+  float sa = static_cast<float>(sin(al));
+  float cb = static_cast<float>(cos(bt));
+  float sb = static_cast<float>(sin(bt));
 
   int   rv = SkyR +64;
   if (rv>255) rv = 255;
@@ -4487,8 +4487,8 @@ void RenderModelClipPhongMap(TModel* _mptr, float x0, float y0, float z0, float 
     else
     {
       int f = 0;
-      int sx =  VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      int sy =  VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      int sx =  VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      int sy =  VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
 
       if (sx>=WinEX) f+=1;
       if (sx<=0    ) f+=2;
@@ -4553,34 +4553,34 @@ void RenderModelClipPhongMap(TModel* _mptr, float x0, float y0, float z0, float 
 
     for (u=0; u<vused-2; u++)
     {
-      lpVertex->sx       = (float)(VideoCX - (int)(cp[0].ev.v.x / cp[0].ev.v.z * CameraW));
-      lpVertex->sy       = (float)(VideoCY + (int)(cp[0].ev.v.y / cp[0].ev.v.z * CameraH));
+      lpVertex->sx       = static_cast<float>((VideoCX - static_cast<int>((cp[0].ev.v.x / cp[0].ev.v.z * CameraW))));
+      lpVertex->sy       = static_cast<float>((VideoCY + static_cast<int>((cp[0].ev.v.y / cp[0].ev.v.z * CameraH))));
       lpVertex->sz       = _ZSCALE / cp[0].ev.v.z;
       lpVertex->rhw      = lpVertex->sz * _AZSCALE;
       lpVertex->color    = PHCOLOR;
       lpVertex->specular = 0xFF000000;
-      lpVertex->tu       = (float)(cp[0].tx);
-      lpVertex->tv       = (float)(cp[0].ty);
+      lpVertex->tu       = static_cast<float>((cp[0].tx));
+      lpVertex->tv       = static_cast<float>((cp[0].ty));
       lpVertex++;
 
-      lpVertex->sx       = (float)(VideoCX - (int)(cp[u+1].ev.v.x / cp[u+1].ev.v.z * CameraW));
-      lpVertex->sy       = (float)(VideoCY + (int)(cp[u+1].ev.v.y / cp[u+1].ev.v.z * CameraH));
+      lpVertex->sx       = static_cast<float>((VideoCX - static_cast<int>((cp[u+1].ev.v.x / cp[u+1].ev.v.z * CameraW))));
+      lpVertex->sy       = static_cast<float>((VideoCY + static_cast<int>((cp[u+1].ev.v.y / cp[u+1].ev.v.z * CameraH))));
       lpVertex->sz       = _ZSCALE / cp[u+1].ev.v.z;
       lpVertex->rhw      = lpVertex->sz * _AZSCALE;
       lpVertex->color    = PHCOLOR;
       lpVertex->specular = 0xFF000000;
-      lpVertex->tu       = (float)(cp[u+1].tx);
-      lpVertex->tv       = (float)(cp[u+1].ty);
+      lpVertex->tu       = static_cast<float>((cp[u+1].tx));
+      lpVertex->tv       = static_cast<float>((cp[u+1].ty));
       lpVertex++;
 
-      lpVertex->sx       = (float)(VideoCX - (int)(cp[u+2].ev.v.x / cp[u+2].ev.v.z * CameraW));
-      lpVertex->sy       = (float)(VideoCY + (int)(cp[u+2].ev.v.y / cp[u+2].ev.v.z * CameraH));
+      lpVertex->sx       = static_cast<float>((VideoCX - static_cast<int>((cp[u+2].ev.v.x / cp[u+2].ev.v.z * CameraW))));
+      lpVertex->sy       = static_cast<float>((VideoCY + static_cast<int>((cp[u+2].ev.v.y / cp[u+2].ev.v.z * CameraH))));
       lpVertex->sz       = _ZSCALE / cp[u+2].ev.v.z;
       lpVertex->rhw      = lpVertex->sz * _AZSCALE;
       lpVertex->color    = PHCOLOR;
       lpVertex->specular = 0xFF000000;
-      lpVertex->tu       = (float)(cp[u+2].tx);
-      lpVertex->tv       = (float)(cp[u+2].ty);
+      lpVertex->tu       = static_cast<float>((cp[u+2].tx));
+      lpVertex->tv       = static_cast<float>((cp[u+2].ty));
       lpVertex++;
 
       fproc1++;
@@ -4614,8 +4614,8 @@ void RenderModelSun(TModel* _mptr, float x0, float y0, float z0, int Alpha)
     if (rVertex[s].z>-64) gScrp[s].x = 0xFFFFFF;
     else
     {
-      gScrp[s].x = VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      gScrp[s].y = VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      gScrp[s].x = VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      gScrp[s].y = VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
     }
 
     if (gScrp[s].x > maxx) maxx = gScrp[s].x;
@@ -4644,45 +4644,45 @@ void RenderModelSun(TModel* _mptr, float x0, float y0, float z0, int Alpha)
 
     fproc1++;
 
-    lpVertex->sx       = (float)gScrp[fptr->v1].x;
-    lpVertex->sy       = (float)gScrp[fptr->v1].y;
+    lpVertex->sx       = static_cast<float>(gScrp[fptr->v1].x);
+    lpVertex->sy       = static_cast<float>(gScrp[fptr->v1].y);
     lpVertex->sz       = 0.0002;//_ZSCALE / rVertex[fptr->v1].z;
     lpVertex->rhw      = 1.f;
     lpVertex->color    = alpha;
     lpVertex->specular = 0xFF000000;
-    lpVertex->tu       = (float)(fptr->tax);
-    lpVertex->tv       = (float)(fptr->tay);
+    lpVertex->tu       = static_cast<float>((fptr->tax));
+    lpVertex->tv       = static_cast<float>((fptr->tay));
     lpVertex++;
 
-    lpVertex->sx       = (float)gScrp[fptr->v2].x;
-    lpVertex->sy       = (float)gScrp[fptr->v2].y;
+    lpVertex->sx       = static_cast<float>(gScrp[fptr->v2].x);
+    lpVertex->sy       = static_cast<float>(gScrp[fptr->v2].y);
     lpVertex->sz       = 0.0002;//_ZSCALE / rVertex[fptr->v2].z;
     lpVertex->rhw      = 1.f;
     lpVertex->color    = alpha;
     lpVertex->specular = 0xFF000000;
-    lpVertex->tu       = (float)(fptr->tbx);
-    lpVertex->tv       = (float)(fptr->tby);
+    lpVertex->tu       = static_cast<float>((fptr->tbx));
+    lpVertex->tv       = static_cast<float>((fptr->tby));
     lpVertex++;
 
-    lpVertex->sx       = (float)gScrp[fptr->v3].x;
-    lpVertex->sy       = (float)gScrp[fptr->v3].y;
+    lpVertex->sx       = static_cast<float>(gScrp[fptr->v3].x);
+    lpVertex->sy       = static_cast<float>(gScrp[fptr->v3].y);
     lpVertex->sz       = 0.0002;//_ZSCALE / rVertex[fptr->v3].z;
     lpVertex->rhw      = 1.f;
     lpVertex->color    = alpha;
     lpVertex->specular = 0xFF000000;
-    lpVertex->tu       = (float)(fptr->tcx);
-    lpVertex->tv       = (float)(fptr->tcy);
+    lpVertex->tu       = static_cast<float>((fptr->tcx));
+    lpVertex->tv       = static_cast<float>((fptr->tcy));
     lpVertex++;
 
     f = mptr->gFace[f].Next;
   }
 
-  lpInstruction = (LPD3DINSTRUCTION) ((LPD3DTLVERTEX)d3dExeBufDesc.lpData + 1024*3);
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>((reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDesc.lpData) + 1024*3));
   lpInstruction->bOpcode = D3DOP_STATERENDER;
   lpInstruction->bSize = sizeof(D3DSTATE);
   lpInstruction->wCount = 2;
   lpInstruction++;
-  lpState = (LPD3DSTATE)lpInstruction;
+  lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
   lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREHANDLE;
   lpState->dwArg[0] = hTexture;
@@ -4694,13 +4694,13 @@ void RenderModelSun(TModel* _mptr, float x0, float y0, float z0, int Alpha)
 
 
 
-  lpInstruction = (LPD3DINSTRUCTION)lpState;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
   lpInstruction->bOpcode = D3DOP_PROCESSVERTICES;
   lpInstruction->bSize   = sizeof(D3DPROCESSVERTICES);
   lpInstruction->wCount  = 1U;
   lpInstruction++;
 
-  lpProcessVertices = (LPD3DPROCESSVERTICES)lpInstruction;
+  lpProcessVertices = reinterpret_cast<LPD3DPROCESSVERTICES>(lpInstruction);
   lpProcessVertices->dwFlags    = D3DPROCESSVERTICES_COPY;
   lpProcessVertices->wStart     = 0U;
   lpProcessVertices->wDest      = 0U;
@@ -4708,12 +4708,12 @@ void RenderModelSun(TModel* _mptr, float x0, float y0, float z0, int Alpha)
   lpProcessVertices->dwReserved = 0UL;
   lpProcessVertices++;
 
-  lpInstruction = (LPD3DINSTRUCTION)lpProcessVertices;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpProcessVertices);
   lpInstruction->bOpcode = D3DOP_TRIANGLE;
   lpInstruction->bSize   = sizeof(D3DTRIANGLE);
   lpInstruction->wCount  = fproc1;
   lpInstruction++;
-  lpTriangle             = (LPD3DTRIANGLE)lpInstruction;
+  lpTriangle             = reinterpret_cast<LPD3DTRIANGLE>(lpInstruction);
 
   int ii = 0;
   for (int i=0; i<fproc1; i++)
@@ -4725,25 +4725,25 @@ void RenderModelSun(TModel* _mptr, float x0, float y0, float z0, int Alpha)
     lpTriangle++;
   }
 
-  lpInstruction = (LPD3DINSTRUCTION)lpTriangle;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpTriangle);
 
   lpInstruction->bOpcode = D3DOP_STATERENDER;
   lpInstruction->bSize = sizeof(D3DSTATE);
   lpInstruction->wCount = 1;
   lpInstruction++;
-  lpState = (LPD3DSTATE)lpInstruction;
+  lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
   lpState->drstRenderStateType = D3DRENDERSTATE_DESTBLEND;
   lpState->dwArg[0] = D3DBLEND_INVSRCALPHA;
   lpState++;
 
-  lpInstruction = (LPD3DINSTRUCTION)lpState;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
 
   lpInstruction->bOpcode = D3DOP_STATERENDER;
   lpInstruction->bSize = sizeof(D3DSTATE);
   lpInstruction->wCount = 3;
   lpInstruction++;
-  lpState = (LPD3DSTATE)lpInstruction;
+  lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
   lpState->drstRenderStateType = D3DRENDERSTATE_COLORKEYENABLE;
   lpState->dwArg[0] = FALSE;
@@ -4756,7 +4756,7 @@ void RenderModelSun(TModel* _mptr, float x0, float y0, float z0, int Alpha)
   lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREMIN;
   lpState->dwArg[0] = D3DFILTER_LINEAR;
   lpState++;
-  lpInstruction = (LPD3DINSTRUCTION)lpState;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
 
 
 
@@ -4838,8 +4838,8 @@ void RenderElements()
 
       if (!fproc1) d3dStartBuffer();
 
-      float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.f;
-      float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.f;
+      float sx = VideoCX - static_cast<int>((CameraW * rpos.x / rpos.z * 16)) / 16.f;
+      float sy = VideoCY + static_cast<int>((CameraH * rpos.y / rpos.z * 16)) / 16.f;
       RenderCircle(sx, sy, rpos.z, -r*CameraW*0.64 / rpos.z, Elements[eg].RGBA, Elements[eg].RGBA2);
       fproc1+=8;
       if (fproc1>256)
@@ -4872,8 +4872,8 @@ void RenderElements()
 
     if (!fproc1) d3dStartBuffer();
 
-    float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.f;
-    float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.f;
+    float sx = VideoCX - static_cast<int>((CameraW * rpos.x / rpos.z * 16)) / 16.f;
+    float sy = VideoCY + static_cast<int>((CameraH * rpos.y / rpos.z * 16)) / 16.f;
     
 	//RenderCircle(sx, sy, rpos.z, -12*CameraW*0.64 / rpos.z, (A1<<24)+conv_xGx(0x700000), (A2<<24)+conv_xGx(0x300000));
 	RenderCircle(sx, sy, rpos.z, -12 * CameraW*0.64 / rpos.z,
@@ -4916,8 +4916,8 @@ void RenderElements()
 		  if (fabs(rpos.x) > -rpos.z) continue;
 		  if (fabs(rpos.y) > -rpos.z) continue;
 
-		  float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.f;
-		  float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.f;
+		  float sx = VideoCX - static_cast<int>((CameraW * rpos.x / rpos.z * 16)) / 16.f;
+		  float sy = VideoCY + static_cast<int>((CameraH * rpos.y / rpos.z * 16)) / 16.f;
 
 		  DWORD A11 = SnowInfo[st].snow_a;
 		  if (Snow[s].ftime) {
@@ -4957,7 +4957,7 @@ void RenderCharacterPost(TCharacter *cptr)
 
   CreateChMorphedModel(cptr);
 
-  float zs = (float)sqrt( cptr->rpos.x*cptr->rpos.x  +  cptr->rpos.y*cptr->rpos.y  +  cptr->rpos.z*cptr->rpos.z);
+  float zs = static_cast<float>(sqrt( cptr->rpos.x*cptr->rpos.x  +  cptr->rpos.y*cptr->rpos.y  +  cptr->rpos.z*cptr->rpos.z));
   if (zs > ctViewR*256) return;
 
   GlassL = 0;
@@ -5011,11 +5011,11 @@ void RenderShipPost()
 {
   if (Ship.State==-1) return;
   GlassL = 0;
-  zs = (int)VectorLength(Ship.rpos);
+  zs = static_cast<int>(VectorLength(Ship.rpos));
   if (zs > 256 * (ctViewR)) return;
 
   if (zs > 256 * (ctViewR-4))
-    GlassL = MIN(255,(int)(zs - 256 * (ctViewR-4)) / 4);
+    GlassL = MIN(255,static_cast<int>((zs - 256 * (ctViewR-4))) / 4);
 
 
   /*grConstantColorValue( (255-GlassL) << 24);*/
@@ -5036,11 +5036,11 @@ void RenderSShipPost()
 {
 	if (SShip.State < 1) return;
 	GlassL = 0;
-	zs = (int)VectorLength(SShip.rpos);
+	zs = static_cast<int>(VectorLength(SShip.rpos));
 	if (zs > 256 * (ctViewR)) return;
 
 	if (zs > 256 * (ctViewR - 4))
-		GlassL = MIN(255, (int)(zs - 256 * (ctViewR - 4)) / 4);
+		GlassL = MIN(255, static_cast<int>((zs - 256 * (ctViewR - 4))) / 4);
 
 
 	/*grConstantColorValue( (255-GlassL) << 24);*/
@@ -5061,11 +5061,11 @@ void RenderBagPost()
 {
 	if (AmmoBag.State < 1) return;
 	GlassL = 0;
-	zs = (int)VectorLength(AmmoBag.rpos);
+	zs = static_cast<int>(VectorLength(AmmoBag.rpos));
 	if (zs > 256 * (ctViewR)) return;
 
 	if (zs > 256 * (ctViewR - 4))
-		GlassL = MIN(255, (int)(zs - 256 * (ctViewR - 4)) / 4);
+		GlassL = MIN(255, static_cast<int>((zs - 256 * (ctViewR - 4))) / 4);
 
 
 	/*grConstantColorValue( (255-GlassL) << 24);*/
@@ -5086,11 +5086,11 @@ void RenderBagPost()
 void RenderBulletPost(int b)
 {
 	GlassL = 0;
-	zs = (int)VectorLength(bullet[b].rpos);
+	zs = static_cast<int>(VectorLength(bullet[b].rpos));
 	if (zs > 256 * (ctViewR)) return;
 
 	if (zs > 256 * (ctViewR - 4))
-		GlassL = MIN(255, (int)(zs - 256 * (ctViewR - 4)) / 4);
+		GlassL = MIN(255, static_cast<int>((zs - 256 * (ctViewR - 4))) / 4);
 
 
 	/*grConstantColorValue( (255-GlassL) << 24);*/
@@ -5124,8 +5124,8 @@ void Render3DHardwarePosts()
     cptr->rpos.z = cptr->pos.z - CameraZ;
 
 
-    float r = (float)MAX( fabs(cptr->rpos.x), fabs(cptr->rpos.z) );
-    int ri = -1 + (int)(r / 256.f + 0.5f);
+    float r = static_cast<float>(MAX( fabs(cptr->rpos.x), fabs(cptr->rpos.z) ));
+    int ri = -1 + static_cast<int>((r / 256.f + 0.5f));
     if (ri < 0) ri = 0;
     if (ri > ctViewR) continue;
 
@@ -5153,8 +5153,8 @@ void Render3DHardwarePosts()
 		  cptr->rpos.z = cptr->pos.z - CameraZ;
 
 
-		  float r = (float)MAX(fabs(cptr->rpos.x), fabs(cptr->rpos.z));
-		  int ri = -1 + (int)(r / 256.f + 0.5f);
+		  float r = static_cast<float>(MAX(fabs(cptr->rpos.x), fabs(cptr->rpos.z)));
+		  int ri = -1 + static_cast<int>((r / 256.f + 0.5f));
 		  if (ri < 0) ri = 0;
 		  if (ri > ctViewR) continue;
 
@@ -5177,9 +5177,9 @@ void Render3DHardwarePosts()
   Ship.rpos.x = Ship.pos.x - CameraX;
   Ship.rpos.y = Ship.pos.y - CameraY;
   Ship.rpos.z = Ship.pos.z - CameraZ;
-  float r = (float)MAX( fabs(Ship.rpos.x), fabs(Ship.rpos.z) );
+  float r = static_cast<float>(MAX( fabs(Ship.rpos.x), fabs(Ship.rpos.z) ));
 
-  int ri = -1 + (int)(r / 256.f + 0.2f);
+  int ri = -1 + static_cast<int>((r / 256.f + 0.2f));
   if (ri < 0) ri = 0;
   if (ri < ctViewR)
   {
@@ -5198,9 +5198,9 @@ NOSHIP:
   SShip.rpos.x = SShip.pos.x - CameraX;
   SShip.rpos.y = SShip.pos.y - CameraY;
   SShip.rpos.z = SShip.pos.z - CameraZ;
-  r = (float)MAX(fabs(SShip.rpos.x), fabs(SShip.rpos.z));
+  r = static_cast<float>(MAX(fabs(SShip.rpos.x), fabs(SShip.rpos.z)));
 
-  ri = -1 + (int)(r / 256.f + 0.2f);
+  ri = -1 + static_cast<int>((r / 256.f + 0.2f));
   if (ri < 0) ri = 0;
   if (ri < ctViewR)
   {
@@ -5219,9 +5219,9 @@ NOSSHIP:
   AmmoBag.rpos.x = AmmoBag.pos.x - CameraX;
   AmmoBag.rpos.y = AmmoBag.pos.y - CameraY;
   AmmoBag.rpos.z = AmmoBag.pos.z - CameraZ;
-  r = (float)MAX(fabs(AmmoBag.rpos.x), fabs(AmmoBag.rpos.z));
+  r = static_cast<float>(MAX(fabs(AmmoBag.rpos.x), fabs(AmmoBag.rpos.z)));
 
-  ri = -1 + (int)(r / 256.f + 0.2f);
+  ri = -1 + static_cast<int>((r / 256.f + 0.2f));
   if (ri < 0) ri = 0;
   if (ri < ctViewR)
   {
@@ -5243,9 +5243,9 @@ NOBAG:
 		  bullet[b].rpos.x = bullet[b].a.x - CameraX;
 		  bullet[b].rpos.y = bullet[b].a.y - CameraY;
 		  bullet[b].rpos.z = bullet[b].a.z - CameraZ;
-		  r = (float)MAX(fabs(bullet[b].rpos.x), fabs(bullet[b].rpos.z));
+		  r = static_cast<float>(MAX(fabs(bullet[b].rpos.x), fabs(bullet[b].rpos.z)));
 
-		  ri = -1 + (int)(r / 256.f + 0.2f);
+		  ri = -1 + static_cast<int>((r / 256.f + 0.2f));
 		  if (ri < 0) ri = 0;
 		  if (ri < ctViewR)
 		  {
@@ -5285,7 +5285,7 @@ WORD CColor;
 
 void PutPixel(int x, int y)
 {
-  *((WORD*)ddsd.lpSurface + y*lsw + x) = CColor;
+  *(static_cast<WORD*>(ddsd.lpSurface) + y*lsw + x) = CColor;
 }
 
 void Put8pix(int X,int Y)
@@ -5388,8 +5388,8 @@ void DrawHMap()
 
   if (yy<0 || yy>=WinH) goto endmap;
   if (xx<0 || xx>=WinW) goto endmap;
-  DrawBox((WORD*)ddsd.lpSurface, lsw, xx+1, yy+1, 8<<RShift);
-  DrawBox((WORD*)ddsd.lpSurface, lsw, xx, yy, 30<<RShift);
+  DrawBox(static_cast<WORD*>(ddsd.lpSurface), lsw, xx+1, yy+1, 8<<RShift);
+  DrawBox(static_cast<WORD*>(ddsd.lpSurface), lsw, xx, yy, 30<<RShift);
 
 
   float _sonarPos;
@@ -5401,11 +5401,11 @@ void DrawHMap()
   }
 
   /*
-  *((WORD*)ddsd.lpSurface + yy*lsw + xx) = 30<<RShift;
-  *((WORD*)ddsd.lpSurface + yy*lsw + xx + 1) = 30<<RShift;
+  *(static_cast<WORD*>(ddsd.lpSurface) + yy*lsw + xx) = 30<<RShift;
+  *(static_cast<WORD*>(ddsd.lpSurface) + yy*lsw + xx + 1) = 30<<RShift;
   yy++;
-  *((WORD*)ddsd.lpSurface + yy*lsw + xx) = 30<<RShift;
-  *((WORD*)ddsd.lpSurface + yy*lsw + xx + 1) = 30<<RShift;
+  *(static_cast<WORD*>(ddsd.lpSurface) + yy*lsw + xx) = 30<<RShift;
+  *(static_cast<WORD*>(ddsd.lpSurface) + yy*lsw + xx + 1) = 30<<RShift;
   */
 
   CColor =  4<<GShift;
@@ -5415,11 +5415,11 @@ void DrawHMap()
 
   for (int b = 0; b < bulletCh; b++) {
 	  if (bullet[b].RTime) {
-		  xx = VideoCX - 128 + (int)bullet[b].a.x / 1024;
-		  yy = VideoCY - 128 + (int)bullet[b].a.z / 1024;
+		  xx = VideoCX - 128 + static_cast<int>(bullet[b].a.x) / 1024;
+		  yy = VideoCY - 128 + static_cast<int>(bullet[b].a.z) / 1024;
 		  if (yy > 0 && yy < WinH && xx > 0 && xx < WinW) {
-			  if (VMFORMAT565) DrawBox((WORD*)ddsd.lpSurface, lsw, xx, yy, WeapInfo[bullet[b].parent].radarColour565);
-			  else DrawBox((WORD*)ddsd.lpSurface, lsw, xx, yy, WeapInfo[bullet[b].parent].radarColour555);
+			  if (VMFORMAT565) DrawBox(static_cast<WORD*>(ddsd.lpSurface), lsw, xx, yy, WeapInfo[bullet[b].parent].radarColour565);
+			  else DrawBox(static_cast<WORD*>(ddsd.lpSurface), lsw, xx, yy, WeapInfo[bullet[b].parent].radarColour555);
 		  }
 	  }
   }
@@ -5435,15 +5435,15 @@ void DrawHMap()
 
 	  //if (!RadarMode && Characters[c].Clone != AI_HUNTDOG && !Characters[c].RTime) continue;
 
-      xx = VideoCX - 128 + (int)Characters[c].pos.x / 1024;
-      yy = VideoCY - 128 + (int)Characters[c].pos.z / 1024;
+      xx = VideoCX - 128 + static_cast<int>(Characters[c].pos.x) / 1024;
+      yy = VideoCY - 128 + static_cast<int>(Characters[c].pos.z) / 1024;
       if (yy<=0 || yy>=WinH) goto endmap;
       if (xx<=0 || xx>=WinW) goto endmap;
 
 
 	  if (Characters[c].Clone == AI_HUNTDOG) {
-		  if (VMFORMAT565) DrawBox((WORD*)ddsd.lpSurface, lsw, xx, yy, DinoInfo[Characters[c].CType].radarColour565);
-		  else DrawBox((WORD*)ddsd.lpSurface, lsw, xx, yy, DinoInfo[Characters[c].CType].radarColour555);
+		  if (VMFORMAT565) DrawBox(static_cast<WORD*>(ddsd.lpSurface), lsw, xx, yy, DinoInfo[Characters[c].CType].radarColour565);
+		  else DrawBox(static_cast<WORD*>(ddsd.lpSurface), lsw, xx, yy, DinoInfo[Characters[c].CType].radarColour555);
 	  }
 	  else {
 		  if (RadarMode || Characters[c].RTime) {
@@ -5456,15 +5456,15 @@ void DrawHMap()
 			  }
 
 			  
-				if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery((WORD*)ddsd.lpSurface, lsw, xx, yy, *colour);
-				  else DrawBox((WORD*)ddsd.lpSurface, lsw, xx, yy, *colour);
+				if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery(static_cast<WORD*>(ddsd.lpSurface), lsw, xx, yy, *colour);
+				  else DrawBox(static_cast<WORD*>(ddsd.lpSurface), lsw, xx, yy, *colour);
 		  }
 
 		  if (SonarMode) {
 			  int dx, dz;
 			  dx = px - xx;
 			  dz = py - yy;
-			  int pd = (int)sqrt(dx * dx + dz * dz);
+			  int pd = static_cast<int>(sqrt(dx * dx + dz * dz));
 
 
 			  if (pd < 38) {
@@ -5479,12 +5479,12 @@ void DrawHMap()
 
 			  if (Characters[c].showSonar && !Characters[c].RTime) {
 				  if (VMFORMAT565) {
-					  if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery((WORD*)ddsd.lpSurface, lsw, xx, yy, DinoInfo[Characters[c].CType].radarColour565);
-					  else DrawBox((WORD*)ddsd.lpSurface, lsw, xx, yy, DinoInfo[Characters[c].CType].radarColour565);
+					  if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery(static_cast<WORD*>(ddsd.lpSurface), lsw, xx, yy, DinoInfo[Characters[c].CType].radarColour565);
+					  else DrawBox(static_cast<WORD*>(ddsd.lpSurface), lsw, xx, yy, DinoInfo[Characters[c].CType].radarColour565);
 				  }
 				  else {
-					  if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery((WORD*)ddsd.lpSurface, lsw, xx, yy, DinoInfo[Characters[c].CType].radarColour555);
-					  else DrawBox((WORD*)ddsd.lpSurface, lsw, xx, yy, DinoInfo[Characters[c].CType].radarColour555);
+					  if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery(static_cast<WORD*>(ddsd.lpSurface), lsw, xx, yy, DinoInfo[Characters[c].CType].radarColour555);
+					  else DrawBox(static_cast<WORD*>(ddsd.lpSurface), lsw, xx, yy, DinoInfo[Characters[c].CType].radarColour555);
 				  }
 			  }
 		  }
@@ -5503,11 +5503,11 @@ endmap:
 
 void RenderSun(float x, float y, float z)
 {
-  SunScrX = VideoCX + (int)(x / (-z) * CameraW);
-  SunScrY = VideoCY - (int)(y / (-z) * CameraH);
+  SunScrX = VideoCX + static_cast<int>((x / (-z) * CameraW));
+  SunScrY = VideoCY - static_cast<int>((y / (-z) * CameraH));
   GetSkyK(SunScrX, SunScrY);
 
-  float d = (float)sqrt(x*x + y*y);
+  float d = static_cast<float>(sqrt(x*x + y*y));
   if (d<2048)
   {
     SunLight = (220.f- d*220.f/2048.f);
@@ -5520,7 +5520,7 @@ void RenderSun(float x, float y, float z)
   d = (2048.f + d) / 3048.f;
   d+=(1.f-SkyTraceK)/2.f;
   if (OptDayNight==2)  d=1.5;
-  RenderModelSun(SunModel,  x*d, y*d, z*d, (int)(200.f* SkyTraceK));
+  RenderModelSun(SunModel,  x*d, y*d, z*d, static_cast<int>((200.f* SkyTraceK)));
 }
 
 
@@ -5560,15 +5560,15 @@ void RenderSkyPlane()
   nv.y = 4024;
   nv.z=0;
 
-  cb = (float)cos(CameraBeta);
-  sb = (float)sin(CameraBeta);
+  cb = static_cast<float>(cos(CameraBeta));
+  sb = static_cast<float>(sin(CameraBeta));
   SKYDTime = RealTime & ((1<<17) - 1);
 
   float sh = - CameraY;
 
   if (MapMinY==10241024)
     MapMinY=0;
-  sh = (float)((int)MapMinY)*ctHScale - CameraY;
+  sh = static_cast<float>((static_cast<int>(MapMinY)))*ctHScale - CameraY;
 
   if (sh<-2024) sh=-2024;
 
@@ -5580,13 +5580,13 @@ void RenderSkyPlane()
   vbase.y = v.y * cb + v.z * sb;
   vbase.z = v.z * cb - v.y * sb;
   if (vbase.z < 128) vbase.z = 128;
-  int scry = VideoCY - (int)(vbase.y / vbase.z * CameraH);
+  int scry = VideoCY - static_cast<int>((vbase.y / vbase.z * CameraH));
 
   if (scry<0) return;
   if (scry>WinEY+1) scry = WinEY+1;
 
-  cb = (float)cos(CameraBeta-0.15);
-  sb = (float)sin(CameraBeta-0.15);
+  cb = static_cast<float>(cos(CameraBeta-0.15));
+  sb = static_cast<float>(sin(CameraBeta-0.15));
 
   v.x = 0;
   v.z = 2*256.f*256.f;
@@ -5595,7 +5595,7 @@ void RenderSkyPlane()
   vbase.y = v.y * cb + v.z * sb;
   vbase.z = v.z * cb - v.y * sb;
   if (vbase.z < 128) vbase.z = 128;
-  int _scry = VideoCY - (int)(vbase.y / vbase.z * CameraH);
+  int _scry = VideoCY - static_cast<int>((vbase.y / vbase.z * CameraH));
   if (scry > _scry) scry = _scry;
 
 
@@ -5652,9 +5652,9 @@ void RenderSkyPlane()
   float _zc = fabs(zc) - 100200.f;
   if (_zc<0) _zc=0.f;
 
-  int alpha = (int)(255*40240 / (40240+_za));
-  int alphb = (int)(255*40240 / (40240+_zb));
-  int alphc = (int)(255*40240 / (40240+_zc));
+  int alpha = static_cast<int>((255*40240 / (40240+_za)));
+  int alphb = static_cast<int>((255*40240 / (40240+_zb)));
+  int alphc = static_cast<int>((255*40240 / (40240+_zc)));
 
   int sx1 = - VideoCX;
   int sx2 = + VideoCX;
@@ -5669,9 +5669,9 @@ void RenderSkyPlane()
   d3dExeBufDesc.dwSize = sizeof(d3dExeBufDesc);
   hRes = lpd3dExecuteBufferG->Lock( &d3dExeBufDesc );
   if (FAILED(hRes)) DoHalt("Error locking execute buffer");
-  lpVertex = (LPD3DTLVERTEX)d3dExeBufDesc.lpData;
+  lpVertex = reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDesc.lpData);
 
-  float dtt = (float)(SKYDTime) / 512.f;
+  float dtt = static_cast<float>((SKYDTime)) / 512.f;
 
   float sky=0;
   float sy = VideoCY - sky;
@@ -5684,7 +5684,7 @@ void RenderSkyPlane()
   float fyb = (rx * sx2 + ry * sy + rz) / q;
 
   lpVertex->sx       = 0.f;
-  lpVertex->sy       = (float)sky;
+  lpVertex->sy       = static_cast<float>(sky);
   lpVertex->sz       = 0.0001f;//-8.f / za;
   lpVertex->rhw      = -1.f / za;
   /*if (FOGENABLE) {
@@ -5698,8 +5698,8 @@ void RenderSkyPlane()
   lpVertex->tv       = (fya - dtt) / 256.f;
   lpVertex++;
 
-  lpVertex->sx       = (float)WinW;
-  lpVertex->sy       = (float)sky;
+  lpVertex->sx       = static_cast<float>(WinW);
+  lpVertex->sy       = static_cast<float>(sky);
   lpVertex->sz       = 0.0001f;//-8.f / za;
   lpVertex->rhw      = -1.f / za;
   /*if (FOGENABLE) {
@@ -5725,7 +5725,7 @@ void RenderSkyPlane()
   fyb = (rx * sx2 + ry * sy + rz) / q;
 
   lpVertex->sx       = 0.f;
-  lpVertex->sy       = (float)sky;
+  lpVertex->sy       = static_cast<float>(sky);
   lpVertex->sz       = 0.0001f;//-8.f / zb;
   lpVertex->rhw      = -1.f / zb;
   /*if (FOGENABLE) {
@@ -5739,8 +5739,8 @@ void RenderSkyPlane()
   lpVertex->tv       = (fya - dtt) / 256.f;
   lpVertex++;
 
-  lpVertex->sx       = (float)WinW;
-  lpVertex->sy       = (float)sky;
+  lpVertex->sx       = static_cast<float>(WinW);
+  lpVertex->sy       = static_cast<float>(sky);
   lpVertex->sz       = 0.0001f;//-8.f / zb;
   lpVertex->rhw      = -1.f / zb;
   /*if (FOGENABLE) {
@@ -5757,7 +5757,7 @@ void RenderSkyPlane()
 
 
 
-  sky=(float)scry;
+  sky=static_cast<float>(scry);
   sy = VideoCY - sky;
   qyy = qy * sy;
   q = qx1 + qyy;
@@ -5768,7 +5768,7 @@ void RenderSkyPlane()
   fyb = (rx * sx2 + ry * sy + rz) / q;
 
   lpVertex->sx       = 0.f;
-  lpVertex->sy       = (float)sky;
+  lpVertex->sy       = static_cast<float>(sky);
   lpVertex->sz       = 0.0001f;//-8.f / zb;
   lpVertex->rhw      = -1.f / zc;
   /*if (FOGENABLE) {
@@ -5782,8 +5782,8 @@ void RenderSkyPlane()
   lpVertex->tv       = (fya - dtt) / 256.f;
   lpVertex++;
 
-  lpVertex->sx       = (float)WinW;
-  lpVertex->sy       = (float)sky;
+  lpVertex->sx       = static_cast<float>(WinW);
+  lpVertex->sy       = static_cast<float>(sky);
   lpVertex->sz       = 0.0001f;//-8.f / zb;
   lpVertex->rhw      = -1.f / zc;
   /*if (FOGENABLE) {
@@ -5799,12 +5799,12 @@ void RenderSkyPlane()
 
 
 
-  lpInstruction = (LPD3DINSTRUCTION) ((LPD3DTLVERTEX)d3dExeBufDesc.lpData + 400*3);
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>((reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDesc.lpData) + 400*3));
   lpInstruction->bOpcode = D3DOP_STATERENDER;
   lpInstruction->bSize = sizeof(D3DSTATE);
   lpInstruction->wCount = 4;
   lpInstruction++;
-  lpState = (LPD3DSTATE)lpInstruction;
+  lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
   lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREHANDLE;
   lpState->dwArg[0] = hTexture;
@@ -5823,13 +5823,13 @@ void RenderSkyPlane()
   else lpState->dwArg[0] = (SkyR<<16) + (SkyG<<8) + SkyB;
   lpState++;
 
-  lpInstruction = (LPD3DINSTRUCTION)lpState;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
   lpInstruction->bOpcode = D3DOP_PROCESSVERTICES;
   lpInstruction->bSize   = sizeof(D3DPROCESSVERTICES);
   lpInstruction->wCount  = 1U;
   lpInstruction++;
 
-  lpProcessVertices = (LPD3DPROCESSVERTICES)lpInstruction;
+  lpProcessVertices = reinterpret_cast<LPD3DPROCESSVERTICES>(lpInstruction);
   lpProcessVertices->dwFlags    = D3DPROCESSVERTICES_COPY;
   lpProcessVertices->wStart     = 0U;
   lpProcessVertices->wDest      = 0U;
@@ -5838,12 +5838,12 @@ void RenderSkyPlane()
   lpProcessVertices++;
 
 
-  lpInstruction = (LPD3DINSTRUCTION)lpProcessVertices;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpProcessVertices);
   lpInstruction->bOpcode = D3DOP_TRIANGLE;
   lpInstruction->bSize   = sizeof(D3DTRIANGLE);
   lpInstruction->wCount  = 4;
   lpInstruction++;
-  lpTriangle             = (LPD3DTRIANGLE)lpInstruction;
+  lpTriangle             = reinterpret_cast<LPD3DTRIANGLE>(lpInstruction);
 
   lpTriangle->wV1    = 0;
   lpTriangle->wV2    = 1;
@@ -5870,7 +5870,7 @@ void RenderSkyPlane()
   lpTriangle->wFlags = 0;
   lpTriangle++;
 
-  lpInstruction = (LPD3DINSTRUCTION)lpTriangle;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpTriangle);
   lpInstruction->bOpcode = D3DOP_EXIT;
   lpInstruction->bSize   = 0UL;
   lpInstruction->wCount  = 0U;
@@ -5902,7 +5902,7 @@ void RenderFSRect(DWORD Color)
   lpVertex->tv       = 0;
   lpVertex++;
 
-  lpVertex->sx       = (float)WinW;
+  lpVertex->sx       = static_cast<float>(WinW);
   lpVertex->sy       = 0.f;
   lpVertex->sz       = 0.999f;
   lpVertex->rhw      = 1.f;
@@ -5913,7 +5913,7 @@ void RenderFSRect(DWORD Color)
   lpVertex++;
 
   lpVertex->sx       = 0.f;
-  lpVertex->sy       = (float)WinH;
+  lpVertex->sy       = static_cast<float>(WinH);
   lpVertex->sz       = 0.999f;
   lpVertex->rhw      = 1.f;
   lpVertex->color    = Color;
@@ -5922,9 +5922,9 @@ void RenderFSRect(DWORD Color)
   lpVertex->tv       = 0;
   lpVertex++;
 
-  lpVertex->sx       = (float)WinW;
-  lpVertex->sy       = (float)WinH;
-  lpVertex->sz       = (float)0.999f;
+  lpVertex->sx       = static_cast<float>(WinW);
+  lpVertex->sy       = static_cast<float>(WinH);
+  lpVertex->sz       = static_cast<float>(0.999f);
   lpVertex->rhw      = 1.f;
   lpVertex->color    = Color;
   lpVertex->specular = 0xFF000000;
@@ -5933,24 +5933,24 @@ void RenderFSRect(DWORD Color)
   lpVertex++;
 
 
-  lpInstruction = (LPD3DINSTRUCTION) ((LPD3DTLVERTEX)d3dExeBufDesc.lpData + 1024*3);
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>((reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDesc.lpData) + 1024*3));
   lpInstruction->bOpcode = D3DOP_STATERENDER;
   lpInstruction->bSize = sizeof(D3DSTATE);
   lpInstruction->wCount = 1;
   lpInstruction++;
-  lpState = (LPD3DSTATE)lpInstruction;
+  lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
   lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREHANDLE;
   lpState->dwArg[0] = 0;
   lpState++;
 
-  lpInstruction = (LPD3DINSTRUCTION)lpState;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
   lpInstruction->bOpcode = D3DOP_PROCESSVERTICES;
   lpInstruction->bSize   = sizeof(D3DPROCESSVERTICES);
   lpInstruction->wCount  = 1U;
   lpInstruction++;
 
-  lpProcessVertices = (LPD3DPROCESSVERTICES)lpInstruction;
+  lpProcessVertices = reinterpret_cast<LPD3DPROCESSVERTICES>(lpInstruction);
   lpProcessVertices->dwFlags    = D3DPROCESSVERTICES_COPY;
   lpProcessVertices->wStart     = 0U;
   lpProcessVertices->wDest      = 0U;
@@ -5959,12 +5959,12 @@ void RenderFSRect(DWORD Color)
   lpProcessVertices++;
 
 
-  lpInstruction = (LPD3DINSTRUCTION)lpProcessVertices;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpProcessVertices);
   lpInstruction->bOpcode = D3DOP_TRIANGLE;
   lpInstruction->bSize   = sizeof(D3DTRIANGLE);
   lpInstruction->wCount  = 2;
   lpInstruction++;
-  lpTriangle             = (LPD3DTRIANGLE)lpInstruction;
+  lpTriangle             = reinterpret_cast<LPD3DTRIANGLE>(lpInstruction);
 
   lpTriangle->wV1    = 0;
   lpTriangle->wV2    = 1;
@@ -5978,7 +5978,7 @@ void RenderFSRect(DWORD Color)
   lpTriangle->wFlags = 0;
   lpTriangle++;
 
-  lpInstruction = (LPD3DINSTRUCTION)lpTriangle;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpTriangle);
   lpInstruction->bOpcode = D3DOP_EXIT;
   lpInstruction->bSize   = 0UL;
   lpInstruction->wCount  = 0U;
@@ -6012,8 +6012,8 @@ void RenderHealthBar()
 
   for (int y=0; y<4; y++)
   {
-    lpVertex->sx       = (float)x0-1;
-    lpVertex->sy       = (float)y0+y;
+    lpVertex->sx       = static_cast<float>(x0)-1;
+    lpVertex->sy       = static_cast<float>(y0)+y;
     lpVertex->sz       = 0.9999f;
     lpVertex->rhw      = 1.f;
     lpVertex->color    = 0xF0000010;
@@ -6022,8 +6022,8 @@ void RenderHealthBar()
     lpVertex->tv       = 0;
     lpVertex++;
 
-    lpVertex->sx       = (float)x0+L0+1;
-    lpVertex->sy       = (float)y0+y;
+    lpVertex->sx       = static_cast<float>(x0)+L0+1;
+    lpVertex->sy       = static_cast<float>(y0)+y;
     lpVertex->sz       = 0.9999f;
     lpVertex->rhw      = 1.f;
     lpVertex->color    = 0xF0000010;
@@ -6035,8 +6035,8 @@ void RenderHealthBar()
 
   for (int y=1; y<3; y++)
   {
-    lpVertex->sx       = (float)x0;
-    lpVertex->sy       = (float)y0+y;
+    lpVertex->sx       = static_cast<float>(x0);
+    lpVertex->sy       = static_cast<float>(y0)+y;
     lpVertex->sz       = 0.99999f;
     lpVertex->rhw      = 1.f;
     lpVertex->color    = 0xF0000000 + (G<<8) + (R<<16);
@@ -6045,8 +6045,8 @@ void RenderHealthBar()
     lpVertex->tv       = 0;
     lpVertex++;
 
-    lpVertex->sx       = (float)x0+L0;
-    lpVertex->sy       = (float)y0+y;
+    lpVertex->sx       = static_cast<float>(x0)+L0;
+    lpVertex->sy       = static_cast<float>(y0)+y;
     lpVertex->sz       = 0.99999f;
     lpVertex->rhw      = 1.f;
     lpVertex->color    = 0xF0000000 + (G<<8) + (R<<16);
@@ -6058,24 +6058,24 @@ void RenderHealthBar()
 
 
 
-  lpInstruction = (LPD3DINSTRUCTION) ((LPD3DTLVERTEX)d3dExeBufDesc.lpData + 1024*3);
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>((reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDesc.lpData) + 1024*3));
   lpInstruction->bOpcode = D3DOP_STATERENDER;
   lpInstruction->bSize = sizeof(D3DSTATE);
   lpInstruction->wCount = 1;
   lpInstruction++;
-  lpState = (LPD3DSTATE)lpInstruction;
+  lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
   lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREHANDLE;
   lpState->dwArg[0] = 0;
   lpState++;
 
-  lpInstruction = (LPD3DINSTRUCTION)lpState;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
   lpInstruction->bOpcode = D3DOP_PROCESSVERTICES;
   lpInstruction->bSize   = sizeof(D3DPROCESSVERTICES);
   lpInstruction->wCount  = 1U;
   lpInstruction++;
 
-  lpProcessVertices = (LPD3DPROCESSVERTICES)lpInstruction;
+  lpProcessVertices = reinterpret_cast<LPD3DPROCESSVERTICES>(lpInstruction);
   lpProcessVertices->dwFlags    = D3DPROCESSVERTICES_COPY;
   lpProcessVertices->wStart     = 0U;
   lpProcessVertices->wDest      = 0U;
@@ -6083,7 +6083,7 @@ void RenderHealthBar()
   lpProcessVertices->dwReserved = 0UL;
   lpProcessVertices++;
 
-  lpInstruction = (LPD3DINSTRUCTION)lpProcessVertices;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpProcessVertices);
   lpInstruction->bOpcode = D3DOP_LINE;
   lpInstruction->bSize   = sizeof(D3DLINE);
   lpInstruction->wCount  = 6;
@@ -6097,7 +6097,7 @@ void RenderHealthBar()
     lpLine++;
   }
 
-  lpInstruction = (LPD3DINSTRUCTION)lpLine;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpLine);
   lpInstruction->bOpcode = D3DOP_EXIT;
   lpInstruction->bSize   = 0UL;
   lpInstruction->wCount  = 0U;
@@ -6120,8 +6120,8 @@ void Render_Cross(int sx, int sy)
 
 	if (VMFORMAT565) CColor = WeapInfo[CurrentWeapon].crossColour565;
 	else CColor = WeapInfo[CurrentWeapon].crossColour555;
-	float w = (float)WinW / 12.f;
-	int wi = (int)(w*2.f);
+	float w = static_cast<float>(WinW) / 12.f;
+	int wi = static_cast<int>((w*2.f));
 	int xx = sx - w;
 	int yy = sy;
 	for (int x = 0; x < wi; x++)PutPixel(xx + x, yy);
@@ -6134,11 +6134,11 @@ void Render_Cross(int sx, int sy)
 
 	
 	/*
-  float w = (float) WinW / 12.f;
+  float w = static_cast<float>(WinW) / 12.f;
   d3dStartBuffer();
 
-  lpVertex->sx       = (float)sx-w;
-  lpVertex->sy       = (float)sy;
+  lpVertex->sx       = static_cast<float>(sx)-w;
+  lpVertex->sy       = static_cast<float>(sy);
   lpVertex->sz       = 0.99999f;
   lpVertex->rhw      = 1.f;
   lpVertex->color    = 0x80000010;
@@ -6147,19 +6147,8 @@ void Render_Cross(int sx, int sy)
   lpVertex->tv       = 0;
   lpVertex++;
 
-  lpVertex->sx       = (float)sx+w;
-  lpVertex->sy       = (float)sy;
-  lpVertex->sz       = 0.99999f;
-  lpVertex->rhw      = 1.f;
-  lpVertex->color    = 0x80000010;
-  lpVertex->specular = 0xFF000000;
-  lpVertex->tu       = 0;
-  lpVertex->tv       = 0;
-  lpVertex++;
-
-
-  lpVertex->sx       = (float)sx;
-  lpVertex->sy       = (float)sy-w;
+  lpVertex->sx       = static_cast<float>(sx)+w;
+  lpVertex->sy       = static_cast<float>(sy);
   lpVertex->sz       = 0.99999f;
   lpVertex->rhw      = 1.f;
   lpVertex->color    = 0x80000010;
@@ -6169,8 +6158,8 @@ void Render_Cross(int sx, int sy)
   lpVertex++;
 
 
-  lpVertex->sx       = (float)sx;
-  lpVertex->sy       = (float)sy+w;
+  lpVertex->sx       = static_cast<float>(sx);
+  lpVertex->sy       = static_cast<float>(sy)-w;
   lpVertex->sz       = 0.99999f;
   lpVertex->rhw      = 1.f;
   lpVertex->color    = 0x80000010;
@@ -6180,24 +6169,35 @@ void Render_Cross(int sx, int sy)
   lpVertex++;
 
 
-  lpInstruction = (LPD3DINSTRUCTION) ((LPD3DTLVERTEX)d3dExeBufDesc.lpData + 1024*3);
+  lpVertex->sx       = static_cast<float>(sx);
+  lpVertex->sy       = static_cast<float>(sy)+w;
+  lpVertex->sz       = 0.99999f;
+  lpVertex->rhw      = 1.f;
+  lpVertex->color    = 0x80000010;
+  lpVertex->specular = 0xFF000000;
+  lpVertex->tu       = 0;
+  lpVertex->tv       = 0;
+  lpVertex++;
+
+
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>((reinterpret_cast<LPD3DTLVERTEX>(d3dExeBufDesc.lpData) + 1024*3));
   lpInstruction->bOpcode = D3DOP_STATERENDER;
   lpInstruction->bSize = sizeof(D3DSTATE);
   lpInstruction->wCount = 1;
   lpInstruction++;
-  lpState = (LPD3DSTATE)lpInstruction;
+  lpState = reinterpret_cast<LPD3DSTATE>(lpInstruction);
 
   lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREHANDLE;
   lpState->dwArg[0] = 0;
   lpState++;
 
-  lpInstruction = (LPD3DINSTRUCTION)lpState;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpState);
   lpInstruction->bOpcode = D3DOP_PROCESSVERTICES;
   lpInstruction->bSize   = sizeof(D3DPROCESSVERTICES);
   lpInstruction->wCount  = 1U;
   lpInstruction++;
 
-  lpProcessVertices = (LPD3DPROCESSVERTICES)lpInstruction;
+  lpProcessVertices = reinterpret_cast<LPD3DPROCESSVERTICES>(lpInstruction);
   lpProcessVertices->dwFlags    = D3DPROCESSVERTICES_COPY;
   lpProcessVertices->wStart     = 0U;
   lpProcessVertices->wDest      = 0U;
@@ -6206,7 +6206,7 @@ void Render_Cross(int sx, int sy)
   lpProcessVertices++;
 
 
-  lpInstruction = (LPD3DINSTRUCTION)lpProcessVertices;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpProcessVertices);
   lpInstruction->bOpcode = D3DOP_LINE;
   lpInstruction->bSize   = sizeof(D3DLINE);
   lpInstruction->wCount  = 2;
@@ -6221,7 +6221,7 @@ void Render_Cross(int sx, int sy)
   lpLine->wV2    = 3;
   lpLine++;
 
-  lpInstruction = (LPD3DINSTRUCTION)lpLine;
+  lpInstruction = reinterpret_cast<LPD3DINSTRUCTION>(lpLine);
   lpInstruction->bOpcode = D3DOP_EXIT;
   lpInstruction->bSize   = 0UL;
   lpInstruction->wCount  = 0U;

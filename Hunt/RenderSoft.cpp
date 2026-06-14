@@ -80,7 +80,7 @@ void STTextOut(int x, int y, LPSTR t, int color)
 void ShowControlElements()
 {
 
-  HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
+  HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
 
   char buf[128];
 
@@ -136,7 +136,7 @@ void _RenderObject(int x, int y)
   }
 
   int FI = (FMap[y][x] >> 2) & 3;
-  float fi = CameraAlpha + (float)(FI * 2.f*pi / 4.f);
+  float fi = CameraAlpha + static_cast<float>((FI * 2.f*pi / 4.f));
 
   int mlight;
   if (MObjects[ob].info.flags & (ofDEFLIGHT+ofGRNDLIGHT) )
@@ -156,7 +156,7 @@ void _RenderObject(int x, int y)
 
   v[0].x = x*256+128 - CameraX;
   v[0].z = y*256+128 - CameraZ;
-  v[0].y = (float)(HMapO[y][x]) * ctHScale - CameraY;
+  v[0].y = static_cast<float>((HMapO[y][x])) * ctHScale - CameraY;
 
   waterclip = FALSE;
 
@@ -177,7 +177,7 @@ void _RenderObject(int x, int y)
 
   float zs = VectorLength(v[0]);
 
-  if (v[0].y + MObjects[ob].info.YHi < (int)(HMap[y][x]+HMap[y+1][x+1]) / 2 * ctHScale - CameraY) return;
+  if (v[0].y + MObjects[ob].info.YHi < static_cast<int>((HMap[y][x]+HMap[y+1][x+1])) / 2 * ctHScale - CameraY) return;
 
   v[0] = RotateVector(v[0]);
   GlassL = 0;
@@ -232,14 +232,14 @@ void CreateChRenderList()
   Ship.rpos.x = Ship.pos.x - CameraX;
   Ship.rpos.y = Ship.pos.y - CameraY;
   Ship.rpos.z = Ship.pos.z - CameraZ;
-  float r = (float)max( fabs(Ship.rpos.x), fabs(Ship.rpos.z) );
-  int ri = -1 + (int)(r / 256.f + 1.6f);
+  float r = static_cast<float>(max( fabs(Ship.rpos.x), fabs(Ship.rpos.z) ));
+  int ri = -1 + static_cast<int>((r / 256.f + 1.6f));
 
   if (Ship.State!=-1)
     if (ri < ctViewR-6)
     {
-      int h = (int)((Ship.pos.y - GetLandUpH(Ship.pos.x, Ship.pos.z)) / 1.8);
-//           AddShadowCircle((int)Ship.pos.x+h, (int)Ship.pos.z+h, 1200, 24);
+      int h = static_cast<int>(((Ship.pos.y - GetLandUpH(Ship.pos.x, Ship.pos.z)) / 1.8));
+//           AddShadowCircle(static_cast<int>(Ship.pos.x)+h, static_cast<int>(Ship.pos.z)+h, 1200, 24);
     }
 
 
@@ -272,14 +272,14 @@ NOSHIP:
   SShip.rpos.x = SShip.pos.x - CameraX;
   SShip.rpos.y = SShip.pos.y - CameraY;
   SShip.rpos.z = SShip.pos.z - CameraZ;
-  r = (float)max(fabs(SShip.rpos.x), fabs(SShip.rpos.z));
-  ri = -1 + (int)(r / 256.f + 1.6f);
+  r = static_cast<float>(max(fabs(SShip.rpos.x), fabs(SShip.rpos.z)));
+  ri = -1 + static_cast<int>((r / 256.f + 1.6f));
 
   if (SShip.State < 1)
 	  if (ri < ctViewR - 6)
 	  {
-		  int h = (int)((SShip.pos.y - GetLandUpH(SShip.pos.x, SShip.pos.z)) / 1.8);
-		  //           AddShadowCircle((int)Ship.pos.x+h, (int)Ship.pos.z+h, 1200, 24);
+		  int h = static_cast<int>(((SShip.pos.y - GetLandUpH(SShip.pos.x, SShip.pos.z)) / 1.8));
+		  //           AddShadowCircle(static_cast<int>(Ship.pos.x)+h, static_cast<int>(Ship.pos.z)+h, 1200, 24);
 	  }
 
 
@@ -313,14 +313,14 @@ NOSSHIP:
   AmmoBag.rpos.x = AmmoBag.pos.x - CameraX;
   AmmoBag.rpos.y = AmmoBag.pos.y - CameraY;
   AmmoBag.rpos.z = AmmoBag.pos.z - CameraZ;
-  r = (float)max(fabs(AmmoBag.rpos.x), fabs(AmmoBag.rpos.z));
-  ri = -1 + (int)(r / 256.f + 1.6f);
+  r = static_cast<float>(max(fabs(AmmoBag.rpos.x), fabs(AmmoBag.rpos.z)));
+  ri = -1 + static_cast<int>((r / 256.f + 1.6f));
 
   if (AmmoBag.State < 1)
 	  if (ri < ctViewR - 6)
 	  {
-		  int h = (int)((AmmoBag.pos.y - GetLandUpH(AmmoBag.pos.x, AmmoBag.pos.z)) / 1.8);
-		  //           AddShadowCircle((int)Ship.pos.x+h, (int)Ship.pos.z+h, 1200, 24);
+		  int h = static_cast<int>(((AmmoBag.pos.y - GetLandUpH(AmmoBag.pos.x, AmmoBag.pos.z)) / 1.8));
+		  //           AddShadowCircle(static_cast<int>(Ship.pos.x)+h, static_cast<int>(Ship.pos.z)+h, 1200, 24);
 	  }
 
 
@@ -357,8 +357,8 @@ NOBAG:
 		  bullet[b].rpos.x = bullet[b].a.x - CameraX;
 		  bullet[b].rpos.y = bullet[b].a.y - CameraY;
 		  bullet[b].rpos.z = bullet[b].a.z - CameraZ;
-		  r = (float)max(fabs(bullet[b].rpos.x), fabs(bullet[b].rpos.z));
-		  ri = -1 + (int)(r / 256.f + 1.6f);
+		  r = static_cast<float>(max(fabs(bullet[b].rpos.x), fabs(bullet[b].rpos.z)));
+		  ri = -1 + static_cast<int>((r / 256.f + 1.6f));
 
 		  if (HARD3D) return;
 		  //for (int c = 0; c <= ctViewR; c++)
@@ -395,8 +395,8 @@ NOBAG:
     cptr->rpos.y = cptr->pos.y - CameraY;
     cptr->rpos.z = cptr->pos.z - CameraZ;
 
-    float r = (float)max( fabs(cptr->rpos.x), fabs(cptr->rpos.z) );
-    int ri = -1 + (int)(r / 256.f + 0.5f);
+    float r = static_cast<float>(max( fabs(cptr->rpos.x), fabs(cptr->rpos.z) ));
+    int ri = -1 + static_cast<int>((r / 256.f + 0.5f));
     if (ri < 0) ri = 0;
     if (ri > ctViewR) continue;
 
@@ -411,7 +411,7 @@ NOBAG:
           if (cptr->rpos.z > BackViewR + ) continue;
           if ( fabs(cptr->rpos.x) > -cptr->rpos.z + BackViewR ) continue;
     */
-//      AddShadowCircle((int)cptr->pos.x+100, (int)cptr->pos.z+100, 360, 16);
+//      AddShadowCircle(static_cast<int>(cptr->pos.x)+100, static_cast<int>(cptr->pos.z)+100, 360, 16);
 
     int i = ChRenderList[ri].ICount++;
     ChRenderList[ri].Items[i].CType = 0;
@@ -437,8 +437,8 @@ NOBAG:
 		  cptr->rpos.y = cptr->pos.y - CameraY;
 		  cptr->rpos.z = cptr->pos.z - CameraZ;
 
-		  float r = (float)max(fabs(cptr->rpos.x), fabs(cptr->rpos.z));
-		  int ri = -1 + (int)(r / 256.f + 0.5f);
+		  float r = static_cast<float>(max(fabs(cptr->rpos.x), fabs(cptr->rpos.z)));
+		  int ri = -1 + static_cast<int>((r / 256.f + 0.5f));
 		  if (ri < 0) ri = 0;
 		  if (ri > ctViewR) continue;
 
@@ -453,7 +453,7 @@ NOBAG:
 				if (cptr->rpos.z > BackViewR + ) continue;
 				if ( fabs(cptr->rpos.x) > -cptr->rpos.z + BackViewR ) continue;
 		  */
-		  //      AddShadowCircle((int)cptr->pos.x+100, (int)cptr->pos.z+100, 360, 16);
+		  //      AddShadowCircle(static_cast<int>(cptr->pos.x)+100, static_cast<int>(cptr->pos.z)+100, 360, 16);
 
 		  int i = ChRenderList[ri].ICount++;
 		  ChRenderList[ri].Items[i].CType = 4;
@@ -695,11 +695,11 @@ void ProcessMap2(int x, int y, int r)
 
   if ( fabs(xx) > -zz + BackR) return;
 
-  zs = (int)sqrt( xx*xx + zz*zz + yy*yy);
+  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
   if (zs > ctViewR*256) return;
   GlassL = 0;
 
-  if (MIPMAP) ts = (int)CameraW * 4 * 128 / zs;
+  if (MIPMAP) ts = static_cast<int>(CameraW) * 4 * 128 / zs;
   else ts = 128;
 
   if (ts>=128)
@@ -833,13 +833,13 @@ void ProcessMap(int x, int y, int r)
 
   if ( fabs(xx) > -zz + BackR) return;
 
-  zs = (int)sqrt( xx*xx + zz*zz + yy*yy);
+  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
   if (zs > ctViewR*256) return;
 
   GlassL = 0;
 
 
-  if (MIPMAP) ts = (int)CameraW * 4 * 128 / zs;
+  if (MIPMAP) ts = static_cast<int>(CameraW) * 4 * 128 / zs;
   else ts = 128;
 
   if (ts>=128)
@@ -951,12 +951,12 @@ void ProcessMapW(int x, int y, int r)
 
   if ( fabs(xx*FOVK) > -zz + BackViewR) return;
 
-  zs = (int)sqrt( xx*xx + zz*zz + yy*yy);
+  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
   if (zs > ctViewR*256) return;
 
   GlassL = 0;
 
-  if (MIPMAP) ts = (int)CameraW * 4 * 128 / zs;
+  if (MIPMAP) ts = static_cast<int>(CameraW) * 4 * 128 / zs;
   else ts = 128;
 
   ts = 128;
@@ -1064,13 +1064,13 @@ void ProcessMapW2(int x, int y, int r)
 
   if ( fabs(xx*FOVK) > -zz + BackViewR) return;
 
-  zs = (int)sqrt( xx*xx + zz*zz + yy*yy);
+  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
   if (zs > ctViewR*256) return;
 
 
   GlassL = 0;
 
-  if (MIPMAP) ts = (int)CameraW * 4 * 128 / zs;
+  if (MIPMAP) ts = static_cast<int>(CameraW) * 4 * 128 / zs;
   else ts = 128;
 
 
@@ -1160,9 +1160,9 @@ void ClipVector(CLIPPLANE& C, int vn)
     hleft.ev.v.y = cp[vn].ev.v.y + ((cp[vleft].ev.v.y - cp[vn].ev.v.y) * lc);
     hleft.ev.v.z = cp[vn].ev.v.z + ((cp[vleft].ev.v.z - cp[vn].ev.v.z) * lc);
 
-    hleft.tx = cp[vn].tx + (int)((cp[vleft].tx - cp[vn].tx) * lc);
-    hleft.ty = cp[vn].ty + (int)((cp[vleft].ty - cp[vn].ty) * lc);
-    hleft.ev.Light = cp[vn].ev.Light + (int)((cp[vleft].ev.Light - cp[vn].ev.Light) * lc);
+    hleft.tx = cp[vn].tx + static_cast<int>(((cp[vleft].tx - cp[vn].tx) * lc));
+    hleft.ty = cp[vn].ty + static_cast<int>(((cp[vleft].ty - cp[vn].ty) * lc));
+    hleft.ev.Light = cp[vn].ev.Light + static_cast<int>(((cp[vleft].ev.Light - cp[vn].ev.Light) * lc));
   }
 
   if (s2>0)
@@ -1182,9 +1182,9 @@ void ClipVector(CLIPPLANE& C, int vn)
     hright.ev.v.y = cp[vn].ev.v.y + ((cp[vright].ev.v.y - cp[vn].ev.v.y) * lc);
     hright.ev.v.z = cp[vn].ev.v.z + ((cp[vright].ev.v.z - cp[vn].ev.v.z) * lc);
 
-    hright.tx = cp[vn].tx + (int)((cp[vright].tx - cp[vn].tx) * lc);
-    hright.ty = cp[vn].ty + (int)((cp[vright].ty - cp[vn].ty) * lc);
-    hright.ev.Light = cp[vn].ev.Light + (int)((cp[vright].ev.Light - cp[vn].ev.Light) * lc);
+    hright.tx = cp[vn].tx + static_cast<int>(((cp[vright].tx - cp[vn].tx) * lc));
+    hright.ty = cp[vn].ty + static_cast<int>(((cp[vright].ty - cp[vn].ty) * lc));
+    hright.ev.Light = cp[vn].ev.Light + static_cast<int>(((cp[vright].ev.Light - cp[vn].ev.Light) * lc));
   }
 
   if (ClipRes == 0)
@@ -1440,8 +1440,8 @@ void DrawTPlaneClip(BOOL SECONT)
   //if (WATERREVERSE) dy = 0;
   for (u=0; u<vused; u++)
   {
-    cp[u].ev.scrx = VideoCX - (int)(cp[u].ev.v.x / cp[u].ev.v.z * CameraW);
-    cp[u].ev.scry = VideoCY + (int)(cp[u].ev.v.y / cp[u].ev.v.z * CameraH);
+    cp[u].ev.scrx = VideoCX - static_cast<int>((cp[u].ev.v.x / cp[u].ev.v.z * CameraW));
+    cp[u].ev.scry = VideoCY + static_cast<int>((cp[u].ev.v.y / cp[u].ev.v.z * CameraH));
   }
 
 
@@ -1451,7 +1451,7 @@ void DrawTPlaneClip(BOOL SECONT)
   scrp[0].Light = cp[0].ev.Light/4;
   scrp[0].tx    = cp[0].tx;
   scrp[0].ty    = cp[0].ty;
-  scrp[0].z     = (int)cp[0].ev.v.z;
+  scrp[0].z     = static_cast<int>(cp[0].ev.v.z);
 
   for (u=0; u<vused-2; u++)
   {
@@ -1462,7 +1462,7 @@ void DrawTPlaneClip(BOOL SECONT)
       scrp[n].Light = cp[n+u].ev.Light/4;
       scrp[n].tx    = cp[n+u].tx;
       scrp[n].ty    = cp[n+u].ty;
-      scrp[n].z     = (int)cp[n+u].ev.v.z;
+      scrp[n].z     = static_cast<int>(cp[n+u].ev.v.z);
     }
     if (CORRECTION) DrawCorrectedTexturedFace();
     else DrawTexturedFace();
@@ -1689,7 +1689,7 @@ void BuildTree()
 
     //if (NODARKBACK) fptr->Flags &= 0x00FF;
 
-    fptr->Distant = (int)(-(rVertex[fptr->v1].z + rVertex[fptr->v2].z + rVertex[fptr->v3].z));
+    fptr->Distant = static_cast<int>((-(rVertex[fptr->v1].z + rVertex[fptr->v2].z + rVertex[fptr->v3].z)));
     fptr->Next=-1;
     if (Current==-1) Current=f;
     else if (mptr->gFace[Current].Distant < fptr->Distant)
@@ -1776,7 +1776,7 @@ void BuildTreeClip()
       if (nv.x*rVertex[fptr->v1].x  +  nv.y*rVertex[fptr->v1].y  +  nv.z*rVertex[fptr->v1].z<0) continue;
     }
 
-    fptr->Distant = (int)(-(rVertex[fptr->v1].z + rVertex[fptr->v2].z + rVertex[fptr->v3].z));
+    fptr->Distant = static_cast<int>((-(rVertex[fptr->v1].z + rVertex[fptr->v2].z + rVertex[fptr->v3].z)));
     fptr->Next=-1;
     if (Current==-1) Current=f;
     else if (mptr->gFace[Current].Distant < fptr->Distant)
@@ -1851,11 +1851,11 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
 
   mptr = _mptr;
 
-  float ca = (float)cos(al);
-  float sa = (float)sin(al);
+  float ca = static_cast<float>(cos(al));
+  float sa = static_cast<float>(sin(al));
 
-  float cb = (float)cos(bt);
-  float sb = (float)sin(bt);
+  float cb = static_cast<float>(cos(bt));
+  float sb = static_cast<float>(sin(bt));
 
 
 
@@ -1890,8 +1890,8 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
     else
     {
       int f = 0;
-      int sx =  VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      int sy =  VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      int sx =  VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      int sy =  VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
 
       if (sx<=0    ) f+=2;
       if (sx>=WinEX) f+=1;
@@ -2009,8 +2009,8 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
 
     for (u=0; u<vused; u++)
     {
-      cp[u].ev.scrx = VideoCX - (int)(cp[u].ev.v.x / cp[u].ev.v.z * CameraW);
-      cp[u].ev.scry = VideoCY + (int)(cp[u].ev.v.y / cp[u].ev.v.z * CameraH);
+      cp[u].ev.scrx = VideoCX - static_cast<int>((cp[u].ev.v.x / cp[u].ev.v.z * CameraW));
+      cp[u].ev.scry = VideoCY + static_cast<int>((cp[u].ev.v.y / cp[u].ev.v.z * CameraH));
     }
 
     mscrp[0].x     = cp[0].ev.scrx;
@@ -2047,11 +2047,11 @@ void RenderModelClipWater(TModel* _mptr, float x0, float y0, float z0, int light
 
   mptr = _mptr;
 
-  float ca = (float)cos(al);
-  float sa = (float)sin(al);
+  float ca = static_cast<float>(cos(al));
+  float sa = static_cast<float>(sin(al));
 
-  float cb = (float)cos(bt);
-  float sb = (float)sin(bt);
+  float cb = static_cast<float>(cos(bt));
+  float sb = static_cast<float>(sin(bt));
 
 
 
@@ -2158,8 +2158,8 @@ void RenderModelClipWater(TModel* _mptr, float x0, float y0, float z0, int light
 LNOCLIP:
     for (u=0; u<vused; u++)
     {
-      cp[u].ev.scrx = VideoCX - (int)(cp[u].ev.v.x / cp[u].ev.v.z * CameraW);
-      cp[u].ev.scry = VideoCY + (int)(cp[u].ev.v.y / cp[u].ev.v.z * CameraH);
+      cp[u].ev.scrx = VideoCX - static_cast<int>((cp[u].ev.v.x / cp[u].ev.v.z * CameraW));
+      cp[u].ev.scry = VideoCY + static_cast<int>((cp[u].ev.v.y / cp[u].ev.v.z * CameraH));
     }
 
     mscrp[0].x     = cp[0].ev.scrx;
@@ -2201,11 +2201,11 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
 
   mptr = _mptr;
 
-  float ca = (float)cos(al);
-  float sa = (float)sin(al);
+  float ca = static_cast<float>(cos(al));
+  float sa = static_cast<float>(sin(al));
 
-  float cb = (float)cos(bt);
-  float sb = (float)sin(bt);
+  float cb = static_cast<float>(cos(bt));
+  float sb = static_cast<float>(sin(bt));
 
   int minx = 10241024;
   int maxx =-10241024;
@@ -2260,8 +2260,8 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
     if (rVertex[s].z>-64) gScrp[s].x = 0xFFFFFF;
     else
     {
-      gScrp[s].x = VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      gScrp[s].y = VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      gScrp[s].x = VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      gScrp[s].y = VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
     }
 
     if (gScrp[s].x > maxx) maxx = gScrp[s].x;
@@ -2348,8 +2348,8 @@ void RenderBMPModel(TBMPModel* _mptr, float x0, float y0, float z0, int light)
 
     if (rVertex[s].z<-256)
     {
-      gScrp[s].x = VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      gScrp[s].y = VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      gScrp[s].x = VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      gScrp[s].y = VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
     }
     else return;
 
@@ -2398,11 +2398,11 @@ void RenderNearModel(TModel* _mptr, float x0, float y0, float z0, int light, flo
 
   mptr = _mptr;
 
-  float ca = (float)cos(al);
-  float sa = (float)sin(al);
+  float ca = static_cast<float>(cos(al));
+  float sa = static_cast<float>(sin(al));
 
-  float cb = (float)cos(bt);
-  float sb = (float)sin(bt);
+  float cb = static_cast<float>(cos(bt));
+  float sb = static_cast<float>(sin(bt));
 
 
   //light = 0;
@@ -2465,13 +2465,13 @@ void RenderNearModel(TModel* _mptr, float x0, float y0, float z0, int light, flo
 
     for (u=0; u<vused; u++)
     {
-      cp[u].ev.scrx = VideoCX - (int)(cp[u].ev.v.x / cp[u].ev.v.z * CameraW);
-      cp[u].ev.scry = VideoCY + (int)(cp[u].ev.v.y / cp[u].ev.v.z * CameraH);
+      cp[u].ev.scrx = VideoCX - static_cast<int>((cp[u].ev.v.x / cp[u].ev.v.z * CameraW));
+      cp[u].ev.scry = VideoCY + static_cast<int>((cp[u].ev.v.y / cp[u].ev.v.z * CameraH));
     }
 
     scrp[0].x     = cp[0].ev.scrx;
     scrp[0].y     = cp[0].ev.scry;
-    scrp[0].z     = (int)cp[0].ev.v.z;
+    scrp[0].z     = static_cast<int>(cp[0].ev.v.z);
     scrp[0].tx    = cp[0].tx;
     scrp[0].ty    = cp[0].ty;
 
@@ -2485,7 +2485,7 @@ void RenderNearModel(TModel* _mptr, float x0, float y0, float z0, int light, flo
       {
         scrp[n].x     = cp[n+u].ev.scrx;
         scrp[n].y     = cp[n+u].ev.scry;
-        scrp[n].z     = (int)cp[n+u].ev.v.z;
+        scrp[n].z     = static_cast<int>(cp[n+u].ev.v.z);
         scrp[n].tx    = cp[n+u].tx;
         scrp[n].ty    = cp[n+u].ty;
       }
@@ -2507,7 +2507,7 @@ LNEXT:
 void RenderCharacter(TCharacter *cptr)
 {
 
-  float zs = (float)VectorLength( cptr->rpos );
+  float zs = static_cast<float>(VectorLength( cptr->rpos ));
   if (zs > ctViewR*256) return;
 
   GlassL = 0;
@@ -2551,7 +2551,7 @@ void RenderCharacter(TCharacter *cptr)
 
 void RenderBag()
 {
-	float zs = (float)VectorLength(AmmoBag.rpos);
+	float zs = static_cast<float>(VectorLength(AmmoBag.rpos));
 	if (zs > ctViewR * 256) return;
 
 	GlassL = 0;
@@ -2573,7 +2573,7 @@ void RenderBag()
 
 void RenderSShip()
 {
-	float zs = (float)VectorLength(SShip.rpos);
+	float zs = static_cast<float>(VectorLength(SShip.rpos));
 	if (zs > ctViewR * 256) return;
 
 	GlassL = 0;
@@ -2596,7 +2596,7 @@ void RenderSShip()
 
 void RenderShip()
 {
-  float zs = (float)VectorLength( Ship.rpos );
+  float zs = static_cast<float>(VectorLength( Ship.rpos ));
   if (zs > ctViewR*256) return;
 
   GlassL = 0;
@@ -2617,7 +2617,7 @@ void RenderShip()
 
 void RenderBullet(int b)
 {
-	float zs = (float)VectorLength(bullet[b].rpos);
+	float zs = static_cast<float>(VectorLength(bullet[b].rpos));
 	if (zs > ctViewR * 256) return;
 
 	GlassL = 0;
@@ -2707,7 +2707,7 @@ void DrawPicture(int x, int y, TPicture &pic)
 {
   for (int yy=0; yy<pic.H; yy++)
     if ( (yy+y>=0) && (yy+y < WinH) )
-      memcpy( (WORD*)lpVideoBuf + ((yy+y)*VideoPitch) + x,
+      memcpy( static_cast<WORD*>(lpVideoBuf) + ((yy+y)*VideoPitch) + x,
               pic.lpImage + yy*pic.W,
               pic.W<<1);
 }
@@ -2716,7 +2716,7 @@ void DrawFlash(int x, int y, int w, int h, TPicture &pic)
 {
 	for (int yy = 0; yy < h; yy++)
 		if ((yy + y >= 0) && (yy + y < WinH))
-			memcpy((WORD*)lpVideoBuf + ((yy + y) *VideoPitch) + x,
+			memcpy(static_cast<WORD*>(lpVideoBuf) + ((yy + y) *VideoPitch) + x,
 				pic.lpImage + yy * pic.W,
 				w << 1);
 }
@@ -2728,7 +2728,7 @@ void ClearVideoBuf()
 
   for(int y=0; y<WinH; y++)
   {
-    _FillMemoryWord( (int)lpVideoBuf + y*VideoPitchB, WinW*2, w);
+    _FillMemoryWord( static_cast<int>(reinterpret_cast<intptr_t>(lpVideoBuf)) + y*VideoPitchB, WinW*2, w);
   }
 }
 
@@ -2740,7 +2740,7 @@ int CircleCX, CircleCY;
 void PutPixel(int x, int y)
 {
   if (y<0 || y>=WinH) return;
-  *((WORD*)lpVideoBuf + (y*VideoPitch) + x) = 18<<5;
+  *(static_cast<WORD*>(lpVideoBuf) + (y*VideoPitch) + x) = 18<<5;
 }
 
 void Put8pix(int X,int Y)
@@ -2779,31 +2779,31 @@ void DrawCircle(int cx, int cy, int R)
 
 void DrawBoxMystery(WORD *lfbPtr, int xx, int yy, WORD c)
 {
-	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 1) = c;
-	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 2) = c;
+	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx + 1) = c;
+	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx + 2) = c;
 	yy++;
-	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 1) = c;
+	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx + 1) = c;
 	yy+=2;
-	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 1) = c;
+	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx + 1) = c;
 	yy -= 4;
-	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 3) = c;
+	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx + 3) = c;
 	yy --;
-	*((WORD*)lpVideoBuf + yy *VideoPitch + xx) = c;
-	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 3) = c;
+	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx) = c;
+	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx + 3) = c;
 	yy--;
-	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 1) = c;
-	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 2) = c;
+	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx + 1) = c;
+	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx + 2) = c;
 }
 
 
 
 void DrawBox(WORD *lfbPtr, int xx, int yy, WORD c)
 {
-	*((WORD*)lpVideoBuf + yy *VideoPitch + xx) = c;
-	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 1) = c;
+	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx) = c;
+	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx + 1) = c;
 	yy++;
-	*((WORD*)lpVideoBuf + yy *VideoPitch + xx) = c;
-	*((WORD*)lpVideoBuf + yy *VideoPitch + xx + 1) = c;
+	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx) = c;
+	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx + 1) = c;
 }
 
 void DrawHMap()
@@ -2823,7 +2823,7 @@ void DrawHMap()
   if (yy>0 || yy<WinH)
   {
     DrawCircle(xx, yy, 17);
-	DrawBox((WORD*)lpVideoBuf, xx, yy, 31 *VideoPitch);
+	DrawBox(static_cast<WORD*>(lpVideoBuf), xx, yy, 31 *VideoPitch);
   }
 
   float _sonarPos;
@@ -2836,10 +2836,10 @@ void DrawHMap()
   
   for (int b = 0; b < bulletCh; b++) {
 	  if (bullet[b].RTime) {
-		  xx = VideoCX - 128 + (int)bullet[b].a.x / 1024;
-		  yy = VideoCY - 128 + (int)bullet[b].a.z / 1024;
+		  xx = VideoCX - 128 + static_cast<int>(bullet[b].a.x) / 1024;
+		  yy = VideoCY - 128 + static_cast<int>(bullet[b].a.z) / 1024;
 		  if (yy > 0 && yy < WinH && xx > 0 && xx < WinW)
-			  DrawBox((WORD*)lpVideoBuf,xx, yy, WeapInfo[bullet[b].parent].radarColour555);
+			  DrawBox(static_cast<WORD*>(lpVideoBuf),xx, yy, WeapInfo[bullet[b].parent].radarColour555);
 	  }
   }
 
@@ -2855,28 +2855,28 @@ void DrawHMap()
 		if (!Characters[c].Health && !Characters[c].RTime) continue;
 
 		//if (!RadarMode && Characters[c].Clone != AI_HUNTDOG && !Characters[c].RTime) continue;
-			xx = VideoCX - 128 + (int)Characters[c].pos.x / 1024;
-			yy = VideoCY - 128 + (int)Characters[c].pos.z / 1024;
+			xx = VideoCX - 128 + static_cast<int>(Characters[c].pos.x) / 1024;
+			yy = VideoCY - 128 + static_cast<int>(Characters[c].pos.z) / 1024;
 			if (yy <= 0 || yy >= WinH) continue;
 			if (xx <= 0 || xx >= WinW) continue;
 
 			if (Characters[c].Clone == AI_HUNTDOG) {
-				DrawBox((WORD*)lpVideoBuf, xx, yy, DinoInfo[Characters[c].CType].radarColour555);//31*VideoPitch
+				DrawBox(static_cast<WORD*>(lpVideoBuf), xx, yy, DinoInfo[Characters[c].CType].radarColour555);//31*VideoPitch
 			}
 			else {
 				if (RadarMode || Characters[c].RTime) {
 					WORD *colour = &DinoInfo[Characters[c].CType].radarColour555;
 					if (Characters[c].tracker >= 0) colour = &WeapInfo[Characters[c].tracker].radarColour555;
 
-					if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery((WORD*)lpVideoBuf, xx, yy, *colour);
-					else DrawBox((WORD*)lpVideoBuf, xx, yy, *colour); //30<<5
+					if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery(static_cast<WORD*>(lpVideoBuf), xx, yy, *colour);
+					else DrawBox(static_cast<WORD*>(lpVideoBuf), xx, yy, *colour); //30<<5
 				}
 
 				if (SonarMode) {
 					int dx, dz;
 					dx = px - xx;
 					dz = py - yy;
-					int pd = (int)sqrt(dx * dx + dz * dz);
+					int pd = static_cast<int>(sqrt(dx * dx + dz * dz));
 
 
 					if (pd < 38) {
@@ -2890,8 +2890,8 @@ void DrawHMap()
 					else Characters[c].showSonar = FALSE;
 
 					if (Characters[c].showSonar && !Characters[c].RTime) {
-						if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery((WORD*)lpVideoBuf, Characters[c].sonar.x, Characters[c].sonar.y, DinoInfo[Characters[c].CType].radarColour555);
-						else DrawBox((WORD*)lpVideoBuf, Characters[c].sonar.x, Characters[c].sonar.y, DinoInfo[Characters[c].CType].radarColour555);
+						if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery(static_cast<WORD*>(lpVideoBuf), Characters[c].sonar.x, Characters[c].sonar.y, DinoInfo[Characters[c].CType].radarColour555);
+						else DrawBox(static_cast<WORD*>(lpVideoBuf), Characters[c].sonar.x, Characters[c].sonar.y, DinoInfo[Characters[c].CType].radarColour555);
 					}
 				}
 
@@ -2905,8 +2905,8 @@ void DrawHMap()
 void DrawSurvivalText(int x0, int y0)
 {
 
-	HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
-	HFONT oldfont = (HFONT)SelectObject(hdcCMain, fnt_Small);
+	HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
+	HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
 
 	int x = x0;
 	STTextOut(40 + x0, 98 + y0, "Waves Survived: ", 0x00BFBFBF);
@@ -2926,8 +2926,8 @@ void DrawSurvivalText(int x0, int y0)
 
 void DrawScoreText(int x0, int y0) {
 	int x;
-	HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
-	HFONT oldfont = (HFONT)SelectObject(hdcMain, fnt_Small);
+	HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
+	HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 
 	char t[32];
 
@@ -2950,8 +2950,8 @@ void DrawTrophyText(int x0, int y0)
 {
   int x;
 
-  HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
-  HFONT oldfont = (HFONT)SelectObject(hdcCMain, fnt_Small);
+  HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
+  HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
   /*
   	int dtype = Characters[TrophyBody].CType;
   	int tc = Characters[TrophyBody].State;
@@ -3045,15 +3045,15 @@ void Render_LifeInfo(int li)
 {
   int x,y;
 
-  HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
-  HFONT oldfont = (HFONT)SelectObject(hdcCMain, fnt_Small);
+  HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
+  HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
 
   int   ctype = Characters[li].CType;
   float  scale = Characters[li].scale;
   char t[32];
 
   x = VideoCX + WinW / 64;
-  y = VideoCY + (int)(WinH / 6.8);
+  y = VideoCY + static_cast<int>((WinH / 6.8));
 
   STTextOut(x, y, DinoInfo[ctype].Name, 0x0000b000);
 
@@ -3061,7 +3061,7 @@ void Render_LifeInfo(int li)
   else        sprintf(t,"Weight: %3.2fT ", DinoInfo[ctype].Mass * scale * scale);
   STTextOut(x, y+16, t, 0x0000b000);
 
-  int R  = (int)(VectorLength( SubVectors(Characters[li].pos, PlayerPos) )*3 / 64.f);
+  int R  = static_cast<int>((VectorLength( SubVectors(Characters[li].pos, PlayerPos) )*3 / 64.f));
   if (OptSys) sprintf(t,"Distance: %dft ", R);
   else        sprintf(t,"Distance: %dm  ", R/3);
 
@@ -3100,13 +3100,13 @@ void RenderSkyPlane()
   float p,q, qx, qy, qz, px, py, pz, rx, ry, rz, ddx, ddy;
   int lastdt = 0;
 
-  cb = (float)cos(CameraBeta);
-  sb = (float)sin(CameraBeta);
+  cb = static_cast<float>(cos(CameraBeta));
+  sb = static_cast<float>(sin(CameraBeta));
   SKYDTime = (RealTime*256) & ((256<<16) - 1);
 
   float sh = - CameraY;
   if (MapMinY==10241024) MapMinY=0;
-  sh = (float)((int)MapMinY)*ctHScale - CameraY;
+  sh = static_cast<float>((static_cast<int>(MapMinY)))*ctHScale - CameraY;
 
   v.x = 0;
   v.z = (ctViewR*4.f)/5.f*256.f;
@@ -3118,14 +3118,14 @@ void RenderSkyPlane()
 
   if (vbase.z < 128) vbase.z = 128;
 
-  int scry = VideoCY - (int)(vbase.y / vbase.z * CameraH);
+  int scry = VideoCY - static_cast<int>((vbase.y / vbase.z * CameraH));
 
   if (scry<0) return;
   if (scry>WinEY) scry = WinEY;
 
 
-  cb = (float)cos(CameraBeta-0.15);
-  sb = (float)sin(CameraBeta-0.15);
+  cb = static_cast<float>(cos(CameraBeta-0.15));
+  sb = static_cast<float>(sin(CameraBeta-0.15));
 
   tx.x=0.004f;
   tx.y=0;
@@ -3193,13 +3193,13 @@ void RenderSkyPlane()
     float fxb = (px * sx2 + py * sy + pz) / q;
     float fyb = (rx * sx2 + ry * sy + rz) / q;
 
-    txa = ((int)fxa + SKYDTime) & ((256<<16) - 1);
-    tya = ((int)fya - SKYDTime) & ((256<<16) - 1);
+    txa = (static_cast<int>(fxa) + SKYDTime) & ((256<<16) - 1);
+    tya = (static_cast<int>(fya) - SKYDTime) & ((256<<16) - 1);
 
-    ctdx = (int)(fxb-fxa);
-    ctdy = (int)(fyb-fya);
+    ctdx = static_cast<int>((fxb-fxa));
+    ctdy = static_cast<int>((fyb-fya));
 
-    int dt = (int)(sqrt( (fxb-fxa)*(fxb-fxa) + (fyb-fya)*(fyb-fya) ) / 0x600000 ) - 7;
+    int dt = static_cast<int>((sqrt( (fxb-fxa)*(fxb-fxa) + (fyb-fya)*(fyb-fya) ) / 0x600000 )) - 7;
     if (dt>8) dt = 8;
     if (dt<lastdt) dt = lastdt;
     lastdt = dt;
@@ -3229,38 +3229,38 @@ void RenderSkyPlane()
 void ShowVideo()
 {
   HDC _hdc =  hdcCMain;
-  HBITMAP hbmpOld = (HBITMAP)SelectObject(_hdc,hbmpVideoBuf);
+  HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(_hdc,hbmpVideoBuf));
 
   if (UNDERWATER & CORRECTION)
     for (int y=0; y<WinH; y++)
       for (int x=0; x<WinW; x++)
-        *((WORD*)lpVideoBuf + y*VideoPitch + x) = FadeTab[64][*((WORD*)lpVideoBuf + y*VideoPitch + x) & 0x7FFF];
+        *(static_cast<WORD*>(lpVideoBuf) + y*VideoPitch + x) = FadeTab[64][*(static_cast<WORD*>(lpVideoBuf) + y*VideoPitch + x) & 0x7FFF];
 
 
   RenderHealthBar();
 
   if (!FULLSCREEN && WinW > 6 && WinH > 6) {
-    FillMemory((WORD*)lpVideoBuf, WinW*2, 0);
-    FillMemory((WORD*)lpVideoBuf+1*VideoPitch, WinW*2, 0);
-    FillMemory((WORD*)lpVideoBuf+2*VideoPitch, WinW*2, 0);
+    FillMemory(static_cast<WORD*>(lpVideoBuf), WinW*2, 0);
+    FillMemory(static_cast<WORD*>(lpVideoBuf)+1*VideoPitch, WinW*2, 0);
+    FillMemory(static_cast<WORD*>(lpVideoBuf)+2*VideoPitch, WinW*2, 0);
 
-    FillMemory((WORD*)lpVideoBuf+(WinH-1)*VideoPitch, WinW*2, 0);
-    FillMemory((WORD*)lpVideoBuf+(WinH-2)*VideoPitch, WinW*2, 0);
-    FillMemory((WORD*)lpVideoBuf+(WinH-3)*VideoPitch, WinW*2, 0);
+    FillMemory(static_cast<WORD*>(lpVideoBuf)+(WinH-1)*VideoPitch, WinW*2, 0);
+    FillMemory(static_cast<WORD*>(lpVideoBuf)+(WinH-2)*VideoPitch, WinW*2, 0);
+    FillMemory(static_cast<WORD*>(lpVideoBuf)+(WinH-3)*VideoPitch, WinW*2, 0);
 
     for (int y=1; y<WinH-1; y++)
     {
       for (int x=0; x<3; x++) {
         int c;
         if (x==1) c=0x5294; else c=0;
-        *((WORD*)lpVideoBuf + (y*VideoPitch) + x) = c;
-        *((WORD*)lpVideoBuf + (y*VideoPitch) + WinW-x-1) = c;
+        *(static_cast<WORD*>(lpVideoBuf) + (y*VideoPitch) + x) = c;
+        *(static_cast<WORD*>(lpVideoBuf) + (y*VideoPitch) + WinW-x-1) = c;
       }
     }
 
     for (int x=1; x<WinW-2; x++) {
-      *((WORD*)lpVideoBuf + (1*VideoPitch) + x) = 0x5294;
-      *((WORD*)lpVideoBuf + ((WinH-2)*VideoPitch) + x) = 0x5294;
+      *(static_cast<WORD*>(lpVideoBuf) + (1*VideoPitch) + x) = 0x5294;
+      *(static_cast<WORD*>(lpVideoBuf) + ((WinH-2)*VideoPitch) + x) = 0x5294;
     }
   }
 
@@ -3288,14 +3288,14 @@ void RenderHealthBar()
   int L0 = (L * MyHealth) / 100000;
   int H = WinH / 200;
 
-  FillMemory((WORD*)lpVideoBuf + ((y0-1)*VideoPitch) + x0-1, L*2+4, 0);
-  FillMemory((WORD*)lpVideoBuf + ((y0+H+1)*VideoPitch) + x0-1, L*2+4, 0);
+  FillMemory(static_cast<WORD*>(lpVideoBuf) + ((y0-1)*VideoPitch) + x0-1, L*2+4, 0);
+  FillMemory(static_cast<WORD*>(lpVideoBuf) + ((y0+H+1)*VideoPitch) + x0-1, L*2+4, 0);
   for (int y=0; y<=H; y++)
   {
-    *((WORD*)lpVideoBuf + ((y0+y)*VideoPitch) + x0 - 1) = 0;
-    *((WORD*)lpVideoBuf + ((y0+y)*VideoPitch) + x0 + L) = 0;
+    *(static_cast<WORD*>(lpVideoBuf) + ((y0+y)*VideoPitch) + x0 - 1) = 0;
+    *(static_cast<WORD*>(lpVideoBuf) + ((y0+y)*VideoPitch) + x0 + L) = 0;
     for (int x=0; x<L0; x++)
-      *((WORD*)lpVideoBuf + ((y0+y)*VideoPitch) + x0 + x) = HCOLOR;
+      *(static_cast<WORD*>(lpVideoBuf) + ((y0+y)*VideoPitch) + x0 + x) = HCOLOR;
   }
 }
 
@@ -3306,13 +3306,13 @@ void Render_Cross(int sx, int sy)
   for (int x=-w+1; x<w; x++)
   {
     int offset = (sy*VideoPitch) + (sx+x);
-	*((WORD*)lpVideoBuf + offset) = WeapInfo[CurrentWeapon].crossColour565;
+	*(static_cast<WORD*>(lpVideoBuf) + offset) = WeapInfo[CurrentWeapon].crossColour565;
   }
 
   for (int y=-w+1; y<w; y++)
   {
     int offset = ((sy+y)*VideoPitch) + sx;
-    *((WORD*)lpVideoBuf + offset) = WeapInfo[CurrentWeapon].crossColour565;
+    *(static_cast<WORD*>(lpVideoBuf) + offset) = WeapInfo[CurrentWeapon].crossColour565;
   }
 }
 

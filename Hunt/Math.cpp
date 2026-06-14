@@ -9,7 +9,7 @@ void NormVector(Vector3d& v, float Scale)
   double n;
   n=v.x*v.x + v.y*v.y + v.z*v.z;
   if (n<0.000000001) n=0.000000001;
-  n=(double)Scale / sqrt(n);
+  n=static_cast<double>(Scale) / sqrt(n);
   v.x=v.x*n;
   v.y=v.y*n;
   v.z=v.z*n;
@@ -90,7 +90,7 @@ Vector3d AddVectors( Vector3d& v1, Vector3d& v2 )
 
 float VectorLength(Vector3d v)
 {
-  return (float)sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+  return static_cast<float>(sqrt(v.x*v.x + v.y*v.y + v.z*v.z));
 }
 
 
@@ -121,7 +121,7 @@ void CalcHitPoint(CLIPPLANE& C, Vector3d& a, Vector3d& b, Vector3d& hp)
   MulVectorsScal(lv,C.nv, SCVN);
 
   SCLN/=SCVN;
-  SCLN=(float)fabs(SCLN);
+  SCLN=static_cast<float>(fabs(SCLN));
   hp.x = a.x + lv.x * SCLN;
   hp.y = a.y + lv.y * SCLN;
   hp.z = a.z + lv.z * SCLN;
@@ -147,15 +147,15 @@ float FindVectorAlpha(float vx, float vy)
 {
   float adx, ady, alpha, dalpha;
 
-  adx=(float)fabs(vx);
-  ady=(float)fabs(vy);
+  adx=static_cast<float>(fabs(vx));
+  ady=static_cast<float>(fabs(vy));
 
   alpha = pi / 4.f;
   dalpha = pi / 8.f;
 
   for (int i=1; i<=10; i++)
   {
-    alpha=alpha-dalpha*SGN(Mul2dVectors(adx,ady, (float)cos(alpha), (float)sin(alpha)));
+    alpha=alpha-dalpha*SGN(Mul2dVectors(adx,ady, static_cast<float>(cos(alpha)), static_cast<float>(sin(alpha))));
     dalpha/=2;
   }
 
@@ -172,8 +172,8 @@ void CheckBoundCollision(float &px, float &py, float cx, float cy, float oy, TBo
   float ppx=px-cx;
   float ppy=py-cy;
 
-  float ca = (float) cos(angle*pi / 2.f);
-  float sa = (float) sin(angle*pi / 2.f);
+  float ca = static_cast<float>(cos(angle*pi / 2.f));
+  float sa = static_cast<float>(sin(angle*pi / 2.f));
   float w,h;
 
   for (int o=0; o<8; o++)
@@ -221,15 +221,15 @@ void CheckCollision(float &cx, float &cz)
   if (cz < 36*256) cz = 36*256;
   if (cx >980*256) cx =980*256;
   if (cz >980*256) cz =980*256;
-  int ccx = (int)cx / 256;
-  int ccz = (int)cz / 256;
+  int ccx = static_cast<int>(cx) / 256;
+  int ccz = static_cast<int>(cz) / 256;
 
   for (int z=-4; z<=4; z++)
     for (int x=-4; x<=4; x++)
       if (OMap[ccz+z][ccx+x]!=255)
       {
         int ob = OMap[ccz+z][ccx+x];
-        float CR = (float)MObjects[ob].info.Radius;
+        float CR = static_cast<float>(MObjects[ob].info.Radius);
 
         float oz = (ccz+z) * 256.f + 128.f;
         float ox = (ccx+x) * 256.f + 128.f;
@@ -248,7 +248,7 @@ void CheckCollision(float &cx, float &cz)
         }
         else if (MObjects[ob].info.flags & ofCIRCLE)
         {
-          float r = (float) sqrt( (ox-cx)*(ox-cx) + (oz-cz)*(oz-cz) );
+          float r = static_cast<float>(sqrt( (ox-cx)*(ox-cx) + (oz-cz)*(oz-cz) ));
           if (r<CR)
           {
             cx = cx - (ox - cx) * (CR-r)/r;
@@ -257,7 +257,7 @@ void CheckCollision(float &cx, float &cz)
         }
         else
         {
-          float r = (float) MAX( fabs(ox-cx), fabs(oz-cz) );
+          float r = static_cast<float>(MAX( fabs(ox-cx), fabs(oz-cz) ));
           if (r<CR)
           {
             if (fabs(ox-cx) > fabs(oz-cz) )
@@ -274,7 +274,7 @@ void CheckCollision(float &cx, float &cz)
     float px = Characters[c].pos.x;
     float pz = Characters[c].pos.z;
     float CR = DinoInfo[ Characters[c].CType ].Radius;
-    float r = (float) sqrt( (px-cx)*(px-cx) + (pz-cz)*(pz-cz) );
+    float r = static_cast<float>(sqrt( (px-cx)*(px-cx) + (pz-cz)*(pz-cz) ));
     if (r<CR)
     {
       cx = cx - (px - cx) * (CR-r)/r;
@@ -305,7 +305,7 @@ int TraceCheckPlane(Vector3d a, Vector3d b, Vector3d c)
   MulVectorsScal(TraceNv, pnv, SCVN);
 
   SCLN/=SCVN;
-  SCLN=(float)fabs(SCLN);
+  SCLN=static_cast<float>(fabs(SCLN));
   hp.x = TraceA.x + TraceNv.x * SCLN;
   hp.y = TraceA.y + TraceNv.y * SCLN;
   hp.z = TraceA.z + TraceNv.z * SCLN;
@@ -340,16 +340,16 @@ void TraceModel(int xx, int zz, int o)
   TModel *mptr = MObjects[o].model;
   v[0].x = xx * 256.f + 128.f;
   v[0].z = zz * 256.f + 128.f;
-  v[0].y = (float)(HMapO[zz][xx]) * ctHScale;
+  v[0].y = static_cast<float>((HMapO[zz][xx])) * ctHScale;
 
   v[0].y+=700.f;
   if (PointToVectorD(TraceA, TraceNv, v[0]) >1400.f) return;
   v[0].y-=700.f;
 
-  float malp = (float)((FMap[zz][xx] >> 2) & 7) * 2.f*pi / 8.f;
+  float malp = static_cast<float>(((FMap[zz][xx] >> 2) & 7)) * 2.f*pi / 8.f;
 
-  float ca = (float)cos(malp);
-  float sa = (float)sin(malp);
+  float ca = static_cast<float>(cos(malp));
+  float sa = static_cast<float>(sin(malp));
 
   for (int vv=0; vv<mptr->VCount; vv++)
   {
@@ -380,8 +380,8 @@ void TraceHitBox()
 
 	TModel *mptr = HitBoxModel.mptr;
 	CreateMorphedModel(HitBoxModel.mptr, &HitBoxModel.Animation[HitBox.phase], 0, 1.0);
-	float ca = (float)cos(-cptr->alpha + pi / 2.f);
-	float sa = (float)sin(-cptr->alpha + pi / 2.f);
+	float ca = static_cast<float>(cos(-cptr->alpha + pi / 2.f));
+	float sa = static_cast<float>(sin(-cptr->alpha + pi / 2.f));
 	for (int vv = 0; vv < mptr->VCount; vv++)
 	{
 		rVertex[vv].x = mptr->gVertex[vv].x * ca + mptr->gVertex[vv].z * sa + cptr->pos.x;
@@ -414,8 +414,8 @@ void TraceCharacter(int c)
 
   TModel *mptr = cptr->pinfo->mptr;
   CreateChMorphedModel(cptr);
-  float ca = (float)cos(-cptr->alpha + pi / 2.f);
-  float sa = (float)sin(-cptr->alpha + pi / 2.f);
+  float ca = static_cast<float>(cos(-cptr->alpha + pi / 2.f));
+  float sa = static_cast<float>(sin(-cptr->alpha + pi / 2.f));
   for (int vv=0; vv<mptr->VCount; vv++)
   {
     rVertex[vv].x = mptr->gVertex[vv].x * ca + mptr->gVertex[vv].z * sa  + cptr->pos.x;
@@ -445,7 +445,7 @@ void FillVGround(Vector3d &v, int xx, int zz)
 {
   v.x = xx*256.f;
   v.z = zz*256.f;
-  v.y = (float)HMap[zz][xx]*ctHScale;
+  v.y = static_cast<float>(HMap[zz][xx])*ctHScale;
 }
 
 
@@ -453,7 +453,7 @@ void FillWGround(Vector3d &v, int xx, int zz)
 {
   v.x = xx*256.f;
   v.z = zz*256.f;
-  v.y = (float)WaterList[ WMap[zz][xx] ].wlevel*ctHScale;
+  v.y = static_cast<float>(WaterList[ WMap[zz][xx] ].wlevel)*ctHScale;
 }
 
 
@@ -478,11 +478,11 @@ int  TraceLook(float ax, float ay, float az,
   NormVector(TraceNvP, 1.0f);
   ObjectsOnLook=0;
 
-  int axi = (int)(ax/256.f);
-  int azi = (int)(az/256.f);
+  int axi = static_cast<int>((ax/256.f));
+  int azi = static_cast<int>((az/256.f));
 
-  int bxi = (int)(bx/256.f);
-  int bzi = (int)(bz/256.f);
+  int bxi = static_cast<int>((bx/256.f));
+  int bzi = static_cast<int>((bz/256.f));
 
   int xm1 = MIN(axi, bxi) - 2;
   int xm2 = MAX(axi, bxi) + 2;
@@ -557,11 +557,11 @@ int  TraceShot(float  ax, float  ay, float az,
   NormVector(TraceNv, 1.0f);
   TraceRes = -1;
 
-  int axi = (int)(ax/256.f);
-  int azi = (int)(az/256.f);
+  int axi = static_cast<int>((ax/256.f));
+  int azi = static_cast<int>((az/256.f));
 
-  int bxi = (int)(bx/256.f);
-  int bzi = (int)(bz/256.f);
+  int bxi = static_cast<int>((bx/256.f));
+  int bzi = static_cast<int>((bz/256.f));
 
   int xm1 = MIN(axi, bxi) - 2;
   int xm2 = MAX(axi, bxi) + 2;
@@ -637,17 +637,17 @@ int  TraceShot(float  ax, float  ay, float az,
 
 void InitClips2()
 {
-  ClipA.v1.x = - (float)sin(pi/4-0.11); // 0.741
+  ClipA.v1.x = - static_cast<float>(sin(pi/4-0.11)); // 0.741
   ClipA.v1.y = 0;
-  ClipA.v1.z =   (float)cos(pi/4-0.11); // 0.820
+  ClipA.v1.z =   static_cast<float>(cos(pi/4-0.11)); // 0.820
   ClipA.v2.x = 0;
   ClipA.v2.y = 1;
   ClipA.v2.z = 0;
   MulVectorsVect(ClipA.v1, ClipA.v2, ClipA.nv);
 
-  ClipC.v1.x = + (float)sin(pi/4-0.11);
+  ClipC.v1.x = + static_cast<float>(sin(pi/4-0.11));
   ClipC.v1.y = 0;
-  ClipC.v1.z =   (float)cos(pi/4-0.11);
+  ClipC.v1.z =   static_cast<float>(cos(pi/4-0.11));
   ClipC.v2.x = 0;
   ClipC.v2.y =-1;
   ClipC.v2.z = 0;
@@ -655,16 +655,16 @@ void InitClips2()
 
 
   ClipB.v1.x = 0;
-  ClipB.v1.y =   (float)sin(pi/5-.02);
-  ClipB.v1.z =   (float)cos(pi/5-.02);
+  ClipB.v1.y =   static_cast<float>(sin(pi/5-.02));
+  ClipB.v1.z =   static_cast<float>(cos(pi/5-.02));
   ClipB.v2.x = 1;
   ClipB.v2.y = 0;
   ClipB.v2.z = 0;
   MulVectorsVect(ClipB.v1, ClipB.v2, ClipB.nv);
 
   ClipD.v1.x = 0;
-  ClipD.v1.y = - (float)sin(pi/5-.02);
-  ClipD.v1.z =   (float)cos(pi/5-.02);
+  ClipD.v1.y = - static_cast<float>(sin(pi/5-.02));
+  ClipD.v1.z =   static_cast<float>(cos(pi/5-.02));
   ClipD.v2.x =-1;
   ClipD.v2.y = 0;
   ClipD.v2.z = 0;
@@ -693,20 +693,20 @@ void InitClips()
   // at any modern resolution and caused visible culling on 16:9
   // displays. C1 uses the same atan2-based formula with the same
   // 0.01 radian widen.
-  float h_angle = (float)atan2((float)VideoCX, CameraW) + 0.01f;
-  float v_angle = (float)atan2((float)VideoCY, CameraH) + 0.01f;
+  float h_angle = static_cast<float>(atan2(static_cast<float>(VideoCX), CameraW)) + 0.01f;
+  float v_angle = static_cast<float>(atan2(static_cast<float>(VideoCY), CameraH)) + 0.01f;
 
-  ClipA.v1.x = - (float)sin(h_angle);
+  ClipA.v1.x = - static_cast<float>(sin(h_angle));
   ClipA.v1.y = 0;
-  ClipA.v1.z =   (float)cos(h_angle);
+  ClipA.v1.z =   static_cast<float>(cos(h_angle));
   ClipA.v2.x = 0;
   ClipA.v2.y = 1;
   ClipA.v2.z = 0;
   MulVectorsVect(ClipA.v1, ClipA.v2, ClipA.nv);
 
-  ClipC.v1.x = + (float)sin(h_angle);
+  ClipC.v1.x = + static_cast<float>(sin(h_angle));
   ClipC.v1.y = 0;
-  ClipC.v1.z =   (float)cos(h_angle);
+  ClipC.v1.z =   static_cast<float>(cos(h_angle));
   ClipC.v2.x = 0;
   ClipC.v2.y =-1;
   ClipC.v2.z = 0;
@@ -714,16 +714,16 @@ void InitClips()
 
 
   ClipB.v1.x = 0;
-  ClipB.v1.y =   (float)sin(v_angle);
-  ClipB.v1.z =   (float)cos(v_angle);
+  ClipB.v1.y =   static_cast<float>(sin(v_angle));
+  ClipB.v1.z =   static_cast<float>(cos(v_angle));
   ClipB.v2.x = 1;
   ClipB.v2.y = 0;
   ClipB.v2.z = 0;
   MulVectorsVect(ClipB.v1, ClipB.v2, ClipB.nv);
 
   ClipD.v1.x = 0;
-  ClipD.v1.y = - (float)sin(v_angle);
-  ClipD.v1.z =   (float)cos(v_angle);
+  ClipD.v1.y = - static_cast<float>(sin(v_angle));
+  ClipD.v1.z =   static_cast<float>(cos(v_angle));
   ClipD.v2.x =-1;
   ClipD.v2.y = 0;
   ClipD.v2.z = 0;
@@ -783,8 +783,8 @@ void CalcLights(TModel* mptr)
 
   for (int VT=0; VT<4; VT++)
   {
-    float ca = (float)cos (VT * pi / 2);
-    float sa = (float)sin (VT * pi / 2);
+    float ca = static_cast<float>(cos (VT * pi / 2));
+    float sa = static_cast<float>(sin (VT * pi / 2));
     for (int v=0; v<VCount; v++)
     {
       FUsed = 0;

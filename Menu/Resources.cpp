@@ -203,14 +203,14 @@ void ReadWeapons(FILE* stream)
 					throw script_error("Was expecting member assignment.", "ReadWeapons()", g_ScriptLine);
 				value++;
 
-				if (strstr(line, "power"))  wi.m_Power = (float)atof(value);
-				if (strstr(line, "prec"))   wi.m_Prec = (float)atof(value);
-				if (strstr(line, "loud"))   wi.m_Loud = (float)atof(value);
-				if (strstr(line, "rate"))   wi.m_Rate = (float)atof(value);
+				if (strstr(line, "power"))  wi.m_Power = static_cast<float>(atof(value));
+				if (strstr(line, "prec"))   wi.m_Prec = static_cast<float>(atof(value));
+				if (strstr(line, "loud"))   wi.m_Loud = static_cast<float>(atof(value));
+				if (strstr(line, "rate"))   wi.m_Rate = static_cast<float>(atof(value));
 				if (strstr(line, "shots"))  wi.m_Shots = atoi(value);
 				if (strstr(line, "reload")) wi.m_Reload = atoi(value);
 				if (strstr(line, "trace"))  wi.m_TraceC = atoi(value) - 1;
-				if (strstr(line, "optic"))  wi.m_Optic = (float)atof(value);
+				if (strstr(line, "optic"))  wi.m_Optic = static_cast<float>(atof(value));
 				if (strstr(line, "fall"))   wi.m_Fall = atoi(value);
 				if (strstr(line, "price"))	wi.m_Price = atoi(value);
 				if (strstr(line, "rank"))	wi.m_Rank = atoi(value);
@@ -292,21 +292,21 @@ void ReadCharacters(FILE* stream)
 					throw script_error("Was expecting member assignment.", "ReadCharacters()", g_ScriptLine);
 				value++;
 
-				if (strstr(line, "mass")) di.m_Mass = (float)atof(value);
-				if (strstr(line, "length")) di.m_Length = (float)atof(value);
-				if (strstr(line, "radius")) di.m_Radius = (float)atof(value);
+				if (strstr(line, "mass")) di.m_Mass = static_cast<float>(atof(value));
+				if (strstr(line, "length")) di.m_Length = static_cast<float>(atof(value));
+				if (strstr(line, "radius")) di.m_Radius = static_cast<float>(atof(value));
 				if (strstr(line, "health")) di.m_BaseHealth = atoi(value);
 				if (strstr(line, "basescore")) di.m_BaseScore = atoi(value);
 				if (strstr(line, "ai")) di.m_AI = atoi(value);
-				if (strstr(line, "smell")) di.m_SmellK = (float)atof(value);
-				if (strstr(line, "hear")) di.m_HearK = (float)atof(value);
-				if (strstr(line, "look")) di.m_LookK = (float)atof(value);
+				if (strstr(line, "smell")) di.m_SmellK = static_cast<float>(atof(value));
+				if (strstr(line, "hear")) di.m_HearK = static_cast<float>(atof(value));
+				if (strstr(line, "look")) di.m_LookK = static_cast<float>(atof(value));
 				// -> Safety Check
-				if (strstr(line, "smellk")) di.m_SmellK = (float)atof(value);
-				if (strstr(line, "heark")) di.m_HearK = (float)atof(value);
-				if (strstr(line, "lookk")) di.m_LookK = (float)atof(value);
+				if (strstr(line, "smellk")) di.m_SmellK = static_cast<float>(atof(value));
+				if (strstr(line, "heark")) di.m_HearK = static_cast<float>(atof(value));
+				if (strstr(line, "lookk")) di.m_LookK = static_cast<float>(atof(value));
 				// <- End
-				if (strstr(line, "shipdelta")) di.m_ShDelta = (float)atof(value);
+				if (strstr(line, "shipdelta")) di.m_ShDelta = static_cast<float>(atof(value));
 				if (strstr(line, "scale0")) di.m_BaseScale = atoi(value);
 				if (strstr(line, "scaleA")) di.m_ScaleA = atoi(value);
 				if (strstr(line, "danger")) di.m_DangerCall = true;
@@ -476,7 +476,7 @@ void ReadAccessories(FILE* stream)
 
 		if (value.empty()) continue;
 
-		float mod = (float)atof(value.c_str());
+		float mod = static_cast<float>(atof(value.c_str()));
 		g_AccessoryScoreMods[key] = mod;
 		count++;
 		std::cout << "  accessory[" << key << "] = " << mod << std::endl;
@@ -541,21 +541,21 @@ void ReadPrices(FILE* stream)
 		//throw script_error("Was expecting member assignment.", "ReadPrices()", g_ScriptLine);
 
 		if (strstr(line, "start")) {
-                g_StartCredits = (int)atoi(value);
+                g_StartCredits = static_cast<int>(atoi(value));
 		}
 		else if (strstr(line, "area")) {
 			CurA++;  // Area indices start at 1
-			g_AreaInfo.push_back(MakeOldAreaInfo(CurA, (int)atoi(value)));
+			g_AreaInfo.push_back(MakeOldAreaInfo(CurA, static_cast<int>(atoi(value))));
 			auto a = g_AreaInfo.end() - 1;
 			if (!a->m_Valid)
 				g_AreaInfo.pop_back();
 		}
 		else if (strstr(line, "dino")) {
-			g_DinoInfo[CurD].m_Price = (int)atoi(value);
+			g_DinoInfo[CurD].m_Price = static_cast<int>(atoi(value));
 			CurD++;
 		}
 		else if (strstr(line, "weapon")) {
-			g_WeapInfo[CurW].m_Price = (int)atoi(value);
+			g_WeapInfo[CurW].m_Price = static_cast<int>(atoi(value));
 			CurW++;
 		}
 		else if (strstr(line, "acces")) {
@@ -997,13 +997,13 @@ void TrophyLoad(Profile& profile, int pr)
 
 	fs.seekg(0, std::ios::beg);
 
-	fs.read((char*)&profile, sizeof(Profile));
+	fs.read(reinterpret_cast<char*>(&profile), sizeof(Profile));
 
-	fs.read((char*)&g_Options.Aggression, 4);
-	fs.read((char*)&g_Options.Density, 4);
-	fs.read((char*)&g_Options.Sensitivity, 4);
+	fs.read(reinterpret_cast<char*>(&g_Options.Aggression), 4);
+	fs.read(reinterpret_cast<char*>(&g_Options.Density), 4);
+	fs.read(reinterpret_cast<char*>(&g_Options.Sensitivity), 4);
 
-	fs.read((char*)&g_Options.Resolution, 4);
+	fs.read(reinterpret_cast<char*>(&g_Options.Resolution), 4);
 	// The old menu (StartLegacy.exe) used a hardcoded 8-entry resolution
 	// table (320x240..1600x1200). Our dynamic list may differ. Convert
 	// the old index to an actual resolution, then find the matching index
@@ -1042,25 +1042,25 @@ void TrophyLoad(Profile& profile, int pr)
 	}
 	// Bool fields are 1 byte in the struct but 4 bytes on disk.
 	// Read into temporary int32_t to avoid adjacent-field overflow.
-	{ int32_t tmp; fs.read((char*)&tmp, 4); g_Options.Fog = (bool)tmp; }
-	fs.read((char*)&g_Options.Textures, 4);
-	fs.read((char*)&g_Options.ViewRange, 4);
-	{ int32_t tmp; fs.read((char*)&tmp, 4); g_Options.Shadows = (bool)tmp; }
-	fs.read((char*)&g_Options.MouseSensitivity, 4);
-	fs.read((char*)&g_Options.Brightness, 4);
+	{ int32_t tmp; fs.read(reinterpret_cast<char*>(&tmp), 4); g_Options.Fog = (bool)tmp; }
+	fs.read(reinterpret_cast<char*>(&g_Options.Textures), 4);
+	fs.read(reinterpret_cast<char*>(&g_Options.ViewRange), 4);
+	{ int32_t tmp; fs.read(reinterpret_cast<char*>(&tmp), 4); g_Options.Shadows = (bool)tmp; }
+	fs.read(reinterpret_cast<char*>(&g_Options.MouseSensitivity), 4);
+	fs.read(reinterpret_cast<char*>(&g_Options.Brightness), 4);
 
-	fs.read((char*)&g_Options.KeyMap, sizeof(TKeyMap));
-	{ int32_t tmp; fs.read((char*)&tmp, 4); g_Options.MouseInvert = (bool)tmp; }
+	fs.read(reinterpret_cast<char*>(&g_Options.KeyMap), sizeof(TKeyMap));
+	{ int32_t tmp; fs.read(reinterpret_cast<char*>(&tmp), 4); g_Options.MouseInvert = (bool)tmp; }
 
-	{ int32_t tmp; fs.read((char*)&tmp, 4); g_Options.ScentMode = (bool)tmp; }
-	{ int32_t tmp; fs.read((char*)&tmp, 4); g_Options.CamoMode = (bool)tmp; }
-	{ int32_t tmp; fs.read((char*)&tmp, 4); g_Options.RadarMode = (bool)tmp; }
-	{ int32_t tmp; fs.read((char*)&tmp, 4); g_Options.TranqMode = (bool)tmp; }
-	fs.read((char*)&g_Options.AlphaColorKey, 4);
+	{ int32_t tmp; fs.read(reinterpret_cast<char*>(&tmp), 4); g_Options.ScentMode = (bool)tmp; }
+	{ int32_t tmp; fs.read(reinterpret_cast<char*>(&tmp), 4); g_Options.CamoMode = (bool)tmp; }
+	{ int32_t tmp; fs.read(reinterpret_cast<char*>(&tmp), 4); g_Options.RadarMode = (bool)tmp; }
+	{ int32_t tmp; fs.read(reinterpret_cast<char*>(&tmp), 4); g_Options.TranqMode = (bool)tmp; }
+	fs.read(reinterpret_cast<char*>(&g_Options.AlphaColorKey), 4);
 
-	fs.read((char*)&g_Options.OptSys, 4);
-	fs.read((char*)&g_Options.SoundAPI, 4);
-	fs.read((char*)&g_Options.RenderAPI, 4);
+	fs.read(reinterpret_cast<char*>(&g_Options.OptSys), 4);
+	fs.read(reinterpret_cast<char*>(&g_Options.SoundAPI), 4);
+	fs.read(reinterpret_cast<char*>(&g_Options.RenderAPI), 4);
 	g_Options.SoundAPI = NormalizeAudioBackend(g_Options.SoundAPI);
 
 	// FOV and other extended settings are now in config.cfg, not here.
@@ -1103,30 +1103,30 @@ void TrophySave(Profile& profile)
 		return;
 	}
 
-	fs.write((char*)&profile, sizeof(Profile));
+	fs.write(reinterpret_cast<char*>(&profile), sizeof(Profile));
 
-	fs.write((char*)&g_Options.Aggression, 4);
-	fs.write((char*)&g_Options.Density, 4);
-	fs.write((char*)&g_Options.Sensitivity, 4);
-	fs.write((char*)&g_Options.Resolution, 4);
+	fs.write(reinterpret_cast<char*>(&g_Options.Aggression), 4);
+	fs.write(reinterpret_cast<char*>(&g_Options.Density), 4);
+	fs.write(reinterpret_cast<char*>(&g_Options.Sensitivity), 4);
+	fs.write(reinterpret_cast<char*>(&g_Options.Resolution), 4);
 	// Bool fields are 1 byte in the struct but 4 bytes on disk.
 	// Write via temporary int32_t to avoid adjacent-field overflow.
-	{ int32_t tmp = g_Options.Fog ? 1 : 0; fs.write((char*)&tmp, 4); }
-	fs.write((char*)&g_Options.Textures, 4);
-	fs.write((char*)&g_Options.ViewRange, 4);
-	{ int32_t tmp = g_Options.Shadows ? 1 : 0; fs.write((char*)&tmp, 4); }
-	fs.write((char*)&g_Options.MouseSensitivity, 4);
-	fs.write((char*)&g_Options.Brightness, 4);
-	fs.write((char*)&g_Options.KeyMap, sizeof(TKeyMap));
-	{ int32_t tmp = g_Options.MouseInvert ? 1 : 0; fs.write((char*)&tmp, 4); }
-	{ int32_t tmp = g_Options.ScentMode ? 1 : 0; fs.write((char*)&tmp, 4); }
-	{ int32_t tmp = g_Options.CamoMode ? 1 : 0; fs.write((char*)&tmp, 4); }
-	{ int32_t tmp = g_Options.RadarMode ? 1 : 0; fs.write((char*)&tmp, 4); }
-	{ int32_t tmp = g_Options.TranqMode ? 1 : 0; fs.write((char*)&tmp, 4); }
-	fs.write((char*)&g_Options.AlphaColorKey, 4);
-	fs.write((char*)&g_Options.OptSys, 4);
-	fs.write((char*)&g_Options.SoundAPI, 4);
-	fs.write((char*)&g_Options.RenderAPI, 4);
+	{ int32_t tmp = g_Options.Fog ? 1 : 0; fs.write(reinterpret_cast<char*>(&tmp), 4); }
+	fs.write(reinterpret_cast<char*>(&g_Options.Textures), 4);
+	fs.write(reinterpret_cast<char*>(&g_Options.ViewRange), 4);
+	{ int32_t tmp = g_Options.Shadows ? 1 : 0; fs.write(reinterpret_cast<char*>(&tmp), 4); }
+	fs.write(reinterpret_cast<char*>(&g_Options.MouseSensitivity), 4);
+	fs.write(reinterpret_cast<char*>(&g_Options.Brightness), 4);
+	fs.write(reinterpret_cast<char*>(&g_Options.KeyMap), sizeof(TKeyMap));
+	{ int32_t tmp = g_Options.MouseInvert ? 1 : 0; fs.write(reinterpret_cast<char*>(&tmp), 4); }
+	{ int32_t tmp = g_Options.ScentMode ? 1 : 0; fs.write(reinterpret_cast<char*>(&tmp), 4); }
+	{ int32_t tmp = g_Options.CamoMode ? 1 : 0; fs.write(reinterpret_cast<char*>(&tmp), 4); }
+	{ int32_t tmp = g_Options.RadarMode ? 1 : 0; fs.write(reinterpret_cast<char*>(&tmp), 4); }
+	{ int32_t tmp = g_Options.TranqMode ? 1 : 0; fs.write(reinterpret_cast<char*>(&tmp), 4); }
+	fs.write(reinterpret_cast<char*>(&g_Options.AlphaColorKey), 4);
+	fs.write(reinterpret_cast<char*>(&g_Options.OptSys), 4);
+	fs.write(reinterpret_cast<char*>(&g_Options.SoundAPI), 4);
+	fs.write(reinterpret_cast<char*>(&g_Options.RenderAPI), 4);
 
 	// FOV and other extended settings live in config.cfg, not here.
 
@@ -1143,7 +1143,7 @@ bool ReadTGAFile(const std::string& path, TargaImage& tga)
 		return false;
 	}
 
-	fs.read((char*)&tga.m_Header, sizeof(TARGAINFOHEADER));
+	fs.read(reinterpret_cast<char*>(&tga.m_Header), sizeof(TARGAINFOHEADER));
 
 	if (tga.m_Header.tgaColorMapType) {
 		std::cout << "Has a color palette: " << path << std::endl;
@@ -1164,7 +1164,7 @@ bool ReadTGAFile(const std::string& path, TargaImage& tga)
 
 	int size = (tga.m_Header.tgaWidth * (tga.m_Header.tgaBits / 8)) * tga.m_Header.tgaHeight;
 	tga.m_Data = new uint8_t[size];
-	fs.read((char*)tga.m_Data, size);
+	fs.read(reinterpret_cast<char*>(tga.m_Data), size);
 
 	return true;
 }
@@ -1238,13 +1238,13 @@ bool LoadWave(SoundFX& sfx, const std::string& path)
 			}
 		}
 
-		tf.read((char*)&sfx.m_Length, 4);
+		tf.read(reinterpret_cast<char*>(&sfx.m_Length), 4);
 
 		if (sfx.m_Data)
 			delete[] sfx.m_Data;
 
 		sfx.m_Data = new int16_t[sfx.m_Length / sizeof(int16_t)];
-		tf.read((char*)sfx.m_Data, sfx.m_Length);
+		tf.read(reinterpret_cast<char*>(sfx.m_Data), sfx.m_Length);
 
 		tf.close();
 		return true;

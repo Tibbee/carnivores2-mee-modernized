@@ -77,7 +77,7 @@ float CalcFogLevel(Vector3d v)
   int cf;
   if (!UNDERWATER)
   {
-    cf = FogsMap[ ((int)(v.z + CameraZ))>>9 ][ ((int)(v.x + CameraX))>>9 ];
+    cf = FogsMap[ (static_cast<int>((v.z + CameraZ)))>>9 ][ (static_cast<int>((v.x + CameraX)))>>9 ];
     if ((!cf) && CAMERAINFOG)
     {
       cf = CameraFogI;
@@ -158,7 +158,7 @@ void PreCashGroundModel()
 
       v[0].x = xx*256 - CameraX;
       v[0].z = yy*256 - CameraZ;
-      v[0].y = (float)((int)HMap[yy][xx])*ctHScale - CameraY;
+      v[0].y = static_cast<float>((static_cast<int>(HMap[yy][xx])))*ctHScale - CameraY;
 
 
 //========= water section ===========//
@@ -169,12 +169,12 @@ void PreCashGroundModel()
         rv = v[0];
         rv.y = WaterList[ WMap[yy][xx] ].wlevel*ctHScale - CameraY;
 
-        float wdelta = (float)sin(-pi/2 + RandomMap[yy & 31][xx & 31]/128+RealTime/200.f);
+        float wdelta = static_cast<float>(sin(-pi/2 + RandomMap[yy & 31][xx & 31]/128+RealTime/200.f));
 
         if ( (FMap[yy][xx] & fmWater) && (r < ctViewR1-4))
         {
-          rv.x+=(float)sin(xx+yy + RealTime/200.f) * 16.f;
-          rv.z+=(float)sin(pi/2.f + xx+yy + RealTime/200.f) * 16.f;
+          rv.x+=static_cast<float>(sin(xx+yy + RealTime/200.f)) * 16.f;
+          rv.z+=static_cast<float>(sin(pi/2.f + xx+yy + RealTime/200.f)) * 16.f;
         }
 
         rv = RotateVector(rv);
@@ -187,7 +187,7 @@ void PreCashGroundModel()
         else
         {
           NeedWater = TRUE;
-          VMap2[128+y][128+x].Light = 168-(int)(wdelta*24);
+          VMap2[128+y][128+x].Light = 168-static_cast<int>((wdelta*24));
 
           float Alpha;
           if (UNDERWATER)
@@ -198,7 +198,7 @@ void PreCashGroundModel()
           else if (r < ctViewR1+2)
           {
             int wi = WMap[yy][xx];
-            Alpha = (float)((WaterList[wi].wlevel - HMap[yy][xx])*2+4)*WaterList[wi].transp;
+            Alpha = static_cast<float>(((WaterList[wi].wlevel - HMap[yy][xx])*2+4))*WaterList[wi].transp;
             Alpha+=VectorLength(rv) / 256;
             Alpha+=wdelta*2;
             if (Alpha<0) Alpha=0;
@@ -211,15 +211,15 @@ void PreCashGroundModel()
           }
           else Alpha = 255.f;
 
-          VMap2[128+y][128+x].ALPHA=(int)Alpha;
+          VMap2[128+y][128+x].ALPHA=static_cast<int>(Alpha);
           VMap2[128+y][128+x].Fog = 0;
 
           if (rv.z>-256.0) VMap2[128+y][128+x].DFlags=128;
           else
           {
 #ifdef _soft
-            VMap2[128+y][128+x].scrx = VideoCX - (int)(rv.x / rv.z * CameraW);
-            VMap2[128+y][128+x].scry = VideoCY + (int)(rv.y / rv.z * CameraH);
+            VMap2[128+y][128+x].scrx = VideoCX - static_cast<int>((rv.x / rv.z * CameraW));
+            VMap2[128+y][128+x].scry = VideoCY + static_cast<int>((rv.y / rv.z * CameraH));
 
             int DF = 0;
             if (VMap2[128+y][128+x].scrx < 0)     DF+=1;
@@ -227,8 +227,8 @@ void PreCashGroundModel()
             if (VMap2[128+y][128+x].scry < 0)     DF+=4;
             if (VMap2[128+y][128+x].scry > WinEY) DF+=8;
 #else
-            VMap2[128+y][128+x].scrx = VideoCX16 - (int)(rv.x / rv.z * CameraW16);
-            VMap2[128+y][128+x].scry = VideoCY16 + (int)(rv.y / rv.z * CameraH16);
+            VMap2[128+y][128+x].scrx = VideoCX16 - static_cast<int>((rv.x / rv.z * CameraW16));
+            VMap2[128+y][128+x].scry = VideoCY16 + static_cast<int>((rv.y / rv.z * CameraH16));
 
             int DF = 0;
             if (VMap2[128+y][128+x].scrx < 0)        DF+=1;
@@ -250,15 +250,15 @@ void PreCashGroundModel()
         if ( (x & 1) + (y & 1) > 0)
         {
           float y1;
-          float zd = (float)sqrt(v[0].x*v[0].x + v[0].z*v[0].z) / 256.f;
+          float zd = static_cast<float>(sqrt(v[0].x*v[0].x + v[0].z*v[0].z)) / 256.f;
           float k = (zd - (ctViewR1-8)) / 4.f;
           if (k<0) k=0;
           if (k>1) k=1;
 
-          if ((y & 1)==0) y1 = (float)((int)HMap[yy][xx-1]+HMap[yy][xx+1])*ctHScale/2 - CameraY;
-          else if ((x & 1)==0) y1 = (float)((int)HMap[yy-1][xx]+HMap[yy+1][xx])*ctHScale/2 - CameraY;
+          if ((y & 1)==0) y1 = static_cast<float>((static_cast<int>(HMap[yy][xx-1])+HMap[yy][xx+1]))*ctHScale/2 - CameraY;
+          else if ((x & 1)==0) y1 = static_cast<float>((static_cast<int>(HMap[yy-1][xx])+HMap[yy+1][xx]))*ctHScale/2 - CameraY;
           else
-            y1 = (float)((int)HMap[yy-1][xx-1]+HMap[yy+1][xx+1])*ctHScale/2 - CameraY;
+            y1 = static_cast<float>((static_cast<int>(HMap[yy-1][xx-1])+HMap[yy+1][xx+1]))*ctHScale/2 - CameraY;
 
           v[0].y = ((v[0].y+2) * (1-k) + (y1+8) * k);
         }
@@ -325,16 +325,16 @@ void PreCashGroundModel()
       {
 
 #ifdef _soft
-        VMap[128+y][128+x].scrx = VideoCX - (int)(v[0].x / v[0].z * CameraW);
-        VMap[128+y][128+x].scry = VideoCY + (int)(v[0].y / v[0].z * CameraH);
+        VMap[128+y][128+x].scrx = VideoCX - static_cast<int>((v[0].x / v[0].z * CameraW));
+        VMap[128+y][128+x].scry = VideoCY + static_cast<int>((v[0].y / v[0].z * CameraH));
 
         if (VMap[128+y][128+x].scrx < 0)        DF+=1;
         if (VMap[128+y][128+x].scrx > WinEX)    DF+=2;
         if (VMap[128+y][128+x].scry < 0)        DF+=4;
         if (VMap[128+y][128+x].scry > WinEY)    DF+=8;
 #else
-        VMap[128+y][128+x].scrx = VideoCX16 - (int)(v[0].x / v[0].z * CameraW16);
-        VMap[128+y][128+x].scry = VideoCY16 + (int)(v[0].y / v[0].z * CameraH16);
+        VMap[128+y][128+x].scrx = VideoCX16 - static_cast<int>((v[0].x / v[0].z * CameraW16));
+        VMap[128+y][128+x].scry = VideoCY16 + static_cast<int>((v[0].y / v[0].z * CameraH16));
 
         if (VMap[128+y][128+x].scrx < 0)        DF+=1;
         if (VMap[128+y][128+x].scrx > WinEX*16) DF+=2;
@@ -365,7 +365,7 @@ void AddShadowCircle(int x, int y, int R, int D)
     {
       int tx = (cx+xx)*256;
       int ty = (cy+yy)*256;
-      int r = (int)sqrt((float)((tx-x)*(tx-x) + (ty-y)*(ty-y)) );
+      int r = static_cast<int>(sqrt(static_cast<float>(((tx-x)*(tx-x) + (ty-y)*(ty-y))) ));
       if (r>R) continue;
       VMap[cy+yy - CCY + 128][cx+xx - CCX + 128].Light-= D * (R-r) / R;
       if (VMap[cy+yy - CCY + 128][cx+xx - CCX + 128].Light < 32)
@@ -381,14 +381,14 @@ void DrawScene()
 {
   dFacesCount = 0;
 
-  ca = (float)cos(CameraAlpha);
-  sa = (float)sin(CameraAlpha);
+  ca = static_cast<float>(cos(CameraAlpha));
+  sa = static_cast<float>(sin(CameraAlpha));
 
-  cb = (float)cos(CameraBeta);
-  sb = (float)sin(CameraBeta);
+  cb = static_cast<float>(cos(CameraBeta));
+  sb = static_cast<float>(sin(CameraBeta));
 
-  CCX = ((int)CameraX / 512) * 2;
-  CCY = ((int)CameraZ / 512) * 2;
+  CCX = (static_cast<int>(CameraX) / 512) * 2;
+  CCY = (static_cast<int>(CameraZ) / 512) * 2;
 
   PreCashGroundModel();
 
@@ -398,8 +398,8 @@ void DrawScene()
 
   RenderSkyPlane();
 
-  cb = (float)cos(CameraBeta);
-  sb = (float)sin(CameraBeta);
+  cb = static_cast<float>(cos(CameraBeta));
+  sb = static_cast<float>(sin(CameraBeta));
 
 
   RenderGround();
@@ -422,11 +422,11 @@ void DrawScene()
 
 void DrawOpticCross( int v)
 {
-  int sx =  VideoCX + (int)(rVertex[v].x / (-rVertex[v].z) * CameraW);
-  int sy =  VideoCY - (int)(rVertex[v].y / (-rVertex[v].z) * CameraH);
+  int sx =  VideoCX + static_cast<int>((rVertex[v].x / (-rVertex[v].z) * CameraW));
+  int sy =  VideoCY - static_cast<int>((rVertex[v].y / (-rVertex[v].z) * CameraH));
 
-  if (  (fabs((float)(VideoCX - sx)) > WinW / 2) ||
-        (fabs((float)(VideoCY - sy)) > WinH / 4) ) return;
+  if (  (fabs(static_cast<float>((VideoCX - sx))) > WinW / 2) ||
+        (fabs(static_cast<float>((VideoCY - sy))) > WinH / 4) ) return;
 
   Render_Cross(sx, sy);
 }
@@ -436,7 +436,7 @@ void DrawOpticCross( int v)
 void ScanLifeForms()
 {
   int li = -1;
-  float dm = (float)(ctViewR+2)*256;
+  float dm = static_cast<float>((ctViewR+2))*256;
   for (int c=0; c<ChCount; c++)
   {
     TCharacter *cptr = &Characters[c];
@@ -444,9 +444,9 @@ void ScanLifeForms()
 	if (DinoInfo[cptr->CType].HideBinoc) continue;
     if (!cptr->Health) continue;
     if (cptr->rpos.z > -512) continue;
-    float d = (float)sqrt( cptr->rpos.x*cptr->rpos.x + cptr->rpos.y*cptr->rpos.y + cptr->rpos.z*cptr->rpos.z );
+    float d = static_cast<float>(sqrt( cptr->rpos.x*cptr->rpos.x + cptr->rpos.y*cptr->rpos.y + cptr->rpos.z*cptr->rpos.z ));
     if (d > ctViewR*256) continue;
-    float r = (float)(fabs(cptr->rpos.x) + fabs(cptr->rpos.y)) / d;
+    float r = static_cast<float>((fabs(cptr->rpos.x) + fabs(cptr->rpos.y))) / d;
     if (r > 0.15) continue;
     if (d<dm)
       if (!TraceLook(cptr->pos.x, cptr->pos.y+220, cptr->pos.z,
@@ -657,7 +657,7 @@ void DrawPostObjects()
     float oldCW = CameraW;
     float oldCH = CameraH;
     float scale = nearModelScale;
-    float aspectScale = (float)WinW / ((float)WinH * 1.3333333f);
+    float aspectScale = static_cast<float>(WinW) / (static_cast<float>(WinH) * 1.3333333f);
     if (aspectScale > 1.0f) scale *= aspectScale;
     CameraW *= scale;
     CameraH *= scale;
@@ -678,13 +678,13 @@ void DrawPostObjects()
       LOWRESTX = TRUE;
 
       const int hudCenter = WinW / 2;
-      const int hudSpread = (int)((float)WinW / 3.0f * UIScale);
-      const int hudBottomInset = (int)((float)WinH * 0.012f);
+      const int hudSpread = static_cast<int>((static_cast<float>(WinW) / 3.0f * UIScale));
+      const int hudBottomInset = static_cast<int>((static_cast<float>(WinH) * 0.012f));
       const int hudY = WinH - (WinH * 10 / 23) - hudBottomInset;
 
       VideoCX = hudCenter - hudSpread;
       VideoCY = hudY;
-      CreateMorphedModel(WindModel.mptr, &WindModel.Animation[0], (int)(Wind.speed*50.f), 1.0);
+      CreateMorphedModel(WindModel.mptr, &WindModel.Animation[0], static_cast<int>((Wind.speed*50.f)), 1.0);
       {
         const float savedCW = CameraW;
         const float savedCH = CameraH;
@@ -726,7 +726,7 @@ SKIPWIND:
   MapMode = FALSE;
 
   if (!SurvivalMode) {
-	  float tempT = (float)TimeDt / 10000.f;
+	  float tempT = static_cast<float>(TimeDt) / 10000.f;
 	  wptr->shakel += tempT;
 	  if (wptr->shakel > 4.0f) wptr->shakel = 4.0f;
   }
@@ -931,17 +931,17 @@ SKIPWIND:
   if (Weapon.breath > 3.0f) Weapon.breath = 3.0f;
   if (Weapon.breath < 0.f) Weapon.breath = 0.f;
 
-  b = (float)sin((float)RealTime / 300.f) / 100.f;
+  b = static_cast<float>(sin(static_cast<float>(RealTime) / 300.f)) / 100.f;
   float temp = wptr->shakel -wptr->breath;
   if (temp < 0.2f) temp = 0.2f;
   if (temp > 4.0f) temp = 4.0f;
-  wpnDAlpha = temp * (float)sin(((float)RealTime) / 300.f+pi/2) / 200.f;
-  wpnDBeta  = temp * (float)sin(((float)RealTime) / 300.f) / 400.f;
+  wpnDAlpha = temp * static_cast<float>(sin((static_cast<float>(RealTime)) / 300.f+pi/2)) / 200.f;
+  wpnDBeta  = temp * static_cast<float>(sin((static_cast<float>(RealTime)) / 300.f)) / 400.f;
 
   //if (wptr->shakel < 0.2f) wptr->shakel = 0.2f;
   //if (wptr->shakel > 4.0f) wptr->shakel = 4.0f;
-  //wpnDAlpha = wptr->shakel * (float)sin(((float)RealTime) / 300.f + pi / 2) / 200.f;
-  //wpnDBeta = wptr->shakel * (float)sin(((float)RealTime) / 300.f) / 400.f;
+  //wpnDAlpha = wptr->shakel * static_cast<float>(sin((static_cast<float>(RealTime)) / 300.f + pi / 2)) / 200.f;
+  //wpnDBeta = wptr->shakel * static_cast<float>(sin((static_cast<float>(RealTime)) / 300.f)) / 400.f;
 
   nv.z = 0;
 
@@ -972,7 +972,7 @@ SKIPWIND:
     float savedCH = CameraH;
     float opticScale = nearModelScale;
     if (OPTICMODE) {
-      float arScale = (float)WinW / ((float)WinH * 1.3333333f);
+      float arScale = static_cast<float>(WinW) / (static_cast<float>(WinH) * 1.3333333f);
       if (arScale > 1.0f) opticScale *= arScale;
     }
     CameraW *= opticScale;
@@ -1041,7 +1041,7 @@ SKIPWEAPON:
 		*/
 
 #ifdef _gl
-      const float uiscale = (float)WinH / 600.0f * UIScale;
+      const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
 #endif
 
 		int ind = 9;
@@ -1052,15 +1052,15 @@ SKIPWEAPON:
 		int x1 = 0;
 		int x2 = 0;
 #ifdef _gl
-      const int bulletW = MAX(1, (int)(Weapon.BulletPic[CurrentWeapon].W * uiscale));
-      const int bulletH = MAX(1, (int)(Weapon.BulletPic[CurrentWeapon].H * uiscale));
-      const int chamberW = MAX(1, (int)(Weapon.ChambPic[CurrentWeapon].W * uiscale));
-      const int chamberH = MAX(1, (int)(Weapon.ChambPic[CurrentWeapon].H * uiscale));
-      const int hudGap = (int)(3.0f * uiscale);
-      y0 = (int)(5.0f * uiscale);
+      const int bulletW = MAX(1, static_cast<int>((Weapon.BulletPic[CurrentWeapon].W * uiscale)));
+      const int bulletH = MAX(1, static_cast<int>((Weapon.BulletPic[CurrentWeapon].H * uiscale)));
+      const int chamberW = MAX(1, static_cast<int>((Weapon.ChambPic[CurrentWeapon].W * uiscale)));
+      const int chamberH = MAX(1, static_cast<int>((Weapon.ChambPic[CurrentWeapon].H * uiscale)));
+      const int hudGap = static_cast<int>((3.0f * uiscale));
+      y0 = static_cast<int>((5.0f * uiscale));
       y1 = y0;
-      y2 = (int)((Weapon.BulletPic[CurrentWeapon].H + 9.0f) * uiscale);
-      ind = (int)(9.0f * uiscale);
+      y2 = static_cast<int>(((Weapon.BulletPic[CurrentWeapon].H + 9.0f) * uiscale));
+      ind = static_cast<int>((9.0f * uiscale));
 #else
       const int bulletW = Weapon.BulletPic[CurrentWeapon].W;
       const int bulletH = Weapon.BulletPic[CurrentWeapon].H;
@@ -1070,7 +1070,7 @@ SKIPWEAPON:
 #endif
 
 		if (wptr->state == 4 || wptr->state == 5) {
-			float d = -cos(pi/2+(pi/2 * ((float)wptr->FTime / (float)wptr->chinfo[CurrentWeapon].Animation[phas].AniTime)));
+			float d = -cos(pi/2+(pi/2 * (static_cast<float>(wptr->FTime) / static_cast<float>(wptr->chinfo[CurrentWeapon].Animation[phas].AniTime))));
 			if (WeapInfo[CurrentWeapon].Reload) {
 				x1 -= d * bulletW * wptr->ammoIn;
 				//x2 -= d * ((Weapon.BulletPic[CurrentWeapon].W * wptr->ammoIn) + 3);
@@ -1083,8 +1083,8 @@ SKIPWEAPON:
 		}
 		if (!WeapInfo[CurrentWeapon].Reload)
 		if ((wptr->state == 2 && !WeapInfo[CurrentWeapon].mustPump) || wptr->state == 6) {
-			float d = ((float)wptr->FTime / (float)wptr->chinfo[CurrentWeapon].Animation[phas].AniTime);
-			d = 0.5*(1 - cos(pi * ((float)wptr->FTime / (float)wptr->chinfo[CurrentWeapon].Animation[phas].AniTime)));
+			float d = (static_cast<float>(wptr->FTime) / static_cast<float>(wptr->chinfo[CurrentWeapon].Animation[phas].AniTime));
+			d = 0.5*(1 - cos(pi * (static_cast<float>(wptr->FTime) / static_cast<float>(wptr->chinfo[CurrentWeapon].Animation[phas].AniTime))));
 			wptr->ammoIn = 1;
 			x1 -= d * bulletW * wptr->ammoIn;
 			x2 -= d * ((bulletW * wptr->ammoIn) + hudGap);
@@ -1092,8 +1092,8 @@ SKIPWEAPON:
 
 		if (WeapInfo[CurrentWeapon].picch)
 #ifdef _gl
-			DrawScaledPicture((int)(5.0f * uiscale),
-				(y0 - (int)uiscale) + (bulletH - (chamberH - 2 * (int)uiscale)),
+			DrawScaledPicture(static_cast<int>((5.0f * uiscale)),
+				(y0 - static_cast<int>(uiscale)) + (bulletH - (chamberH - 2 * static_cast<int>(uiscale))),
 				chamberW, chamberH,
 				Weapon.ChambPic[CurrentWeapon]);
 #else
@@ -1105,7 +1105,7 @@ SKIPWEAPON:
 			wptr->FlashP++;
 			if (wptr->FlashP > 4)wptr->FlashP = 0;
 #ifdef _gl
-			else DrawFlash((int)(6.0f * uiscale) + Chambered[CurrentWeapon] * bulletW,
+			else DrawFlash(static_cast<int>((6.0f * uiscale)) + Chambered[CurrentWeapon] * bulletW,
 					y0,
 					bulletW,
 					bulletH,
@@ -1123,7 +1123,7 @@ SKIPWEAPON:
 
 		for (int bl = 0; bl < Chambered[CurrentWeapon]; bl++)
 #ifdef _gl
-			DrawScaledPicture((int)(6.0f * uiscale) + bl * bulletW, y0, bulletW, bulletH, Weapon.BulletPic[CurrentWeapon]);
+			DrawScaledPicture(static_cast<int>((6.0f * uiscale)) + bl * bulletW, y0, bulletW, bulletH, Weapon.BulletPic[CurrentWeapon]);
 #else
 			DrawPicture(6 + bl * Weapon.BulletPic[CurrentWeapon].W, y0, Weapon.BulletPic[CurrentWeapon]);
 #endif
@@ -1154,9 +1154,9 @@ SKIPWEAPON:
   if (TrophyMode)
 #ifdef _gl
   {
-    const float uiscale = (float)WinH / 600.0f * UIScale;
-    DrawScaledPicture(VideoCX - (int)(TrophyExit.W * uiscale) / 2, 2,
-      (int)(TrophyExit.W * uiscale), (int)(TrophyExit.H * uiscale), TrophyExit);
+    const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
+    DrawScaledPicture(VideoCX - static_cast<int>((TrophyExit.W * uiscale)) / 2, 2,
+      static_cast<int>((TrophyExit.W * uiscale)), static_cast<int>((TrophyExit.H * uiscale)), TrophyExit);
   }
 #else
     DrawPicture( VideoCX - TrophyExit.W / 2, 2, TrophyExit);
@@ -1164,9 +1164,9 @@ SKIPWEAPON:
 
   if (EXITMODE) {
 #ifdef _gl
-	  const float uiscale = (float)WinH / 600.0f * UIScale;
-	  const int exitW = (int)(ExitPic.W * uiscale);
-	  const int exitH = (int)(ExitPic.H * uiscale);
+	  const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
+	  const int exitW = static_cast<int>((ExitPic.W * uiscale));
+	  const int exitH = static_cast<int>((ExitPic.H * uiscale));
 	  DrawScaledPicture((WinW - exitW) / 2, (WinH - exitH) / 2, exitW, exitH, ExitPic);
 #else
 	  DrawPicture((WinW - ExitPic.W) / 2, (WinH - ExitPic.H) / 2, ExitPic);
@@ -1189,10 +1189,10 @@ SKIPWEAPON:
   if (PAUSE)
 #ifdef _gl
   {
-    const float uiscale = (float)WinH / 600.0f * UIScale;
-    DrawScaledPicture((WinW - (int)(PausePic.W * uiscale)) / 2,
-      (WinH - (int)(PausePic.H * uiscale)) / 2,
-      (int)(PausePic.W * uiscale), (int)(PausePic.H * uiscale), PausePic);
+    const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
+    DrawScaledPicture((WinW - static_cast<int>((PausePic.W * uiscale))) / 2,
+      (WinH - static_cast<int>((PausePic.H * uiscale))) / 2,
+      static_cast<int>((PausePic.W * uiscale)), static_cast<int>((PausePic.H * uiscale)), PausePic);
   }
 #else
     DrawPicture( (WinW - PausePic.W) / 2, (WinH - PausePic.H) / 2, PausePic);
@@ -1201,11 +1201,11 @@ SKIPWEAPON:
   if (ScoreDispTime) {
 
 #ifdef _gl
-	  const float uiscale = (float)WinH / 600.0f * UIScale;
-	  const int scoreW = (int)(ScorePic.W * uiscale);
-	  const int scoreH = (int)(ScorePic.H * uiscale);
+	  const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
+	  const int scoreW = static_cast<int>((ScorePic.W * uiscale));
+	  const int scoreH = static_cast<int>((ScorePic.H * uiscale));
 	  int x0 = VideoCX - scoreW /2;
-	  int y0 = WinH - scoreH - (int)(12.0f * uiscale);
+	  int y0 = WinH - scoreH - static_cast<int>((12.0f * uiscale));
 	  DrawScaledPicture(x0, y0, scoreW, scoreH, ScorePic);
 #else
 	  int x0 = VideoCX - ScorePic.W /2;
@@ -1226,15 +1226,15 @@ SKIPWEAPON:
 		  if (TrophyBody != -1 || TrophyDisplay)
 		  {
 #ifdef _gl
-			  const float uiscale = (float)WinH / 600.0f * UIScale;
+			  const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
 			  TPicture *Pic = &TrophyPic;
 			  if (!TrophyMode && (Tranq || Characters[TrophyDisplayC].claimed)) {
 				  Pic = &TrophyNoCollectPic;
 			  }
-			  const int trophyW = (int)(Pic->W * uiscale);
-			  const int trophyH = (int)(Pic->H * uiscale);
-			  int x0 = WinW - trophyW - (int)(16.0f * uiscale);
-			  int y0 = WinH - trophyH - (int)(12.0f * uiscale);
+			  const int trophyW = static_cast<int>((Pic->W * uiscale));
+			  const int trophyH = static_cast<int>((Pic->H * uiscale));
+			  int x0 = WinW - trophyW - static_cast<int>((16.0f * uiscale));
+			  int y0 = WinH - trophyH - static_cast<int>((12.0f * uiscale));
 			  if (!TrophyMode)
 				  x0 = VideoCX - trophyW / 2;
 
@@ -1382,11 +1382,11 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 
   if (message == WM_KEYDOWN && !SurvivalMode)
   {
-    if ((int)wParam == KeyMap.fkBinoc) ToggleBinocular();
-    if ((int)wParam == KeyMap.fkCCall) ChangeCall();
-    if ((int)wParam == KeyMap.fkRun  ) ToggleRunMode();
-	if ((int)wParam == KeyMap.fkCrouch) ToggleCrouchMode();
-    if ((int)wParam == cheatcode[cheati])
+    if (static_cast<int>(wParam) == KeyMap.fkBinoc) ToggleBinocular();
+    if (static_cast<int>(wParam) == KeyMap.fkCCall) ChangeCall();
+    if (static_cast<int>(wParam) == KeyMap.fkRun  ) ToggleRunMode();
+	if (static_cast<int>(wParam) == KeyMap.fkCrouch) ToggleCrouchMode();
+    if (static_cast<int>(wParam) == cheatcode[cheati])
     {
       cheati++;
       if (cheati>6)
@@ -1405,7 +1405,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     return 0;
 
   case WM_SYSKEYDOWN:
-    if ((int)wParam == VK_RETURN && !SurvivalMode) {
+    if (static_cast<int>(wParam) == VK_RETURN && !SurvivalMode) {
       SetFullScreen();
       return 0;
     }
@@ -1415,7 +1415,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
   case WM_KEYDOWN:
   {
     BOOL CTRL = (GetKeyState(VK_SHIFT) & 0x8000);
-    switch( (int)wParam )
+    switch( static_cast<int>(wParam) )
     {
     case '0':
     case '1':
@@ -1434,7 +1434,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       if (wParam == '0')
         w = 9;
       else
-        w = ((int)wParam - '1');
+        w = (static_cast<int>(wParam) - '1');
       if (!Chambered[w] && !ShotsLeft[w] && !AmmoMag[w])
       {
         AddMessage("No weapon");
@@ -1683,11 +1683,11 @@ void ProcessShoot()
 
     wptr->FTime = 1;
     HeadBackR=64;
-	Recoil.y = -(float)WeapInfo[CurrentWeapon].recoil / 100.f;
+	Recoil.y = -static_cast<float>(WeapInfo[CurrentWeapon].recoil) / 100.f;
 	float rx = rRand(8);
 	rx -= 4;
 	rx /= 8;
-	rx *= (float)WeapInfo[CurrentWeapon].recoil / 100.f;
+	rx *= static_cast<float>(WeapInfo[CurrentWeapon].recoil) / 100.f;
 	Recoil.x += rx;
 
 	if (UNDERWATER) {
@@ -1726,10 +1726,10 @@ void ProcessShoot()
 	  }
 
 
-      float ca = (float)cos(PlayerAlpha + wpnDAlpha + rA);
-      float sa = (float)sin(PlayerAlpha + wpnDAlpha + rA);
-      float cb = (float)cos(PlayerBeta + wpnDBeta + rB);
-      float sb = (float)sin(PlayerBeta + wpnDBeta + rB);
+      float ca = static_cast<float>(cos(PlayerAlpha + wpnDAlpha + rA));
+      float sa = static_cast<float>(sin(PlayerAlpha + wpnDAlpha + rA));
+      float cb = static_cast<float>(cos(PlayerBeta + wpnDBeta + rB));
+      float sb = static_cast<float>(sin(PlayerBeta + wpnDBeta + rB));
 
       nv.x=sa;
       nv.y=0;
@@ -1891,10 +1891,10 @@ void ProcessPlayerMovement()
   // terms of per-second sensitivity (K*V constant). Do NOT normalize by
   // TimeDt here: in an uncapped game that makes sensitivity scale linearly
   // with framerate (4x faster look at 240 FPS vs 60 FPS).
-  rav += (float)(ms.x-VideoCX) * (OptMsSens+64) / 600.f / 192.f;
-  rbv += (float)(ms.y-VideoCY) * (OptMsSens+64) / 600.f / 192.f;
+  rav += static_cast<float>((ms.x-VideoCX)) * (OptMsSens+64) / 600.f / 192.f;
+  rbv += static_cast<float>((ms.y-VideoCY)) * (OptMsSens+64) / 600.f / 192.f;
 //  if (KeyFlags & kfStrafe)
-//    SSpeed+= (float)rav * 10;
+//    SSpeed+= static_cast<float>(rav) * 10;
 //  else
     PlayerAlpha += rav;
   PlayerBeta  += rbv;
@@ -1903,7 +1903,7 @@ void ProcessPlayerMovement()
   // framerate-independent. Replaces the old per-frame `/(2 + TimeDt/20)`
   // which was much stronger at low FPS and made the look sluggish on slow
   // frames.
-  float decay = expf(-(float)TimeDt / 10.0f);
+  float decay = expf(-static_cast<float>(TimeDt) / 10.0f);
   rav *= decay;
   rbv *= decay;
   ResetMousePos();
@@ -2020,7 +2020,7 @@ void ProcessPlayerMovement()
   if (KeyFlags & kfJump)
     if (YSpeed == 0 && !SWIM)
     {
-      YSpeed = 600 + (float)fabs(VSpeed) * 600;
+      YSpeed = 600 + static_cast<float>(fabs(VSpeed)) * 600;
       AddVoicev(fxJump.length, fxJump.lpData, 256);
     }
 
@@ -2032,10 +2032,10 @@ void ProcessPlayerMovement()
 
 //========= movement ==========//
 
-  ca = (float)cos(PlayerAlpha);
-  sa = (float)sin(PlayerAlpha);
-  cb = (float)cos(PlayerBeta);
-  sb = (float)sin(PlayerBeta);
+  ca = static_cast<float>(cos(PlayerAlpha));
+  sa = static_cast<float>(sin(PlayerAlpha));
+  cb = static_cast<float>(cos(PlayerBeta));
+  sb = static_cast<float>(sin(PlayerBeta));
 
   nv.x=sa;
   nv.y=0;
@@ -2058,13 +2058,13 @@ void ProcessPlayerMovement()
   }
 
   Vector3d sv = nv;
-  nv.x*=(float)TimeDt*VSpeed;
-  nv.y*=(float)TimeDt*VSpeed;
-  nv.z*=(float)TimeDt*VSpeed;
+  nv.x*=static_cast<float>(TimeDt)*VSpeed;
+  nv.y*=static_cast<float>(TimeDt)*VSpeed;
+  nv.z*=static_cast<float>(TimeDt)*VSpeed;
 
-  sv.x*=(float)TimeDt*SSpeed;
+  sv.x*=static_cast<float>(TimeDt)*SSpeed;
   sv.y=0;
-  sv.z*=(float)TimeDt*SSpeed;
+  sv.z*=static_cast<float>(TimeDt)*SSpeed;
 
   if (!TrophyMode)
   {
@@ -2176,23 +2176,22 @@ void ProcessDemoMovement()
 
   if (DemoPoint.DemoTime == 1)
   {
-    DeltaFunc(CameraX, DemoPoint.pos.x, (float)fabs(nv.x) * TimeDt * 3.f);
-    DeltaFunc(CameraZ, DemoPoint.pos.z, (float)fabs(nv.z) * TimeDt * 3.f);
+    DeltaFunc(CameraX, DemoPoint.pos.x, static_cast<float>(fabs(nv.x)) * TimeDt * 3.f);
+    DeltaFunc(CameraZ, DemoPoint.pos.z, static_cast<float>(fabs(nv.z)) * TimeDt * 3.f);
   }
   else
   {
     DemoPoint.DemoTime+=TimeDt;
     CameraAlpha+=TimeDt / 1224.f;
-    ca = (float)cos(CameraAlpha);
-    sa = (float)sin(CameraAlpha);
+    ca = static_cast<float>(cos(CameraAlpha));
+    sa = static_cast<float>(sin(CameraAlpha));
     //float k = (base - l) / 350.f;
-    DeltaFunc(CameraX, DemoPoint.pos.x  - sa * base, (float)TimeDt );
-    DeltaFunc(CameraZ, DemoPoint.pos.z  + ca * base, (float)TimeDt );
+    DeltaFunc(CameraX, DemoPoint.pos.x  - sa * base, static_cast<float>(TimeDt) );
+    DeltaFunc(CameraZ, DemoPoint.pos.z  + ca * base, static_cast<float>(TimeDt) );
   }
 
-  float b = FindVectorAlpha( (float)
-                             sqrt ( (DemoPoint.pos.x - CameraX)*(DemoPoint.pos.x - CameraX) +
-                                    (DemoPoint.pos.z - CameraZ)*(DemoPoint.pos.z - CameraZ) ),
+  float b = FindVectorAlpha( static_cast<float>(sqrt ( (DemoPoint.pos.x - CameraX)*(DemoPoint.pos.x - CameraX) +
+                                    (DemoPoint.pos.z - CameraZ)*(DemoPoint.pos.z - CameraZ) )),
                              DemoPoint.pos.y - CameraY - 400.f);
   if (b>pi) b = b - 2*pi;
   DeltaFunc(CameraBeta, -b, TimeDt / 4000.f);
@@ -2248,7 +2247,7 @@ void ProcessControls()
 
   }
 
-  DeltaT = (float)TimeDt / 1000.f;
+  DeltaT = static_cast<float>(TimeDt) / 1000.f;
 
   if ( DemoPoint.DemoTime) ProcessDemoMovement();
   if (!DemoPoint.DemoTime) ProcessPlayerMovement();
@@ -2259,7 +2258,7 @@ void ProcessControls()
   HeadBeta =-HeadBackR / 10000;
   if (HeadBackR)
   {
-    HeadBackR-=DeltaT*(80 + (32-(float)fabs(HeadBackR - 32))*4);
+    HeadBackR-=DeltaT*(80 + (32-static_cast<float>(fabs(HeadBackR - 32)))*4);
     if (HeadBackR<=0)
     {
       HeadBackR = 0;
@@ -2338,8 +2337,8 @@ SKIPYMOVE:
 
   float _s = stepdy;
 
-  if (SWIM) stepdy = (float)sin((float)RealTime / 360) * 20;
-  else stepdy = (float)MIN(1.f,fabs(VSpeed) + (float)fabs(SSpeed)) * (float)sin((float)RealTime / 80.f) * 22.f;
+  if (SWIM) stepdy = static_cast<float>(sin(static_cast<float>(RealTime) / 360)) * 20;
+  else stepdy = static_cast<float>(MIN(1.f,fabs(VSpeed) + static_cast<float>(fabs(SSpeed)))) * static_cast<float>(sin(static_cast<float>(RealTime) / 80.f)) * 22.f;
   float d = stepdy - _s;
 
   if (!UNDERWATER)
@@ -2349,11 +2348,11 @@ SKIPYMOVE:
         {
           AddWCircle(CameraX, CameraZ, 1.2);
           AddVoicev(fxStepW[(RealTime % 3)].length,
-                    fxStepW[(RealTime % 3)].lpData, 64+(int)(VSpeed*30.f));
+                    fxStepW[(RealTime % 3)].lpData, 64+static_cast<int>((VSpeed*30.f)));
         }
         else
           AddVoicev(fxStep[(RealTime % 3)].length,
-                    fxStep[(RealTime % 3)].lpData, 24+(int)(VSpeed*50.f));
+                    fxStep[(RealTime % 3)].lpData, 24+static_cast<int>((VSpeed*50.f)));
   stepdd = d;
 
   if (PlayerBeta> 1.46f) {
@@ -2401,12 +2400,12 @@ SKIPYMOVE:
     // 16:9 it's 1.333, at 21:9 it's 1.75. Floor at 1.0 so a taller
     // screen never shrinks the cull distance. C1 has the same logic
     // here and at the binocular near-model site in InsertModelList.
-    float aspectScale = ((float)WinW / (float)WinH) / (4.0f / 3.0f);
+    float aspectScale = (static_cast<float>(WinW) / static_cast<float>(WinH)) / (4.0f / 3.0f);
     if (aspectScale < 1.0f) aspectScale = 1.0f;
     if (sb<0) BackViewR = (320.f - 1024.f * sb) * aspectScale;
     else BackViewR = (320.f + 512.f * sb) * aspectScale;
-    BackViewRR = (int)((380 + (int)(1024 * fabs(sb))) * aspectScale);
-    if (UNDERWATER) BackViewR -= 512.f * (float)MIN(0,sb) * aspectScale;
+    BackViewRR = static_cast<int>(((380 + static_cast<int>((1024 * fabs(sb)))) * aspectScale));
+    if (UNDERWATER) BackViewR -= 512.f * static_cast<float>(MIN(0,sb)) * aspectScale;
   }
   else
   {
@@ -2466,21 +2465,21 @@ SKIPYMOVE:
 		// (drives vertical FOV) and the wobble terms add to it. C1 uses
 		// VideoCY for the base too, so the underwater H-FOV matches
 		// above-water H-FOV (i.e. the wobble affects both axes equally).
-		CameraH = (float)VideoCY * (FovScaleFromDegrees(OptFov) + (1.f + (float)sin(RealTime / 180.f)) / 30 - (1.f - (float)sin(UnderWaterT / 512.f*pi / 2)) / 16.f);
-		CameraW = (float)VideoCY * (FovScaleFromDegrees(OptFov) + (1.f + (float)cos(RealTime / 180.f)) / 30 + (1.f - (float)sin(UnderWaterT / 512.f*pi / 2)) / 1.5f);
+		CameraH = static_cast<float>(VideoCY) * (FovScaleFromDegrees(OptFov) + (1.f + static_cast<float>(sin(RealTime / 180.f))) / 30 - (1.f - static_cast<float>(sin(UnderWaterT / 512.f*pi / 2))) / 16.f);
+		CameraW = static_cast<float>(VideoCY) * (FovScaleFromDegrees(OptFov) + (1.f + static_cast<float>(cos(RealTime / 180.f))) / 30 + (1.f - static_cast<float>(sin(UnderWaterT / 512.f*pi / 2))) / 1.5f);
 		// Keep square pixels (see SetVideoMode comment).
 		// The old C2 ME code dropped the *1.25f from C1 and used
 		// VideoCX (a horizontal term) which made the underwater effect
 		// aspect-dependent in confusing ways. Mirroring C1's structure
 		// here keeps the underwater camera consistent across resolutions.
 
-		CameraAlpha += (float)cos(RealTime / 360.f) / 120;
-		CameraBeta += (float)sin(RealTime / 360.f) / 100;
-		CameraY -= (float)sin(RealTime / 360.f) * 4;
+		CameraAlpha += static_cast<float>(cos(RealTime / 360.f)) / 120;
+		CameraBeta += static_cast<float>(sin(RealTime / 360.f)) / 100;
+		CameraY -= static_cast<float>(sin(RealTime / 360.f)) * 4;
 	  }
 
-	int w = WMap[(((int)(CameraZ))>>8) ][ (((int)(CameraX))>>8) ];
-    FogsList[127].YBegin = (float)WaterList[w].wlevel;
+	int w = WMap[((static_cast<int>((CameraZ)))>>8) ][ ((static_cast<int>((CameraX)))>>8) ];
+    FogsList[127].YBegin = static_cast<float>(WaterList[w].wlevel);
     FogsList[127].fogRGB = WaterList[w].fogRGB;
   }
   else
@@ -2490,7 +2489,7 @@ SKIPYMOVE:
     // SetVideoMode() formula so the per-frame camera matches the
     // startup camera, with no drift between SetVideoMode and the
     // per-frame reset.
-    CameraH = (float)VideoCY * FovScaleFromDegrees(OptFov);
+    CameraH = static_cast<float>(VideoCY) * FovScaleFromDegrees(OptFov);
     CameraW = CameraH;
   }
 
@@ -2514,20 +2513,20 @@ SKIPYMOVE:
   // tied to the previous CameraW = VideoCX*1.25f formula and gave
   // FOVK = 1.0 at 4:3; the new projection is calibrated by V-FOV
   // instead, so the 1.25f no longer applies.
-  FOVK = CameraW / (float)VideoCX;
+  FOVK = CameraW / static_cast<float>(VideoCX);
 
   InitClips();
 
   if (SWIM)
   {
     if (!(Takt & 31)) AddWCircle(CameraX, CameraZ, 1.5);
-    CameraBeta -=(float)cos(RealTime/360.f) / 80;
+    CameraBeta -=static_cast<float>(cos(RealTime/360.f)) / 80;
     PlayerX+=DeltaT*32;
     PlayerZ+=DeltaT*32;
   }
 
 
-  CameraFogI = FogsMap [((int)CameraZ)>>9][((int)CameraX)>>9];
+  CameraFogI = FogsMap [(static_cast<int>(CameraZ))>>9][(static_cast<int>(CameraX))>>9];
   if (UNDERWATER) CameraFogI=127;
   if (FogsList[CameraFogI].YBegin*ctHScale> CameraY)
     CAMERAINFOG = (CameraFogI>0);
@@ -2544,7 +2543,7 @@ SKIPYMOVE:
           AddDeadBody(nullptr, HUNT_EAT, TRUE);
       }
 
-  int CameraAmb = AmbMap [((int)CameraZ)>>9][((int)CameraX)>>9];
+  int CameraAmb = AmbMap [(static_cast<int>(CameraZ))>>9][(static_cast<int>(CameraX))>>9];
 
 
   if (UNDERWATER)
@@ -2669,10 +2668,10 @@ void ProcessGame()
 	PrintLog("\n");
 
 	byte tdata[4];
-	tdata[0] = (int)((long_data >> 24) & 0xFF);
-	tdata[1] = (int)((long_data >> 16) & 0xFF);
-	tdata[2] = (int)((long_data >> 8) & 0XFF);
-	tdata[3] = (int)((long_data & 0XFF));
+	tdata[0] = static_cast<int>(((long_data >> 24) & 0xFF));
+	tdata[1] = static_cast<int>(((long_data >> 16) & 0xFF));
+	tdata[2] = static_cast<int>(((long_data >> 8) & 0XFF));
+	tdata[3] = static_cast<int>(((long_data & 0XFF)));
 
 	const char *p = reinterpret_cast<const char*>(tdata);
 	const byte *tdata2 = reinterpret_cast<const byte*>(p);

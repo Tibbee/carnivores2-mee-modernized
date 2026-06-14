@@ -159,7 +159,7 @@ int GetFogIndexForMapPoint(int mapX, int mapY)
 Vector2df DecodeLegacyFaceUV(float tx, float ty, int texHeight)
 {
     // fp_conv() already converted int pixel coords to float for non-soft builds.
-    // For GL (non-d3d), fp_conv does: f = (float)i — raw pixel coords.
+    // For GL (non-d3d), fp_conv does: f = static_cast<float>(i) — raw pixel coords.
     // Normalize to [0,1] by dividing by texture dimensions.
     const float h = static_cast<float>((texHeight > 1) ? texHeight : 1);
     return {
@@ -1679,7 +1679,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
     pos = RotateVector(pos);
     GlassL = 0;
     if (zs > 256 * (ctViewR - 4))
-        GlassL = min(255, (int)(zs / 4 - 64 * (ctViewR - 4)));
+        GlassL = min(255, static_cast<int>((zs / 4 - 64 * (ctViewR - 4))));
     if (GlassL == 255) {
         return;
     }
@@ -2088,8 +2088,8 @@ void GLRenderer::RenderElements()
             if (fabs(rpos.x) > -rpos.z) continue;
             if (fabs(rpos.y) > -rpos.z) continue;
 
-            float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.0f;
-            float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.0f;
+            float sx = VideoCX - static_cast<int>((CameraW * rpos.x / rpos.z * 16)) / 16.0f;
+            float sy = VideoCY + static_cast<int>((CameraH * rpos.y / rpos.z * 16)) / 16.0f;
             RenderCircle(sx, sy, rpos.z, -r * CameraW * 0.64f / rpos.z,
                          fogRGBA, fogRGBA2);
         }
@@ -2125,8 +2125,8 @@ void GLRenderer::RenderElements()
         if (fabs(rpos.x) > -rpos.z) continue;
         if (fabs(rpos.y) > -rpos.z) continue;
 
-        float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.0f;
-        float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.0f;
+        float sx = VideoCX - static_cast<int>((CameraW * rpos.x / rpos.z * 16)) / 16.0f;
+        float sy = VideoCY + static_cast<int>((CameraH * rpos.y / rpos.z * 16)) / 16.0f;
 
         RenderCircle(sx, sy, rpos.z, -12.0f * CameraW * 0.64f / rpos.z,
                      fogCenter, fogEdge);
@@ -2165,8 +2165,8 @@ void GLRenderer::RenderElements()
             if (fabs(rpos.x) > -rpos.z) continue;
             if (fabs(rpos.y) > -rpos.z) continue;
 
-            float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.0f;
-            float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.0f;
+            float sx = VideoCX - static_cast<int>((CameraW * rpos.x / rpos.z * 16)) / 16.0f;
+            float sy = VideoCY + static_cast<int>((CameraH * rpos.y / rpos.z * 16)) / 16.0f;
 
             RenderCircle(sx, sy, rpos.z,
                          -8.0f * CameraW * 0.64f / rpos.z * SnowInfo[st].snow_rad,
@@ -3885,7 +3885,7 @@ void GLRenderer::EnsureUITexture()
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, WinW, WinH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     m_uiTextureWidth = WinW;
     m_uiTextureHeight = WinH;
-    m_uiPixels.assign((size_t)WinW * WinH, 0);
+    m_uiPixels.assign(static_cast<size_t>(WinW) * WinH, 0);
 }
 
 void GLRenderer::UpdateUIPixels()
@@ -3938,7 +3938,7 @@ void GLRenderer::DrawPicture(int x, int y, TPicture& pic)
 {
     if (!pic.lpImage || pic.W <= 0 || pic.H <= 0 || !lpVideoBuf) return;
 
-    WORD* dst = (WORD*)lpVideoBuf;
+    WORD* dst = static_cast<WORD*>(lpVideoBuf);
     for (int yy = 0; yy < pic.H; yy++) {
         int dstY = yy + y;
         if (dstY < 0 || dstY >= WinH) continue;
@@ -3960,7 +3960,7 @@ void GLRenderer::DrawScaledPicture(int x, int y, int w, int h, TPicture& pic)
 {
     if (!pic.lpImage || pic.W <= 0 || pic.H <= 0 || !lpVideoBuf) return;
 
-    WORD* dst = (WORD*)lpVideoBuf;
+    WORD* dst = static_cast<WORD*>(lpVideoBuf);
     for (int yy = 0; yy < h; yy++) {
         int dstY = yy + y;
         if (dstY < 0 || dstY >= WinH) continue;
@@ -4012,10 +4012,10 @@ void GLRenderer::DrawTrophyText(int x, int y)
 
     if (!hdcCMain || !hbmpVideoBuf || !lpVideoBuf) return;
 
-    HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
+    HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
     SetBkMode(hdcCMain, TRANSPARENT);
     HFONT oldFont = nullptr;
-    if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
+    if (fnt_Small) oldFont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
 
     int dtype = TrophyDisplayBody.ctype;
     int time  = TrophyDisplayBody.time;
@@ -4033,15 +4033,15 @@ void GLRenderer::DrawTrophyText(int x, int y)
 
     auto textOut = [&](int px, int py, const char* str, int color) {
         SetTextColor(hdcCMain, 0x00101010);
-        TextOut(hdcCMain, px + 1, py + 1, str, (int)strlen(str));
+        TextOut(hdcCMain, px + 1, py + 1, str, static_cast<int>(strlen(str)));
         SetTextColor(hdcCMain, color);
-        TextOut(hdcCMain, px, py, str, (int)strlen(str));
+        TextOut(hdcCMain, px, py, str, static_cast<int>(strlen(str)));
     };
 
     SIZE sz;
     auto drawLine = [&](const char* label, const char* value, int color) {
         textOut(tx, ty, label, color);
-        GetTextExtentPoint32(hdcCMain, label, (int)strlen(label), &sz);
+        GetTextExtentPoint32(hdcCMain, label, static_cast<int>(strlen(label)), &sz);
         int lw = sz.cx;
         textOut(tx + lw, ty, value, 0x0000BFBF);
         ty += lineStep;
@@ -4100,23 +4100,23 @@ void GLRenderer::Render_LifeInfo(int index)
     if (!hdcCMain || !hbmpVideoBuf || !lpVideoBuf) return;
     if (index < 0 || index >= ChCount) return;
 
-    HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
+    HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
     SetBkMode(hdcCMain, TRANSPARENT);
     HFONT oldFont = nullptr;
-    if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
+    if (fnt_Small) oldFont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
 
     int ctype = Characters[index].CType;
     float scale = Characters[index].scale;
     char t[32];
 
     int x = VideoCX + WinW / 64;
-    int y = VideoCY + (int)(WinH / 6.8);
+    int y = VideoCY + static_cast<int>((WinH / 6.8));
 
     auto textOut = [&](int px, int py, const char* str, int color) {
         SetTextColor(hdcCMain, 0x00000000);
-        TextOut(hdcCMain, px + 1, py + 1, str, (int)strlen(str));
+        TextOut(hdcCMain, px + 1, py + 1, str, static_cast<int>(strlen(str)));
         SetTextColor(hdcCMain, color);
-        TextOut(hdcCMain, px, py, str, (int)strlen(str));
+        TextOut(hdcCMain, px, py, str, static_cast<int>(strlen(str)));
     };
 
     textOut(x, y, DinoInfo[ctype].Name, 0x0000b000);
@@ -4125,7 +4125,7 @@ void GLRenderer::Render_LifeInfo(int index)
     else        sprintf(t, "Weight: %3.2fT ", DinoInfo[ctype].Mass * scale * scale);
     textOut(x, y + 16, t, 0x0000b000);
 
-    int R = (int)(VectorLength(SubVectors(Characters[index].pos, PlayerPos)) * 3 / 64.0f);
+    int R = static_cast<int>((VectorLength(SubVectors(Characters[index].pos, PlayerPos)) * 3 / 64.0f));
     if (OptSys) sprintf(t, "Distance: %dft ", R);
     else        sprintf(t, "Distance: %dm  ", R / 3);
     textOut(x, y + 32, t, 0x0000b000);

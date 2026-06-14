@@ -262,7 +262,7 @@ void InitAudioSystem(HWND hw, HANDLE hlog, int driver)
     for (int i = 0; i < MAX_CHANNEL; i++) {
         AL_CHECK(alGenSources(1, &channel[i].source));
         alSourcef(channel[i].source, AL_ROLLOFF_FACTOR, 0.418f);
-        alSourcef(channel[i].source, AL_REFERENCE_DISTANCE, (float)MIN_RADIUS);
+        alSourcef(channel[i].source, AL_REFERENCE_DISTANCE, static_cast<float>(MIN_RADIUS));
         alSourcef(channel[i].source, AL_MAX_DISTANCE, 10000.0f);
     }
 
@@ -281,7 +281,7 @@ void InitAudioSystem(HWND hw, HANDLE hlog, int driver)
     AL_CHECK(alGenSources(1, &mambient.source));
     alSourcei(mambient.source, AL_LOOPING, AL_TRUE);
     alSourcef(mambient.source, AL_ROLLOFF_FACTOR, 0.418f);
-    alSourcef(mambient.source, AL_REFERENCE_DISTANCE, (float)MIN_RADIUS);
+    alSourcef(mambient.source, AL_REFERENCE_DISTANCE, static_cast<float>(MIN_RADIUS));
     alSourcef(mambient.source, AL_MAX_DISTANCE, 10000.0f);
 
     // ── EFX effect + slot (created once, updated on SetEnvironment) ──
@@ -451,9 +451,9 @@ void AudioSetCameraPos(float cx, float cy, float cz, float ca, float cb)
 
     if (!iSoundActive) return;
 
-    xCamera = (int)cx;
-    yCamera = (int)cy;
-    zCamera = (int)cz;
+    xCamera = static_cast<int>(cx);
+    yCamera = static_cast<int>(cy);
+    zCamera = static_cast<int>(cz);
     alphaCamera = ca;
     betaCamera  = cb;
 
@@ -661,7 +661,7 @@ void Audio_SetEnvironment(int e, float f)
     {
         char buf[128];
         wsprintfA(buf, "Audio_SetEnvironment: env=%d gain=100 decay=%d decayHF=%d diff=%d reverblevel=%d\n",
-                  e, (int)(env->decay*10), (int)(env->decayHF*100), (int)(env->diffusion*100), env->reverb);
+                  e, static_cast<int>((env->decay*10)), static_cast<int>((env->decayHF*100)), static_cast<int>((env->diffusion*100)), env->reverb);
         PrintLog(buf);
     }
 

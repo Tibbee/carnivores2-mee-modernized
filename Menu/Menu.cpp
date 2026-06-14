@@ -132,10 +132,10 @@ void AcceptNewKey()
 						if (*((uint32_t*)(&g_Options.KeyMap) + t) == k)
 							*((uint32_t*)(&g_Options.KeyMap) + t) = 0;
 
-					*((int*)(&g_Options.KeyMap) + g_WaitKey) = k;
+					*(reinterpret_cast<int*>((&g_Options.KeyMap)) + g_WaitKey) = k;
 
 #ifdef _DEBUG
-					std::cout << "AcceptNewKey() : " << ((int)k) << " MapVK: " << (MapVKKey(k)) << std::endl;
+					std::cout << "AcceptNewKey() : " << (static_cast<int>(k)) << " MapVK: " << (MapVKKey(k)) << std::endl;
 #endif //_DEBUG
 
 					WaitForMouseRelease();
@@ -323,7 +323,7 @@ void AudioSoftThread()
 			break;
 		}
 
-	if (waveOutOpen(&hwo, device, &wfx, 0, (DWORD_PTR)&WaveOutProc, CALLBACK_FUNCTION | WAVE_FORMAT_QUERY) != MMSYSERR_NOERROR)
+	if (waveOutOpen(&hwo, device, &wfx, 0, reinterpret_cast<DWORD_PTR>(&WaveOutProc), CALLBACK_FUNCTION | WAVE_FORMAT_QUERY) != MMSYSERR_NOERROR)
 	{
 		std::cout << "Audio: Failed to open WaveOut device!" << std::endl;
 		return;
@@ -535,7 +535,7 @@ void InitInterface()
 void ShutdownInterface()
 {
 	if (bmpMain)
-		DeleteObject((HBITMAP)bmpMain);
+		DeleteObject(reinterpret_cast<HBITMAP>(bmpMain));
 	if (hdcCMain)
 		DeleteDC(hdcCMain);
 
@@ -590,10 +590,10 @@ void DrawProgressBar(int x, int y, float l)
 	_Line(hdcCMain, x + W * 3 / 4, y - 8, x + W * 3 / 4, y);
 
 	W -= 2;
-	PatBlt(hdcCMain, x + 2, y - 5, (int)(W * l / 2.f), 4, PATCOPY);
+	PatBlt(hdcCMain, x + 2, y - 5, static_cast<int>((W * l / 2.f)), 4, PATCOPY);
 
 	SelectObject(hdcCMain, wb);
-	PatBlt(hdcCMain, x + 1, y - 6, (int)(W * l / 2.f), 4, PATCOPY);
+	PatBlt(hdcCMain, x + 1, y - 6, static_cast<int>((W * l / 2.f)), 4, PATCOPY);
 
 
 	SelectObject(hdcCMain, oldpen);
@@ -622,7 +622,7 @@ void DrawSliderBar(int x, int y, int w, float v, int slider_rgb = RGB(239, 228, 
 	if (v > 1.0f)
 		v = 1.0f;
 
-	int xs = (int)(x + ((w - 2) * v));
+	int xs = static_cast<int>((x + ((w - 2) * v)));
 
 	//HPEN wp = CreatePen(PS_SOLID, 0, 0x009F9F9F);
 
@@ -798,7 +798,7 @@ void InterfaceSetFont(HFONT font)
 		SelectObject(hdcCMain, hfntOld);
 	}
 	else {
-		hfntOld = (HFONT)SelectObject(hdcCMain, font);
+		hfntOld = reinterpret_cast<HFONT>(SelectObject(hdcCMain, font));
 	}
 }
 
@@ -806,8 +806,8 @@ void InterfaceSetFont(HFONT font)
 void InterfaceClear(WORD Color)
 {
 	memset(lpVideoBuf, 0, (800 * 2) * 600);
-	hbmpOld = (HBITMAP)SelectObject(hdcCMain, bmpMain);
-	hfntOld = (HFONT)SelectObject(hdcCMain, fnt_Small);
+	hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, bmpMain));
+	hfntOld = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
 }
 
 
@@ -853,9 +853,9 @@ void MenuEventStart(int32_t menu_state)
 			if (!fs.is_open()) { continue; }
 
 			fs.read(tname, 128);
-			fs.read((char*)&g_Profiles[i].m_RegNumber, 4);
-			fs.read((char*)&g_Profiles[i].m_Score, 4);
-			fs.read((char*)&g_Profiles[i].m_Rank, 4);
+			fs.read(reinterpret_cast<char*>(&g_Profiles[i].m_RegNumber), 4);
+			fs.read(reinterpret_cast<char*>(&g_Profiles[i].m_Score), 4);
+			fs.read(reinterpret_cast<char*>(&g_Profiles[i].m_Rank), 4);
 
 			g_Profiles[i].m_Name = tname;
 		}
@@ -1065,7 +1065,7 @@ void LoadGameMenu(int32_t menu)
 	if (!mf_map.empty()) {
 		std::ifstream fs(mf_map, std::ios::binary);
 		if (fs.is_open())
-			fs.read((char*)g_MenuItem.m_Image_Map, 400 * 300);
+			fs.read(reinterpret_cast<char*>(g_MenuItem.m_Image_Map), 400 * 300);
 	}
 	else {
 		memset(g_MenuItem.m_Image_Map, 0, 400 * 300);
@@ -1114,8 +1114,8 @@ void DrawMenuStatistics()
 	int c = RGB(239, 228, 176);
 
 	InterfaceSetFont(fnt_Midd);
-	int  ttm = (int)g_UserProfile.Total.time;
-	int  ltm = (int)g_UserProfile.Last.time;
+	int  ttm = static_cast<int>(g_UserProfile.Total.time);
+	int  ltm = static_cast<int>(g_UserProfile.Last.time);
 
 	DrawTextShadow(rc.left + 4, 78, "Path travelled  ", c);
 
@@ -1180,7 +1180,7 @@ void DrawMenuStatistics()
 
 	accuracy = 0;
 	if (g_UserProfile.Total.success > 0 && g_UserProfile.Total.smade > 0)
-		accuracy = static_cast<int>((float)((float)g_UserProfile.Total.success / (float)g_UserProfile.Total.smade) * 100.f);
+		accuracy = static_cast<int>(static_cast<float>((static_cast<float>(g_UserProfile.Total.success) / static_cast<float>(g_UserProfile.Total.smade))) * 100.f);
 
 	DrawTextShadow(rc.left + 4, 268, "Accuracy  ", c);
 	ss << accuracy << "%";
@@ -1643,25 +1643,25 @@ void MenuEventInput(int32_t menu)
 							//int w = (menu.Rect.right - menu.Rect.left) - menu.Padding;
 							int x1 = menu.Rect.right - menu.Padding;
 							int tbw = ((menu.Rect.right - menu.Rect.left) / 2) - menu.Padding;
-							float v = (float)(g_CursorPos.x - (x1 - tbw)) / (float)tbw;
+							float v = static_cast<float>((g_CursorPos.x - (x1 - tbw))) / static_cast<float>(tbw);
 
 							mo.Selected = mo.Hilite;
 
 							if (mo.Hilite == 0)
 							{
-								g_Options.Aggression = (int)(v * 255.f);
+								g_Options.Aggression = static_cast<int>((v * 255.f));
 							}
 							else if (mo.Hilite == 1)
 							{
-								g_Options.Density = (int)(v * 255.f);
+								g_Options.Density = static_cast<int>((v * 255.f));
 							}
 							else if (mo.Hilite == 2)
 							{
-								g_Options.Sensitivity = (int)(v * 255.f);
+								g_Options.Sensitivity = static_cast<int>((v * 255.f));
 							}
 							else if (mo.Hilite == 3)
 							{
-								g_Options.ViewRange = (int)(v * 255.f);
+								g_Options.ViewRange = static_cast<int>((v * 255.f));
 							}
 							else if (mo.Hilite == 4) // Metric or Imperial(US)
 							{
@@ -1679,7 +1679,7 @@ void MenuEventInput(int32_t menu)
 							//int w = (menu.Rect.right - menu.Rect.left) - menu.Padding;
 							int x1 = menu.Rect.right - menu.Padding;
 							int tbw = ((menu.Rect.right - menu.Rect.left) / 2) - menu.Padding;
-							float v = (float)(g_CursorPos.x - (x1 - tbw)) / (float)tbw;
+							float v = static_cast<float>((g_CursorPos.x - (x1 - tbw))) / static_cast<float>(tbw);
 
 							mo.Selected = mo.Hilite;
 
@@ -1695,7 +1695,7 @@ void MenuEventInput(int32_t menu)
 							}
 							else if (static_cast<int>(mo.Hilite) == MenuOptions[OPT_KEYBINDINGS].Item.size() - 1) // Mouse Sensitivty Slider
 							{
-								g_Options.MouseSensitivity = (int)(v * 255.f);
+								g_Options.MouseSensitivity = static_cast<int>((v * 255.f));
 							}
 						}
 						else if (m == OPT_VIDEO) { // Left Click
@@ -1703,7 +1703,7 @@ void MenuEventInput(int32_t menu)
 							//int w = (menu.Rect.right - menu.Rect.left) - menu.Padding;
 							int x1 = menu.Rect.right - menu.Padding;
 							int tbw = ((menu.Rect.right - menu.Rect.left) / 2) - menu.Padding;
-							float v = (float)(g_CursorPos.x - (x1 - tbw)) / (float)tbw;
+							float v = static_cast<float>((g_CursorPos.x - (x1 - tbw))) / static_cast<float>(tbw);
 
 							mo.Selected = mo.Hilite;
 							if (mo.Hilite == 0)
@@ -1749,11 +1749,11 @@ void MenuEventInput(int32_t menu)
 							}
 							else if (mo.Hilite == 6) // Brightness
 							{
-								g_Options.Brightness = (int)(v * 255.f);
+								g_Options.Brightness = static_cast<int>((v * 255.f));
 							}
 							else if (mo.Hilite == 7) // Field of View
 							{
-								int fov = kFovMin + (int)(v * (float)(kFovMax - kFovMin));
+								int fov = kFovMin + static_cast<int>((v * static_cast<float>((kFovMax - kFovMin))));
 								fov = kFovMin + ((fov - kFovMin) / kFovStep) * kFovStep;
 								if (fov < kFovMin) fov = kFovMin;
 								if (fov > kFovMax) fov = kFovMax;
@@ -2154,10 +2154,10 @@ void DrawMenuOptions()
 
 		DrawTextShadow(x0, y0, menu.Item[i].first, c);
 
-		if (i == 0) DrawSliderBar(x1 - tbw, y0 + 12, tbw, (float)g_Options.Aggression / 255.0f, label_c);
-		if (i == 1) DrawSliderBar(x1 - tbw, y0 + 12, tbw, (float)g_Options.Density / 255.0f, label_c);
-		if (i == 2) DrawSliderBar(x1 - tbw, y0 + 12, tbw, (float)g_Options.Sensitivity / 255.0f, label_c);
-		if (i == 3) DrawSliderBar(x1 - tbw, y0 + 12, tbw, (float)g_Options.ViewRange / 255.0f, label_c);
+		if (i == 0) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.Aggression) / 255.0f, label_c);
+		if (i == 1) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.Density) / 255.0f, label_c);
+		if (i == 2) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.Sensitivity) / 255.0f, label_c);
+		if (i == 3) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.ViewRange) / 255.0f, label_c);
 		if (i == 4) DrawTextShadow(x1, y0, st_UnitText[g_Options.OptSys], value_c, DTA_RIGHT);
 		if (i == 5) DrawTextShadow(x1, y0, st_AudText[NormalizeAudioBackend(g_Options.SoundAPI)], value_c, DTA_RIGHT);
 	}
@@ -2185,9 +2185,9 @@ void DrawMenuOptions()
 			else                DrawTextShadow(x1, y0, ss.str(), value_c, DTA_RIGHT);
 		}
 		else if (i == MenuOptions[OPT_KEYBINDINGS].Item.size() - 2)
-			DrawTextShadow(x1, y0, st_BoolText[(int)g_Options.MouseInvert], value_c, DTA_RIGHT);
+			DrawTextShadow(x1, y0, st_BoolText[static_cast<int>(g_Options.MouseInvert)], value_c, DTA_RIGHT);
 		else if (i == MenuOptions[OPT_KEYBINDINGS].Item.size() - 1)
-			DrawSliderBar(x1 - tbw, y0 + 12, tbw, (float)g_Options.MouseSensitivity / 255.0f, label_c);
+			DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.MouseSensitivity) / 255.0f, label_c);
 	}
 
 	// Video/Graphics options
@@ -2220,9 +2220,9 @@ void DrawMenuOptions()
 		else if (i == 3) DrawTextShadow(x1, y0, st_BoolText[g_Options.Fog], value_c, DTA_RIGHT);
 		else if (i == 4) DrawTextShadow(x1, y0, st_TextureText[g_Options.Textures], value_c, DTA_RIGHT);
 		else if (i == 5) DrawTextShadow(x1, y0, st_AlphaKeyText[g_Options.AlphaColorKey], value_c, DTA_RIGHT);
-		else if (i == 6) DrawSliderBar(x1 - tbw, y0 + 12, tbw, (float)g_Options.Brightness / 255.0f, label_c);
+		else if (i == 6) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.Brightness) / 255.0f, label_c);
 		else if (i == 7) {
-			float t = (float)(g_Options.FOV - kFovMin) / (float)(kFovMax - kFovMin);
+			float t = static_cast<float>((g_Options.FOV - kFovMin)) / static_cast<float>((kFovMax - kFovMin));
 			DrawSliderBar(x1 - tbw, y0 + 12, tbw, t, label_c);
 			static char fovStr[16];
 			sprintf(fovStr, "%d", g_Options.FOV);

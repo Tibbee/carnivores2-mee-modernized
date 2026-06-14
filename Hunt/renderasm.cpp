@@ -4547,17 +4547,17 @@ L39:
     imul ebx
     mov dx1,edx
   }
-  k = (float)(zdepth2 - zdepth1) / (float)(zdepth1 + zdepth2);
+  k = static_cast<float>((zdepth2 - zdepth1)) / static_cast<float>((zdepth1 + zdepth2));
 
   k = k*Soft_Persp_K;
   if (k>0.99f) k=0.99f;
   if (k<-0.99f) k= -0.99f;
 
-  ddtx1 = (int)(dtx1 * 2 * k / l1);
-  ddty1 = (int)(dty1 * 2 * k / l1);
+  ddtx1 = static_cast<int>((dtx1 * 2 * k / l1));
+  ddty1 = static_cast<int>((dty1 * 2 * k / l1));
 
-  dtx1  = (int)(dtx1 * (1-k) * 0.995);
-  dty1  = (int)(dty1 * (1-k) * 0.995);
+  dtx1  = static_cast<int>((dtx1 * (1-k) * 0.995));
+  dty1  = static_cast<int>((dty1 * (1-k) * 0.995));
 
 //;{============================================= 2->3 ===========}
 L101:
@@ -4592,16 +4592,16 @@ L101:
     mov dx2,edx
   }
 
-  k = (float)(zdepth3 - zdepth2) / (float)(zdepth2 + zdepth3 );
+  k = static_cast<float>((zdepth3 - zdepth2)) / static_cast<float>((zdepth2 + zdepth3 ));
 
   k = k*Soft_Persp_K;
   if (k>0.99f) k=0.99f;
   if (k<-0.99f) k= -0.99f;
 
-  ddtx2 = (int)(dtx2 * 2 * k / l2);
-  ddty2 = (int)(dty2 * 2 * k / l2);
-  dtx2  = (int)(dtx2 * (1-k) * 0.995);
-  dty2  = (int)(dty2 * (1-k) * 0.995);
+  ddtx2 = static_cast<int>((dtx2 * 2 * k / l2));
+  ddty2 = static_cast<int>((dty2 * 2 * k / l2));
+  dtx2  = static_cast<int>((dtx2 * (1-k) * 0.995));
+  dty2  = static_cast<int>((dty2 * (1-k) * 0.995));
 //;{============================================= 1->3 ===========}
 
 L102:
@@ -4635,15 +4635,15 @@ L102:
     imul ebx
     mov dx3,edx
   }
-  k = (float)(zdepth3 - zdepth1) / (float)(zdepth1 + zdepth3 );
+  k = static_cast<float>((zdepth3 - zdepth1)) / static_cast<float>((zdepth1 + zdepth3 ));
   k = k*Soft_Persp_K;
   if (k>0.99f) k=0.99f;
   if (k<-0.99f) k= -0.99f;
 
-  ddtx3 = (int)(dtx3 * 2 * k / l3);
-  ddty3 = (int)(dty3 * 2 * k / l3);
-  dtx3  = (int)(dtx3 * (1-k) * 0.995);
-  dty3  = (int)(dty3 * (1-k) * 0.995);
+  ddtx3 = static_cast<int>((dtx3 * 2 * k / l3));
+  ddty3 = static_cast<int>((dty3 * 2 * k / l3));
+  dtx3  = static_cast<int>((dtx3 * (1-k) * 0.995));
+  dty3  = static_cast<int>((dty3 * (1-k) * 0.995));
 
 L103:
 

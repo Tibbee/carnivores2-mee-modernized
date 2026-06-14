@@ -68,8 +68,8 @@ void PlaceHunter()
   }
 
   int p = (timeGetTime() % LandingList.PCount);
-  PlayerX = (float)LandingList.list[p].x * 256+128;
-  PlayerZ = (float)LandingList.list[p].y * 256+128;
+  PlayerX = static_cast<float>(LandingList.list[p].x) * 256+128;
+  PlayerZ = static_cast<float>(LandingList.list[p].y) * 256+128;
   PlayerY = GetLandQH(PlayerX, PlayerZ);
 }
 
@@ -113,11 +113,11 @@ void CreateFadeTab()
       int G = (c >>  5) & 31;
       int B = c & 31;
 
-      R = (int)((float)R * (l) / 60.f + (float)rand() *0.2f / RAND_MAX);
+      R = static_cast<int>((static_cast<float>(R) * (l) / 60.f + static_cast<float>(rand()) *0.2f / RAND_MAX));
       if (R>31) R=31;
-      G = (int)((float)G * (l) / 60.f + (float)rand() *0.2f / RAND_MAX);
+      G = static_cast<int>((static_cast<float>(G) * (l) / 60.f + static_cast<float>(rand()) *0.2f / RAND_MAX));
       if (G>31) G=31;
-      B = (int)((float)B * (l) / 60.f + (float)rand() *0.2f / RAND_MAX);
+      B = static_cast<int>((static_cast<float>(B) * (l) / 60.f + static_cast<float>(rand()) *0.2f / RAND_MAX));
       if (B>31) B=31;
       FadeTab[l][c] = HiColor(R, G, B);
     }
@@ -133,7 +133,7 @@ void CreateDivTable()
   DivTbl[1] = 0x7fffffff;
   DivTbl[2] = 0x7fffffff;
   for( int i = 3; i < 10240; i++ )
-    DivTbl[i] = (int) ((float)0x100000000 / i);
+    DivTbl[i] = static_cast<int>((static_cast<float>(0x100000000) / i));
 
   for (int y=0; y<32; y++)
     for (int x=0; x<32; x++)
@@ -190,26 +190,26 @@ int GetObjectH(int x, int y, int R)
   x = (x<<8) + 128;
   y = (y<<8) + 128;
   float hr,h;
-  hr =GetLandH((float)x,    (float)y);
-  h = GetLandH( (float)x+R, (float)y);
+  hr =GetLandH(static_cast<float>(x),    static_cast<float>(y));
+  h = GetLandH( static_cast<float>(x)+R, static_cast<float>(y));
   if (h < hr) hr = h;
-  h = GetLandH( (float)x-R, (float)y);
+  h = GetLandH( static_cast<float>(x)-R, static_cast<float>(y));
   if (h < hr) hr = h;
-  h = GetLandH( (float)x,   (float)y+R);
+  h = GetLandH( static_cast<float>(x),   static_cast<float>(y)+R);
   if (h < hr) hr = h;
-  h = GetLandH( (float)x,   (float)y-R);
+  h = GetLandH( static_cast<float>(x),   static_cast<float>(y)-R);
   if (h < hr) hr = h;
   hr += 15;
-  return  (int) (hr / ctHScale);
+  return  static_cast<int>((hr / ctHScale));
 }
 
 
 int GetObjectHWater(int x, int y)
 {
   if (FMap[y][x] & fmReverse)
-    return (int)(HMap[y][x+1]+HMap[y+1][x]) / 2 + 48;
+    return static_cast<int>((HMap[y][x+1]+HMap[y+1][x])) / 2 + 48;
   else
-    return (int)(HMap[y][x]+HMap[y+1][x+1]) / 2 + 48;
+    return static_cast<int>((HMap[y][x]+HMap[y+1][x+1])) / 2 + 48;
 }
 
 
@@ -675,9 +675,9 @@ void fp_conv(LPVOID d)
   float f;
   memcpy(&i, d, 4);
 #ifdef _d3d
-  f = ((float)i) / 256.f;
+  f = (static_cast<float>(i)) / 256.f;
 #else
-  f = ((float)i);
+  f = (static_cast<float>(i));
 #endif
   memcpy(d, &f, 4);
 }
@@ -749,9 +749,9 @@ void AllocateMemoryForModel(TModel* mptr) {
 	MaxObjectVCount = MAX(MaxObjectVCount, mptr->VCount);
 
 #ifdef _d3d
-	int *lightBuffer = (int*)_HeapAlloc(Heap, 0, mptr->VCount * 4 * sizeof(int));
+	int *lightBuffer = static_cast<int*>(_HeapAlloc(Heap, 0, mptr->VCount * 4 * sizeof(int)));
 #else
-	float *lightBuffer = (float*)_HeapAlloc(Heap, 0, mptr->VCount * 4 * sizeof(float));
+	float *lightBuffer = static_cast<float*>(_HeapAlloc(Heap, 0, mptr->VCount * 4 * sizeof(float)));
 #endif
 	mptr->VLight[0] = lightBuffer;
 	mptr->VLight[1] = lightBuffer + mptr->VCount;
@@ -783,7 +783,7 @@ void LoadModel(TModel* &mptr)
 
   mptr->TextureSize = mptr->TextureHeight*512;
 
-  mptr->lpTexture = (WORD*) _HeapAlloc(Heap, 0, mptr->TextureSize);
+  mptr->lpTexture = static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize));
 
   ReadFile(hfile, mptr->lpTexture, ts, &l, nullptr);
   BrightenTexture(mptr->lpTexture, ts/2);
@@ -854,7 +854,7 @@ void LoadModelEx(TModel* &mptr, char* FName)
   else  mptr->TextureHeight = mptr->TextureSize>>9;
   mptr->TextureSize = mptr->TextureHeight*512;
 
-  mptr->lpTexture = (WORD*) _HeapAlloc(Heap, 0, mptr->TextureSize);
+  mptr->lpTexture = static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize));
 
   ReadFile(hfile, mptr->lpTexture, ts, &l, nullptr);
   BrightenTexture(mptr->lpTexture, ts/2);
@@ -972,7 +972,7 @@ void LoadPicture(TPicture &pic, LPSTR pname)
 
   pic.W = bmpIH.biWidth;
   pic.H = bmpIH.biHeight;
-  pic.lpImage = (WORD*) _HeapAlloc(Heap, 0, pic.W * pic.H * 2);
+  pic.lpImage = static_cast<WORD*>(_HeapAlloc(Heap, 0, pic.W * pic.H * 2));
 
 
 
@@ -981,7 +981,7 @@ void LoadPicture(TPicture &pic, LPSTR pname)
     ReadFile( hfile, fRGB, 3*pic.W, &l, nullptr );
     for (int x=0; x<pic.W; x++)
     {
-      C = ((int)fRGB[x][2]/8<<10) + ((int)fRGB[x][1]/8<< 5) + ((int)fRGB[x][0]/8) ;
+      C = (static_cast<int>(fRGB[x][2])/8<<10) + (static_cast<int>(fRGB[x][1])/8<< 5) + (static_cast<int>(fRGB[x][0])/8) ;
       *(pic.lpImage + (pic.H-y-1)*pic.W+x) = C;
     }
   }
@@ -1018,7 +1018,7 @@ void LoadPictureTGA(TPicture &pic, LPSTR pname)
 
   pic.W = w;
   pic.H = h;
-  pic.lpImage = (WORD*) _HeapAlloc(Heap, 0, pic.W * pic.H * 2);
+  pic.lpImage = static_cast<WORD*>(_HeapAlloc(Heap, 0, pic.W * pic.H * 2));
 
   for (int y=0; y<pic.H; y++)
     ReadFile( hfile, (void*)(pic.lpImage + (pic.H-y-1)*pic.W), 2*pic.W, &l, nullptr );
@@ -1119,8 +1119,8 @@ void GetObjectCaracteristics(TModel* mptr, int& ylo, int& yhi)
   yhi =-10241024;
   for (int v=0; v<mptr->VCount; v++)
   {
-    if (mptr->gVertex[v].y < ylo) ylo = (int)mptr->gVertex[v].y;
-    if (mptr->gVertex[v].y > yhi) yhi = (int)mptr->gVertex[v].y;
+    if (mptr->gVertex[v].y < ylo) ylo = static_cast<int>(mptr->gVertex[v].y);
+    if (mptr->gVertex[v].y > yhi) yhi = static_cast<int>(mptr->gVertex[v].y);
   }
   if (yhi<ylo) yhi=ylo+1;
 }
@@ -1181,12 +1181,12 @@ void GenerateModelMipMaps(TModel *mptr)
 {
   int th = (mptr->TextureHeight) / 2;
   mptr->lpTexture2 =
-    (WORD*) _HeapAlloc(Heap, HEAP_ZERO_MEMORY, (1+th)*128*2);
+    static_cast<WORD*>(_HeapAlloc(Heap, HEAP_ZERO_MEMORY, (1+th)*128*2));
   CreateMipMapMT(mptr->lpTexture2, mptr->lpTexture, th);
 
   th = (mptr->TextureHeight) / 4;
   mptr->lpTexture3 =
-    (WORD*) _HeapAlloc(Heap, HEAP_ZERO_MEMORY, (1+th)*64*2);
+    static_cast<WORD*>(_HeapAlloc(Heap, HEAP_ZERO_MEMORY, (1+th)*64*2));
   CreateMipMapMT2(mptr->lpTexture3, mptr->lpTexture2, th);
 }
 
@@ -1215,7 +1215,7 @@ void GenerateMapImage()
 
       if (!HARD3D) c=c>>1;
       else c=conv_565(c);
-      *((WORD*)MapPic.lpImage + (y+YShift)*lsw + x + XShift) = c;
+      *(static_cast<WORD*>(MapPic.lpImage) + (y+YShift)*lsw + x + XShift) = c;
     }
 }
 
@@ -1279,8 +1279,8 @@ void ReleaseResources()
 
 void LoadBMPModel(TObject &obj)
 {
-  obj.bmpmodel.lpTexture = (WORD*) _HeapAlloc(Heap, 0, 128 * 128 * 2);
-  //WORD * lpT             = (WORD*) _HeapAlloc(Heap, 0, 256 * 256 * 2);
+  obj.bmpmodel.lpTexture = static_cast<WORD*>(_HeapAlloc(Heap, 0, 128 * 128 * 2));
+  //WORD * lpT             = static_cast<WORD*>(_HeapAlloc(Heap, 0, 256 * 256 * 2));
   //ReadFile(hfile, lpT, 256*256*2, &l, nullptr);
   //DATASHIFT(obj.bmpmodel.lpTexture, 128*128*2);
   //BrightenTexture(lpT, 256*256);
@@ -1437,8 +1437,8 @@ void LoadResources()
     MObjects[mm].info.BoundR = 0;
     for (int v=0; v<MObjects[mm].model->VCount; v++)
     {
-      float r = (float)sqrt(MObjects[mm].model->gVertex[v].x * MObjects[mm].model->gVertex[v].x +
-                            MObjects[mm].model->gVertex[v].z * MObjects[mm].model->gVertex[v].z );
+      float r = static_cast<float>(sqrt(MObjects[mm].model->gVertex[v].x * MObjects[mm].model->gVertex[v].x +
+                            MObjects[mm].model->gVertex[v].z * MObjects[mm].model->gVertex[v].z ));
       if (r>MObjects[mm].info.BoundR) MObjects[mm].info.BoundR=r;
     }
 
@@ -1947,7 +1947,7 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName)
   else  chinfo.mptr->TextureHeight = chinfo.mptr->TextureSize>>9;
   chinfo.mptr->TextureSize = chinfo.mptr->TextureHeight*512;
 
-  chinfo.mptr->lpTexture = (WORD*) _HeapAlloc(Heap, 0, chinfo.mptr->TextureSize);
+  chinfo.mptr->lpTexture = static_cast<WORD*>(_HeapAlloc(Heap, 0, chinfo.mptr->TextureSize));
 
   ReadFile(hfile, chinfo.mptr->lpTexture, ts, &l, nullptr);
   BrightenTexture(chinfo.mptr->lpTexture, ts/2);
@@ -2025,9 +2025,9 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName)
 
 void FillVector(int x, int y, Vector3d& v)
 {
-  v.x = (float)x*256;
-  v.z = (float)y*256;
-  v.y = (float)((int)HMap[y][x])*ctHScale;
+  v.x = static_cast<float>(x)*256;
+  v.z = static_cast<float>(y)*256;
+  v.y = static_cast<float>((static_cast<int>(HMap[y][x])))*ctHScale;
 }
 
 BOOL TraceVector(Vector3d v, Vector3d lv)
@@ -2065,7 +2065,7 @@ void RenderShadowCircle(int x, int y, int R, int D)
     {
       int tx = (cx+xx)*256;
       int ty = (cy+yy)*256;
-      int r = (int)sqrt( (double)((tx-x)*(tx-x) + (ty-y)*(ty-y)) );
+      int r = static_cast<int>(sqrt( static_cast<double>(((tx-x)*(tx-x) + (ty-y)*(ty-y))) ));
       if (r>R) continue;
       AddShadow(cx+xx, cy+yy, D * (R-r) / R);
     }
@@ -2137,11 +2137,11 @@ void SaveScreenShot()
 
 
   hdr.bfType = 0x4d42;
-  hdr.bfSize = (DWORD) (sizeof(BITMAPFILEHEADER) +
-                        bmi.biSize + bmi.biSizeImage);
+  hdr.bfSize = static_cast<DWORD>((sizeof(BITMAPFILEHEADER) +
+                        bmi.biSize + bmi.biSizeImage));
   hdr.bfReserved1 = 0;
   hdr.bfReserved2 = 0;
-  hdr.bfOffBits = (DWORD) sizeof(BITMAPFILEHEADER) +
+  hdr.bfOffBits = static_cast<DWORD>(sizeof(BITMAPFILEHEADER)) +
                   bmi.biSize;
 
 
@@ -2149,7 +2149,7 @@ void SaveScreenShot()
   wsprintf(t,"HUNT%004d.BMP",++_shotcounter);
   hf = CreateFile(t,
                   GENERIC_READ | GENERIC_WRITE,
-                  (DWORD) 0,
+                  static_cast<DWORD>(0),
                   (LPSECURITY_ATTRIBUTES) nullptr,
                   CREATE_ALWAYS,
                   FILE_ATTRIBUTE_NORMAL,
@@ -2157,9 +2157,9 @@ void SaveScreenShot()
 
 
 
-  WriteFile(hf, (LPVOID) &hdr, sizeof(BITMAPFILEHEADER), (LPDWORD) &dwTmp, (LPOVERLAPPED) nullptr);
+  WriteFile(hf, static_cast<LPVOID>(&hdr), sizeof(BITMAPFILEHEADER), static_cast<LPDWORD>(&dwTmp), (LPOVERLAPPED) nullptr);
 
-  WriteFile(hf, &bmi, sizeof(BITMAPINFOHEADER), (LPDWORD) &dwTmp, (LPOVERLAPPED) nullptr);
+  WriteFile(hf, &bmi, sizeof(BITMAPINFOHEADER), static_cast<LPDWORD>(&dwTmp), (LPOVERLAPPED) nullptr);
 
   byte fRGB[1024][3];
 
@@ -2167,7 +2167,7 @@ void SaveScreenShot()
   {
     for (int x=0; x<WinW; x++)
     {
-      WORD C = *((WORD*)lpVideoBuf + (WinEY-y)*VideoPitch+x);
+      WORD C = *(static_cast<WORD*>(lpVideoBuf) + (WinEY-y)*VideoPitch+x);
       fRGB[x][0] = (C       & 31)<<3;
 #if defined(_gl)
       fRGB[x][1] = ((C>> 5) & 31)<<3;
@@ -2343,7 +2343,7 @@ void ReadSpawnInfo(FILE *stream)
 		}
 		value++;
 
-		if (strstr(line, "spawnratio")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnRatio = (float)atof(value);
+		if (strstr(line, "spawnratio")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnRatio = static_cast<float>(atof(value));
 		if (strstr(line, "spawngroup")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnGroup = atoi(value);
 		//if (strstr(line, "spawnmax")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnMax = atoi(value);
 	}
@@ -2380,7 +2380,7 @@ void ReadSpawnInfoPack(FILE *stream)
 		}
 		value++;
 
-		if (strstr(line, "spawnratio")) packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnRatio = (float)atof(value);
+		if (strstr(line, "spawnratio")) packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnRatio = static_cast<float>(atof(value));
 		if (strstr(line, "spawngroup")) packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnGroup = atoi(value);
 	}
 }
@@ -2405,7 +2405,7 @@ void ReadPackMember2(FILE *stream) {
 		value++;
 
 		if (strstr(line, "group")) DinoInfo[TotalC].packMember2[DinoInfo[TotalC].packMember2Ch].packGroup = atoi(value);
-		if (strstr(line, "ratio")) DinoInfo[TotalC].packMember2[DinoInfo[TotalC].packMember2Ch].ratio = (float)atof(value);
+		if (strstr(line, "ratio")) DinoInfo[TotalC].packMember2[DinoInfo[TotalC].packMember2Ch].ratio = static_cast<float>(atof(value));
 
 	}
 }
@@ -2515,7 +2515,7 @@ void ReadSpawnTableLine(FILE *stream, char *_value, char line[256], bool &spawnO
 
 
 
-	if (strstr(line, "spawnrate")) spawnGroup[TotalSpawnGroup].SpawnRate = (float)atof(value);
+	if (strstr(line, "spawnrate")) spawnGroup[TotalSpawnGroup].SpawnRate = static_cast<float>(atof(value));
 	if (strstr(line, "spawnmax")) spawnGroup[TotalSpawnGroup].SpawnMax = atoi(value);
 	if (strstr(line, "spawnmin")) spawnGroup[TotalSpawnGroup].SpawnMin = atoi(value);
 
@@ -2748,7 +2748,7 @@ void ReadPackTableLine(FILE *stream, char *_value, char line[256], bool &spawnIO
 
 	if (strstr(line, "packMax")) packType[packTypeCount].packMax = atoi(value);
 	if (strstr(line, "packMin")) packType[packTypeCount].packMin = atoi(value);
-	if (strstr(line, "packDensity")) packType[packTypeCount].packDensity = (float)atof(value);
+	if (strstr(line, "packDensity")) packType[packTypeCount].packDensity = static_cast<float>(atof(value));
 	
 }
 
@@ -3082,22 +3082,22 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	if (strstr(line, "semiAuto")) readBool(value, WeapInfo[TotalW].semiauto);
 	if (strstr(line, "fullAuto")) readBool(value, WeapInfo[TotalW].fullauto);
 
-	if (strstr(line, "land_power"))  WeapInfo[TotalW].Power = (float)atof(value);
-	if (strstr(line, "land_veloc"))  WeapInfo[TotalW].Veloc = (float)atof(value);
-	if (strstr(line, "land_prec"))   WeapInfo[TotalW].Prec = (float)atof(value);
-	if (strstr(line, "land_fall"))   WeapInfo[TotalW].Fall = (float)atof(value);
+	if (strstr(line, "land_power"))  WeapInfo[TotalW].Power = static_cast<float>(atof(value));
+	if (strstr(line, "land_veloc"))  WeapInfo[TotalW].Veloc = static_cast<float>(atof(value));
+	if (strstr(line, "land_prec"))   WeapInfo[TotalW].Prec = static_cast<float>(atof(value));
+	if (strstr(line, "land_fall"))   WeapInfo[TotalW].Fall = static_cast<float>(atof(value));
 
-	if (strstr(line, "aqua_power"))  WeapInfo[TotalW].PowerAq = (float)atof(value);
-	if (strstr(line, "aqua_veloc"))  WeapInfo[TotalW].VelocAq = (float)atof(value);
-	if (strstr(line, "aqua_prec"))   WeapInfo[TotalW].PrecAq = (float)atof(value);
-	if (strstr(line, "aqua_fall"))   WeapInfo[TotalW].FallAq = (float)atof(value);
+	if (strstr(line, "aqua_power"))  WeapInfo[TotalW].PowerAq = static_cast<float>(atof(value));
+	if (strstr(line, "aqua_veloc"))  WeapInfo[TotalW].VelocAq = static_cast<float>(atof(value));
+	if (strstr(line, "aqua_prec"))   WeapInfo[TotalW].PrecAq = static_cast<float>(atof(value));
+	if (strstr(line, "aqua_fall"))   WeapInfo[TotalW].FallAq = static_cast<float>(atof(value));
 
-	if (strstr(line, "loud"))   WeapInfo[TotalW].Loud = (float)atof(value);
-	if (strstr(line, "rate"))   WeapInfo[TotalW].Rate = (float)atof(value);
+	if (strstr(line, "loud"))   WeapInfo[TotalW].Loud = static_cast<float>(atof(value));
+	if (strstr(line, "rate"))   WeapInfo[TotalW].Rate = static_cast<float>(atof(value));
 	if (strstr(line, "shots"))  WeapInfo[TotalW].Shots = atoi(value);
 	if (strstr(line, "reload")) WeapInfo[TotalW].Reload = atoi(value);
 	if (strstr(line, "trace"))  WeapInfo[TotalW].TraceC = atoi(value) - 1;
-	if (strstr(line, "optic"))  WeapInfo[TotalW].Optic = (float)atof(value);
+	if (strstr(line, "optic"))  WeapInfo[TotalW].Optic = static_cast<float>(atof(value));
 	//if (strstr(line, "price")) WeapInfo[TotalW].Price =        atoi(value);
 
 	if (strstr(line, "unzoom")) readBool(value, WeapInfo[TotalW].unzoom);
@@ -3109,7 +3109,7 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	if (strstr(line, "croG")) WeapInfo[TotalW].crossGreen = atoi(value);
 	if (strstr(line, "croB")) WeapInfo[TotalW].crossBlue = atoi(value);
 
-	if (strstr(line, "shake"))   WeapInfo[TotalW].shake = (float)atof(value);
+	if (strstr(line, "shake"))   WeapInfo[TotalW].shake = static_cast<float>(atof(value));
 
 	if (strstr(line, "radar")) readBool(value, WeapInfo[TotalW].onRadar);
 	if (strstr(line, "radR")) WeapInfo[TotalW].radarRed = atoi(value);
@@ -3578,7 +3578,7 @@ void ReadSpawnInfo(FILE *stream)
 			DoHalt("Script loading error");
 		value++;
 
-		if (strstr(line, "spawnrate")) Region[TotalRegion].SpawnRate = (float)atof(value);
+		if (strstr(line, "spawnrate")) Region[TotalRegion].SpawnRate = static_cast<float>(atof(value));
 		if (strstr(line, "spawnmax")) Region[TotalRegion].SpawnMax = atoi(value);
 		if (strstr(line, "spawnmin")) Region[TotalRegion].SpawnMin = atoi(value);
 
@@ -3662,18 +3662,18 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 
 	if (strstr(line, "callNo")) DinoInfo[TotalC].menuDino = atoi(value);
 
-	if (strstr(line, "mass")) DinoInfo[TotalC].Mass = (float)atof(value);
-	if (strstr(line, "length")) DinoInfo[TotalC].Length = (float)atof(value);
-	if (strstr(line, "radius")) DinoInfo[TotalC].Radius = (float)atof(value);
+	if (strstr(line, "mass")) DinoInfo[TotalC].Mass = static_cast<float>(atof(value));
+	if (strstr(line, "length")) DinoInfo[TotalC].Length = static_cast<float>(atof(value));
+	if (strstr(line, "radius")) DinoInfo[TotalC].Radius = static_cast<float>(atof(value));
 	if (strstr(line, "health")) DinoInfo[TotalC].Health0 = atoi(value);
-	if (strstr(line, "basescore")) DinoInfo[TotalC].BaseScore = (float)atof(value);
+	if (strstr(line, "basescore")) DinoInfo[TotalC].BaseScore = static_cast<float>(atof(value));
 
 	if (strstr(line, "ai")) DinoInfo[TotalC].Clone = atoi(value);
 
-	if (strstr(line, "smellK")) DinoInfo[TotalC].SmellK = (float)atof(value);
-	if (strstr(line, "hearK")) DinoInfo[TotalC].HearK = (float)atof(value);
-	if (strstr(line, "lookK")) DinoInfo[TotalC].LookK = (float)atof(value);
-	if (strstr(line, "shipdelta")) DinoInfo[TotalC].ShDelta = (float)atof(value);
+	if (strstr(line, "smellK")) DinoInfo[TotalC].SmellK = static_cast<float>(atof(value));
+	if (strstr(line, "hearK")) DinoInfo[TotalC].HearK = static_cast<float>(atof(value));
+	if (strstr(line, "lookK")) DinoInfo[TotalC].LookK = static_cast<float>(atof(value));
+	if (strstr(line, "shipdelta")) DinoInfo[TotalC].ShDelta = static_cast<float>(atof(value));
 	if (strstr(line, "scale0")) DinoInfo[TotalC].Scale0 = atoi(value);
 	if (strstr(line, "scaleA")) DinoInfo[TotalC].ScaleA = atoi(value);
 	if (strstr(line, "fearCall")) DinoInfo[TotalC].fearCall[atoi(value)] = TRUE; //DIFFERANT TO STND BOOL!!!! e.g. fearcall = 1
@@ -3683,15 +3683,15 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	if (strstr(line, "mindepth")) DinoInfo[TotalC].minDepth = atoi(value);
 	if (strstr(line, "minalt")) DinoInfo[TotalC].minDepth = atoi(value);
 	if (strstr(line, "spcdepth")) DinoInfo[TotalC].spacingDepth = atoi(value);
-	if (strstr(line, "runspd")) DinoInfo[TotalC].runspd = (float)atof(value);
-	if (strstr(line, "jmpspd")) DinoInfo[TotalC].jmpspd = (float)atof(value);
-	if (strstr(line, "wlkspd")) DinoInfo[TotalC].wlkspd = (float)atof(value);
-	if (strstr(line, "swmspd")) DinoInfo[TotalC].swmspd = (float)atof(value);
-	if (strstr(line, "flyspd")) DinoInfo[TotalC].flyspd = (float)atof(value);
-	if (strstr(line, "gldspd")) DinoInfo[TotalC].gldspd = (float)atof(value);
-	if (strstr(line, "tkfspd")) DinoInfo[TotalC].tkfspd = (float)atof(value);
-	if (strstr(line, "lndspd")) DinoInfo[TotalC].lndspd = (float)atof(value);
-	if (strstr(line, "divspd")) DinoInfo[TotalC].divspd = (float)atof(value);
+	if (strstr(line, "runspd")) DinoInfo[TotalC].runspd = static_cast<float>(atof(value));
+	if (strstr(line, "jmpspd")) DinoInfo[TotalC].jmpspd = static_cast<float>(atof(value));
+	if (strstr(line, "wlkspd")) DinoInfo[TotalC].wlkspd = static_cast<float>(atof(value));
+	if (strstr(line, "swmspd")) DinoInfo[TotalC].swmspd = static_cast<float>(atof(value));
+	if (strstr(line, "flyspd")) DinoInfo[TotalC].flyspd = static_cast<float>(atof(value));
+	if (strstr(line, "gldspd")) DinoInfo[TotalC].gldspd = static_cast<float>(atof(value));
+	if (strstr(line, "tkfspd")) DinoInfo[TotalC].tkfspd = static_cast<float>(atof(value));
+	if (strstr(line, "lndspd")) DinoInfo[TotalC].lndspd = static_cast<float>(atof(value));
+	if (strstr(line, "divspd")) DinoInfo[TotalC].divspd = static_cast<float>(atof(value));
 	if (strstr(line, "aggress")) DinoInfo[TotalC].aggress = atoi(value);
 	if (strstr(line, "flydist")) DinoInfo[TotalC].flyDist = atoi(value);
 	if (strstr(line, "killdist")) DinoInfo[TotalC].killDist = atoi(value);
@@ -3713,7 +3713,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	if (strstr(line, "fearShotHear")) readBool(value, DinoInfo[TotalC].fearHearShot);
 	if (strstr(line, "fearShotHit")) readBool(value, DinoInfo[TotalC].fearShot);
 
-	if (strstr(line, "weaveRange")) DinoInfo[TotalC].weaveRange = (float)atof(value);
+	if (strstr(line, "weaveRange")) DinoInfo[TotalC].weaveRange = static_cast<float>(atof(value));
 	if (strstr(line, "dontWeave")) readBool(value, DinoInfo[TotalC].dontWeave);
 
 	//if (strstr(line, "noMoveNoRotate")) readBool(value, DinoInfo[TotalC].noMoveNoRot);
@@ -3727,20 +3727,20 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	if (strstr(line, "bloB")) DinoInfo[TotalC].bloodBlue = atoi(value);
 
 	if (strstr(line, "collisiondist")) DinoInfo[TotalC].maxGrad = atoi(value);
-	if (strstr(line, "runrotatespeed")) DinoInfo[TotalC].rotspdmulti = (float)atof(value);
+	if (strstr(line, "runrotatespeed")) DinoInfo[TotalC].rotspdmulti = static_cast<float>(atof(value));
 
 	if (strstr(line, "waterLevel")) DinoInfo[TotalC].waterLevel = atoi(value);
 
 
-	if (strstr(line, "CamYLand")) DinoInfo[TotalC].camDemoPoint = (float)atof(value);
-	if (strstr(line, "CamYWater")) DinoInfo[TotalC].camDemoPointWater = (float)atof(value);
-	if (strstr(line, "CamBaseLand")) DinoInfo[TotalC].camBase = (float)atof(value);
-	if (strstr(line, "CamBaseWater")) DinoInfo[TotalC].camBaseWater = (float)atof(value);
+	if (strstr(line, "CamYLand")) DinoInfo[TotalC].camDemoPoint = static_cast<float>(atof(value));
+	if (strstr(line, "CamYWater")) DinoInfo[TotalC].camDemoPointWater = static_cast<float>(atof(value));
+	if (strstr(line, "CamBaseLand")) DinoInfo[TotalC].camBase = static_cast<float>(atof(value));
+	if (strstr(line, "CamBaseWater")) DinoInfo[TotalC].camBaseWater = static_cast<float>(atof(value));
 
 
 	if (strstr(line, "dogSmell")) readBool(value, DinoInfo[TotalC].dogSmell);
 
-	if (strstr(line, "climbDist")) DinoInfo[TotalC].climbDist = (float)atof(value);
+	if (strstr(line, "climbDist")) DinoInfo[TotalC].climbDist = static_cast<float>(atof(value));
 
 	if (strstr(line, "canswim")) readBool(value, DinoInfo[TotalC].canSwim); //check animate subroutines for what this includes. LandBrach needs this attribute, but maybe rename to wade? (and default to off for landbrach ai? maybe?)
 

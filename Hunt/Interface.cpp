@@ -61,7 +61,7 @@ int GetTextW(HDC hdc, LPSTR s)
 
 void PrintText(LPSTR s, int x, int y, int rgb)
 {
-  HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain,hbmpVideoBuf);
+  HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain,hbmpVideoBuf));
   SetBkMode(hdcCMain, TRANSPARENT);
 
   SetTextColor(hdcCMain, 0x00000000);
@@ -186,18 +186,18 @@ TPicture LoadWall;
 void UpdateLoadingWindow()
 {
 
-  HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
-  HFONT   hfntOld = (HFONT)SelectObject(hdcCMain, fnt_Small);
+  HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
+  HFONT   hfntOld = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
 
 
   for (int y=0; y<LoadWall.H/2; y++)
-    memcpy( (WORD*)lpVideoBuf + y*VideoPitch,
+    memcpy( static_cast<WORD*>(lpVideoBuf) + y*VideoPitch,
             LoadWall.lpImage  + y*LoadWall.W,
             LoadWall.W*2);
 
   if (LoadCount)
     for (int y=0; y<LoadWall.H/2; y++)
-      memcpy( (WORD*)lpVideoBuf + y*VideoPitch,
+      memcpy( static_cast<WORD*>(lpVideoBuf) + y*VideoPitch,
               LoadWall.lpImage  + (y+LoadWall.H/2)*LoadWall.W,
               (LoadWall.W*LoadCount/8)*2);
 
@@ -330,7 +330,7 @@ void SetVideoMode(int W, int H)
   // (e.g. ~80 deg at 4:3, ~120 deg at 16:9 with OptFov=62). This is
   // the same approach C1 uses and it avoids the horizontal stretching
   // that the old 4:3-hardcoded formula produced on 16:9 displays.
-  CameraH = (float)VideoCY * FovScaleFromDegrees(OptFov);
+  CameraH = static_cast<float>(VideoCY) * FovScaleFromDegrees(OptFov);
   CameraW = CameraH;
 
   LoDetailSky =(W>400);

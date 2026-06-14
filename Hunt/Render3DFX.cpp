@@ -52,8 +52,8 @@ typedef struct _fxmemmap
 Tfxmemmap FxMemMap[fxmemmapsize+2];
 
 void AllocateRenderTables(void) {
-  vFogT = (float*)_HeapAlloc(Heap, 0, sizeof(float) * MaxObjectVCount);
-  vLight = (float*)_HeapAlloc(Heap, 0, sizeof(float) * MaxObjectVCount);
+  vFogT = static_cast<float*>(_HeapAlloc(Heap, 0, sizeof(float) * MaxObjectVCount));
+  vLight = static_cast<float*>(_HeapAlloc(Heap, 0, sizeof(float) * MaxObjectVCount));
 }
 
 void CalcFogLevel_Gradient(Vector3d v)
@@ -292,7 +292,7 @@ void guDownLoad(int fxm, int FXTstartAddress, LPVOID tptr, int w, int h)
 
   FxMemMap[fxm].FXTbaseaddr = FXTstartAddress;
   FxMemMap[fxm].size = textureSize;
-  FxMemMap[fxm].cpuaddr = (int)tptr;
+  FxMemMap[fxm].cpuaddr = static_cast<int>(tptr);
 
   FxMemLoaded+=textureSize;
 
@@ -402,12 +402,12 @@ int FXDownLoadTexture(LPVOID tptr, int w, int h)
 
 void SetFXTexture(LPVOID tptr, int w, int h)
 {
-  if (FxMemMap[FxLastTexture].cpuaddr == (int)tptr) return;
+  if (FxMemMap[FxLastTexture].cpuaddr == static_cast<int>(tptr)) return;
 
   int fxm = -1;
   for (int m=0; m<fxmemmapsize; m++)
   {
-    if (FxMemMap[m].cpuaddr == (int)tptr)
+    if (FxMemMap[m].cpuaddr == static_cast<int>(tptr))
     {
       fxm = m;
       break;
@@ -445,16 +445,16 @@ float GetTraceK(int x, int y)
 
   WORD CC = 0;
   int bw = (linfo.strideInBytes>>1);
-  if ( *((WORD*)linfo.lfbPtr + (y+0)*bw + x+0) == CC ) k+=1.f;
-  if ( *((WORD*)linfo.lfbPtr + (y+10)*bw + x+0) == CC ) k+=1.f;
-  if ( *((WORD*)linfo.lfbPtr + (y-10)*bw + x+0) == CC ) k+=1.f;
-  if ( *((WORD*)linfo.lfbPtr + (y+0)*bw + x+10) == CC ) k+=1.f;
-  if ( *((WORD*)linfo.lfbPtr + (y+0)*bw + x-10) == CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(linfo.lfbPtr) + (y+0)*bw + x+0) == CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(linfo.lfbPtr) + (y+10)*bw + x+0) == CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(linfo.lfbPtr) + (y-10)*bw + x+0) == CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(linfo.lfbPtr) + (y+0)*bw + x+10) == CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(linfo.lfbPtr) + (y+0)*bw + x-10) == CC ) k+=1.f;
 
-  if ( *((WORD*)linfo.lfbPtr + (y+8)*bw + x+8) == CC ) k+=1.f;
-  if ( *((WORD*)linfo.lfbPtr + (y+8)*bw + x-8) == CC ) k+=1.f;
-  if ( *((WORD*)linfo.lfbPtr + (y-8)*bw + x+8) == CC ) k+=1.f;
-  if ( *((WORD*)linfo.lfbPtr + (y-8)*bw + x-8) == CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(linfo.lfbPtr) + (y+8)*bw + x+8) == CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(linfo.lfbPtr) + (y+8)*bw + x-8) == CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(linfo.lfbPtr) + (y-8)*bw + x+8) == CC ) k+=1.f;
+  if ( *(static_cast<WORD*>(linfo.lfbPtr) + (y-8)*bw + x-8) == CC ) k+=1.f;
 
   grLfbUnlock(GR_LFB_READ_ONLY, GR_BUFFER_AUXBUFFER);
   k/=9;
@@ -492,16 +492,16 @@ float GetSkyK(int x, int y)
         &linfo)) return 0.f;
 
   int bw = (linfo.strideInBytes>>1);
-  AddSkySum(*((WORD*)linfo.lfbPtr + (y+0)*bw + x+0));
-  AddSkySum(*((WORD*)linfo.lfbPtr + (y+6)*bw + x+0));
-  AddSkySum(*((WORD*)linfo.lfbPtr + (y-6)*bw + x+0));
-  AddSkySum(*((WORD*)linfo.lfbPtr + (y+0)*bw + x+6));
-  AddSkySum(*((WORD*)linfo.lfbPtr + (y+0)*bw + x-6));
+  AddSkySum(*(static_cast<WORD*>(linfo.lfbPtr) + (y+0)*bw + x+0));
+  AddSkySum(*(static_cast<WORD*>(linfo.lfbPtr) + (y+6)*bw + x+0));
+  AddSkySum(*(static_cast<WORD*>(linfo.lfbPtr) + (y-6)*bw + x+0));
+  AddSkySum(*(static_cast<WORD*>(linfo.lfbPtr) + (y+0)*bw + x+6));
+  AddSkySum(*(static_cast<WORD*>(linfo.lfbPtr) + (y+0)*bw + x-6));
 
-  AddSkySum(*((WORD*)linfo.lfbPtr + (y+4)*bw + x+4));
-  AddSkySum(*((WORD*)linfo.lfbPtr + (y+4)*bw + x-4));
-  AddSkySum(*((WORD*)linfo.lfbPtr + (y-4)*bw + x+4));
-  AddSkySum(*((WORD*)linfo.lfbPtr + (y-4)*bw + x-4));
+  AddSkySum(*(static_cast<WORD*>(linfo.lfbPtr) + (y+4)*bw + x+4));
+  AddSkySum(*(static_cast<WORD*>(linfo.lfbPtr) + (y+4)*bw + x-4));
+  AddSkySum(*(static_cast<WORD*>(linfo.lfbPtr) + (y-4)*bw + x+4));
+  AddSkySum(*(static_cast<WORD*>(linfo.lfbPtr) + (y-4)*bw + x-4));
 
   grLfbUnlock(GR_LFB_READ_ONLY, GR_BUFFER_BACKBUFFER);
 
@@ -516,7 +516,7 @@ float GetSkyK(int x, int y)
     SkySumB-=122*9;
     */
 
-  k = (float)sqrt(SkySumR*SkySumR + SkySumG*SkySumG + SkySumB*SkySumB) / 9;
+  k = static_cast<float>(sqrt(SkySumR*SkySumR + SkySumG*SkySumG + SkySumB*SkySumB)) / 9;
 
 
   if (k>80) k = 80;
@@ -524,7 +524,7 @@ float GetSkyK(int x, int y)
   k = 1.0f - k/80.f;
   if (k<0.2) k=0.2f;
   if (OptDayNight==2) k=0.3 + k/2.75;
-  DeltaFunc(SkyTraceK, k, (0.07f + (float)fabs(k-SkyTraceK)) * (TimeDt / 512.f) );
+  DeltaFunc(SkyTraceK, k, (0.07f + static_cast<float>(fabs(k-SkyTraceK))) * (TimeDt / 512.f) );
   return SkyTraceK;
 }
 
@@ -540,7 +540,7 @@ void TryHiResTx()
       UsedMem+= FxMemMap[m].size;
   }
 
-  if (UsedMem*3 < (int)FXConstTendAddress)
+  if (UsedMem*3 < static_cast<int>(FXConstTendAddress))
     LOWRESTX = FALSE;
 }
 
@@ -555,7 +555,7 @@ void RenderFSRect(DWORD color)
   gvtx[0].y = 0;
   gvtx[0].tmuvtx[0].sow = 0.0;
   gvtx[0].tmuvtx[0].tow = 0.0;
-  gvtx[0].z = (float)1.f;
+  gvtx[0].z = static_cast<float>(1.f);
   gvtx[0].ooz = (_ZSCALE/gvtx[0].z);
   gvtx[0].oow =  1.0f/gvtx[0].z;
 
@@ -563,7 +563,7 @@ void RenderFSRect(DWORD color)
   gvtx[1].y = 0;
   gvtx[1].tmuvtx[0].sow = 0.0;
   gvtx[1].tmuvtx[0].tow = 0.0;
-  gvtx[1].z = (float)1.f;
+  gvtx[1].z = static_cast<float>(1.f);
   gvtx[1].ooz = (_ZSCALE/gvtx[0].z);
   gvtx[1].oow =  1.0f/gvtx[0].z;
 
@@ -571,7 +571,7 @@ void RenderFSRect(DWORD color)
   gvtx[2].y = WinH;
   gvtx[2].tmuvtx[0].sow = 0.0;
   gvtx[2].tmuvtx[0].tow = 0.0;
-  gvtx[2].z = (float)1.f;
+  gvtx[2].z = static_cast<float>(1.f);
   gvtx[2].ooz = (_ZSCALE/gvtx[0].z);
   gvtx[2].oow =  1.0f/gvtx[0].z;
 
@@ -579,7 +579,7 @@ void RenderFSRect(DWORD color)
   gvtx[3].y = WinH;
   gvtx[3].tmuvtx[0].sow = 0.0;
   gvtx[3].tmuvtx[0].tow = 0.0;
-  gvtx[3].z = (float)1.f;
+  gvtx[3].z = static_cast<float>(1.f);
   gvtx[3].ooz = (_ZSCALE/gvtx[0].z);
   gvtx[3].oow =  1.0f/gvtx[0].z;
 
@@ -600,8 +600,8 @@ void RenderFSRect(DWORD color)
 void RenderCircle(float cx, float cy, float z, float _R, DWORD RGBA, DWORD RGBA2)
 {
 
-  float  R = (float)((int)(      _R*16.f)) / 16.f;
-  float R2 = (float)((int)(0.65f*_R*16.f)) / 16.f;
+  float  R = static_cast<float>((static_cast<int>((      _R*16.f)))) / 16.f;
+  float R2 = static_cast<float>((static_cast<int>((0.65f*_R*16.f)))) / 16.f;
 
   int r = (RGBA    ) & 0xFF;
   int g = (RGBA>>8 ) & 0xFF;
@@ -725,7 +725,7 @@ void ShowVideo()
     if (!UNDERWATER && (SunLight>1.0f) )
     {
       SunLight *= GetTraceK(SunScrX, SunScrY);
-      RenderFSRect(0xC0FFFF + ((int)SunLight<<24));
+      RenderFSRect(0xC0FFFF + (static_cast<int>(SunLight)<<24));
     }
 
 
@@ -768,9 +768,9 @@ void FXPutBitMapWithKey(int x0, int y0, int w, int h, int smw, LPVOID lpData)
   for (int y=0; y<h; y++)
     for (int x=0; x<w; x++)
     {
-      WORD c = *((WORD*)lpData + y*smw + x);
+      WORD c = *(static_cast<WORD*>(lpData) + y*smw + x);
       if (c!=0xFFFF)
-        *((WORD*)linfo.lfbPtr + (y+y0)*(linfo.strideInBytes>>1) + x+x0) = conv_565(c);
+        *(static_cast<WORD*>(linfo.lfbPtr) + (y+y0)*(linfo.strideInBytes>>1) + x+x0) = conv_565(c);
     }
 
   grLfbUnlock(GR_LFB_WRITE_ONLY, GR_BUFFER_BACKBUFFER);
@@ -796,10 +796,10 @@ void FXPutBitMap(int x0, int y0, int w, int h, int smw, LPVOID lpData)
 
   smw*=2;
   w*=2;
-  linfo.lfbPtr = (void*) ( (WORD*)linfo.lfbPtr + x0);
+  linfo.lfbPtr = (void*) ( static_cast<WORD*>(linfo.lfbPtr) + x0);
   for (int y=0; y<h; y++)
-    memcpy((BYTE*)linfo.lfbPtr + (y+y0)*(linfo.strideInBytes),
-           (BYTE*)lpData + y*smw,
+    memcpy(static_cast<BYTE*>(linfo.lfbPtr) + (y+y0)*(linfo.strideInBytes),
+           static_cast<BYTE*>(lpData) + y*smw,
            w);
 
   grLfbUnlock(GR_LFB_WRITE_ONLY, GR_BUFFER_BACKBUFFER);
@@ -828,10 +828,10 @@ void DrawFlash(int x0, int y0, int w, int h, TPicture &pic)
 
 	smw *= 2;
 	w *= 2;
-	linfo.lfbPtr = (void*)((WORD*)linfo.lfbPtr + x0);
+	linfo.lfbPtr = (void*)(static_cast<WORD*>(linfo.lfbPtr) + x0);
 	for (int y = 0; y < h; y++)
-		memcpy((BYTE*)linfo.lfbPtr + (y + y0)*(linfo.strideInBytes),
-		(BYTE*)lpData + y * smw,
+		memcpy(static_cast<BYTE*>(linfo.lfbPtr) + (y + y0)*(linfo.strideInBytes),
+		static_cast<BYTE*>(lpData) + y * smw,
 			w);
 
 
@@ -855,10 +855,10 @@ void DrawFlash(int x0, int y0, int w, int h, TPicture &pic)
 
 	smw *= 2;
 	w *= 2;
-	linfo.lfbPtr = (void*)((WORD*)linfo.lfbPtr + x0);
+	linfo.lfbPtr = (void*)(static_cast<WORD*>(linfo.lfbPtr) + x0);
 	for (int y = 0; y < h; y++)
-		memcpy((BYTE*)linfo.lfbPtr + (y + y0)*(linfo.strideInBytes),
-		(BYTE*)lpData + (y + (pic.H-h)) * smw,
+		memcpy(static_cast<BYTE*>(linfo.lfbPtr) + (y + y0)*(linfo.strideInBytes),
+		static_cast<BYTE*>(lpData) + (y + (pic.H-h)) * smw,
 			w);
 
 	grLfbUnlock(GR_LFB_WRITE_ONLY, GR_BUFFER_BACKBUFFER);
@@ -871,15 +871,15 @@ void FXTextOut(int x, int y, LPSTR t, int color)
 {
 
   HDC _hdc =  hdcCMain;
-  HBITMAP hbmpOld = (HBITMAP)SelectObject(_hdc,hbmpVideoBuf);
+  HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(_hdc,hbmpVideoBuf));
   SetBkMode(_hdc, TRANSPARENT);
 
   HFONT oldfont{};
-  if (SmallFont) oldfont = (HFONT)SelectObject(_hdc, fnt_Small);
+  if (SmallFont) oldfont = reinterpret_cast<HFONT>(SelectObject(_hdc, fnt_Small));
 
   int w = GetTextW(_hdc, t)+4;
   for (int h=0; h<18; h++)
-    FillMemory((BYTE*)lpVideoBuf + h*2048, w*2, 0xFF);
+    FillMemory(static_cast<BYTE*>(lpVideoBuf) + h*2048, w*2, 0xFF);
 
 
   SetTextColor(_hdc, 0x00101010);
@@ -899,7 +899,7 @@ void FXTextOut(int x, int y, LPSTR t, int color)
 void DrawSurvivalText(int x0, int y0)
 {
 	SmallFont = TRUE;
-	HFONT oldfont = (HFONT)SelectObject(hdcMain, fnt_Small);
+	HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 	int x = x0;
 	FXTextOut(40 + x0, 98+ y0, "Waves Survived: ", 0x00BFBFBF);
 	x += GetTextW(hdcMain, "Waves Survived: ");
@@ -918,7 +918,7 @@ void DrawSurvivalText(int x0, int y0)
 void DrawScoreText(int x0, int y0) {
 	int x;
 	SmallFont = TRUE;
-	HFONT oldfont = (HFONT)SelectObject(hdcMain, fnt_Small);
+	HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 
 	char t[32];
 
@@ -940,7 +940,7 @@ void DrawTrophyText(int x0, int y0)
 {
   int x;
   SmallFont = TRUE;
-  HFONT oldfont = (HFONT)SelectObject(hdcMain, fnt_Small);
+  HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 //  int tc = TrophyBody;
 
   int   dtype = TrophyDisplayBody.ctype;
@@ -1027,14 +1027,14 @@ void Render_LifeInfo(int li)
 {
   int x,y;
   SmallFont = TRUE;
-  HFONT oldfont = (HFONT)SelectObject(hdcMain, fnt_Small);
+  HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
 
   int   ctype = Characters[li].CType;
   float  scale = Characters[li].scale;
   char t[32];
 
   x = VideoCX + WinW / 64;
-  y = VideoCY + (int)(WinH / 6.8);
+  y = VideoCY + static_cast<int>((WinH / 6.8));
 
   FXTextOut(x, y, DinoInfo[ctype].Name, 0x0000b000);
 
@@ -1043,7 +1043,7 @@ void Render_LifeInfo(int li)
 
   FXTextOut(x, y+16, t, 0x0000b000);
 
-  int R  = (int)(VectorLength( SubVectors(Characters[li].pos, PlayerPos) )*3 / 64.f);
+  int R  = static_cast<int>((VectorLength( SubVectors(Characters[li].pos, PlayerPos) )*3 / 64.f));
   if (OptSys) sprintf(t,"Distance: %dft ", R);
   else        sprintf(t,"Distance: %dm  ", R/3);
 
@@ -1180,9 +1180,9 @@ void ClipVector(CLIPPLANE& C, int vn)
 
     hleft.tx = cp[vn].tx + ((cp[vleft].tx - cp[vn].tx) * lc);
     hleft.ty = cp[vn].ty + ((cp[vleft].ty - cp[vn].ty) * lc);
-    hleft.ev.Light = cp[vn].ev.Light + (int)((cp[vleft].ev.Light - cp[vn].ev.Light) * lc);
-    hleft.ev.ALPHA = cp[vn].ev.ALPHA + (int)((cp[vleft].ev.ALPHA - cp[vn].ev.ALPHA) * lc);
-    hleft.ev.Fog = cp[vn].ev.Fog + (int)((cp[vleft].ev.Fog - cp[vn].ev.Fog) * lc);
+    hleft.ev.Light = cp[vn].ev.Light + static_cast<int>(((cp[vleft].ev.Light - cp[vn].ev.Light) * lc));
+    hleft.ev.ALPHA = cp[vn].ev.ALPHA + static_cast<int>(((cp[vleft].ev.ALPHA - cp[vn].ev.ALPHA) * lc));
+    hleft.ev.Fog = cp[vn].ev.Fog + static_cast<int>(((cp[vleft].ev.Fog - cp[vn].ev.Fog) * lc));
   }
 
   if (s2>0)
@@ -1203,9 +1203,9 @@ void ClipVector(CLIPPLANE& C, int vn)
 
     hright.tx = cp[vn].tx + ((cp[vright].tx - cp[vn].tx) * lc);
     hright.ty = cp[vn].ty + ((cp[vright].ty - cp[vn].ty) * lc);
-    hright.ev.Light = cp[vn].ev.Light + (int)((cp[vright].ev.Light - cp[vn].ev.Light) * lc);
-    hright.ev.ALPHA = cp[vn].ev.ALPHA + (int)((cp[vright].ev.ALPHA - cp[vn].ev.ALPHA) * lc);
-    hright.ev.Fog = cp[vn].ev.Fog + (int)((cp[vright].ev.Fog - cp[vn].ev.Fog) * lc);
+    hright.ev.Light = cp[vn].ev.Light + static_cast<int>(((cp[vright].ev.Light - cp[vn].ev.Light) * lc));
+    hright.ev.ALPHA = cp[vn].ev.ALPHA + static_cast<int>(((cp[vright].ev.ALPHA - cp[vn].ev.ALPHA) * lc));
+    hright.ev.Fog = cp[vn].ev.Fog + static_cast<int>(((cp[vright].ev.Fog - cp[vn].ev.Fog) * lc));
   }
 
   if (ClipRes == 0)
@@ -1597,50 +1597,50 @@ void DrawTPlaneClip(BOOL SECOND)
 
   for (u=0; u<vused; u++)
   {
-    cp[u].ev.scrx = (VideoCX)*16 - (int)(cp[u].ev.v.x*16 / cp[u].ev.v.z * CameraW);
-    cp[u].ev.scry = (VideoCY)*16 + (int)(cp[u].ev.v.y*16 / cp[u].ev.v.z * CameraH);
+    cp[u].ev.scrx = (VideoCX)*16 - static_cast<int>((cp[u].ev.v.x*16 / cp[u].ev.v.z * CameraW));
+    cp[u].ev.scry = (VideoCY)*16 + static_cast<int>((cp[u].ev.v.y*16 / cp[u].ev.v.z * CameraH));
   }
 
 
-  gvtx[0].a = (float)cp[0].ev.Fog;
+  gvtx[0].a = static_cast<float>(cp[0].ev.Fog);
 
-  gvtx[0].x = (float)cp[0].ev.scrx/16.f;
-  gvtx[0].y = (float)cp[0].ev.scry/16.f;
-  gvtx[0].z = (float)-cp[0].ev.v.z;
-  gvtx[0].r = (float)(cp[0].ev.Light);
+  gvtx[0].x = static_cast<float>(cp[0].ev.scrx)/16.f;
+  gvtx[0].y = static_cast<float>(cp[0].ev.scry)/16.f;
+  gvtx[0].z = static_cast<float>(-cp[0].ev.v.z);
+  gvtx[0].r = static_cast<float>((cp[0].ev.Light));
   gvtx[0].g = gvtx[0].r;
   gvtx[0].b = gvtx[0].r;
   gvtx[0].ooz = (_ZSCALE/gvtx[0].z);
   gvtx[0].oow =  1.0f/gvtx[0].z;
-  gvtx[0].tmuvtx[0].sow = (float)cp[0].tx * gvtx[0].oow;
-  gvtx[0].tmuvtx[0].tow = (float)cp[0].ty * gvtx[0].oow;
+  gvtx[0].tmuvtx[0].sow = static_cast<float>(cp[0].tx) * gvtx[0].oow;
+  gvtx[0].tmuvtx[0].tow = static_cast<float>(cp[0].ty) * gvtx[0].oow;
 
   for (u=0; u<vused-2; u++)
   {
 
-    gvtx[1].a = (float)cp[1+u].ev.Fog;
-    gvtx[1].x = (float)cp[1+u].ev.scrx/16.f;
-    gvtx[1].y = (float)cp[1+u].ev.scry/16.f;
+    gvtx[1].a = static_cast<float>(cp[1+u].ev.Fog);
+    gvtx[1].x = static_cast<float>(cp[1+u].ev.scrx)/16.f;
+    gvtx[1].y = static_cast<float>(cp[1+u].ev.scry)/16.f;
     gvtx[1].z = -cp[1+u].ev.v.z;
-    gvtx[1].r = (float)(cp[1+u].ev.Light);
+    gvtx[1].r = static_cast<float>((cp[1+u].ev.Light));
     gvtx[1].g = gvtx[1].r;
     gvtx[1].b = gvtx[1].r;
     gvtx[1].ooz = (_ZSCALE/gvtx[1].z);
     gvtx[1].oow =  1.0f/gvtx[1].z;
-    gvtx[1].tmuvtx[0].sow = (float)cp[1+u].tx * gvtx[1].oow;
-    gvtx[1].tmuvtx[0].tow = (float)cp[1+u].ty * gvtx[1].oow;
+    gvtx[1].tmuvtx[0].sow = static_cast<float>(cp[1+u].tx) * gvtx[1].oow;
+    gvtx[1].tmuvtx[0].tow = static_cast<float>(cp[1+u].ty) * gvtx[1].oow;
 
-    gvtx[2].a = (float)cp[2+u].ev.Fog;
-    gvtx[2].x = (float)cp[2+u].ev.scrx/16.f;
-    gvtx[2].y = (float)cp[2+u].ev.scry/16.f;
+    gvtx[2].a = static_cast<float>(cp[2+u].ev.Fog);
+    gvtx[2].x = static_cast<float>(cp[2+u].ev.scrx)/16.f;
+    gvtx[2].y = static_cast<float>(cp[2+u].ev.scry)/16.f;
     gvtx[2].z = -cp[2+u].ev.v.z;
-    gvtx[2].r = (float)(cp[2+u].ev.Light);
+    gvtx[2].r = static_cast<float>((cp[2+u].ev.Light));
     gvtx[2].g = gvtx[2].r;
     gvtx[2].b = gvtx[2].r;
     gvtx[2].ooz = (_ZSCALE/gvtx[2].z);
     gvtx[2].oow =  1.0f/gvtx[2].z;
-    gvtx[2].tmuvtx[0].sow = (float)cp[2+u].tx * gvtx[2].oow;
-    gvtx[2].tmuvtx[0].tow = (float)cp[2+u].ty * gvtx[2].oow;
+    gvtx[2].tmuvtx[0].sow = static_cast<float>(cp[2+u].tx) * gvtx[2].oow;
+    gvtx[2].tmuvtx[0].tow = static_cast<float>(cp[2+u].ty) * gvtx[2].oow;
 
     grDrawTriangle(&gvtx[0], &gvtx[1], &gvtx[2]);
     dFacesCount++;
@@ -1676,50 +1676,50 @@ void DrawTPlaneClipW(BOOL SECOND)
 
   for (u=0; u<vused; u++)
   {
-    cp[u].ev.scrx = (VideoCX)*16 - (int)(cp[u].ev.v.x*16 / cp[u].ev.v.z * CameraW);
-    cp[u].ev.scry = (VideoCY)*16 + (int)(cp[u].ev.v.y*16 / cp[u].ev.v.z * CameraH);
+    cp[u].ev.scrx = (VideoCX)*16 - static_cast<int>((cp[u].ev.v.x*16 / cp[u].ev.v.z * CameraW));
+    cp[u].ev.scry = (VideoCY)*16 + static_cast<int>((cp[u].ev.v.y*16 / cp[u].ev.v.z * CameraH));
   }
 
 
-  gvtx[0].a = (float)cp[0].ev.ALPHA;
+  gvtx[0].a = static_cast<float>(cp[0].ev.ALPHA);
 
-  gvtx[0].x = (float)cp[0].ev.scrx/16.f;
-  gvtx[0].y = (float)cp[0].ev.scry/16.f;
-  gvtx[0].z = (float)-cp[0].ev.v.z;
-  gvtx[0].r = (float)(cp[0].ev.Light);
+  gvtx[0].x = static_cast<float>(cp[0].ev.scrx)/16.f;
+  gvtx[0].y = static_cast<float>(cp[0].ev.scry)/16.f;
+  gvtx[0].z = static_cast<float>(-cp[0].ev.v.z);
+  gvtx[0].r = static_cast<float>((cp[0].ev.Light));
   gvtx[0].g = gvtx[0].r;
   gvtx[0].b = gvtx[0].r;
   gvtx[0].ooz = (_ZSCALE/gvtx[0].z);
   gvtx[0].oow =  1.0f/gvtx[0].z;
-  gvtx[0].tmuvtx[0].sow = (float)cp[0].tx * gvtx[0].oow;
-  gvtx[0].tmuvtx[0].tow = (float)cp[0].ty * gvtx[0].oow;
+  gvtx[0].tmuvtx[0].sow = static_cast<float>(cp[0].tx) * gvtx[0].oow;
+  gvtx[0].tmuvtx[0].tow = static_cast<float>(cp[0].ty) * gvtx[0].oow;
 
   for (u=0; u<vused-2; u++)
   {
 
-    gvtx[1].a = (float)cp[1+u].ev.ALPHA;
-    gvtx[1].x = (float)cp[1+u].ev.scrx/16.f;
-    gvtx[1].y = (float)cp[1+u].ev.scry/16.f;
+    gvtx[1].a = static_cast<float>(cp[1+u].ev.ALPHA);
+    gvtx[1].x = static_cast<float>(cp[1+u].ev.scrx)/16.f;
+    gvtx[1].y = static_cast<float>(cp[1+u].ev.scry)/16.f;
     gvtx[1].z = -cp[1+u].ev.v.z;
-    gvtx[1].r = (float)(cp[1+u].ev.Light);
+    gvtx[1].r = static_cast<float>((cp[1+u].ev.Light));
     gvtx[1].g = gvtx[1].r;
     gvtx[1].b = gvtx[1].r;
     gvtx[1].ooz = (_ZSCALE/gvtx[1].z);
     gvtx[1].oow =  1.0f/gvtx[1].z;
-    gvtx[1].tmuvtx[0].sow = (float)cp[1+u].tx * gvtx[1].oow;
-    gvtx[1].tmuvtx[0].tow = (float)cp[1+u].ty * gvtx[1].oow;
+    gvtx[1].tmuvtx[0].sow = static_cast<float>(cp[1+u].tx) * gvtx[1].oow;
+    gvtx[1].tmuvtx[0].tow = static_cast<float>(cp[1+u].ty) * gvtx[1].oow;
 
-    gvtx[2].a = (float)cp[2+u].ev.ALPHA;
-    gvtx[2].x = (float)cp[2+u].ev.scrx/16.f;
-    gvtx[2].y = (float)cp[2+u].ev.scry/16.f;
+    gvtx[2].a = static_cast<float>(cp[2+u].ev.ALPHA);
+    gvtx[2].x = static_cast<float>(cp[2+u].ev.scrx)/16.f;
+    gvtx[2].y = static_cast<float>(cp[2+u].ev.scry)/16.f;
     gvtx[2].z = -cp[2+u].ev.v.z;
-    gvtx[2].r = (float)(cp[2+u].ev.Light);
+    gvtx[2].r = static_cast<float>((cp[2+u].ev.Light));
     gvtx[2].g = gvtx[2].r;
     gvtx[2].b = gvtx[2].r;
     gvtx[2].ooz = (_ZSCALE/gvtx[2].z);
     gvtx[2].oow =  1.0f/gvtx[2].z;
-    gvtx[2].tmuvtx[0].sow = (float)cp[2+u].tx * gvtx[2].oow;
-    gvtx[2].tmuvtx[0].tow = (float)cp[2+u].ty * gvtx[2].oow;
+    gvtx[2].tmuvtx[0].sow = static_cast<float>(cp[2+u].tx) * gvtx[2].oow;
+    gvtx[2].tmuvtx[0].tow = static_cast<float>(cp[2+u].ty) * gvtx[2].oow;
 
     grDrawTriangle(&gvtx[0], &gvtx[1], &gvtx[2]);
     dFacesCount++;
@@ -1753,9 +1753,9 @@ void DrawTPlane(BOOL SECOND)
 
   _fillmapping(SECOND);
 
-  gvtx[0].a = (float)ev[0].Fog;
-  gvtx[1].a = (float)ev[1].Fog;
-  gvtx[2].a = (float)ev[2].Fog;
+  gvtx[0].a = static_cast<float>(ev[0].Fog);
+  gvtx[1].a = static_cast<float>(ev[1].Fog);
+  gvtx[2].a = static_cast<float>(ev[2].Fog);
 
 
   if (zs > (ctViewR-8)<<8)
@@ -1781,42 +1781,42 @@ void DrawTPlane(BOOL SECOND)
 
 
 
-  gvtx[0].x = (float)ev[0].scrx/16.f;
-  gvtx[0].y = (float)ev[0].scry/16.f;
+  gvtx[0].x = static_cast<float>(ev[0].scrx)/16.f;
+  gvtx[0].y = static_cast<float>(ev[0].scry)/16.f;
   gvtx[0].z = -ev[0].v.z;
-  gvtx[0].r = (float)(ev[0].Light);
+  gvtx[0].r = static_cast<float>((ev[0].Light));
   gvtx[0].g = gvtx[0].r;
   gvtx[0].b = gvtx[0].r;
   gvtx[0].ooz = (_ZSCALE/gvtx[0].z);
   gvtx[0].oow =  1.0f/gvtx[0].z;
-  gvtx[0].tmuvtx[0].sow = (float)scrp[0].tx * gvtx[0].oow;
-  gvtx[0].tmuvtx[0].tow = (float)scrp[0].ty * gvtx[0].oow;
+  gvtx[0].tmuvtx[0].sow = static_cast<float>(scrp[0].tx) * gvtx[0].oow;
+  gvtx[0].tmuvtx[0].tow = static_cast<float>(scrp[0].ty) * gvtx[0].oow;
 
 
 
-  gvtx[1].x = (float)ev[1].scrx/16.f;
-  gvtx[1].y = (float)ev[1].scry/16.f;
+  gvtx[1].x = static_cast<float>(ev[1].scrx)/16.f;
+  gvtx[1].y = static_cast<float>(ev[1].scry)/16.f;
   gvtx[1].z = -ev[1].v.z;
-  gvtx[1].r = (float)(ev[1].Light);
+  gvtx[1].r = static_cast<float>((ev[1].Light));
   gvtx[1].g = gvtx[1].r;
   gvtx[1].b = gvtx[1].r;
   gvtx[1].ooz = (_ZSCALE/gvtx[1].z);
   gvtx[1].oow =  1.0f/gvtx[1].z;
-  gvtx[1].tmuvtx[0].sow = (float)scrp[1].tx * gvtx[1].oow;
-  gvtx[1].tmuvtx[0].tow = (float)scrp[1].ty * gvtx[1].oow;
+  gvtx[1].tmuvtx[0].sow = static_cast<float>(scrp[1].tx) * gvtx[1].oow;
+  gvtx[1].tmuvtx[0].tow = static_cast<float>(scrp[1].ty) * gvtx[1].oow;
 
 
 
-  gvtx[2].x = (float)ev[2].scrx/16.f;
-  gvtx[2].y = (float)ev[2].scry/16.f;
+  gvtx[2].x = static_cast<float>(ev[2].scrx)/16.f;
+  gvtx[2].y = static_cast<float>(ev[2].scry)/16.f;
   gvtx[2].z = -ev[2].v.z;
-  gvtx[2].r = (float)(ev[2].Light);
+  gvtx[2].r = static_cast<float>((ev[2].Light));
   gvtx[2].g = gvtx[2].r;
   gvtx[2].b = gvtx[2].r;
   gvtx[2].ooz = (_ZSCALE/gvtx[2].z);
   gvtx[2].oow =  1.0f/gvtx[2].z;
-  gvtx[2].tmuvtx[0].sow = (float)scrp[2].tx * gvtx[2].oow;
-  gvtx[2].tmuvtx[0].tow = (float)scrp[2].ty * gvtx[2].oow;
+  gvtx[2].tmuvtx[0].sow = static_cast<float>(scrp[2].tx) * gvtx[2].oow;
+  gvtx[2].tmuvtx[0].tow = static_cast<float>(scrp[2].ty) * gvtx[2].oow;
 
   grDrawTriangle(&gvtx[0], &gvtx[1], &gvtx[2]);
   dFacesCount++;
@@ -1877,44 +1877,44 @@ void DrawTPlaneW(BOOL SECOND)
       if (zz > 0) ev[2].ALPHA = max(0,255.f - zz / 3.f);
     }
 
-  gvtx[0].x = (float)ev[0].scrx/16.f;
-  gvtx[0].y = (float)ev[0].scry/16.f;
+  gvtx[0].x = static_cast<float>(ev[0].scrx)/16.f;
+  gvtx[0].y = static_cast<float>(ev[0].scry)/16.f;
   gvtx[0].z = -ev[0].v.z;
-  gvtx[0].r = (float)(ev[0].Light);
+  gvtx[0].r = static_cast<float>((ev[0].Light));
   gvtx[0].g = gvtx[0].r;
   gvtx[0].b = gvtx[0].r;
-  gvtx[0].a = (float)ev[0].ALPHA;
+  gvtx[0].a = static_cast<float>(ev[0].ALPHA);
   gvtx[0].ooz = (_ZSCALE/gvtx[0].z);
   gvtx[0].oow =  1.0f/gvtx[0].z;
-  gvtx[0].tmuvtx[0].sow = (float)scrp[0].tx * gvtx[0].oow;
-  gvtx[0].tmuvtx[0].tow = (float)scrp[0].ty * gvtx[0].oow;
+  gvtx[0].tmuvtx[0].sow = static_cast<float>(scrp[0].tx) * gvtx[0].oow;
+  gvtx[0].tmuvtx[0].tow = static_cast<float>(scrp[0].ty) * gvtx[0].oow;
 
 
 
-  gvtx[1].x = (float)ev[1].scrx/16.f;
-  gvtx[1].y = (float)ev[1].scry/16.f;
+  gvtx[1].x = static_cast<float>(ev[1].scrx)/16.f;
+  gvtx[1].y = static_cast<float>(ev[1].scry)/16.f;
   gvtx[1].z = -ev[1].v.z;
-  gvtx[1].r = (float)(ev[1].Light);
+  gvtx[1].r = static_cast<float>((ev[1].Light));
   gvtx[1].g = gvtx[1].r;
   gvtx[1].b = gvtx[1].r;
-  gvtx[1].a = (float)ev[1].ALPHA;
+  gvtx[1].a = static_cast<float>(ev[1].ALPHA);
   gvtx[1].ooz = (_ZSCALE/gvtx[1].z);
   gvtx[1].oow =  1.0f/gvtx[1].z;
-  gvtx[1].tmuvtx[0].sow = (float)scrp[1].tx * gvtx[1].oow;
-  gvtx[1].tmuvtx[0].tow = (float)scrp[1].ty * gvtx[1].oow;
+  gvtx[1].tmuvtx[0].sow = static_cast<float>(scrp[1].tx) * gvtx[1].oow;
+  gvtx[1].tmuvtx[0].tow = static_cast<float>(scrp[1].ty) * gvtx[1].oow;
 
 
-  gvtx[2].x = (float)ev[2].scrx/16.f;
-  gvtx[2].y = (float)ev[2].scry/16.f;
+  gvtx[2].x = static_cast<float>(ev[2].scrx)/16.f;
+  gvtx[2].y = static_cast<float>(ev[2].scry)/16.f;
   gvtx[2].z = -ev[2].v.z;
-  gvtx[2].r = (float)(ev[2].Light);
+  gvtx[2].r = static_cast<float>((ev[2].Light));
   gvtx[2].g = gvtx[2].r;
   gvtx[2].b = gvtx[2].r;
-  gvtx[2].a = (float)ev[2].ALPHA;
+  gvtx[2].a = static_cast<float>(ev[2].ALPHA);
   gvtx[2].ooz = (_ZSCALE/gvtx[2].z);
   gvtx[2].oow =  1.0f/gvtx[2].z;
-  gvtx[2].tmuvtx[0].sow = (float)scrp[2].tx * gvtx[2].oow;
-  gvtx[2].tmuvtx[0].tow = (float)scrp[2].ty * gvtx[2].oow;
+  gvtx[2].tmuvtx[0].sow = static_cast<float>(scrp[2].tx) * gvtx[2].oow;
+  gvtx[2].tmuvtx[0].tow = static_cast<float>(scrp[2].ty) * gvtx[2].oow;
 
   grDrawTriangle(&gvtx[0], &gvtx[1], &gvtx[2]);
   dFacesCount++;
@@ -1949,7 +1949,7 @@ void _RenderObject(int x, int y)
   }
 
   int FI = (FMap[y][x] >> 2) & 3;
-  float fi = CameraAlpha + (float)(FI * 2.f*pi / 4.f);
+  float fi = CameraAlpha + static_cast<float>((FI * 2.f*pi / 4.f));
 
 
   int mlight;
@@ -1969,11 +1969,11 @@ void _RenderObject(int x, int y)
 
   v[0].x = x*256+128 - CameraX;
   v[0].z = y*256+128 - CameraZ;
-  v[0].y = (float)(HMapO[y][x]) * ctHScale - CameraY;
+  v[0].y = static_cast<float>((HMapO[y][x])) * ctHScale - CameraY;
 
   float zs = VectorLength(v[0]);
 
-  //if (v[0].y + MObjects[ob].info.YHi < (int)(HMap[y][x]+HMap[y+1][x+1]) / 2 * ctHScale - CameraY) return;
+  //if (v[0].y + MObjects[ob].info.YHi < static_cast<int>((HMap[y][x]+HMap[y+1][x+1])) / 2 * ctHScale - CameraY) return;
 
   CalcFogLevel_Gradient(v[0]);
 
@@ -2050,7 +2050,7 @@ void ProcessMapW(int x, int y, int r)
 
   if ( fabs(xx*FOVK) > -zz + BackViewR) return;
 
-  zs = (int)sqrt( xx*xx + zz*zz + yy*yy);
+  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
   if (zs > ctViewR*256) return;
 
   if (MIPMAP && (zs > 256 * 10 && t1 || LOWRESTX)) SetFXTexture(Textures[t1]->DataB, 64, 64);
@@ -2098,7 +2098,7 @@ void ProcessMapW2(int x, int y, int r)
   if ( fabs(xx*FOVK) > -zz + BackViewR) return;
 
 
-  zs = (int)sqrt( xx*xx + zz*zz + yy*yy);
+  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
   if (zs > ctViewR*256) return;
 
 
@@ -2201,8 +2201,8 @@ void RenderWCircles()
     rpos.y = wptr->pos.y - CameraY;
     rpos.z = wptr->pos.z - CameraZ;
 
-    float r = (float)max( fabs(rpos.x), fabs(rpos.z) );
-    int ri = -1 + (int)(r / 256.f + 0.4f);
+    float r = static_cast<float>(max( fabs(rpos.x), fabs(rpos.z) ));
+    int ri = -1 + static_cast<int>((r / 256.f + 0.4f));
     if (ri < 0) ri = 0;
     if (ri > ctViewR) continue;
 
@@ -2215,7 +2215,7 @@ void RenderWCircles()
 
     grConstantColorValue( ((2000-wptr->FTime) / 38) << 24 );
 
-    CreateMorphedModel(WCircleModel.mptr, &WCircleModel.Animation[0], (int)(wptr->FTime), wptr->scale);
+    CreateMorphedModel(WCircleModel.mptr, &WCircleModel.Animation[0], static_cast<int>((wptr->FTime)), wptr->scale);
 
     if ( fabs(rpos.z) + fabs(rpos.x) < 1000)
       RenderModelClip(WCircleModel.mptr,
@@ -2332,13 +2332,13 @@ void ProcessMap(int x, int y, int r)
   float yy = (ev[0].v.y + VMap[y+1][x+1].v.y) / 2;
   float zz = (ev[0].v.z + VMap[y+1][x+1].v.z) / 2;
 
-  //wsprintf(logt, "%d", (int) (FOVK*100));
+  //wsprintf(logt, "%d", static_cast<int>((FOVK*100)));
   //AddMessage(logt);
 
   if ( fabs(xx*FOVK) > -zz + BackR) return;
 
 
-  zs = (int)sqrt( xx*xx + zz*zz + yy*yy);
+  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
 
   grConstantColorValue( 0xFF000000);
 
@@ -2420,7 +2420,7 @@ void ProcessMap2(int x, int y, int r)
   if ( fabs(xx*FOVK) > -zz + BackViewR) return;
 
 
-  zs = (int)sqrt( xx*xx + zz*zz + yy*yy);
+  zs = static_cast<int>(sqrt( xx*xx + zz*zz + yy*yy));
   if (zs > ctViewR*256) return;
 
   grConstantColorValue( 0xFF000000);
@@ -2547,18 +2547,18 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
 
   mptr = _mptr;
 
-  float ca = (float)cos(al);
-  float sa = (float)sin(al);
+  float ca = static_cast<float>(cos(al));
+  float sa = static_cast<float>(sin(al));
 
-  float cb = (float)cos(bt);
-  float sb = (float)sin(bt);
+  float cb = static_cast<float>(cos(bt));
+  float sb = static_cast<float>(sin(bt));
 
   int minx = 10241024;
   int maxx =-10241024;
   int miny = 10241024;
   int maxy =-10241024;
 
-  float ml = (float)(light);
+  float ml = static_cast<float>((light));
   /*
   gvtx[0].r = ml;  gvtx[0].g = ml; gvtx[0].b = ml;
   gvtx[1].r = ml;  gvtx[1].g = ml; gvtx[1].b = ml;
@@ -2603,8 +2603,8 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
 
     if (rVertex[s].z>-64)  rVertex[s].z=-64;
 
-    gScrp[s].x = VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-    gScrp[s].y = VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+    gScrp[s].x = VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+    gScrp[s].y = VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
 
     if (gScrp[s].x > maxx) maxx = gScrp[s].x;
     if (gScrp[s].x < minx) minx = gScrp[s].x;
@@ -2620,7 +2620,7 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
   BuildTreeNoSort();
 
 
-  float d = (float) sqrt(x0*x0 + y0*y0 + z0*z0);
+  float d = static_cast<float>(sqrt(x0*x0 + y0*y0 + z0*z0));
   if (LOWRESTX) d = 14*256;
   if (MIPMAP && (d > 12*256)) SetFXTexture(mptr->lpTexture2, 128, 128);
   else SetFXTexture(mptr->lpTexture, 256, 256);
@@ -2676,22 +2676,22 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
       gvtx[2].a = vFogT[fptr->v3];
     }
 
-    gvtx[0].x = (float)gScrp[fptr->v1].x;
-    gvtx[0].y = (float)gScrp[fptr->v1].y;
+    gvtx[0].x = static_cast<float>(gScrp[fptr->v1].x);
+    gvtx[0].y = static_cast<float>(gScrp[fptr->v1].y);
     gvtx[0].ooz = _ZSCALE / -rVertex[fptr->v1].z;
     gvtx[0].tmuvtx[0].sow = fptr->tax;
     gvtx[0].tmuvtx[0].tow = fptr->tay;
     gvtx[0].b = gvtx[0].g = gvtx[0].r = vLight[fptr->v1];
 
-    gvtx[1].x = (float)gScrp[fptr->v2].x;
-    gvtx[1].y = (float)gScrp[fptr->v2].y;
+    gvtx[1].x = static_cast<float>(gScrp[fptr->v2].x);
+    gvtx[1].y = static_cast<float>(gScrp[fptr->v2].y);
     gvtx[1].ooz = _ZSCALE / -rVertex[fptr->v2].z;
     gvtx[1].tmuvtx[0].sow = fptr->tbx;
     gvtx[1].tmuvtx[0].tow = fptr->tby;
     gvtx[1].b = gvtx[1].g = gvtx[1].r = vLight[fptr->v2];
 
-    gvtx[2].x = (float)gScrp[fptr->v3].x;
-    gvtx[2].y = (float)gScrp[fptr->v3].y;
+    gvtx[2].x = static_cast<float>(gScrp[fptr->v3].x);
+    gvtx[2].y = static_cast<float>(gScrp[fptr->v3].y);
     gvtx[2].ooz = _ZSCALE / -rVertex[fptr->v3].z;
     gvtx[2].tmuvtx[0].sow = fptr->tcx;
     gvtx[2].tmuvtx[0].tow = fptr->tcy;
@@ -2725,7 +2725,7 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
   int maxy =-10241024;
 
 
-  float ml = (float)(light);
+  float ml = static_cast<float>((light));
 
   BOOL FOGACTIVE = (FOGON && (FogYBase>0));
 
@@ -2746,8 +2746,8 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
 
     if (rVertex[s].z<-256)
     {
-      gScrp[s].x = VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      gScrp[s].y = VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      gScrp[s].x = VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      gScrp[s].y = VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
     }
     else return;
 
@@ -2760,7 +2760,7 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
   if (minx == 10241024) return;
   if (minx>WinW || maxx<0 || miny>WinH || maxy<0) return;
 
-  float d = (float) sqrt(x0*x0 + y0*y0 + z0*z0);
+  float d = static_cast<float>(sqrt(x0*x0 + y0*y0 + z0*z0));
   SetFXTexture(mptr->lpTexture, 128, 128);
 
 
@@ -2783,8 +2783,8 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
     gvtx[3].a = 0;
   }
 
-  gvtx[0].x = (float)gScrp[0].x;
-  gvtx[0].y = (float)gScrp[0].y;
+  gvtx[0].x = static_cast<float>(gScrp[0].x);
+  gvtx[0].y = static_cast<float>(gScrp[0].y);
   gvtx[0].ooz = _ZSCALE / -rVertex[0].z;
   gvtx[0].oow = -1.0f/ rVertex[0].z;
   gvtx[0].tmuvtx[0].sow = 0.5f * gvtx[0].oow;
@@ -2793,8 +2793,8 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
   gvtx[0].g = ml;
   gvtx[0].b = ml;
 
-  gvtx[1].x = (float)gScrp[1].x;
-  gvtx[1].y = (float)gScrp[1].y;
+  gvtx[1].x = static_cast<float>(gScrp[1].x);
+  gvtx[1].y = static_cast<float>(gScrp[1].y);
   gvtx[1].ooz = _ZSCALE / -rVertex[1].z;
   gvtx[1].oow = -1.0f/ rVertex[1].z;
   gvtx[1].tmuvtx[0].sow = 254.5f * gvtx[1].oow;
@@ -2803,8 +2803,8 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
   gvtx[1].g = ml;
   gvtx[1].b = ml;
 
-  gvtx[2].x = (float)gScrp[2].x;
-  gvtx[2].y = (float)gScrp[2].y;
+  gvtx[2].x = static_cast<float>(gScrp[2].x);
+  gvtx[2].y = static_cast<float>(gScrp[2].y);
   gvtx[2].ooz = _ZSCALE / -rVertex[2].z;
   gvtx[2].oow = -1.0f/ rVertex[2].z;
   gvtx[2].tmuvtx[0].sow = 254.5f * gvtx[2].oow;
@@ -2813,8 +2813,8 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
   gvtx[2].g = ml;
   gvtx[2].b = ml;
 
-  gvtx[3].x = (float)gScrp[3].x;
-  gvtx[3].y = (float)gScrp[3].y;
+  gvtx[3].x = static_cast<float>(gScrp[3].x);
+  gvtx[3].y = static_cast<float>(gScrp[3].y);
   gvtx[3].ooz = _ZSCALE / -rVertex[3].z;
   gvtx[3].oow = -1.0f/ rVertex[3].z;
   gvtx[3].tmuvtx[0].sow = 0.5f   * gvtx[3].oow;
@@ -2844,14 +2844,14 @@ void RenderShadowClip(TModel* _mptr,
   mptr = _mptr;
 
 
-  float cla = (float)cos(cal);
-  float sla = (float)sin(cal);
+  float cla = static_cast<float>(cos(cal));
+  float sla = static_cast<float>(sin(cal));
 
-  float ca = (float)cos(al);
-  float sa = (float)sin(al);
+  float ca = static_cast<float>(cos(al));
+  float sa = static_cast<float>(sin(al));
 
-  float cb = (float)cos(bt);
-  float sb = (float)sin(bt);
+  float cb = static_cast<float>(cos(bt));
+  float sb = static_cast<float>(sin(bt));
 
   float flight = 0;
 
@@ -2880,8 +2880,8 @@ void RenderShadowClip(TModel* _mptr,
     else
     {
       int f = 0;
-      int sx =  VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      int sy =  VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      int sx =  VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      int sy =  VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
 
       if (sx>=WinEX) f+=1;
       if (sx<=0    ) f+=2;
@@ -2897,7 +2897,7 @@ void RenderShadowClip(TModel* _mptr,
   if (!BL) return;
 
 
-  float d = (float) sqrt(x0*x0 + y0*y0 + z0*z0);
+  float d = static_cast<float>(sqrt(x0*x0 + y0*y0 + z0*z0));
   if (LOWRESTX) d = 14*256;
   if (MIPMAP && (d > 12*256)) SetFXTexture(mptr->lpTexture2, 128, 128);
   else SetFXTexture(mptr->lpTexture, 256, 256);
@@ -2945,13 +2945,13 @@ void RenderShadowClip(TModel* _mptr,
 
     for (u=0; u<vused; u++)
     {
-      gvtx[u].x = (float)(VideoCX - (int)(cp[u].ev.v.x / cp[u].ev.v.z * CameraW));
-      gvtx[u].y = (float)(VideoCY + (int)(cp[u].ev.v.y / cp[u].ev.v.z * CameraH));
+      gvtx[u].x = static_cast<float>((VideoCX - static_cast<int>((cp[u].ev.v.x / cp[u].ev.v.z * CameraW))));
+      gvtx[u].y = static_cast<float>((VideoCY + static_cast<int>((cp[u].ev.v.y / cp[u].ev.v.z * CameraH))));
       gvtx[u].z = -cp[u].ev.v.z - 16.f;
       gvtx[u].ooz = (_ZSCALE/gvtx[u].z);
       gvtx[u].oow =  1.0f/gvtx[u].z;
-      gvtx[u].tmuvtx[0].sow = (float)cp[u].tx/65534.f * gvtx[u].oow;
-      gvtx[u].tmuvtx[0].tow = (float)cp[u].ty/65534.f * gvtx[u].oow;
+      gvtx[u].tmuvtx[0].sow = static_cast<float>(cp[u].tx)/65534.f * gvtx[u].oow;
+      gvtx[u].tmuvtx[0].tow = static_cast<float>(cp[u].ty)/65534.f * gvtx[u].oow;
       gvtx[u].r = flight;
       gvtx[u].g = gvtx[u].r;
       gvtx[u].b = gvtx[u].r;
@@ -3001,14 +3001,14 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
 
   mptr = _mptr;
 
-  float ca = (float)cos(al);
-  float sa = (float)sin(al);
+  float ca = static_cast<float>(cos(al));
+  float sa = static_cast<float>(sin(al));
 
-  float cb = (float)cos(bt);
-  float sb = (float)sin(bt);
+  float cb = static_cast<float>(cos(bt));
+  float sb = static_cast<float>(sin(bt));
 
 
-  float flight = (float)(light);
+  float flight = static_cast<float>((light));
 
 
 
@@ -3040,8 +3040,8 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
     else
     {
       int f = 0;
-      int sx =  VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      int sy =  VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      int sx =  VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      int sy =  VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
 
       if (sx>=WinEX) f+=1;
       if (sx<=0    ) f+=2;
@@ -3079,10 +3079,10 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
   int NewTransparent = 0;
   int PrevTransparent = 0;
 
-  ca = (float)cos(CameraAlpha);
-  sa = (float)sin(CameraAlpha);
-  cb = (float)cos(CameraBeta);
-  sb = (float)sin(CameraBeta);
+  ca = static_cast<float>(cos(CameraAlpha));
+  sa = static_cast<float>(sin(CameraAlpha));
+  cb = static_cast<float>(cos(CameraBeta));
+  sb = static_cast<float>(sin(CameraBeta));
 
   f = Current;
   while( f!=-1 )
@@ -3102,17 +3102,17 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
     cp[0].ev.Fog = vFogT[fptr->v1];
     cp[0].tx = fptr->tax;
     cp[0].ty = fptr->tay;
-    cp[0].ev.Light = (int)mptr->VLight[VT][fptr->v1];
+    cp[0].ev.Light = static_cast<int>(mptr->VLight[VT][fptr->v1]);
     cp[1].ev.v = rVertex[fptr->v2];
     cp[1].ev.Fog = vFogT[fptr->v2];
     cp[1].tx = fptr->tbx;
     cp[1].ty = fptr->tby;
-    cp[1].ev.Light = (int)mptr->VLight[VT][fptr->v2];
+    cp[1].ev.Light = static_cast<int>(mptr->VLight[VT][fptr->v2]);
     cp[2].ev.v = rVertex[fptr->v3];
     cp[2].ev.Fog = vFogT[fptr->v3];
     cp[2].tx = fptr->tcx;
     cp[2].ty = fptr->tcy;
-    cp[2].ev.Light = (int)mptr->VLight[VT][fptr->v3];
+    cp[2].ev.Light = static_cast<int>(mptr->VLight[VT][fptr->v3]);
 
     //if (CMASK == 0xFF)
     {
@@ -3134,13 +3134,13 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
     for (u=0; u<vused; u++)
     {
       gvtx[u].a = cp[u].ev.Fog;
-      gvtx[u].x = (float)(VideoCX - (int)(cp[u].ev.v.x / cp[u].ev.v.z * CameraW));
-      gvtx[u].y = (float)(VideoCY + (int)(cp[u].ev.v.y / cp[u].ev.v.z * CameraH));
+      gvtx[u].x = static_cast<float>((VideoCX - static_cast<int>((cp[u].ev.v.x / cp[u].ev.v.z * CameraW))));
+      gvtx[u].y = static_cast<float>((VideoCY + static_cast<int>((cp[u].ev.v.y / cp[u].ev.v.z * CameraH))));
       gvtx[u].z = -cp[u].ev.v.z;
       gvtx[u].ooz = (_ZSCALE/gvtx[u].z);
       gvtx[u].oow =  1.0f / gvtx[u].z;
-      gvtx[u].tmuvtx[0].sow = (float)cp[u].tx * gvtx[u].oow;
-      gvtx[u].tmuvtx[0].tow = (float)cp[u].ty * gvtx[u].oow;
+      gvtx[u].tmuvtx[0].sow = static_cast<float>(cp[u].tx) * gvtx[u].oow;
+      gvtx[u].tmuvtx[0].tow = static_cast<float>(cp[u].ty) * gvtx[u].oow;
       float _flight = flight + cp[u].ev.Light;
       gvtx[u].r = _flight;
       gvtx[u].g = gvtx[u].r;
@@ -3194,11 +3194,11 @@ void RenderModelClipEnvMap(TModel* _mptr, float x0, float y0, float z0, float al
 
   mptr = _mptr;
 
-  float ca = (float)cos(al);
-  float sa = (float)sin(al);
+  float ca = static_cast<float>(cos(al));
+  float sa = static_cast<float>(sin(al));
 
-  float cb = (float)cos(bt);
-  float sb = (float)sin(bt);
+  float cb = static_cast<float>(cos(bt));
+  float sb = static_cast<float>(sin(bt));
 
 
   for (int s=0; s<mptr->VCount; s++)
@@ -3218,8 +3218,8 @@ void RenderModelClipEnvMap(TModel* _mptr, float x0, float y0, float z0, float al
     else
     {
       int f = 0;
-      int sx =  VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      int sy =  VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      int sx =  VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      int sy =  VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
 
       if (sx>=WinEX) f+=1;
       if (sx<=0    ) f+=2;
@@ -3249,10 +3249,10 @@ void RenderModelClipEnvMap(TModel* _mptr, float x0, float y0, float z0, float al
 
   BuildTreeClipNoSort();
 
-  ca = (float)cos(CameraAlpha);
-  sa = (float)sin(CameraAlpha);
-  cb = (float)cos(CameraBeta);
-  sb = (float)sin(CameraBeta);
+  ca = static_cast<float>(cos(CameraAlpha));
+  sa = static_cast<float>(sin(CameraAlpha));
+  cb = static_cast<float>(cos(CameraBeta));
+  sb = static_cast<float>(sin(CameraBeta));
 
   f = Current;
   while( f!=-1 )
@@ -3297,14 +3297,14 @@ void RenderModelClipEnvMap(TModel* _mptr, float x0, float y0, float z0, float al
     for (u=0; u<vused; u++)
     {
       gvtx[u].a = 0x00;
-      gvtx[u].x = (float)(VideoCX - (int)(cp[u].ev.v.x / cp[u].ev.v.z * CameraW));
-      gvtx[u].y = (float)(VideoCY + (int)(cp[u].ev.v.y / cp[u].ev.v.z * CameraH));
+      gvtx[u].x = static_cast<float>((VideoCX - static_cast<int>((cp[u].ev.v.x / cp[u].ev.v.z * CameraW))));
+      gvtx[u].y = static_cast<float>((VideoCY + static_cast<int>((cp[u].ev.v.y / cp[u].ev.v.z * CameraH))));
       gvtx[u].z = -cp[u].ev.v.z;
       gvtx[u].ooz = (_ZSCALE/gvtx[u].z);
       gvtx[u].oow =  1.0f / gvtx[u].z;
 
-      gvtx[u].tmuvtx[0].sow = (float)cp[u].tx * gvtx[u].oow;
-      gvtx[u].tmuvtx[0].tow = (float)cp[u].ty * gvtx[u].oow;
+      gvtx[u].tmuvtx[0].sow = static_cast<float>(cp[u].tx) * gvtx[u].oow;
+      gvtx[u].tmuvtx[0].tow = static_cast<float>(cp[u].ty) * gvtx[u].oow;
 
       gvtx[u].r = 255;
       gvtx[u].g = gvtx[u].r;
@@ -3351,11 +3351,11 @@ void RenderModelClipPhongMap(TModel* _mptr, float x0, float y0, float z0, float 
   float bv = SkyB +64;
   if (bv>255) bv = 255;
 
-  float ca = (float)cos(al);
-  float sa = (float)sin(al);
+  float ca = static_cast<float>(cos(al));
+  float sa = static_cast<float>(sin(al));
 
-  float cb = (float)cos(bt);
-  float sb = (float)sin(bt);
+  float cb = static_cast<float>(cos(bt));
+  float sb = static_cast<float>(sin(bt));
 
 
   for (int s=0; s<mptr->VCount; s++)
@@ -3375,8 +3375,8 @@ void RenderModelClipPhongMap(TModel* _mptr, float x0, float y0, float z0, float 
     else
     {
       int f = 0;
-      int sx =  VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      int sy =  VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      int sx =  VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      int sy =  VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
 
       if (sx>=WinEX) f+=1;
       if (sx<=0    ) f+=2;
@@ -3408,10 +3408,10 @@ void RenderModelClipPhongMap(TModel* _mptr, float x0, float y0, float z0, float 
 
   BuildTreeClipNoSort();
 
-  ca = (float)cos(CameraAlpha);
-  sa = (float)sin(CameraAlpha);
-  cb = (float)cos(CameraBeta);
-  sb = (float)sin(CameraBeta);
+  ca = static_cast<float>(cos(CameraAlpha));
+  sa = static_cast<float>(sin(CameraAlpha));
+  cb = static_cast<float>(cos(CameraBeta));
+  sb = static_cast<float>(sin(CameraBeta));
 
   f = Current;
   while( f!=-1 )
@@ -3456,13 +3456,13 @@ void RenderModelClipPhongMap(TModel* _mptr, float x0, float y0, float z0, float 
     for (u=0; u<vused; u++)
     {
       gvtx[u].a = 0x00;
-      gvtx[u].x = (float)(VideoCX - (int)(cp[u].ev.v.x / cp[u].ev.v.z * CameraW));
-      gvtx[u].y = (float)(VideoCY + (int)(cp[u].ev.v.y / cp[u].ev.v.z * CameraH));
+      gvtx[u].x = static_cast<float>((VideoCX - static_cast<int>((cp[u].ev.v.x / cp[u].ev.v.z * CameraW))));
+      gvtx[u].y = static_cast<float>((VideoCY + static_cast<int>((cp[u].ev.v.y / cp[u].ev.v.z * CameraH))));
       gvtx[u].z = -cp[u].ev.v.z;
       gvtx[u].ooz = (_ZSCALE/gvtx[u].z);
       gvtx[u].oow =  1.0f / gvtx[u].z;
-      gvtx[u].tmuvtx[0].sow = (float)cp[u].tx * gvtx[u].oow;
-      gvtx[u].tmuvtx[0].tow = (float)cp[u].ty * gvtx[u].oow;
+      gvtx[u].tmuvtx[0].sow = static_cast<float>(cp[u].tx) * gvtx[u].oow;
+      gvtx[u].tmuvtx[0].tow = static_cast<float>(cp[u].ty) * gvtx[u].oow;
     }
 
 
@@ -3541,8 +3541,8 @@ void RenderModelSun(TModel* _mptr, float x0, float y0, float z0, int Alpha)
     if (rVertex[s].z>-64) gScrp[s].x = 0xFFFFFF;
     else
     {
-      gScrp[s].x = VideoCX + (int)(rVertex[s].x / (-rVertex[s].z) * CameraW);
-      gScrp[s].y = VideoCY - (int)(rVertex[s].y / (-rVertex[s].z) * CameraH);
+      gScrp[s].x = VideoCX + static_cast<int>((rVertex[s].x / (-rVertex[s].z) * CameraW));
+      gScrp[s].y = VideoCY - static_cast<int>((rVertex[s].y / (-rVertex[s].z) * CameraH));
     }
 
     if (gScrp[s].x > maxx) maxx = gScrp[s].x;
@@ -3572,20 +3572,20 @@ void RenderModelSun(TModel* _mptr, float x0, float y0, float z0, int Alpha)
   {
     TFace *fptr = & mptr->gFace[f];
 
-    gvtx[0].x = (float)gScrp[fptr->v1].x;
-    gvtx[0].y = (float)gScrp[fptr->v1].y;
+    gvtx[0].x = static_cast<float>(gScrp[fptr->v1].x);
+    gvtx[0].y = static_cast<float>(gScrp[fptr->v1].y);
     gvtx[0].ooz = _ZSCALE/-rVertex[fptr->v1].z;
     gvtx[0].tmuvtx[0].sow = fptr->tax;
     gvtx[0].tmuvtx[0].tow = fptr->tay;
 
-    gvtx[1].x = (float)gScrp[fptr->v2].x;
-    gvtx[1].y = (float)gScrp[fptr->v2].y;
+    gvtx[1].x = static_cast<float>(gScrp[fptr->v2].x);
+    gvtx[1].y = static_cast<float>(gScrp[fptr->v2].y);
     gvtx[1].ooz = _ZSCALE / -rVertex[fptr->v2].z;
     gvtx[1].tmuvtx[0].sow = fptr->tbx;
     gvtx[1].tmuvtx[0].tow = fptr->tby;
 
-    gvtx[2].x = (float)gScrp[fptr->v3].x;
-    gvtx[2].y = (float)gScrp[fptr->v3].y;
+    gvtx[2].x = static_cast<float>(gScrp[fptr->v3].x);
+    gvtx[2].y = static_cast<float>(gScrp[fptr->v3].y);
     gvtx[2].ooz = _ZSCALE/-rVertex[fptr->v3].z;
     gvtx[2].tmuvtx[0].sow = fptr->tcx;
     gvtx[2].tmuvtx[0].tow = fptr->tcy;
@@ -3655,13 +3655,13 @@ void RenderCharacterPost(TCharacter *cptr)
   //mdlScale = 1.0f;
   CreateChMorphedModel(cptr);
 
-  float zs = (float)sqrt( cptr->rpos.x*cptr->rpos.x  +  cptr->rpos.y*cptr->rpos.y  +  cptr->rpos.z*cptr->rpos.z);
+  float zs = static_cast<float>(sqrt( cptr->rpos.x*cptr->rpos.x  +  cptr->rpos.y*cptr->rpos.y  +  cptr->rpos.z*cptr->rpos.z));
   if (zs > ctViewR*256) return;
 
   GlassL = 0;
   if (zs > 256 * (ctViewR-8))
   {
-    GlassL = (int)(zs - 256 * (ctViewR-8)) / 8;
+    GlassL = static_cast<int>((zs - 256 * (ctViewR-8))) / 8;
     if (GlassL>255) GlassL=255;
   }
 
@@ -3710,11 +3710,11 @@ void RenderCharacterPost(TCharacter *cptr)
 void RenderHitBoxPost()
 {
 	GlassL = 0;
-	zs = (int)VectorLength(HitBox.rpos);
+	zs = static_cast<int>(VectorLength(HitBox.rpos));
 	if (zs > 256 * (ctViewR)) return;
 
 	if (zs > 256 * (ctViewR - 4))
-		GlassL = min(255, (int)(zs - 256 * (ctViewR - 4)) / 4);
+		GlassL = min(255, static_cast<int>((zs - 256 * (ctViewR - 4))) / 4);
 
 
 	grConstantColorValue((255 - GlassL) << 24);
@@ -3736,11 +3736,11 @@ void RenderBagPost()
 {
 	if (AmmoBag.State < 1) return;
 	GlassL = 0;
-	zs = (int)VectorLength(AmmoBag.rpos);
+	zs = static_cast<int>(VectorLength(AmmoBag.rpos));
 	if (zs > 256 * (ctViewR)) return;
 
 	if (zs > 256 * (ctViewR - 4))
-		GlassL = min(255, (int)(zs - 256 * (ctViewR - 4)) / 4);
+		GlassL = min(255, static_cast<int>((zs - 256 * (ctViewR - 4))) / 4);
 
 
 	grConstantColorValue((255 - GlassL) << 24);
@@ -3761,11 +3761,11 @@ void RenderShipPost()
 {
   if (Ship.State==-1) return;
   GlassL = 0;
-  zs = (int)VectorLength(Ship.rpos);
+  zs = static_cast<int>(VectorLength(Ship.rpos));
   if (zs > 256 * (ctViewR)) return;
 
   if (zs > 256 * (ctViewR-4))
-    GlassL = min(255,(int)(zs - 256 * (ctViewR-4)) / 4);
+    GlassL = min(255,static_cast<int>((zs - 256 * (ctViewR-4))) / 4);
 
 
   grConstantColorValue( (255-GlassL) << 24);
@@ -3785,11 +3785,11 @@ void RenderSShipPost()
 {
 	if (SShip.State < 1) return;
 	GlassL = 0;
-	zs = (int)VectorLength(SShip.rpos);
+	zs = static_cast<int>(VectorLength(SShip.rpos));
 	if (zs > 256 * (ctViewR)) return;
 
 	if (zs > 256 * (ctViewR - 4))
-		GlassL = min(255, (int)(zs - 256 * (ctViewR - 4)) / 4);
+		GlassL = min(255, static_cast<int>((zs - 256 * (ctViewR - 4))) / 4);
 
 
 	grConstantColorValue((255 - GlassL) << 24);
@@ -3809,11 +3809,11 @@ void RenderSShipPost()
 void RenderBulletPost(int b) {
 
 			GlassL = 0;
-			zs = (int)VectorLength(bullet[b].rpos);
+			zs = static_cast<int>(VectorLength(bullet[b].rpos));
 			if (zs > 256 * (ctViewR)) return;
 
 			if (zs > 256 * (ctViewR - 4))
-				GlassL = min(255, (int)(zs - 256 * (ctViewR - 4)) / 4);
+				GlassL = min(255, static_cast<int>((zs - 256 * (ctViewR - 4))) / 4);
 
 			grConstantColorValue((255 - GlassL) << 24);
 
@@ -3841,11 +3841,11 @@ void RenderBulletPost(int b) {
 float GetLandUH(float x, float y, int s)
 {
 
-  int CX = (int)x / 256;
-  int CY = (int)y / 256;
+  int CX = static_cast<int>(x) / 256;
+  int CY = static_cast<int>(y) / 256;
 
-  int dx = (int)x % 256;
-  int dy = (int)y % 256;
+  int dx = static_cast<int>(x) % 256;
+  int dy = static_cast<int>(y) % 256;
   /*
      int h1 = HMap[CY][CX];
      int h2 = HMap[CY][CX+1];
@@ -3853,8 +3853,7 @@ float GetLandUH(float x, float y, int s)
      int h4 = HMap[CY+1][CX];
      */
 
-  float h = (float)
-            (HMap[CY][CX]   * (256-dx) + HMap[CY][CX+1] * dx) * (256-dy) +
+  float h = static_cast<float>((HMap[CY][CX]   * (256-dx) + HMap[CY][CX+1] * dx)) * (256-dy) +
             (HMap[CY+1][CX]   * (256-dx) + HMap[CY+1][CX+1] * dx) * dy;
 
   return  h / 256.f / 256.f * ctHScale;
@@ -3887,7 +3886,7 @@ void RenderVoxelEnd()
 		cp = AddVectors(CameraPos, lv);
 
 		p = cp; p.y = GetLandUpH(p.x, p.z);
-		t = TMap1[(int)(p.z)>>8][(int)(p.x)>>8];
+		t = TMap1[static_cast<int>((p.z))>>8][static_cast<int>((p.x))>>8];
 		l = 256-GetLandLt(p.x, p.z)*4;
 		p.x -= CameraX;
 		p.y -= CameraY;
@@ -3929,7 +3928,7 @@ void RenderVoxelEnd()
 		   }
 
 		   p = cp;
-		   t = TMap1[(int)(cp.z)>>8][(int)(cp.x)>>8];
+		   t = TMap1[static_cast<int>((cp.z))>>8][static_cast<int>((cp.x))>>8];
 
 		   p.x -= CameraX;
 		   p.y -= CameraY;
@@ -3940,7 +3939,7 @@ void RenderVoxelEnd()
 
 		   if (sy < _sy-1)
 		   {
-			   //l   = 256-LMap[(int)cp.z/256][(int)cp.x/256]*4;
+			   //l   = 256-LMap[static_cast<int>(cp.z)/256][static_cast<int>(cp.x)/256]*4;
 			   l = 256-GetLandLt(cp.x, cp.z)*4;
 
 			   gvtx[1].a=s*4+16;
@@ -4004,8 +4003,8 @@ void RenderElements()
       if ( fabs(rpos.x) > -rpos.z) continue;
       if ( fabs(rpos.y) > -rpos.z) continue;
 
-      float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.f;
-      float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.f;
+      float sx = VideoCX - static_cast<int>((CameraW * rpos.x / rpos.z * 16)) / 16.f;
+      float sy = VideoCY + static_cast<int>((CameraH * rpos.y / rpos.z * 16)) / 16.f;
       RenderCircle(sx, sy, rpos.z, -r*CameraW*0.64 / rpos.z, Elements[eg].RGBA, Elements[eg].RGBA2);
     }
   }
@@ -4027,8 +4026,8 @@ void RenderElements()
     if ( fabs(rpos.x) > -rpos.z) continue;
     if ( fabs(rpos.y) > -rpos.z) continue;
 
-    float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.f;
-    float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.f;
+    float sx = VideoCX - static_cast<int>((CameraW * rpos.x / rpos.z * 16)) / 16.f;
+    float sy = VideoCY + static_cast<int>((CameraH * rpos.y / rpos.z * 16)) / 16.f;
     if (!CiskMode) RenderCircle(sx, sy, rpos.z, -12*CameraW*0.64 / rpos.z,
 		(A1 << 24) +
 		conv_xGx(0x000000 |
@@ -4059,8 +4058,8 @@ void RenderElements()
 		  if (fabs(rpos.x) > -rpos.z) continue;
 		  if (fabs(rpos.y) > -rpos.z) continue;
 
-		  float sx = VideoCX - (int)(CameraW * rpos.x / rpos.z * 16) / 16.f;
-		  float sy = VideoCY + (int)(CameraH * rpos.y / rpos.z * 16) / 16.f;
+		  float sx = VideoCX - static_cast<int>((CameraW * rpos.x / rpos.z * 16)) / 16.f;
+		  float sy = VideoCY + static_cast<int>((CameraH * rpos.y / rpos.z * 16)) / 16.f;
 
 		  DWORD A11 = SnowInfo[st].snow_a;
 		  if (Snow[s].ftime) {
@@ -4108,8 +4107,8 @@ void Render3DHardwarePosts()
 		cptr->rpos.z = cptr->pos.z - CameraZ;
 
 
-		float r = (float)max(fabs(cptr->rpos.x), fabs(cptr->rpos.z));
-		int ri = -1 + (int)(r / 256.f + 0.5f);
+		float r = static_cast<float>(max(fabs(cptr->rpos.x), fabs(cptr->rpos.z)));
+		int ri = -1 + static_cast<int>((r / 256.f + 0.5f));
 		if (ri < 0) ri = 0;
 		if (ri > ctViewR) continue;
 
@@ -4140,8 +4139,8 @@ void Render3DHardwarePosts()
 			cptr->rpos.z = cptr->pos.z - CameraZ;
 
 
-			float r = (float)max(fabs(cptr->rpos.x), fabs(cptr->rpos.z));
-			int ri = -1 + (int)(r / 256.f + 0.5f);
+			float r = static_cast<float>(max(fabs(cptr->rpos.x), fabs(cptr->rpos.z)));
+			int ri = -1 + static_cast<int>((r / 256.f + 0.5f));
 			if (ri < 0) ri = 0;
 			if (ri > ctViewR) continue;
 
@@ -4168,9 +4167,9 @@ void Render3DHardwarePosts()
 	Ship.rpos.x = Ship.pos.x - CameraX;
 	Ship.rpos.y = Ship.pos.y - CameraY;
 	Ship.rpos.z = Ship.pos.z - CameraZ;
-	float r = (float)max(fabs(Ship.rpos.x), fabs(Ship.rpos.z));
+	float r = static_cast<float>(max(fabs(Ship.rpos.x), fabs(Ship.rpos.z)));
 
-	int ri = -1 + (int)(r / 256.f + 0.2f);
+	int ri = -1 + static_cast<int>((r / 256.f + 0.2f));
 	if (ri < 0) ri = 0;
 	if (ri < ctViewR)
 	{
@@ -4193,9 +4192,9 @@ NOSHIP:
 	SShip.rpos.x = SShip.pos.x - CameraX;
 	SShip.rpos.y = SShip.pos.y - CameraY;
 	SShip.rpos.z = SShip.pos.z - CameraZ;
-	r = (float)max(fabs(SShip.rpos.x), fabs(SShip.rpos.z));
+	r = static_cast<float>(max(fabs(SShip.rpos.x), fabs(SShip.rpos.z)));
 
-	ri = -1 + (int)(r / 256.f + 0.2f);
+	ri = -1 + static_cast<int>((r / 256.f + 0.2f));
 	if (ri < 0) ri = 0;
 	if (ri < ctViewR)
 	{
@@ -4222,9 +4221,9 @@ NOSSHIP:
 			bullet[b].rpos.x = bullet[b].a.x - CameraX;
 			bullet[b].rpos.y = bullet[b].a.y - CameraY;
 			bullet[b].rpos.z = bullet[b].a.z - CameraZ;
-			r = (float)max(fabs(bullet[b].rpos.x), fabs(bullet[b].rpos.z));
+			r = static_cast<float>(max(fabs(bullet[b].rpos.x), fabs(bullet[b].rpos.z)));
 
-			ri = -1 + (int)(r / 256.f + 0.2f);
+			ri = -1 + static_cast<int>((r / 256.f + 0.2f));
 			if (ri < 0) ri = 0;
 			if (ri < ctViewR)
 			{
@@ -4255,9 +4254,9 @@ NOSSHIP:
 		HitBox.rpos.x = HitBox.pos.x - CameraX;
 		HitBox.rpos.y = HitBox.pos.y - CameraY;
 		HitBox.rpos.z = HitBox.pos.z - CameraZ;
-		r = (float)max(fabs(HitBox.rpos.x), fabs(HitBox.rpos.z));
+		r = static_cast<float>(max(fabs(HitBox.rpos.x), fabs(HitBox.rpos.z)));
 	
-		ri = -1 + (int)(r / 256.f + 0.2f);
+		ri = -1 + static_cast<int>((r / 256.f + 0.2f));
 		if (ri < 0) ri = 0;
 		if (ri < ctViewR)
 		{
@@ -4282,9 +4281,9 @@ NOSSHIP:
   AmmoBag.rpos.x = AmmoBag.pos.x - CameraX;
   AmmoBag.rpos.y = AmmoBag.pos.y - CameraY;
   AmmoBag.rpos.z = AmmoBag.pos.z - CameraZ;
-  r = (float)max(fabs(AmmoBag.rpos.x), fabs(AmmoBag.rpos.z));
+  r = static_cast<float>(max(fabs(AmmoBag.rpos.x), fabs(AmmoBag.rpos.z)));
 
-  ri = -1 + (int)(r / 256.f + 0.2f);
+  ri = -1 + static_cast<int>((r / 256.f + 0.2f));
   if (ri < 0) ri = 0;
   if (ri < ctViewR)
   {
@@ -4327,7 +4326,7 @@ int CircleCX, CircleCY;
 WORD _CRCOLOR;
 void PutPixel(int x, int y)
 {
-  *((WORD*)linfo.lfbPtr + y*lsw + x) = _CRCOLOR;
+  *(static_cast<WORD*>(linfo.lfbPtr) + y*lsw + x) = _CRCOLOR;
 }
 
 void Put8pix(int X,int Y)
@@ -4488,8 +4487,8 @@ void DrawHMap()
   if (yy<0 || yy>=WinH) goto endmap;
   if (xx<0 || xx>=WinW) goto endmap;
 
-  DrawBox( (WORD*)linfo.lfbPtr, lsw, xx+1, yy+1, 8<<11);
-  DrawBox( (WORD*)linfo.lfbPtr, lsw, xx, yy, 30<<11);
+  DrawBox( static_cast<WORD*>(linfo.lfbPtr), lsw, xx+1, yy+1, 8<<11);
+  DrawBox( static_cast<WORD*>(linfo.lfbPtr), lsw, xx, yy, 30<<11);
 
 
   float _sonarPos;
@@ -4523,18 +4522,18 @@ void DrawHMap()
 
 
   if (Multiplayer) {
-	  xx = VideoCX - 128 + (int)MPlayers[0].pos.x / 1024;
-	  yy = VideoCY - 128 + (int)MPlayers[0].pos.z / 1024;
-	  DrawBox((WORD*)linfo.lfbPtr, lsw, xx + 1, yy + 1, 8 << 11);
-	  DrawBox((WORD*)linfo.lfbPtr, lsw, xx, yy, 30 << 11);
+	  xx = VideoCX - 128 + static_cast<int>(MPlayers[0].pos.x) / 1024;
+	  yy = VideoCY - 128 + static_cast<int>(MPlayers[0].pos.z) / 1024;
+	  DrawBox(static_cast<WORD*>(linfo.lfbPtr), lsw, xx + 1, yy + 1, 8 << 11);
+	  DrawBox(static_cast<WORD*>(linfo.lfbPtr), lsw, xx, yy, 30 << 11);
   }
   
   for (int b = 0; b < bulletCh; b++) {
 	  if (bullet[b].RTime) {
-		  xx = VideoCX - 128 + (int)bullet[b].a.x / 1024;
-		  yy = VideoCY - 128 + (int)bullet[b].a.z / 1024;
+		  xx = VideoCX - 128 + static_cast<int>(bullet[b].a.x) / 1024;
+		  yy = VideoCY - 128 + static_cast<int>(bullet[b].a.z) / 1024;
 		  if (yy > 0 && yy < WinH && xx > 0 && xx < WinW)
-			  DrawBox((WORD*)linfo.lfbPtr, lsw, xx, yy, WeapInfo[bullet[b].parent].radarColour565);
+			  DrawBox(static_cast<WORD*>(linfo.lfbPtr), lsw, xx, yy, WeapInfo[bullet[b].parent].radarColour565);
 	  }
   }
 
@@ -4551,40 +4550,40 @@ void DrawHMap()
 			
 			if (Characters[c].Clone == AI_HUNTDOG) {
 
-				xx = VideoCX - 128 + (int)Characters[c].pos.x / 1024;
-				yy = VideoCY - 128 + (int)Characters[c].pos.z / 1024;
+				xx = VideoCX - 128 + static_cast<int>(Characters[c].pos.x) / 1024;
+				yy = VideoCY - 128 + static_cast<int>(Characters[c].pos.z) / 1024;
 				if (yy <= 0 || yy >= WinH) goto endmap;
 				if (xx <= 0 || xx >= WinW) goto endmap;
-				DrawBox((WORD*)linfo.lfbPtr, lsw, xx, yy, DinoInfo[Characters[c].CType].radarColour565);// 30 << 11
+				DrawBox(static_cast<WORD*>(linfo.lfbPtr), lsw, xx, yy, DinoInfo[Characters[c].CType].radarColour565);// 30 << 11
 
 			}
 			else {
 				
 				if (RadarMode || Characters[c].RTime) {
 
-				xx = VideoCX - 128 + (int)Characters[c].pos.x / 1024;
-				yy = VideoCY - 128 + (int)Characters[c].pos.z / 1024;
+				xx = VideoCX - 128 + static_cast<int>(Characters[c].pos.x) / 1024;
+				yy = VideoCY - 128 + static_cast<int>(Characters[c].pos.z) / 1024;
 				if (yy <= 0 || yy >= WinH) goto endmap;
 				if (xx <= 0 || xx >= WinW) goto endmap;
 
 				WORD *colour = &DinoInfo[Characters[c].CType].radarColour565;
 				if (Characters[c].tracker >= 0) colour = &WeapInfo[Characters[c].tracker].radarColour565;
 
-				if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery((WORD*)linfo.lfbPtr, lsw, xx, yy, *colour);
-				else DrawBox((WORD*)linfo.lfbPtr, lsw, xx, yy, *colour); //RGB(0, 127, 0) //30 << 6
+				if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery(static_cast<WORD*>(linfo.lfbPtr), lsw, xx, yy, *colour);
+				else DrawBox(static_cast<WORD*>(linfo.lfbPtr), lsw, xx, yy, *colour); //RGB(0, 127, 0) //30 << 6
 
 				}
 				
 				if (SonarMode) {
 
-					xx = VideoCX - 128 + (int)Characters[c].pos.x / 1024;
-					yy = VideoCY - 128 + (int)Characters[c].pos.z / 1024;
+					xx = VideoCX - 128 + static_cast<int>(Characters[c].pos.x) / 1024;
+					yy = VideoCY - 128 + static_cast<int>(Characters[c].pos.z) / 1024;
 					if (yy <= 0 || yy >= WinH) goto endmap;
 					if (xx <= 0 || xx >= WinW) goto endmap;
 					int dx, dz;
 					dx = px - xx;
 					dz = py - yy;
-					int pd = (int) sqrt(dx * dx + dz * dz);
+					int pd = static_cast<int>(sqrt(dx * dx + dz * dz));
 
 
 					if (pd < 38) {
@@ -4597,8 +4596,8 @@ void DrawHMap()
 					} else Characters[c].showSonar = FALSE;
 
 					if (Characters[c].showSonar && !Characters[c].RTime) {
-						if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery((WORD*)linfo.lfbPtr, lsw, Characters[c].sonar.x, Characters[c].sonar.y, DinoInfo[Characters[c].CType].radarColour565);
-						else DrawBox((WORD*)linfo.lfbPtr, lsw, Characters[c].sonar.x, Characters[c].sonar.y, DinoInfo[Characters[c].CType].radarColour565);
+						if (DinoInfo[Characters[c].CType].Mystery) DrawBoxMystery(static_cast<WORD*>(linfo.lfbPtr), lsw, Characters[c].sonar.x, Characters[c].sonar.y, DinoInfo[Characters[c].CType].radarColour565);
+						else DrawBox(static_cast<WORD*>(linfo.lfbPtr), lsw, Characters[c].sonar.x, Characters[c].sonar.y, DinoInfo[Characters[c].CType].radarColour565);
 					}
 
 				}
@@ -4617,10 +4616,10 @@ endmap:
 
 void RenderSun(float x, float y, float z)
 {
-  SunScrX = VideoCX + (int)(x / (-z) * CameraW);
-  SunScrY = VideoCY - (int)(y / (-z) * CameraH);
+  SunScrX = VideoCX + static_cast<int>((x / (-z) * CameraW));
+  SunScrY = VideoCY - static_cast<int>((y / (-z) * CameraH));
   GetSkyK(SunScrX, SunScrY);
-  float d = (float)sqrt(x*x + y*y);
+  float d = static_cast<float>(sqrt(x*x + y*y));
   if (d<2048)
   {
     SunLight = (220.f- d*220.f/2048.f);
@@ -4633,9 +4632,9 @@ void RenderSun(float x, float y, float z)
   d+=(1.f-SkyTraceK)/2.f;
   if (OptDayNight == 2) {
 	  d = 1.5;
-	  RenderModelSun(SunModel, x*d, y*d, z*d, (int)(200.f));
+	  RenderModelSun(SunModel, x*d, y*d, z*d, static_cast<int>((200.f)));
   } else {
-	  RenderModelSun(SunModel, x*d, y*d, z*d, (int)((100.f*SkyTraceK) + 100.f));
+	  RenderModelSun(SunModel, x*d, y*d, z*d, static_cast<int>(((100.f*SkyTraceK) + 100.f)));
   }
 }
 
@@ -4668,15 +4667,15 @@ void RenderSkyPlane2()
   nv.x = 512;
   nv.y = 4024;
   nv.z=0;
-  int FogBase = (int)CalcFogLevel(nv);
+  int FogBase = static_cast<int>(CalcFogLevel(nv));
 
-  cb = (float)cos(CameraBeta);
-  sb = (float)sin(CameraBeta);
+  cb = static_cast<float>(cos(CameraBeta));
+  sb = static_cast<float>(sin(CameraBeta));
   //SKYDTime = RealTime & ((1<<16) - 1);
 
   float sh = - CameraY;
   if (MapMinY==10241024) MapMinY=0;
-  sh = (float)((int)MapMinY)*ctHScale - CameraY;
+  sh = static_cast<float>((static_cast<int>(MapMinY)))*ctHScale - CameraY;
 
   v.x = 0;
   v.z = (ctViewR*4.f)/5.f*256.f;
@@ -4688,13 +4687,13 @@ void RenderSkyPlane2()
 
   if (vbase.z < 128) vbase.z = 128;
 
-  int scry = VideoCY - (int)(vbase.y / vbase.z * CameraH);
+  int scry = VideoCY - static_cast<int>((vbase.y / vbase.z * CameraH));
 
   if (scry<0) return;
   if (scry>WinEY+1) scry = WinEY+1;
 
-  cb = (float)cos(CameraBeta-0.15);
-  sb = (float)sin(CameraBeta-0.15);
+  cb = static_cast<float>(cos(CameraBeta-0.15));
+  sb = static_cast<float>(sin(CameraBeta-0.15));
 
   tx.x=0.0025f;
   tx.y=0;
@@ -4762,10 +4761,10 @@ void RenderSkyPlane2()
   gvtx[1].a = 0.5f;
 
   gvtx[0].x = 0;
-  gvtx[1].x = (float)WinEX+1;
+  gvtx[1].x = static_cast<float>(WinEX)+1;
 
-  gvtx[0].z = (float)1.f;
-  gvtx[1].z = (float)1.f;
+  gvtx[0].z = static_cast<float>(1.f);
+  gvtx[1].z = static_cast<float>(1.f);
 
   gvtx[0].oow =  1.0f;
   gvtx[1].oow =  1.0f;
@@ -4783,9 +4782,9 @@ void RenderSkyPlane2()
     float fxb = (px * sx2 + py * sy + pz) / q;
     float fyb = (rx * sx2 + ry * sy + rz) / q;
 
-    float dtt = (float)(SKYDTime) / 256.f;
+    float dtt = static_cast<float>((SKYDTime)) / 256.f;
 
-    float dt = ((float)sqrt( (fxb-fxa)*(fxb-fxa) + (fyb-fya)*(fyb-fya) ) / 0x40 ) - 4.f;
+    float dt = (static_cast<float>(sqrt( (fxb-fxa)*(fxb-fxa) + (fyb-fya)*(fyb-fya) )) / 0x40 ) - 4.f;
     if (UNDERWATER) dt=6 + dt*3;
     if (dt>10.f) dt = 10.f;
     if (dt<lastdt) dt = lastdt;
@@ -4793,12 +4792,12 @@ void RenderSkyPlane2()
     gvtx[0].a = max(164-dt*245.f/10.f, 0);
     gvtx[1].a = gvtx[0].a;
 
-    gvtx[0].y = (float)sky;
+    gvtx[0].y = static_cast<float>(sky);
     gvtx[0].ooz = (_ZSCALE/gvtx[0].z);
     gvtx[0].tmuvtx[0].sow = fxa + dtt;
     gvtx[0].tmuvtx[0].tow = fya - dtt;
 
-    gvtx[1].y = (float)sky;
+    gvtx[1].y = static_cast<float>(sky);
     gvtx[1].ooz = (_ZSCALE/gvtx[1].z);
     gvtx[1].tmuvtx[0].sow = fxb + dtt;
     gvtx[1].tmuvtx[0].tow = fyb - dtt;
@@ -4807,8 +4806,8 @@ void RenderSkyPlane2()
     dFacesCount++;
   }
 
-  cb = (float)cos(CameraBeta);
-  sb = (float)sin(CameraBeta);
+  cb = static_cast<float>(cos(CameraBeta));
+  sb = static_cast<float>(sin(CameraBeta));
 
   guAlphaSource(GR_ALPHASOURCE_CC_ALPHA);
 }
@@ -4826,15 +4825,15 @@ void RenderSkyPlane()
   nv.x = 512;
   nv.y = 4024;
   nv.z=0;
-  int FogBase = (int)CalcFogLevel(nv);
+  int FogBase = static_cast<int>(CalcFogLevel(nv));
 
-  cb = (float)cos(CameraBeta);
-  sb = (float)sin(CameraBeta);
+  cb = static_cast<float>(cos(CameraBeta));
+  sb = static_cast<float>(sin(CameraBeta));
   SKYDTime = RealTime & ((1<<18) - 1);
 
   float sh = - CameraY;
   if (MapMinY==10241024) MapMinY=0;
-  sh = (float)((int)MapMinY)*ctHScale - CameraY;
+  sh = static_cast<float>((static_cast<int>(MapMinY)))*ctHScale - CameraY;
 
   v.x = 0;
   v.z = (ctViewR*4.f)/5.f*256.f;
@@ -4846,13 +4845,13 @@ void RenderSkyPlane()
 
   if (vbase.z < 128) vbase.z = 128;
 
-  int scry = VideoCY - (int)(vbase.y / vbase.z * CameraH);
+  int scry = VideoCY - static_cast<int>((vbase.y / vbase.z * CameraH));
 
   if (scry<0) return;
   if (scry>WinEY+1) scry = WinEY+1;
 
-  cb = (float)cos(CameraBeta-0.15);
-  sb = (float)sin(CameraBeta-0.15);
+  cb = static_cast<float>(cos(CameraBeta-0.15));
+  sb = static_cast<float>(sin(CameraBeta-0.15));
 
   tx.x=0.002f;
   tx.y=0;
@@ -4922,10 +4921,10 @@ void RenderSkyPlane()
   gvtx[1].a = 0.f;
 
   gvtx[0].x = 0;
-  gvtx[1].x = (float)WinEX+1;
+  gvtx[1].x = static_cast<float>(WinEX)+1;
 
-  gvtx[0].z = (float)1.f;
-  gvtx[1].z = (float)1.f;
+  gvtx[0].z = static_cast<float>(1.f);
+  gvtx[1].z = static_cast<float>(1.f);
 
   gvtx[0].oow =  1.0f;
   gvtx[1].oow =  1.0f;
@@ -4943,9 +4942,9 @@ void RenderSkyPlane()
     float fxb = (px * sx2 + py * sy + pz) / q;
     float fyb = (rx * sx2 + ry * sy + rz) / q;
 
-    float dtt = (float)(SKYDTime) / 512.f;
+    float dtt = static_cast<float>((SKYDTime)) / 512.f;
 
-    float dt = ((float)sqrt( (fxb-fxa)*(fxb-fxa) + (fyb-fya)*(fyb-fya) ) / 0x40 ) - 5.f;
+    float dt = (static_cast<float>(sqrt( (fxb-fxa)*(fxb-fxa) + (fyb-fya)*(fyb-fya) )) / 0x40 ) - 5.f;
     if (UNDERWATER) dt=6 + dt*3;
     if (dt>10.f) dt = 10.f;
     if (dt<lastdt) dt = lastdt;
@@ -4953,12 +4952,12 @@ void RenderSkyPlane()
     gvtx[0].a = max(dt*245.f/10.f, FogBase);
     gvtx[1].a = gvtx[0].a;
 
-    gvtx[0].y = (float)sky;
+    gvtx[0].y = static_cast<float>(sky);
     gvtx[0].ooz = (_ZSCALE/gvtx[0].z);
     gvtx[0].tmuvtx[0].sow = fxa + dtt;
     gvtx[0].tmuvtx[0].tow = fya - dtt;
 
-    gvtx[1].y = (float)sky;
+    gvtx[1].y = static_cast<float>(sky);
     gvtx[1].ooz = (_ZSCALE/gvtx[1].z);
     gvtx[1].tmuvtx[0].sow = fxb + dtt;
     gvtx[1].tmuvtx[0].tow = fyb - dtt;
@@ -4974,8 +4973,8 @@ void RenderSkyPlane()
   else grFogMode(GR_FOG_WITH_ITERATED_ALPHA);
   grTexClampMode(GR_TMU0, GR_TEXTURECLAMP_CLAMP, GR_TEXTURECLAMP_CLAMP);
 
-  cb = (float)cos(CameraBeta);
-  sb = (float)sin(CameraBeta);
+  cb = static_cast<float>(cos(CameraBeta));
+  sb = static_cast<float>(sin(CameraBeta));
 
 
   gvtx[0].a = 0;
@@ -5041,8 +5040,8 @@ void Render_Cross(int sx, int sy)
 		&linfo)) return;
 	lsw = linfo.strideInBytes / 2;
 	_CRCOLOR = WeapInfo[CurrentWeapon].crossColour565;
-	float w = (float)WinW / 12.f;
-	int wi = (int)(w*2.f);
+	float w = static_cast<float>(WinW) / 12.f;
+	int wi = static_cast<int>((w*2.f));
 	int xx = sx - w;
 	int yy = sy;
 	for (int x = 0; x < wi; x++)PutPixel(xx + x, yy);

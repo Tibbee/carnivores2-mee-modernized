@@ -52,7 +52,7 @@ void UploadGeometry()
   AudioFCount = 0;
 
   int MaxView = 18;
-  int HalfView = (int)(MaxView/2)+1;
+  int HalfView = static_cast<int>((MaxView/2))+1;
 
   for (x = 0; x < MaxView; x++)
     for (y = 0; y < MaxView; y++)
@@ -185,16 +185,16 @@ void EnumerateResolutions()
 
 float GetLandOH(int x, int y)
 {
-  return (float)(HMapO[y][x]) * ctHScale;
+  return static_cast<float>((HMapO[y][x])) * ctHScale;
 }
 
 
 float GetLandOUH(int x, int y)
 {
   if (FMap[y][x] & fmReverse)
-    return (float)((int)(HMap[y][x+1]+HMap[y+1][x])/2.f)*ctHScale;
+    return static_cast<float>((static_cast<int>((HMap[y][x+1]+HMap[y+1][x]))/2.f))*ctHScale;
   else
-    return (float)((int)(HMap[y][x]+HMap[y+1][x+1])/2.f)*ctHScale;
+    return static_cast<float>((static_cast<int>((HMap[y][x]+HMap[y+1][x+1]))/2.f))*ctHScale;
 }
 
 
@@ -202,12 +202,12 @@ float GetLandOUH(int x, int y)
 float GetLandUpH(float x, float y)
 {
 
-  int CX = (int)x / 256;
-  int CY = (int)y / 256;
+  int CX = static_cast<int>(x) / 256;
+  int CY = static_cast<int>(y) / 256;
 
   if (!(FMap[CY][CX] & fmWaterA)) return GetLandH(x,y);
 
-  return (float)(WaterList[ WMap[CY][CX] ].wlevel * ctHScale);
+  return static_cast<float>((WaterList[ WMap[CY][CX] ].wlevel * ctHScale));
 
 }
 
@@ -219,18 +219,18 @@ bool waterNear(float x, float y, float maxDist)
 
 		}
 	}
-	//if ((FMap[(int)y / 256][(int)x / 256] & fmWaterA)) return true;
+	//if ((FMap[static_cast<int>(y) / 256][static_cast<int>(x) / 256] & fmWaterA)) return true;
 	return false;
 }
 
 
 float GetLandH(float x, float y)
 {
-  int CX = (int)x / 256;
-  int CY = (int)y / 256;
+  int CX = static_cast<int>(x) / 256;
+  int CY = static_cast<int>(y) / 256;
 
-  int dx = (int)x % 256;
-  int dy = (int)y % 256;
+  int dx = static_cast<int>(x) % 256;
+  int dy = static_cast<int>(y) % 256;
 
   int h1 = HMap[CY][CX];
   int h2 = HMap[CY][CX+1];
@@ -249,8 +249,7 @@ float GetLandH(float x, float y)
     else h2 = h1+h3-h4;
   }
 
-  float h = (float)
-            (h1   * (256-dx) + h2 * dx) * (256-dy) +
+  float h = static_cast<float>((h1   * (256-dx) + h2 * dx)) * (256-dy) +
             (h4   * (256-dx) + h3 * dx) * dy;
 
   return  (h / 256.f / 256.f) * ctHScale;
@@ -260,19 +259,18 @@ float GetLandH(float x, float y)
 
 float GetLandLt(float x, float y)
 {
-  int CX = (int)x / 256;
-  int CY = (int)y / 256;
+  int CX = static_cast<int>(x) / 256;
+  int CY = static_cast<int>(y) / 256;
 
-  int dx = (int)x % 256;
-  int dy = (int)y % 256;
+  int dx = static_cast<int>(x) % 256;
+  int dy = static_cast<int>(y) % 256;
 
   int h1 = LMap[CY][CX];
   int h2 = LMap[CY][CX+1];
   int h3 = LMap[CY+1][CX+1];
   int h4 = LMap[CY+1][CX];
 
-  float h = (float)
-            (h1   * (256-dx) + h2 * dx) * (256-dy) +
+  float h = static_cast<float>((h1   * (256-dx) + h2 * dx)) * (256-dy) +
             (h4   * (256-dx) + h3 * dx) * dy;
 
   return  (h / 256.f / 256.f);
@@ -282,19 +280,18 @@ float GetLandLt(float x, float y)
 
 float GetLandLt2(float x, float y)
 {
-  int CX = ((int)x / 512)*2 - CCX;
-  int CY = ((int)y / 512)*2 - CCY;
+  int CX = (static_cast<int>(x) / 512)*2 - CCX;
+  int CY = (static_cast<int>(y) / 512)*2 - CCY;
 
-  int dx = (int)x % 512;
-  int dy = (int)y % 512;
+  int dx = static_cast<int>(x) % 512;
+  int dy = static_cast<int>(y) % 512;
 
   int h1 = VMap[CY+128][CX+128].Light;
   int h2 = VMap[CY+128][CX+2+128].Light;
   int h3 = VMap[CY+2+128][CX+2+128].Light;
   int h4 = VMap[CY+2+128][CX+128].Light;
 
-  float h = (float)
-            (h1   * (512-dx) + h2 * dx) * (512-dy) +
+  float h = static_cast<float>((h1   * (512-dx) + h2 * dx)) * (512-dy) +
             (h4   * (512-dx) + h3 * dx) * dy;
 
   return  (h / 512.f / 512.f);
@@ -320,8 +317,8 @@ BOOL PointOnBound(float &H, float px, float py, float cx, float cy, float oy, TB
   px-=cx;
   py-=cy;
 
-  float ca = (float) cos(angle*pi / 2.f);
-  float sa = (float) sin(angle*pi / 2.f);
+  float ca = static_cast<float>(cos(angle*pi / 2.f));
+  float sa = static_cast<float>(sin(angle*pi / 2.f));
 
   BOOL _on = FALSE;
   H=-1000;
@@ -364,8 +361,8 @@ BOOL PointUnBound(float &H, float px, float py, float cx, float cy, float oy, TB
   px-=cx;
   py-=cy;
 
-  float ca = (float) cos(angle*pi / 2.f);
-  float sa = (float) sin(angle*pi / 2.f);
+  float ca = static_cast<float>(cos(angle*pi / 2.f));
+  float sa = static_cast<float>(sin(angle*pi / 2.f));
 
   BOOL _on = FALSE;
   H=+1000;
@@ -411,8 +408,8 @@ float GetLandCeilH(float CameraX, float CameraZ)
 
   h = GetLandH(CameraX, CameraZ) + 20480;
 
-  int ccx = (int)CameraX / 256;
-  int ccz = (int)CameraZ / 256;
+  int ccx = static_cast<int>(CameraX) / 256;
+  int ccz = static_cast<int>(CameraZ) / 256;
 
   for (int z=-4; z<=4; z++)
     for (int x=-4; x<=4; x++)
@@ -420,7 +417,7 @@ float GetLandCeilH(float CameraX, float CameraZ)
       {
         int ob = OMap[ccz+z][ccx+x];
 
-        float CR = (float)MObjects[ob].info.Radius - 1.f;
+        float CR = static_cast<float>(MObjects[ob].info.Radius) - 1.f;
 
         float oz = (ccz+z) * 256.f + 128.f;
         float ox = (ccx+x) * 256.f + 128.f;
@@ -444,9 +441,9 @@ float GetLandCeilH(float CameraX, float CameraZ)
         else
         {
           if (MObjects[ob].info.flags & ofCIRCLE)
-            r = (float) sqrt( (ox-CameraX)*(ox-CameraX) + (oz-CameraZ)*(oz-CameraZ) );
+            r = static_cast<float>(sqrt( (ox-CameraX)*(ox-CameraX) + (oz-CameraZ)*(oz-CameraZ) ));
           else
-            r = (float) MAX( fabs(ox-CameraX), fabs(oz-CameraZ) );
+            r = static_cast<float>(MAX( fabs(ox-CameraX), fabs(oz-CameraZ) ));
 
           if (r<CR) h = MObjects[ob].info.YLo + LandY;
         }
@@ -480,8 +477,8 @@ float GetLandQH(float CameraX, float CameraZ)
   hh = GetLandH(CameraX, CameraZ-128.f);
   if (hh>h) h=hh;
 
-  int ccx = (int)CameraX / 256;
-  int ccz = (int)CameraZ / 256;
+  int ccx = static_cast<int>(CameraX) / 256;
+  int ccz = static_cast<int>(CameraZ) / 256;
 
   for (int z=-4; z<=4; z++)
     for (int x=-4; x<=4; x++)
@@ -489,7 +486,7 @@ float GetLandQH(float CameraX, float CameraZ)
       {
         int ob = OMap[ccz+z][ccx+x];
 
-        float CR = (float)MObjects[ob].info.Radius - 1.f;
+        float CR = static_cast<float>(MObjects[ob].info.Radius) - 1.f;
 
         float oz = (ccz+z) * 256.f + 128.f;
         float ox = (ccx+x) * 256.f + 128.f;
@@ -514,9 +511,9 @@ float GetLandQH(float CameraX, float CameraZ)
         else
         {
           if (MObjects[ob].info.flags & ofCIRCLE)
-            r = (float) sqrt( (ox-CameraX)*(ox-CameraX) + (oz-CameraZ)*(oz-CameraZ) );
+            r = static_cast<float>(sqrt( (ox-CameraX)*(ox-CameraX) + (oz-CameraZ)*(oz-CameraZ) ));
           else
-            r = (float) MAX( fabs(ox-CameraX), fabs(oz-CameraZ) );
+            r = static_cast<float>(MAX( fabs(ox-CameraX), fabs(oz-CameraZ) ));
 
           if (r<CR) h = MObjects[ob].info.YHi + LandY;
         }
@@ -532,15 +529,15 @@ float GetLandHObj(float CameraX, float CameraZ)
 
   h = 0;
 
-  int ccx = (int)CameraX / 256;
-  int ccz = (int)CameraZ / 256;
+  int ccx = static_cast<int>(CameraX) / 256;
+  int ccz = static_cast<int>(CameraZ) / 256;
 
   for (int z=-3; z<=3; z++)
     for (int x=-3; x<=3; x++)
       if (OMap[ccz+z][ccx+x]!=255)
       {
         int ob = OMap[ccz+z][ccx+x];
-        float CR = (float)MObjects[ob].info.Radius - 1.f;
+        float CR = static_cast<float>(MObjects[ob].info.Radius) - 1.f;
 
         float oz = (ccz+z) * 256.f + 128.f;
         float ox = (ccx+x) * 256.f + 128.f;
@@ -549,9 +546,9 @@ float GetLandHObj(float CameraX, float CameraZ)
         if (MObjects[ob].info.YLo + GetLandOH(ccx+x, ccz+z) > PlayerY+256) continue;
         float r;
         if (MObjects[ob].info.flags & ofCIRCLE)
-          r = (float) sqrt( (ox-CameraX)*(ox-CameraX) + (oz-CameraZ)*(oz-CameraZ) );
+          r = static_cast<float>(sqrt( (ox-CameraX)*(ox-CameraX) + (oz-CameraZ)*(oz-CameraZ) ));
         else
-          r = (float) MAX( fabs(ox-CameraX), fabs(oz-CameraZ) );
+          r = static_cast<float>(MAX( fabs(ox-CameraX), fabs(oz-CameraZ) ));
 
         if (r<CR)
           h = MObjects[ob].info.YHi + GetLandOH(ccx+x, ccz+z);
@@ -663,12 +660,12 @@ void ProcessCommandLine()
 
     if (strstr(s,"x="))
     {
-      PlayerX = (float)atof(&s[2])*256.f;
+      PlayerX = static_cast<float>(atof(&s[2]))*256.f;
       LockLanding = TRUE;
     }
     if (strstr(s,"y="))
     {
-      PlayerZ = (float)atof(&s[2])*256.f;
+      PlayerZ = static_cast<float>(atof(&s[2]))*256.f;
       LockLanding = TRUE;
     }
 
@@ -753,14 +750,14 @@ void SubmitDinoScore (int cindex) {
 	if (RadarMode) score *= ScoreMod_Radar;
 	if (ScentMode) score *= ScoreMod_Scent;
 	if (CamoMode) score *= ScoreMod_Camo;
-	TrophyRoom.Score += (int)score;
-	Characters[cindex].tempScore = (int)score;
+	TrophyRoom.Score += static_cast<int>(score);
+	Characters[cindex].tempScore = static_cast<int>(score);
 	Characters[cindex].tempDate = (st.wYear << 20) + (st.wMonth << 10) + st.wDay;
 	Characters[cindex].tempTime = (st.wHour << 10) + st.wMinute;
 	Characters[cindex].tempRange = VectorLength(SubVectors(Characters[cindex].pos, PlayerPos)) / 64.f;
 
 	ScoreDispTime = 2500;
-	ScoreDisp = (int)score;
+	ScoreDisp = static_cast<int>(score);
 
 }
 
@@ -1053,44 +1050,44 @@ void InitGameInfo()
 // MULTIPLAYER ===================================================
 
 void putInt(byte data[], int *pos, long in) {
-	data[*pos] = (int)((in & 0XFF));
+	data[*pos] = static_cast<int>(((in & 0XFF)));
 	*pos += 1;
 }
 
 void putInt2(byte data[], int *pos, long in) {
-	data[*pos] = (int)((in >> 8) & 0XFF);
-	data[*pos + 1] = (int)((in & 0XFF));
+	data[*pos] = static_cast<int>(((in >> 8) & 0XFF));
+	data[*pos + 1] = static_cast<int>(((in & 0XFF)));
 	*pos += 2;
 }
 
 void putFloat(byte data[], int *pos, long in) {
-	data[*pos]   = (int)((in >> 24) & 0xFF);
-	data[*pos+1] = (int)((in >> 16) & 0xFF);
-	data[*pos+2] = (int)((in >> 8) & 0XFF);
-	data[*pos+3] = (int)((in & 0XFF));
+	data[*pos]   = static_cast<int>(((in >> 24) & 0xFF));
+	data[*pos+1] = static_cast<int>(((in >> 16) & 0xFF));
+	data[*pos+2] = static_cast<int>(((in >> 8) & 0XFF));
+	data[*pos+3] = static_cast<int>(((in & 0XFF)));
 	*pos += 4;
 }
 
 int readInt(const byte data[], int *pos) {
 	int pos2 = *pos;
 	*pos += 1;
-	return (int)((data[pos2]));
+	return static_cast<int>(((data[pos2])));
 }
 
 int readInt2(const byte data[], int *pos) {
 	int pos2 = *pos;
 	*pos += 2;
-	return (int)((data[pos2] << 8)
-		+ (data[pos2 + 1]));
+	return static_cast<int>(((data[pos2] << 8)
+		+ (data[pos2 + 1])));
 }
 
 float readFloat(const byte data[], int *pos) {
 	int pos2 = *pos;
 	*pos += 4;
-	return (float)((data[pos2] << 24)
+	return static_cast<float>(((data[pos2] << 24)
 		+ (data[pos2 + 1] << 16)
 		+ (data[pos2 + 2] << 8)
-		+ (data[pos2 + 3]));
+		+ (data[pos2 + 3])));
 }
 
 bool RecvPacket(SOCKET *socket, int bufSize, bool init){
@@ -1381,7 +1378,7 @@ void _StartupServer() {
 	}
 
 	// Setup the TCP listening socket
-	iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+	iResult = bind(ListenSocket, result->ai_addr, static_cast<int>(result->ai_addrlen));
 	if (iResult == SOCKET_ERROR) {
 		PrintLog("bind failed\n");
 		freeaddrinfo(result);
@@ -1513,7 +1510,7 @@ void _StartupClient() {
 		}
 
 		// Connect to server.
-		iResult = connect(ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen);
+		iResult = connect(ConnectSocket, ptr->ai_addr, static_cast<int>(ptr->ai_addrlen));
 		if (iResult == SOCKET_ERROR) {
 			closesocket(ConnectSocket);
 			ConnectSocket = INVALID_SOCKET;
@@ -1532,7 +1529,7 @@ void _StartupClient() {
 
 	/*
 	// Send an initial buffer
-	iResult = send(ConnectSocket, sendbuf, (int)strlen(sendbuf), 0);
+	iResult = send(ConnectSocket, sendbuf, static_cast<int>(strlen(sendbuf)), 0);
 	if (iResult == SOCKET_ERROR) {
 		PrintLog("send failed");
 		closesocket(ConnectSocket);
@@ -1647,7 +1644,7 @@ void InitEngine()
   result = nullptr;
 
   fnt_BIG = CreateFont(
-              (int)(23 * UIScale), (int)(10 * UIScale), 0, 0,
+              static_cast<int>((23 * UIScale)), static_cast<int>((10 * UIScale)), 0, 0,
               600, 0,0,0,
 #ifdef __rus
               RUSSIAN_CHARSET,
@@ -1660,7 +1657,7 @@ void InitEngine()
 
 
   fnt_Small = CreateFont(
-                (int)(16 * UIScale), (int)(7 * UIScale), 0, 0,
+                static_cast<int>((16 * UIScale)), static_cast<int>((7 * UIScale)), 0, 0,
 				100, 0,0,0,
 	  
 	  //14, 5, 0, 0,
@@ -1674,7 +1671,7 @@ void InitEngine()
 
 
   fnt_Midd  = CreateFont(
-			    (int)(16 * UIScale), (int)(7 * UIScale), 0, 0,
+			    static_cast<int>((16 * UIScale)), static_cast<int>((7 * UIScale)), 0, 0,
 	            550, 0, 0, 0,
 #ifdef __rus
                 RUSSIAN_CHARSET,
@@ -1791,15 +1788,15 @@ void InitEngine()
 
   if (SurvivalMode) OptViewR = 127;
 
-  ctViewR = 42 + (int)(OptViewR / 8) * 2;
+  ctViewR = 42 + static_cast<int>((OptViewR / 8)) * 2;
   ctViewR1 = 28;
   ctViewRM = 24;
   
 
   /*
   //TEST VERSION - INTRODUCE QUAILTY SLIDER?
-  ctViewR  = 42 + (int)(OptViewR / 3.1875);
-  ctViewR1 = ctViewR - 10; // 28 + (int)(OptViewR / 1.175115207373272);
+  ctViewR  = 42 + static_cast<int>((OptViewR / 3.1875));
+  ctViewR1 = ctViewR - 10; // 28 + static_cast<int>((OptViewR / 1.175115207373272));
   ctViewRM = 24; //leave as 24 default
   if (ctViewR < 20) ctViewR = 20;
   if (ctViewR > 122) ctViewR = 122;
@@ -2031,7 +2028,7 @@ void AddElementsA(float x, float y, float z, int etype, int cnt, int mag, bool a
 
 
   case partBubble:
-    c = WaterList[ WMap[ (int)z / 256][ (int)x / 256] ].fogRGB;
+    c = WaterList[ WMap[ static_cast<int>(z) / 256][ static_cast<int>(x) / 256] ].fogRGB;
 #ifdef _d3d
     c = ColorSum( ((c & 0xFEFEFE)>>1), 0x152020);
 #else
@@ -2042,7 +2039,7 @@ void AddElementsA(float x, float y, float z, int etype, int cnt, int mag, bool a
     break;
 
   case partWater:
-    c = WaterList[ WMap[ (int)z / 256][ (int)x / 256] ].fogRGB;
+    c = WaterList[ WMap[ static_cast<int>(z) / 256][ static_cast<int>(x) / 256] ].fogRGB;
 #ifdef _d3d
     c = ColorSum( ((c & 0xFEFEFE)>>1), 0x152020);
 #else
@@ -2089,8 +2086,8 @@ void AddElementsA(float x, float y, float z, int etype, int cnt, int mag, bool a
 		Elements[ElCount].EList[e].speed.z = siRand(32);
 		Elements[ElCount].EList[e].speed.y =rRand(80) + 400 + velo * 40;
 		if (angled) {
-			Elements[ElCount].EList[e].speed.x = siRand(132) + ((float)cos(alph) * velo * 40);
-			Elements[ElCount].EList[e].speed.z = siRand(132) + ((float)sin(alph) * velo * 40);
+			Elements[ElCount].EList[e].speed.x = siRand(132) + (static_cast<float>(cos(alph)) * velo * 40);
+			Elements[ElCount].EList[e].speed.z = siRand(132) + (static_cast<float>(sin(alph)) * velo * 40);
 		}
       break;
     case partBubble:
@@ -2457,18 +2454,18 @@ void AnimateSShip() {
 		return;
 	}
 
-	SShip.pos.y += 0.3f*(float)cos(RealTime / 256.f);
+	SShip.pos.y += 0.3f*static_cast<float>(cos(RealTime / 256.f));
 
 	SShip.tgalpha = FindVectorAlpha(SShip.tgpos.x - SShip.pos.x, SShip.tgpos.z - SShip.pos.z);
 	float currspeed;
-	float dalpha = (float)fabs(SShip.tgalpha - SShip.alpha);
+	float dalpha = static_cast<float>(fabs(SShip.tgalpha - SShip.alpha));
 	float drspd = dalpha;
 	if (drspd > pi) drspd = 2 * pi - drspd;
 
 	if (VectorLength(SubVectors(PlayerPos, SShip.pos)) < (ctViewR + 2) * 256 && SShip.State != 1 && dalpha < 1)
 	{
-		SShip.tgpos.x += (float)cos(SShip.alpha) * 256 * 6.f;
-		SShip.tgpos.z += (float)sin(SShip.alpha) * 256 * 6.f;
+		SShip.tgpos.x += static_cast<float>(cos(SShip.alpha)) * 256 * 6.f;
+		SShip.tgpos.z += static_cast<float>(sin(SShip.alpha)) * 256 * 6.f;
 	}
 
 
@@ -2482,8 +2479,8 @@ void AnimateSShip() {
 	//====== fly ===========//
 	float l = TimeDt * SShip.speed / 16.f;
 	Vector3d _pos = SShip.pos;
-	SShip.pos.x += (float)cos(SShip.alpha)*l;
-	SShip.pos.z += (float)sin(SShip.alpha)*l;
+	SShip.pos.x += static_cast<float>(cos(SShip.alpha))*l;
+	SShip.pos.z += static_cast<float>(sin(SShip.alpha))*l;
 
 	//======= y movement ============//
 	float h = GetLandUpH(SShip.pos.x, SShip.pos.z);
@@ -2499,13 +2496,13 @@ void AnimateSShip() {
 
 	float tggamma = SShip.alpha;
 
-	if (SShip.tgalpha > SShip.alpha) currspeed = 0.1f + (float)fabs(drspd) / 2.f;
-	else currspeed = -0.1f - (float)fabs(drspd) / 2.f;
+	if (SShip.tgalpha > SShip.alpha) currspeed = 0.1f + static_cast<float>(fabs(drspd)) / 2.f;
+	else currspeed = -0.1f - static_cast<float>(fabs(drspd)) / 2.f;
 
 	if (fabs(dalpha) > pi) currspeed = -currspeed;
 
 
-	DeltaFunc(SShip.rspeed, currspeed, (float)TimeDt / 420.f);
+	DeltaFunc(SShip.rspeed, currspeed, static_cast<float>(TimeDt) / 420.f);
 
 	float rspd = SShip.rspeed * TimeDt / 2024.f;
 	if (fabs(drspd) < fabs(rspd))
@@ -2524,16 +2521,16 @@ void AnimateSShip() {
 	if (SShip.alpha > pi * 2) SShip.alpha -= pi * 2;
 
 	float curgspeed;
-	float dgamma = (float)fabs(tggamma - SShip.gamma);
+	float dgamma = static_cast<float>(fabs(tggamma - SShip.gamma));
 	float dgspd = dgamma;
 	if (dgspd > pi) dgspd = 2 * pi - dgspd;
-	if (tggamma > SShip.gamma) curgspeed = 0.1f + (float)fabs(dgspd) / 2.f;
-	else curgspeed = -0.1f - (float)fabs(dgspd) / 2.f;
+	if (tggamma > SShip.gamma) curgspeed = 0.1f + static_cast<float>(fabs(dgspd)) / 2.f;
+	else curgspeed = -0.1f - static_cast<float>(fabs(dgspd)) / 2.f;
 	curgspeed *= 2;
 
 	if (fabs(dgamma) > pi) curgspeed = -curgspeed;
 
-	DeltaFunc(SShip.gspeed, curgspeed, (float)TimeDt / 420.f);
+	DeltaFunc(SShip.gspeed, curgspeed, static_cast<float>(TimeDt) / 420.f);
 
 	float gspd = SShip.gspeed * TimeDt / 2024.f;
 	if (fabs(dgspd) < fabs(gspd))
@@ -2589,13 +2586,13 @@ void AnimateShip()
   float L2 = sqrt ( (Ship.tgpos.x - Ship.pos.x) * (Ship.tgpos.x - Ship.pos.x) +
                     (Ship.tgpos.x - Ship.pos.x) * (Ship.tgpos.x - Ship.pos.x) );
 
-  Ship.pos.y+=0.3f*(float)cos(RealTime / 256.f);
+  Ship.pos.y+=0.3f*static_cast<float>(cos(RealTime / 256.f));
 
 
 
   Ship.tgalpha    = FindVectorAlpha(Ship.tgpos.x - Ship.pos.x, Ship.tgpos.z - Ship.pos.z);
   float currspeed;
-  float dalpha = (float)fabs(Ship.tgalpha - Ship.alpha);
+  float dalpha = static_cast<float>(fabs(Ship.tgalpha - Ship.alpha));
   float drspd = dalpha;
   if (drspd>pi) drspd = 2*pi - drspd;
 
@@ -2606,8 +2603,8 @@ void AnimateShip()
       if (L<4000)
         if (VectorLength(SubVectors(PlayerPos, Ship.pos))<(ctViewR+2)*256)
         {
-          Ship.tgpos.x += (float)cos(Ship.alpha) * 256*6.f;
-          Ship.tgpos.z += (float)sin(Ship.alpha) * 256*6.f;
+          Ship.tgpos.x += static_cast<float>(cos(Ship.alpha)) * 256*6.f;
+          Ship.tgpos.z += static_cast<float>(sin(Ship.alpha)) * 256*6.f;
           Ship.tgpos.y = GetLandUpH(Ship.tgpos.x, Ship.tgpos.z) + Ship.DeltaY;
           Ship.tgpos.y = MAX(Ship.tgpos.y, GetLandUpH(Ship.pos.x, Ship.pos.z) + Ship.DeltaY);
         }
@@ -2683,8 +2680,8 @@ void AnimateShip()
     {
       if (l>L2) l = L2 * 0.5f;
       if (L2<0.1) l = 0;
-      Ship.pos.x += (float)cos(Ship.alpha)*l;
-      Ship.pos.z += (float)sin(Ship.alpha)*l;
+      Ship.pos.x += static_cast<float>(cos(Ship.alpha))*l;
+      Ship.pos.z += static_cast<float>(sin(Ship.alpha))*l;
     }
     else
     {
@@ -2723,13 +2720,13 @@ void AnimateShip()
 
 //======= rotation ============//
 
-  if (Ship.tgalpha > Ship.alpha) currspeed = 0.1f + (float)fabs(drspd)/2.f;
-  else currspeed =-0.1f - (float)fabs(drspd)/2.f;
+  if (Ship.tgalpha > Ship.alpha) currspeed = 0.1f + static_cast<float>(fabs(drspd))/2.f;
+  else currspeed =-0.1f - static_cast<float>(fabs(drspd))/2.f;
 
   if (fabs(dalpha) > pi) currspeed=-currspeed;
 
 
-  DeltaFunc(Ship.rspeed, currspeed, (float)TimeDt / 420.f);
+  DeltaFunc(Ship.rspeed, currspeed, static_cast<float>(TimeDt) / 420.f);
 
   float rspd=Ship.rspeed * TimeDt / 1024.f;
   if (fabs(drspd) < fabs(rspd))
@@ -3002,8 +2999,8 @@ void AnimateProcesses()
 	  if (Wind.speed < 4.f) Wind.speed = 4.f;
 	  if (Wind.speed > 18.f) Wind.speed = 18.f;
   }
-  Wind.nv.x = (float)sin(Wind.alpha);
-  Wind.nv.z = (float)-cos(Wind.alpha);
+  Wind.nv.x = static_cast<float>(sin(Wind.alpha));
+  Wind.nv.z = static_cast<float>(-cos(Wind.alpha));
   Wind.nv.y = 0.f;
 
   if (answtime)
@@ -3036,7 +3033,7 @@ void AnimateProcesses()
   for (int w=0; w<WCCount; w++)
   {
     if (WCircles[w].scale > 1)
-      WCircles[w].FTime+=(int)(TimeDt*3 / WCircles[w].scale);
+      WCircles[w].FTime+=static_cast<int>((TimeDt*3 / WCircles[w].scale));
     else
       WCircles[w].FTime+=TimeDt*3;
     if (WCircles[w].FTime >= 2000)

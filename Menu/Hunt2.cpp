@@ -235,7 +235,7 @@ bool CreateMainWindow()
 	wc.cbWndExtra = 0;
 	wc.style = CS_OWNDC;
 	wc.lpfnWndProc = WindowProcedure;
-	wc.hInstance = (HINSTANCE)hInst;
+	wc.hInstance = reinterpret_cast<HINSTANCE>(hInst);
 	wc.hIcon = LoadIcon(wc.hInstance, MAKEINTRESOURCE(IDI_ICON1));
 	wc.hIconSm = LoadIcon(wc.hInstance, MAKEINTRESOURCE(IDI_ICON1));
 	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
@@ -391,7 +391,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 	CloseLogs();
 
 #ifdef _DEBUG
-	return (int)msg.wParam;
+	return static_cast<int>(msg.wParam);
 #else
 	return msg.wParam;
 #endif

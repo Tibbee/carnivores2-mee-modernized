@@ -298,15 +298,15 @@ void ResetCharacter(TCharacter *cptr)
 
 	cptr->lastTBeta = 0;
 	cptr->turny = 0;
-	cptr->bdepth = (float)0;
+	cptr->bdepth = static_cast<float>(0);
 
-	cptr->lookx = (float)cos(cptr->alpha);
-	cptr->lookz = (float)sin(cptr->alpha);
+	cptr->lookx = static_cast<float>(cos(cptr->alpha));
+	cptr->lookz = static_cast<float>(sin(cptr->alpha));
 
 	cptr->Health = DinoInfo[cptr->CType].Health0;
 	if (OptAgres > 128) cptr->Health = (cptr->Health*OptAgres) / 128;
 
-	cptr->scale = (float)(DinoInfo[cptr->CType].Scale0 + rRand(DinoInfo[cptr->CType].ScaleA)) / 1000.f;
+	cptr->scale = static_cast<float>((DinoInfo[cptr->CType].Scale0 + rRand(DinoInfo[cptr->CType].ScaleA))) / 1000.f;
 
 	//When does need to get set? not here huh?
 	//cptr->RType = spawnGroup[cptr->SpawnGroupType].spawnRegionCh;
@@ -365,14 +365,14 @@ void AddDeadBody(TCharacter *cptr, int phase, bool scream)
 		Characters[ChCount].pos.y = GetLandQH(Characters[ChCount].pos.x, Characters[ChCount].pos.z);
 		/*
 		if (DinoInfo[cptr->CType].Aquatic) {
-			Characters[ChCount].pos.x = cptr->pos.x + cptr->lookx * pl * cptr->scale * (float)cos(cptr->beta);
-			Characters[ChCount].pos.z = cptr->pos.z + cptr->lookz * pl * cptr->scale * (float)cos(cptr->beta);
-			Characters[ChCount].pos.y = cptr->pos.y - (float)sin(cptr->beta) * pl * cptr->scale;
+			Characters[ChCount].pos.x = cptr->pos.x + cptr->lookx * pl * cptr->scale * static_cast<float>(cos(cptr->beta));
+			Characters[ChCount].pos.z = cptr->pos.z + cptr->lookz * pl * cptr->scale * static_cast<float>(cos(cptr->beta));
+			Characters[ChCount].pos.y = cptr->pos.y - static_cast<float>(sin(cptr->beta)) * pl * cptr->scale;
 			float ply = DinoInfo[cptr->CType].killType[cptr->killType].yoffset;
-			Characters[ChCount].pos.y += ply * (float)cos(cptr->beta);
-			ply *= (float)sin(cptr->beta);
-			Characters[ChCount].pos.z += ply * (float)sin(cptr->alpha);
-			Characters[ChCount].pos.x += ply * (float)cos(cptr->alpha);
+			Characters[ChCount].pos.y += ply * static_cast<float>(cos(cptr->beta));
+			ply *= static_cast<float>(sin(cptr->beta));
+			Characters[ChCount].pos.z += ply * static_cast<float>(sin(cptr->alpha));
+			Characters[ChCount].pos.x += ply * static_cast<float>(cos(cptr->alpha));
 			Characters[ChCount].alpha = cptr->alpha;
 			Characters[ChCount].beta = cptr->beta;
 			Characters[ChCount].gamma = cptr->gamma;
@@ -415,14 +415,14 @@ void AddDeadBody(TCharacter *cptr, int phase, bool scream)
 float AngleDifference(float a, float b)
 {
 	a -= b;
-	a = (float)fabs(a);
+	a = static_cast<float>(fabs(a));
 	if (a > pi) a = 2 * pi - a;
 	return a;
 }
 
 float CorrectedAlpha(float a, float b)
 {
-	float d = (float)fabs(a - b);
+	float d = static_cast<float>(fabs(a - b));
 	if (d < pi) return (a + b) / 2;
 	else d = (a + pi * 2 - b);
 
@@ -460,8 +460,8 @@ void ThinkY_Beta_Gamma(TCharacter *cptr, float blook, float glook, float blim, f
 
 int CheckPlaceCollisionP(Vector3d &v, bool aquatic)
 {
-	int ccx = (int)v.x / 256;
-	int ccz = (int)v.z / 256;
+	int ccx = static_cast<int>(v.x) / 256;
+	int ccz = static_cast<int>(v.z) / 256;
 
 	if (ccx < 4 || ccz < 4 || ccx>1008 || ccz>1008) return 1;
 
@@ -496,12 +496,12 @@ int CheckPlaceCollisionP(Vector3d &v, bool aquatic)
 			{
 				int ob = OMap[ccz + z][ccx + x];
 				if (MObjects[ob].info.Radius < 10) continue;
-				float CR = (float)MObjects[ob].info.Radius + 64;
+				float CR = static_cast<float>(MObjects[ob].info.Radius) + 64;
 
 				float oz = (ccz + z) * 256.f + 128.f;
 				float ox = (ccx + x) * 256.f + 128.f;
 
-				float r = (float)sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z));
+				float r = static_cast<float>(sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z)));
 				if (r < CR) return 1;
 			}
 
@@ -511,8 +511,8 @@ int CheckPlaceCollisionP(Vector3d &v, bool aquatic)
 
 int CheckPlaceCollisionFishP(Vector3d &v, int minDepth, int maxDepth)
 {
-	int ccx = (int)v.x / 256;
-	int ccz = (int)v.z / 256;
+	int ccx = static_cast<int>(v.x) / 256;
+	int ccz = static_cast<int>(v.z) / 256;
 
 	if (ccx < 4 || ccz < 4 || ccx>1008 || ccz>1008) return 1;
 	
@@ -543,8 +543,8 @@ int CheckPlaceCollisionFishP(Vector3d &v, int minDepth, int maxDepth)
 int CheckPlaceCollisionFish(TCharacter *cptr, Vector3d &v, float mosaDepth, int maxDepth, int minDepth)
 {
 
-	int ccx = (int)v.x / 256;
-	int ccz = (int)v.z / 256;
+	int ccx = static_cast<int>(v.x) / 256;
+	int ccz = static_cast<int>(v.z) / 256;
 
 	if (ccx < 4 || ccz < 4 || ccx>1018 || ccz>1018) return 1;
 
@@ -613,12 +613,12 @@ int CheckPlaceCollisionFish(TCharacter *cptr, Vector3d &v, float mosaDepth, int 
 				{
 					int ob = OMap[ccz + z][ccx + x];
 					if (MObjects[ob].info.Radius < 10) continue;
-					float CR = (float)MObjects[ob].info.Radius + 64;
+					float CR = static_cast<float>(MObjects[ob].info.Radius) + 64;
 
 					float oz = (ccz + z) * 256.f + 128.f;
 					float ox = (ccx + x) * 256.f + 128.f;
 
-					float r = (float)sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z));
+					float r = static_cast<float>(sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z)));
 					if (r < CR) return 1;
 				}
 
@@ -631,8 +631,8 @@ int CheckPlaceCollisionFish(TCharacter *cptr, Vector3d &v, float mosaDepth, int 
 int CheckPlaceCollisionMosasaurus(TCharacter *cptr, Vector3d &v, float mosaDepth)
 {
 
-	int ccx = (int)v.x / 256;
-	int ccz = (int)v.z / 256;
+	int ccx = static_cast<int>(v.x) / 256;
+	int ccz = static_cast<int>(v.z) / 256;
 
 	if (ccx < 4 || ccz < 4 || ccx>1018 || ccz>1018) return 1;
 
@@ -689,12 +689,12 @@ int CheckPlaceCollisionMosasaurus(TCharacter *cptr, Vector3d &v, float mosaDepth
 				{
 					int ob = OMap[ccz + z][ccx + x];
 					if (MObjects[ob].info.Radius < 10) continue;
-					float CR = (float)MObjects[ob].info.Radius + 64;
+					float CR = static_cast<float>(MObjects[ob].info.Radius) + 64;
 
 					float oz = (ccz + z) * 256.f + 128.f;
 					float ox = (ccx + x) * 256.f + 128.f;
 
-					float r = (float)sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z));
+					float r = static_cast<float>(sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z)));
 					if (r < CR) return 1;
 				}
 
@@ -706,8 +706,8 @@ int CheckPlaceCollisionMosasaurus(TCharacter *cptr, Vector3d &v, float mosaDepth
 bool jumpCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 {
 	Vector3d p = cptr->pos;
-	float lookx = (float)cos(cptr->tgalpha);
-	float lookz = (float)sin(cptr->tgalpha);
+	float lookx = static_cast<float>(cos(cptr->tgalpha));
+	float lookz = static_cast<float>(sin(cptr->tgalpha));
 	for (int i = 0; i < 10; i++) {
 
 		p.x += lookx * 64.f;
@@ -723,8 +723,8 @@ bool jumpCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 
 int CheckPlaceCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 {
-	int ccx = (int)v.x / 256;
-	int ccz = (int)v.z / 256;
+	int ccx = static_cast<int>(v.x) / 256;
+	int ccz = static_cast<int>(v.z) / 256;
 
 	if (ccx < 4 || ccz < 4 || ccx>1018 || ccz>1018) return 1;
 
@@ -766,12 +766,12 @@ int CheckPlaceCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 				{
 					int ob = OMap[ccz + z][ccx + x];
 					if (MObjects[ob].info.Radius < 10) continue;
-					float CR = (float)MObjects[ob].info.Radius + 64;
+					float CR = static_cast<float>(MObjects[ob].info.Radius) + 64;
 
 					float oz = (ccz + z) * 256.f + 128.f;
 					float ox = (ccx + x) * 256.f + 128.f;
 
-					float r = (float)sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z));
+					float r = static_cast<float>(sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z)));
 					if (r < CR) return 1;
 				}
 
@@ -780,8 +780,8 @@ int CheckPlaceCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 
 int CheckPlaceCollisionMicro(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 {
-	int ccx = (int)v.x / 256;
-	int ccz = (int)v.z / 256;
+	int ccx = static_cast<int>(v.x) / 256;
+	int ccz = static_cast<int>(v.z) / 256;
 
 	if (ccx < 4 || ccz < 4 || ccx>1018 || ccz>1018) return 1;
 
@@ -823,12 +823,12 @@ int CheckPlaceCollisionMicro(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 				{
 					int ob = OMap[ccz + z][ccx + x];
 					if (MObjects[ob].info.Radius < 10) continue;
-					float CR = (float)MObjects[ob].info.Radius + 64;
+					float CR = static_cast<float>(MObjects[ob].info.Radius) + 64;
 
 					float oz = (ccz + z) * 256.f + 128.f;
 					float ox = (ccx + x) * 256.f + 128.f;
 
-					float r = (float)sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z));
+					float r = static_cast<float>(sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z)));
 					if (r < CR && (!TreeTable[ob] || !cptr->gottaClimb)) return 1;
 				}
 
@@ -837,8 +837,8 @@ int CheckPlaceCollisionMicro(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 
 int CheckPlaceCollisionLandBrahi(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 {
-	int ccx = (int)v.x / 256;
-	int ccz = (int)v.z / 256;
+	int ccx = static_cast<int>(v.x) / 256;
+	int ccz = static_cast<int>(v.z) / 256;
 
 	if (ccx < 4 || ccz < 4 || ccx>1018 || ccz>1018) return 1;
 
@@ -897,12 +897,12 @@ int CheckPlaceCollisionLandBrahi(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc
 				{
 					int ob = OMap[ccz + z][ccx + x];
 					if (MObjects[ob].info.Radius < 10) continue;
-					float CR = (float)MObjects[ob].info.Radius + 64;
+					float CR = static_cast<float>(MObjects[ob].info.Radius) + 64;
 
 					float oz = (ccz + z) * 256.f + 128.f;
 					float ox = (ccx + x) * 256.f + 128.f;
 
-					float r = (float)sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z));
+					float r = static_cast<float>(sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z)));
 					if (r < CR) return 1;
 				}
 
@@ -911,8 +911,8 @@ int CheckPlaceCollisionLandBrahi(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc
 
 int CheckPlaceCollisionBrahi(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 {
-	int ccx = (int)v.x / 256;
-	int ccz = (int)v.z / 256;
+	int ccx = static_cast<int>(v.x) / 256;
+	int ccz = static_cast<int>(v.z) / 256;
 
 	if (ccx < 4 || ccz < 4 || ccx>1018 || ccz>1018) return 1;
 
@@ -967,12 +967,12 @@ int CheckPlaceCollisionBrahi(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 				{
 					int ob = OMap[ccz + z][ccx + x];
 					if (MObjects[ob].info.Radius < 10) continue;
-					float CR = (float)MObjects[ob].info.Radius + 64;
+					float CR = static_cast<float>(MObjects[ob].info.Radius) + 64;
 
 					float oz = (ccz + z) * 256.f + 128.f;
 					float ox = (ccx + x) * 256.f + 128.f;
 
-					float r = (float)sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z));
+					float r = static_cast<float>(sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z)));
 					if (r < CR) return 1;
 				}
 
@@ -981,8 +981,8 @@ int CheckPlaceCollisionBrahi(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 
 int CheckPlaceCollisionBrahiP(Vector3d &v)
 {
-	int ccx = (int)v.x / 256;
-	int ccz = (int)v.z / 256;
+	int ccx = static_cast<int>(v.x) / 256;
+	int ccz = static_cast<int>(v.z) / 256;
 
 	if (ccx < 4 || ccz < 4 || ccx>1008 || ccz>1008) return 1;
 
@@ -1022,12 +1022,12 @@ int CheckPlaceCollisionBrahiP(Vector3d &v)
 			{
 				int ob = OMap[ccz + z][ccx + x];
 				if (MObjects[ob].info.Radius < 10) continue;
-				float CR = (float)MObjects[ob].info.Radius + 64;
+				float CR = static_cast<float>(MObjects[ob].info.Radius) + 64;
 
 				float oz = (ccz + z) * 256.f + 128.f;
 				float ox = (ccx + x) * 256.f + 128.f;
 
-				float r = (float)sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z));
+				float r = static_cast<float>(sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z)));
 				if (r < CR) return 1;
 			}
 
@@ -1039,8 +1039,8 @@ int CheckPlaceCollisionBrahiP(Vector3d &v)
 
 int CheckPlaceCollision2(TCharacter *cptr, Vector3d &v, BOOL wc)
 {
-	int ccx = (int)v.x / 256;
-	int ccz = (int)v.z / 256;
+	int ccx = static_cast<int>(v.x) / 256;
+	int ccz = static_cast<int>(v.z) / 256;
 
 	if (ccx < 4 || ccz < 4 || ccx>1018 || ccz>1018) return 1;
 
@@ -1081,8 +1081,8 @@ int CheckPlaceCollision2(TCharacter *cptr, Vector3d &v, BOOL wc)
 int CheckPossiblePath(TCharacter *cptr, BOOL wc, BOOL mc)
 {
 	Vector3d p = cptr->pos;
-	float lookx = (float)cos(cptr->tgalpha);
-	float lookz = (float)sin(cptr->tgalpha);
+	float lookx = static_cast<float>(cos(cptr->tgalpha));
+	float lookz = static_cast<float>(sin(cptr->tgalpha));
 	int c = 0;
 	for (int t = 0; t < 20; t++)
 	{
@@ -1176,8 +1176,8 @@ void SetNewTargetPlace_Icth(TCharacter *cptr, float R)
 	//PrintLog("iT");//TEST20200412
 replace:
 	//PrintLog("-");//TEST20200412
-	p.x = cptr->pos.x + siRand((int)R);
-	p.z = cptr->pos.z + siRand((int)R);
+	p.x = cptr->pos.x + siRand(static_cast<int>(R));
+	p.z = cptr->pos.z + siRand(static_cast<int>(R));
 
 	if (p.x < 512) p.x = 512;
 	if (p.x > 1018 * 256) p.x = 1018 * 256;
@@ -1244,10 +1244,10 @@ void SetNewTargetPlace_IcthOld(TCharacter *cptr, float R)
 	Vector3d p;
 	int tr = 0;
 replace:
-	p.x = cptr->pos.x + siRand((int)R);
+	p.x = cptr->pos.x + siRand(static_cast<int>(R));
 	if (p.x < 512) p.x = 512;
 	if (p.x > 1018 * 256) p.x = 1018 * 256;
-	p.z = cptr->pos.z + siRand((int)R);
+	p.z = cptr->pos.z + siRand(static_cast<int>(R));
 	if (p.z < 512) p.z = 512;
 	if (p.z > 1018 * 256) p.z = 1018 * 256;
 	tr++;
@@ -1287,10 +1287,10 @@ void SetNewTargetPlaceVanilla(TCharacter *cptr, float R)
 	//PrintLog("PAR_START--");
 replace:
 	//PrintLog("PAR_IT--");
-	p.x = cptr->pos.x + siRand((int)R);
+	p.x = cptr->pos.x + siRand(static_cast<int>(R));
 	if (p.x < 512) p.x = 512;
 	if (p.x > 1018 * 256) p.x = 1018 * 256;
-	p.z = cptr->pos.z + siRand((int)R);
+	p.z = cptr->pos.z + siRand(static_cast<int>(R));
 	if (p.z < 512) p.z = 512;
 	if (p.z > 1018 * 256) p.z = 1018 * 256;
 	p.y = GetLandH(p.x, p.z);
@@ -1314,8 +1314,8 @@ void SetNewTargetPlaceRegion(TCharacter *cptr, float R)
 	int tr = 0;
 replace:
 	//PrintLog("-");//TEST20200415
-	p.x = cptr->pos.x + siRand((int)R);
-	p.z = cptr->pos.z + siRand((int)R);
+	p.x = cptr->pos.x + siRand(static_cast<int>(R));
+	p.z = cptr->pos.z + siRand(static_cast<int>(R));
 
 	if (p.x < 512) p.x = 512;
 	if (p.x > 1018 * 256) p.x = 1018 * 256;
@@ -1364,10 +1364,10 @@ void SetNewTargetPlace_Brahi(TCharacter *cptr, float R)
 	//PrintLog("bT");//TEST202004111501
 replace:
 	//PrintLog("-");//TEST202004111501
-	p.x = cptr->pos.x + siRand((int)R);
+	p.x = cptr->pos.x + siRand(static_cast<int>(R));
 	if (p.x < 512) p.x = 512;
 	if (p.x > 1018 * 256) p.x = 1018 * 256;
-	p.z = cptr->pos.z + siRand((int)R);
+	p.z = cptr->pos.z + siRand(static_cast<int>(R));
 	if (p.z < 512) p.z = 512;
 	if (p.z > 1018 * 256) p.z = 1018 * 256;
 	tr++;
@@ -1426,14 +1426,14 @@ replace:
 	//PrintLog("-");//TEST202004091129
 
 	/*
-	p.x = cptr->pos.x + siRand((int)(R/3));
-	p.z = cptr->pos.z + siRand((int)(R/3));
+	p.x = cptr->pos.x + siRand(static_cast<int>((R/3)));
+	p.z = cptr->pos.z + siRand(static_cast<int>((R/3)));
 	if (p.x > cptr->pos.x) p.x += R * (2 / 3); else p.x -= R * (2 / 3);
 	if (p.z > cptr->pos.z) p.z += R * (2 / 3); else p.z -= R * (2 / 3);
 	*/
 
-	p.x = cptr->pos.x + siRand((int)(R));
-	p.z = cptr->pos.z + siRand((int)(R));
+	p.x = cptr->pos.x + siRand(static_cast<int>((R)));
+	p.z = cptr->pos.z + siRand(static_cast<int>((R)));
 
 	if (p.x < 512) p.x = 512;
 	if (p.x > 1018 * 256) p.x = 1018 * 256;
@@ -1481,13 +1481,13 @@ replace:
 	}
 	*/
 
-	float tdistTemp = fabs((float)sqrt(
+	float tdistTemp = fabs(static_cast<float>(sqrt(
 		((p.x - cptr->pos.x)*(p.x - cptr->pos.x)) +
-		((p.z - cptr->pos.z) * (p.z - cptr->pos.z))));
+		((p.z - cptr->pos.z) * (p.z - cptr->pos.z)))));
 	/*
-	float tdistTemp = fabs((float)sqrt(
+	float tdistTemp = fabs(static_cast<float>(sqrt(
 		((p.x - cptr->pos.x)*(p.x - cptr->pos.x)) +
-		((p.z - cptr->pos.z) * (p.z - cptr->pos.z))) / 3);
+		((p.z - cptr->pos.z) * (p.z - cptr->pos.z)))) / 3);
 	*/
 	tr = 0;
 
@@ -1495,13 +1495,13 @@ replace:
 
 replace2:
 	//PrintLog("-");//TEST202004091129
-	//targetDepthTemp = siRand((int)(R/3));
+	//targetDepthTemp = siRand(static_cast<int>((R/3)));
 
 	if (cptr->aquaticIdle) {
-		targetDepthTemp = rRand((int)(GetLandUpH(p.x, p.z) - (cptr->spcDepth * 0.68) - cptr->depth)); //target slightly higher so it doesn't take forever - correct to 0.75 later
+		targetDepthTemp = rRand(static_cast<int>((GetLandUpH(p.x, p.z) - (cptr->spcDepth * 0.68) - cptr->depth))); //target slightly higher so it doesn't take forever - correct to 0.75 later
 	}
 	else {
-		targetDepthTemp = siRand((int)(tdistTemp));
+		targetDepthTemp = siRand(static_cast<int>((tdistTemp)));
 	}
 
 	tr++;
@@ -1575,10 +1575,10 @@ void SetNewTargetPlaceMosasaurus(TCharacter *cptr, float R)
 	Vector3d p;
 	int tr = 0;
 replace:
-	p.x = cptr->pos.x + siRand((int)R);
+	p.x = cptr->pos.x + siRand(static_cast<int>(R));
 	if (p.x < 512) p.x = 512;
 	if (p.x > 1018 * 256) p.x = 1018 * 256;
-	p.z = cptr->pos.z + siRand((int)R);
+	p.z = cptr->pos.z + siRand(static_cast<int>(R));
 	if (p.z < 512) p.z = 512;
 	if (p.z > 1018 * 256) p.z = 1018 * 256;
 
@@ -1619,17 +1619,17 @@ replace:
 	}
 
 	float targetDepthTemp;
-	float tdistTemp = fabs((float)sqrt(
+	float tdistTemp = fabs(static_cast<float>(sqrt(
 		((p.x - cptr->pos.x)*(p.x - cptr->pos.x)) +
-		((p.z - cptr->pos.z) * (p.z - cptr->pos.z))) / 3);
+		((p.z - cptr->pos.z) * (p.z - cptr->pos.z)))) / 3);
 	/*
-	float tdistTemp = fabs((float)sqrt(
+	float tdistTemp = fabs(static_cast<float>(sqrt(
 		((p.x - cptr->pos.x)*(p.x - cptr->pos.x)) +
-		((p.z - cptr->pos.z) * (p.z - cptr->pos.z))) / 3);
+		((p.z - cptr->pos.z) * (p.z - cptr->pos.z)))) / 3);
 	*/
 replace2:
-	targetDepthTemp = siRand((int)(R / 3));
-	//targetDepthTemp = siRand((int)(R/3));
+	targetDepthTemp = siRand(static_cast<int>((R / 3)));
+	//targetDepthTemp = siRand(static_cast<int>((R/3)));
 
 	tr++;
 
@@ -1687,9 +1687,9 @@ BOOL ReplaceCharacterForward(TCharacter *cptr)
 
 	if (!spawnGroup[cptr->SpawnGroupType].moveForward) return FALSE;
 
-	float al = CameraAlpha + (float)siRand(2048) / 2048.f;
-	float sa = (float)sin(al);
-	float ca = (float)cos(al);
+	float al = CameraAlpha + static_cast<float>(siRand(2048)) / 2048.f;
+	float sa = static_cast<float>(sin(al));
+	float ca = static_cast<float>(cos(al));
 	Vector3d p;
 	p.x = PlayerX + sa * (ctViewR + rRand(10)) * 256;
 	p.z = PlayerZ - ca * (ctViewR + rRand(10)) * 256;
@@ -2268,12 +2268,12 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = (float)sqrt(targetdx * targetdx + targetdz * targetdz);
+	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
 
 	float playerdx, playerdz;
 	playerdx = PlayerX - cptr->pos.x - cptr->lookx * 108;
 	playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
-	float pdist = (float)sqrt(playerdx * playerdx + playerdz * playerdz);
+	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
 
 
 
@@ -2387,7 +2387,7 @@ TBEGIN:
 		if (cptr->packId >= 0) {
 			float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 			float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-			float leaderdist = (float)sqrt(leaderdx * leaderdx + leaderdz * leaderdz);
+			float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
 
 			if (cptr->followLeader) {
 				if (leaderdist < cptr->packDensity * 128 * 0.6)
@@ -2434,7 +2434,7 @@ NOTHINK:
 			float rTD;
 			rTD = 824.f;
 
-			cptr->tgalpha += (float)sin(RealTime / rTD) / AIInfo[cptr->Clone].tGAIncrement;
+			cptr->tgalpha += static_cast<float>(sin(RealTime / rTD)) / AIInfo[cptr->Clone].tGAIncrement;
 			if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
 			if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 		}
@@ -2707,9 +2707,9 @@ ENDPSELECT:
 	if (dalpha > pi) currspeed *= -1;
 	if (((cptr->StateF & csONWATER) || cptr->Phase == DinoInfo[cptr->CType].walkAnim ) && !cptr->gliding) currspeed /= 1.4f;
 
-	if (cptr->gliding) DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 460.f);
-	else if (cptr->AfraidTime) DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 160.f);
-	else DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 180.f);
+	if (cptr->gliding) DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 460.f);
+	else if (cptr->AfraidTime) DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 160.f);
+	else DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 180.f);
 
 	if (cptr->gliding) {
 		tgbend = drspd / 2.f;
@@ -2720,9 +2720,9 @@ ENDPSELECT:
 	}
 
 	tgbend *= SGN(currspeed);
-	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 800.f);
-	else if (cptr->gliding) DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 400.f); 
-	else DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 600.f);
+	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 800.f);
+	else if (cptr->gliding) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 400.f);
+	else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 600.f);
 
 
 	rspd = cptr->rspeed * TimeDt / 1024.f;
@@ -2745,7 +2745,7 @@ SKIPROT:
 		if (!cptr->Slide && cptr->vspeed > 0.6)
 			if (AngleDifference(cptr->tgalpha, cptr->alpha) > pi * 2 / 3.f)
 			{
-				cptr->Slide = (int)(cptr->vspeed*700.f);
+				cptr->Slide = static_cast<int>((cptr->vspeed*700.f));
 				cptr->slidex = cptr->lookx;
 				cptr->slidez = cptr->lookz;
 				cptr->vspeed = 0;
@@ -2755,8 +2755,8 @@ SKIPROT:
 
 
 	//========== movement ==============================//
-	cptr->lookx = (float)cos(cptr->alpha);
-	cptr->lookz = (float)sin(cptr->alpha);
+	cptr->lookx = static_cast<float>(cos(cptr->alpha));
+	cptr->lookz = static_cast<float>(sin(cptr->alpha));
 
 	float curspeed = 0;
 	if (cptr->Phase == DinoInfo[cptr->CType].runAnim) curspeed = DinoInfo[cptr->CType].runspd;
@@ -2920,10 +2920,10 @@ ENDPSELECT:
 				float rB = siRand(128) * 0.00010 * (2.f - WeapInfo[DinoInfo[cptr->CType].Weapon].Prec);
 
 
-				float ca = (float)cos(cptr->alpha + rA + pi / 2);
-				float sa = (float)sin(cptr->alpha + rA + pi / 2);
-				float cb = (float)cos(cptr->beta + rB);
-				float sb = (float)sin(cptr->beta + rB);
+				float ca = static_cast<float>(cos(cptr->alpha + rA + pi / 2));
+				float sa = static_cast<float>(sin(cptr->alpha + rA + pi / 2));
+				float cb = static_cast<float>(cos(cptr->beta + rB));
+				float sb = static_cast<float>(sin(cptr->beta + rB));
 
 				nv.x = sa;
 				nv.y = 0;
@@ -3011,7 +3011,7 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = (float)sqrt(targetdx * targetdx + targetdz * targetdz);
+	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
 
 	float playerdx, playerdz;
 	if (cptr->Clone == AI_ALLO) {
@@ -3029,7 +3029,7 @@ TBEGIN:
 		playerdz = PlayerZ - cptr->pos.z;
 	}
 
-	float pdist = (float)sqrt(playerdx * playerdx + playerdz * playerdz);
+	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
 
 	
 
@@ -3168,7 +3168,7 @@ TBEGIN:
 		if (cptr->packId >= 0) {
 			float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 			float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-			float leaderdist = (float)sqrt(leaderdx * leaderdx + leaderdz * leaderdz);
+			float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
 
 			if (cptr->followLeader) {
 				if (leaderdist < cptr->packDensity * 128 * 0.6)
@@ -3233,7 +3233,7 @@ NOTHINK:
 			} else {
 				rTD = 1024.f;
 			}
-			cptr->tgalpha += (float)sin(RealTime / rTD) / AIInfo[cptr->Clone].tGAIncrement;
+			cptr->tgalpha += static_cast<float>(sin(RealTime / rTD)) / AIInfo[cptr->Clone].tGAIncrement;
 			if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
 			if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 		}
@@ -3413,15 +3413,15 @@ ENDPSELECT:
 		if (dalpha > pi) currspeed *= -1;
 		if ((cptr->StateF & csONWATER) || cptr->Phase == DinoInfo[cptr->CType].walkAnim) currspeed /= 1.4f;
 
-		if (cptr->AfraidTime) DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 160.f);
-		else DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 180.f);
+		if (cptr->AfraidTime) DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 160.f);
+		else DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 180.f);
 
 		tgbend = drspd / AIInfo[cptr->Clone].targetBendRotSpd;
 		if (tgbend > pi / 5) tgbend = pi / 5;
 
 		tgbend *= SGN(currspeed);
-		if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 800.f);
-		else DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 600.f);
+		if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 800.f);
+		else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 600.f);
 
 
 		rspd = cptr->rspeed * TimeDt / 1024.f;
@@ -3437,14 +3437,14 @@ ENDPSELECT:
 		if (dalpha > pi) currspeed *= -1;
 		if ((cptr->State & csONWATER) || cptr->Phase == DinoInfo[cptr->CType].walkAnim) currspeed /= 1.4f;
 
-		DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 400.f);
+		DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 400.f);
 
 		tgbend = drspd / AIInfo[cptr->Clone].targetBendRotSpd;
 		if (tgbend > pi / AIInfo[cptr->Clone].targetBendMin) tgbend = pi / AIInfo[cptr->Clone].targetBendMin;
 
 		tgbend *= SGN(currspeed);
-		if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, (float)TimeDt / AIInfo[cptr->Clone].targetBendDelta1);
-		else DeltaFunc(cptr->bend, tgbend, (float)TimeDt / AIInfo[cptr->Clone].targetBendDelta2);
+		if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / AIInfo[cptr->Clone].targetBendDelta1);
+		else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / AIInfo[cptr->Clone].targetBendDelta2);
 
 
 		rspd = cptr->rspeed * TimeDt / 612.f;
@@ -3466,7 +3466,7 @@ SKIPROT:
 		if (!cptr->Slide && cptr->vspeed > 0.6 && (cptr->Phase != DinoInfo[cptr->CType].jumpAnim || !AIInfo[cptr->Clone].jumper))
 			if (AngleDifference(cptr->tgalpha, cptr->alpha) > pi * 2 / 3.f)
 			{
-				cptr->Slide = (int)(cptr->vspeed*700.f);
+				cptr->Slide = static_cast<int>((cptr->vspeed*700.f));
 				cptr->slidex = cptr->lookx;
 				cptr->slidez = cptr->lookz;
 				cptr->vspeed = 0;
@@ -3474,8 +3474,8 @@ SKIPROT:
 	}
 
 	//========== movement ==============================//
-	cptr->lookx = (float)cos(cptr->alpha);
-	cptr->lookz = (float)sin(cptr->alpha);
+	cptr->lookx = static_cast<float>(cos(cptr->alpha));
+	cptr->lookz = static_cast<float>(sin(cptr->alpha));
 
 	float curspeed = 0;
 	if (cptr->Phase == DinoInfo[cptr->CType].runAnim) curspeed = DinoInfo[cptr->CType].runspd;
@@ -3582,20 +3582,20 @@ Vector3d LookForATree(TCharacter *cptr) {
 		searchAlpha2 = cptr->tgalpha - dalpha * pi / 180.f;
 		Vector3d p1 = cptr->pos;
 		Vector3d p2 = cptr->pos;
-		float lookx1 = (float)cos(searchAlpha1);
-		float lookz1 = (float)sin(searchAlpha1);
-		float lookx2 = (float)cos(searchAlpha2);
-		float lookz2 = (float)sin(searchAlpha2);
+		float lookx1 = static_cast<float>(cos(searchAlpha1));
+		float lookz1 = static_cast<float>(sin(searchAlpha1));
+		float lookx2 = static_cast<float>(cos(searchAlpha2));
+		float lookz2 = static_cast<float>(sin(searchAlpha2));
 		for (int t = 0; t < 20; t++) {
 			p1.x += lookx1 * 256.f;
 			p1.z += lookz1 * 256.f;
 			p2.x += lookx2 * 256.f;
 			p2.z += lookz2 * 256.f;
 
-			int ccx1 = (int)p1.x / 256;
-			int ccz1 = (int)p1.z / 256;
-			int ccx2 = (int)p2.x / 256;
-			int ccz2 = (int)p2.z / 256;
+			int ccx1 = static_cast<int>(p1.x) / 256;
+			int ccz1 = static_cast<int>(p1.z) / 256;
+			int ccx2 = static_cast<int>(p2.x) / 256;
+			int ccz2 = static_cast<int>(p2.z) / 256;
 			for (int z = -2; z <= 2; z++) {
 				for (int x = -2; x <= 2; x++) {
 					if (TreeTable[OMap[ccz1 + z][ccx1 + x]])
@@ -3625,8 +3625,8 @@ Vector3d LookForATree(TCharacter *cptr) {
 
 Vector3d CheckForATree(TCharacter *cptr) {
 
-	int ccx = (int)cptr->pos.x / 256;
-	int ccz = (int)cptr->pos.z / 256;
+	int ccx = static_cast<int>(cptr->pos.x) / 256;
+	int ccz = static_cast<int>(cptr->pos.z) / 256;
 	/* for (int z = -2; z <= 2; z++) {
 		for (int x = -2; x <= 2; x++) {
 			if (TreeTable[OMap[ccz + z][ccx + x]])
@@ -3682,12 +3682,12 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = (float)sqrt(targetdx * targetdx + targetdz * targetdz);
+	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
 
 	float playerdx, playerdz;
 	playerdx = PlayerX - cptr->pos.x - cptr->lookx * 108;
 	playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
-	float pdist = (float)sqrt(playerdx * playerdx + playerdz * playerdz);
+	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
 
 
 
@@ -3819,7 +3819,7 @@ TBEGIN:
 		if (cptr->packId >= 0) {
 			float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 			float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-			float leaderdist = (float)sqrt(leaderdx * leaderdx + leaderdz * leaderdz);
+			float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
 
 			if (cptr->followLeader) {
 				if (leaderdist < cptr->packDensity * 128 * 0.6)
@@ -3867,7 +3867,7 @@ NOTHINK:
 			float rTD;
 			rTD = 824.f;
 
-			cptr->tgalpha += (float)sin(RealTime / rTD) / AIInfo[cptr->Clone].tGAIncrement;
+			cptr->tgalpha += static_cast<float>(sin(RealTime / rTD)) / AIInfo[cptr->Clone].tGAIncrement;
 			if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
 			if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 		}
@@ -3927,7 +3927,7 @@ NOTHINK:
 				cptr->climbable.x = (tree.x * 256.f) +128.f;
 				cptr->climbable.z = (tree.z * 256.f) +128.f;
 				cptr->vspeed = 0;
-				cptr->climbY = GetLandH(cptr->climbable.x, cptr->climbable.z) + MObjects[OMap[(int)tree.z][(int)tree.x]].info.YHi - 384;
+				cptr->climbY = GetLandH(cptr->climbable.x, cptr->climbable.z) + MObjects[OMap[static_cast<int>(tree.z)][static_cast<int>(tree.x)]].info.YHi - 384;
 				cptr->Phase = DinoInfo[cptr->CType].climbAnim;
 				cptr->gliding = TRUE;
 				goto ENDPSELECT;
@@ -4065,9 +4065,9 @@ ENDPSELECT:
 	if (dalpha > pi) currspeed *= -1;
 	if (((cptr->StateF & csONWATER) || cptr->Phase == DinoInfo[cptr->CType].walkAnim) && !cptr->gliding) currspeed /= 1.4f;
 
-	if (cptr->gliding) DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 460.f);
-	else if (cptr->AfraidTime) DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 160.f);
-	else DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 180.f);
+	if (cptr->gliding) DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 460.f);
+	else if (cptr->AfraidTime) DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 160.f);
+	else DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 180.f);
 
 	if (cptr->gliding) {
 		tgbend = drspd / 2.f;
@@ -4079,9 +4079,9 @@ ENDPSELECT:
 	}
 
 	tgbend *= SGN(currspeed);
-	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 800.f);
-	else if (cptr->gliding) DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 400.f);
-	else DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 600.f);
+	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 800.f);
+	else if (cptr->gliding) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 400.f);
+	else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 600.f);
 
 
 	rspd = cptr->rspeed * TimeDt / 1024.f;
@@ -4103,15 +4103,15 @@ SKIPROT:
 		if (!cptr->Slide && cptr->vspeed > 0.6 && (cptr->Phase != DinoInfo[cptr->CType].jumpAnim || !AIInfo[cptr->Clone].jumper))
 			if (AngleDifference(cptr->tgalpha, cptr->alpha) > pi * 2 / 3.f)
 			{
-				cptr->Slide = (int)(cptr->vspeed*700.f);
+				cptr->Slide = static_cast<int>((cptr->vspeed*700.f));
 				cptr->slidex = cptr->lookx;
 				cptr->slidez = cptr->lookz;
 				cptr->vspeed = 0;
 			}
 	}
 	//========== movement ==============================//
-	cptr->lookx = (float)cos(cptr->alpha);
-	cptr->lookz = (float)sin(cptr->alpha);
+	cptr->lookx = static_cast<float>(cos(cptr->alpha));
+	cptr->lookz = static_cast<float>(sin(cptr->alpha));
 
 	float curspeed = 0;
 	if (cptr->Phase == DinoInfo[cptr->CType].runAnim) curspeed = DinoInfo[cptr->CType].runspd;
@@ -4230,8 +4230,8 @@ boolean huntDogSearch(TCharacter *cptr)
 		wlook = Wind.nv;
 
 		plook.y = 0;
-		plook.x = (float)sin(dino->alpha);
-		plook.z = (float)-cos(dino->alpha);
+		plook.x = static_cast<float>(sin(dino->alpha));
+		plook.z = static_cast<float>(-cos(dino->alpha));
 
 		if (!dino->Health) continue;
 		if (!DinoInfo[dino->CType].dogSmell) continue;
@@ -4240,7 +4240,7 @@ boolean huntDogSearch(TCharacter *cptr)
 		kR = VectorLength(rlook) / 256.f / (32.f + ctViewR / 2);
 		NormVector(rlook, 1.0f);
 
-		kR *= 2.5f / (float)(1.5 + OptSens / 128.f);
+		kR *= 2.5f / static_cast<float>((1.5 + OptSens / 128.f));
 		if (kR > 3.0f) continue;
 
 		clook.x = cptr->lookx;
@@ -4268,7 +4268,7 @@ boolean huntDogSearch(TCharacter *cptr)
 		if (kALook < 1.0)
 			if (TraceLook(cptr->pos.x, cptr->pos.y + 220, cptr->pos.z,
 				dino->pos.x, dino->pos.y, dino->pos.z))   kALook = 2.0;
-		kALook *= (1.f + (float)ObjectsOnLook / 6.f);
+		kALook *= (1.f + static_cast<float>(ObjectsOnLook) / 6.f);
 
 		float kASmell = kR * ((kwind + 2.0f) / 2.0F) * ((klook + 3.f) / 3.f) * kscent;
 		if (kwind > 0) kASmell *= 2.0;
@@ -4283,7 +4283,7 @@ boolean huntDogSearch(TCharacter *cptr)
 			if (preyFound) {
 				float dx = dino->pos.x - cptr->pos.x;
 				float dz = dino->pos.z - cptr->pos.z;
-				float tempDist = (float)sqrt(dx * dx + dz * dz);
+				float tempDist = static_cast<float>(sqrt(dx * dx + dz * dz));
 				if (tempDist < preyDist) {
 					preyDist = tempDist;
 					preyPos = dino->pos;
@@ -4292,7 +4292,7 @@ boolean huntDogSearch(TCharacter *cptr)
 			} else {
 				float dx = dino->pos.x - cptr->pos.x;
 				float dz = dino->pos.z - cptr->pos.z;
-				preyDist = (float)sqrt(dx * dx + dz * dz);
+				preyDist = static_cast<float>(sqrt(dx * dx + dz * dz));
 				preyPos = dino->pos;
 				preyNo = c;
 				preyFound = true;
@@ -4336,12 +4336,12 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = (float)sqrt(targetdx * targetdx + targetdz * targetdz);
+	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
 
 	float playerdx = PlayerX - cptr->pos.x;
 	float playerdz = PlayerZ - cptr->pos.z;
 
-	float pdist = (float)sqrt(playerdx * playerdx + playerdz * playerdz);
+	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
 
 
 	if (GetLandUpH(cptr->pos.x, cptr->pos.z) - GetLandH(cptr->pos.x, cptr->pos.z) > DinoInfo[cptr->CType].waterLevel * cptr->scale)
@@ -4423,7 +4423,7 @@ NOTHINK:
 		cptr->tgalpha = CorrectedAlpha(FindVectorAlpha(targetdx, targetdz), cptr->alpha);//FindVectorAlpha(targetdx, targetdz);
 		if (cptr->AfraidTime)
 		{
-			cptr->tgalpha += (float)sin(RealTime / 1024.f) / 3.f;
+			cptr->tgalpha += static_cast<float>(sin(RealTime / 1024.f)) / 3.f;
 			if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
 			if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 		}
@@ -4542,7 +4542,7 @@ ENDPSELECT:
 	//========== rotation to tgalpha ===================//
 
 	float rspd, currspeed, tgbend;
-	float dalpha = (float)fabs(cptr->tgalpha - cptr->alpha);
+	float dalpha = static_cast<float>(fabs(cptr->tgalpha - cptr->alpha));
 	float drspd = dalpha;
 	if (drspd > pi) drspd = 2 * pi - drspd;
 
@@ -4568,14 +4568,14 @@ ENDPSELECT:
 	if (dalpha > pi) currspeed *= -1;
 	if ((cptr->State & csONWATER) || cptr->Phase == DinoInfo[cptr->CType].walkAnim) currspeed /= 1.4f;
 
-	DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 400.f);
+	DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 400.f);
 
 	tgbend = drspd / AIInfo[cptr->Clone].targetBendRotSpd;
 	if (tgbend > pi / AIInfo[cptr->Clone].targetBendMin) tgbend = pi / AIInfo[cptr->Clone].targetBendMin;
 
 	tgbend *= SGN(currspeed);
-	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, (float)TimeDt / AIInfo[cptr->Clone].targetBendDelta1);
-	else DeltaFunc(cptr->bend, tgbend, (float)TimeDt / AIInfo[cptr->Clone].targetBendDelta2);
+	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / AIInfo[cptr->Clone].targetBendDelta1);
+	else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / AIInfo[cptr->Clone].targetBendDelta2);
 
 
 	rspd = cptr->rspeed * TimeDt / 612.f;
@@ -4589,8 +4589,8 @@ ENDPSELECT:
 SKIPROT:
 
 	//========== movement ==============================//
-	cptr->lookx = (float)cos(cptr->alpha);
-	cptr->lookz = (float)sin(cptr->alpha);
+	cptr->lookx = static_cast<float>(cos(cptr->alpha));
+	cptr->lookz = static_cast<float>(sin(cptr->alpha));
 
 	float curspeed = 0;
 	if (cptr->Phase == DinoInfo[cptr->CType].runAnim) curspeed = DinoInfo[cptr->CType].runspd;
@@ -4647,11 +4647,11 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = (float)sqrt(targetdx * targetdx + targetdz * targetdz);
+	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
 
 	float playerdx = PlayerX - cptr->pos.x - cptr->lookx * 108;
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
-	float pdist = (float)sqrt(playerdx * playerdx + playerdz * playerdz);
+	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
 	float palpha = FindVectorAlpha(playerdx, playerdz);
 	//if (cptr->State==2) { NewPhase=TRUE; cptr->State=1; }
 
@@ -4772,7 +4772,7 @@ TBEGIN:
 		if (cptr->packId >= 0) {
 			float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 			float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-			float leaderdist = (float)sqrt(leaderdx * leaderdx + leaderdz * leaderdz);
+			float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
 
 			if (cptr->followLeader) {
 				if (leaderdist < cptr->packDensity * 128 * 0.6)
@@ -4812,7 +4812,7 @@ NOTHINK:
 
 		if (cptr->State && pdist > DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
 		{
-			cptr->tgalpha += (float)sin(RealTime / 824.f) / 6.f;
+			cptr->tgalpha += static_cast<float>(sin(RealTime / 824.f)) / 6.f;
 			if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
 			if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 		}
@@ -4989,7 +4989,7 @@ ENDPSELECT:
 	//========== rotation to tgalpha ===================//
 
 	float rspd, currspeed, tgbend;
-	float dalpha = (float)fabs(cptr->tgalpha - cptr->alpha);
+	float dalpha = static_cast<float>(fabs(cptr->tgalpha - cptr->alpha));
 	float drspd = dalpha;
 	if (drspd > pi) drspd = 2 * pi - drspd;
 
@@ -5006,14 +5006,14 @@ ENDPSELECT:
 
 	if (dalpha > pi) currspeed *= -1;
 
-	if (cptr->State) DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 440.f);
-	else DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 620.f);
+	if (cptr->State) DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 440.f);
+	else DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 620.f);
 
 	tgbend = drspd / 2;
 	if (tgbend > pi / 6.f) tgbend = pi / 6.f;
 
 	tgbend *= SGN(currspeed);
-	DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 1800.f);
+	DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 1800.f);
 
 
 
@@ -5029,8 +5029,8 @@ ENDPSELECT:
 SKIPROT:
 
 	//========== movement ==============================//
-	cptr->lookx = (float)cos(cptr->alpha);
-	cptr->lookz = (float)sin(cptr->alpha);
+	cptr->lookx = static_cast<float>(cos(cptr->alpha));
+	cptr->lookz = static_cast<float>(sin(cptr->alpha));
 
 	float curspeed = 0;
 	if (cptr->Phase == DinoInfo[cptr->CType].runAnim) curspeed = DinoInfo[cptr->CType].runspd;
@@ -5130,8 +5130,8 @@ void AnimateMClientCharacter(TCharacter *cptr)
 	//========== rotation to tgalpha ===================//
 
 	//========== movement ==============================//
-	cptr->lookx = (float)cos(cptr->alpha);
-	cptr->lookz = (float)sin(cptr->alpha);
+	cptr->lookx = static_cast<float>(cos(cptr->alpha));
+	cptr->lookz = static_cast<float>(sin(cptr->alpha));
 
 	//============ Y movement =================//
 	if (cptr->Clone != AI_DIMOR && cptr->Clone != AI_PTERA) {
@@ -5195,7 +5195,7 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = (float)sqrt(targetdx * targetdx + targetdz * targetdz);
+	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
 
 	bool pdistMulti = FALSE;
 	int pCh = 1;
@@ -5204,12 +5204,12 @@ TBEGIN:
 	float playerdz[4];
 	playerdx[0] = PlayerX - cptr->pos.x;
 	playerdz[0] = PlayerZ - cptr->pos.z;
-	pdist[0] = (float)sqrt(playerdx[0] * playerdx[0] + playerdz[0] * playerdz[0]);
+	pdist[0] = static_cast<float>(sqrt(playerdx[0] * playerdx[0] + playerdz[0] * playerdz[0]));
 	if (Multiplayer) {
 		//for loop 1 to hunter count
 		playerdx[pCh] = MPlayers[pCh].pos.x - cptr->pos.x;
 		playerdz[pCh] = MPlayers[pCh].pos.z - cptr->pos.z;
-		pdist[pCh] = (float)sqrt(playerdx[pCh] * playerdx[pCh] + playerdz[pCh] * playerdz[pCh]);
+		pdist[pCh] = static_cast<float>(sqrt(playerdx[pCh] * playerdx[pCh] + playerdz[pCh] * playerdz[pCh]));
 		pCh += 1;
 		//
 	}
@@ -5293,7 +5293,7 @@ TBEGIN:
 		if (cptr->packId >= 0) {
 			float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 			float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-			float leaderdist = (float)sqrt(leaderdx * leaderdx + leaderdz * leaderdz);
+			float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
 
 			if (cptr->followLeader) {
 				if (leaderdist < cptr->packDensity * 128 * 0.6)
@@ -5333,7 +5333,7 @@ TBEGIN:
 
 		if (cptr->State && pdist[0] > DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
 		{
-			cptr->tgalpha += (float)sin(RealTime / 824.f) / 2.f;
+			cptr->tgalpha += static_cast<float>(sin(RealTime / 824.f)) / 2.f;
 			if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
 			if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 		}
@@ -5463,7 +5463,7 @@ ENDPSELECT:
 	//========== rotation to tgalpha ===================//
 
 	float rspd, currspeed, tgbend;
-	float dalpha = (float)fabs(cptr->tgalpha - cptr->alpha);
+	float dalpha = static_cast<float>(fabs(cptr->tgalpha - cptr->alpha));
 	float drspd = dalpha;
 	if (drspd > pi) drspd = 2 * pi - drspd;
 
@@ -5478,7 +5478,7 @@ ENDPSELECT:
 	if (dalpha > pi) currspeed *= -1;
 	if ((cptr->State & csONWATER) || cptr->Phase == DinoInfo[cptr->CType].walkAnim) currspeed /= 1.4f;
 
-	DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 260.f);
+	DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 260.f);
 
 	if (cptr->Clone == AI_GALL) {
 		tgbend = drspd / 3;
@@ -5489,8 +5489,8 @@ ENDPSELECT:
 	if (tgbend > pi / 2) tgbend = pi / 2;
 
 	tgbend *= SGN(currspeed);
-	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 800.f);
-	else DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 400.f);
+	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 800.f);
+	else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 400.f);
 
 
 	rspd = cptr->rspeed * TimeDt / 1024.f;
@@ -5504,8 +5504,8 @@ ENDPSELECT:
 SKIPROT:
 
 	//========== movement ==============================//
-	cptr->lookx = (float)cos(cptr->alpha);
-	cptr->lookz = (float)sin(cptr->alpha);
+	cptr->lookx = static_cast<float>(cos(cptr->alpha));
+	cptr->lookz = static_cast<float>(sin(cptr->alpha));
 
 	float curspeed = 0;
 	if (cptr->Phase == DinoInfo[cptr->CType].runAnim) curspeed = DinoInfo[cptr->CType].runspd;
@@ -5560,8 +5560,8 @@ TBEGIN:
 	float targetdz = targetz - cptr->pos.z;
 	float targetdy = targety - cptr->depth;
 
-	float tdist2 = (float)sqrt(targetdx * targetdx + targetdz * targetdz); //non-verticle
-	float tdist = (float)sqrt(tdist2 * tdist2 + targetdy * targetdy); //verticle
+	float tdist2 = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz)); //non-verticle
+	float tdist = static_cast<float>(sqrt(tdist2 * tdist2 + targetdy * targetdy)); //verticle
 
 	//float attackDist = 1024.f;
 	//if (DinoInfo[cptr->CType].DangerFish) {
@@ -5570,7 +5570,7 @@ TBEGIN:
 
 	float playerdx = PlayerX - cptr->pos.x - cptr->lookx * 100 *cptr->scale;
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 100 *cptr->scale;
-	float pdist = (float)sqrt(playerdx * playerdx + playerdz * playerdz);
+	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
 
 	if (pdist > (ctViewR + 20) * 256) {
 		if (ReplaceCharacterForward(cptr)) {
@@ -5598,10 +5598,10 @@ TBEGIN:
 		if (DinoInfo[cptr->CType].partCnt[cptr->Phase]) {
 			if (cptr->FTime > DinoInfo[cptr->CType].partFrame1[cptr->Phase] / cptr->pinfo->Animation[cptr->Phase].aniKPS
 				&& cptr->FTime < DinoInfo[cptr->CType].partFrame2[cptr->Phase] / cptr->pinfo->Animation[cptr->Phase].aniKPS) {
-				for (int i = 0; i < (int)sqrt(DinoInfo[cptr->CType].partCnt[cptr->Phase]* ((cptr->scale * 3) - 2)); i++) {
-					float xo = (int)siRand((int)DinoInfo[cptr->CType].partDist[cptr->Phase]* cptr->scale) + cptr->pos.x +
+				for (int i = 0; i < static_cast<int>(sqrt(DinoInfo[cptr->CType].partCnt[cptr->Phase]* ((cptr->scale * 3) - 2))); i++) {
+					float xo = static_cast<int>(siRand(static_cast<int>(DinoInfo[cptr->CType].partDist[cptr->Phase])* cptr->scale)) + cptr->pos.x +
 						((cos(cptr->alpha)  * ((cptr->scale * 1.5) - 0.5) * DinoInfo[cptr->CType].partOffset[cptr->Phase]));
-					float zo = (int)siRand((int)DinoInfo[cptr->CType].partDist[cptr->Phase] * cptr->scale) + cptr->pos.z +
+					float zo = static_cast<int>(siRand(static_cast<int>(DinoInfo[cptr->CType].partDist[cptr->Phase]) * cptr->scale)) + cptr->pos.z +
 						((sin(cptr->alpha)  * ((cptr->scale * 1.5) - 0.5) * DinoInfo[cptr->CType].partOffset[cptr->Phase]));
 					AddElementsA(xo,
 						GetLandUpH(xo, zo),
@@ -5640,7 +5640,7 @@ TBEGIN:
 		bool attackmode = pdist <= ctViewR * DinoInfo[cptr->CType].aggress + ao / AIInfo[cptr->Clone].agressMulti && playerInWater && !DinoInfo[cptr->CType].dontSwimAway
 			&& MyHealth && !ObservMode && !DEBUG;
 		if (SurvivalMode) attackmode = TRUE;
-		if (attackmode)	cptr->AfraidTime = (int)(10.f) * 1024;
+		if (attackmode)	cptr->AfraidTime = static_cast<int>((10.f)) * 1024;
 		if (cptr->packId >= 0 && MyHealth) {
 			if (attackmode) Packs[cptr->packId].alert = TRUE;
 			if (Packs[cptr->packId]._alert) attackmode = TRUE;
@@ -5650,7 +5650,7 @@ TBEGIN:
 			cptr->State = 1;
 			cptr->turny = 0;
 			cptr->lastTBeta = cptr->beta;
-			//cptr->AfraidTime = (int)(10.f) * 1024;
+			//cptr->AfraidTime = static_cast<int>((10.f)) * 1024;
 			//goto TBEGIN;
 		} else {
 
@@ -5658,8 +5658,8 @@ TBEGIN:
 				float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 				float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
 				float leaderdy = Packs[cptr->packId].leader->pos.y - cptr->depth;
-				float leaderdist = (float)sqrt(leaderdx * leaderdx + leaderdz * leaderdz);
-				float leaderdisty = (float)sqrt(leaderdist * leaderdist + leaderdy * leaderdy);
+				float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
+				float leaderdisty = static_cast<float>(sqrt(leaderdist * leaderdist + leaderdy * leaderdy));
 
 
 				if (cptr->followLeader) {
@@ -5835,7 +5835,7 @@ NOTHINK:
 		
 		if (cptr->State && pdist > DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
 		{
-			cptr->tgalpha += (float)sin(RealTime / 824.f) / 2.f;
+			cptr->tgalpha += static_cast<float>(sin(RealTime / 824.f)) / 2.f;
 			if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
 			if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 		}
@@ -6005,7 +6005,7 @@ ENDPSELECT:
 	//OLD BACKUP
 	/*
 		float rspd, currspeed, tgbend;
-	float dalpha = (float)fabs(cptr->tgalpha - cptr->alpha);
+	float dalpha = static_cast<float>(fabs(cptr->tgalpha - cptr->alpha));
 	float drspd = dalpha;
 	if (drspd > pi) drspd = 2 * pi - drspd;
 
@@ -6021,15 +6021,15 @@ ENDPSELECT:
 	if (dalpha > pi) currspeed *= -1;
 	if ((cptr->StateF & csONWATER) || cptr->Phase == DinoInfo[cptr->CType].walkAnim) currspeed /= 1.4f;
 
-	if (cptr->AfraidTime) DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 160.f);
-	else DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 180.f);
+	if (cptr->AfraidTime) DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 160.f);
+	else DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 180.f);
 
 	tgbend = drspd / 2;
 	if (tgbend > pi / 5) tgbend = pi / 5;
 
 	tgbend *= SGN(currspeed);
-	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 800.f);
-	else DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 600.f);
+	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 800.f);
+	else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 600.f);
 
 
 	rspd = cptr->rspeed * TimeDt / 1024.f;
@@ -6042,7 +6042,7 @@ ENDPSELECT:
 	*/
 
 	float rspd, currspeed, tgbend;
-	float dalpha = (float)fabs(cptr->tgalpha - cptr->alpha);
+	float dalpha = static_cast<float>(fabs(cptr->tgalpha - cptr->alpha));
 	float drspd = dalpha;
 	if (drspd > pi) drspd = 2 * pi - drspd;
 
@@ -6065,15 +6065,15 @@ ENDPSELECT:
 	if (dalpha > pi) currspeed *= -1;
 	/*if ((cptr->StateF & csONWATER) || cptr->Phase == DinoInfo[cptr->CType].walkAnim) */currspeed /= 1.4f;
 
-	if (cptr->AfraidTime) DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 250.f);
-	else DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 460.f);
+	if (cptr->AfraidTime) DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 250.f);
+	else DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 460.f);
 
 	tgbend = drspd / 2;
 	if (tgbend > pi / 5) tgbend = pi / 5;
 
 	tgbend *= SGN(currspeed);
-	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 800.f);
-	else DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 600.f);
+	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 800.f);
+	else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 600.f);
 
 
 	rspd = cptr->rspeed * TimeDt / 1024.f;
@@ -6091,7 +6091,7 @@ SKIPROT:
 	if (!cptr->Slide && cptr->vspeed > 0.6 && cptr->Phase != RAP_JUMP)
 		if (AngleDifference(cptr->tgalpha, cptr->alpha) > pi * 2 / 3.f)
 		{
-			cptr->Slide = (int)(cptr->vspeed*700.f);
+			cptr->Slide = static_cast<int>((cptr->vspeed*700.f));
 			cptr->slidex = cptr->lookx;
 			cptr->slidez = cptr->lookz;
 			cptr->vspeed = 0;
@@ -6100,8 +6100,8 @@ SKIPROT:
 
 
 		//========== movement ==============================//
-	cptr->lookx = (float)cos(cptr->alpha);
-	cptr->lookz = (float)sin(cptr->alpha);
+	cptr->lookx = static_cast<float>(cos(cptr->alpha));
+	cptr->lookz = static_cast<float>(sin(cptr->alpha));
 
 	float curspeed = 0;
 	if (cptr->Phase == DinoInfo[cptr->CType].runAnim) curspeed = DinoInfo[cptr->CType].runspd;
@@ -6158,7 +6158,7 @@ SKIPROT:
 
 	float tdx2 = cptr->tgx - cptr->pos.x;
 	float tdz2 = cptr->tgz - cptr->pos.z;
-	float tdist22 = (float)sqrt(tdx2 * tdx2 + tdz2 * tdz2); //need this, it's an updated target dist
+	float tdist22 = static_cast<float>(sqrt(tdx2 * tdx2 + tdz2 * tdz2)); //need this, it's an updated target dist
 
 	float tbeta = -atan((cptr->tdepth - cptr->depth) / tdist22);
 
@@ -6269,13 +6269,13 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = (float)sqrt(targetdx * targetdx + targetdz * targetdz);
+	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
 
 	float playerdx = PlayerX - cptr->pos.x;
 	float playerdz = PlayerZ - cptr->pos.z;
-	float pdist = (float)sqrt(playerdx * playerdx + playerdz * playerdz);
+	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
 	float playerdy = PlayerY - cptr->pos.y;
-	float pdistUp = (float)sqrt(pdist * pdist + playerdy * playerdy);
+	float pdistUp = static_cast<float>(sqrt(pdist * pdist + playerdy * playerdy));
 
 	//	if (cptr->AfraidTime && !(_Phase == ICTH_FLY || _Phase == ICTH_LANDING || _Phase == ICTH_FLY2 || _Phase == ICTH_TAKEOFF || _Phase == ICTH_WINGUP_WATER || _Phase == ICTH_WINGUP_LAND))
 	//	{
@@ -6350,7 +6350,7 @@ TBEGIN:
 	if (cptr->packId >= 0) {
 		float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 		float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-		float leaderdist = (float)sqrt(leaderdx * leaderdx + leaderdz * leaderdz);
+		float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
 
 		if (cptr->followLeader) {
 			if (leaderdist < cptr->packDensity * 128 * 0.6)
@@ -6690,7 +6690,7 @@ TBEGIN:
 			cptr->tgalpha = CorrectedAlpha(FindVectorAlpha(targetdx, targetdz), cptr->alpha);//FindVectorAlpha(targetdx, targetdz);
 			if (cptr->AfraidTime)
 			{
-				cptr->tgalpha += (float)sin(RealTime / 1024.f) / 3.f;
+				cptr->tgalpha += static_cast<float>(sin(RealTime / 1024.f)) / 3.f;
 				if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
 				if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 			}
@@ -6757,7 +6757,7 @@ ENDPSELECT:
 	//========== rotation to tgalpha ===================//
 
 	float rspd, currspeed, tgbend;
-	float dalpha = (float)fabs(cptr->tgalpha - cptr->alpha);
+	float dalpha = static_cast<float>(fabs(cptr->tgalpha - cptr->alpha));
 	float drspd = dalpha;
 	if (drspd > pi) drspd = 2 * pi - drspd;
 
@@ -6794,11 +6794,11 @@ ENDPSELECT:
 	if (cptr->Phase == DinoInfo[cptr->CType].flyAnim || cptr->Phase == DinoInfo[cptr->CType].glideAnim
 		|| cptr->Phase == DinoInfo[cptr->CType].takeoffAnim || cptr->Phase == DinoInfo[cptr->CType].landAnim)
 	{
-		DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 460.f);
+		DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 460.f);
 	}
 	else
 	{
-		DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 400.f);
+		DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 400.f);
 	}
 
 	tgbend = drspd / 2.f;
@@ -6816,14 +6816,14 @@ ENDPSELECT:
 	if (cptr->Phase == DinoInfo[cptr->CType].flyAnim || cptr->Phase == DinoInfo[cptr->CType].glideAnim
 		|| cptr->Phase == DinoInfo[cptr->CType].takeoffAnim || cptr->Phase == DinoInfo[cptr->CType].landAnim)
 	{
-		if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 800.f);
-		else DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 400.f);
+		if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 800.f);
+		else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 400.f);
 
 		rspd = cptr->rspeed * TimeDt / 1024.f;
 	}
 	else
 	{
-		DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 2000.f);
+		DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 2000.f);
 
 		rspd = cptr->rspeed * TimeDt / 612.f;
 	}
@@ -6838,8 +6838,8 @@ ENDPSELECT:
 SKIPROT:
 
 	//========== movement ==============================//
-	cptr->lookx = (float)cos(cptr->alpha);
-	cptr->lookz = (float)sin(cptr->alpha);
+	cptr->lookx = static_cast<float>(cos(cptr->alpha));
+	cptr->lookz = static_cast<float>(sin(cptr->alpha));
 
 	float curspeed = 0;
 	/*
@@ -7209,11 +7209,11 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = (float)sqrt(targetdx * targetdx + targetdz * targetdz);
+	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
 
 	float playerdx = PlayerX - cptr->pos.x - cptr->lookx * 108;
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
-	float pdist = (float)sqrt(playerdx * playerdx + playerdz * playerdz);
+	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
 
 	int attackDist = 128 * DinoInfo[cptr->CType].aggress + OptAgres / 8; //agress = 56
 
@@ -7347,7 +7347,7 @@ TBEGIN:
 		if (cptr->packId >= 0) {
 			float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 			float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-			float leaderdist = (float)sqrt(leaderdx * leaderdx + leaderdz * leaderdz);
+			float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
 
 			if (cptr->followLeader) {
 				if (leaderdist < cptr->packDensity * 128 * 0.6)
@@ -7388,7 +7388,7 @@ NOTHINK:
 
 			if (cptr->State && pdist > DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
 			{
-				cptr->tgalpha += (float)sin(RealTime / 824.f) / 4.f;
+				cptr->tgalpha += static_cast<float>(sin(RealTime / 824.f)) / 4.f;
 				if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
 				if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 			}
@@ -7414,7 +7414,7 @@ NOTHINK:
 
 		if (cptr->State && pdist > DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
 		{
-			cptr->tgalpha += (float)sin(RealTime / 824.f) / 4.f;
+			cptr->tgalpha += static_cast<float>(sin(RealTime / 824.f)) / 4.f;
 			if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
 			if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 		}
@@ -7560,7 +7560,7 @@ ENDPSELECT:
 	//========== rotation to tgalpha ===================//
 
 	float rspd, currspeed, tgbend;
-	float dalpha = (float)fabs(cptr->tgalpha - cptr->alpha);
+	float dalpha = static_cast<float>(fabs(cptr->tgalpha - cptr->alpha));
 	float drspd = dalpha;
 	if (drspd > pi) drspd = 2 * pi - drspd;
 
@@ -7576,13 +7576,13 @@ ENDPSELECT:
 
 	if (dalpha > pi) currspeed *= -1;
 
-	DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 600.f);
+	DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 600.f);
 
 	tgbend = drspd / 4;
 	if (tgbend > pi / 4) tgbend = pi / 4;
 
 	tgbend *= SGN(currspeed);
-	DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 3200.f);
+	DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 3200.f);
 
 	rspd = cptr->rspeed * TimeDt / 1024.f;
 	if (drspd < fabs(rspd)) cptr->alpha = cptr->tgalpha;
@@ -7594,8 +7594,8 @@ ENDPSELECT:
 SKIPROT:
 
 	//========== movement ==============================//
-	cptr->lookx = (float)cos(cptr->alpha);
-	cptr->lookz = (float)sin(cptr->alpha);
+	cptr->lookx = static_cast<float>(cos(cptr->alpha));
+	cptr->lookz = static_cast<float>(sin(cptr->alpha));
 
 	float curspeed = 0;
 
@@ -7641,18 +7641,18 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = (float)sqrt(targetdx * targetdx + targetdz * targetdz);
+	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
 
 	float playerdx = PlayerX - cptr->pos.x - cptr->lookx * 108;
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
-	float pdist = (float)sqrt(playerdx * playerdx + playerdz * playerdz);
+	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
 	if (pdist > (ctViewR + 20) * 256)
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 	if (cptr->packId >= 0) {
 		float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 		float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-		float leaderdist = (float)sqrt(leaderdx * leaderdx + leaderdz * leaderdz);
+		float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
 
 		if (cptr->followLeader) {
 			if (leaderdist < cptr->packDensity * 128 * 0.6)
@@ -7770,7 +7770,7 @@ ENDPSELECT:
 	//========== rotation to tgalpha ===================//
 
 	float rspd, currspeed, tgbend;
-	float dalpha = (float)fabs(cptr->tgalpha - cptr->alpha);
+	float dalpha = static_cast<float>(fabs(cptr->tgalpha - cptr->alpha));
 	float drspd = dalpha;
 	if (drspd > pi) drspd = 2 * pi - drspd;
 
@@ -7783,13 +7783,13 @@ ENDPSELECT:
 
 	if (dalpha > pi) currspeed *= -1;
 
-	DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 600.f);
+	DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 600.f);
 
 	tgbend = drspd / 4;
 	if (tgbend > pi / 4) tgbend = pi / 4;
 
 	tgbend *= SGN(currspeed);
-	DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 3200.f);
+	DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 3200.f);
 
 	rspd = cptr->rspeed * TimeDt / 1024.f;
 	if (drspd < fabs(rspd)) cptr->alpha = cptr->tgalpha;
@@ -7801,8 +7801,8 @@ ENDPSELECT:
 SKIPROT:
 
 	//========== movement ==============================//
-	cptr->lookx = (float)cos(cptr->alpha);
-	cptr->lookz = (float)sin(cptr->alpha);
+	cptr->lookx = static_cast<float>(cos(cptr->alpha));
+	cptr->lookz = static_cast<float>(sin(cptr->alpha));
 
 	float curspeed = 0;
 	if (cptr->Phase == DinoInfo[cptr->CType].walkAnim) curspeed = DinoInfo[cptr->CType].wlkspd;
@@ -7842,11 +7842,11 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = (float)sqrt(targetdx * targetdx + targetdz * targetdz);
+	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
 
 	float playerdx = PlayerX - cptr->pos.x;
 	float playerdz = PlayerZ - cptr->pos.z;
-	float pdist = (float)sqrt(playerdx * playerdx + playerdz * playerdz);
+	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
 
 
 	//=========== run away =================//
@@ -7863,7 +7863,7 @@ TBEGIN:
 	if (cptr->packId >= 0) {
 		float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 		float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-		float leaderdist = (float)sqrt(leaderdx * leaderdx + leaderdz * leaderdz);
+		float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
 
 		if (cptr->followLeader) {
 			if (leaderdist < cptr->packDensity * 128 * 0.6)
@@ -7950,7 +7950,7 @@ TBEGIN:
 	//========== rotation to tgalpha ===================//
 
 	float rspd, currspeed, tgbend;
-	float dalpha = (float)fabs(cptr->tgalpha - cptr->alpha);
+	float dalpha = static_cast<float>(fabs(cptr->tgalpha - cptr->alpha));
 	float drspd = dalpha;
 	if (drspd > pi) drspd = 2 * pi - drspd;
 
@@ -7961,14 +7961,14 @@ TBEGIN:
 	else currspeed = 0;
 
 	if (dalpha > pi) currspeed *= -1;
-	DeltaFunc(cptr->rspeed, currspeed, (float)TimeDt / 460.f);
+	DeltaFunc(cptr->rspeed, currspeed, static_cast<float>(TimeDt) / 460.f);
 
 	tgbend = drspd / 2.f;
 	if (tgbend > pi / 2) tgbend = pi / 2;
 
 	tgbend *= SGN(currspeed);
-	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 800.f);
-	else DeltaFunc(cptr->bend, tgbend, (float)TimeDt / 400.f);
+	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 800.f);
+	else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 400.f);
 
 
 	rspd = cptr->rspeed * TimeDt / 1024.f;
@@ -7980,8 +7980,8 @@ TBEGIN:
 	if (cptr->alpha < 0) cptr->alpha += pi * 2;
 
 	//========== movement ==============================//
-	cptr->lookx = (float)cos(cptr->alpha);
-	cptr->lookz = (float)sin(cptr->alpha);
+	cptr->lookx = static_cast<float>(cos(cptr->alpha));
+	cptr->lookz = static_cast<float>(sin(cptr->alpha));
 
 	float curspeed = 0;
 	if (cptr->Phase == DinoInfo[cptr->CType].flyAnim) curspeed = DinoInfo[cptr->CType].flyspd;
@@ -8173,7 +8173,7 @@ void AnimateCharacters()
 
 				float k = (20000.f + cptr->BloodTTime) / 90000.f;
 				if (k > 1.5) k = 1.5;
-				cptr->BloodTime += (int)((float)TimeDt * k);
+				cptr->BloodTime += static_cast<int>((static_cast<float>(TimeDt) * k));
 				if (cptr->BloodTime > 600)
 				{
 					cptr->BloodTime = rRand(228);
@@ -8315,7 +8315,7 @@ void MakeNoise(Vector3d pos, float range)
 
 		if (cptr->Clone != AI_TREX && !DinoInfo[cptr->CType].Aquatic && cptr->Clone != AI_HUNTDOG)
 		{
-			cptr->AfraidTime = (int)(10.f + (range - l) / 256.f) * 1024;
+			cptr->AfraidTime = static_cast<int>((10.f + (range - l) / 256.f)) * 1024;
 			if (cptr->State == 0) {
 				cptr->State = 2;
 			}
@@ -8339,8 +8339,8 @@ void CheckAfraid()
 	if (DEBUG || UNDERWATER || ObservMode) return;
 
 	plook.y = 0;
-	plook.x = (float)sin(CameraAlpha);
-	plook.z = (float)-cos(CameraAlpha);
+	plook.x = static_cast<float>(sin(CameraAlpha));
+	plook.z = static_cast<float>(-cos(CameraAlpha));
 
 	wlook = Wind.nv;
 
@@ -8368,7 +8368,7 @@ void CheckAfraid()
 		kR = VectorLength(rlook) / 256.f / (32.f + ctViewR / 2);
 		NormVector(rlook, 1.0f);
 
-		kR *= 2.5f / (float)(1.5 + OptSens / 128.f);
+		kR *= 2.5f / static_cast<float>((1.5 + OptSens / 128.f));
 		if (kR > 3.0f) continue;
 
 		clook.x = cptr->lookx;
@@ -8396,7 +8396,7 @@ void CheckAfraid()
 		if (kALook < 1.0)
 			if (TraceLook(cptr->pos.x, cptr->pos.y + 220, cptr->pos.z,
 				PlayerX, PlayerY + HeadY, PlayerZ))   kALook = 2.0;
-		kALook *= (1.f + (float)ObjectsOnLook / 6.f);
+		kALook *= (1.f + static_cast<float>(ObjectsOnLook) / 6.f);
 
 		/*
 		  if (kR<1.0f) {
@@ -8429,7 +8429,7 @@ void CheckAfraid()
 			//MESSAGE REMOVED
 
 			kRes = MIN(kRes, kR);
-			cptr->AfraidTime = (int)(1.0 / (kRes + 0.1) * 10.f * 1000.f);
+			cptr->AfraidTime = static_cast<int>((1.0 / (kRes + 0.1) * 10.f * 1000.f));
 			if (cptr->State==0) {
 				cptr->State = 2;
 			}
@@ -8486,9 +8486,9 @@ void PlaceTrophy()
 			if (DinoInfo[Characters[ChCount].CType].ScaleA != 0) scaleDif /= (DinoInfo[Characters[ChCount].CType].ScaleA / 1000.f);
 			else scaleDif = 0;
 		}
-		int scaleDifx = (int)(scaleDif * trophyType[c].xoffsetScale);
-		int scaleDifz = (int)(scaleDif * trophyType[c].zoffsetScale);
-		int scaleDify = (int)(scaleDif * trophyType[c].yoffsetScale);
+		int scaleDifx = static_cast<int>((scaleDif * trophyType[c].xoffsetScale));
+		int scaleDifz = static_cast<int>((scaleDif * trophyType[c].zoffsetScale));
+		int scaleDify = static_cast<int>((scaleDif * trophyType[c].yoffsetScale));
 
 		Characters[ChCount].pos.x = LandingList.list[trophyType[c].trophyPos].x
 			* 256 + 128 + trophyType[c].xoffset +scaleDifx;
@@ -8504,17 +8504,17 @@ void PlaceTrophy()
 
 		Characters[ChCount].pos.y += trophyType[c].yoffset +scaleDify;
 		
-		float a = (float)trophyType[c].alpha;
-		float b = (float)trophyType[c].beta;
-		float g = (float)trophyType[c].gamma;
+		float a = static_cast<float>(trophyType[c].alpha);
+		float b = static_cast<float>(trophyType[c].beta);
+		float g = static_cast<float>(trophyType[c].gamma);
 		Characters[ChCount].alpha = pi * 2 * a / 360.f;
 		Characters[ChCount].beta = pi * 2 * b / 360.f;
 		Characters[ChCount].gamma = pi * 2 * g / 360.f;
 
-		Characters[ChCount].xdata = (int)(LandingList.list[trophyType[c].trophyPos].x
-			* 256 + 128 + trophyType[c].xdata);
-		Characters[ChCount].zdata = (int)(LandingList.list[trophyType[c].trophyPos].y
-			* 256 + 128 + trophyType[c].zdata);
+		Characters[ChCount].xdata = static_cast<int>((LandingList.list[trophyType[c].trophyPos].x
+			* 256 + 128 + trophyType[c].xdata));
+		Characters[ChCount].zdata = static_cast<int>((LandingList.list[trophyType[c].trophyPos].y
+			* 256 + 128 + trophyType[c].zdata));
 		Characters[ChCount].ydata = trophyType[c].ydata;
 
 		Characters[ChCount].animateTrophy = trophyType[c].playAnim;
@@ -8748,8 +8748,8 @@ void PlaceMHunters() {
 	MPlayers[0].AfraidTime = 0;
 	MPlayers[0].BloodTTime = 0;
 	MPlayers[0].BloodTime = 0;
-	MPlayers[0].lookx = (float)cos(MPlayers[0].alpha);
-	MPlayers[0].lookz = (float)sin(MPlayers[0].alpha);
+	MPlayers[0].lookx = static_cast<float>(cos(MPlayers[0].alpha));
+	MPlayers[0].lookz = static_cast<float>(sin(MPlayers[0].alpha));
 	MPlayers[0].scale = 1;
 
 	HunterCount = 1;
@@ -9049,7 +9049,7 @@ void PlaceCharacters()
 				float m = OptDens - 128;
 				m /= 128.f;
 				m *= spawnGroup[sg].densityMulti;
-				spawnNo += (int)m;
+				spawnNo += static_cast<int>(m);
 				if (spawnNo < 0) spawnNo = 0;
 			}
 
@@ -9312,7 +9312,7 @@ void PlaceCharacters()
 				spawnMapAmbient(DinoInfoIndex, Region[RegionNo], tr, -1, RegionNo);
 
 				if (CiskMode && DinoInfo[DinoInfoIndex].Clone > 0 && rRand(3) == 1) {//real
-					dispSighting(DinoInfoIndex, (int)Characters[ChCount - 1].pos.x / 256, (int)Characters[ChCount - 1].pos.z / 256);
+					dispSighting(DinoInfoIndex, static_cast<int>(Characters[ChCount - 1].pos.x) / 256, static_cast<int>(Characters[ChCount - 1].pos.z) / 256);
 				}
 
 				//pack size
@@ -9463,18 +9463,18 @@ void CreateChMorphedModel(TCharacter *cptr)
 
 	float k1, k2, pk1, pk2, pmk1, pmk2;
 
-	k2 = (float)(SplineD) / 256.f;
+	k2 = static_cast<float>((SplineD)) / 256.f;
 	k1 = 1.0f - k2;
 	k1 /= 8.f;
 	k2 /= 8.f;
 
 	if (PMorph)
 	{
-		pk2 = (float)(PSplineD) / 256.f;
+		pk2 = static_cast<float>((PSplineD)) / 256.f;
 		pk1 = 1.0f - pk2;
 		pk1 /= 8.f;
 		pk2 /= 8.f;
-		pmk1 = (float)cptr->PPMorphTime / PMORPHTIME;
+		pmk1 = static_cast<float>(cptr->PPMorphTime) / PMORPHTIME;
 		pmk2 = 1.f - pmk1;
 	}
 
@@ -9482,10 +9482,10 @@ void CreateChMorphedModel(TCharacter *cptr)
 	short int* adptr = aptr->aniData + CurFrame * VCount * 3;
 	short int* padptr = paptr->aniData + PCurFrame * VCount * 3;
 
-	float sb = (float)sin(cptr->beta) * scale;
-	float cb = (float)cos(cptr->beta) * scale;
-	float sg = (float)sin(cptr->gamma);
-	float cg = (float)cos(cptr->gamma);
+	float sb = static_cast<float>(sin(cptr->beta)) * scale;
+	float cb = static_cast<float>(cos(cptr->beta)) * scale;
+	float sg = static_cast<float>(sin(cptr->gamma));
+	float cg = static_cast<float>(cos(cptr->gamma));
 
 	for (int v = 0; v < VCount; v++)
 	{
@@ -9530,8 +9530,8 @@ void CreateChMorphedModel(TCharacter *cptr)
 		fi *= cptr->bend;
 		if (!DinoInfo[cptr->CType].dontBend) {
 
-			float bendc = (float)cos(fi);
-			float bends = (float)sin(fi);
+			float bendc = static_cast<float>(cos(fi));
+			float bends = static_cast<float>(sin(fi));
 
 			float bx;
 			float bz;
@@ -9543,8 +9543,8 @@ void CreateChMorphedModel(TCharacter *cptr)
 			xx = bx;
 
 			//if (DinoInfo[cptr->CType].Aquatic) {	//Also hunter corpse when killed by aquatic creature
-			float bendcmosa = (float)cos(fiMosa);
-			float bendsmosa = (float)sin(fiMosa);
+			float bendcmosa = static_cast<float>(cos(fiMosa));
+			float bendsmosa = static_cast<float>(sin(fiMosa));
 			bz = bendcmosa * zz + bendsmosa * yy;
 			by = bendcmosa * yy + bendsmosa * zz;
 			yy = by;
@@ -9579,7 +9579,7 @@ void CreateMorphedModelBetaGamma(TModel* mptr, TAni *aptr, int FTime, float scal
 
 	float k1, k2, pk1, pk2, pmk1, pmk2;
 
-	k2 = (float)(SplineD) / 256.f;
+	k2 = static_cast<float>((SplineD)) / 256.f;
 	k1 = 1.0f - k2;
 	k1 /= 8.f;
 	k2 /= 8.f;
@@ -9588,10 +9588,10 @@ void CreateMorphedModelBetaGamma(TModel* mptr, TAni *aptr, int FTime, float scal
 	int VCount = mptr->VCount;
 	short int* adptr = aptr->aniData + CurFrame * VCount * 3;
 
-	float sb = (float)sin(beta) * scale;
-	float cb = (float)cos(beta) * scale;
-	float sg = (float)sin(gamma);
-	float cg = (float)cos(gamma);
+	float sb = static_cast<float>(sin(beta)) * scale;
+	float cb = static_cast<float>(cos(beta)) * scale;
+	float sg = static_cast<float>(sin(gamma));
+	float cg = static_cast<float>(cos(gamma));
 
 	for (int v = 0; v < VCount; v++)
 	{
@@ -9637,7 +9637,7 @@ void CreateMorphedModel(TModel* mptr, TAni *aptr, int FTime, float scale)
 	int SplineD = CurFrame & 0xFF;
 	CurFrame = (CurFrame >> 8);
 
-	float k2 = (float)(SplineD) / 256.f;
+	float k2 = static_cast<float>((SplineD)) / 256.f;
 	float k1 = 1.0f - k2;
 	k1 *= scale / 8.f;
 	k2 *= scale / 8.f;
@@ -9662,7 +9662,7 @@ void CreateMorphedObject(TModel* mptr, TVTL &vtl, int FTime)
 	int SplineD = CurFrame & 0xFF;
 	CurFrame = (CurFrame >> 8);
 
-	float k2 = (float)(SplineD) / 256.f;
+	float k2 = static_cast<float>((SplineD)) / 256.f;
 	float k1 = 1.0f - k2;
 	k1 /= 8.f;
 	k2 /= 8.f;

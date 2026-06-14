@@ -159,7 +159,7 @@ void RenderSkyPlane()
         g_GLRenderer->ClearVideoBuf();
         // Clear lpVideoBuf at the start of each frame for HUD overlay
         if (lpVideoBuf && VideoPitchB > 0 && WinH > 0)
-            memset(lpVideoBuf, 0, (size_t)VideoPitchB * WinH);
+            memset(lpVideoBuf, 0, static_cast<size_t>(VideoPitchB) * WinH);
         g_GLRenderer->RenderSkyPlane();
     }
 }
@@ -211,7 +211,7 @@ static int CircleCYBuf = 0;
 static void PutPixelBuf(int x, int y, WORD color)
 {
     if (!lpVideoBuf || x < 0 || x >= WinW || y < 0 || y >= WinH) return;
-    ((WORD*)lpVideoBuf)[y * VideoPitch + x] = color;
+    (static_cast<WORD*>(lpVideoBuf))[y * VideoPitch + x] = color;
 }
 
 static void Put8PixelBuf(int x, int y, WORD color)
@@ -443,7 +443,7 @@ void DrawPicture(int x, int y, TPicture& pic)
 
     // Pictures are in 565 format (after conv_pic). Copy to lpVideoBuf (555 DIB)
     // with 565→555 conversion.
-    WORD* dst = (WORD*)lpVideoBuf;
+    WORD* dst = static_cast<WORD*>(lpVideoBuf);
     for (int yy = 0; yy < pic.H; yy++) {
         int dstY = yy + y;
         if (dstY < 0 || dstY >= WinH) continue;
@@ -474,7 +474,7 @@ void DrawFlash(int x, int y, int w, int h, TPicture& pic)
     // source bitmap.
     if (!pic.lpImage || pic.W <= 0 || pic.H <= 0 || w <= 0 || h <= 0 || !lpVideoBuf) return;
 
-    WORD* dst = (WORD*)lpVideoBuf;
+    WORD* dst = static_cast<WORD*>(lpVideoBuf);
     if (w == pic.W && h == pic.H) {
         for (int yy = 0; yy < h; yy++) {
             int dstY = yy + y;
@@ -515,10 +515,10 @@ void DrawScoreText(int x, int y)
     // Draw score text onto lpVideoBuf via GDI
     if (!hdcMain || !hbmpVideoBuf || !lpVideoBuf) return;
 
-    HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
+    HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
     SetBkMode(hdcCMain, TRANSPARENT);
     HFONT oldFont = nullptr;
-    if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
+    if (fnt_Small) oldFont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
 
     char t[32];
     int tx = x + 14;
@@ -526,9 +526,9 @@ void DrawScoreText(int x, int y)
 
     auto textOut = [&](int px, int py, const char* str, int color) {
         SetTextColor(hdcCMain, 0x00101010);
-        TextOut(hdcCMain, px + 1, py + 1, str, (int)strlen(str));
+        TextOut(hdcCMain, px + 1, py + 1, str, static_cast<int>(strlen(str)));
         SetTextColor(hdcCMain, color);
-        TextOut(hdcCMain, px, py, str, (int)strlen(str));
+        TextOut(hdcCMain, px, py, str, static_cast<int>(strlen(str)));
     };
 
     textOut(tx, ty, "Unclaimed Kill - Score Added: ", 0x00BFBFBF);
@@ -547,18 +547,18 @@ void DrawSurvivalText(int x, int y)
     // Draw survival text onto lpVideoBuf via GDI
     if (!hdcMain || !hbmpVideoBuf || !lpVideoBuf) return;
 
-    HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
+    HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
     SetBkMode(hdcCMain, TRANSPARENT);
     HFONT oldFont = nullptr;
-    if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
+    if (fnt_Small) oldFont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
 
     char t[32];
 
     auto textOut = [&](int px, int py, const char* str, int color) {
         SetTextColor(hdcCMain, 0x00101010);
-        TextOut(hdcCMain, px + 1, py + 1, str, (int)strlen(str));
+        TextOut(hdcCMain, px + 1, py + 1, str, static_cast<int>(strlen(str)));
         SetTextColor(hdcCMain, color);
-        TextOut(hdcCMain, px, py, str, (int)strlen(str));
+        TextOut(hdcCMain, px, py, str, static_cast<int>(strlen(str)));
     };
 
     int tx = x + 40;
@@ -622,16 +622,16 @@ void RenderHealthBar()
     const WORD BORDER = 0x0001; // non-zero so the overlay treats it as opaque
 
     // Top and bottom border rows (full width of bar + corners)
-    FillMemory((WORD*)lpVideoBuf + ((y0 - 1) * VideoPitch) + x0 - 1, (L + 2) * 2, BORDER);
-    FillMemory((WORD*)lpVideoBuf + ((y0 + H + 1) * VideoPitch) + x0 - 1, (L + 2) * 2, BORDER);
+    FillMemory(static_cast<WORD*>(lpVideoBuf) + ((y0 - 1) * VideoPitch) + x0 - 1, (L + 2) * 2, BORDER);
+    FillMemory(static_cast<WORD*>(lpVideoBuf) + ((y0 + H + 1) * VideoPitch) + x0 - 1, (L + 2) * 2, BORDER);
 
     // Bar body
     for (int y = 0; y <= H; y++) {
-        WORD* row = (WORD*)lpVideoBuf + ((y0 + y) * VideoPitch);
+        WORD* row = static_cast<WORD*>(lpVideoBuf) + ((y0 + y) * VideoPitch);
         row[x0 - 1] = BORDER;
         row[x0 + L] = BORDER;
         for (int x = 0; x < L0; x++)
-            row[x0 + x] = (WORD)HCOLOR;
+            row[x0 + x] = static_cast<WORD>(HCOLOR);
     }
 }
 
@@ -642,16 +642,16 @@ void ShowControlElements()
     char buf[128];
 
     // Draw text elements onto lpVideoBuf via GDI
-    HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
+    HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
     SetBkMode(hdcCMain, TRANSPARENT);
     HFONT oldFont = nullptr;
-    if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
+    if (fnt_Small) oldFont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
 
     auto textOut = [&](int px, int py, const char* str, int color) {
         SetTextColor(hdcCMain, 0x00101010);
-        TextOut(hdcCMain, px + 1, py + 1, str, (int)strlen(str));
+        TextOut(hdcCMain, px + 1, py + 1, str, static_cast<int>(strlen(str)));
         SetTextColor(hdcCMain, color);
-        TextOut(hdcCMain, px, py, str, (int)strlen(str));
+        TextOut(hdcCMain, px, py, str, static_cast<int>(strlen(str)));
     };
 
     if (TIMER)
