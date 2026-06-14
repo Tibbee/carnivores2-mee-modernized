@@ -16,17 +16,17 @@
 Vector2di ORList[2048];
 int ORLCount = 0;
 
-LPDIRECTDRAWSURFACE     lpddPrimary               = NULL;
-LPDIRECTDRAWSURFACE     lpddBack                  = NULL;
-LPDIRECTDRAWSURFACE     lpddZBuffer               = NULL;
-LPDIRECTDRAWSURFACE     lpddTexture               = NULL;
+LPDIRECTDRAWSURFACE     lpddPrimary               = nullptr;
+LPDIRECTDRAWSURFACE     lpddBack                  = nullptr;
+LPDIRECTDRAWSURFACE     lpddZBuffer               = nullptr;
+LPDIRECTDRAWSURFACE     lpddTexture               = nullptr;
 DDSURFACEDESC           ddsd;
 
-LPDIRECT3D              lpd3d                     = NULL;
-LPDIRECT3DDEVICE        lpd3dDevice               = NULL;
-LPDIRECT3DVIEWPORT      lpd3dViewport             = NULL;
-LPDIRECT3DEXECUTEBUFFER lpd3dExecuteBuffer        = NULL;
-LPDIRECT3DEXECUTEBUFFER lpd3dExecuteBufferG       = NULL;
+LPDIRECT3D              lpd3d                     = nullptr;
+LPDIRECT3DDEVICE        lpd3dDevice               = nullptr;
+LPDIRECT3DVIEWPORT      lpd3dViewport             = nullptr;
+LPDIRECT3DEXECUTEBUFFER lpd3dExecuteBuffer        = nullptr;
+LPDIRECT3DEXECUTEBUFFER lpd3dExecuteBufferG       = nullptr;
 LPD3DTLVERTEX           lpVertex, lpVertexG;
 WORD                    *lpwTriCount;
 
@@ -133,7 +133,7 @@ void Hardware_ZBuffer(BOOL bl)
     DDBLTFX ddbltfx;
     ddbltfx.dwSize = sizeof( DDBLTFX );
     ddbltfx.dwFillDepth = 0x0000;
-    lpddZBuffer->Blt( NULL, NULL, NULL, DDBLT_DEPTHFILL | DDBLT_WAIT, &ddbltfx );
+    lpddZBuffer->Blt( nullptr, nullptr, nullptr, DDBLT_DEPTHFILL | DDBLT_WAIT, &ddbltfx );
   }
 }
 
@@ -146,11 +146,11 @@ void d3dClearBuffers()
   if (VMFORMAT565) ddbltfx.dwFillColor = (SkyR>>3)*32*32*2 + (SkyG>>2)*32 + (SkyB>>3);
   else ddbltfx.dwFillColor = (SkyR>>3)*32*32   + (SkyG>>3)*32 + (SkyB>>3);
 
-  lpddBack->Blt( NULL, NULL, NULL, DDBLT_COLORFILL | DDBLT_WAIT, &ddbltfx );
+  lpddBack->Blt( nullptr, nullptr, nullptr, DDBLT_COLORFILL | DDBLT_WAIT, &ddbltfx );
 
   ddbltfx.dwSize = sizeof( DDBLTFX );
   ddbltfx.dwFillDepth = 0x0000;
-  lpddZBuffer->Blt( NULL, NULL, NULL, DDBLT_DEPTHFILL | DDBLT_WAIT, &ddbltfx );
+  lpddZBuffer->Blt( nullptr, nullptr, nullptr, DDBLT_DEPTHFILL | DDBLT_WAIT, &ddbltfx );
 }
 
 
@@ -348,8 +348,8 @@ void d3dEndBufferG(BOOL ColorKey)
   lpd3dExecuteBufferG->Unlock( );
 
   dFacesCount+=GVCnt/3;
-  lpInstructionG = NULL;
-  lpVertexG      = NULL;
+  lpInstructionG = nullptr;
+  lpVertexG      = nullptr;
   GVCnt          = 0;
 
   hRes = lpd3dDevice->Execute(lpd3dExecuteBufferG, lpd3dViewport, D3DEXECUTE_UNCLIPPED);
@@ -808,7 +808,7 @@ HRESULT CreateDirect3D( HWND hwnd )
   ddsd.dwSize         = sizeof(ddsd);
   ddsd.dwFlags        = DDSD_CAPS;
   ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-  hRes = lpDD->CreateSurface( &ddsd, &lpddPrimary, NULL );
+  hRes = lpDD->CreateSurface( &ddsd, &lpddPrimary, nullptr );
   if (FAILED(hRes)) DoHalt( "Error creating primary surface\n");
 
   ZeroMemory(&ddsd, sizeof(ddsd) );
@@ -843,7 +843,7 @@ HRESULT CreateDevice(DWORD dwWidth, DWORD dwHeight)
   ddsd.dwWidth        = dwWidth;
   ddsd.dwHeight       = dwHeight;
   ddsd.ddsCaps.dwCaps = DDSCAPS_3DDEVICE | DDSCAPS_OFFSCREENPLAIN | DDSCAPS_VIDEOMEMORY;
-  hRes = lpDD->CreateSurface( &ddsd, &lpddBack, NULL);
+  hRes = lpDD->CreateSurface( &ddsd, &lpddBack, nullptr);
   if (FAILED(hRes)) DoHalt("Error creating back buffer surface\n");
   PrintLog("CreateSurface: Ok. (BackBuffer)\n");
 
@@ -859,11 +859,11 @@ HRESULT CreateDevice(DWORD dwWidth, DWORD dwHeight)
     ddsd.dwWidth           = dwWidth;
     ddsd.dwHeight          = dwHeight;
     ddsd.dwZBufferBitDepth = 16;//dwZBufferBitDepth;
-    hRes = lpDD->CreateSurface( &ddsd, &lpddZBuffer, NULL);
+    hRes = lpDD->CreateSurface( &ddsd, &lpddZBuffer, nullptr);
     /*
     	  if (FAILED(hRes)) {
     	   ddsd.dwZBufferBitDepth = 16;//dwZBufferBitDepth;
-           hRes = lpDD->CreateSurface( &ddsd, &lpddZBuffer, NULL);
+           hRes = lpDD->CreateSurface( &ddsd, &lpddZBuffer, nullptr);
     	   PrintLog("Z-Buffer: 16 bit\n");
     	  } else
     	   PrintLog("Z-Buffer: 32 bit\n");
@@ -896,7 +896,7 @@ HRESULT CreateScene(void)
   D3DEXECUTEBUFFERDESC d3dExecuteBufferDesc;
   D3DEXECUTEDATA       d3dExecuteData;
 
-  hRes = lpd3d->CreateViewport( &lpd3dViewport, NULL );
+  hRes = lpd3d->CreateViewport( &lpd3dViewport, nullptr );
   if (FAILED(hRes)) DoHalt("Error creating viewport\n");
   PrintLog("CreateViewport: Ok.\n");
 
@@ -932,7 +932,7 @@ HRESULT CreateScene(void)
   d3dExecuteBufferDesc.dwSize       = sizeof(d3dExecuteBufferDesc);
   d3dExecuteBufferDesc.dwFlags      = D3DDEB_BUFSIZE;
   d3dExecuteBufferDesc.dwBufferSize = dwExecuteBufferSize;
-  hRes = lpd3dDevice->CreateExecuteBuffer( &d3dExecuteBufferDesc, &lpd3dExecuteBuffer, NULL);
+  hRes = lpd3dDevice->CreateExecuteBuffer( &d3dExecuteBufferDesc, &lpd3dExecuteBuffer, nullptr);
   if (FAILED(hRes)) DoHalt( "Error creating execute buffer\n");
   PrintLog("CreateExecuteBuffer: Ok.\n");
 
@@ -957,7 +957,7 @@ HRESULT CreateScene(void)
   d3dExecuteBufferDesc.dwSize       = sizeof(d3dExecuteBufferDesc);
   d3dExecuteBufferDesc.dwFlags      = D3DDEB_BUFSIZE;
   d3dExecuteBufferDesc.dwBufferSize = dwExecuteBufferSize;
-  hRes = lpd3dDevice->CreateExecuteBuffer( &d3dExecuteBufferDesc, &lpd3dExecuteBufferG, NULL);
+  hRes = lpd3dDevice->CreateExecuteBuffer( &d3dExecuteBufferDesc, &lpd3dExecuteBufferG, nullptr);
   if (FAILED(hRes)) DoHalt( "Error creating execute buffer\n");
   PrintLog("CreateExecuteBuffer: Ok.\n");
 
@@ -988,7 +988,7 @@ void Init3DHardware()
   PrintLog("==Init Direct Draw==\n");
   HRESULT hres;
 
-  hres = DirectDrawCreate( NULL, &lpDD, NULL );
+  hres = DirectDrawCreate( nullptr, &lpDD, nullptr );
   if( hres != DD_OK )
   {
     wsprintf(logt, "DirectDrawCreate Error: %Xh\n", hres);
@@ -1030,7 +1030,7 @@ void d3dDetectCaps()
   DDSURFACEDESC ddsd;
   ZeroMemory( &ddsd, sizeof(DDSURFACEDESC) );
   ddsd.dwSize = sizeof(DDSURFACEDESC);
-  if( lpddBack->Lock( NULL, &ddsd, DDLOCK_WAIT, NULL ) != DD_OK ) return;
+  if( lpddBack->Lock( nullptr, &ddsd, DDLOCK_WAIT, nullptr ) != DD_OK ) return;
   lpddBack->Unlock(ddsd.lpSurface);
   if (ddsd.ddpfPixelFormat.dwGBitMask == 0x3E0) VMFORMAT565=FALSE;
   else VMFORMAT565=TRUE;
@@ -1112,7 +1112,7 @@ int  d3dTestAlpha()
   DDBLTFX ddbltfx;
   ddbltfx.dwSize = sizeof( DDBLTFX );
   ddbltfx.dwFillColor = 0xFFFF;
-  lpddBack->Blt( NULL, NULL, NULL, DDBLT_COLORFILL | DDBLT_WAIT, &ddbltfx );
+  lpddBack->Blt( nullptr, nullptr, nullptr, DDBLT_COLORFILL | DDBLT_WAIT, &ddbltfx );
 
   FillExecuteBuffer_State(lpd3dExecuteBuffer);
   hRes = lpd3dDevice->Execute( lpd3dExecuteBuffer, lpd3dViewport, D3DEXECUTE_UNCLIPPED);
@@ -1144,7 +1144,7 @@ int  d3dTestAlpha()
   lpd3dDevice->BeginScene( );
   ddbltfx.dwSize = sizeof( DDBLTFX );
   ddbltfx.dwFillColor = 0x0000;
-  lpddBack->Blt( NULL, NULL, NULL, DDBLT_COLORFILL | DDBLT_WAIT, &ddbltfx );
+  lpddBack->Blt( nullptr, nullptr, nullptr, DDBLT_COLORFILL | DDBLT_WAIT, &ddbltfx );
 
   d3dTestDrawTri(0x00FFFFFF, 0.5);
 
@@ -1168,7 +1168,7 @@ int  d3dTestAlpha()
   lpd3dDevice->BeginScene( );
   ddbltfx.dwSize = sizeof( DDBLTFX );
   ddbltfx.dwFillColor = 0x0000;
-  lpddBack->Blt( NULL, NULL, NULL, DDBLT_COLORFILL | DDBLT_WAIT, &ddbltfx );
+  lpddBack->Blt( nullptr, nullptr, nullptr, DDBLT_COLORFILL | DDBLT_WAIT, &ddbltfx );
 
   d3dTestDrawTri(0x00FFFFFF, 0.5);
 
@@ -1251,7 +1251,7 @@ void ResetTextureMap()
     if (d3dMemMap[m].lpddTexture)
     {
       d3dMemMap[m].lpddTexture->Release();
-      d3dMemMap[m].lpddTexture = NULL;
+      d3dMemMap[m].lpddTexture = nullptr;
     }
   }
 }
@@ -1267,50 +1267,50 @@ void ShutDown3DHardware()
 
   ResetTextureMap();
 
-  lpInstructionG = NULL;
-  lpVertexG      = NULL;
+  lpInstructionG = nullptr;
+  lpVertexG      = nullptr;
 
-  if (NULL != lpd3dExecuteBuffer)
+  if (nullptr != lpd3dExecuteBuffer)
   {
     lpd3dExecuteBuffer->Release( );
     lpd3dExecuteBufferG->Release( );
-    lpd3dExecuteBuffer = NULL;
+    lpd3dExecuteBuffer = nullptr;
   }
 
-  if (NULL != lpd3dViewport)
+  if (nullptr != lpd3dViewport)
   {
     lpd3dViewport->Release( );
-    lpd3dViewport = NULL;
+    lpd3dViewport = nullptr;
   }
 
-  if (NULL != lpd3dDevice)
+  if (nullptr != lpd3dDevice)
   {
     lpd3dDevice->Release( );
-    lpd3dDevice = NULL;
+    lpd3dDevice = nullptr;
   }
 
-  if (NULL != lpddZBuffer)
+  if (nullptr != lpddZBuffer)
   {
     lpddZBuffer->Release( );
-    lpddZBuffer = NULL;
+    lpddZBuffer = nullptr;
   }
 
-  if (NULL != lpddBack)
+  if (nullptr != lpddBack)
   {
     lpddBack->Release();
-    lpddBack = NULL;
+    lpddBack = nullptr;
   }
 
-  if (NULL != lpddPrimary)
+  if (nullptr != lpddPrimary)
   {
     lpddPrimary->Release( );
-    lpddPrimary = NULL;
+    lpddPrimary = nullptr;
   }
 
-  if (NULL != lpd3d)
+  if (nullptr != lpd3d)
   {
     lpd3d->Release( );
-    lpd3d = NULL;
+    lpd3d = nullptr;
   }
 
   lpDD->SetCooperativeLevel( hwndMain, DDSCL_NORMAL);
@@ -1356,10 +1356,10 @@ BOOL d3dAllocTexture(int i, int w, int h)
 
   ddsd.ddsCaps.dwCaps = DDSCAPS_TEXTURE | DDSCAPS_VIDEOMEMORY;
 
-  hRes = lpDD->CreateSurface( &ddsd, &d3dMemMap[i].lpddTexture, NULL);
+  hRes = lpDD->CreateSurface( &ddsd, &d3dMemMap[i].lpddTexture, nullptr);
   if (FAILED(hRes))
   {
-    d3dMemMap[i].lpddTexture = NULL;
+    d3dMemMap[i].lpddTexture = nullptr;
     return FALSE;
   }
 
@@ -1383,7 +1383,7 @@ void d3dDownLoadTexture(int i, int w, int h, LPVOID tptr)
 
 
 
-  if( d3dMemMap[i].lpddTexture->Lock( NULL, &ddsd, DDLOCK_WAIT, NULL ) != DD_OK ) return;
+  if( d3dMemMap[i].lpddTexture->Lock( nullptr, &ddsd, DDLOCK_WAIT, nullptr ) != DD_OK ) return;
   CopyMemory( ddsd.lpSurface, tptr, w*h*2 );
   d3dMemMap[i].lpddTexture->Unlock( ddsd.lpSurface );
 
@@ -1499,7 +1499,7 @@ float GetTraceK(int x, int y)
   DDSURFACEDESC ddsd;
   ZeroMemory( &ddsd, sizeof(DDSURFACEDESC) );
   ddsd.dwSize = sizeof(DDSURFACEDESC);
-  if( lpddZBuffer->Lock( NULL, &ddsd, DDLOCK_WAIT, NULL ) != DD_OK )
+  if( lpddZBuffer->Lock( nullptr, &ddsd, DDLOCK_WAIT, nullptr ) != DD_OK )
   {
     return 0;
   }
@@ -1560,7 +1560,7 @@ float GetSkyK(int x, int y)
   DDSURFACEDESC ddsd;
   ZeroMemory( &ddsd, sizeof(DDSURFACEDESC) );
   ddsd.dwSize = sizeof(DDSURFACEDESC);
-  if( lpddBack->Lock( NULL, &ddsd, DDLOCK_WAIT, NULL ) != DD_OK )
+  if( lpddBack->Lock( nullptr, &ddsd, DDLOCK_WAIT, nullptr ) != DD_OK )
   {
     return 0;
   }
@@ -1659,7 +1659,7 @@ void ShowVideo()
 
   hRes = lpd3dDevice->EndScene();
 
-  hRes = lpddPrimary->Blt( NULL, lpddBack, NULL, DDBLT_WAIT, NULL );
+  hRes = lpddPrimary->Blt( nullptr, lpddBack, nullptr, DDBLT_WAIT, nullptr );
 
   d3dClearBuffers();
 
@@ -1674,7 +1674,7 @@ void CopyBackToDIB()
   DDSURFACEDESC ddsd;
   ZeroMemory( &ddsd, sizeof(DDSURFACEDESC) );
   ddsd.dwSize = sizeof(DDSURFACEDESC);
-  if( lpddBack->Lock( NULL, &ddsd, DDLOCK_WAIT, NULL ) != DD_OK ) return;
+  if( lpddBack->Lock( nullptr, &ddsd, DDLOCK_WAIT, nullptr ) != DD_OK ) return;
 
   WORD *lpVMem = (WORD*) ddsd.lpSurface;
   ddsd.lPitch/=2;
@@ -1692,7 +1692,7 @@ void CopyHARDToDIB()
   DDSURFACEDESC ddsd;
   ZeroMemory( &ddsd, sizeof(DDSURFACEDESC) );
   ddsd.dwSize = sizeof(DDSURFACEDESC);
-  if( lpddPrimary->Lock( NULL, &ddsd, DDLOCK_WAIT, NULL ) != DD_OK ) return;
+  if( lpddPrimary->Lock( nullptr, &ddsd, DDLOCK_WAIT, nullptr ) != DD_OK ) return;
 
   WORD *lpVMem = (WORD*) ddsd.lpSurface;
   ddsd.lPitch/=2;
@@ -1714,7 +1714,7 @@ void FXPutBitMap(int x0, int y0, int w, int h, int smw, LPVOID lpData)
   DDSURFACEDESC ddsd;
   ZeroMemory( &ddsd, sizeof(DDSURFACEDESC) );
   ddsd.dwSize = sizeof(DDSURFACEDESC);
-  if( lpddBack->Lock( NULL, &ddsd, DDLOCK_WAIT, NULL ) != DD_OK ) return;
+  if( lpddBack->Lock( nullptr, &ddsd, DDLOCK_WAIT, nullptr ) != DD_OK ) return;
 
   WORD *lpVMem = (WORD*) ddsd.lpSurface;
   ddsd.lPitch/=2;
@@ -1744,7 +1744,7 @@ void DrawFlash(int x0, int y0, int w, int h, TPicture &pic)
 	DDSURFACEDESC ddsd;
 	ZeroMemory(&ddsd, sizeof(DDSURFACEDESC));
 	ddsd.dwSize = sizeof(DDSURFACEDESC);
-	if (lpddBack->Lock(NULL, &ddsd, DDLOCK_WAIT, NULL) != DD_OK) return;
+	if (lpddBack->Lock(nullptr, &ddsd, DDLOCK_WAIT, nullptr) != DD_OK) return;
 
 	WORD *lpVMem = (WORD*)ddsd.lpSurface;
 	ddsd.lPitch /= 2;
@@ -4817,7 +4817,7 @@ void RenderShip()
 void RenderElements()
 {
   d3dLastTexture = d3dmemmapsize+1;
-  hTexture = NULL;
+  hTexture = 0;
   int fproc1 = 0;
 
   for (int eg = 0; eg<ElCount; eg++)
@@ -5364,7 +5364,7 @@ void DrawHMap()
 
   ZeroMemory( &ddsd, sizeof(DDSURFACEDESC) );
   ddsd.dwSize = sizeof(DDSURFACEDESC);
-  if( lpddBack->Lock( NULL, &ddsd, DDLOCK_WAIT, NULL ) != DD_OK ) return;
+  if( lpddBack->Lock( nullptr, &ddsd, DDLOCK_WAIT, nullptr ) != DD_OK ) return;
 
   lsw = ddsd.lPitch / 2;
   int RShift, GShift;
@@ -5941,7 +5941,7 @@ void RenderFSRect(DWORD Color)
   lpState = (LPD3DSTATE)lpInstruction;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREHANDLE;
-  lpState->dwArg[0] = NULL;
+  lpState->dwArg[0] = 0;
   lpState++;
 
   lpInstruction = (LPD3DINSTRUCTION)lpState;
@@ -6066,7 +6066,7 @@ void RenderHealthBar()
   lpState = (LPD3DSTATE)lpInstruction;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREHANDLE;
-  lpState->dwArg[0] = NULL;
+  lpState->dwArg[0] = 0;
   lpState++;
 
   lpInstruction = (LPD3DINSTRUCTION)lpState;
@@ -6114,7 +6114,7 @@ void Render_Cross(int sx, int sy)
 {
 	ZeroMemory(&ddsd, sizeof(DDSURFACEDESC));
 	ddsd.dwSize = sizeof(DDSURFACEDESC);
-	if (lpddBack->Lock(NULL, &ddsd, DDLOCK_WAIT, NULL) != DD_OK) return;
+	if (lpddBack->Lock(nullptr, &ddsd, DDLOCK_WAIT, nullptr) != DD_OK) return;
 
 	lsw = ddsd.lPitch / 2;
 
@@ -6188,7 +6188,7 @@ void Render_Cross(int sx, int sy)
   lpState = (LPD3DSTATE)lpInstruction;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_TEXTUREHANDLE;
-  lpState->dwArg[0] = NULL;
+  lpState->dwArg[0] = 0;
   lpState++;
 
   lpInstruction = (LPD3DINSTRUCTION)lpState;

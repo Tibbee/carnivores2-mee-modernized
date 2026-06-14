@@ -86,9 +86,9 @@ int LaunchProcess(const std::string& exe_name, std::string cmd_line)
 
 	// Create the process
 	BOOL result = CreateProcess(exe_name.c_str(), const_cast<char*>(cmd_line.c_str()),
-		NULL, NULL, FALSE,
+		nullptr, nullptr, FALSE,
 		NORMAL_PRIORITY_CLASS,
-		NULL, NULL, &startupInfo, &processInformation);
+		nullptr, nullptr, &startupInfo, &processInformation);
 
 	if (!result)
 	{
@@ -238,9 +238,9 @@ bool CreateMainWindow()
 	wc.hInstance = (HINSTANCE)hInst;
 	wc.hIcon = LoadIcon(wc.hInstance, MAKEINTRESOURCE(IDI_ICON1));
 	wc.hIconSm = LoadIcon(wc.hInstance, MAKEINTRESOURCE(IDI_ICON1));
-	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
 	wc.hbrBackground = (HBRUSH)COLOR_WINDOW;
-	wc.lpszMenuName = NULL;
+	wc.lpszMenuName = nullptr;
 	wc.lpszClassName = "CarnivoresMenu2";
 
 	if (!RegisterClassEx(&wc)) {
@@ -302,7 +302,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 		CreateMainWindow();
 		InitNetwork();
 		InitInterface();
-		//InitAudioSystem(hwndMain, NULL, 0);
+		//InitAudioSystem(hwndMain, nullptr, 0);
 
 		LoadResourcesScript();
 		LoadResources();

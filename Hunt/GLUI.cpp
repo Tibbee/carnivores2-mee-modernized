@@ -517,7 +517,7 @@ void DrawScoreText(int x, int y)
 
     HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
     SetBkMode(hdcCMain, TRANSPARENT);
-    HFONT oldFont = NULL;
+    HFONT oldFont = nullptr;
     if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
 
     char t[32];
@@ -549,7 +549,7 @@ void DrawSurvivalText(int x, int y)
 
     HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
     SetBkMode(hdcCMain, TRANSPARENT);
-    HFONT oldFont = NULL;
+    HFONT oldFont = nullptr;
     if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
 
     char t[32];
@@ -644,7 +644,7 @@ void ShowControlElements()
     // Draw text elements onto lpVideoBuf via GDI
     HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
     SetBkMode(hdcCMain, TRANSPARENT);
-    HFONT oldFont = NULL;
+    HFONT oldFont = nullptr;
     if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
 
     auto textOut = [&](int px, int py, const char* str, int color) {

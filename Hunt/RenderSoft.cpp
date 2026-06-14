@@ -3323,7 +3323,7 @@ void Init3DHardware()
   PrintLog("==Init Direct Draw==\n");
   HRESULT hres;
 
-  hres = DirectDrawCreate( NULL, &lpDD, NULL );
+  hres = DirectDrawCreate( nullptr, &lpDD, nullptr );
   if( hres != DD_OK )
   {
     wsprintf(logt, "DirectDrawCreate Error: %Xh\n", hres);

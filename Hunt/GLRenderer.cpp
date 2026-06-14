@@ -380,7 +380,7 @@ bool GLRenderer::CreateContext()
 
     m_hwnd = hwndMain;
     if (!m_hwnd) {
-        PrintLog("GL: ERROR - hwndMain is NULL!\n");
+        PrintLog("GL: ERROR - hwndMain is nullptr!\n");
         return false;
     }
 
@@ -4014,7 +4014,7 @@ void GLRenderer::DrawTrophyText(int x, int y)
 
     HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
     SetBkMode(hdcCMain, TRANSPARENT);
-    HFONT oldFont = NULL;
+    HFONT oldFont = nullptr;
     if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
 
     int dtype = TrophyDisplayBody.ctype;
@@ -4102,7 +4102,7 @@ void GLRenderer::Render_LifeInfo(int index)
 
     HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcCMain, hbmpVideoBuf);
     SetBkMode(hdcCMain, TRANSPARENT);
-    HFONT oldFont = NULL;
+    HFONT oldFont = nullptr;
     if (fnt_Small) oldFont = (HFONT)SelectObject(hdcCMain, fnt_Small);
 
     int ctype = Characters[index].CType;

@@ -274,7 +274,7 @@ void AudioSoftThread()
 
 	std::cout << "Audio: Checking " << waveInGetNumDevs() << " devices for wave out support..." << std::endl;
 	for (unsigned i = 0; i < waveInGetNumDevs(); i++)
-		if (waveOutOpen(&hwo, i, &wfx, NULL, NULL, CALLBACK_EVENT | WAVE_FORMAT_QUERY) == MMSYSERR_NOERROR)
+		if (waveOutOpen(&hwo, i, &wfx, 0, 0, CALLBACK_EVENT | WAVE_FORMAT_QUERY) == MMSYSERR_NOERROR)
 		{
 			device = i;
 
@@ -323,7 +323,7 @@ void AudioSoftThread()
 			break;
 		}
 
-	if (waveOutOpen(&hwo, device, &wfx, NULL, (DWORD_PTR)&WaveOutProc, CALLBACK_FUNCTION | WAVE_FORMAT_QUERY) != MMSYSERR_NOERROR)
+	if (waveOutOpen(&hwo, device, &wfx, 0, (DWORD_PTR)&WaveOutProc, CALLBACK_FUNCTION | WAVE_FORMAT_QUERY) != MMSYSERR_NOERROR)
 	{
 		std::cout << "Audio: Failed to open WaveOut device!" << std::endl;
 		return;
@@ -343,25 +343,25 @@ void InitInterface()
 		23, 10, 0, 0,
 		600, 0, 0, 0,
 		ANSI_CHARSET,
-		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, NULL);
+		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
 	g_FontOptions = CreateFont(
 		21, 9, 0, 0,
 		500, 0, 0, 0,
 		ANSI_CHARSET,
-		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, NULL);
+		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
 	fnt_Small = CreateFont(
 		14, 5, 0, 0,
 		100, 0, 0, 0,
 		ANSI_CHARSET,
-		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, NULL);
+		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
 	fnt_Midd = CreateFont(
 		16, 7, 0, 0,
 		550, 0, 0, 0,
 		ANSI_CHARSET,
-		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, NULL);
+		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
 	if (!fnt_Small)
 		std::cout << "Interface : Failed to create Small Font" << std::endl;
@@ -374,7 +374,7 @@ void InitInterface()
 
 	hdcCMain = CreateCompatibleDC(hdcMain);
 
-	if (hdcCMain == NULL)
+	if (hdcCMain == nullptr)
 	{
 		throw std::runtime_error("Interface: Failed to create CompatibleDC!");
 		return;
@@ -395,7 +395,7 @@ void InitInterface()
 
 	BITMAPINFO binfo;
 	binfo.bmiHeader = bmih;
-	bmpMain = CreateDIBSection(hdcMain, &binfo, DIB_RGB_COLORS, &lpVideoBuf, NULL, 0);
+	bmpMain = CreateDIBSection(hdcMain, &binfo, DIB_RGB_COLORS, &lpVideoBuf, nullptr, 0);
 
 	if (!bmpMain) {
 		throw std::runtime_error("Interface: Failed to create DIB Section!");
@@ -554,7 +554,7 @@ void ShutdownInterface()
 
 void _Line(HDC hdc, int x1, int y1, int x2, int y2)
 {
-	MoveToEx(hdc, x1, y1, NULL);
+	MoveToEx(hdc, x1, y1, nullptr);
 	LineTo(hdc, x2, y2);
 }
 
@@ -794,7 +794,7 @@ void DrawURLShadow(int x, int y, const std::string& text, uint32_t color, int al
 
 void InterfaceSetFont(HFONT font)
 {
-	if (font == NULL) {
+	if (font == nullptr) {
 		SelectObject(hdcCMain, hfntOld);
 	}
 	else {
@@ -1098,7 +1098,7 @@ void DrawMenuProfile()
 	}
 #endif
 
-	InterfaceSetFont(NULL);
+	InterfaceSetFont(nullptr);
 }
 
 
@@ -2230,7 +2230,7 @@ void DrawMenuOptions()
 		}
 	}
 
-	InterfaceSetFont(NULL);
+	InterfaceSetFont(nullptr);
 }
 
 

@@ -45,7 +45,7 @@ void EnumerateResolutions()
 	DEVMODE current;
 	ZeroMemory(&current, sizeof(current));
 	current.dmSize = sizeof(current);
-	if (EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &current)) {
+	if (EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &current)) {
 		// Prefer the DEVMODE values — they can be slightly different
 		// from GetSystemMetrics in multi-monitor / DPI-scaled setups.
 		desktopW = current.dmPelsWidth;
@@ -55,7 +55,7 @@ void EnumerateResolutions()
 	DEVMODE dm;
 	ZeroMemory(&dm, sizeof(dm));
 	dm.dmSize = sizeof(dm);
-	for (int i = 0; EnumDisplaySettings(NULL, i, &dm); i++) {
+	for (int i = 0; EnumDisplaySettings(nullptr, i, &dm); i++) {
 		if (dm.dmBitsPerPel < 16) continue;
 		if (dm.dmPelsWidth  > desktopW ||
 			dm.dmPelsHeight > desktopH)

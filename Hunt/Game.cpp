@@ -151,7 +151,7 @@ void EnumerateResolutions()
   DEVMODE current;
   ZeroMemory(&current, sizeof(current));
   current.dmSize = sizeof(current);
-  if (EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &current)) {
+  if (EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &current)) {
     // Prefer the DEVMODE values — they can be slightly different from
     // GetSystemMetrics in multi-monitor / DPI-scaled setups.
     desktopW = current.dmPelsWidth;
@@ -161,7 +161,7 @@ void EnumerateResolutions()
   DEVMODE dm;
   ZeroMemory(&dm, sizeof(dm));
   dm.dmSize = sizeof(dm);
-  for (int i = 0; EnumDisplaySettings(NULL, i, &dm); i++) {
+  for (int i = 0; EnumDisplaySettings(nullptr, i, &dm); i++) {
     if (dm.dmBitsPerPel < 16) continue;
     if (dm.dmPelsWidth  > desktopW ||
         dm.dmPelsHeight > desktopH)
@@ -1364,7 +1364,7 @@ void _StartupServer() {
 	hints.ai_flags = AI_PASSIVE;
 
 	// Resolve the server address and port
-	iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
+	iResult = getaddrinfo(nullptr, DEFAULT_PORT, &hints, &result);
 	if (iResult != 0) {
 		PrintLog("getaddrinfo failed\n");
 		WSACleanup();
@@ -1407,7 +1407,7 @@ void _StartupServer() {
 
 
 	// Accept a client socket
-	ClientSocket = accept(ListenSocket, NULL, NULL);
+	ClientSocket = accept(ListenSocket, nullptr, nullptr);
 	if (ClientSocket == INVALID_SOCKET) {
 		PrintLog("accept failed\n");
 		closesocket(ListenSocket);
@@ -1464,8 +1464,8 @@ void _StartupClient() {
 
 
 	struct addrinfo
-		//		  *result = NULL,
-		*ptr = NULL
+		//		  *result = nullptr,
+		*ptr = nullptr
 		//		  ,
 		//		  hints
 		;
@@ -1501,7 +1501,7 @@ void _StartupClient() {
 	}
 
 	// Attempt to connect to an address until one succeeds
-	for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
+	for (ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
 
 		// Create a SOCKET for connecting to server
 		ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype,
@@ -1577,14 +1577,14 @@ void _StartupClient() {
 void StartupServerCommsThread() {
 	PrintLog("Starting Server Comms...\n");
 	_StartupServer();
-	CommsThreadHandle = CreateThread(0, 0, ServerCommsThread, NULL, 0, CommsThreadID);
+	CommsThreadHandle = CreateThread(0, 0, ServerCommsThread, nullptr, 0, CommsThreadID);
 	PrintLog("Server Comms Thread Started\n");
 }
 
 void StartupClientCommsThread() {
 	PrintLog("Starting Client Comms...\n");
 	_StartupClient();
-	CommsThreadHandle = CreateThread(0, 0, ClientCommsThread, NULL, 0, CommsThreadID);
+	CommsThreadHandle = CreateThread(0, 0, ClientCommsThread, nullptr, 0, CommsThreadID);
 	PrintLog("Client Comms Thread Started\n");
 }
 
@@ -1644,7 +1644,7 @@ void InitEngine()
   ClientSocket = INVALID_SOCKET;
   ConnectSocket = INVALID_SOCKET;
   recvbuflen = DEFAULT_BUFLEN;
-  result = NULL;
+  result = nullptr;
 
   fnt_BIG = CreateFont(
               (int)(23 * UIScale), (int)(10 * UIScale), 0, 0,
@@ -1654,7 +1654,7 @@ void InitEngine()
 #else
               ANSI_CHARSET,
 #endif
-              OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, NULL);
+              OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
 
 
@@ -1670,7 +1670,7 @@ void InitEngine()
 #else
                 ANSI_CHARSET,
 #endif
-                OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, NULL);
+                OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
 
   fnt_Midd  = CreateFont(
@@ -1681,11 +1681,11 @@ void InitEngine()
 #else
                 ANSI_CHARSET,
 #endif
-                OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, NULL);
+                OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
 
   Heap = HeapCreate( 0, 60000000, 0 );
-  if( Heap == NULL )
+  if( Heap == nullptr )
   {
     MessageBox(hwndMain,"Error creating heap.","Error",IDOK);
     return;
@@ -2168,7 +2168,7 @@ int AnimateBullet(float ax, float ay, float az,
 	  if (UNDERWATER && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData, bx, by, bz, 256); //change this to aquatic sound
 
 	  if (sres == tresHunter) {
-		AddDeadBody(NULL, HUNT_EAT, TRUE);
+		AddDeadBody(nullptr, HUNT_EAT, TRUE);
 		Characters[ChCount - 1].alpha = PlayerAlpha - pi / 2;
 		return sres;
 	  } else if (!Characters[ShotDino].Health) return sres;
@@ -3106,13 +3106,13 @@ void LoadTrophy2(int RegNumber) {
 	DWORD l;
 	char fname2[128];
 	wsprintf(fname2, "trophy0%d.sab", RegNumber);
-	HANDLE hfile2 = CreateFile(fname2, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	HANDLE hfile2 = CreateFile(fname2, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (hfile2 == INVALID_HANDLE_VALUE)
 	{
 		PrintLog("===> Error loading trophyB!\n");
 		return;
 	}
-	ReadFile(hfile2, &TrophyRoom2, sizeof(TrophyRoom2), &l, NULL);
+	ReadFile(hfile2, &TrophyRoom2, sizeof(TrophyRoom2), &l, nullptr);
 
 	CloseHandle(hfile2);
 
@@ -3130,38 +3130,38 @@ void LoadTrophy()
   char fname[128];
   int rn = TrophyRoom.RegNumber;
   wsprintf(fname, "trophy0%d.sav", TrophyRoom.RegNumber);
-  HANDLE hfile = CreateFile(fname, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  HANDLE hfile = CreateFile(fname, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (hfile==INVALID_HANDLE_VALUE)
   {
     PrintLog("===> Error loading trophy!\n");
     return;
   }
-  ReadFile(hfile, &TrophyRoom, sizeof(TrophyRoom), &l, NULL);
+  ReadFile(hfile, &TrophyRoom, sizeof(TrophyRoom), &l, nullptr);
 
-  ReadFile(hfile, &OptAgres, 4, &l, NULL);
-  ReadFile(hfile, &OptDens, 4, &l, NULL);
-  ReadFile(hfile, &OptSens, 4, &l, NULL);
+  ReadFile(hfile, &OptAgres, 4, &l, nullptr);
+  ReadFile(hfile, &OptDens, 4, &l, nullptr);
+  ReadFile(hfile, &OptSens, 4, &l, nullptr);
 
   if (Multiplayer) OptDens = 128;
 
-  ReadFile(hfile, &OptRes, 4, &l, NULL);
-  ReadFile(hfile, &FOGENABLE, 4, &l, NULL);
-  ReadFile(hfile, &OptText, 4, &l, NULL);
-  ReadFile(hfile, &OptViewR, 4, &l, NULL);
-  ReadFile(hfile, &SHADOWS3D, 4, &l, NULL);
-  ReadFile(hfile, &OptMsSens, 4, &l, NULL);
-  ReadFile(hfile, &OptBrightness, 4, &l, NULL);
+  ReadFile(hfile, &OptRes, 4, &l, nullptr);
+  ReadFile(hfile, &FOGENABLE, 4, &l, nullptr);
+  ReadFile(hfile, &OptText, 4, &l, nullptr);
+  ReadFile(hfile, &OptViewR, 4, &l, nullptr);
+  ReadFile(hfile, &SHADOWS3D, 4, &l, nullptr);
+  ReadFile(hfile, &OptMsSens, 4, &l, nullptr);
+  ReadFile(hfile, &OptBrightness, 4, &l, nullptr);
 
 
-  ReadFile(hfile, &KeyMap, sizeof(KeyMap), &l, NULL);
-  ReadFile(hfile, &REVERSEMS, 4, &l, NULL);
+  ReadFile(hfile, &KeyMap, sizeof(KeyMap), &l, nullptr);
+  ReadFile(hfile, &REVERSEMS, 4, &l, nullptr);
   //  Ignore savefile settings for equipment — skip 4 DWORDs
-  SetFilePointer(hfile, 16, NULL, FILE_CURRENT);
-  ReadFile(hfile, &OPT_ALPHA_COLORKEY, 4, &l, NULL);
+  SetFilePointer(hfile, 16, nullptr, FILE_CURRENT);
+  ReadFile(hfile, &OPT_ALPHA_COLORKEY, 4, &l, nullptr);
 
-  ReadFile(hfile, &OptSys, 4, &l, NULL);
-  ReadFile(hfile, &OptSound, 4, &l, NULL);
-  ReadFile(hfile, &OptRender, 4, &l, NULL);
+  ReadFile(hfile, &OptSys, 4, &l, nullptr);
+  ReadFile(hfile, &OptSound, 4, &l, nullptr);
+  ReadFile(hfile, &OptRender, 4, &l, nullptr);
   OptSound = NormalizeAudioBackend(OptSound);
 
   // OptFov and other extended settings are now in config.cfg.
@@ -3186,13 +3186,13 @@ void SaveTrophy2(int RegNumber) {
 	char fname2[128];
 	wsprintf(fname2, "trophy0%d.sab", RegNumber);
 
-	HANDLE hfile2 = CreateFile(fname2, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	HANDLE hfile2 = CreateFile(fname2, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (hfile2 == INVALID_HANDLE_VALUE)
 	{
 		PrintLog("==>> Error saving trophy!\n");
 		return;
 	}
-	WriteFile(hfile2, &TrophyRoom2, sizeof(TrophyRoom2), &l2, NULL);
+	WriteFile(hfile2, &TrophyRoom2, sizeof(TrophyRoom2), &l2, nullptr);
 	CloseHandle(hfile2);
 	PrintLog("TrophyB Saved.\n");
 }
@@ -3212,38 +3212,38 @@ void SaveTrophy()
   if (TrophyRoom.Score >= 300) TrophyRoom.Rank = 2;
 
 
-  HANDLE hfile = CreateFile(fname, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+  HANDLE hfile = CreateFile(fname, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (hfile == INVALID_HANDLE_VALUE)
   {
     PrintLog("==>> Error saving trophy!\n");
     return;
   }
-  WriteFile(hfile, &TrophyRoom, sizeof(TrophyRoom), &l, NULL);
+  WriteFile(hfile, &TrophyRoom, sizeof(TrophyRoom), &l, nullptr);
 
-  WriteFile(hfile, &OptAgres, 4, &l, NULL);
-  WriteFile(hfile, &OptDens, 4, &l, NULL);
-  WriteFile(hfile, &OptSens, 4, &l, NULL);
+  WriteFile(hfile, &OptAgres, 4, &l, nullptr);
+  WriteFile(hfile, &OptDens, 4, &l, nullptr);
+  WriteFile(hfile, &OptSens, 4, &l, nullptr);
 
-  WriteFile(hfile, &OptRes, 4, &l, NULL);
-  WriteFile(hfile, &FOGENABLE, 4, &l, NULL);
-  WriteFile(hfile, &OptText, 4, &l, NULL);
-  WriteFile(hfile, &OptViewR, 4, &l, NULL);
-  WriteFile(hfile, &SHADOWS3D, 4, &l, NULL);
-  WriteFile(hfile, &OptMsSens, 4, &l, NULL);
-  WriteFile(hfile, &OptBrightness, 4, &l, NULL);
+  WriteFile(hfile, &OptRes, 4, &l, nullptr);
+  WriteFile(hfile, &FOGENABLE, 4, &l, nullptr);
+  WriteFile(hfile, &OptText, 4, &l, nullptr);
+  WriteFile(hfile, &OptViewR, 4, &l, nullptr);
+  WriteFile(hfile, &SHADOWS3D, 4, &l, nullptr);
+  WriteFile(hfile, &OptMsSens, 4, &l, nullptr);
+  WriteFile(hfile, &OptBrightness, 4, &l, nullptr);
 
-  WriteFile(hfile, &KeyMap, sizeof(KeyMap), &l, NULL);
-  WriteFile(hfile, &REVERSEMS, 4, &l, NULL);
+  WriteFile(hfile, &KeyMap, sizeof(KeyMap), &l, nullptr);
+  WriteFile(hfile, &REVERSEMS, 4, &l, nullptr);
 
-  WriteFile(hfile, &ScentMode, 4, &l, NULL);
-  WriteFile(hfile, &CamoMode, 4, &l, NULL);
-  WriteFile(hfile, &RadarMode, 4, &l, NULL);
-  WriteFile(hfile, &Tranq, 4, &l, NULL);
-  WriteFile(hfile, &OPT_ALPHA_COLORKEY, 4, &l, NULL);
+  WriteFile(hfile, &ScentMode, 4, &l, nullptr);
+  WriteFile(hfile, &CamoMode, 4, &l, nullptr);
+  WriteFile(hfile, &RadarMode, 4, &l, nullptr);
+  WriteFile(hfile, &Tranq, 4, &l, nullptr);
+  WriteFile(hfile, &OPT_ALPHA_COLORKEY, 4, &l, nullptr);
 
-  WriteFile(hfile, &OptSys, 4, &l, NULL);
-  WriteFile(hfile, &OptSound, 4, &l, NULL);
-  WriteFile(hfile, &OptRender, 4, &l, NULL);
+  WriteFile(hfile, &OptSys, 4, &l, nullptr);
+  WriteFile(hfile, &OptSound, 4, &l, nullptr);
+  WriteFile(hfile, &OptRender, 4, &l, nullptr);
   // OptFov and other extended settings live in config.cfg, not here.
   CloseHandle(hfile);
   PrintLog("Trophy Saved.\n");
@@ -3261,7 +3261,7 @@ static const char* kConfigFile = "config.cfg";
 static void LoadConfig()
 {
   HANDLE hfile = CreateFileA(kConfigFile, GENERIC_READ, FILE_SHARE_READ,
-                           NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+                           nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (hfile == INVALID_HANDLE_VALUE) {
     PrintLog("Config: config.cfg not found, using defaults.\n");
     return;
@@ -3269,7 +3269,7 @@ static void LoadConfig()
 
   char buf[4096];
   DWORD bytesRead = 0;
-  if (!ReadFile(hfile, buf, sizeof(buf) - 1, &bytesRead, NULL) || bytesRead == 0) {
+  if (!ReadFile(hfile, buf, sizeof(buf) - 1, &bytesRead, nullptr) || bytesRead == 0) {
     CloseHandle(hfile);
     return;
   }
@@ -3277,12 +3277,12 @@ static void LoadConfig()
   CloseHandle(hfile);
 
   // Simple line-by-line parser: "key value"
-  char* ctx = NULL;
+  char* ctx = nullptr;
   char* line = strtok_s(buf, "\r\n", &ctx);
   while (line) {
     // Skip comments and empty lines
     if (line[0] == '#' || line[0] == '\0') {
-      line = strtok_s(NULL, "\r\n", &ctx);
+      line = strtok_s(nullptr, "\r\n", &ctx);
       continue;
     }
 
@@ -3302,7 +3302,7 @@ static void LoadConfig()
       // Future settings: add else-if branches here
     }
 
-    line = strtok_s(NULL, "\r\n", &ctx);
+    line = strtok_s(nullptr, "\r\n", &ctx);
   }
 
   PrintLog("Config Loaded (config.cfg).\n");

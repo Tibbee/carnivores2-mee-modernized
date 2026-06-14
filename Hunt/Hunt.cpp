@@ -46,7 +46,7 @@ void CaptureMouse(BOOL capture)
     while (ShowCursor(FALSE) >= 0);
     ResetMousePos();
   } else {
-    ClipCursor(NULL);
+    ClipCursor(nullptr);
     while (ShowCursor(TRUE) < 0);
   }
 }
@@ -1639,17 +1639,17 @@ BOOL CreateMainWindow()
   wc.cbWndExtra = 0;
   wc.hInstance = hInst;
   wc.hIcon = wc.hIcon = (HICON)LoadIcon(hInst,"ACTION");
-  wc.hCursor = NULL;
+  wc.hCursor = nullptr;
   wc.hbrBackground = (HBRUSH)GetStockObject( BLACK_BRUSH );
-  wc.lpszMenuName = NULL;
-  //wc.lpfnWndProc  = NULL;
+  wc.lpszMenuName = nullptr;
+  //wc.lpfnWndProc  = nullptr;
   wc.lpszClassName = "HuntRenderWindow";
   if (!RegisterClass(&wc)) return FALSE;
 
   hwndMain = CreateWindow(
                "HuntRenderWindow","Carnivores 2 Renderer",
                WS_VISIBLE |  WS_POPUP,
-               0, 0, 0, 0, NULL,  NULL, hInst, NULL );
+               0, 0, 0, 0, nullptr,  nullptr, hInst, nullptr );
 
   if (hwndMain)
     PrintLog("Ok.\n");
@@ -2448,7 +2448,7 @@ SKIPYMOVE:
       MyHealth-=TimeDt*12;
       //if ( !(Takt & 31)) AddElements(CameraX + sa*64*cb, CameraY - 32 - sb*64, CameraZ - ca*64*cb, 4);
       if (MyHealth<=0)
-        AddDeadBody(NULL, HUNT_BREATH, TRUE);
+        AddDeadBody(nullptr, HUNT_BREATH, TRUE);
     }
 
   if (UNDERWATER && !WeapInfo[CurrentWeapon].harpoon)
@@ -2541,7 +2541,7 @@ SKIPYMOVE:
         if (MyHealth>100000) MyHealth = 100000;
         MyHealth-=TimeDt*64;
         if (MyHealth<=0)
-          AddDeadBody(NULL, HUNT_EAT, TRUE);
+          AddDeadBody(nullptr, HUNT_EAT, TRUE);
       }
 
   int CameraAmb = AmbMap [((int)CameraZ)>>9][((int)CameraX)>>9];
@@ -2756,7 +2756,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   PrintLoad("Loading...");
 
   PrintLog("== Loading resources ==\n");
-  hcArrow = LoadCursor(NULL, IDC_ARROW);
+  hcArrow = LoadCursor(nullptr, IDC_ARROW);
 
 
   PrintLog("Loading common resources:");
@@ -2854,7 +2854,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
   PrintLog("Entering messages loop.\n");
   for( ; ; ){
-    if( PeekMessage( &msg, NULL, NULL, NULL, PM_REMOVE ) )
+    if( PeekMessage( &msg, nullptr, 0, 0, PM_REMOVE ) )
     {
       if (msg.message == WM_QUIT)  break;
       TranslateMessage( &msg );
