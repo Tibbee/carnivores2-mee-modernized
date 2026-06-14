@@ -2207,12 +2207,20 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
     // models must do it here since they bypass that path.
     const float ucY = ::cb * y0 + ::sb * z0;
     const float ucZ = ::cb * z0 - ::sb * y0;
-    const Vector3d worldRel = {
+    const Vector3d unrotatedCenter = {
         ::ca * x0 - ::sa * ucZ,
         ucY,
         ::sa * x0 + ::ca * ucZ
     };
-    const FogSample fog = SampleFogAtPoint(worldRel, false);
+    FogSample fogSamples[4];
+    for (int i = 0; i < 4; ++i) {
+        const Vector3d worldRel = {
+            unrotatedCenter.x + mptr->gVertex[i].x,
+            unrotatedCenter.y + mptr->gVertex[i].y,
+            unrotatedCenter.z + mptr->gVertex[i].z
+        };
+        fogSamples[i] = SampleFogAtPoint(worldRel, false);
+    }
     const bool hasFade = alpha < 0.999f;
 
     // Visibility check: all 4 billboard corners share the same z.
@@ -2220,6 +2228,7 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
 
     // Build two triangles (0-1-2, 0-2-3) for the billboard quad.
     auto makeVertex = [&](int index, float u, float v) -> ModelVertex {
+        const FogSample& fog = fogSamples[index];
         return {
             mptr->gVertex[index].x + x0,
             mptr->gVertex[index].y + y0,
