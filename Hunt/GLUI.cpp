@@ -403,17 +403,17 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
 void RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float z0,
                              float al, float bt)
 {
-    // TODO: Render model with phong mapping using GL
-    (void)mptr; (void)x0; (void)y0; (void)z0;
-    (void)al; (void)bt;
+    if (g_GLRenderer) {
+        g_GLRenderer->RenderModelClipPhongMap(mptr, x0, y0, z0, al, bt);
+    }
 }
 
 void RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z0,
                            float al, float bt)
 {
-    // TODO: Render model with environment mapping using GL
-    (void)mptr; (void)x0; (void)y0; (void)z0;
-    (void)al; (void)bt;
+    if (g_GLRenderer) {
+        g_GLRenderer->RenderModelClipEnvMap(mptr, x0, y0, z0, al, bt);
+    }
 }
 
 // ============================================================================

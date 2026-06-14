@@ -49,6 +49,10 @@ public:
                          int light, int vt, float al, float bt) override;
     void RenderModelClipWater(TModel* mptr, float x0, float y0, float z0,
                               int light, int vt, float al, float bt) override;
+    void RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float z0,
+                                 float al, float bt);
+    void RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z0,
+                               float al, float bt);
     void RenderNearModel(TModel* mptr, float x0, float y0, float z0,
                          int light, int vt, float al, float bt) override;
 
@@ -124,6 +128,16 @@ private:
     void DrawVertexBatch(const std::vector<TerrainVertex>& vertices) const;
     GLuint UploadModelTexture(TModel* mptr);
     GLuint UploadBMPModelTexture(TBMPModel* mptr);
+    GLuint UploadPictureTexture(const TPicture& pic);
+    bool BuildModelEffectVertices(std::vector<ModelVertex>& outVertices,
+                                  TModel* mptr,
+                                  float x0,
+                                  float y0,
+                                  float z0,
+                                  float al,
+                                  float bt,
+                                  int flagMask,
+                                  const Vector3d& fogColor) const;
     bool BuildModelDrawItem(ModelDrawItem& outItem,
                             TModel* mptr,
                             float x0,
@@ -203,6 +217,8 @@ private:
     unsigned int m_modelVAO = 0;
     unsigned int m_modelVBO = 0;
     unsigned int m_whiteTexture = 0;  // 1x1 white texture for flat-color rendering
+    unsigned int m_phongTexture = 0;
+    unsigned int m_envTexture = 0;
     std::map<const TModel*, GLuint> m_modelTextureCache;
     std::map<const TBMPModel*, GLuint> m_bmpTextureCache;
     std::map<GLuint, bool> m_modelTextureFilterState;

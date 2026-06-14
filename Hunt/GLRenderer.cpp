@@ -249,6 +249,40 @@ void ClipTriangleAgainstWater(const ModelClipVertex& a,
     }
 }
 
+static float DistanceToNearClipPlane(const Vector3d& position)
+{
+    return position.z - kModelNearClip;
+}
+
+static void ClipTriangleAgainstNearPlane(const ModelClipVertex& a,
+                                         const ModelClipVertex& b,
+                                         const ModelClipVertex& c,
+                                         std::vector<ModelClipVertex>& output)
+{
+    output.clear();
+    output.reserve(4);
+
+    const std::array<ModelClipVertex, 3> input = {a, b, c};
+    for (size_t i = 0; i < input.size(); ++i) {
+        const ModelClipVertex& current = input[i];
+        const ModelClipVertex& previous = input[(i + input.size() - 1) % input.size()];
+        const float currentDistance = DistanceToNearClipPlane(current.position);
+        const float previousDistance = DistanceToNearClipPlane(previous.position);
+        const bool currentInside = currentDistance <= 0.0f;
+        const bool previousInside = previousDistance <= 0.0f;
+
+        if (currentInside != previousInside) {
+            const float denom = previousDistance - currentDistance;
+            const float t = std::fabs(denom) < 0.0001f ? 0.0f : previousDistance / denom;
+            output.push_back(InterpolateClipVertex(previous, current, t));
+        }
+
+        if (currentInside) {
+            output.push_back(current);
+        }
+    }
+}
+
 FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog)
 {
     if (disableFog) {
@@ -825,6 +859,14 @@ void GLRenderer::ShutdownModelPipeline()
         glDeleteTextures(1, &m_whiteTexture);
         m_whiteTexture = 0;
     }
+    if (m_phongTexture) {
+        glDeleteTextures(1, &m_phongTexture);
+        m_phongTexture = 0;
+    }
+    if (m_envTexture) {
+        glDeleteTextures(1, &m_envTexture);
+        m_envTexture = 0;
+    }
 
     m_worldModelItems.clear();
     m_transparentModelItems.clear();
@@ -992,6 +1034,158 @@ GLuint GLRenderer::UploadBMPModelTexture(TBMPModel* mptr)
     m_bmpTextureCache[mptr] = texture;
     m_modelTextureFilterState[texture] = true;
     return texture;
+}
+
+GLuint GLRenderer::UploadPictureTexture(const TPicture& pic)
+{
+    if (!pic.lpImage || pic.W <= 0 || pic.H <= 0) {
+        return 0;
+    }
+
+    const size_t texelCount = static_cast<size_t>(pic.W) * static_cast<size_t>(pic.H);
+    std::vector<uint8_t> rgba(texelCount * 4);
+    for (size_t i = 0; i < texelCount; ++i) {
+        const unsigned short c = pic.lpImage[i];
+        rgba[i * 4 + 0] = static_cast<uint8_t>(((c >> 10) & 0x1F) * 255 / 31);
+        rgba[i * 4 + 1] = static_cast<uint8_t>(((c >> 5) & 0x1F) * 255 / 31);
+        rgba[i * 4 + 2] = static_cast<uint8_t>((c & 0x1F) * 255 / 31);
+        rgba[i * 4 + 3] = 255;
+    }
+
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, pic.W, pic.H, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+
+    return texture;
+}
+
+bool GLRenderer::BuildModelEffectVertices(std::vector<ModelVertex>& outVertices,
+                                          TModel* mptr,
+                                          float x0,
+                                          float y0,
+                                          float z0,
+                                          float al,
+                                          float bt,
+                                          int flagMask,
+                                          const Vector3d& fogColor) const
+{
+    if (!mptr || !mptr->gVertex || !mptr->gFace || !PhongMapping) {
+        return false;
+    }
+
+    const float ca = std::cos(al);
+    const float sa = std::sin(al);
+    const float cb = std::cos(bt);
+    const float sb = std::sin(bt);
+    static thread_local std::vector<Vector3d> transformed;
+    transformed.reserve(mptr->VCount);
+    transformed.clear();
+
+    bool anyVisible = false;
+    for (int i = 0; i < mptr->VCount; ++i) {
+        const Vector3d position = TransformModelVertex(mptr->gVertex[i], x0, y0, z0, ca, sa, cb, sb);
+        transformed.push_back(position);
+        if (position.z < kModelNearClip) {
+            anyVisible = true;
+        }
+    }
+
+    if (!anyVisible) {
+        return false;
+    }
+
+    outVertices.clear();
+    outVertices.reserve(static_cast<size_t>(mptr->FCount) * 3);
+
+    for (int i = 0; i < mptr->FCount; ++i) {
+        const TFace& face = mptr->gFace[i];
+        if (!(face.Flags & flagMask)) {
+            continue;
+        }
+
+        if (ShouldCullModelFace(face.Flags, transformed[face.v1], transformed[face.v2], transformed[face.v3])) {
+            continue;
+        }
+
+        const ModelClipVertex v0 = {
+            transformed[face.v1],
+            { PhongMapping[face.v1].x / 256.0f, PhongMapping[face.v1].y / 256.0f },
+            255
+        };
+        const ModelClipVertex v1 = {
+            transformed[face.v2],
+            { PhongMapping[face.v2].x / 256.0f, PhongMapping[face.v2].y / 256.0f },
+            255
+        };
+        const ModelClipVertex v2 = {
+            transformed[face.v3],
+            { PhongMapping[face.v3].x / 256.0f, PhongMapping[face.v3].y / 256.0f },
+            255
+        };
+
+        static thread_local std::vector<ModelClipVertex> clipped;
+        ClipTriangleAgainstNearPlane(v0, v1, v2, clipped);
+        for (size_t j = 1; j + 1 < clipped.size(); ++j) {
+            const ModelVertex out0 = {
+                clipped[0].position.x,
+                clipped[0].position.y,
+                clipped[0].position.z,
+                clipped[0].uv.x,
+                clipped[0].uv.y,
+                255.0f,
+                1.0f,
+                fogColor.x,
+                fogColor.y,
+                fogColor.z,
+                1.0f,
+                0.0f
+            };
+            const ModelVertex out1 = {
+                clipped[j].position.x,
+                clipped[j].position.y,
+                clipped[j].position.z,
+                clipped[j].uv.x,
+                clipped[j].uv.y,
+                255.0f,
+                1.0f,
+                fogColor.x,
+                fogColor.y,
+                fogColor.z,
+                1.0f,
+                0.0f
+            };
+            const ModelVertex out2 = {
+                clipped[j + 1].position.x,
+                clipped[j + 1].position.y,
+                clipped[j + 1].position.z,
+                clipped[j + 1].uv.x,
+                clipped[j + 1].uv.y,
+                255.0f,
+                1.0f,
+                fogColor.x,
+                fogColor.y,
+                fogColor.z,
+                1.0f,
+                0.0f
+            };
+            outVertices.push_back(out0);
+            outVertices.push_back(out1);
+            outVertices.push_back(out2);
+        }
+    }
+
+    return !outVertices.empty();
 }
 
 bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
@@ -1997,6 +2191,65 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
             SetModelTextureFiltering(item.texture, false);
         }
     }
+}
+
+void GLRenderer::RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float z0,
+                                         float al, float bt)
+{
+    if (!m_modelShader || !m_modelVAO || !m_modelVBO) {
+        return;
+    }
+
+    GLuint texture = m_phongTexture;
+    if (!texture) {
+        texture = UploadPictureTexture(TFX_SPECULAR);
+        if (!texture) {
+            return;
+        }
+        m_phongTexture = texture;
+    }
+
+    std::vector<ModelVertex> vertices;
+    const auto clampSkyChannel = [](int value) -> float {
+        return static_cast<float>(value > 255 ? 255 : value) / 255.0f;
+    };
+    const Vector3d color = {
+        clampSkyChannel(SkyR + 64),
+        clampSkyChannel(SkyG + 64),
+        clampSkyChannel(SkyB + 64)
+    };
+    if (!BuildModelEffectVertices(vertices, mptr, x0, y0, z0, al, bt, sfPhong, color)) {
+        return;
+    }
+
+    const auto projection = BuildLegacyProjection();
+    DrawModelVertices(texture, vertices, projection, true, true, true);
+}
+
+void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z0,
+                                       float al, float bt)
+{
+    if (!m_modelShader || !m_modelVAO || !m_modelVBO) {
+        return;
+    }
+
+    GLuint texture = m_envTexture;
+    if (!texture) {
+        texture = UploadPictureTexture(TFX_ENVMAP);
+        if (!texture) {
+            return;
+        }
+        m_envTexture = texture;
+    }
+
+    std::vector<ModelVertex> vertices;
+    const Vector3d white = {1.0f, 1.0f, 1.0f};
+    if (!BuildModelEffectVertices(vertices, mptr, x0, y0, z0, al, bt, sfEnvMap, white)) {
+        return;
+    }
+
+    const auto projection = BuildLegacyProjection();
+    DrawModelVertices(texture, vertices, projection, true, true, true);
 }
 
 void GLRenderer::EnsureTerrainTextureArray()
