@@ -1256,7 +1256,8 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
     outItem = ModelDrawItem();
     outItem.texture = 0;
     outItem.additive = additive;
-    outItem.distance = std::sqrt(x0 * x0 + y0 * y0 + z0 * z0);
+    const Vector3d center = {x0, y0, z0};
+    outItem.distance = VectorLengthSq(center);
     const size_t reserveCount = static_cast<size_t>(mptr->FCount) * 3;
     outItem.opaqueVertices.reserve(reserveCount);
     outItem.cutoutVertices.reserve(reserveCount);
@@ -1489,11 +1490,11 @@ void GLRenderer::RenderProjectedShadows()
             continue;
         }
 
-        const float distance = std::sqrt(character.rpos.x * character.rpos.x +
-                                         character.rpos.y * character.rpos.y +
-                                         character.rpos.z * character.rpos.z);
-        const float visibilityRadius = static_cast<float>(ctViewR * 256);
-        const float shadowCullRadius = static_cast<float>(256 * (ctViewR - 8));
+    const float distanceSq = VectorLengthSq(character.rpos);
+    const float visibilityRadius = static_cast<float>(ctViewR * 256);
+    const float shadowCullRadius = static_cast<float>(256 * (ctViewR - 8));
+    const float visibilityRadiusSq = visibilityRadius * visibilityRadius;
+    const float shadowCullRadiusSq = shadowCullRadius * shadowCullRadius;
 
         float r = static_cast<float>((std::max)(fabs(character.rpos.x), fabs(character.rpos.z)));
         int ri = -1 + static_cast<int>(r / 256.0f + 0.5f);
@@ -1504,7 +1505,7 @@ void GLRenderer::RenderProjectedShadows()
         if (character.rpos.z > br) continue;
         if (fabs(character.rpos.x) > -character.rpos.z + br) continue;
         if (fabs(character.rpos.y) > -character.rpos.z + br) continue;
-        if (distance > visibilityRadius || distance > shadowCullRadius) continue;
+        if (distanceSq > visibilityRadiusSq || distanceSq > shadowCullRadiusSq) continue;
 
         float alpha = 0x60 / 255.0f;
         if (character.Health == 0) {
@@ -1524,7 +1525,7 @@ void GLRenderer::RenderProjectedShadows()
             continue;
         }
 
-        sortedCharacters.emplace_back(distance, &character);
+        sortedCharacters.emplace_back(distanceSq, &character);
     }
 
     std::sort(sortedCharacters.begin(), sortedCharacters.end(),
@@ -2193,7 +2194,8 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
     // water and other models overdraw them.
     ModelDrawItem item;
     item.texture = texture;
-    item.distance = std::sqrt(x0 * x0 + y0 * y0 + z0 * z0);
+    const Vector3d center = {x0, y0, z0};
+    item.distance = VectorLengthSq(center);
     item.additive = false;
 
     const float baseLight = std::clamp(static_cast<float>(light), 0.0f, 255.0f);

@@ -206,7 +206,7 @@ void ActivateCharacterFxAquatic(TCharacter *cptr)
 	int fx = cptr->pinfo->Anifx[cptr->Phase];
 	if (fx == -1) return;
 
-	if (VectorLength(SubVectors(PlayerPos, cptr->pos)) > 68 * 256) return;
+	if (VectorLengthSq(SubVectors(PlayerPos, cptr->pos)) > (68 * 256) * (68 * 256)) return;
 
 	AddVoice3d(cptr->pinfo->SoundFX[fx].length,
 		cptr->pinfo->SoundFX[fx].lpData,
@@ -230,7 +230,7 @@ void ActivateCharacterFx(TCharacter *cptr)
 	int fx = cptr->pinfo->Anifx[cptr->Phase];
 	if (fx == -1) return;
 
-	if (VectorLength(SubVectors(PlayerPos, cptr->pos)) > 68 * 256) return;
+	if (VectorLengthSq(SubVectors(PlayerPos, cptr->pos)) > (68 * 256) * (68 * 256)) return;
 
 	AddVoice3d(cptr->pinfo->SoundFX[fx].length,
 		cptr->pinfo->SoundFX[fx].lpData,
