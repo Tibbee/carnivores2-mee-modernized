@@ -5560,8 +5560,7 @@ TBEGIN:
 	float targetdz = targetz - cptr->pos.z;
 	float targetdy = targety - cptr->depth;
 
-	float tdist2 = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz)); //non-verticle
-	float tdist = static_cast<float>(sqrt(tdist2 * tdist2 + targetdy * targetdy)); //verticle
+	float tdist2Sq = targetdx * targetdx + targetdz * targetdz;
 
 	//float attackDist = 1024.f;
 	//if (DinoInfo[cptr->CType].DangerFish) {
@@ -5570,9 +5569,9 @@ TBEGIN:
 
 	float playerdx = PlayerX - cptr->pos.x - cptr->lookx * 100 *cptr->scale;
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 100 *cptr->scale;
-	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
+	float pdistSq = playerdx * playerdx + playerdz * playerdz;
 
-	if (pdist > (ctViewR + 20) * 256) {
+	if (pdistSq > ((ctViewR + 20) * 256) * ((ctViewR + 20) * 256)) {
 		if (ReplaceCharacterForward(cptr)) {
 			goto TBEGIN;
 		}
@@ -5594,7 +5593,7 @@ TBEGIN:
 	// JUMP & IDLE PARTICLES
 
 	//int Scal = ((cptr->scale * 2) - 1);
-	if (pdist < (ctViewR + 20) * 256) {	//Only create particles within player render distance
+	if (pdistSq < ((ctViewR + 20) * 256) * ((ctViewR + 20) * 256)) {	//Only create particles within player render distance
 		if (DinoInfo[cptr->CType].partCnt[cptr->Phase]) {
 			if (cptr->FTime > DinoInfo[cptr->CType].partFrame1[cptr->Phase] / cptr->pinfo->Animation[cptr->Phase].aniKPS
 				&& cptr->FTime < DinoInfo[cptr->CType].partFrame2[cptr->Phase] / cptr->pinfo->Animation[cptr->Phase].aniKPS) {
@@ -5633,11 +5632,12 @@ TBEGIN:
 
 	int ao = 0;
 	if (DinoInfo[cptr->CType].DangerFish)ao = OptAgres;
+	float attackDist = ctViewR * DinoInfo[cptr->CType].aggress + ao / AIInfo[cptr->Clone].agressMulti;
 
 	if (!cptr->State)
 	{
 
-		bool attackmode = pdist <= ctViewR * DinoInfo[cptr->CType].aggress + ao / AIInfo[cptr->Clone].agressMulti && playerInWater && !DinoInfo[cptr->CType].dontSwimAway
+		bool attackmode = pdistSq <= attackDist * attackDist && playerInWater && !DinoInfo[cptr->CType].dontSwimAway
 			&& MyHealth && !ObservMode && !DEBUG;
 		if (SurvivalMode) attackmode = true;
 		if (attackmode)	cptr->AfraidTime = static_cast<int>((10.f)) * 1024;
@@ -5657,13 +5657,11 @@ TBEGIN:
 			if (cptr->packId >= 0) {
 				float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 				float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-				float leaderdy = Packs[cptr->packId].leader->pos.y - cptr->depth;
-				float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
-				float leaderdisty = static_cast<float>(sqrt(leaderdist * leaderdist + leaderdy * leaderdy));
+				float leaderdistSq = leaderdx * leaderdx + leaderdz * leaderdz;
 
 
 				if (cptr->followLeader) {
-					if (leaderdist < cptr->packDensity * 128 * 0.6)
+					if (leaderdistSq < (cptr->packDensity * 128 * 0.6) * (cptr->packDensity * 128 * 0.6))
 					{
 						cptr->followLeader = false;
 						SetNewTargetPlaceFish(cptr, tv);
@@ -5671,7 +5669,7 @@ TBEGIN:
 					}
 				}
 				else {
-					if (leaderdist > cptr->packDensity * 128 * 1.3)
+					if (leaderdistSq > (cptr->packDensity * 128 * 1.3) * (cptr->packDensity * 128 * 1.3))
 					{
 						cptr->followLeader = true;
 						cptr->turny = 0;
@@ -5686,7 +5684,7 @@ TBEGIN:
 				cptr->tgz = Packs[cptr->packId].leader->pos.z;
 				cptr->tdepth = Packs[cptr->packId].leader->depth;
 
-			} else if (tdist2 < 456) // Ignore vertical
+			} else if (tdist2Sq < 456 * 456) // Ignore vertical
 			{
 				SetNewTargetPlaceFish(cptr, tv);
 				goto TBEGIN;
@@ -5696,7 +5694,7 @@ TBEGIN:
 
 	if (cptr->State)
 	{
-		if (pdist > ctViewR * DinoInfo[cptr->CType].aggress + ao / AIInfo[cptr->Clone].agressMulti || !playerInWater)
+		if (pdistSq > attackDist * attackDist || !playerInWater)
 		{
 			cptr->AfraidTime -= TimeDt;
 
@@ -5770,7 +5768,8 @@ TBEGIN:
 					float pUp = PlayerY - GetLandUpH(PlayerX, PlayerZ); //jump later if the player is on a low bridge, not at all if too high
 					if (pUp < 0) pUp = 0;
 					float md = ((DinoInfo[cptr->CType].jumpRange * DinoInfo[cptr->CType].jmpspd) - (pUp * 1.3)) * cptr->scale;
-					if (pdist < md && pdist > md - 200)//1200
+					float jumpMin = md - 200;
+					if (pdistSq < md * md && (jumpMin <= 0 || pdistSq > jumpMin * jumpMin))//1200
 						if (AngleDifference(cptr->alpha, FindVectorAlpha(playerdx, playerdz)) < 0.2f) {
 
 							Vector3d pv;
@@ -5794,7 +5793,7 @@ TBEGIN:
 			}
 		}
 
-		if (pdist < DinoInfo[cptr->CType].killDist * cptr->scale && DinoInfo[cptr->CType].killDist > 0) {
+		if (pdistSq < (DinoInfo[cptr->CType].killDist * cptr->scale) * (DinoInfo[cptr->CType].killDist * cptr->scale) && DinoInfo[cptr->CType].killDist > 0) {
 			float killAlt = cptr->spcDepth;
 			if (killAlt < 256) killAlt = 256;
 			if (AIInfo[cptr->Clone].jumper && cptr->Phase == DinoInfo[cptr->CType].jumpAnim) killAlt += 80;
@@ -5827,13 +5826,13 @@ TBEGIN:
 
 
 NOTHINK:
-	if (pdist < 2048) cptr->NoFindCnt = 0;
+	if (pdistSq < 2048 * 2048) cptr->NoFindCnt = 0;
 	if (cptr->NoFindCnt) cptr->NoFindCnt--;
 	else
 	{
 		cptr->tgalpha = CorrectedAlpha(FindVectorAlpha(targetdx, targetdz), cptr->alpha);//FindVectorAlpha(targetdx, targetdz);
 		
-		if (cptr->State && pdist > DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
+		if (cptr->State && pdistSq > DinoInfo[cptr->CType].weaveRange * DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
 		{
 			cptr->tgalpha += static_cast<float>(sin(RealTime / 824.f)) / 2.f;
 			if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
@@ -6269,13 +6268,13 @@ TBEGIN:
 	float targetdx = targetx - cptr->pos.x;
 	float targetdz = targetz - cptr->pos.z;
 
-	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
+	float tdistSq = targetdx * targetdx + targetdz * targetdz;
 
 	float playerdx = PlayerX - cptr->pos.x;
 	float playerdz = PlayerZ - cptr->pos.z;
-	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
+	float pdistSq = playerdx * playerdx + playerdz * playerdz;
 	float playerdy = PlayerY - cptr->pos.y;
-	float pdistUp = static_cast<float>(sqrt(pdist * pdist + playerdy * playerdy));
+	float pdistUpSq = pdistSq + playerdy * playerdy;
 
 	//	if (cptr->AfraidTime && !(_Phase == ICTH_FLY || _Phase == ICTH_LANDING || _Phase == ICTH_FLY2 || _Phase == ICTH_TAKEOFF || _Phase == ICTH_WINGUP_WATER || _Phase == ICTH_WINGUP_LAND))
 	//	{
@@ -6321,14 +6320,14 @@ TBEGIN:
 	}
 
 
-	if (pdist > (ctViewR + 20) * 256)
+	if (pdistSq > ((ctViewR + 20) * 256) * ((ctViewR + 20) * 256))
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 	//======== exploring area ===============//
 	if (!cptr->State)
 	{
 		cptr->AfraidTime = 0;
-		if (pdistUp < 1050.f)
+		if (pdistUpSq < 1050.f * 1050.f)
 		{
 			cptr->State = 1;
 			SetNewTargetPlace_Icth(cptr, 2048.f);
@@ -6350,10 +6349,10 @@ TBEGIN:
 	if (cptr->packId >= 0) {
 		float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 		float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
-		float leaderdist = static_cast<float>(sqrt(leaderdx * leaderdx + leaderdz * leaderdz));
+		float leaderdistSq = leaderdx * leaderdx + leaderdz * leaderdz;
 
 		if (cptr->followLeader) {
-			if (leaderdist < cptr->packDensity * 128 * 0.6)
+			if (leaderdistSq < (cptr->packDensity * 128 * 0.6) * (cptr->packDensity * 128 * 0.6))
 			{
 				cptr->followLeader = false;
 				SetNewTargetPlace_Icth(cptr, 4048.f);
@@ -6361,7 +6360,7 @@ TBEGIN:
 			}
 		}
 		else {
-			if (leaderdist > cptr->packDensity * 128 * 1.3)
+			if (leaderdistSq > (cptr->packDensity * 128 * 1.3) * (cptr->packDensity * 128 * 1.3))
 			{
 				cptr->followLeader = true;
 			}
@@ -6373,7 +6372,7 @@ TBEGIN:
 		cptr->tgx = Packs[cptr->packId].leader->pos.x;
 		cptr->tgz = Packs[cptr->packId].leader->pos.z;
 	}
-	else if (tdist < targetNear)
+	else if (tdistSq < targetNear * targetNear)
 	{
 		SetNewTargetPlace_Icth(cptr, 2048.f);
 		goto TBEGIN;
