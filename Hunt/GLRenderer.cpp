@@ -3209,12 +3209,8 @@ void GLRenderer::RenderFSRect(uint32_t color)
     float g = static_cast<float>((color >> 8) & 0xFF) / 255.0f;
     float b = static_cast<float>(color & 0xFF) / 255.0f;
 
-    // Create a 1x1 white texture for flat-color rendering
-    GLuint whiteTex = 0;
-    glGenTextures(1, &whiteTex);
-    glBindTexture(GL_TEXTURE_2D, whiteTex);
-    const uint32_t white = 0xFFFFFFFF;
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &white);
+    // Reuse the persistent 1x1 white texture created for flat-color rendering.
+    if (!m_whiteTexture) return;
 
     // Build a fullscreen quad — use fog=1.0 so the model shader
     // outputs the fog color (our desired glare color) instead of the texture
@@ -3242,7 +3238,7 @@ void GLRenderer::RenderFSRect(uint32_t color)
     glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, identity);
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, whiteTex);
+    glBindTexture(GL_TEXTURE_2D, m_whiteTexture);
     glBindVertexArray(m_modelVAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quad), nullptr, GL_STREAM_DRAW);
@@ -3253,8 +3249,6 @@ void GLRenderer::RenderFSRect(uint32_t color)
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
-
-    glDeleteTextures(1, &whiteTex);
 }
 
 void GLRenderer::RenderSkyPlane()

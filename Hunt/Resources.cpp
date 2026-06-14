@@ -2167,8 +2167,12 @@ void SaveScreenShot()
   {
     for (int x=0; x<WinW; x++)
     {
-      WORD C = *((WORD*)lpVideoBuf + (WinEY-y)*1024+x);
+      WORD C = *((WORD*)lpVideoBuf + (WinEY-y)*VideoPitch+x);
       fRGB[x][0] = (C       & 31)<<3;
+#if defined(_gl)
+      fRGB[x][1] = ((C>> 5) & 31)<<3;
+      fRGB[x][2] = ((C>>10) & 31)<<3;
+#else
       if (HARD3D)
       {
         fRGB[x][1] = ((C>> 5) & 63)<<2;
@@ -2179,6 +2183,7 @@ void SaveScreenShot()
         fRGB[x][1] = ((C>> 5) & 31)<<3;
         fRGB[x][2] = ((C>>10) & 31)<<3;
       }
+#endif
     }
     WriteFile( hf, fRGB, 3*WinW, &dwTmp, NULL );
   }

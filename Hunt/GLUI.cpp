@@ -18,6 +18,7 @@
 #include "glad/glad.h"
 
 #include <cstdio>
+#include <vector>
 
 // ============================================================================
 // Hardware lifecycle (called from WinMain, ProcessGame)
@@ -126,7 +127,25 @@ void Hardware_ZBuffer(BOOL enable)
 
 void CopyHARDToDIB()
 {
-    // TODO: Copy GL framebuffer to DIB for screenshots
+    if (!g_GLRenderer || !lpVideoBuf || WinW <= 0 || WinH <= 0 || VideoPitch <= 0) return;
+
+    std::vector<GLubyte> pixels(static_cast<size_t>(WinW) * WinH * 4);
+    glReadPixels(0, 0, WinW, WinH, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+
+    WORD* dst = static_cast<WORD*>(lpVideoBuf);
+    for (int y = 0; y < WinH; y++)
+    {
+        const GLubyte* srcRow = pixels.data() + (WinH - 1 - y) * WinW * 4;
+        WORD* dstRow = dst + y * VideoPitch;
+        for (int x = 0; x < WinW; x++)
+        {
+            const int sx = x * 4;
+            const WORD r = static_cast<WORD>((srcRow[sx + 0] >> 3) & 0x1F);
+            const WORD g = static_cast<WORD>((srcRow[sx + 1] >> 3) & 0x1F);
+            const WORD b = static_cast<WORD>((srcRow[sx + 2] >> 3) & 0x1F);
+            dstRow[x] = static_cast<WORD>((r << 10) | (g << 5) | b);
+        }
+    }
 }
 
 // ============================================================================
@@ -435,8 +454,8 @@ void RenderHealthBar()
     int L  = WinW / 4;
     int x0 = WinW - (WinW / 20) - L;
     int y0 = WinH / 40;
-    int G  = (MyHealth * 30 / 100000);            if (G > 20) G = 20;
-    int R  = ((100000 - MyHealth) * 30 / 100000); if (R > 20) R = 20;
+    int G  = (MyHealth * 240 / 100000);            if (G > 160) G = 160;
+    int R  = ((100000 - MyHealth) * 240 / 100000); if (R > 160) R = 160;
     int HCOLOR = (G << 5) | (R << 10);            // 555: G at bits 5-9, R at 10-14
 
     int L0 = (L * MyHealth) / 100000;
