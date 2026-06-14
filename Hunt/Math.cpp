@@ -106,9 +106,15 @@ Vector3d AddVectors( Vector3d& v1, Vector3d& v2 )
   return res;
 }
 
+float VectorLengthSq(Vector3d v)
+{
+  return v.x*v.x + v.y*v.y + v.z*v.z;
+}
+
+
 float VectorLength(Vector3d v)
 {
-  return static_cast<float>(sqrt(v.x*v.x + v.y*v.y + v.z*v.z));
+  return static_cast<float>(sqrt(VectorLengthSq(v)));
 }
 
 
@@ -348,8 +354,8 @@ int TraceCheckPlane(Vector3d a, Vector3d b, Vector3d c)
   if (sa<0) return 0;
 
 
-  if (VectorLength(SubVectors(hp, TraceA)) <
-      VectorLength(SubVectors(TraceB, TraceA)) )
+  Vector3d traceDir = SubVectors(TraceB, TraceA);
+  if (VectorLengthSq(SubVectors(hp, TraceA)) < VectorLengthSq(traceDir))
   {
     TraceB = hp;
     return 1;

@@ -1094,6 +1094,7 @@ Vector3d SubVectors( Vector3d&, Vector3d& );
 Vector3d AddVectors( Vector3d&, Vector3d& );
 Vector3d RotateVector(Vector3d&);
 float VectorLength(Vector3d);
+float VectorLengthSq(Vector3d);
 int   siRand(int);
 int   rRand(int);
 void  CalcHitPoint(CLIPPLANE&, Vector3d&, Vector3d&, Vector3d&);
