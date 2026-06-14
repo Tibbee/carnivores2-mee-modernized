@@ -17,7 +17,7 @@
 
 
 #pragma pack(push, 1)
-typedef struct _tagTGAHDR
+struct TARGAINFOHEADER
 {
     uint8_t	    tgaIdentSize;          // size of ID field that follows 18 byte header (0 usually)
     uint8_t	    tgaColorMapType;      // type of colour map 0=none, 1=has palette
@@ -33,7 +33,7 @@ typedef struct _tagTGAHDR
     uint16_t	tgaHeight;             // image height in pixels
     uint8_t	    tgaBits;               // image bits per pixel 8,16,24,32
     uint8_t	    tgaDescriptor;         // image descriptor bits (vh flip bits)
-} TARGAINFOHEADER;
+};
 #pragma pack(pop)
 
 

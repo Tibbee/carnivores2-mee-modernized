@@ -41,12 +41,12 @@ int FxMemLoaded;
 int FxLastTexture;
 int FxTMUNumber;
 
-typedef struct _fxmemmap
+struct Tfxmemmap
 {
   int cpuaddr, size, lastused;
   FxU32 FXTbaseaddr;
   GrTexInfo FXtexinfo;
-} Tfxmemmap;
+};
 
 #define fxmemmapsize 128
 Tfxmemmap FxMemMap[fxmemmapsize+2];

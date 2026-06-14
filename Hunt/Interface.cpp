@@ -6,12 +6,12 @@
 #include "stdio.h"
 #include "timeapi.h"
 
-typedef struct _TMenuSet
+struct TMenuSet
 {
   int x0, y0;
   int Count;
   char Item[32][32];
-} TMenuSet;
+};
 
 
 TMenuSet Options[3];

@@ -85,12 +85,12 @@ int *vFogT;
 BOOL SmallFont;
 
 
-typedef struct _d3dmemmap
+struct Td3dmemmap
 {
   int cpuaddr, size, lastused;
   LPDIRECTDRAWSURFACE     lpddTexture;
   D3DTEXTUREHANDLE        hTexture;
-} Td3dmemmap;
+};
 
 
 #define d3dmemmapsize 128

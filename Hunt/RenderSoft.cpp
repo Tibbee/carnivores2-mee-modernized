@@ -17,16 +17,16 @@ extern void RenderSkyLineFade(int, int);
 extern void RenderSkyLineLo(int);
 extern void RenderSkyLine(int);
 
-typedef struct _CharListItem
+struct TCharListItem
 {
   int CType, Index;
-} TCharListItem;
+};
 
-typedef struct _CharListLine
+struct TCharListLine
 {
   int ICount;
   TCharListItem Items[256];
-} TCharListLine;
+};
 
 TCharListLine ChRenderList[128];
 
