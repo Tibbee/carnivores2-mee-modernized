@@ -1732,7 +1732,7 @@ void HLineTxModel( void )
     cmp OpacityMode,0
     jz L9
 
-    test OpacityMode,sfTransparent
+    test OpacityMode,8
     jnz L11
     jmp L10
   }
