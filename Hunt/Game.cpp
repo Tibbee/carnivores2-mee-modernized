@@ -1097,11 +1097,11 @@ bool RecvPacket(SOCKET *socket, int bufSize, bool init){
 		const byte *tdata2 = reinterpret_cast<const byte*>(recvbuf);
 		int pos = 0;
 
-		Vector3d *posTemp = new Vector3d;
-		posTemp->x = readFloat(tdata2, &pos) / 10000.f;
-		posTemp->y = readFloat(tdata2, &pos) / 10000.f;
-		posTemp->z = readFloat(tdata2, &pos) / 10000.f;
-		MPlayers[0].pos = *posTemp;
+		Vector3d posTemp;
+		posTemp.x = readFloat(tdata2, &pos) / 10000.f;
+		posTemp.y = readFloat(tdata2, &pos) / 10000.f;
+		posTemp.z = readFloat(tdata2, &pos) / 10000.f;
+		MPlayers[0].pos = posTemp;
 
 		MPlayers[0].alpha = readFloat(tdata2, &pos) / 10000.f;
 
