@@ -17,6 +17,7 @@
 
 #include "glad/glad.h"
 
+#include <cmath>
 #include <cstdio>
 #include <vector>
 
@@ -199,10 +200,51 @@ void RenderElements()
     if (g_GLRenderer) g_GLRenderer->RenderElements();
 }
 
+static int CircleCXBuf = 0;
+static int CircleCYBuf = 0;
+
 static void PutPixelBuf(int x, int y, WORD color)
 {
     if (!lpVideoBuf || x < 0 || x >= WinW || y < 0 || y >= WinH) return;
     ((WORD*)lpVideoBuf)[y * VideoPitch + x] = color;
+}
+
+static void Put8PixelBuf(int x, int y, WORD color)
+{
+    PutPixelBuf(CircleCXBuf + x, CircleCYBuf + y, color);
+    PutPixelBuf(CircleCXBuf + x, CircleCYBuf - y, color);
+    PutPixelBuf(CircleCXBuf - x, CircleCYBuf + y, color);
+    PutPixelBuf(CircleCXBuf - x, CircleCYBuf - y, color);
+    PutPixelBuf(CircleCXBuf + y, CircleCYBuf + x, color);
+    PutPixelBuf(CircleCXBuf + y, CircleCYBuf - x, color);
+    PutPixelBuf(CircleCXBuf - y, CircleCYBuf + x, color);
+    PutPixelBuf(CircleCXBuf - y, CircleCYBuf - x, color);
+}
+
+static void DrawCircleBuf(int cx, int cy, int radius, WORD color)
+{
+    int d = 3 - (2 * radius);
+    int x = 0;
+    int y = radius;
+    CircleCXBuf = cx;
+    CircleCYBuf = cy;
+
+    do
+    {
+        Put8PixelBuf(x, y, color);
+        x++;
+        if (d < 0)
+        {
+            d = d + (x << 2) + 6;
+        }
+        else
+        {
+            d = d + (x - y) * 4 + 10;
+            y--;
+        }
+    } while (x < y);
+
+    Put8PixelBuf(x, y, color);
 }
 
 static void DrawBoxBuf(int x, int y, int size, WORD color)
@@ -210,6 +252,18 @@ static void DrawBoxBuf(int x, int y, int size, WORD color)
     for (int dy = 0; dy < size; dy++)
         for (int dx = 0; dx < size; dx++)
             PutPixelBuf(x + dx, y + dy, color);
+}
+
+static void DrawBoxMysteryBuf(int x, int y, WORD color)
+{
+    PutPixelBuf(x + 1, y, color);
+    PutPixelBuf(x + 2, y, color);
+    PutPixelBuf(x + 1, y + 1, color);
+    PutPixelBuf(x + 1, y + 3, color);
+    PutPixelBuf(x, y + 4, color);
+    PutPixelBuf(x + 3, y + 4, color);
+    PutPixelBuf(x + 1, y + 5, color);
+    PutPixelBuf(x + 2, y + 5, color);
 }
 
 void DrawHMap()
@@ -220,24 +274,98 @@ void DrawHMap()
     // Draw map background
     DrawPicture(VideoCX - MapPic.W / 2, VideoCY - MapPic.H / 2 - 6, MapPic);
 
-    // Player marker
     int xx = VideoCX - 128 + (CCX >> 2);
     int yy = VideoCY - 128 + (CCY >> 2);
-    if (yy >= 0 && yy < WinH && xx >= 0 && xx < WinW) {
-        DrawBoxBuf(xx + 1, yy + 1, 2, (WORD)(8 << 11));   // dark red shadow
-        DrawBoxBuf(xx, yy, 2, (WORD)(30 << 11));           // bright red
+    const int playerX = xx;
+    const int playerY = yy;
+
+    if (yy < 0 || yy >= WinH || xx < 0 || xx >= WinW) return;
+
+    DrawBoxBuf(xx + 1, yy + 1, 2, static_cast<WORD>(8 << 10));    // dark red shadow
+    DrawBoxBuf(xx, yy, 2, static_cast<WORD>(30 << 10));            // bright red
+
+    float previousSonarPos = 0.0f;
+    if (SonarMode)
+    {
+        previousSonarPos = sonarPos;
+        sonarPos += TimeDt * 0.02f * static_cast<float>(std::cos((pi / 2.0f) * (sonarPos / 41.0f)));
+        if (sonarPos > 38.0f) sonarPos = 1.0f;
+        DrawCircleBuf(xx, yy, static_cast<int>(sonarPos), static_cast<WORD>(18 << 5));
     }
 
-    // Dinosaur markers (if radar mode)
-    if (RadarMode) {
-        for (int c = 0; c < ChCount; c++) {
-            if (!DinoInfo[Characters[c].CType].onRadar && !Characters[c].RTime) continue;
-            if (!Characters[c].Health && !Characters[c].RTime) continue;
+    DrawCircleBuf(xx + 1, yy + 1, ctViewR / 4, static_cast<WORD>(4 << 5));
+    DrawCircleBuf(xx, yy, ctViewR / 4, static_cast<WORD>(18 << 5));
 
-            int dx = VideoCX - 128 + (int)Characters[c].pos.x / 1024;
-            int dy = VideoCY - 128 + (int)Characters[c].pos.z / 1024;
-            if (dy <= 0 || dy >= WinH || dx <= 0 || dx >= WinW) continue;
-            DrawBoxBuf(dx, dy, 2, DinoInfo[Characters[c].CType].radarColour565);
+    for (int b = 0; b < bulletCh; b++)
+    {
+        if (!bullet[b].RTime) continue;
+
+        xx = VideoCX - 128 + static_cast<int>(bullet[b].a.x) / 1024;
+        yy = VideoCY - 128 + static_cast<int>(bullet[b].a.z) / 1024;
+        if (yy > 0 && yy < WinH && xx > 0 && xx < WinW)
+        {
+            DrawBoxBuf(xx, yy, 2, WeapInfo[bullet[b].parent].radarColour555);
+        }
+    }
+
+    for (int c = 0; c < ChCount; c++)
+    {
+        if (!DinoInfo[Characters[c].CType].onRadar && !Characters[c].RTime) continue;
+        if (!Characters[c].Health && !Characters[c].RTime) continue;
+
+        xx = VideoCX - 128 + static_cast<int>(Characters[c].pos.x) / 1024;
+        yy = VideoCY - 128 + static_cast<int>(Characters[c].pos.z) / 1024;
+        if (yy <= 0 || yy >= WinH || xx <= 0 || xx >= WinW) continue;
+
+        if (Characters[c].Clone == AI_HUNTDOG)
+        {
+            DrawBoxBuf(xx, yy, 2, DinoInfo[Characters[c].CType].radarColour555);
+            continue;
+        }
+
+        if (RadarMode || Characters[c].RTime)
+        {
+            WORD colour = DinoInfo[Characters[c].CType].radarColour555;
+            if (Characters[c].tracker >= 0) colour = WeapInfo[Characters[c].tracker].radarColour555;
+
+            if (DinoInfo[Characters[c].CType].Mystery)
+                DrawBoxMysteryBuf(xx, yy, colour);
+            else
+                DrawBoxBuf(xx, yy, 2, colour);
+        }
+
+        if (SonarMode)
+        {
+            const int dx = playerX - xx;
+            const int dz = playerY - yy;
+            const int distance = static_cast<int>(std::sqrt(static_cast<float>(dx * dx + dz * dz)));
+
+            if (distance < 38)
+            {
+                if (distance >= static_cast<int>(previousSonarPos) && distance <= static_cast<int>(sonarPos))
+                {
+                    Characters[c].showSonar = TRUE;
+                    Characters[c].sonar.x = xx;
+                    Characters[c].sonar.y = yy;
+                    AddVoicev(fxBlip.length, fxBlip.lpData, 256);
+                }
+                else
+                {
+                    Characters[c].showSonar = FALSE;
+                }
+            }
+            else
+            {
+                Characters[c].showSonar = FALSE;
+            }
+
+            if (Characters[c].showSonar && !Characters[c].RTime)
+            {
+                if (DinoInfo[Characters[c].CType].Mystery)
+                    DrawBoxMysteryBuf(Characters[c].sonar.x, Characters[c].sonar.y, DinoInfo[Characters[c].CType].radarColour555);
+                else
+                    DrawBoxBuf(Characters[c].sonar.x, Characters[c].sonar.y, 2, DinoInfo[Characters[c].CType].radarColour555);
+            }
         }
     }
 }
