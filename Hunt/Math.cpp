@@ -4,15 +4,33 @@ Vector3d TraceA, TraceNv;
 int      TraceRes;
 
 //====================================================
+static float FastInvSqrt(float x)
+{
+  float xhalf = 0.5f * x;
+  union {
+    float f;
+    int i;
+  } uf;
+  uf.f = x;
+  uf.i = 0x5f3759df - (uf.i >> 1);
+  uf.f *= (1.5f - (xhalf * uf.f * uf.f));
+  return uf.f;
+}
+
 void NormVector(Vector3d& v, float Scale)
 {
   double n;
+  float factor;
   n=v.x*v.x + v.y*v.y + v.z*v.z;
   if (n<0.000000001) n=0.000000001;
-  n=static_cast<double>(Scale) / sqrt(n);
-  v.x=v.x*n;
-  v.y=v.y*n;
-  v.z=v.z*n;
+  if (Scale == 1.0f) {
+    factor = FastInvSqrt(static_cast<float>(n));
+  } else {
+    factor = static_cast<float>(static_cast<double>(Scale) / sqrt(n));
+  }
+  v.x=v.x*factor;
+  v.y=v.y*factor;
+  v.z=v.z*factor;
 }
 
 float SGN(float f)
