@@ -156,7 +156,8 @@ private:
                            const std::array<float, 16>& projection,
                            bool depthTest,
                            bool enableBlend,
-                           bool additive);
+                           bool additive,
+                           bool tintByFogColor = false);
     bool NeedsNearestModelFiltering(const std::vector<ModelVertex>& vertices) const;
     void SetModelTextureFiltering(GLuint texture, bool nearest);
     void EnsureTerrainTextureArray();

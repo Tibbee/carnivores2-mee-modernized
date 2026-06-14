@@ -650,18 +650,14 @@ bool GLRenderer::Initialize()
         "in float vAlpha;\n"
         "in float vCutout;\n"
         "uniform sampler2D uModelTexture;\n"
+        "uniform float uTintByFogColor;\n"
         "void main() {\n"
         "   vec4 texColor = texture(uModelTexture, vTexCoord);\n"
         "   if (vCutout > 0.5 && dot(texColor.rgb, vec3(1.0)) < 0.01) discard;\n"
         "   vec3 litColor = texColor.rgb * vLight;\n"
-        "   // Per-vertex volumetric fog only. The terrain shader has a\n"
-        "   // per-pixel distance ramp for the terrain-to-sky transition,\n"
-        "   // but we intentionally do NOT use one for models: the per-pixel\n"
-        "   // ramp uses camera-space depth (vViewZ), which changes as the\n"
-        "   // camera rotates, causing angle-dependent over-fogging of\n"
-        "   // discrete 3D objects like trees. The per-vertex volumetric\n"
-        "   // fog uses world-relative position and is rotation-invariant,\n"
-        "   // matching the legacy D3D/3DFX model fog behavior.\n"
+        "   if (uTintByFogColor > 0.5) {\n"
+        "      litColor *= vFogColor;\n"
+        "   }\n"
         "   vec3 finalColor = mix(litColor, vFogColor, vFog);\n"
         "   FragColor = vec4(finalColor, texColor.a * vAlpha);\n"
         "}\n";
@@ -695,6 +691,7 @@ bool GLRenderer::Initialize()
 
     glUseProgram(m_modelShader);
     glUniform1i(glGetUniformLocation(m_modelShader, "uModelTexture"), 0);
+    glUniform1f(glGetUniformLocation(m_modelShader, "uTintByFogColor"), 0.0f);
 
     glUseProgram(m_terrainShader);
     glUniform1i(glGetUniformLocation(m_terrainShader, "uTerrainArray"), 0);
@@ -1144,7 +1141,7 @@ bool GLRenderer::BuildModelEffectVertices(std::vector<ModelVertex>& outVertices,
                 clipped[0].uv.x,
                 clipped[0].uv.y,
                 255.0f,
-                1.0f,
+                0.0f,
                 fogColor.x,
                 fogColor.y,
                 fogColor.z,
@@ -1158,7 +1155,7 @@ bool GLRenderer::BuildModelEffectVertices(std::vector<ModelVertex>& outVertices,
                 clipped[j].uv.x,
                 clipped[j].uv.y,
                 255.0f,
-                1.0f,
+                0.0f,
                 fogColor.x,
                 fogColor.y,
                 fogColor.z,
@@ -1172,7 +1169,7 @@ bool GLRenderer::BuildModelEffectVertices(std::vector<ModelVertex>& outVertices,
                 clipped[j + 1].uv.x,
                 clipped[j + 1].uv.y,
                 255.0f,
-                1.0f,
+                0.0f,
                 fogColor.x,
                 fogColor.y,
                 fogColor.z,
@@ -1355,7 +1352,8 @@ void GLRenderer::DrawModelVertices(GLuint texture,
                                    const std::array<float, 16>& projection,
                                    bool depthTest,
                                    bool enableBlend,
-                                   bool additive)
+                                   bool additive,
+                                   bool tintByFogColor)
 {
     if (!m_modelShader || texture == 0 || vertices.empty()) {
         return;
@@ -1363,6 +1361,7 @@ void GLRenderer::DrawModelVertices(GLuint texture,
 
     glUseProgram(m_modelShader);
     glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, projection.data());
+    glUniform1f(glGetUniformLocation(m_modelShader, "uTintByFogColor"), tintByFogColor ? 1.0f : 0.0f);
 
     if (depthTest) {
         glEnable(GL_DEPTH_TEST);
@@ -2223,7 +2222,7 @@ void GLRenderer::RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float
     }
 
     const auto projection = BuildLegacyProjection();
-    DrawModelVertices(texture, vertices, projection, true, true, true);
+    DrawModelVertices(texture, vertices, projection, true, true, true, true);
 }
 
 void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z0,
@@ -2249,7 +2248,7 @@ void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z
     }
 
     const auto projection = BuildLegacyProjection();
-    DrawModelVertices(texture, vertices, projection, true, true, true);
+    DrawModelVertices(texture, vertices, projection, true, true, true, true);
 }
 
 void GLRenderer::EnsureTerrainTextureArray()
