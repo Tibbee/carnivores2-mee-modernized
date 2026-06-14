@@ -8,7 +8,7 @@
 #include <cstdint>
 
 
-typedef void (*funcptr_t)();
+using funcptr_t = void (*)();
 
 
 namespace GUI

@@ -32,15 +32,15 @@ enum class AudioBackend {
 static AudioBackend g_AudioBackend = AudioBackend::OpenALSoft;
 static HMODULE g_LegacyAudioDLL = nullptr;
 
-typedef void (WINAPI *LegacyAudioInitFn)(HWND, HANDLE);
-typedef void (WINAPI *LegacyAudioVoidFn)(void);
-typedef void (WINAPI *LegacyAudioCameraFn)(float, float, float, float, float);
-typedef void (WINAPI *LegacyAudioSoundFn)(int, short int*, int);
-typedef void (WINAPI *LegacyAudioSound3DFn)(int, short int*, float, float, float);
-typedef void (WINAPI *LegacyAudioVoiceFn)(int, short int*, float, float, float, int);
-typedef int  (WINAPI *LegacyAudioVersionFn)(void);
-typedef void (WINAPI *LegacyAudioEnvFn)(int, float);
-typedef void (WINAPI *LegacyAudioGeomFn)(int, void*);
+using LegacyAudioInitFn = void (WINAPI *)(HWND, HANDLE);
+using LegacyAudioVoidFn = void (WINAPI *)(void);
+using LegacyAudioCameraFn = void (WINAPI *)(float, float, float, float, float);
+using LegacyAudioSoundFn = void (WINAPI *)(int, short int*, int);
+using LegacyAudioSound3DFn = void (WINAPI *)(int, short int*, float, float, float);
+using LegacyAudioVoiceFn = void (WINAPI *)(int, short int*, float, float, float, int);
+using LegacyAudioVersionFn = int (WINAPI *)(void);
+using LegacyAudioEnvFn = void (WINAPI *)(int, float);
+using LegacyAudioGeomFn = void (WINAPI *)(int, void*);
 
 static LegacyAudioInitFn g_LegacyInitAudioSystem = nullptr;
 static LegacyAudioVoidFn g_LegacyAudioRestore = nullptr;

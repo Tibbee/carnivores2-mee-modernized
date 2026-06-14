@@ -164,7 +164,7 @@ struct Color16 {
 	{}
 };
 #pragma pack(pop)
-typedef Color16 RGBA16;
+using RGBA16 = Color16;
 
 
 class TargaImage
