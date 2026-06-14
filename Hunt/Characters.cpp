@@ -2263,6 +2263,8 @@ void AnimateTitan(TCharacter *cptr)
 
 
 TBEGIN:
+	const float landH = GetLandH(cptr->pos.x, cptr->pos.z);
+	const float landUpH = GetLandUpH(cptr->pos.x, cptr->pos.z);
 	float targetx = cptr->tgx;
 	float targetz = cptr->tgz;
 	float targetdx = targetx - cptr->pos.x;
@@ -2278,7 +2280,7 @@ TBEGIN:
 
 
 
-	if (GetLandUpH(cptr->pos.x, cptr->pos.z) - GetLandH(cptr->pos.x, cptr->pos.z) > DinoInfo[cptr->CType].waterLevel * cptr->scale)
+	if (landUpH - landH > DinoInfo[cptr->CType].waterLevel * cptr->scale)
 		cptr->StateF |= csONWATER;
 	else
 		cptr->StateF &= (!csONWATER);
@@ -2482,9 +2484,9 @@ NOTHINK:
 	float FlDst = ctViewR * DinoInfo[cptr->CType].flyDist + OptAgres / AIInfo[cptr->Clone].agressMulti;
 	if (!alertInit) FlDst *= 1.5;
 	if (!cptr->gliding && cptr->State && pdist > FlDst) cptr->gliding = true;
-    else if (cptr->pos.y < GetLandUpH(cptr->pos.x, cptr->pos.z) + 50
+    else if (cptr->pos.y < landUpH + 50
 		&& cptr->Phase != DinoInfo[cptr->CType].takeoffAnim
-		&& !(GetLandUpH(cptr->pos.x, cptr->pos.z) > GetLandH(cptr->pos.x, cptr->pos.z))) {
+		&& !(landUpH > landH)) {
 		cptr->gliding = false;
 	}
 
@@ -2499,28 +2501,28 @@ NOTHINK:
 				if (!cptr->State && cptr->shakeTime) cptr->shakeTime -= 1;
 
 				if (cptr->Phase == DinoInfo[cptr->CType].flyAnim) {
-					if (cptr->pos.y > GetLandUpH(cptr->pos.x, cptr->pos.z) + 5800) {
+					if (cptr->pos.y > landUpH + 5800) {
 						cptr->Phase = DinoInfo[cptr->CType].glideAnim;
 					}
 				}
 				else if (cptr->Phase == DinoInfo[cptr->CType].glideAnim) {
 					
 					if (!cptr->shakeTime) {
-						if (cptr->pos.y < GetLandUpH(cptr->pos.x, cptr->pos.z) + 1200) {
+						if (cptr->pos.y < landUpH + 1200) {
 
 							//lander
-							if (GetLandUpH(cptr->pos.x, cptr->pos.z) > GetLandH(cptr->pos.x, cptr->pos.z)) cptr->Phase = DinoInfo[cptr->CType].flyAnim;
+							if (landUpH > landH) cptr->Phase = DinoInfo[cptr->CType].flyAnim;
 							else cptr->Phase = DinoInfo[cptr->CType].landAnim;
 						}
 					} else {
-						if (cptr->pos.y < GetLandUpH(cptr->pos.x, cptr->pos.z) + 3800) {
+						if (cptr->pos.y < landUpH + 3800) {
 							cptr->Phase = DinoInfo[cptr->CType].flyAnim;
 						}
 					}
 
 				}
 				else if (cptr->Phase == DinoInfo[cptr->CType].takeoffAnim) {
-					if (cptr->pos.y > GetLandUpH(cptr->pos.x, cptr->pos.z) + 1024) {
+					if (cptr->pos.y > landUpH + 1024) {
 						cptr->Phase = DinoInfo[cptr->CType].flyAnim;
 					}
 				}
@@ -2788,7 +2790,7 @@ SKIPROT:
 	if (cptr->Phase == DinoInfo[cptr->CType].landAnim) cptr->pos.y -= TimeDt;
 	if (cptr->Phase == DinoInfo[cptr->CType].diveAnim) cptr->pos.y -= TimeDt;
 
-	//if (cptr->pos.y < GetLandH(cptr->pos.x, cptr->pos.z) + 236) cptr->pos.y = GetLandH(cptr->pos.x, cptr->pos.z) + 256;
+	//if (cptr->pos.y < landH + 236) cptr->pos.y = landH + 256;
 
 	//========== process speed =============//
 
@@ -2826,11 +2828,11 @@ SKIPROT:
 
 		//============ Y movement =================//
 
-		if (cptr->pos.y < GetLandH(cptr->pos.x, cptr->pos.z)) cptr->pos.y = GetLandH(cptr->pos.x, cptr->pos.z);
+		if (cptr->pos.y < landH) cptr->pos.y = landH;
 
 		if (cptr->StateF & csONWATER && DinoInfo[cptr->CType].canSwim)
 		{
-			cptr->pos.y = GetLandUpH(cptr->pos.x, cptr->pos.z) - (DinoInfo[cptr->CType].waterLevel + 20) * cptr->scale;
+			cptr->pos.y = landUpH - (DinoInfo[cptr->CType].waterLevel + 20) * cptr->scale;
 			cptr->beta /= 2;
 			cptr->tggamma = 0;
 		}
