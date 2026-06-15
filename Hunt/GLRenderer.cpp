@@ -549,10 +549,8 @@ bool GLRenderer::Initialize()
         "layout (location = 0) in vec3 aPos;\n"
         "layout (location = 1) in vec2 aTexCoord;\n"
         "layout (location = 2) in float aLayer;\n"
-        "layout (location = 3) in float aLight;\n"
-        "layout (location = 4) in float aFog;\n"
-        "layout (location = 5) in vec3 aFogColor;\n"
-        "layout (location = 6) in float aAlpha;\n"
+        "layout (location = 3) in vec4 aLightFogAlpha;\n"
+        "layout (location = 4) in vec3 aFogColor;\n"
         "uniform PerFrame {\n"
         "   mat4 uProjection;\n"
         "   vec2 uFogRange;          // (fadeStart, distance)\n"
@@ -571,10 +569,11 @@ bool GLRenderer::Initialize()
         "   gl_Position = uProjection * vec4(aPos, 1.0);\n"
         "   vTexCoord = aTexCoord;\n"
         "   vLayer = int(aLayer + 0.5);\n"
-        "   vLight = clamp(aLight / 255.0, 0.0, 1.0);\n"
-        "   vFog = clamp(aFog / 255.0, 0.0, 1.0);\n"
+        "   // uint8 attributes are normalized to [0,1] by the driver.\n"
+        "   vLight = aLightFogAlpha.x;\n"
+        "   vFog   = aLightFogAlpha.y;\n"
+        "   vAlpha = aLightFogAlpha.z;\n"
         "   vFogColor = aFogColor;\n"
-        "   vAlpha = clamp(aAlpha, 0.0, 1.0);\n"
         "   vViewZ = max(-aPos.z, 0.0);\n"
         "}\n";
 
@@ -830,20 +829,22 @@ bool GLRenderer::InitializeTerrainPipeline()
     glBindBuffer(GL_ARRAY_BUFFER, m_terrainVBO);
     glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
 
+    // Phase 1.5: packed TerrainVertex layout (32 bytes).
+    //   attribute 0: vec3  aPos                (12 bytes, float)
+    //   attribute 1: vec2  aTexCoord            ( 8 bytes, float)
+    //   attribute 2: float aLayer               ( 4 bytes, float)
+    //   attribute 3: vec4  light/fog/alpha/pad  ( 4 bytes, uint8 normalized)
+    //   attribute 4: vec3  fogR/fogG/fogB       ( 3 bytes, uint8 normalized)
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(TerrainVertex), reinterpret_cast<void*>(offsetof(TerrainVertex, x)));
+    glVertexAttribPointer(0, 3, GL_FLOAT,         GL_FALSE, sizeof(TerrainVertex), reinterpret_cast<void*>(offsetof(TerrainVertex, x)));
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(TerrainVertex), reinterpret_cast<void*>(offsetof(TerrainVertex, u)));
+    glVertexAttribPointer(1, 2, GL_FLOAT,         GL_FALSE, sizeof(TerrainVertex), reinterpret_cast<void*>(offsetof(TerrainVertex, u)));
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(TerrainVertex), reinterpret_cast<void*>(offsetof(TerrainVertex, layer)));
+    glVertexAttribPointer(2, 1, GL_FLOAT,         GL_FALSE, sizeof(TerrainVertex), reinterpret_cast<void*>(offsetof(TerrainVertex, layer)));
     glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(TerrainVertex), reinterpret_cast<void*>(offsetof(TerrainVertex, light)));
+    glVertexAttribPointer(3, 4, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof(TerrainVertex), reinterpret_cast<void*>(offsetof(TerrainVertex, light)));
     glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, sizeof(TerrainVertex), reinterpret_cast<void*>(offsetof(TerrainVertex, fog)));
-    glEnableVertexAttribArray(5);
-    glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, sizeof(TerrainVertex), reinterpret_cast<void*>(offsetof(TerrainVertex, fogR)));
-    glEnableVertexAttribArray(6);
-    glVertexAttribPointer(6, 1, GL_FLOAT, GL_FALSE, sizeof(TerrainVertex), reinterpret_cast<void*>(offsetof(TerrainVertex, alpha)));
+    glVertexAttribPointer(4, 3, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof(TerrainVertex), reinterpret_cast<void*>(offsetof(TerrainVertex, fogR)));
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -2983,9 +2984,37 @@ void GLRenderer::AppendTerrainTriangle(std::vector<TerrainVertex>& vertices,
     const auto uv = GetTerrainUVs(reverse, second, direction);
     const float layer = static_cast<float>(textureLayer);
 
-    vertices.push_back({v0.v.x, v0.v.y, v0.v.z, uv[0].x, uv[0].y, layer, static_cast<float>(v0.Light), v0.Fog, fogColor0.x, fogColor0.y, fogColor0.z, alpha0});
-    vertices.push_back({v1.v.x, v1.v.y, v1.v.z, uv[1].x, uv[1].y, layer, static_cast<float>(v1.Light), v1.Fog, fogColor1.x, fogColor1.y, fogColor1.z, alpha1});
-    vertices.push_back({v2.v.x, v2.v.y, v2.v.z, uv[2].x, uv[2].y, layer, static_cast<float>(v2.Light), v2.Fog, fogColor2.x, fogColor2.y, fogColor2.z, alpha2});
+    // Phase 1.5: pack light/fog (0..200, treated as 0..255 in the
+    // shader) as uint8, alpha as uint8, and per-vertex fog color as a
+    // vec3 of uint8. The driver normalizes the uint8 back to [0,1] in
+    // the vertex shader, matching the old float layout.
+    vertices.push_back({v0.v.x, v0.v.y, v0.v.z, uv[0].x, uv[0].y, layer,
+                        Light255ToByte(static_cast<float>(v0.Light)),
+                        Light255ToByte(v0.Fog),
+                        Float01ToByte(alpha0),
+                        0,  // pad1
+                        Float01ToByte(fogColor0.x),
+                        Float01ToByte(fogColor0.y),
+                        Float01ToByte(fogColor0.z),
+                        0});  // pad2
+    vertices.push_back({v1.v.x, v1.v.y, v1.v.z, uv[1].x, uv[1].y, layer,
+                        Light255ToByte(static_cast<float>(v1.Light)),
+                        Light255ToByte(v1.Fog),
+                        Float01ToByte(alpha1),
+                        0,
+                        Float01ToByte(fogColor1.x),
+                        Float01ToByte(fogColor1.y),
+                        Float01ToByte(fogColor1.z),
+                        0});
+    vertices.push_back({v2.v.x, v2.v.y, v2.v.z, uv[2].x, uv[2].y, layer,
+                        Light255ToByte(static_cast<float>(v2.Light)),
+                        Light255ToByte(v2.Fog),
+                        Float01ToByte(alpha2),
+                        0,
+                        Float01ToByte(fogColor2.x),
+                        Float01ToByte(fogColor2.y),
+                        Float01ToByte(fogColor2.z),
+                        0});
 }
 
 float GetTerrainFogAmountForMapPoint(int mapX, int mapY, int legacyFog)
@@ -3019,9 +3048,37 @@ void GLRenderer::AppendWaterTriangle(std::vector<TerrainVertex>& vertices,
     const auto uv = GetTerrainUVs(reverse, second, direction);
     const float layer = static_cast<float>(textureLayer);
 
-    vertices.push_back({v0.v.x, v0.v.y, v0.v.z, uv[0].x, uv[0].y, layer, static_cast<float>(v0.Light), v0.Fog, fogColor0.x, fogColor0.y, fogColor0.z, alpha0});
-    vertices.push_back({v1.v.x, v1.v.y, v1.v.z, uv[1].x, uv[1].y, layer, static_cast<float>(v1.Light), v1.Fog, fogColor1.x, fogColor1.y, fogColor1.z, alpha1});
-    vertices.push_back({v2.v.x, v2.v.y, v2.v.z, uv[2].x, uv[2].y, layer, static_cast<float>(v2.Light), v2.Fog, fogColor2.x, fogColor2.y, fogColor2.z, alpha2});
+    // Phase 1.5: same uint8 packing as AppendTerrainTriangle. v0.Fog
+    // is in 0..200 from CalcFogLevel (clamped to FLimit, typically
+    // 200) and the old shader divided it by 255, so the uint8 packing
+    // matches byte-for-byte.
+    vertices.push_back({v0.v.x, v0.v.y, v0.v.z, uv[0].x, uv[0].y, layer,
+                        Light255ToByte(static_cast<float>(v0.Light)),
+                        Light255ToByte(v0.Fog),
+                        Float01ToByte(alpha0),
+                        0,
+                        Float01ToByte(fogColor0.x),
+                        Float01ToByte(fogColor0.y),
+                        Float01ToByte(fogColor0.z),
+                        0});
+    vertices.push_back({v1.v.x, v1.v.y, v1.v.z, uv[1].x, uv[1].y, layer,
+                        Light255ToByte(static_cast<float>(v1.Light)),
+                        Light255ToByte(v1.Fog),
+                        Float01ToByte(alpha1),
+                        0,
+                        Float01ToByte(fogColor1.x),
+                        Float01ToByte(fogColor1.y),
+                        Float01ToByte(fogColor1.z),
+                        0});
+    vertices.push_back({v2.v.x, v2.v.y, v2.v.z, uv[2].x, uv[2].y, layer,
+                        Light255ToByte(static_cast<float>(v2.Light)),
+                        Light255ToByte(v2.Fog),
+                        Float01ToByte(alpha2),
+                        0,
+                        Float01ToByte(fogColor2.x),
+                        Float01ToByte(fogColor2.y),
+                        Float01ToByte(fogColor2.z),
+                        0});
 }
 
 void GLRenderer::CollectTerrainTile(int x, int y, int r)

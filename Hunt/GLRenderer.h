@@ -88,15 +88,28 @@ public:
     void RenderElements();
 
 private:
+    // Packed terrain vertex (Phase 1.5). 32 bytes total (was 48).
+    //   offset  0: vec3  aPos                    (12 bytes)  -- attribute 0, float
+    //   offset 12: vec2  aTexCoord                ( 8 bytes)  -- attribute 1, float
+    //   offset 20: float aLayer                   ( 4 bytes)  -- attribute 2, float
+    //   offset 24: vec4  aLightFogAlpha           ( 4 bytes)  -- attribute 3, uint8 normalized
+    //                 .x = light, .y = fog, .z = alpha, .w = pad
+    //   offset 28: vec3  aFogColor                ( 3 bytes)  -- attribute 4, uint8 normalized
+    //   offset 31: 1 byte explicit padding to round the vertex up to 32 bytes
     struct TerrainVertex {
-        float x, y, z;
-        float u, v;
-        float layer;
-        float light;
-        float fog;
-        float fogR, fogG, fogB;
-        float alpha;
+        float    x, y, z;          // 12
+        float    u, v;             //  8
+        float    layer;            //  4
+        uint8_t  light;            //  1 (vec4.x)
+        uint8_t  fog;              //  1 (vec4.y)
+        uint8_t  alpha;            //  1 (vec4.z)
+        uint8_t  _pad1;            //  1 (vec4.w)
+        uint8_t  fogR;             //  1 (vec3.x)
+        uint8_t  fogG;             //  1 (vec3.y)
+        uint8_t  fogB;             //  1 (vec3.z)
+        uint8_t  _pad2;            //  1  (pad to 32)
     };
+    static_assert(sizeof(TerrainVertex) == 32, "TerrainVertex must stay 32 bytes (Phase 1.5)");
 
     // Packed model vertex (Phase 1.4). 32 bytes total (was 48).
     //   offset  0: vec3  aPos                    (12 bytes)  -- attribute 0, float
