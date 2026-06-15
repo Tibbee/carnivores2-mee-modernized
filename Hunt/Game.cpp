@@ -1688,6 +1688,26 @@ void InitEngine()
     return;
   }
 
+  // Phase 5C.2: Construct the per-level MemoryArena. C1 does this at
+  // Carnivores1/Hunt/Game.cpp:506 with 128 MiB; we use LEVEL_ARENA_SIZE
+  // (256 MiB) because C2 ME has more resident state (8 weapons, 128
+  // dino types, multiplayer, snow, etc.). The arena must be created
+  // AFTER HeapCreate (the Heap variable is referenced by all the
+  // _HeapAlloc dispatch) and BEFORE LoadResources (which tags most
+  // per-level allocations as MemoryTag::Level, causing them to land
+  // here instead of in Heap).
+  //
+  // Defensive: verify the smart pointer layout assumption that all of
+  // Phase 5 depends on -- if sizeof(unique_heap_ptr<T>) ever drifts
+  // away from a raw pointer, every struct field we migrated will
+  // silently change size and break the save-game / multiplayer
+  // protocols. C1 has the same static_assert in its InitEngine.
+  static_assert(sizeof(unique_heap_ptr<WORD[]>) == sizeof(void*),
+                "unique_heap_ptr<T[]> must be the same size as a raw pointer (x86 EBO)");
+  static_assert(sizeof(unique_obj_ptr<TModel>) == sizeof(void*),
+                "unique_obj_ptr<TModel> must be the same size as a raw pointer (x86 EBO)");
+  LevelArena = new MemoryArena(LEVEL_ARENA_SIZE, "LevelArena");
+
   Textures[255].reset((TEXTURE*) _HeapAlloc(Heap, 0, sizeof(TEXTURE)));
 
   WaterR = 10;
@@ -1803,6 +1823,16 @@ void ShutDownEngine()
   ReleaseResources();
   ReleaseGlobalResources();
   ReleaseDC(hwndMain,hdcMain);
+
+  // Phase 5C.2: Tear down the LevelArena after all _HeapFree calls have
+  // run. C1 has the same order (Carnivores1/Hunt/Game.cpp:669-670).
+  // LevelArena->Reset() in ReleaseResources() expects LevelArena to be
+  // alive; delete must come AFTER that. The VirtualFree on the arena's
+  // base pointer is the only thing the destructor does.
+  if (LevelArena) {
+    delete LevelArena;
+    LevelArena = nullptr;
+  }
 }
 
 

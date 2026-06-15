@@ -1811,8 +1811,11 @@ void LoadCharacters()
 	  
     }
 
-  // Allocate space for normals fitting all available weapons
-  Weapon.normals.reset((Vector3d*)_HeapAlloc(Heap, 0, sizeof(Vector3d) * maxWeaponVCount));
+  // Allocate space for normals fitting all available weapons. This is
+  // a per-level allocation -- it's reallocated in LoadResources() on
+  // each level load, and the old one is dropped by LevelArena->Reset()
+  // in ReleaseResources(). Tag it Level so the arena holds it.
+  Weapon.normals.reset((Vector3d*)_HeapAlloc(Heap, 0, sizeof(Vector3d) * maxWeaponVCount, MemoryTag::Level));
 
   for (int c=10; c<20; c++)
     if (TargetDino & (1<<c))
@@ -1985,10 +1988,14 @@ void ReInitGame()
   answtime = 0;
   ExitTime = 0;
 
-  // Allocate (vertex count based) buffers for renderers
-  rVertex = (Vector3d*)_HeapAlloc(Heap, 0, sizeof(Vector3d) * MaxObjectVCount);
-  gScrp = (Vector2di*)_HeapAlloc(Heap, 0, sizeof(Vector2di) * MaxObjectVCount);
-  PhongMapping = (Vector2df*)_HeapAlloc(Heap, 0, sizeof(Vector2df) * MaxObjectVCount);
+  // Allocate (vertex count based) buffers for renderers. These are
+  // per-level scratch (reset on each ReInitGame call before the new
+  // level's vertices are read), so they go in the LevelArena. The
+  // previous 3-arg form went to Heap; the arena will reclaim them on
+  // LevelArena->Reset() during ReleaseResources().
+  rVertex = (Vector3d*)_HeapAlloc(Heap, 0, sizeof(Vector3d) * MaxObjectVCount, MemoryTag::Level);
+  gScrp = (Vector2di*)_HeapAlloc(Heap, 0, sizeof(Vector2di) * MaxObjectVCount, MemoryTag::Level);
+  PhongMapping = (Vector2df*)_HeapAlloc(Heap, 0, sizeof(Vector2df) * MaxObjectVCount, MemoryTag::Level);
   AllocateRenderTables();
 }
 

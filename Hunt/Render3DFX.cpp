@@ -52,8 +52,11 @@ struct Tfxmemmap
 Tfxmemmap FxMemMap[fxmemmapsize+2];
 
 void AllocateRenderTables(void) {
-  vFogT = static_cast<float*>(_HeapAlloc(Heap, 0, sizeof(float) * MaxObjectVCount));
-  vLight = static_cast<float*>(_HeapAlloc(Heap, 0, sizeof(float) * MaxObjectVCount));
+  // Phase 5C.2: these are per-level scratch (AllocateRenderTables is
+  // called from ReInitGame(), which runs on every level load). Tag
+  // them Level so the arena reclaims them on LevelArena->Reset().
+  vFogT = static_cast<float*>(_HeapAlloc(Heap, 0, sizeof(float) * MaxObjectVCount, MemoryTag::Level));
+  vLight = static_cast<float*>(_HeapAlloc(Heap, 0, sizeof(float) * MaxObjectVCount, MemoryTag::Level));
 }
 
 void CalcFogLevel_Gradient(Vector3d v)
