@@ -1632,37 +1632,71 @@ void GLRenderer::RenderWorldModels()
     }
 
     const auto projection = BuildLegacyProjection();
-    for (const ModelDrawItem& item : m_worldModelItems) {
-        DrawModelVertices(item.texture, item.opaqueVertices, projection, true, false, false);
 
+    // Phase 1.7: bucket items by (pass, texture, additive) and merge their
+    // vertex lists into one draw call per bucket. One draw call per (texture,
+    // pass) group instead of one per item, which collapses the per-item
+    // glBindTexture + glBufferData(orphan) + glBufferSubData round-trips
+    // into a single round-trip per group.
+    //
+    //   pass:     0 = opaque, 1 = cutout, 2 = transparent
+    //   texture:  GL texture handle
+    //   additive: true for transparent items with GL_BLEND_FUNC(SRC_ALPHA, ONE)
+    //
+    // Within the transparent pass, items are appended in their original
+    // dispatch order (which is back-to-front for transparent), so the
+    // within-texture order is still back-to-front. Across textures the order
+    // becomes texture-handle order, which can put a far item of texture A
+    // before a near item of texture B -- the same tie-breaking the original
+    // dispatch order had for items of equal distance, just made explicit.
+    struct BucketKey {
+        int pass;
+        GLuint texture;
+        bool additive;
+        bool operator<(const BucketKey& o) const {
+            if (pass != o.pass) return pass < o.pass;
+            if (texture != o.texture) return texture < o.texture;
+            // Within transparent, additive draws after alpha-blend so the
+            // additive pass can layer on top.
+            if (pass == 2) return !additive && o.additive;
+            return false;
+        }
+    };
+
+    std::map<BucketKey, std::vector<ModelVertex>> buckets;
+
+    for (const ModelDrawItem& item : m_worldModelItems) {
+        if (!item.opaqueVertices.empty()) {
+            auto& v = buckets[{0, item.texture, false}];
+            v.insert(v.end(), item.opaqueVertices.begin(), item.opaqueVertices.end());
+        }
         if (!item.cutoutVertices.empty()) {
-            SetModelTextureFiltering(item.texture, true);
-            DrawModelVertices(item.texture, item.cutoutVertices, projection, true, false, false);
-            SetModelTextureFiltering(item.texture, false);
+            auto& v = buckets[{1, item.texture, false}];
+            v.insert(v.end(), item.cutoutVertices.begin(), item.cutoutVertices.end());
         }
-    }
-
-    m_transparentModelItems.clear();
-    m_transparentModelItems.reserve(m_worldModelItems.size());
-    for (const ModelDrawItem& item : m_worldModelItems) {
         if (!item.transparentVertices.empty()) {
-            m_transparentModelItems.push_back(&item);
+            auto& v = buckets[{2, item.texture, item.additive}];
+            v.insert(v.end(), item.transparentVertices.begin(), item.transparentVertices.end());
         }
     }
 
-    std::sort(m_transparentModelItems.begin(), m_transparentModelItems.end(),
-              [](const ModelDrawItem* a, const ModelDrawItem* b) {
-                  return a->distance > b->distance;
-              });
-
-    for (const ModelDrawItem* item : m_transparentModelItems) {
-        const bool useNearestFiltering = NeedsNearestModelFiltering(item->transparentVertices);
-        if (useNearestFiltering) {
-            SetModelTextureFiltering(item->texture, true);
+    for (const auto& [key, verts] : buckets) {
+        if (verts.empty()) {
+            continue;
         }
-        DrawModelVertices(item->texture, item->transparentVertices, projection, true, true, item->additive);
-        if (useNearestFiltering) {
-            SetModelTextureFiltering(item->texture, false);
+
+        // Cutout pass: nearest filtering for crisp alpha edges. Reset after
+        // the draw so subsequent draws of the same texture see the default.
+        if (key.pass == 1) {
+            SetModelTextureFiltering(key.texture, true);
+        }
+
+        const bool enableBlend = (key.pass == 2);
+        const bool additive     = (key.pass == 2) && key.additive;
+        DrawModelVertices(key.texture, verts, projection, true, enableBlend, additive);
+
+        if (key.pass == 1) {
+            SetModelTextureFiltering(key.texture, false);
         }
     }
 
