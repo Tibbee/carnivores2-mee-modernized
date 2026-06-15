@@ -122,6 +122,8 @@ private:
     void ShutdownTerrainPipeline();
     bool InitializeModelPipeline();
     void ShutdownModelPipeline();
+    void UpdatePerFrameUBO();
+    void EnsurePerFrameUBO();
     void BeginTerrainFrame();
     void BeginWaterFrame();
     void RenderTerrain();
@@ -223,6 +225,36 @@ private:
     unsigned int m_whiteTexture = 0;  // 1x1 white texture for flat-color rendering
     unsigned int m_phongTexture = 0;
     unsigned int m_envTexture = 0;
+
+    // Cached uniform locations (Phase 1.6, 1.9): set once at Initialize();
+    // eliminates per-draw glGetUniformLocation lookups.
+    int m_locModelTexture = -1;        // model shader: uModelTexture sampler
+    int m_locModelTint = -1;           // model shader: uTintByFogColor
+    int m_locSkyTexture = -1;          // sky shader: uSkyTexture
+    int m_locSkyViewport = -1;         // sky shader: uViewport
+    int m_locSkyVideoCenter = -1;      // sky shader: uVideoCenter
+    int m_locSkyQ = -1;                // sky shader: uQ
+    int m_locSkyP = -1;                // sky shader: uP
+    int m_locSkyR = -1;                // sky shader: uR
+    int m_locSkyTime = -1;             // sky shader: uSkyTime
+    int m_locSkyFogBase = -1;          // sky shader: uFogBase
+
+    // PerFrame UBO (Phase 1.1): binding 0, shared by terrain and model shaders.
+    // std140 layout: mat4 uProjection + vec2 uFogRange + vec3 uDistanceFogColor
+    // + float uForceFog + vec3 uFogColor = 108 bytes, padded to 112.
+    // The cached fields are repacked into the UBO on every UpdatePerFrameUBO()
+    // call. The projection is recomputed each call because near-model draws
+    // (wind indicator, compass, weapon viewmodels) change VideoCX/VideoCY/
+    // CameraW/CameraH between the main scene and the HUD overlay, so a
+    // per-frame cache would feed a stale matrix to the near-model path.
+    unsigned int m_perFrameUBO = 0;
+    bool m_perFrameUBOInitialized = false;
+    std::array<float, 16> m_cachedProjection{};
+    float m_cachedFogStart = 0.0f;
+    float m_cachedFogDistance = 0.0f;
+    float m_cachedForceFog = 0.0f;
+    float m_cachedDistanceFogColor[3] = {0.0f, 0.0f, 0.0f};
+    float m_cachedFogColor[3] = {0.0f, 0.0f, 0.0f};
     bool m_hasLastNearModelProjection = false;
     std::array<float, 16> m_lastNearModelProjection{};
     std::map<const TModel*, GLuint> m_modelTextureCache;

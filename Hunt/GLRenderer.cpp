@@ -553,7 +553,13 @@ bool GLRenderer::Initialize()
         "layout (location = 4) in float aFog;\n"
         "layout (location = 5) in vec3 aFogColor;\n"
         "layout (location = 6) in float aAlpha;\n"
-        "uniform mat4 uProjection;\n"
+        "uniform PerFrame {\n"
+        "   mat4 uProjection;\n"
+        "   vec2 uFogRange;          // (fadeStart, distance)\n"
+        "   vec3 uDistanceFogColor;\n"
+        "   float uForceFog;\n"
+        "   vec3 uFogColor;\n"
+        "};\n"
         "out vec2 vTexCoord;\n"
         "flat out int vLayer;\n"
         "out float vLight;\n"
@@ -582,21 +588,25 @@ bool GLRenderer::Initialize()
         "in vec3 vFogColor;\n"
         "in float vAlpha;\n"
         "in float vViewZ;\n"
+        "uniform PerFrame {\n"
+        "   mat4 uProjection;\n"
+        "   vec2 uFogRange;          // (fadeStart, distance)\n"
+        "   vec3 uDistanceFogColor;\n"
+        "   float uForceFog;\n"
+        "   vec3 uFogColor;\n"
+        "};\n"
         "uniform sampler2DArray uTerrainArray;\n"
-        "uniform float uFogDistance;\n"
-        "uniform float uFogFadeStart;\n"
-        "uniform vec3 uDistanceFogColor;\n"
         "void main() {\n"
         "   vec4 texColor = texture(uTerrainArray, vec3(vTexCoord, float(vLayer)));\n"
         "   if (texColor.a < 0.05) discard;\n"
         "   vec3 litColor = texColor.rgb * vLight;\n"
         "   // Per-vertex volumetric fog (volume-specific color and amount).\n"
         "   vec3 volumetricFogColor = mix(litColor, vFogColor, vFog);\n"
-        "   // Per-pixel distance fog: smooth ramp from uFogFadeStart to\n"
-        "   // uFogDistance. Uses the global horizon color instead of the\n"
+        "   // Per-pixel distance fog: smooth ramp from uFogRange.x to\n"
+        "   // uFogRange.y. Uses the global horizon color instead of the\n"
         "   // per-vertex vFogColor, which prevents local fog volumes from\n"
         "   // bleeding into the horizon fade.\n"
-        "   float distanceFog = clamp((vViewZ - uFogFadeStart) / max(uFogDistance - uFogFadeStart, 1.0), 0.0, 1.0);\n"
+        "   float distanceFog = clamp((vViewZ - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);\n"
         "   vec3 finalColor = mix(volumetricFogColor, uDistanceFogColor, distanceFog);\n"
         "   FragColor = vec4(finalColor, texColor.a * vAlpha);\n"
         "}\n";
@@ -626,7 +636,13 @@ bool GLRenderer::Initialize()
         "layout (location = 4) in vec3 aFogColor;\n"
         "layout (location = 5) in float aAlpha;\n"
         "layout (location = 6) in float aCutout;\n"
-        "uniform mat4 uProjection;\n"
+        "uniform PerFrame {\n"
+        "   mat4 uProjection;\n"
+        "   vec2 uFogRange;\n"
+        "   vec3 uDistanceFogColor;\n"
+        "   float uForceFog;\n"
+        "   vec3 uFogColor;\n"
+        "};\n"
         "out vec2 vTexCoord;\n"
         "out float vLight;\n"
         "out float vFog;\n"
@@ -652,6 +668,13 @@ bool GLRenderer::Initialize()
         "in vec3 vFogColor;\n"
         "in float vAlpha;\n"
         "in float vCutout;\n"
+        "uniform PerFrame {\n"
+        "   mat4 uProjection;\n"
+        "   vec2 uFogRange;\n"
+        "   vec3 uDistanceFogColor;\n"
+        "   float uForceFog;\n"
+        "   vec3 uFogColor;\n"
+        "};\n"
         "uniform sampler2D uModelTexture;\n"
         "uniform float uTintByFogColor;\n"
         "void main() {\n"
@@ -703,6 +726,43 @@ bool GLRenderer::Initialize()
     glClearColor(fogColor.x, fogColor.y, fogColor.z, 1.0f);
 
     m_uploadedTerrainTextures.fill(nullptr);
+
+    // ---- Phase 1.1: PerFrame UBO (binding 0) shared by terrain, model, and sky shaders.
+    // Create the UBO once and bind all three shaders' PerFrame blocks to binding 0.
+    EnsurePerFrameUBO();
+    if (m_perFrameUBO) {
+        const GLuint perFrameBlock_terrain = glGetUniformBlockIndex(m_terrainShader, "PerFrame");
+        if (perFrameBlock_terrain != GL_INVALID_INDEX) {
+            glUniformBlockBinding(m_terrainShader, perFrameBlock_terrain, 0);
+        }
+        const GLuint perFrameBlock_model = glGetUniformBlockIndex(m_modelShader, "PerFrame");
+        if (perFrameBlock_model != GL_INVALID_INDEX) {
+            glUniformBlockBinding(m_modelShader, perFrameBlock_model, 0);
+        }
+        const GLuint perFrameBlock_sky = glGetUniformBlockIndex(m_skyShader, "PerFrame");
+        if (perFrameBlock_sky != GL_INVALID_INDEX) {
+            glUniformBlockBinding(m_skyShader, perFrameBlock_sky, 0);
+        }
+        // Bind the UBO to binding 0 once. The binding persists for the
+        // program's lifetime; we update the data with glBufferSubData.
+        glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_perFrameUBO);
+    }
+
+    // ---- Phase 1.6, 1.9: cache uniform locations to eliminate per-draw
+    // glGetUniformLocation calls. Sampler uniforms (uModelTexture, uTerrainArray,
+    // uSkyTexture) are set once at init; tint/light uniforms are set per draw
+    // using the cached location.
+    m_locModelTexture    = glGetUniformLocation(m_modelShader, "uModelTexture");
+    m_locModelTint       = glGetUniformLocation(m_modelShader, "uTintByFogColor");
+    m_locSkyTexture      = glGetUniformLocation(m_skyShader, "uSkyTexture");
+    m_locSkyViewport     = glGetUniformLocation(m_skyShader, "uViewport");
+    m_locSkyVideoCenter  = glGetUniformLocation(m_skyShader, "uVideoCenter");
+    m_locSkyQ            = glGetUniformLocation(m_skyShader, "uQ");
+    m_locSkyP            = glGetUniformLocation(m_skyShader, "uP");
+    m_locSkyR            = glGetUniformLocation(m_skyShader, "uR");
+    m_locSkyTime         = glGetUniformLocation(m_skyShader, "uSkyTime");
+    m_locSkyFogBase      = glGetUniformLocation(m_skyShader, "uFogBase");
+
     m_Initialized = true;
     PrintLog("GL: Initialize() completed successfully.\n");
     return true;
@@ -901,6 +961,92 @@ void GLRenderer::ShutdownTerrainPipeline()
     m_uploadedTerrainTextures.fill(nullptr);
 }
 
+// ==========================================================================
+// PerFrame UBO (Phase 1.1)
+// Shared by terrain and model shaders. std140 layout:
+//   offset 0   : mat4  uProjection           (64 bytes)
+//   offset 64  : vec2  uFogRange             ( 8 bytes)  (fadeStart, distance)
+//   offset 72  :        (pad to vec3 align)  ( 8 bytes)
+//   offset 80  : vec3  uDistanceFogColor     (12 bytes)
+//   offset 92  : float uForceFog             ( 4 bytes)
+//   offset 96  : vec3  uFogColor             (12 bytes)
+//   total 108 bytes; UBO is 112 bytes (padded to next 16-byte boundary).
+// ==========================================================================
+
+void GLRenderer::EnsurePerFrameUBO()
+{
+    if (m_perFrameUBOInitialized) {
+        return;
+    }
+    constexpr GLsizeiptr kUBOBytes = 112;
+    glGenBuffers(1, &m_perFrameUBO);
+    glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
+    glBufferData(GL_UNIFORM_BUFFER, kUBOBytes, nullptr, GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    m_perFrameUBOInitialized = true;
+}
+
+void GLRenderer::UpdatePerFrameUBO()
+{
+    if (!m_perFrameUBO || !m_perFrameUBOInitialized) {
+        return;
+    }
+
+    // Always recompute the projection. We can't cache it because the
+    // projection depends on VideoCX/VideoCY/CameraW/CameraH, which the
+    // near-model path (wind/compass/weapon viewmodels) changes between
+    // draws. BuildLegacyProjection is cheap enough that recomputing per
+    // draw costs microseconds, vs. the visual regression of a stale
+    // matrix.
+    m_cachedProjection = BuildLegacyProjection();
+
+    // Fog range only depends on ctViewR, but ctViewR can change at runtime
+    // (widescreen FOV), so we recompute unconditionally too.
+    m_cachedFogStart    = static_cast<float>(ctViewR) * 192.0f;
+    m_cachedFogDistance = static_cast<float>(ctViewR) * 256.0f;
+
+    // Distance fog color is read fresh from GetDistanceFogColor() (it can
+    // change every frame as the smoothed sky color updates).
+    const Vector3d distFogColor = GetDistanceFogColor();
+    m_cachedDistanceFogColor[0] = distFogColor.x;
+    m_cachedDistanceFogColor[1] = distFogColor.y;
+    m_cachedDistanceFogColor[2] = distFogColor.z;
+
+    // Sky fog color tracks the smoothed value in m_smoothedSkyFogColor.
+    m_cachedFogColor[0] = m_smoothedSkyFogColor.x;
+    m_cachedFogColor[1] = m_smoothedSkyFogColor.y;
+    m_cachedFogColor[2] = m_smoothedSkyFogColor.z;
+
+    m_cachedForceFog = UNDERWATER ? 1.0f : 0.0f;
+
+    // Pack into a 28-float (112-byte) buffer matching the GLSL std140 layout:
+    //   offset 0   : mat4 uProjection           (16 floats)
+    //   offset 64  : vec2 uFogRange             ( 2 floats)  (fadeStart, distance)
+    //   offset 72  :        (pad to vec3 align) ( 2 floats)
+    //   offset 80  : vec3 uDistanceFogColor     ( 3 floats)
+    //   offset 92  : float uForceFog             ( 1 float)
+    //   offset 96  : vec3 uFogColor              ( 3 floats)
+    //   offset 108 :        (pad to 16)          ( 1 float)
+    std::array<float, 28> data{};
+    std::memcpy(&data[0],  m_cachedProjection.data(), 16 * sizeof(float));
+    data[16] = m_cachedFogStart;     // uFogRange.x
+    data[17] = m_cachedFogDistance;  // uFogRange.y
+    data[18] = 0.0f;                 // pad to vec3 alignment
+    data[19] = 0.0f;                 // pad to vec3 alignment
+    data[20] = m_cachedDistanceFogColor[0];
+    data[21] = m_cachedDistanceFogColor[1];
+    data[22] = m_cachedDistanceFogColor[2];
+    data[23] = m_cachedForceFog;
+    data[24] = m_cachedFogColor[0];
+    data[25] = m_cachedFogColor[1];
+    data[26] = m_cachedFogColor[2];
+    data[27] = 0.0f;                 // pad to 16-byte boundary
+
+    glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, data.size() * sizeof(float), data.data());
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
 void GLRenderer::BeginTerrainFrame()
 {
     m_terrainVertices.clear();
@@ -939,21 +1085,16 @@ void GLRenderer::RenderWaterSurface()
     }
 
     const auto projection = BuildLegacyProjection();
+    UpdatePerFrameUBO();
     glUseProgram(m_terrainShader);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
-    glUniformMatrix4fv(glGetUniformLocation(m_terrainShader, "uProjection"), 1, GL_FALSE, projection.data());
-    // Per-pixel distance fog: uFogDistance is the view distance (ctViewR*256
-    // in world units); uFogFadeStart is where the per-pixel ramp begins,
-    // at 75% of the view distance. Between fade-start and distance the
-    // terrain blends from the per-vertex volumetric fog color toward the
-    // global horizon fog color, keeping local volume colors from tinting
-    // the far horizon.
-    glUniform1f(glGetUniformLocation(m_terrainShader, "uFogDistance"), static_cast<float>(ctViewR) * 256.0f);
-    glUniform1f(glGetUniformLocation(m_terrainShader, "uFogFadeStart"), static_cast<float>(ctViewR) * 192.0f);
-    const Vector3d distFogColor = GetDistanceFogColor();
-    glUniform3f(glGetUniformLocation(m_terrainShader, "uDistanceFogColor"), distFogColor.x, distFogColor.y, distFogColor.z);
+    // Per-pixel distance fog: uFogRange is the (fadeStart, distance) pair,
+    // now sourced from the PerFrame UBO. The shader interpolates between
+    // the per-vertex volumetric fog color and the global horizon color
+    // (uDistanceFogColor, also in the UBO), keeping local volumes from
+    // tinting the far horizon.
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);
@@ -1370,12 +1511,14 @@ void GLRenderer::DrawModelVertices(GLuint texture,
         return;
     }
 
+    UpdatePerFrameUBO();
     glUseProgram(m_modelShader);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
-    glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, projection.data());
-    glUniform1f(glGetUniformLocation(m_modelShader, "uTintByFogColor"), tintByFogColor ? 1.0f : 0.0f);
+    // uProjection is now in the PerFrame UBO (Phase 1.1). uTintByFogColor
+    // stays a per-draw uniform; location cached at Initialize() (1.6).
+    glUniform1f(m_locModelTint, tintByFogColor ? 1.0f : 0.0f);
 
     if (depthTest) {
         glEnable(GL_DEPTH_TEST);
@@ -2092,11 +2235,12 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
         1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1
     };
 
+    UpdatePerFrameUBO();
     glUseProgram(m_modelShader);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
-    glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, identity);
+    // uProjection in PerFrame UBO (Phase 1.1)
 
     glEnable(GL_DEPTH_TEST);
 #ifdef GL_PERF_HOOKS
@@ -3158,13 +3302,8 @@ void GLRenderer::RenderTerrain()
         }
     }
 
-    const auto projection = BuildLegacyProjection();
+    UpdatePerFrameUBO();
     glUseProgram(m_terrainShader);
-    glUniformMatrix4fv(glGetUniformLocation(m_terrainShader, "uProjection"), 1, GL_FALSE, projection.data());
-    glUniform1f(glGetUniformLocation(m_terrainShader, "uFogDistance"), static_cast<float>(ctViewR) * 256.0f);
-    glUniform1f(glGetUniformLocation(m_terrainShader, "uFogFadeStart"), static_cast<float>(ctViewR) * 192.0f);
-    const Vector3d distFogColor2 = GetDistanceFogColor();
-    glUniform3f(glGetUniformLocation(m_terrainShader, "uDistanceFogColor"), distFogColor2.x, distFogColor2.y, distFogColor2.z);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);
@@ -3429,15 +3568,20 @@ void GLRenderer::InitializeSkyPipeline()
         "#version 330 core\n"
         "in vec2 vNdc;\n"
         "out vec4 FragColor;\n"
+        "uniform PerFrame {\n"
+        "   mat4 uProjection;\n"
+        "   vec2 uFogRange;\n"
+        "   vec3 uDistanceFogColor;\n"
+        "   float uForceFog;\n"
+        "   vec3 uFogColor;\n"
+        "};\n"
         "uniform sampler2D uSkyTexture;\n"
         "uniform vec2 uViewport;\n"
         "uniform vec2 uVideoCenter;\n"
-        "uniform vec3 uFogColor;\n"
         "uniform vec3 uQ;\n"
         "uniform vec3 uP;\n"
         "uniform vec3 uR;\n"
         "uniform float uSkyTime;\n"
-        "uniform float uForceFog;\n"
         "uniform float uFogBase;\n"
         "void main() {\n"
         "   vec2 pixel = vec2((vNdc.x * 0.5 + 0.5) * uViewport.x,\n"
@@ -3636,11 +3780,12 @@ void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int 
     if (m_sunModelVertices.empty()) return;
 
     const auto projection = BuildLegacyProjection();
+    UpdatePerFrameUBO();
     glUseProgram(m_modelShader);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
-    glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, projection.data());
+    // uProjection in PerFrame UBO (Phase 1.1)
 
     glEnable(GL_BLEND);
 #ifdef GL_PERF_HOOKS
@@ -3792,11 +3937,12 @@ void GLRenderer::RenderFSRect(uint32_t color)
     GL_PERF_STATE_CHANGE();
 #endif
 
+    UpdatePerFrameUBO();
     glUseProgram(m_modelShader);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
-    glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, identity);
+    // uProjection in PerFrame UBO (Phase 1.1)
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_whiteTexture);
@@ -3902,17 +4048,16 @@ void GLRenderer::RenderSkyPlane()
         m_smoothedSkyFogColor.z += (targetSkyFogColor.z - m_smoothedSkyFogColor.z) * k;
     }
 
+    UpdatePerFrameUBO();
     glUseProgram(m_skyShader);
-    glUniform1i(glGetUniformLocation(m_skyShader, "uSkyTexture"), 0);
-    glUniform2f(glGetUniformLocation(m_skyShader, "uViewport"), static_cast<float>(WinW), static_cast<float>(WinH));
-    glUniform2f(glGetUniformLocation(m_skyShader, "uVideoCenter"), static_cast<float>(VideoCX), static_cast<float>(VideoCY));
-    glUniform3f(glGetUniformLocation(m_skyShader, "uFogColor"),
-                m_smoothedSkyFogColor.x, m_smoothedSkyFogColor.y, m_smoothedSkyFogColor.z);
-    glUniform3f(glGetUniformLocation(m_skyShader, "uQ"), qx, qy, qz);
-    glUniform3f(glGetUniformLocation(m_skyShader, "uP"), px, py, pz);
-    glUniform3f(glGetUniformLocation(m_skyShader, "uR"), rx, ry, rz);
-    glUniform1f(glGetUniformLocation(m_skyShader, "uSkyTime"), static_cast<float>(SKYDTime) / 256.0f);
-    glUniform1f(glGetUniformLocation(m_skyShader, "uForceFog"), UNDERWATER ? 1.0f : 0.0f);
+    glUniform1i(m_locSkyTexture, 0);
+    glUniform2f(m_locSkyViewport, static_cast<float>(WinW), static_cast<float>(WinH));
+    glUniform2f(m_locSkyVideoCenter, static_cast<float>(VideoCX), static_cast<float>(VideoCY));
+    // uFogColor and uForceFog now sourced from PerFrame UBO (Phase 1.1).
+    glUniform3f(m_locSkyQ, qx, qy, qz);
+    glUniform3f(m_locSkyP, px, py, pz);
+    glUniform3f(m_locSkyR, rx, ry, rz);
+    glUniform1f(m_locSkyTime, static_cast<float>(SKYDTime) / 256.0f);
 
     // Sample CalcFogLevel directly above the camera (X=0, Z=0 in
     // camera-relative space) at sky height to get the base fog amount
@@ -3923,7 +4068,7 @@ void GLRenderer::RenderSkyPlane()
     // boundaries along the X axis.
     const Vector3d fogProbe = {0.0f, 4.0f * 512.0f * 16.0f, 0.0f};
     const float fogBase = CalcFogLevel(fogProbe);
-    glUniform1f(glGetUniformLocation(m_skyShader, "uFogBase"), fogBase);
+    glUniform1f(m_locSkyFogBase, fogBase);
 
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
