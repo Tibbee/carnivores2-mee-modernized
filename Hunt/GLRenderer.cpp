@@ -4071,22 +4071,32 @@ void GLRenderer::RenderFSRect(uint32_t color)
     // Reuse the persistent 1x1 white texture created for flat-color rendering.
     if (!m_whiteTexture) return;
 
-    // Build a fullscreen quad — use fog=1.0 so the model shader
-    // outputs the fog color (our desired glare color) instead of the texture
-    struct FSVertex { float x, y, z, u, v, light, fog, fogR, fogG, fogB, alpha, cutout; };
-    const FSVertex quad[6] = {
-        {-1.0f, -1.0f, 0.0001f, 0, 0, 255, 1.0f, r, g, b, a, 0},
-        { 1.0f, -1.0f, 0.0001f, 0, 0, 255, 1.0f, r, g, b, a, 0},
-        { 1.0f,  1.0f, 0.0001f, 0, 0, 255, 1.0f, r, g, b, a, 0},
-        {-1.0f, -1.0f, 0.0001f, 0, 0, 255, 1.0f, r, g, b, a, 0},
-        { 1.0f,  1.0f, 0.0001f, 0, 0, 255, 1.0f, r, g, b, a, 0},
-        {-1.0f,  1.0f, 0.0001f, 0, 0, 255, 1.0f, r, g, b, a, 0},
+    // Build a fullscreen quad using the packed ModelVertex layout
+    // (Phase 1.4: 32 bytes, color attributes are uint8 normalized).
+    // The pre-Phase-1.4 local FSVertex struct used float fields for
+    // light/fog/fogR/G/B/alpha/cutout, which the GL driver reads as
+    // raw bytes -- producing garbage colors. Must use the same packed
+    // layout as ModelVertex for the VBO's attribute pointers to interpret
+    // the data correctly.
+    const uint8_t lightByte  = 255;
+    const uint8_t fogByte    = 255;                 // 1.0 normalized
+    const uint8_t alphaByte  = static_cast<uint8_t>(a * 255.0f + 0.5f);
+    const uint8_t cutoutByte = 0;
+    const uint8_t fogRByte   = static_cast<uint8_t>(r * 255.0f + 0.5f);
+    const uint8_t fogGByte   = static_cast<uint8_t>(g * 255.0f + 0.5f);
+    const uint8_t fogBByte   = static_cast<uint8_t>(b * 255.0f + 0.5f);
+    const ModelVertex quad[6] = {
+        {-1.0f, -1.0f, 0.0001f, 0, 0, lightByte, fogByte, alphaByte, cutoutByte, fogRByte, fogGByte, fogBByte, {0,0,0,0,0}},
+        { 1.0f, -1.0f, 0.0001f, 0, 0, lightByte, fogByte, alphaByte, cutoutByte, fogRByte, fogGByte, fogBByte, {0,0,0,0,0}},
+        { 1.0f,  1.0f, 0.0001f, 0, 0, lightByte, fogByte, alphaByte, cutoutByte, fogRByte, fogGByte, fogBByte, {0,0,0,0,0}},
+        {-1.0f, -1.0f, 0.0001f, 0, 0, lightByte, fogByte, alphaByte, cutoutByte, fogRByte, fogGByte, fogBByte, {0,0,0,0,0}},
+        { 1.0f,  1.0f, 0.0001f, 0, 0, lightByte, fogByte, alphaByte, cutoutByte, fogRByte, fogGByte, fogBByte, {0,0,0,0,0}},
+        {-1.0f,  1.0f, 0.0001f, 0, 0, lightByte, fogByte, alphaByte, cutoutByte, fogRByte, fogGByte, fogBByte, {0,0,0,0,0}},
     };
 
-    // The quad is already in NDC, so we need the identity projection in
-    // the UBO (not the world projection). The local 'identity' matrix
-    // here was the old glUniformMatrix4fv value; the UBO replaces that
-    // path entirely.
+    // The fullscreen quad is already in NDC, so the UBO must carry the
+    // identity projection. With the world projection here, the NDC
+    // vertices get re-projected off-screen and the glare is invisible.
     const std::array<float, 16> identity = {
         1.0f,0.0f,0.0f,0.0f, 0.0f,1.0f,0.0f,0.0f, 0.0f,0.0f,1.0f,0.0f, 0.0f,0.0f,0.0f,1.0f
     };
@@ -4108,10 +4118,6 @@ void GLRenderer::RenderFSRect(uint32_t color)
     GL_PERF_STATE_CHANGE();
 #endif
 
-    // The fullscreen quad is in NDC (gl_Position in [-1, 1] after identity),
-    // so the UBO must carry the identity projection. With the world
-    // projection here, the NDC vertices get re-projected off-screen and
-    // the glare is invisible.
     UpdatePerFrameUBO(identity);
     glUseProgram(m_modelShader);
 #ifdef GL_PERF_HOOKS
