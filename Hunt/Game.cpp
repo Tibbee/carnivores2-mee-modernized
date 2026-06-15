@@ -772,7 +772,7 @@ void AddShipTask(int cindex)
     ShipTask.clist[ShipTask.tcount] = cindex;
     ShipTask.tcount++;
     AddVoicev(ShipModel.SoundFX[3].length,
-              ShipModel.SoundFX[3].lpData, 256);
+              ShipModel.SoundFX[3].lpData.data(), 256);
 
   }
 
@@ -815,7 +815,7 @@ void AddShipSupply(float tx, float tz) {
 	if (GetLandUpH(PlayerX, PlayerZ) > GetLandH(PlayerX, PlayerZ)) return;
 
 	AddVoicev(SShipModel.SoundFX[1].length,
-		SShipModel.SoundFX[1].lpData, 256);
+		SShipModel.SoundFX[1].lpData.data(), 256);
 
 	SShip.DeltaY = 7048.f;
 
@@ -873,11 +873,11 @@ void HideWeapon()
 	if (UNDERWATER) {
 		if (WeapInfo[CurrentWeapon].getAqSnd >= 0)
 			AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].getAqSnd].length,
-				wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].getAqSnd].lpData, 256);
+				wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].getAqSnd].lpData.data(), 256);
 	} else {
 		int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].getAnim];
 		if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
-			wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData, 256);
+			wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
 	}
     wptr->FTime = 0;
     wptr->state = 1;
@@ -894,11 +894,11 @@ void HideWeapon()
   if (UNDERWATER) {
 	  if (WeapInfo[CurrentWeapon].putAqSnd >= 0)
 		  AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].putAqSnd].length,
-			  wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].putAqSnd].lpData, 256);
+			  wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].putAqSnd].lpData.data(), 256);
   } else {
 	  int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].putAnim];
 	  if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
-		  wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData, 256);
+		  wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
   }
   wptr->state = 3;
   wptr->FTime = 0;
@@ -1854,7 +1854,7 @@ void MakeCall()
   NextCall%=3;
 
   AddVoicev(fxCall[TargetCall-10][NextCall].length,
-            fxCall[TargetCall-10][NextCall].lpData, 256);
+            fxCall[TargetCall-10][NextCall].lpData.data(), 256);
 
   //multiplayer
   sendHunterCall = TargetCall - 10;
@@ -2106,14 +2106,14 @@ int AnimateBullet(float ax, float ay, float az,
 	  if (sres == tresGround) {
 		  if (!poon) AddElements(bx, by, bz, partGround, 6 + powerL * 4);
 		  int sNo = rRand(2);
-		  if (!UNDERWATER && !poon) AddVoice3dv(fxImpactGround[sNo].length, fxImpactGround[sNo].lpData, bx, by, bz, 256);
-		  if (UNDERWATER && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData, bx, by, bz, 256);
+		  if (!UNDERWATER && !poon) AddVoice3dv(fxImpactGround[sNo].length, fxImpactGround[sNo].lpData.data(), bx, by, bz, 256);
+		  if (UNDERWATER && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData.data(), bx, by, bz, 256);
 	  }
 	  if (sres == tresModel) {
 		  if (!poon) AddElements(bx, by, bz, partGround, 6 + powerL * 4);
 		  int sNo = rRand(2);
-		  if (!UNDERWATER && !poon) AddVoice3dv(fxImpactModel[sNo].length, fxImpactModel[sNo].lpData, bx, by, bz, 256);
-		  if (UNDERWATER && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData, bx, by, bz, 256); //change this to aquatic sound
+		  if (!UNDERWATER && !poon) AddVoice3dv(fxImpactModel[sNo].length, fxImpactModel[sNo].lpData.data(), bx, by, bz, 256);
+		  if (UNDERWATER && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData.data(), bx, by, bz, 256); //change this to aquatic sound
 	  }
 
 	  if (sres == tresWater)
@@ -2123,7 +2123,7 @@ int AnimateBullet(float ax, float ay, float az,
 		  //AddWCircle(bx, bz, 1.2);
 		  AddWCircle(bx, bz, 1.2);
 		  int sNo = rRand(2);
-		  AddVoice3dv(fxImpactWater[sNo].length, fxImpactWater[sNo].lpData, bx, by, bz, 256);
+		  AddVoice3dv(fxImpactWater[sNo].length, fxImpactWater[sNo].lpData.data(), bx, by, bz, 256);
 	  }
 	  
 
@@ -2131,8 +2131,8 @@ int AnimateBullet(float ax, float ay, float az,
 	  if (sres != tresChar && sres != tresHunter) return sres;
 	  if (!poon) AddElements(bx, by, bz, partBlood, 4 + powerL * 4);
 	  int sNo = rRand(2);
-	  if (!UNDERWATER && !poon) AddVoice3dv(fxImpactChar[sNo].length, fxImpactChar[sNo].lpData, bx, by, bz, 256);
-	  if (UNDERWATER && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData, bx, by, bz, 256); //change this to aquatic sound
+	  if (!UNDERWATER && !poon) AddVoice3dv(fxImpactChar[sNo].length, fxImpactChar[sNo].lpData.data(), bx, by, bz, 256);
+	  if (UNDERWATER && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData.data(), bx, by, bz, 256); //change this to aquatic sound
 
 	  if (sres == tresHunter) {
 		AddDeadBody(nullptr, HUNT_EAT, true);
@@ -2220,7 +2220,7 @@ void AnimateBullets() {
 				if (DoubleAmmo && (WeapInfo[bullet[b].parent].Reload || WeapInfo[bullet[b].parent].rldAnim < 0)) maxAm *= 2;
 				if (ShotsLeft[bullet[b].parent] < maxAm) {
 					int collectNo = rRand(2);
-					AddVoicev(fxCollect[collectNo].length, fxCollect[collectNo].lpData, 256);
+					AddVoicev(fxCollect[collectNo].length, fxCollect[collectNo].lpData.data(), 256);
 					if (!Chambered[bullet[b].parent] &&
 						((WeapInfo[bullet[b].parent].pmpAnim < 0 && !WeapInfo[bullet[b].parent].Reload) ||
 						(WeapInfo[bullet[b].parent].rldAnim < 0 && WeapInfo[bullet[b].parent].Reload)))
@@ -2375,7 +2375,7 @@ void AnimateBag() {
 		if (GetLandH(AmmoBag.pos.x, AmmoBag.pos.z) > AmmoBag.pos.y) {
 			AmmoBag.pos.y = GetLandH(AmmoBag.pos.x, AmmoBag.pos.z);
 			AmmoBag.State = 2;
-			AddVoice3d(BagModel.SoundFX[0].length, BagModel.SoundFX[0].lpData,
+			AddVoice3d(BagModel.SoundFX[0].length, BagModel.SoundFX[0].lpData.data(),
 				AmmoBag.pos.x, AmmoBag.pos.y, AmmoBag.pos.z);
 		}
 	}
@@ -2389,7 +2389,7 @@ void AnimateBag() {
 
 	if (VectorLength(SubVectors(PlayerPos, AmmoBag.pos)) < 200.f && AmmoBag.State > 0) {
 		AddVoicev(BagModel.SoundFX[1].length,
-			BagModel.SoundFX[1].lpData, 256);
+			BagModel.SoundFX[1].lpData.data(), 256);
 		AmmoBag.State = -1;
 		refillWeapons(false);
 	}
@@ -2401,7 +2401,7 @@ void AnimateSShip() {
 	if (SShip.State < 1) return;
 
 	SetAmbient3d(SShipModel.SoundFX[0].length,
-		SShipModel.SoundFX[0].lpData,
+		SShipModel.SoundFX[0].lpData.data(),
 		SShip.pos.x, SShip.pos.y, SShip.pos.z);
 	
 	int _TimeDt = TimeDt;
@@ -2537,7 +2537,7 @@ void AnimateShip()
   }
 
   SetAmbient3d(ShipModel.SoundFX[0].length,
-               ShipModel.SoundFX[0].lpData,
+               ShipModel.SoundFX[0].lpData.data(),
                Ship.pos.x, Ship.pos.y, Ship.pos.z);
 
   int _TimeDt = TimeDt;
@@ -2591,8 +2591,8 @@ void AnimateShip()
       Ship.FTime=ShipModel.Animation[0].AniTime-1;
       Ship.State=2;
       AddVoicev(ShipModel.SoundFX[4].length,
-                ShipModel.SoundFX[4].lpData, 256);
-      AddVoice3d(ShipModel.SoundFX[1].length, ShipModel.SoundFX[1].lpData,
+                ShipModel.SoundFX[4].lpData.data(), 256);
+      AddVoice3d(ShipModel.SoundFX[1].length, ShipModel.SoundFX[1].lpData.data(),
                  Ship.pos.x, Ship.pos.y, Ship.pos.z);
     }
     return;
@@ -2619,8 +2619,8 @@ void AnimateShip()
         {
           Ship.State = 1;
           AddVoicev(ShipModel.SoundFX[5].length,
-                    ShipModel.SoundFX[5].lpData, 256);
-          AddVoice3d(ShipModel.SoundFX[2].length, ShipModel.SoundFX[2].lpData,
+                    ShipModel.SoundFX[5].lpData.data(), 256);
+          AddVoice3d(ShipModel.SoundFX[2].length, ShipModel.SoundFX[2].lpData.data(),
                      Ship.pos.x, Ship.pos.y, Ship.pos.z);
         }
       return;
@@ -2639,7 +2639,7 @@ void AnimateShip()
   else Ship.speed = vspeed;
 
   if (Ship.speed>0 && _s==0)
-    AddVoice3d(ShipModel.SoundFX[2].length, ShipModel.SoundFX[2].lpData,
+    AddVoice3d(ShipModel.SoundFX[2].length, ShipModel.SoundFX[2].lpData.data(),
                Ship.pos.x, Ship.pos.y, Ship.pos.z);
 
 //====== fly ===========//
@@ -2670,7 +2670,7 @@ void AnimateShip()
         Ship.tgpos.y = GetLandUpH(Ship.tgpos.x, Ship.tgpos.z) + Ship.DeltaY;
         Ship.tgpos.y = MAX(Ship.tgpos.y, GetLandUpH(Ship.pos.x, Ship.pos.z) + Ship.DeltaY);
         Characters[Ship.cindex].StateF = 0xFF;
-        AddVoice3d(ShipModel.SoundFX[1].length, ShipModel.SoundFX[1].lpData,
+        AddVoice3d(ShipModel.SoundFX[1].length, ShipModel.SoundFX[1].lpData.data(),
                    Ship.pos.x, Ship.pos.y, Ship.pos.z);
       }
     }
@@ -2980,7 +2980,7 @@ void AnimateProcesses()
     {
       answtime = 0;
       int r = rRand(128) % 3;
-      AddVoice3d(fxCall[answcall-10][r].length,  fxCall[answcall-10][r].lpData,
+      AddVoice3d(fxCall[answcall-10][r].length,  fxCall[answcall-10][r].lpData.data(),
                  answpos.x, answpos.y, answpos.z);
     }
   }

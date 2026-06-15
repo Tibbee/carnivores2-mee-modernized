@@ -469,12 +469,12 @@ void ProcessReload() {
 						if (UNDERWATER) {
 							if (WeapInfo[CurrentWeapon].rldAqSndPart >= 0)
 								AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSndPart].length,
-									wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSndPart].lpData, 256);
+									wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSndPart].lpData.data(), 256);
 						}
 						else {
 							int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].rldAnimPart];
 							if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
-								wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData, 256);
+								wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
 						}
 					}
 
@@ -489,12 +489,12 @@ void ProcessReload() {
 						if (UNDERWATER) {
 							if (WeapInfo[CurrentWeapon].rldAqSnd >= 0)
 								AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSnd].length,
-									wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSnd].lpData, 256);
+									wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSnd].lpData.data(), 256);
 						}
 						else {
 							int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].rldAnim];
 							if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
-								wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData, 256);
+								wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
 						}
 					}
 
@@ -530,12 +530,12 @@ void ProcessReload() {
 					if (UNDERWATER) {
 						if (WeapInfo[CurrentWeapon].rldAqSndPart >= 0)
 							AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSndPart].length,
-								wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSndPart].lpData, 256);
+								wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSndPart].lpData.data(), 256);
 					}
 					else {
 						int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].rldAnimPart];
 						if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
-							wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData, 256);
+							wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
 					}
 				}
 			}
@@ -549,12 +549,12 @@ void ProcessReload() {
 					if (UNDERWATER) {
 						if (WeapInfo[CurrentWeapon].rldAqSnd >= 0)
 							AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSnd].length,
-								wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSnd].lpData, 256);
+								wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSnd].lpData.data(), 256);
 					}
 					else {
 						int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].rldAnim];
 						if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
-							wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData, 256);
+							wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
 					}
 
 				}
@@ -581,12 +581,12 @@ void ProcessFireMode() {
 		if (UNDERWATER) {
 			if (WeapInfo[CurrentWeapon].modAqSnd >= 0)
 				AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].modAqSnd].length,
-					wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].modAqSnd].lpData, 256);
+					wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].modAqSnd].lpData.data(), 256);
 		}
 		else {
 			int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].modAnim];
 			if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
-				wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData, 256);
+				wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
 		}
 	}
 
@@ -607,12 +607,12 @@ void ProcessPump() {
 			if (UNDERWATER) {
 				if (WeapInfo[CurrentWeapon].pmpAqSnd >= 0)
 					AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].pmpAqSnd].length,
-						wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].pmpAqSnd].lpData, 256);
+						wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].pmpAqSnd].lpData.data(), 256);
 			}
 			else {
 				int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].pmpAnim];
 				if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
-					wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData, 256);
+					wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
 			}
 		}
 }
@@ -901,7 +901,7 @@ SKIPWIND:
 	  if (Weapon.BTime >= 4000) {
 		  Weapon.BTime = 4000;
 		  Weapon.HoldBreath = false;
-		  if (Weapon.breathPressed==1 && !UNDERWATER) AddVoicev(fxBreathOut.length, fxBreathOut.lpData, 256);
+		  if (Weapon.breathPressed==1 && !UNDERWATER) AddVoicev(fxBreathOut.length, fxBreathOut.lpData.data(), 256);
 		  Weapon.breathPressed = 2;
 	  }
   } else if (Weapon.BTime && !UNDERWATER) {
@@ -1655,7 +1655,7 @@ void ProcessShoot()
   {
 	  int clickNo = rRand(2);
 	  if (!Chambered[CurrentWeapon]) {
-		  if (!alreadyFired && !UNDERWATER) AddVoicev(fxClick[clickNo].length, fxClick[clickNo].lpData, 256);
+		  if (!alreadyFired && !UNDERWATER) AddVoicev(fxClick[clickNo].length, fxClick[clickNo].lpData.data(), 256);
 		  return;
 	  }
 
@@ -1673,12 +1673,12 @@ void ProcessShoot()
 	if (UNDERWATER) {
 		if (WeapInfo[CurrentWeapon].shtAqSnd >= 0)
 			AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].shtAqSnd].length,
-				wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].shtAqSnd].lpData, 256);
+				wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].shtAqSnd].lpData.data(), 256);
 	}
 	else {
 		int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].shtAnim];
 		if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
-			wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData, 256);
+			wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
 	}
 	
 	TrophyRoom.Last.smade++;
@@ -1951,7 +1951,7 @@ void ProcessPlayerMovement()
   if (Weapon.state) {
 	  if (KeyboardState[KeyMap.fkHoldBreath] & 128 && !UNDERWATER) {
 		  if (Weapon.breathPressed == 0) {
-			  AddVoicev(fxBreathIn.length, fxBreathIn.lpData, 256);
+			  AddVoicev(fxBreathIn.length, fxBreathIn.lpData.data(), 256);
 			  Weapon.breathPressed = 1;
 		  }
 		  if (!Weapon.HoldBreath) {
@@ -1961,7 +1961,7 @@ void ProcessPlayerMovement()
 	  else {
 		  if (Weapon.HoldBreath) {
 			  Weapon.HoldBreath = false;
-			  if (Weapon.breathPressed == 1 && !UNDERWATER) AddVoicev(fxBreathOut.length, fxBreathOut.lpData, 256);
+			  if (Weapon.breathPressed == 1 && !UNDERWATER) AddVoicev(fxBreathOut.length, fxBreathOut.lpData.data(), 256);
 		  }
 		  Weapon.breathPressed = 0;
 	  }
@@ -2001,7 +2001,7 @@ void ProcessPlayerMovement()
     if (YSpeed == 0 && !SWIM)
     {
       YSpeed = 600 + static_cast<float>(fabs(VSpeed)) * 600;
-      AddVoicev(fxJump.length, fxJump.lpData, 256);
+      AddVoicev(fxJump.length, fxJump.lpData.data(), 256);
     }
 
 //=========  rotation =========//
@@ -2300,7 +2300,7 @@ void ProcessControls()
     if (PlayerY>h) PlayerY = h;
     if (YSpeed<-600)
       AddVoicev(fxStep[(RealTime % 3)].length,
-                fxStep[(RealTime % 3)].lpData, 64);
+                fxStep[(RealTime % 3)].lpData.data(), 64);
     YSpeed = 0;
   }
 
@@ -2328,11 +2328,11 @@ SKIPYMOVE:
         {
           AddWCircle(CameraX, CameraZ, 1.2);
           AddVoicev(fxStepW[(RealTime % 3)].length,
-                    fxStepW[(RealTime % 3)].lpData, 64+static_cast<int>((VSpeed*30.f)));
+                    fxStepW[(RealTime % 3)].lpData.data(), 64+static_cast<int>((VSpeed*30.f)));
         }
         else
           AddVoicev(fxStep[(RealTime % 3)].length,
-                    fxStep[(RealTime % 3)].lpData, 24+static_cast<int>((VSpeed*50.f)));
+                    fxStep[(RealTime % 3)].lpData.data(), 24+static_cast<int>((VSpeed*50.f)));
   stepdd = d;
 
   if (PlayerBeta> 1.46f) {
@@ -2404,7 +2404,7 @@ SKIPYMOVE:
     {
       HeadY+=20;
       CameraY+=20;
-      AddVoicev(fxWaterOut.length, fxWaterOut.lpData, 256);
+      AddVoicev(fxWaterOut.length, fxWaterOut.lpData.data(), 256);
       AddWCircle(CameraX, CameraZ, 2.0);
     }
   }
@@ -2416,7 +2416,7 @@ SKIPYMOVE:
       HeadY-=20;
       CameraY-=20;
       BINMODE = false;
-      AddVoicev(fxWaterIn.length, fxWaterIn.lpData, 256);
+      AddVoicev(fxWaterIn.length, fxWaterIn.lpData.data(), 256);
       AddWCircle(CameraX, CameraZ, 2.0);
     }
   }
@@ -2529,14 +2529,14 @@ SKIPYMOVE:
   if (UNDERWATER)
   {
     SetAmbient(fxUnderwater.length,
-               fxUnderwater.lpData,
+               fxUnderwater.lpData.data(),
                240);
     Audio_SetEnvironment(8, ctViewR*256);
   }
   else
   {
     SetAmbient(Ambient[CameraAmb].sfx.length,
-               Ambient[CameraAmb].sfx.lpData,
+               Ambient[CameraAmb].sfx.lpData.data(),
                Ambient[CameraAmb].AVolume);
     Audio_SetEnvironment(Ambient[CameraAmb].rdata[0].REnvir, ctViewR*256);
 
@@ -2550,7 +2550,7 @@ SKIPYMOVE:
         Ambient[CameraAmb].RndTime = (Ambient[CameraAmb].rdata[0].RFreq / 2 + rRand(Ambient[CameraAmb].rdata[0].RFreq)) * 1000;
         int rr = (rand() % Ambient[CameraAmb].RSFXCount);
         int r = Ambient[CameraAmb].rdata[rr].RNumber;
-        AddVoice3dv(RandSound[r].length, RandSound[r].lpData,
+        AddVoice3dv(RandSound[r].length, RandSound[r].lpData.data(),
                     CameraX + siRand(4096),
                     CameraY + siRand(256),
                     CameraZ + siRand(4096),

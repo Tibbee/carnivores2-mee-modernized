@@ -209,7 +209,7 @@ void ActivateCharacterFxAquatic(TCharacter *cptr)
 	if (VectorLengthSq(SubVectors(PlayerPos, cptr->pos)) > (68 * 256) * (68 * 256)) return;
 
 	AddVoice3d(cptr->pinfo->SoundFX[fx].length,
-		cptr->pinfo->SoundFX[fx].lpData,
+		cptr->pinfo->SoundFX[fx].lpData.data(),
 		cptr->pos.x, cptr->pos.y, cptr->pos.z);
 }
 
@@ -233,7 +233,7 @@ void ActivateCharacterFx(TCharacter *cptr)
 	if (VectorLengthSq(SubVectors(PlayerPos, cptr->pos)) > (68 * 256) * (68 * 256)) return;
 
 	AddVoice3d(cptr->pinfo->SoundFX[fx].length,
-		cptr->pinfo->SoundFX[fx].lpData,
+		cptr->pinfo->SoundFX[fx].lpData.data(),
 		cptr->pos.x, cptr->pos.y, cptr->pos.z);
 		
 }
@@ -341,7 +341,7 @@ void AddDeadBody(TCharacter *cptr, int phase, bool scream)
 
 	int v = rRand(3);
 	if (phase != HUNT_BREATH && scream){
-		AddVoicev(fxScream[r].length, fxScream[r].lpData, 256);
+		AddVoicev(fxScream[r].length, fxScream[r].lpData.data(), 256);
 	}
 
 	Characters[ChCount].Health = 0;
@@ -2910,7 +2910,7 @@ ENDPSELECT:
 				shotpos.z /= -3.f;
 				shotpos = SubVectors(PlayerPos, shotpos);
 				AddVoice3d(fxGunShot[DinoInfo[cptr->CType].Weapon].length,
-					fxGunShot[DinoInfo[cptr->CType].Weapon].lpData,
+					fxGunShot[DinoInfo[cptr->CType].Weapon].lpData.data(),
 					shotpos.x, shotpos.y, shotpos.z);
 			}
 
@@ -8030,7 +8030,7 @@ void AnimateMHunters() {
 			mGunShot[c] = -1;
 			if (WeapInfo[weapon].MGSSound) {
 				TSFX *shotFx = &fxGunShot[WeapInfo[weapon].SFXIndex];
-				AddVoice3d(shotFx->length, shotFx->lpData, pos->x, pos->y, pos->z);//TODO XYZ NEEDS TO BE PLAYER -> SOUND VECTOR
+				AddVoice3d(shotFx->length, shotFx->lpData.data(), pos->x, pos->y, pos->z);//TODO XYZ NEEDS TO BE PLAYER -> SOUND VECTOR
 			}
 			MakeNoise(*pos, ctViewR * 200 * WeapInfo[weapon].Loud);
 		}
@@ -8041,7 +8041,7 @@ void AnimateMHunters() {
 			int callType = mHunterCallType[c];
 			mHunterCallType[c] = -1;
 			TSFX *callFx = &fxCall[targetCreature][callType];
-			AddVoice3d(callFx->length, callFx->lpData, pos->x, pos->y, pos->z);
+			AddVoice3d(callFx->length, callFx->lpData.data(), pos->x, pos->y, pos->z);
 		}
 
 	}

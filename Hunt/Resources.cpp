@@ -938,9 +938,10 @@ void LoadWav(char* FName, TSFX &sfx)
     DoHalt(sz);
   }
 
-  _HeapFree(Heap, 0, (void*)sfx.lpData);
-  sfx.lpData = nullptr;
-
+  // Phase 5B.1: sfx.lpData is now std::vector<short int>, so the previous
+  // manual _HeapFree is replaced by the vector's own destructor (handled
+  // implicitly when the vector is reassigned/resized below). The nullptr
+  // reset is also unnecessary.
   SetFilePointer( hfile, 36, nullptr, FILE_BEGIN );
 
   char c[5];
@@ -959,10 +960,13 @@ void LoadWav(char* FName, TSFX &sfx)
 
   ReadFile( hfile, &sfx.length, 4, &l, nullptr );
 
-  sfx.lpData = (short int*)
-               _HeapAlloc( Heap, 0, sfx.length );
-
-  ReadFile( hfile, sfx.lpData, sfx.length, &l, nullptr );
+  // sfx.length is in bytes; std::vector is element-counted. Round down to
+  // whole short ints (WAV data is always 16-bit, so this is exact in
+  // practice). resize() value-initializes new elements to zero, matching
+  // the HEAP_ZERO_MEMORY behavior of the previous _HeapAlloc call.
+  const size_t sampleCount = sfx.length / sizeof(short int);
+  sfx.lpData.assign(sampleCount, 0);
+  ReadFile( hfile, sfx.lpData.data(), sfx.length, &l, nullptr );
   CloseHandle(hfile);
 }
 
@@ -1310,18 +1314,19 @@ void ReleaseResources()
     else break;
   }
 
+  // Phase 5B.1: TSFX::lpData is now std::vector<short int>; the vector
+  // destructor reclaims the buffer on Reset. The presence check is also
+  // updated to use the vector's empty()/size() rather than a null pointer.
   for (int a=0; a<255; a++)
   {
-    if (!Ambient[a].sfx.lpData) break;
-    _HeapFree(Heap, 0, Ambient[a].sfx.lpData);
-    Ambient[a].sfx.lpData = nullptr;
+    if (Ambient[a].sfx.lpData.empty()) break;
+    Ambient[a].sfx.lpData.clear();
   }
 
   for (int r=0; r<255; r++)
   {
-    if (!RandSound[r].lpData) break;
-    _HeapFree(Heap, 0, RandSound[r].lpData);
-    RandSound[r].lpData = nullptr;
+    if (RandSound[r].lpData.empty()) break;
+    RandSound[r].lpData.clear();
     RandSound[r].length = 0;
   }
 }
@@ -1531,16 +1536,20 @@ void LoadResources()
   for (int r=0; r<RdCount; r++)
   {
     ReadFile(hfile, &RandSound[r].length, 4, &l, nullptr);
-    RandSound[r].lpData = (short int*) _HeapAlloc(Heap,0,RandSound[r].length);
-    ReadFile(hfile, RandSound[r].lpData, RandSound[r].length, &l, nullptr);
+    // Phase 5B.1: lpData is now std::vector<short int>. assign() value-
+    // initializes to zero (matches the previous HEAP_ZERO_MEMORY behavior).
+    const size_t sampleCount = RandSound[r].length / sizeof(short int);
+    RandSound[r].lpData.assign(sampleCount, 0);
+    ReadFile(hfile, RandSound[r].lpData.data(), RandSound[r].length, &l, nullptr);
   }
 
   ReadFile(hfile, &AmbCount, 4, &l, nullptr);
   for (int a=0; a<AmbCount; a++)
   {
     ReadFile(hfile, &Ambient[a].sfx.length, 4, &l, nullptr);
-    Ambient[a].sfx.lpData = (short int*) _HeapAlloc(Heap,0,Ambient[a].sfx.length);
-    ReadFile(hfile, Ambient[a].sfx.lpData, Ambient[a].sfx.length, &l, nullptr);
+    const size_t ambSampleCount = Ambient[a].sfx.length / sizeof(short int);
+    Ambient[a].sfx.lpData.assign(ambSampleCount, 0);
+    ReadFile(hfile, Ambient[a].sfx.lpData.data(), Ambient[a].sfx.length, &l, nullptr);
 
     ReadFile(hfile, Ambient[a].rdata, sizeof(Ambient[a].rdata), &l, nullptr);
     ReadFile(hfile, &Ambient[a].RSFXCount, 4, &l, nullptr);
@@ -1754,7 +1763,7 @@ void LoadCharacters()
 
   for (int c=10; c<20; c++)
     if (TargetDino & (1<<c))
-      if (!fxCall[c-10][0].lpData)
+      if (fxCall[c-10][0].lpData.empty())
       {
         wsprintf(logt,"HUNTDAT\\SOUNDFX\\CALLS\\call%d_a.wav", (c-9));
         LoadWav(logt, fxCall[c-10][0]);
@@ -1946,11 +1955,12 @@ void ReleaseCharacterInfo(TCharacterInfo &chinfo)
     chinfo.Animation[c].aniData = nullptr;
   }
 
+  // Phase 5B.1: TSFX::lpData is now std::vector; the vector destructor
+  // reclaims the buffer on Reset, so no manual _HeapFree is needed.
   for (int c = 0; c<64; c++)
   {
-    if (!chinfo.SoundFX[c].lpData) break;
-    _HeapFree(Heap, 0, chinfo.SoundFX[c].lpData);
-    chinfo.SoundFX[c].lpData = nullptr;
+    if (chinfo.SoundFX[c].lpData.empty()) break;
+    chinfo.SoundFX[c].lpData.clear();
   }
 
   chinfo.AniCount = 0;
@@ -2028,8 +2038,10 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName)
   {
     ReadFile(hfile, tmp, 32, &l, nullptr);
     ReadFile(hfile, &chinfo.SoundFX[s].length, 4, &l, nullptr);
-    chinfo.SoundFX[s].lpData = (short int*) _HeapAlloc(Heap, 0, chinfo.SoundFX[s].length);
-    ReadFile(hfile, chinfo.SoundFX[s].lpData, chinfo.SoundFX[s].length, &l, nullptr);
+    // Phase 5B.1: lpData is now std::vector<short int>.
+    const size_t sfxSampleCount = chinfo.SoundFX[s].length / sizeof(short int);
+    chinfo.SoundFX[s].lpData.assign(sfxSampleCount, 0);
+    ReadFile(hfile, chinfo.SoundFX[s].lpData.data(), chinfo.SoundFX[s].length, &l, nullptr);
   }
 
   for (int v=0; v<chinfo.mptr->VCount; v++)

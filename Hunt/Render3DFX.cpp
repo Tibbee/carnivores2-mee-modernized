@@ -4530,7 +4530,7 @@ void DrawHMap()
 							Characters[c].showSonar = true;
 							Characters[c].sonar.x = xx;
 							Characters[c].sonar.y = yy;
-							AddVoicev(fxBlip.length, fxBlip.lpData, 256);
+							AddVoicev(fxBlip.length, fxBlip.lpData.data(), 256);
 						}
 					} else Characters[c].showSonar = false;
 
