@@ -2273,15 +2273,15 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
     // The game stores colors in ABGR format (R in bits 0-7, B in bits 16-23).
     // D3D vertex colors are ARGB, so D3D inherently swaps R↔B when reading.
     // We must do the same: extract ABGR and pass as-is to the shader.
-    auto unpackABGR = [](uint32_t c, float& r, float& g, float& b, float& a) {
-        a = static_cast<float>((c >> 24) & 0xFF) / 255.0f;
-        b = static_cast<float>((c >> 16) & 0xFF) / 255.0f;
-        g = static_cast<float>((c >> 8) & 0xFF) / 255.0f;
-        r = static_cast<float>(c & 0xFF) / 255.0f;
+    auto unpackABGR = [](uint32_t c, uint8_t& r, uint8_t& g, uint8_t& b, uint8_t& a) {
+        a = static_cast<uint8_t>((c >> 24) & 0xFF);
+        b = static_cast<uint8_t>((c >> 16) & 0xFF);
+        g = static_cast<uint8_t>((c >> 8) & 0xFF);
+        r = static_cast<uint8_t>(c & 0xFF);
     };
 
-    float cr, cg, cb, ca;
-    float er, eg, eb, ea;
+    uint8_t cr, cg, cb, ca;
+    uint8_t er, eg, eb, ea;
     unpackABGR(RGBA, cr, cg, cb, ca);
     unpackABGR(RGBA2, er, eg, eb, ea);
 
@@ -2293,15 +2293,29 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
     float ndcX = (cx - VideoCX) / VideoCX;
     float ndcY = (VideoCY - cy) / VideoCY;
 
-    // Use the model shader with fog=1.0 to output flat color
-    struct CircleVertex {
-        float x, y, z, u, v, light, fog, fogR, fogG, fogB, alpha, cutout;
-    };
+    // Use the packed ModelVertex layout (Phase 1.4: 32 bytes, color
+    // attributes are uint8 normalized). The model VAO's attribute
+    // pointers expect this layout; the old CircleVertex used floats
+    // for color fields, which the driver read as raw bytes — producing
+    // garbage colors (same regression as RenderFSRect, fixed in d3c7d25).
+    //
+    // fog=255 (normalized to 1.0) makes the model shader output the
+    // fog color (our desired particle color) instead of the texture.
+    const uint8_t lightByte  = 255;
+    const uint8_t fogByte    = 255;
+    const uint8_t cutoutByte = 0;
 
     // 8 triangles forming an octagon with alternating outer/inner radius
     // Matches D3D: angle 0=R, 45=R2, 90=R, 135=R2, ...
-    std::vector<CircleVertex> vertices;
+    std::vector<ModelVertex> vertices;
     vertices.reserve(24);
+
+    auto makeCircleVertex = [&](float x, float y, uint8_t vr, uint8_t vg,
+                               uint8_t vb, uint8_t va) -> ModelVertex {
+        return {x, y, 0.0001f, 0.0f, 0.0f,
+                lightByte, fogByte, va, cutoutByte,
+                vr, vg, vb, {0,0,0,0,0}};
+    };
 
     for (int i = 0; i < 8; i++) {
         int next = (i + 1) % 8;
@@ -2314,35 +2328,27 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
         float angle_next = next * pi / 4.0f;
 
         // Center vertex (color RGBA)
-        vertices.push_back({ndcX, ndcY, 0.0001f, 0, 0, 255, 1.0f, cr, cg, cb, ca, 0});
+        vertices.push_back(makeCircleVertex(ndcX, ndcY, cr, cg, cb, ca));
 
         // Edge vertex i (color RGBA2)
         float ex1 = ndcX + cosf(angle_i) * rad_i / VideoCX;
         float ey1 = ndcY + sinf(angle_i) * rad_i / VideoCY;
-        vertices.push_back({ex1, ey1, 0.0001f, 0, 0, 255, 1.0f, er, eg, eb, ea, 0});
+        vertices.push_back(makeCircleVertex(ex1, ey1, er, eg, eb, ea));
 
         // Edge vertex i+1 (color RGBA2)
         float ex2 = ndcX + cosf(angle_next) * rad_next / VideoCX;
         float ey2 = ndcY + sinf(angle_next) * rad_next / VideoCY;
-        vertices.push_back({ex2, ey2, 0.0001f, 0, 0, 255, 1.0f, er, eg, eb, ea, 0});
+        vertices.push_back(makeCircleVertex(ex2, ey2, er, eg, eb, ea));
     }
 
-    // 2D HUD circles: NDC-space vertices. The UBO carries the world
-    // projection here, which re-projects the NDC vertices into 3D
-    // (W = -Z, so X = X_clip / -0.0001 is blown up off-screen) and
-    // clips the octagons away. This means the muzzle-flash, blood, and
-    // snow HUD elements are not visible in the GL renderer.
-    //
-    // The proper fix is a dedicated 2D circle shader that skips the
-    // projection entirely (like the sky shader hardcodes
-    // gl_Position = vec4(pos, 0, 1)), but that's a follow-up. For now
-    // the pre-Phase-1.1 behavior (invisible circles) is preserved so we
-    // don't regress to visible-but-broken artifacts.
+    // 2D HUD circles: vertices are in NDC space. Upload the identity
+    // projection to the UBO so gl_Position = projection * vec4(pos, 1)
+    // passes the NDC coordinates through unchanged.
     const std::array<float, 16> identity = {
         1.0f,0.0f,0.0f,0.0f, 0.0f,1.0f,0.0f,0.0f, 0.0f,0.0f,1.0f,0.0f, 0.0f,0.0f,0.0f,1.0f
     };
 
-    UpdatePerFrameUBO();
+    UpdatePerFrameUBO(identity);
     glUseProgram(m_modelShader);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
@@ -2374,7 +2380,7 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
 #endif
     glBindVertexArray(m_modelVAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
-    const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(vertices.size() * sizeof(CircleVertex));
+    const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(vertices.size() * sizeof(ModelVertex));
     glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
     glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices.data());
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
