@@ -1359,6 +1359,14 @@ void ReInitGame();
 
 
 void SaveScreenShot();
+
+#ifdef GL_PERF_HOOKS
+// F11 key handler: triggers a 1-second per-frame GL perf CSV capture
+// (glperf-frame.csv in the working directory). No-op when the GL perf
+// harness is not compiled in.
+void PerfTriggerCapture();
+#endif
+
 void CreateWaterTab();
 void CreateFadeTab();
 void CreateVideoDIB();

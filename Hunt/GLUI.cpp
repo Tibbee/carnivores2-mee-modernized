@@ -16,6 +16,7 @@
 #ifdef _gl
 
 #include "glad/glad.h"
+#include "GLPerf.h"
 
 #include <cmath>
 #include <cstdio>
@@ -24,6 +25,16 @@
 // ============================================================================
 // Hardware lifecycle (called from WinMain, ProcessGame)
 // ============================================================================
+
+#ifdef GL_PERF_HOOKS
+// F11 key handler — triggers a 1-second per-frame GL perf CSV capture.
+void PerfTriggerCapture()
+{
+    glperf_trigger_capture();
+}
+#endif
+
+
 
 void Init3DHardware()
 {
@@ -118,6 +129,9 @@ void ClearVideoBuf()
 
 void ShowVideo()
 {
+#ifdef GL_PERF_HOOKS
+    GL_PERF_FRAME_END();
+#endif
     // Apply depth-based sun occlusion after the full scene is rendered
     if (g_GLRenderer) {
         g_GLRenderer->ApplySunDepthOcclusion();
@@ -180,6 +194,9 @@ void CopyHARDToDIB()
 
 void RenderSkyPlane()
 {
+#ifdef GL_PERF_HOOKS
+    GL_PERF_FRAME_BEGIN();
+#endif
     if (g_GLRenderer) {
         g_GLRenderer->ClearVideoBuf();
         // Clear lpVideoBuf at the start of each frame for HUD overlay
@@ -216,6 +233,9 @@ void RenderProjectedShadows()
 
 void RenderWater()
 {
+#ifdef GL_PERF_HOOKS
+    GL_PERF_SCOPE("RenderWater");
+#endif
     if (!g_GLRenderer) return;
     g_GLRenderer->RenderWater();
     // D3D/3DFX call RenderWCircles() from inside their own RenderWater();

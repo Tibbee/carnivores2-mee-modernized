@@ -523,6 +523,9 @@ bool GLRenderer::InitGLState()
 
 void GLRenderer::LoadGLExtensions()
 {
+#ifdef GL_PERF_HOOKS
+    glperf_init();
+#endif
 }
 
 bool GLRenderer::Initialize()
@@ -707,6 +710,10 @@ bool GLRenderer::Initialize()
 
 void GLRenderer::Shutdown()
 {
+#ifdef GL_PERF_HOOKS
+    glperf_shutdown();
+#endif
+
     if (!m_Initialized && !m_hrc) return;
 
     ShutdownTerrainPipeline();
@@ -933,6 +940,9 @@ void GLRenderer::RenderWaterSurface()
 
     const auto projection = BuildLegacyProjection();
     glUseProgram(m_terrainShader);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glUniformMatrix4fv(glGetUniformLocation(m_terrainShader, "uProjection"), 1, GL_FALSE, projection.data());
     // Per-pixel distance fog: uFogDistance is the view distance (ctViewR*256
     // in world units); uFogFadeStart is where the per-pixel ramp begins,
@@ -1361,47 +1371,89 @@ void GLRenderer::DrawModelVertices(GLuint texture,
     }
 
     glUseProgram(m_modelShader);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, projection.data());
     glUniform1f(glGetUniformLocation(m_modelShader, "uTintByFogColor"), tintByFogColor ? 1.0f : 0.0f);
 
     if (depthTest) {
         glEnable(GL_DEPTH_TEST);
+#ifdef GL_PERF_HOOKS
+        GL_PERF_STATE_CHANGE();
+#endif
         if (!enableBlend) {
             glDepthMask(GL_TRUE);
+#ifdef GL_PERF_HOOKS
+            GL_PERF_STATE_CHANGE();
+#endif
         }
     } else {
         glDisable(GL_DEPTH_TEST);
+#ifdef GL_PERF_HOOKS
+        GL_PERF_STATE_CHANGE();
+#endif
         glDepthMask(GL_FALSE);
+#ifdef GL_PERF_HOOKS
+        GL_PERF_STATE_CHANGE();
+#endif
     }
 
     if (enableBlend) {
         glEnable(GL_BLEND);
+#ifdef GL_PERF_HOOKS
+        GL_PERF_STATE_CHANGE();
+#endif
         if (additive) {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);  // additive — used by water circles
         } else {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
+#ifdef GL_PERF_HOOKS
+        GL_PERF_STATE_CHANGE();
+#endif
         glDepthMask(GL_FALSE);
+#ifdef GL_PERF_HOOKS
+        GL_PERF_STATE_CHANGE();
+#endif
     } else {
         glDisable(GL_BLEND);
+#ifdef GL_PERF_HOOKS
+        GL_PERF_STATE_CHANGE();
+#endif
     }
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_TEXTURE_BIND(texture);
+#endif
     glBindVertexArray(m_modelVAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
     const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(vertices.size() * sizeof(ModelVertex));
     glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
     glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices.data());
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+#ifdef GL_PERF_HOOKS
+    GL_PERF_DRAW(static_cast<uint32_t>(vertices.size()) / 3);
+#endif
     glBindVertexArray(0);
 
     glDepthMask(GL_TRUE);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     if (!depthTest) {
         glEnable(GL_DEPTH_TEST);
+#ifdef GL_PERF_HOOKS
+        GL_PERF_STATE_CHANGE();
+#endif
     }
     if (enableBlend) {
         glDisable(GL_BLEND);
+#ifdef GL_PERF_HOOKS
+        GL_PERF_STATE_CHANGE();
+#endif
     }
 }
 
@@ -1477,6 +1529,9 @@ void GLRenderer::RenderWorldModels()
 
 void GLRenderer::RenderProjectedShadows()
 {
+#ifdef GL_PERF_HOOKS
+    GL_PERF_SCOPE("RenderProjectedShadows");
+#endif
     if (!SHADOWS3D || UNDERWATER) {
         return;
     }
@@ -1723,6 +1778,9 @@ void GLRenderer::RenderMappedObject(int x, int y)
 
 void GLRenderer::RenderModelsList()
 {
+#ifdef GL_PERF_HOOKS
+    GL_PERF_SCOPE("RenderModelsList");
+#endif
     for (const Vector2di& object : m_objectList) {
         RenderMappedObject(object.x, object.y);
     }
@@ -1746,6 +1804,10 @@ static void ApplyGLModelDistanceFade(const Vector3d& rpos)
 
 void GLRenderer::Render3DHardwarePosts()
 {
+#ifdef GL_PERF_HOOKS
+    GL_PERF_SCOPE("Render3DHardwarePosts");
+#endif
+
     // ── Characters (dinosaurs, hunters) ──────────────────────────────
     for (int c = 0; c < ChCount; c++) {
         TCharacter* cptr = &Characters[c];
@@ -2031,22 +2093,43 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
     };
 
     glUseProgram(m_modelShader);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, identity);
 
     glEnable(GL_DEPTH_TEST);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_FALSE);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glEnable(GL_BLEND);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_whiteTexture);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_TEXTURE_BIND(m_whiteTexture);
+#endif
     glBindVertexArray(m_modelVAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
     const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(vertices.size() * sizeof(CircleVertex));
     glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
     glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices.data());
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+#ifdef GL_PERF_HOOKS
+    GL_PERF_DRAW(static_cast<uint32_t>(vertices.size()) / 3);
+#endif
     glBindVertexArray(0);
 
     glDepthMask(GL_TRUE);
@@ -2086,6 +2169,10 @@ static uint32_t ApplyFogToABGR(uint32_t abgr, const Vector3d& worldPos)
 
 void GLRenderer::RenderElements()
 {
+#ifdef GL_PERF_HOOKS
+    GL_PERF_SCOPE("RenderElements");
+#endif
+
     // ── Regular elements (muzzle flashes, impact sparks, etc.) ─────
     for (int eg = 0; eg < ElCount; eg++) {
         for (int e = 0; e < Elements[eg].ECount; e++) {
@@ -3029,6 +3116,9 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
 
 void GLRenderer::RenderGround()
 {
+#ifdef GL_PERF_HOOKS
+    GL_PERF_SCOPE("RenderGround");
+#endif
     BeginTerrainFrame();
     m_worldModelItems.clear();
     m_transparentModelItems.clear();
@@ -3078,6 +3168,9 @@ void GLRenderer::RenderTerrain()
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_TEXTURE_BIND(m_terrainTextureArray);
+#endif
     glBindVertexArray(m_terrainVAO);
 
     glEnable(GL_BLEND);
@@ -3192,6 +3285,9 @@ void GLRenderer::DrawVertexBatch(const std::vector<TerrainVertex>& vertices) con
     glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
     glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices.data());
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+#ifdef GL_PERF_HOOKS
+    GL_PERF_DRAW(static_cast<uint32_t>(vertices.size()) / 3);
+#endif
 }
 
 void GLRenderer::DrawScene()
@@ -3541,25 +3637,52 @@ void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int 
 
     const auto projection = BuildLegacyProjection();
     glUseProgram(m_modelShader);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, projection.data());
 
     glEnable(GL_BLEND);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);  // additive blending for sun
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glEnable(GL_DEPTH_TEST);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_FALSE);  // don't write depth for sun
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_TEXTURE_BIND(texture);
+#endif
     glBindVertexArray(m_modelVAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
     const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(m_sunModelVertices.size() * sizeof(ModelVertex));
     glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
     glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, m_sunModelVertices.data());
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(m_sunModelVertices.size()));
+#ifdef GL_PERF_HOOKS
+    GL_PERF_DRAW(static_cast<uint32_t>(m_sunModelVertices.size()) / 3);
+#endif
 
     glDepthMask(GL_TRUE);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glDisable(GL_BLEND);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glBindVertexArray(0);
 }
 
@@ -3653,20 +3776,41 @@ void GLRenderer::RenderFSRect(uint32_t color)
     };
 
     glDisable(GL_DEPTH_TEST);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glDepthMask(GL_FALSE);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glEnable(GL_BLEND);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);  // additive blending for glare
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
 
     glUseProgram(m_modelShader);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glUniformMatrix4fv(glGetUniformLocation(m_modelShader, "uProjection"), 1, GL_FALSE, identity);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_whiteTexture);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_TEXTURE_BIND(m_whiteTexture);
+#endif
     glBindVertexArray(m_modelVAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quad), nullptr, GL_STREAM_DRAW);
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(quad), quad);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_DRAW(2);
+#endif
     glBindVertexArray(0);
 
     glDepthMask(GL_TRUE);
@@ -3676,6 +3820,9 @@ void GLRenderer::RenderFSRect(uint32_t color)
 
 void GLRenderer::RenderSkyPlane()
 {
+#ifdef GL_PERF_HOOKS
+    GL_PERF_SCOPE("RenderSkyPlane");
+#endif
     if (!m_skyVAO || !m_skyTexture || !m_skyShader) {
         return;
     }
@@ -3784,13 +3931,25 @@ void GLRenderer::RenderSkyPlane()
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_skyTexture);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_TEXTURE_BIND(m_skyTexture);
+#endif
 
     glBindVertexArray(m_skyVAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_DRAW(1);
+#endif
     glBindVertexArray(0);
 
     glDepthMask(GL_TRUE);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glEnable(GL_DEPTH_TEST);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
 
     // Render sun on top of sky (matching D3D/3DFX: sky plane renders sun)
     if (SunModel && !UNDERWATER) {
@@ -3991,12 +4150,19 @@ void GLRenderer::DrawScaledPicture(int x, int y, int w, int h, TPicture& pic)
 // Called after all HUD elements have been drawn to lpVideoBuf.
 void GLRenderer::DrawHUDOverlay()
 {
+#ifdef GL_PERF_HOOKS
+    GL_PERF_SCOPE("DrawHUDOverlay");
+#endif
+
     if (!m_uiShader || !lpVideoBuf || WinW <= 0 || WinH <= 0) return;
 
     EnsureUITexture();
     UpdateUIPixels();
 
     glBindTexture(GL_TEXTURE_2D, m_uiTexture);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_TEXTURE_BIND(m_uiTexture);
+#endif
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WinW, WinH, GL_RGBA, GL_UNSIGNED_BYTE, m_uiPixels.data());
 
     glDisable(GL_DEPTH_TEST);
@@ -4008,11 +4174,23 @@ void GLRenderer::DrawHUDOverlay()
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(m_uiVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_DRAW(2);
+#endif
     glBindVertexArray(0);
 
     glDisable(GL_BLEND);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glDepthMask(GL_TRUE);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
     glEnable(GL_DEPTH_TEST);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
 }
 
 void GLRenderer::DrawTrophyText(int x, int y)

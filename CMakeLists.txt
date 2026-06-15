@@ -10,6 +10,15 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(RENDERER "" CACHE STRING "Select the renderer: D3D, SOFT, 3DFX, or GL. Leave empty to build the menu only.")
 set_property(CACHE RENDERER PROPERTY STRINGS D3D SOFT 3DFX GL "")
 
+# Phase 0.1 in-engine GL perf harness. Defaults OFF. The ogl-release
+# preset turns this ON because perf measurements must run on the
+# optimized shipping build (debug builds are dominated by _DEBUG and
+# MEM_DEBUG overhead, so the numbers are useless). To produce a
+# shippable build without the harness, reconfigure with
+# -DGL_PERF_HOOKS=OFF or build a different preset. Has no effect on
+# D3D/SOFT/3DFX builds.
+option(GL_PERF_HOOKS "Enable in-engine GL performance harness (Phase 0.1)" OFF)
+
 # Ensure we are targeting 32-bit if using MSVC
 if(MSVC)
     if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
@@ -72,16 +81,25 @@ if(RENDERER)
         message(STATUS "Building with 3DFX Glide Renderer (using Glide2 folder)")
     elseif(RENDERER STREQUAL "GL")
         add_definitions(-D_gl)
+        if(GL_PERF_HOOKS)
+            add_definitions(-DGL_PERF_HOOKS)
+        endif()
         set(RENDER_SRC
             Hunt/IRenderer.h
             Hunt/GLRenderer.h
             Hunt/GLRenderer.cpp
             Hunt/GLShader.h
             Hunt/GLShader.cpp
+            Hunt/GLPerf.h
+            Hunt/GLPerf.cpp
             Hunt/GLUI.cpp
             deps/glad/glad.c
         )
-        message(STATUS "Building with OpenGL Renderer")
+        if(GL_PERF_HOOKS)
+            message(STATUS "Building with OpenGL Renderer (GL_PERF_HOOKS=ON)")
+        else()
+            message(STATUS "Building with OpenGL Renderer")
+        endif()
     else()
         message(FATAL_ERROR "Unknown RENDERER='${RENDERER}'. Expected D3D, SOFT, 3DFX, GL, or empty for menu-only builds.")
     endif()

@@ -9,6 +9,7 @@
 
 #include "IRenderer.h"
 #include "glad/glad.h"
+#include "GLPerf.h"
 #include <windows.h>
 #include <array>
 #include <cstdint>

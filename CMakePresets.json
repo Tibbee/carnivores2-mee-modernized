@@ -96,7 +96,8 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "RENDERER": "GL"
+        "RENDERER": "GL",
+        "GL_PERF_HOOKS": "ON"
       }
     },
     {

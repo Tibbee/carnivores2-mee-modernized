@@ -1582,6 +1582,12 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       SaveScreenShot();
       break;
 
+#ifdef GL_PERF_HOOKS
+    case VK_F11:
+      PerfTriggerCapture();
+      break;
+#endif
+
     }   // switch
     break;
   }
