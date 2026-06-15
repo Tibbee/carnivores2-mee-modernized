@@ -235,7 +235,13 @@ private:
     static const int kMaxTerrainTextureLayers = 1024;
     std::vector<TerrainVertex> m_terrainVertices;
     std::vector<TerrainVertex> m_waterVertices;
-    std::array<unique_obj_ptr<TEXTURE>, kMaxTerrainTextureLayers> m_uploadedTerrainTextures{};
+    // Non-owning cache: tracks which terrain textures are currently
+    // uploaded to the GPU. Raw pointer (not unique_obj_ptr) because
+    // ownership stays with the global Textures[] array. A previous
+    // attempt to use unique_obj_ptr here caused release() to steal
+    // ownership from Textures[layer], leaving it null on the next
+    // frame and crashing the terrain renderer.
+    std::array<TEXTURE*, kMaxTerrainTextureLayers> m_uploadedTerrainTextures{};
 
     // Sky pipeline
     unsigned int m_skyShader = 0;

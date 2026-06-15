@@ -699,6 +699,7 @@ bool GLRenderer::Initialize()
     Vector3d fogColor = GetDistanceFogColor();
     glClearColor(fogColor.x, fogColor.y, fogColor.z, 1.0f);
 
+    m_uploadedTerrainTextures.fill(nullptr);
     m_Initialized = true;
     PrintLog("GL: Initialize() completed successfully.\n");
     return true;
@@ -890,6 +891,7 @@ void GLRenderer::ShutdownTerrainPipeline()
 
     m_terrainVertices.clear();
     m_waterVertices.clear();
+    m_uploadedTerrainTextures.fill(nullptr);
 }
 
 void GLRenderer::BeginTerrainFrame()
@@ -923,9 +925,9 @@ void GLRenderer::RenderWaterSurface()
         if (!usedLayers[layer] || !Textures[layer]) {
             continue;
         }
-        if (m_uploadedTerrainTextures[layer].get() != Textures[layer].get()) {
+        if (m_uploadedTerrainTextures[layer] != Textures[layer].get()) {
             UploadTerrainLayer(layer, *Textures[layer]);
-            m_uploadedTerrainTextures[layer].reset(Textures[layer].release());
+            m_uploadedTerrainTextures[layer] = Textures[layer].get();
         }
     }
 
@@ -3060,9 +3062,9 @@ void GLRenderer::RenderTerrain()
         if (!Textures[layer]) {
             continue;
         }
-        if (m_uploadedTerrainTextures[layer].get() != Textures[layer].get()) {
+        if (m_uploadedTerrainTextures[layer] != Textures[layer].get()) {
             UploadTerrainLayer(layer, *Textures[layer]);
-            m_uploadedTerrainTextures[layer].reset(Textures[layer].release());
+            m_uploadedTerrainTextures[layer] = Textures[layer].get();
         }
     }
 
@@ -3229,6 +3231,7 @@ void GLRenderer::ReleaseModelTextures(const TModel* mptr)
 
 void GLRenderer::ResetTerrainTextureCache()
 {
+    m_uploadedTerrainTextures.fill(nullptr);
 }
 
 void GLRenderer::ClearLevelTextureCache()
@@ -3238,6 +3241,7 @@ void GLRenderer::ClearLevelTextureCache()
 
 void GLRenderer::ClearVideoBuf()
 {
+    m_uploadedTerrainTextures.fill(nullptr);
     const Vector3d fogColor = GetDistanceFogColor();
     glClearColor(fogColor.x, fogColor.y, fogColor.z, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
