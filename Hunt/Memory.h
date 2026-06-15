@@ -245,4 +245,57 @@ static_assert(sizeof(unique_obj_ptr<int>) == sizeof(void*),
               "(empty base optimization on HeapDeleter must apply)");
 
 
+// ----------------------------------------------------------------------------
+// Leak detection (Phase 5F) — only compiled when MEM_DEBUG is defined
+// ----------------------------------------------------------------------------
+//
+// Wrapped in #ifdef MEM_DEBUG so release builds pay zero cost (no map, no
+// mutex, no string members in AllocationInfo, no extra code in _HeapAlloc
+// / _HeapFree). The MEM_DEBUG flag is set by CMakeLists.txt for Debug
+// builds; the menu target excludes itself (it doesn't allocate textures,
+// so the report would always be empty noise).
+//
+// Bootstrap note: g_Allocations is a std::map<void*, AllocationInfo> that
+// itself heap-allocates. It is created lazily on the first _HeapAlloc call
+// and intentionally NOT tracked by itself (recursive tracking would be
+// unsafe and is the reason the bootstrap path skips the recording step).
+// The mutex g_AllocMutex is also bootstrap-allocated in Resources.cpp and
+// likewise untracked.
+
+#ifdef MEM_DEBUG
+
+#include <map>
+#include <string>
+
+struct AllocationInfo {
+    size_t      size;
+    MemoryTag   tag;
+    std::string file;
+    int         line;
+};
+
+// The map is heap-allocated lazily (see bootstrap note above) and freed
+// at the end of PrintMemoryLeaks. The pointer itself is not a smart
+// pointer because the leak detector must outlive every other subsystem
+// to print its report.
+extern std::map<void*, AllocationInfo>* g_Allocations;
+
+void PrintMemoryLeaks();
+void ClearTagAllocations(MemoryTag tag);
+
+// Convenience macro that captures __FILE__ and __LINE__ at the call site
+// and forwards to the 5-arg _HeapAlloc overload (which is only declared
+// when MEM_DEBUG is on). In non-MEM_DEBUG builds, _AllocTrack forwards to
+// the 4-arg overload with file=nullptr, line=0 -- a cheap no-op in release.
+//
+// Note: originally named _Alloc in the design doc and in C1, but MSVC's
+// STL uses _Alloc internally in <unordered_map> and <map>, so naming
+// our macro _Alloc produces a 'not enough arguments for function-like
+// macro' warning every time those headers are included. _AllocTrack
+// avoids the collision without changing semantics.
+#define _AllocTrack(size, tag) _HeapAlloc(Heap, 0, (size_t)(size), (tag), __FILE__, __LINE__)
+
+#endif // MEM_DEBUG
+
+
 #endif // HUNT_MEMORY_H

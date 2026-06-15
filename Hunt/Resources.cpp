@@ -1,6 +1,16 @@
 #include "Hunt.h"
 #include "stdio.h"
 #include "timeapi.h"
+
+#ifdef MEM_DEBUG
+#include <mutex>
+#endif
+
+#ifdef MEM_DEBUG
+std::mutex g_AllocMutex;
+std::map<void*, AllocationInfo>* g_Allocations = nullptr;
+#endif
+
 HANDLE hfile;
 DWORD  l;
 
@@ -66,11 +76,61 @@ LPVOID _HeapAlloc(HANDLE hHeap,
 }
 
 
+#ifdef MEM_DEBUG
+// 5-arg _HeapAlloc (Phase 5F): additive overload that captures the
+// call-site file/line for the leak report. Forwards the actual work to
+// the 4-arg overload (the dispatch logic lives in one place) and then
+// records the allocation in g_Allocations under g_AllocMutex.
+//
+// The map and mutex are allocated lazily and are themselves NOT
+// tracked (recursive tracking would be unsafe; see the bootstrap note
+// in Memory.h). The map entry is the source of truth for the leak
+// report at shutdown.
+LPVOID _HeapAlloc(HANDLE hHeap,
+                  DWORD dwFlags,
+                  DWORD dwBytes,
+                  MemoryTag tag,
+                  const char* file,
+                  int line)
+{
+  std::lock_guard<std::mutex> lock(g_AllocMutex);
+  if (!g_Allocations) g_Allocations = new std::map<void*, AllocationInfo>();
+
+  LPVOID res = _HeapAlloc(hHeap, dwFlags, dwBytes, tag);
+
+  (*g_Allocations)[res] = { (size_t)dwBytes, tag,
+                            file ? file : "unknown", line };
+  return res;
+}
+#endif
+
+
 BOOL _HeapFree(HANDLE hHeap,
                DWORD  dwFlags,
                LPVOID lpMem)
 {
   if (!lpMem) return false;
+
+  // Phase 5F: remove the entry from the leak map (if recording is on)
+  // before the pointer is freed. For Level-tagged allocations the
+  // pointer is owned by the arena and never reaches HeapFree, but we
+  // still want to remove its map entry so it doesn't show up as a
+  // leak. The erase is a no-op for pointers that aren't tracked.
+#ifdef MEM_DEBUG
+  {
+    std::lock_guard<std::mutex> lock(g_AllocMutex);
+    if (g_Allocations) {
+      auto it = g_Allocations->find(lpMem);
+      if (it != g_Allocations->end()) {
+        if (it->second.tag == MemoryTag::Level) {
+          g_Allocations->erase(it);
+          return TRUE;  // arena-owned: don't fall through to HeapFree
+        }
+        g_Allocations->erase(it);
+      }
+    }
+  }
+#endif
 
   // Phase 5A: arena allocations are silently ignored. The arena owns
   // them and will reclaim them in bulk on Reset() (LevelArena is null
@@ -90,6 +150,103 @@ BOOL _HeapFree(HANDLE hHeap,
 
   return res;
 }
+
+
+#ifdef MEM_DEBUG
+// Phase 5F: human-readable tag name for the leak report. C1 has the
+// same function at Carnivores1/Hunt/Resources.cpp:97-107. Kept as a
+// free function (not a method on MemoryTag) so it can be called from
+// PrintMemoryLeaks without dragging the enum into a public header.
+const char* MemoryTagToString(MemoryTag tag) {
+    switch (tag) {
+        case MemoryTag::Global:   return "Global";
+        case MemoryTag::Level:    return "Level";
+        case MemoryTag::Graphics: return "Graphics";
+        case MemoryTag::Audio:    return "Audio";
+        case MemoryTag::AI:       return "AI";
+        case MemoryTag::Physics:  return "Physics";
+        default:                  return "Unknown";
+    }
+}
+
+
+// Phase 5F: walk g_Allocations and print every remaining entry (these
+// are the leaks). Prints a per-tag summary at the end, then deletes
+// the map. Called from Game.cpp ShutDownEngine() before delete
+// LevelArena so the pointers in the report are still valid.
+//
+// Output goes to PrintLog, which writes to carnivor.log. The log is
+// flushed by CloseLog() after the call returns (the doc explicitly
+// warns about ordering: PrintMemoryLeaks must run before the log is
+// closed, which it does because ShutDownEngine is called before
+// CloseLog in WinMain's cleanup path).
+void PrintMemoryLeaks()
+{
+    if (!g_Allocations || g_Allocations->empty()) {
+        PrintLog("No memory leaks detected.\n");
+        if (g_Allocations) {
+            delete g_Allocations;
+            g_Allocations = nullptr;
+        }
+        return;
+    }
+
+    char buf[512];
+    sprintf(buf, "Memory leaks detected: %u blocks\n", (unsigned)g_Allocations->size());
+    PrintLog(buf);
+
+    std::map<MemoryTag, size_t> tagTotals;
+    size_t total = 0;
+
+    for (auto const& kv : *g_Allocations) {
+        void* ptr = kv.first;
+        const AllocationInfo& info = kv.second;
+        sprintf(buf, "[%s] Leak: %p, size: %u, at %s:%d\n",
+                MemoryTagToString(info.tag), ptr,
+                (unsigned)info.size, info.file.c_str(), info.line);
+        PrintLog(buf);
+        tagTotals[info.tag] += info.size;
+        total += info.size;
+    }
+
+    PrintLog("\nMemory leaks summary by category:\n");
+    for (auto const& kv : tagTotals) {
+        sprintf(buf, "  %-10s: %u bytes\n",
+                MemoryTagToString(kv.first), (unsigned)kv.second);
+        PrintLog(buf);
+    }
+
+    sprintf(buf, "Total leaked memory: %u bytes\n", (unsigned)total);
+    PrintLog(buf);
+
+    delete g_Allocations;
+    g_Allocations = nullptr;
+}
+
+
+// Phase 5F: strip every entry with the given tag out of g_Allocations.
+// Called from ReleaseResources() after LevelArena->Reset() so the
+// per-level entries (which were arena-owned and just got bulk-freed)
+// don't show up as leaks in the shutdown report. C1 does the same
+// thing in its ReleaseResources.
+//
+// C1's version only clears MemoryTag::Level. We follow that -- the
+// other tags don't have the same lifetime mismatch because the
+// Global/Graphics/Audio/etc. allocations are _HeapFree'd explicitly
+// by their owners.
+void ClearTagAllocations(MemoryTag tag)
+{
+    if (!g_Allocations) return;
+    std::lock_guard<std::mutex> lock(g_AllocMutex);
+    for (auto it = g_Allocations->begin(); it != g_Allocations->end(); ) {
+        if (it->second.tag == tag) {
+            it = g_Allocations->erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+#endif // MEM_DEBUG
 
 
 void AddMessage(LPSTR mt)
