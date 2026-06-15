@@ -1234,9 +1234,11 @@ bool GLRenderer::BuildModelEffectVertices(std::vector<ModelVertex>& outVertices,
     const float sa = std::sin(al);
     const float cb = std::cos(bt);
     const float sb = std::sin(bt);
-    static thread_local std::vector<Vector3d> transformed;
+    // Phase 1.13: local vector (was static thread_local). The renderer
+    // is single-threaded so the static thread_local was misleading; the
+    // heap traffic at ~100 calls/frame is trivial.
+    std::vector<Vector3d> transformed;
     transformed.reserve(mptr->VCount);
-    transformed.clear();
 
     bool anyVisible = false;
     for (int i = 0; i < mptr->VCount; ++i) {
@@ -1280,7 +1282,8 @@ bool GLRenderer::BuildModelEffectVertices(std::vector<ModelVertex>& outVertices,
             255
         };
 
-        static thread_local std::vector<ModelClipVertex> clipped;
+        // Phase 1.13: local vector (was static thread_local).
+        std::vector<ModelClipVertex> clipped;
         ClipTriangleAgainstNearPlane(v0, v1, v2, clipped);
         for (size_t j = 1; j + 1 < clipped.size(); ++j) {
             // Phase 1.4: pack the float fields (light, fog, alpha, cutout)
@@ -1356,12 +1359,13 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
     const float sa = std::sin(al);
     const float cb = std::cos(bt);
     const float sb = std::sin(bt);
-    static thread_local std::vector<Vector3d> transformed;
-    static thread_local std::vector<Vector3d> unrotated;
+    // Phase 1.13: local vectors (were static thread_local). The
+    // renderer is single-threaded; heap traffic at ~100 calls/frame
+    // is trivial.
+    std::vector<Vector3d> transformed;
+    std::vector<Vector3d> unrotated;
     transformed.reserve(mptr->VCount);
     unrotated.reserve(mptr->VCount);
-    transformed.clear();
-    unrotated.clear();
 
     // C1 technique for model fog. The view rotation in
     // RenderMappedObject is RotateVector = R_x(CameraBeta) * R_y(CameraAlpha)
@@ -1464,7 +1468,9 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
         target.push_back({a.position.x, a.position.y, a.position.z, a.uv.x, a.uv.y, lightAByte, fogAByte, alphaByte, cutoutByte, fogAR, fogAG, fogAB, {0,0,0,0,0}});
         target.push_back({b.position.x, b.position.y, b.position.z, b.uv.x, b.uv.y, lightBByte, fogBByte, alphaByte, cutoutByte, fogBR, fogBG, fogBB, {0,0,0,0,0}});
         target.push_back({c.position.x, c.position.y, c.position.z, c.uv.x, c.uv.y, lightCByte, fogCByte, alphaByte, cutoutByte, fogCR, fogCG, fogCB, {0,0,0,0,0}});
-    };    static thread_local std::vector<ModelClipVertex> polygon;
+    };
+    // Phase 1.13: local vector (was static thread_local).
+    std::vector<ModelClipVertex> polygon;
     polygon.reserve(4);
     polygon.clear();
 
@@ -1589,10 +1595,13 @@ void GLRenderer::DrawModelVertices(GLuint texture,
     }
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture);
+    if (texture != m_lastBoundModelTexture) {
+        glBindTexture(GL_TEXTURE_2D, texture);
+        m_lastBoundModelTexture = texture;
 #ifdef GL_PERF_HOOKS
-    GL_PERF_TEXTURE_BIND(texture);
+        GL_PERF_TEXTURE_BIND(texture);
 #endif
+    }
     glBindVertexArray(m_modelVAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
     const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(vertices.size() * sizeof(ModelVertex));
@@ -1887,6 +1896,14 @@ void GLRenderer::RenderObject(int x, int y)
         return;
     }
     if (m_objectList.size() >= 2048) {
+        // Phase 1.14: surface the silent cap as a warning. D3D/3DFX have
+        // the same cap, so the issue (if it triggers) is in the shared
+        // HUNTDAT, not the GL path. PrintLog so the user can see it.
+        static bool warned = false;
+        if (!warned) {
+            PrintLog("WARNING: m_objectList hit 2048 cap; further objects are dropped silently\n");
+            warned = true;
+        }
         return;
     }
 
@@ -1986,6 +2003,13 @@ void GLRenderer::RenderModelsList()
 #ifdef GL_PERF_HOOKS
     GL_PERF_SCOPE("RenderModelsList");
 #endif
+    // Phase 1.11: reset the last-bound model texture tracker at the
+    // start of each frame's model-draw session. The sky pass runs
+    // first in the frame and binds m_skyTexture to GL_TEXTURE_2D
+    // (a different handle than the first model draw's), so we
+    // need to force a re-bind here. Within the session, the tracker
+    // correctly skips consecutive buckets that share a texture.
+    m_lastBoundModelTexture = 0;
     for (const Vector2di& object : m_objectList) {
         RenderMappedObject(object.x, object.y);
     }

@@ -260,6 +260,10 @@ private:
     unsigned int m_modelShader = 0;
     unsigned int m_modelVAO = 0;
     unsigned int m_modelVBO = 0;
+    // Phase 1.11: last-bound model texture, used to skip redundant
+    // glBindTexture calls when consecutive buckets share a texture
+    // (which is the common case after Phase 1.7's bucket sort).
+    GLuint m_lastBoundModelTexture = 0;
     unsigned int m_whiteTexture = 0;  // 1x1 white texture for flat-color rendering
     unsigned int m_phongTexture = 0;
     unsigned int m_envTexture = 0;
