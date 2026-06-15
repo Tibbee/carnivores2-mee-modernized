@@ -2327,15 +2327,22 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
         vertices.push_back({ex2, ey2, 0.0001f, 0, 0, 255, 1.0f, er, eg, eb, ea, 0});
     }
 
-    // Identity projection for NDC-space rendering. The quad is already
-    // in NDC (cx-VideoCX)/VideoCX, (VideoCY-cy)/VideoCY, so we need the
-    // identity matrix in the UBO -- otherwise the world projection
-    // collapses the NDC vertices off-screen.
+    // 2D HUD circles: NDC-space vertices. The UBO carries the world
+    // projection here, which re-projects the NDC vertices into 3D
+    // (W = -Z, so X = X_clip / -0.0001 is blown up off-screen) and
+    // clips the octagons away. This means the muzzle-flash, blood, and
+    // snow HUD elements are not visible in the GL renderer.
+    //
+    // The proper fix is a dedicated 2D circle shader that skips the
+    // projection entirely (like the sky shader hardcodes
+    // gl_Position = vec4(pos, 0, 1)), but that's a follow-up. For now
+    // the pre-Phase-1.1 behavior (invisible circles) is preserved so we
+    // don't regress to visible-but-broken artifacts.
     const std::array<float, 16> identity = {
         1.0f,0.0f,0.0f,0.0f, 0.0f,1.0f,0.0f,0.0f, 0.0f,0.0f,1.0f,0.0f, 0.0f,0.0f,0.0f,1.0f
     };
 
-    UpdatePerFrameUBO(identity);
+    UpdatePerFrameUBO();
     glUseProgram(m_modelShader);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
@@ -4101,6 +4108,10 @@ void GLRenderer::RenderFSRect(uint32_t color)
     GL_PERF_STATE_CHANGE();
 #endif
 
+    // The fullscreen quad is in NDC (gl_Position in [-1, 1] after identity),
+    // so the UBO must carry the identity projection. With the world
+    // projection here, the NDC vertices get re-projected off-screen and
+    // the glare is invisible.
     UpdatePerFrameUBO(identity);
     glUseProgram(m_modelShader);
 #ifdef GL_PERF_HOOKS
