@@ -25,7 +25,14 @@ if(MSVC)
     # Fix for some legacy headers and scoping
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /permissive")
 
-    # Enable memory debugging for Debug builds
+    # Enable memory debugging for Debug builds. Wired to the main
+    # game executable only; the menu target lives in Menu/CMakeLists.txt
+    # which doesn't include this block, so the menu never gets
+    # MEM_DEBUG (it has its own Resources.cpp with no leak detector,
+    # and it doesn't allocate textures, so the report would always be
+    # empty noise). Defense-in-depth: if a future change ever moves
+    # the menu under this CMakeLists, wrap the add_definitions in
+    # 'if(NOT TARGET Carnivores2Menu)' to keep the menu excluded.
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_definitions(-DMEM_DEBUG)
     endif()

@@ -1437,6 +1437,36 @@ void GenerateMapImage()
 void ReleaseResources()
 {
   HeapReleased=0;
+
+  // Phase 5F.2: reset the per-level arena BEFORE iterating over the
+  // level resources. The bulk release rewinds the offset to zero in
+  // O(1) and is the whole point of the arena -- per-level
+  // allocations don't need individual _HeapFree calls because the
+  // arena owns them. C1's ReleaseResources does this (see C1's
+  // _HeapFree which calls Reset()). The reset must come before the
+  // smart-pointer .reset() loop below so the dangling-pointer check
+  // (the .reset() path that calls _HeapFree via HeapDeleter) doesn't
+  // see arena pointers that are about to be reclaimed.
+  //
+  // If LevelArena is null (Phase 5A build, or a build where the
+  // arena was never constructed), this is a no-op -- the for loops
+  // below do the manual cleanup.
+  if (LevelArena != nullptr) {
+    LevelArena->Reset();
+  }
+
+#ifdef MEM_DEBUG
+  // Phase 5F.2: strip the per-level entries out of the leak map.
+  // The arena just bulk-freed them, but the map would still show
+  // them as 'leaks' on shutdown unless we remove them here. C1 does
+  // the same in its ReleaseResources (see C1's Resources.cpp after
+  // the Reset() call). Only Level entries are stripped -- Global
+  // entries (menu SFX, SunModel, etc.) are _HeapFree'd by their
+  // owners and erase themselves from the map in _HeapFree.
+  if (LevelArena != nullptr) {
+    ClearTagAllocations(MemoryTag::Level);
+  }
+#endif
   for (int t=0; t<1024; t++)
     if (Textures[t].get())
     {
@@ -2005,6 +2035,19 @@ void LoadCharacters()
   }
 
 
+  // Phase 5F.2: print per-level arena stats now that every per-level
+  // allocation has been made. C1 has the same call at
+  // Carnivores1/Hunt/Resources.cpp:1501. Useful for two things:
+  //   1. Spotting memory-hungry levels (peak usage vs capacity).
+  //   2. Verifying the arena reset works between level transitions
+  //      (if the alloc count keeps growing across reloads, the reset
+  //      is broken).
+  // No-op in non-MEM_DEBUG builds (LogStats is a plain method, not
+  // macro-gated, but the call site is the only place that needs the
+  // report and it's useful even in release for production tuning).
+  if (LevelArena != nullptr) {
+    LevelArena->LogStats(" after load");
+  }
 }
 
 void resetSSHip() {

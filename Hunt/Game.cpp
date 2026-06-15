@@ -1824,6 +1824,18 @@ void ShutDownEngine()
   ReleaseGlobalResources();
   ReleaseDC(hwndMain,hdcMain);
 
+  // Phase 5F.2: Print the leak report to carnivor.log before tearing
+  // down the arena. Must run AFTER Release* (so the per-level
+  // allocations and global allocations have been released) and BEFORE
+  // delete LevelArena (so the pointer values in the report are still
+  // valid -- the report is informational only, but the doc explicitly
+  // notes that printing after the arena is freed is wasteful). In
+  // non-MEM_DEBUG builds the call is a no-op (the function expands to
+  // a single branch and returns immediately).
+#ifdef MEM_DEBUG
+  PrintMemoryLeaks();
+#endif
+
   // Phase 5C.2: Tear down the LevelArena after all _HeapFree calls have
   // run. C1 has the same order (Carnivores1/Hunt/Game.cpp:669-670).
   // LevelArena->Reset() in ReleaseResources() expects LevelArena to be
