@@ -1294,6 +1294,10 @@ void LoadCharacterInfo(TCharacterInfo&, char*);
 void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName);
 void LoadModel(unique_obj_ptr<TModel> &mptr);
 void LoadResources();
+void ReleaseResources();
+void ReleaseGlobalResources();
+void ReleaseCharacterInfo(TCharacterInfo &chinfo);
+void ReleaseModel(unique_obj_ptr<TModel> &mptr);
 void ReInitGame();
 
 

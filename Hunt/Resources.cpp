@@ -1388,6 +1388,57 @@ void LoadBMPModel(TObject &obj)
 }
 
 
+void ReleaseGlobalResources()
+{
+  // Phase 5C.1: Release the global (cross-level) resources that the menu
+  // and base game load once at startup. Without this, every Quit leaks the
+  // weapon character info, the Sun/Compass/Binocular models, the menu
+  // pictures, and the per-character global allocations in ChInfo[].
+  //
+  // Mirrors C1's ReleaseGlobalResources in Carnivores1/Hunt/Resources.cpp
+  // (lines 1220-1256), adapted for C2 ME's larger ChInfo[128] array and
+  // the absence of the menu SFX globals (fxMenuGo/Mov/Amb -- C2 ME handles
+  // menu audio differently and doesn't have them as globals).
+
+  for (int c = 0; c < DINOINFO_MAX; c++)
+  {
+    ReleaseCharacterInfo(ChInfo[c]);
+  }
+
+  ReleaseCharacterInfo(ShipModel);
+  ReleaseCharacterInfo(SShipModel);
+  ReleaseCharacterInfo(WindModel);
+
+  for (int w = 0; w < 10; w++)
+  {
+    ReleaseCharacterInfo(Weapon.chinfo[w]);
+  }
+
+  ReleaseModel(SunModel);
+  ReleaseModel(CompasModel);
+  ReleaseModel(Binocular);
+
+  // Menu pictures -- unique_heap_ptr<WORD[]>, so .reset() is enough.
+  PausePic.lpImage.reset();
+  ExitPic.lpImage.reset();
+  TrophyExit.lpImage.reset();
+  TrophyPic.lpImage.reset();
+  TrophyNoCollectPic.lpImage.reset();
+  ScorePic.lpImage.reset();
+  LandPic.lpImage.reset();
+  DinoPic.lpImage.reset();
+  DinoPicM.lpImage.reset();
+  MapPic.lpImage.reset();
+  WepPic.lpImage.reset();
+
+  // The "null" texture (index 255) is the one InitEngine allocates
+  // before any level loads; it's never reset by ReleaseResources()
+  // because ReleaseResources iterates from 0 and breaks on the first
+  // null pointer. Release it here.
+  Textures[255].reset();
+}
+
+
 void LoadResources()
 {
 
@@ -1941,6 +1992,21 @@ void ReInitGame()
   AllocateRenderTables();
 }
 
+
+
+void ReleaseModel(unique_obj_ptr<TModel> &mptr)
+{
+  // Phase 5C.1: release the GPU-side texture handles owned by the renderer
+  // before dropping the model. C1's releaseModelTextures call is
+  // duplicated here as a plain release of the TModel's own texture
+  // pointers; the renderer's own ReleaseModelTextures callback is a
+  // separate concern (some renderers cache GPU handles by TModel*).
+  if (!mptr) return;
+  mptr->lpTexture.reset();
+  mptr->lpTexture2.reset();
+  mptr->lpTexture3.reset();
+  mptr.reset();
+}
 
 
 void ReleaseCharacterInfo(TCharacterInfo &chinfo)

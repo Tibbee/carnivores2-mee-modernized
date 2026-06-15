@@ -1793,6 +1793,15 @@ void InitEngine()
 
 void ShutDownEngine()
 {
+  // Phase 5C.1: Release per-level and global resources before tearing
+  // down the heap and the window DC. C1's ShutDownEngine has these calls
+  // (Carnivores1/Hunt/Game.cpp:660-670); C2 ME was missing them, so every
+  // Quit leaked the level resources, the weapon character info, the
+  // Sun/Compass/Binocular models, and the menu pictures. The LevelArena
+  // construction is still pending in Phase 5C.2; once it's in, the
+  // ReleaseResources() call will also trigger LevelArena->Reset().
+  ReleaseResources();
+  ReleaseGlobalResources();
   ReleaseDC(hwndMain,hdcMain);
 }
 
