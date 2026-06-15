@@ -986,17 +986,28 @@ void GLRenderer::EnsurePerFrameUBO()
 
 void GLRenderer::UpdatePerFrameUBO()
 {
+    UpdatePerFrameUBO(BuildLegacyProjection());
+}
+
+void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection)
+{
     if (!m_perFrameUBO || !m_perFrameUBOInitialized) {
         return;
     }
 
-    // Always recompute the projection. We can't cache it because the
-    // projection depends on VideoCX/VideoCY/CameraW/CameraH, which the
+    // Caller-provided projection. World passes use BuildLegacyProjection();
+    // near-model passes (weapon viewmodel + its Phong/env effects) use the
+    // cached near-model projection from RenderNearModel; NDC-space passes
+    // (full-screen glare, HUD circles) use the identity matrix. Previously
+    // the no-arg overload was the only entry point and the caller-supplied
+    // projection in DrawModelVertices was ignored, which broke the env-map
+    // alignment on the weapon and the sun glare overlay (regression from
+    // 6bda7780).
     // near-model path (wind/compass/weapon viewmodels) changes between
     // draws. BuildLegacyProjection is cheap enough that recomputing per
     // draw costs microseconds, vs. the visual regression of a stale
     // matrix.
-    m_cachedProjection = BuildLegacyProjection();
+    m_cachedProjection = projection;
 
     // Fog range only depends on ctViewR, but ctViewR can change at runtime
     // (widescreen FOV), so we recompute unconditionally too.
@@ -1539,7 +1550,7 @@ void GLRenderer::DrawModelVertices(GLuint texture,
         return;
     }
 
-    UpdatePerFrameUBO();
+    UpdatePerFrameUBO(projection);
     glUseProgram(m_modelShader);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
@@ -2316,12 +2327,15 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
         vertices.push_back({ex2, ey2, 0.0001f, 0, 0, 255, 1.0f, er, eg, eb, ea, 0});
     }
 
-    // Identity projection for NDC-space rendering
-    const float identity[16] = {
-        1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1
+    // Identity projection for NDC-space rendering. The quad is already
+    // in NDC (cx-VideoCX)/VideoCX, (VideoCY-cy)/VideoCY, so we need the
+    // identity matrix in the UBO -- otherwise the world projection
+    // collapses the NDC vertices off-screen.
+    const std::array<float, 16> identity = {
+        1.0f,0.0f,0.0f,0.0f, 0.0f,1.0f,0.0f,0.0f, 0.0f,0.0f,1.0f,0.0f, 0.0f,0.0f,0.0f,1.0f
     };
 
-    UpdatePerFrameUBO();
+    UpdatePerFrameUBO(identity);
     glUseProgram(m_modelShader);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
@@ -4062,9 +4076,12 @@ void GLRenderer::RenderFSRect(uint32_t color)
         {-1.0f,  1.0f, 0.0001f, 0, 0, 255, 1.0f, r, g, b, a, 0},
     };
 
-    // Identity projection — vertices are already in NDC
-    const float identity[16] = {
-        1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1
+    // The quad is already in NDC, so we need the identity projection in
+    // the UBO (not the world projection). The local 'identity' matrix
+    // here was the old glUniformMatrix4fv value; the UBO replaces that
+    // path entirely.
+    const std::array<float, 16> identity = {
+        1.0f,0.0f,0.0f,0.0f, 0.0f,1.0f,0.0f,0.0f, 0.0f,0.0f,1.0f,0.0f, 0.0f,0.0f,0.0f,1.0f
     };
 
     glDisable(GL_DEPTH_TEST);
@@ -4084,7 +4101,7 @@ void GLRenderer::RenderFSRect(uint32_t color)
     GL_PERF_STATE_CHANGE();
 #endif
 
-    UpdatePerFrameUBO();
+    UpdatePerFrameUBO(identity);
     glUseProgram(m_modelShader);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();

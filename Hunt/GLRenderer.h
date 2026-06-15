@@ -161,6 +161,7 @@ private:
     bool InitializeModelPipeline();
     void ShutdownModelPipeline();
     void UpdatePerFrameUBO();
+    void UpdatePerFrameUBO(const std::array<float, 16>& projection);
     void EnsurePerFrameUBO();
     void BeginTerrainFrame();
     void BeginWaterFrame();
