@@ -631,11 +631,8 @@ bool GLRenderer::Initialize()
         "#version 330 core\n"
         "layout (location = 0) in vec3 aPos;\n"
         "layout (location = 1) in vec2 aTexCoord;\n"
-        "layout (location = 2) in float aLight;\n"
-        "layout (location = 3) in float aFog;\n"
-        "layout (location = 4) in vec3 aFogColor;\n"
-        "layout (location = 5) in float aAlpha;\n"
-        "layout (location = 6) in float aCutout;\n"
+        "layout (location = 2) in vec4 aLightFogAlphaCutout;\n"
+        "layout (location = 3) in vec3 aFogColor;\n"
         "uniform PerFrame {\n"
         "   mat4 uProjection;\n"
         "   vec2 uFogRange;\n"
@@ -652,11 +649,12 @@ bool GLRenderer::Initialize()
         "void main() {\n"
         "   gl_Position = uProjection * vec4(aPos, 1.0);\n"
         "   vTexCoord = aTexCoord;\n"
-        "   vLight = clamp(aLight / 255.0, 0.0, 1.0);\n"
-        "   vFog = clamp(aFog, 0.0, 1.0);\n"
+        "   // uint8 attributes are normalized to [0,1] by the driver.\n"
+        "   vLight  = aLightFogAlphaCutout.x;\n"
+        "   vFog    = aLightFogAlphaCutout.y;\n"
+        "   vAlpha  = aLightFogAlphaCutout.z;\n"
+        "   vCutout = aLightFogAlphaCutout.w;\n"
         "   vFogColor = aFogColor;\n"
-        "   vAlpha = clamp(aAlpha, 0.0, 1.0);\n"
-        "   vCutout = aCutout;\n"
         "}\n";
 
     const char* modelFragmentSource =
@@ -861,20 +859,19 @@ bool GLRenderer::InitializeModelPipeline()
     glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
     glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
 
+    // Phase 1.4: packed ModelVertex layout (32 bytes).
+    //   attribute 0: vec3  aPos                 (12 bytes, float)
+    //   attribute 1: vec2  aTexCoord             ( 8 bytes, float)
+    //   attribute 2: vec4  light/fog/alpha/cutout ( 4 bytes, uint8 normalized)
+    //   attribute 3: vec3  fogR/fogG/fogB        ( 3 bytes, uint8 normalized)
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, x)));
+    glVertexAttribPointer(0, 3, GL_FLOAT,         GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, x)));
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, u)));
+    glVertexAttribPointer(1, 2, GL_FLOAT,         GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, u)));
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, light)));
+    glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, light)));
     glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, fog)));
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, fogR)));
-    glEnableVertexAttribArray(5);
-    glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, alpha)));
-    glEnableVertexAttribArray(6);
-    glVertexAttribPointer(6, 1, GL_FLOAT, GL_FALSE, sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, cutout)));
+    glVertexAttribPointer(3, 3, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof(ModelVertex), reinterpret_cast<void*>(offsetof(ModelVertex, fogR)));
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -1285,19 +1282,27 @@ bool GLRenderer::BuildModelEffectVertices(std::vector<ModelVertex>& outVertices,
         static thread_local std::vector<ModelClipVertex> clipped;
         ClipTriangleAgainstNearPlane(v0, v1, v2, clipped);
         for (size_t j = 1; j + 1 < clipped.size(); ++j) {
+            // Phase 1.4: pack the float fields (light, fog, alpha, cutout)
+            // and the fog color vec3 to uint8. The water surface always
+            // uses light=255, fog.amount=0, alpha=1, cutout=0, so the
+            // packed bytes are constant and can be computed once.
+            const uint8_t lightByte  = 255;
+            const uint8_t fog0Byte   = 0;
+            const uint8_t alphaByte  = 255;
+            const uint8_t cutoutByte = 0;
+            const uint8_t fogRByte   = Float01ToByte(fogColor.x);
+            const uint8_t fogGByte   = Float01ToByte(fogColor.y);
+            const uint8_t fogBByte   = Float01ToByte(fogColor.z);
+            const uint8_t pad[5] = {0, 0, 0, 0, 0};
             const ModelVertex out0 = {
                 clipped[0].position.x,
                 clipped[0].position.y,
                 clipped[0].position.z,
                 clipped[0].uv.x,
                 clipped[0].uv.y,
-                255.0f,
-                0.0f,
-                fogColor.x,
-                fogColor.y,
-                fogColor.z,
-                1.0f,
-                0.0f
+                lightByte, fog0Byte, alphaByte, cutoutByte,
+                fogRByte, fogGByte, fogBByte,
+                {0, 0, 0, 0, 0}
             };
             const ModelVertex out1 = {
                 clipped[j].position.x,
@@ -1305,13 +1310,9 @@ bool GLRenderer::BuildModelEffectVertices(std::vector<ModelVertex>& outVertices,
                 clipped[j].position.z,
                 clipped[j].uv.x,
                 clipped[j].uv.y,
-                255.0f,
-                0.0f,
-                fogColor.x,
-                fogColor.y,
-                fogColor.z,
-                1.0f,
-                0.0f
+                lightByte, fog0Byte, alphaByte, cutoutByte,
+                fogRByte, fogGByte, fogBByte,
+                {0, 0, 0, 0, 0}
             };
             const ModelVertex out2 = {
                 clipped[j + 1].position.x,
@@ -1319,13 +1320,9 @@ bool GLRenderer::BuildModelEffectVertices(std::vector<ModelVertex>& outVertices,
                 clipped[j + 1].position.z,
                 clipped[j + 1].uv.x,
                 clipped[j + 1].uv.y,
-                255.0f,
-                0.0f,
-                fogColor.x,
-                fogColor.y,
-                fogColor.z,
-                1.0f,
-                0.0f
+                lightByte, fog0Byte, alphaByte, cutoutByte,
+                fogRByte, fogGByte, fogBByte,
+                {0, 0, 0, 0, 0}
             };
             outVertices.push_back(out0);
             outVertices.push_back(out1);
@@ -1439,9 +1436,33 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
         const float cutoutValue = cutout ? 1.0f : 0.0f;
         const bool blended = transparent || forceDistanceBlend;
         std::vector<ModelVertex>& target = blended ? outItem.transparentVertices : (cutout ? outItem.cutoutVertices : outItem.opaqueVertices);
-        target.push_back({a.position.x, a.position.y, a.position.z, a.uv.x, a.uv.y, a.light, fogA.amount, fogA.color.x, fogA.color.y, fogA.color.z, alpha, cutoutValue});
-        target.push_back({b.position.x, b.position.y, b.position.z, b.uv.x, b.uv.y, b.light, fogB.amount, fogB.color.x, fogB.color.y, fogB.color.z, alpha, cutoutValue});
-        target.push_back({c.position.x, c.position.y, c.position.z, c.uv.x, c.uv.y, c.light, fogC.amount, fogC.color.x, fogC.color.y, fogC.color.z, alpha, cutoutValue});
+        // Phase 1.4: pack light/fog/alpha/cutout as uint8 (driver normalizes
+        // them back to [0,1] in the vertex shader) and the per-vertex fog
+        // color as a vec3 of uint8. The float->uint8 conversion is the only
+        // CPU cost of the new layout; it's a single clamp+multiply+cast.
+        // Each of a, b, c gets its own light byte -- using a single
+        // lightByte for all three causes flat shading (every triangle
+        // would inherit vertex a's lighting).
+        const uint8_t lightAByte = Light255ToByte(a.light);
+        const uint8_t lightBByte = Light255ToByte(b.light);
+        const uint8_t lightCByte = Light255ToByte(c.light);
+        const uint8_t fogAByte   = Float01ToByte(fogA.amount);
+        const uint8_t fogAR      = Float01ToByte(fogA.color.x);
+        const uint8_t fogAG      = Float01ToByte(fogA.color.y);
+        const uint8_t fogAB      = Float01ToByte(fogA.color.z);
+        const uint8_t alphaByte  = Float01ToByte(alpha);
+        const uint8_t cutoutByte = CutoutToByte(cutout);
+        const uint8_t fogBByte   = Float01ToByte(fogB.amount);
+        const uint8_t fogBR      = Float01ToByte(fogB.color.x);
+        const uint8_t fogBG      = Float01ToByte(fogB.color.y);
+        const uint8_t fogBB      = Float01ToByte(fogB.color.z);
+        const uint8_t fogCByte   = Float01ToByte(fogC.amount);
+        const uint8_t fogCR      = Float01ToByte(fogC.color.x);
+        const uint8_t fogCG      = Float01ToByte(fogC.color.y);
+        const uint8_t fogCB      = Float01ToByte(fogC.color.z);
+        target.push_back({a.position.x, a.position.y, a.position.z, a.uv.x, a.uv.y, lightAByte, fogAByte, alphaByte, cutoutByte, fogAR, fogAG, fogAB, {0,0,0,0,0}});
+        target.push_back({b.position.x, b.position.y, b.position.z, b.uv.x, b.uv.y, lightBByte, fogBByte, alphaByte, cutoutByte, fogBR, fogBG, fogBB, {0,0,0,0,0}});
+        target.push_back({c.position.x, c.position.y, c.position.z, c.uv.x, c.uv.y, lightCByte, fogCByte, alphaByte, cutoutByte, fogCR, fogCG, fogCB, {0,0,0,0,0}});
     };    static thread_local std::vector<ModelClipVertex> polygon;
     polygon.reserve(4);
     polygon.clear();
@@ -1603,7 +1624,7 @@ void GLRenderer::DrawModelVertices(GLuint texture,
 bool GLRenderer::NeedsNearestModelFiltering(const std::vector<ModelVertex>& vertices) const
 {
     return std::any_of(vertices.begin(), vertices.end(), [](const ModelVertex& vertex) {
-        return vertex.cutout > 0.5f;
+        return vertex.cutout != 0;  // uint8 (0 or 1) -- Phase 1.4 packing
     });
 }
 
@@ -1838,9 +1859,15 @@ void GLRenderer::RenderProjectedCharacterShadow(const TCharacter& character, flo
             continue;
         }
 
-        shadowVertices.push_back({p0.x, p0.y, p0.z, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, alpha, 0.0f});
-        shadowVertices.push_back({p1.x, p1.y, p1.z, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, alpha, 0.0f});
-        shadowVertices.push_back({p2.x, p2.y, p2.z, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, alpha, 0.0f});
+        // Phase 1.4: pack shadow vertices with zero light, zero fog,
+        // per-character alpha, no cutout, zero fog color.
+        const uint8_t lightByte  = 0;
+        const uint8_t fogByte    = 0;
+        const uint8_t alphaByte  = Float01ToByte(alpha);
+        const uint8_t cutoutByte = 0;
+        shadowVertices.push_back({p0.x, p0.y, p0.z, 0.0f, 0.0f, lightByte, fogByte, alphaByte, cutoutByte, 0, 0, 0, {0,0,0,0,0}});
+        shadowVertices.push_back({p1.x, p1.y, p1.z, 0.0f, 0.0f, lightByte, fogByte, alphaByte, cutoutByte, 0, 0, 0, {0,0,0,0,0}});
+        shadowVertices.push_back({p2.x, p2.y, p2.z, 0.0f, 0.0f, lightByte, fogByte, alphaByte, cutoutByte, 0, 0, 0, {0,0,0,0,0}});
     }
 
     if (shadowVertices.empty()) {
@@ -2518,10 +2545,14 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
             mptr->gVertex[index].y + y0,
             z0,
             u, v,
-            baseLight,
-            fog.amount, fog.color.x, fog.color.y, fog.color.z,
-            alpha,
-            hasFade ? 0.0f : 1.0f  // cutout when no fade, opaque when fading
+            Light255ToByte(baseLight),
+            Float01ToByte(fog.amount),
+            Float01ToByte(alpha),
+            CutoutToByte(!hasFade),  // cutout when no fade, opaque when fading
+            Float01ToByte(fog.color.x),
+            Float01ToByte(fog.color.y),
+            Float01ToByte(fog.color.z),
+            {0, 0, 0, 0, 0}
         };
     };
 
@@ -3798,11 +3829,12 @@ void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int 
                 mptr->gVertex[vIdx].y + y0,
                 mptr->gVertex[vIdx].z + z0,
                 uv.x, uv.y,
-                255.0f,  // full brightness
-                0.0f,    // no fog
-                0.0f, 0.0f, 0.0f,  // fog color (unused)
-                alphaVal,
-                0.0f     // no cutout
+                Light255ToByte(255.0f),  // full brightness
+                Float01ToByte(0.0f),     // no fog
+                Float01ToByte(alphaVal),  // per-frame alpha
+                CutoutToByte(false),      // no cutout
+                0, 0, 0,                  // fog color (unused)
+                {0, 0, 0, 0, 0}
             };
         };
 

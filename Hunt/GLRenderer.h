@@ -11,6 +11,7 @@
 #include "glad/glad.h"
 #include "GLPerf.h"
 #include <windows.h>
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <map>
@@ -97,15 +98,39 @@ private:
         float alpha;
     };
 
+    // Packed model vertex (Phase 1.4). 32 bytes total (was 48).
+    //   offset  0: vec3  aPos                    (12 bytes)  -- attribute 0, float
+    //   offset 12: vec2  aTexCoord                ( 8 bytes)  -- attribute 1, float
+    //   offset 20: vec4  aLightFogAlphaCutout     ( 4 bytes)  -- attribute 2, uint8 normalized
+    //                 .x = light, .y = fog, .z = alpha, .w = cutout
+    //   offset 24: vec3  aFogColor                ( 3 bytes)  -- attribute 3, uint8 normalized
+    //   offset 27: 5 bytes explicit padding to round the vertex up to 32 bytes
     struct ModelVertex {
-        float x, y, z;
-        float u, v;
-        float light;
-        float fog;
-        float fogR, fogG, fogB;
-        float alpha;
-        float cutout;
+        float    x, y, z;          // 12
+        float    u, v;             //  8
+        uint8_t  light;            //  1 (vec4.x)
+        uint8_t  fog;              //  1 (vec4.y)
+        uint8_t  alpha;            //  1 (vec4.z)
+        uint8_t  cutout;           //  1 (vec4.w)
+        uint8_t  fogR;             //  1 (vec3.x)
+        uint8_t  fogG;             //  1 (vec3.y)
+        uint8_t  fogB;             //  1 (vec3.z)
+        uint8_t  _pad[5];          //  5  (pad to 32)
     };
+    static_assert(sizeof(ModelVertex) == 32, "ModelVertex must stay 32 bytes (Phase 1.4)");
+
+    // Phase 1.4 conversion helpers: float [0,1] / float [0,255] -> uint8.
+    // Drivers normalize the uint8 attribute back to [0,1] in the vertex
+    // shader, so the shader sees the same values as the old float layout.
+    static inline uint8_t Float01ToByte(float v) {
+        return static_cast<uint8_t>(std::clamp(v, 0.0f, 1.0f) * 255.0f + 0.5f);
+    }
+    static inline uint8_t Light255ToByte(float v) {
+        return static_cast<uint8_t>(std::clamp(v, 0.0f, 255.0f) + 0.5f);
+    }
+    static inline uint8_t CutoutToByte(bool on) {
+        return on ? 255 : 0;  // normalized to 1.0 or 0.0; shader checks vCutout > 0.5
+    }
 
     struct ModelDrawItem {
         GLuint texture;
