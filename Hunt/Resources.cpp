@@ -21,15 +21,28 @@ void GenerateAlphaFlags(TModel *mptr);
 // Phase 5A: the 3-arg _HeapAlloc is preserved as a one-line forwarder to
 // the new 4-arg overload that takes a MemoryTag. Call sites can be migrated
 // incrementally (per phase 5B-5E) by switching to the explicit 4-arg form
-// with the appropriate tag. The default tag here is MemoryTag::Level to
-// match the doc's incremental-migration plan; once Phase 5B lands the bulk
-// of Resources.cpp's call sites will use MemoryTag::Global for session-
-// lifetime allocations and MemoryTag::Level for per-level ones.
+// with the appropriate tag.
+//
+// The default tag is MemoryTag::Global (heap allocation), NOT
+// MemoryTag::Level. This is a safety fix from the Phase 5C.2 testing:
+// with the arena wired in, any 3-arg call that lands in the arena gets
+// its memory reclaimed by LevelArena->Reset() the next time a level
+// loads. The visible symptoms were a garbled exit menu (ExitPic's
+// pixel data was arena-owned and got freed between level loads and
+// the Escape press) and a broken gun envmap in OpenGL (the envmap
+// data is loaded once at startup and used every frame; if it's
+// arena-owned, the first LevelArena->Reset() corrupts it). Changing
+// the default to Global means unmigrated call sites go to the heap
+// (safe, survive arena reset) and only the explicitly-tagged Level
+// allocations land in the arena. The trade-off is that the arena is
+// underutilized until the remaining 3-arg per-level call sites are
+// audited in Phase 5E; that's a missed optimization, not a
+// correctness issue.
 LPVOID _HeapAlloc(HANDLE hHeap,
                   DWORD dwFlags,
                   DWORD dwBytes)
 {
-  return _HeapAlloc(hHeap, dwFlags, dwBytes, MemoryTag::Level);
+  return _HeapAlloc(hHeap, dwFlags, dwBytes, MemoryTag::Global);
 }
 
 
