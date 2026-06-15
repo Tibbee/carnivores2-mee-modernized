@@ -643,7 +643,7 @@ void DrawPostObjects()
     if (aspectScale > 1.0f) scale *= aspectScale;
     CameraW *= scale;
     CameraH *= scale;
-    RenderNearModel(Binocular, 0, 0, 2*(216-72 * BinocularPower), 192,  0,0);
+    RenderNearModel(Binocular.get(), 0, 0, 2*(216-72 * BinocularPower), 192,  0,0);
     CameraW = oldCW;
     CameraH = oldCH;
     ScanLifeForms();
@@ -666,13 +666,13 @@ void DrawPostObjects()
 
       VideoCX = hudCenter - hudSpread;
       VideoCY = hudY;
-      CreateMorphedModel(WindModel.mptr, &WindModel.Animation[0], static_cast<int>((Wind.speed*50.f)), 1.0);
+      CreateMorphedModel(WindModel.mptr.get(), &WindModel.Animation[0], static_cast<int>((Wind.speed*50.f)), 1.0);
       {
         const float savedCW = CameraW;
         const float savedCH = CameraH;
         CameraW *= nearModelScale;
         CameraH *= nearModelScale;
-        RenderNearModel(WindModel.mptr, -10, -37, -96, 192,  CameraAlpha-Wind.alpha,0);
+        RenderNearModel(WindModel.mptr.get(), -10, -37, -96, 192,  CameraAlpha-Wind.alpha,0);
         CameraW = savedCW;
         CameraH = savedCH;
       }
@@ -684,7 +684,7 @@ void DrawPostObjects()
         const float savedCH = CameraH;
         CameraW *= nearModelScale;
         CameraH *= nearModelScale;
-        RenderNearModel(CompasModel, +8, -38, -96, 192,  CameraAlpha,0);
+        RenderNearModel(CompasModel.get(), +8, -38, -96, 192,  CameraAlpha,0);
         CameraW = savedCW;
         CameraH = savedCH;
       }
@@ -893,7 +893,7 @@ SKIPWIND:
 	  break;
   }
 
-  CreateMorphedModel(wptr->chinfo[CurrentWeapon].mptr,
+  CreateMorphedModel(wptr->chinfo[CurrentWeapon].mptr.get(),
                      &wptr->chinfo[CurrentWeapon].Animation[phas], wptr->FTime, 1.0);
 
   if (Weapon.HoldBreath) {
@@ -932,11 +932,11 @@ SKIPWIND:
 
   Vector3d v = Sun3dPos;
   Sun3dPos = RotateVector(Sun3dPos);
-  CalcNormals(wptr->chinfo[CurrentWeapon].mptr, wptr->normals);
+  CalcNormals(wptr->chinfo[CurrentWeapon].mptr.get(), wptr->normals.get());
 
 
   if (GOUR)
-    CalcGouraud(wptr->chinfo[CurrentWeapon].mptr, wptr->normals);
+    CalcGouraud(wptr->chinfo[CurrentWeapon].mptr.get(), wptr->normals.get());
   else
     for (int c=0; c<1000; c++)
       wptr->chinfo[CurrentWeapon].mptr->VLight[0][c] = 0;
@@ -961,13 +961,13 @@ SKIPWIND:
     CameraH *= opticScale;
 
     if (Muzz && !UNDERWATER) {
-    CreateMorphedModelBetaGamma(MuzzModel.mptr,
+    CreateMorphedModelBetaGamma(MuzzModel.mptr.get(),
 	    &MuzzModel.Animation[0], MuzzFTime, 1.0, 0, MuzzGamma);
-    RenderNearModel(MuzzModel.mptr, 0, wpshy, wpshz, wpnlight,
+    RenderNearModel(MuzzModel.mptr.get(), 0, wpshy, wpshz, wpnlight,
 	    -wpnDAlpha, -wpnDBeta + wpnb);
     }
 
-    RenderNearModel(wptr->chinfo[CurrentWeapon].mptr, 0, wpshy, wpshz, wpnlight,
+    RenderNearModel(wptr->chinfo[CurrentWeapon].mptr.get(), 0, wpshy, wpshz, wpnlight,
                     -wpnDAlpha, -wpnDBeta + wpnb);
 
     CameraW = savedCW;
@@ -979,14 +979,14 @@ SKIPWIND:
 #else
   if (PHONG)
   {
-    CalcPhongMapping(wptr->chinfo[CurrentWeapon].mptr, wptr->normals);
-    RenderModelClipPhongMap(wptr->chinfo[CurrentWeapon].mptr, 0, wpshy, wpshz, -wpnDAlpha, -wpnDBeta+wpnb);
+    CalcPhongMapping(wptr->chinfo[CurrentWeapon].mptr.get(), wptr->normals.get());
+    RenderModelClipPhongMap(wptr->chinfo[CurrentWeapon].mptr.get(), 0, wpshy, wpshz, -wpnDAlpha, -wpnDBeta+wpnb);
   }
 
   if (ENVMAP)
   {
-    CalcEnvMapping(wptr->chinfo[CurrentWeapon].mptr, wptr->normals);
-    RenderModelClipEnvMap(wptr->chinfo[CurrentWeapon].mptr, 0, wpshy, wpshz, -wpnDAlpha, -wpnDBeta+wpnb);
+    CalcEnvMapping(wptr->chinfo[CurrentWeapon].mptr.get(), wptr->normals.get());
+    RenderModelClipEnvMap(wptr->chinfo[CurrentWeapon].mptr.get(), 0, wpshy, wpshz, -wpnDAlpha, -wpnDBeta+wpnb);
   }
 #endif
 
@@ -2834,9 +2834,9 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   conv_pic(MapPic);
 
   LoadPictureTGA(TFX_ENVMAP,    "HUNTDAT\\FX\\envmap.tga");
-  ApplyAlphaFlags(TFX_ENVMAP.lpImage, TFX_ENVMAP.W*TFX_ENVMAP.W);
+  ApplyAlphaFlags(TFX_ENVMAP.lpImage.get(), TFX_ENVMAP.W*TFX_ENVMAP.W);
   LoadPictureTGA(TFX_SPECULAR,  "HUNTDAT\\FX\\specular.tga");
-  ApplyAlphaFlags(TFX_SPECULAR.lpImage, TFX_SPECULAR.W*TFX_SPECULAR.W);
+  ApplyAlphaFlags(TFX_SPECULAR.lpImage.get(), TFX_SPECULAR.W*TFX_SPECULAR.W);
 
 
   PrintLog(" Done.\n");

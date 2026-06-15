@@ -1688,7 +1688,7 @@ void InitEngine()
     return;
   }
 
-  Textures[255] = (TEXTURE*) _HeapAlloc(Heap, 0, sizeof(TEXTURE));
+  Textures[255].reset((TEXTURE*) _HeapAlloc(Heap, 0, sizeof(TEXTURE)));
 
   WaterR = 10;
   WaterG = 38;

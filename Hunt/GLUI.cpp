@@ -464,7 +464,7 @@ void DrawPicture(int x, int y, TPicture& pic)
         if (dstX < 0) { srcX = -dstX; copyW += dstX; dstX = 0; }
         if (dstX + copyW > WinW) copyW = WinW - dstX;
         if (copyW <= 0) continue;
-        const WORD* src = pic.lpImage + yy * pic.W + srcX;
+        const WORD* src = pic.lpImage.get() + yy * pic.W + srcX;
         WORD* d = dst + dstY * VideoPitch + dstX;
         for (int i = 0; i < copyW; i++) {
             d[i] = Conv565to555(src[i]);
@@ -496,7 +496,7 @@ void DrawFlash(int x, int y, int w, int h, TPicture& pic)
             if (dstX < 0) { srcX = -dstX; copyW += dstX; dstX = 0; }
             if (dstX + copyW > WinW) copyW = WinW - dstX;
             if (copyW <= 0) continue;
-            const WORD* src = pic.lpImage + yy * pic.W + srcX;
+            const WORD* src = pic.lpImage.get() + yy * pic.W + srcX;
             WORD* d = dst + dstY * VideoPitch + dstX;
             memcpy(d, src, copyW * sizeof(WORD));
         }

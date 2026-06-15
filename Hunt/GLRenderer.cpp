@@ -699,7 +699,6 @@ bool GLRenderer::Initialize()
     Vector3d fogColor = GetDistanceFogColor();
     glClearColor(fogColor.x, fogColor.y, fogColor.z, 1.0f);
 
-    m_uploadedTerrainTextures.fill(nullptr);
     m_Initialized = true;
     PrintLog("GL: Initialize() completed successfully.\n");
     return true;
@@ -891,7 +890,6 @@ void GLRenderer::ShutdownTerrainPipeline()
 
     m_terrainVertices.clear();
     m_waterVertices.clear();
-    m_uploadedTerrainTextures.fill(nullptr);
 }
 
 void GLRenderer::BeginTerrainFrame()
@@ -925,9 +923,9 @@ void GLRenderer::RenderWaterSurface()
         if (!usedLayers[layer] || !Textures[layer]) {
             continue;
         }
-        if (m_uploadedTerrainTextures[layer] != Textures[layer]) {
+        if (m_uploadedTerrainTextures[layer].get() != Textures[layer].get()) {
             UploadTerrainLayer(layer, *Textures[layer]);
-            m_uploadedTerrainTextures[layer] = Textures[layer];
+            m_uploadedTerrainTextures[layer].reset(Textures[layer].release());
         }
     }
 
@@ -1552,7 +1550,7 @@ void GLRenderer::RenderProjectedCharacterShadow(const TCharacter& character, flo
         return;
     }
 
-    TModel* mptr = character.pinfo->mptr;
+    TModel* mptr = character.pinfo->mptr.get();
     if (!mptr->gVertex || !mptr->gFace || mptr->VCount <= 0 || mptr->FCount <= 0) {
         return;
     }
@@ -1648,7 +1646,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
         mlight = MObjects[ob].info.DefLight;
     } else if (MObjects[ob].info.flags & ofGRNDLIGHT) {
         mlight = 128;
-        CalcModelGroundLight(MObjects[ob].model, x * 256 + 128, y * 256 + 128, FI);
+        CalcModelGroundLight(MObjects[ob].model.get(), x * 256 + 128, y * 256 + 128, FI);
     } else {
         mlight = -(RandomMap[y & 31][x & 31] >> 5) + (LMap[y][x] >> 1) + 96;
     }
@@ -1693,7 +1691,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
 
     if ((MObjects[ob].info.flags & ofANIMATED) && MObjects[ob].info.LastAniTime != RealTime) {
         MObjects[ob].info.LastAniTime = RealTime;
-        CreateMorphedObject(MObjects[ob].model, MObjects[ob].vtl, RealTime % MObjects[ob].vtl.AniTime);
+        CreateMorphedObject(MObjects[ob].model.get(), MObjects[ob].vtl, RealTime % MObjects[ob].vtl.AniTime);
     }
 
     bool renderAsBMP = false;
@@ -1713,11 +1711,11 @@ void GLRenderer::RenderMappedObject(int x, int y)
     if (renderAsBMP) {
         RenderBMPModel(&MObjects[ob].bmpmodel, pos.x, pos.y, pos.z, mlight - 16);
     } else if (waterclip) {
-        RenderModelClipWater(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+        RenderModelClipWater(MObjects[ob].model.get(), pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
     } else if (pos.z < -256 * 8) {
-        RenderModel(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+        RenderModel(MObjects[ob].model.get(), pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
     } else {
-        RenderModelClip(MObjects[ob].model, pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+        RenderModelClip(MObjects[ob].model.get(), pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
     }
 }
 
@@ -1780,12 +1778,12 @@ void GLRenderer::Render3DHardwarePosts()
         waterclip = false;
 
         if (cptr->rpos.z > -256.0f * 10.0f)
-            RenderModelClip(cptr->pinfo->mptr,
+            RenderModelClip(cptr->pinfo->mptr.get(),
                             cptr->rpos.x, cptr->rpos.y, cptr->rpos.z, 210, 0,
                             -cptr->alpha + pi / 2.0f + CameraAlpha,
                             CameraBeta);
         else
-            RenderModel(cptr->pinfo->mptr,
+            RenderModel(cptr->pinfo->mptr.get(),
                         cptr->rpos.x, cptr->rpos.y, cptr->rpos.z, 210, 0,
                         -cptr->alpha + pi / 2.0f + CameraAlpha,
                         CameraBeta);
@@ -1825,12 +1823,12 @@ void GLRenderer::Render3DHardwarePosts()
             waterclip = false;
 
             if (cptr->rpos.z > -256.0f * 10.0f)
-                RenderModelClip(cptr->pinfo->mptr,
+                RenderModelClip(cptr->pinfo->mptr.get(),
                                 cptr->rpos.x, cptr->rpos.y, cptr->rpos.z, 210, 0,
                                 -cptr->alpha + pi / 2.0f + CameraAlpha,
                                 CameraBeta);
             else
-                RenderModel(cptr->pinfo->mptr,
+                RenderModel(cptr->pinfo->mptr.get(),
                             cptr->rpos.x, cptr->rpos.y, cptr->rpos.z, 210, 0,
                             -cptr->alpha + pi / 2.0f + CameraAlpha,
                             CameraBeta);
@@ -1852,14 +1850,14 @@ void GLRenderer::Render3DHardwarePosts()
                 if (Ship.State != -1) {
                     ApplyGLModelDistanceFade(Ship.rpos);
 
-                    CreateMorphedModel(ShipModel.mptr, &ShipModel.Animation[0], Ship.FTime, 1.0);
+                    CreateMorphedModel(ShipModel.mptr.get(), &ShipModel.Animation[0], Ship.FTime, 1.0);
 
                     if (fabs(Ship.rpos.z) < 4000.0f)
-                        RenderModelClip(ShipModel.mptr,
+                        RenderModelClip(ShipModel.mptr.get(),
                                         Ship.rpos.x, Ship.rpos.y, Ship.rpos.z, 210, 0,
                                         -Ship.alpha - pi / 2.0f + CameraAlpha, CameraBeta);
                     else
-                        RenderModel(ShipModel.mptr,
+                        RenderModel(ShipModel.mptr.get(),
                                     Ship.rpos.x, Ship.rpos.y, Ship.rpos.z, 210, 0,
                                     -Ship.alpha - pi / 2.0f + CameraAlpha, CameraBeta);
                 }
@@ -1882,15 +1880,15 @@ void GLRenderer::Render3DHardwarePosts()
                 if (SShip.State >= 1) {
                     ApplyGLModelDistanceFade(SShip.rpos);
 
-                    CreateMorphedModelBetaGamma(SShipModel.mptr, &SShipModel.Animation[0],
+                    CreateMorphedModelBetaGamma(SShipModel.mptr.get(), &SShipModel.Animation[0],
                                                 SShip.FTime, 1.0, SShip.beta, SShip.gamma);
 
                     if (fabs(SShip.rpos.z) < 4000.0f)
-                        RenderModelClip(SShipModel.mptr,
+                        RenderModelClip(SShipModel.mptr.get(),
                                         SShip.rpos.x, SShip.rpos.y, SShip.rpos.z, 210, 0,
                                         -SShip.alpha - pi / 2.0f + CameraAlpha, CameraBeta);
                     else
-                        RenderModel(SShipModel.mptr,
+                        RenderModel(SShipModel.mptr.get(),
                                     SShip.rpos.x, SShip.rpos.y, SShip.rpos.z, 210, 0,
                                     -SShip.alpha - pi / 2.0f + CameraAlpha, CameraBeta);
                 }
@@ -1913,14 +1911,14 @@ void GLRenderer::Render3DHardwarePosts()
                 if (AmmoBag.State >= 1) {
                     ApplyGLModelDistanceFade(AmmoBag.rpos);
 
-                    CreateMorphedModel(BagModel.mptr, &BagModel.Animation[0], AmmoBag.FTime, 1.0);
+                    CreateMorphedModel(BagModel.mptr.get(), &BagModel.Animation[0], AmmoBag.FTime, 1.0);
 
                     if (fabs(AmmoBag.rpos.z) < 4000.0f)
-                        RenderModelClip(BagModel.mptr,
+                        RenderModelClip(BagModel.mptr.get(),
                                         AmmoBag.rpos.x, AmmoBag.rpos.y, AmmoBag.rpos.z, 210, 0,
                                         -pi / 2.0f + CameraAlpha, CameraBeta);
                     else
-                        RenderModel(BagModel.mptr,
+                        RenderModel(BagModel.mptr.get(),
                                     AmmoBag.rpos.x, AmmoBag.rpos.y, AmmoBag.rpos.z, 210, 0,
                                     -pi / 2.0f + CameraAlpha, CameraBeta);
                 }
@@ -1944,17 +1942,17 @@ void GLRenderer::Render3DHardwarePosts()
                 fabs(bullet[b].rpos.x) <= -bullet[b].rpos.z + BackViewR) {
                 ApplyGLModelDistanceFade(bullet[b].rpos);
 
-                CreateMorphedModelBetaGamma(Weapon.Bullet[bullet[b].parent].mptr,
+                CreateMorphedModelBetaGamma(Weapon.Bullet[bullet[b].parent].mptr.get(),
                                             &Weapon.Bullet[bullet[b].parent].Animation[0],
                                             bullet[b].FTime, 1.0, bullet[b].beta, 0.0f);
 
                 if (fabs(bullet[b].rpos.z) < 4000.0f)
-                    RenderModelClip(Weapon.Bullet[bullet[b].parent].mptr,
+                    RenderModelClip(Weapon.Bullet[bullet[b].parent].mptr.get(),
                                     bullet[b].rpos.x, bullet[b].rpos.y, bullet[b].rpos.z, 210, 0,
                                     -bullet[b].alpha - pi / 2.0f + CameraAlpha,
                                     -bullet[b].beta - pi / 2.0f + CameraBeta);
                 else
-                    RenderModel(Weapon.Bullet[bullet[b].parent].mptr,
+                    RenderModel(Weapon.Bullet[bullet[b].parent].mptr.get(),
                                 bullet[b].rpos.x, bullet[b].rpos.y, bullet[b].rpos.z, 210, 0,
                                 -bullet[b].alpha - pi / 2.0f + CameraAlpha,
                                 -bullet[b].beta - pi / 2.0f + CameraBeta);
@@ -3062,9 +3060,9 @@ void GLRenderer::RenderTerrain()
         if (!Textures[layer]) {
             continue;
         }
-        if (m_uploadedTerrainTextures[layer] != Textures[layer]) {
+        if (m_uploadedTerrainTextures[layer].get() != Textures[layer].get()) {
             UploadTerrainLayer(layer, *Textures[layer]);
-            m_uploadedTerrainTextures[layer] = Textures[layer];
+            m_uploadedTerrainTextures[layer].reset(Textures[layer].release());
         }
     }
 
@@ -3152,7 +3150,7 @@ void GLRenderer::RenderWCircles()
         // i.e. the alpha is exactly the same expression the shader reads from GlassL.
         GlassL = 255 - (2000 - wptr->FTime) / 38;
 
-        CreateMorphedModel(WCircleModel.mptr, &WCircleModel.Animation[0],
+        CreateMorphedModel(WCircleModel.mptr.get(), &WCircleModel.Animation[0],
                            static_cast<int>(wptr->FTime), wptr->scale);
 
         // Build the draw item directly with additive=true. We can't go through
@@ -3160,12 +3158,12 @@ void GLRenderer::RenderWCircles()
         // overrides don't expose the additive flag (other renderers don't need it).
         ModelDrawItem item;
         const bool closeEnough = fabs(rpos.z) + fabs(rpos.x) < 1000.0f;
-        if (!BuildModelDrawItem(item, WCircleModel.mptr,
+        if (!BuildModelDrawItem(item, WCircleModel.mptr.get(),
                                 rpos.x, rpos.y, rpos.z, 250, 0, 0, CameraBeta,
                                 false, false, closeEnough, /*additive=*/true)) {
             continue;
         }
-        item.texture = UploadModelTexture(WCircleModel.mptr);
+        item.texture = UploadModelTexture(WCircleModel.mptr.get());
         if (!item.texture) {
             continue;
         }
@@ -3231,12 +3229,10 @@ void GLRenderer::ReleaseModelTextures(const TModel* mptr)
 
 void GLRenderer::ResetTerrainTextureCache()
 {
-    m_uploadedTerrainTextures.fill(nullptr);
 }
 
 void GLRenderer::ClearLevelTextureCache()
 {
-    m_uploadedTerrainTextures.fill(nullptr);
     m_skyTextureDirty = true;
 }
 
@@ -3476,7 +3472,7 @@ void GLRenderer::RenderSun(float x, float y, float z)
     d += (1.0f - m_skyTraceK) / 2.0f;
     if (OptDayNight == 2) d = 1.5f;
 
-    RenderModelSun(SunModel, x * d, y * d, z * d, static_cast<int>(200.0f * m_skyTraceK));
+    RenderModelSun(SunModel.get(), x * d, y * d, z * d, static_cast<int>(200.0f * m_skyTraceK));
 }
 
 void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int alpha)
@@ -3938,7 +3934,7 @@ void GLRenderer::DrawPicture(int x, int y, TPicture& pic)
         if (dstX < 0) { srcX = -dstX; copyW += dstX; dstX = 0; }
         if (dstX + copyW > WinW) copyW = WinW - dstX;
         if (copyW <= 0) continue;
-        const WORD* src = pic.lpImage + yy * pic.W + srcX;
+        const WORD* src = pic.lpImage.get() + yy * pic.W + srcX;
         WORD* d = dst + dstY * VideoPitch + dstX;
         for (int i = 0; i < copyW; i++) {
             d[i] = Conv565to555(src[i]);

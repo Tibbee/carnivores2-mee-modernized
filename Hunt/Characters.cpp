@@ -9480,8 +9480,8 @@ void CreateChMorphedModel(TCharacter *cptr)
 	}
 
 	int VCount = cptr->pinfo->mptr->VCount;
-	short int* adptr = aptr->aniData + CurFrame * VCount * 3;
-	short int* padptr = paptr->aniData + PCurFrame * VCount * 3;
+	short int* adptr = aptr->aniData.get() + CurFrame * VCount * 3;
+	short int* padptr = paptr->aniData.get() + PCurFrame * VCount * 3;
 
 	float sb = static_cast<float>(sin(cptr->beta)) * scale;
 	float cb = static_cast<float>(cos(cptr->beta)) * scale;
@@ -9587,7 +9587,7 @@ void CreateMorphedModelBetaGamma(TModel* mptr, TAni *aptr, int FTime, float scal
 
 
 	int VCount = mptr->VCount;
-	short int* adptr = aptr->aniData + CurFrame * VCount * 3;
+	short int* adptr = aptr->aniData.get() + CurFrame * VCount * 3;
 
 	float sb = static_cast<float>(sin(beta)) * scale;
 	float cb = static_cast<float>(cos(beta)) * scale;

@@ -145,7 +145,7 @@ void _RenderObject(int x, int y)
 	  if (MObjects[ob].info.flags & ofGRNDLIGHT)
 	  {
 		  mlight = 128;
-		  CalcModelGroundLight(MObjects[ob].model, x*256+128, y*256+128, FI);
+		  CalcModelGroundLight(MObjects[ob].model.get(), x*256+128, y*256+128, FI);
 		  FI = 0;
 	  }
 	  else */
@@ -192,7 +192,7 @@ void _RenderObject(int x, int y)
     if (MObjects[ob].info.LastAniTime!=RealTime)
     {
       MObjects[ob].info.LastAniTime=RealTime;
-      CreateMorphedObject(MObjects[ob].model,
+      CreateMorphedObject(MObjects[ob].model.get(),
                           MObjects[ob].vtl,
                           RealTime % MObjects[ob].vtl.AniTime);
     }
@@ -203,9 +203,9 @@ void _RenderObject(int x, int y)
   if (zs>ctViewRM*256)
     RenderBMPModel(&MObjects[ob].bmpmodel, v[0].x, v[0].y, v[0].z, mlight-16);
   else if (v[0].z<-256*12 && !waterclip)
-    RenderModel(MObjects[ob].model, v[0].x, v[0].y, v[0].z, mlight, FI, fi, CameraBeta);
+    RenderModel(MObjects[ob].model.get(), v[0].x, v[0].y, v[0].z, mlight, FI, fi, CameraBeta);
   else
-    RenderModelClip(MObjects[ob].model, v[0].x, v[0].y, v[0].z, mlight, FI, fi, CameraBeta);
+    RenderModelClip(MObjects[ob].model.get(), v[0].x, v[0].y, v[0].z, mlight, FI, fi, CameraBeta);
 
 
 }
@@ -1830,7 +1830,7 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
 
 
   HLineT = (void*) HLineTxModel;
-  lpTextureAddr = (void*) mptr->lpTexture;
+  lpTextureAddr = mptr->lpTexture.get();
 
   BOOL BL = false;
   for (int s=0; s<mptr->VCount; s++)
@@ -2033,18 +2033,18 @@ void RenderModelClipWater(TModel* _mptr, float x0, float y0, float z0, int light
   else
     HLineT = (void*) HLineTxModel75;
 
-  lpTextureAddr = (void*) mptr->lpTexture;
+  lpTextureAddr = mptr->lpTexture.get();
 
-  if (GlassL) lpTextureAddr = (void*) mptr->lpTexture3;
+  if (GlassL) lpTextureAddr = mptr->lpTexture3.get();
   else if (ts <=64)
     if (ts > 32)
     {
-      lpTextureAddr = (void*) mptr->lpTexture2;
+      lpTextureAddr = mptr->lpTexture2.get();
       HLineT = (void*) HLineTxModel2;
     }
     else
     {
-      lpTextureAddr = (void*) mptr->lpTexture3;
+      lpTextureAddr = mptr->lpTexture3.get();
       HLineT = (void*) HLineTxModel3;
     }
 
@@ -2189,18 +2189,18 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
   else
     HLineT = (void*) HLineTxModel75;
 
-  lpTextureAddr = (void*) mptr->lpTexture;
+  lpTextureAddr = mptr->lpTexture.get();
 
-  if (GlassL) lpTextureAddr = (void*) mptr->lpTexture3;
+  if (GlassL) lpTextureAddr = mptr->lpTexture3.get();
   else if (ts <=64)
     if (ts > 32)
     {
-      lpTextureAddr = (void*) mptr->lpTexture2;
+      lpTextureAddr = mptr->lpTexture2.get();
       HLineT = (void*) HLineTxModel2;
     }
     else
     {
-      lpTextureAddr = (void*) mptr->lpTexture3;
+      lpTextureAddr = mptr->lpTexture3.get();
       HLineT = (void*) HLineTxModel3;
     }
 
@@ -2294,7 +2294,7 @@ void RenderBMPModel(TBMPModel* _mptr, float x0, float y0, float z0, int light)
   }
 
 
-  lpTextureAddr = (void*) mptr->lpTexture;
+  lpTextureAddr = mptr->lpTexture.get();
   HLineT = (void*) HLineTxModel2;
 
 
@@ -2340,7 +2340,7 @@ void RenderBMPModel(TBMPModel* _mptr, float x0, float y0, float z0, int light)
     TY+=DTY;
     if (Y1< 0   ) continue;
     if (Y1>=WinH) continue;
-    lpTextureAddr = (void*) (mptr->lpTexture + (TY>>16)*128);
+    lpTextureAddr = (void*) (mptr->lpTexture.get() + (TY>>16)*128);
     HLineTxModelBMP();
   }
 }
@@ -2377,7 +2377,7 @@ void RenderNearModel(TModel* _mptr, float x0, float y0, float z0, int light, flo
 
 
   HLineT = (void*) HLineTxModel;
-  lpTextureAddr = (void*) mptr->lpTexture;
+  lpTextureAddr = mptr->lpTexture.get();
 
   BOOL BL = false;
   for (int s=0; s<mptr->VCount; s++)
@@ -2491,17 +2491,17 @@ void RenderCharacter(TCharacter *cptr)
 
 
   if ( fabs(cptr->rpos.z) + fabs(cptr->rpos.x) <2560)
-    RenderModelClip(cptr->pinfo->mptr,
+    RenderModelClip(cptr->pinfo->mptr.get(),
                     cptr->rpos.x, cptr->rpos.y, cptr->rpos.z, 240, 0,
                     -cptr->alpha + pi / 2 + CameraAlpha,
                     CameraBeta );
   else if (waterclip)
-    RenderModelClipWater(cptr->pinfo->mptr,
+    RenderModelClipWater(cptr->pinfo->mptr.get(),
                          cptr->rpos.x, cptr->rpos.y, cptr->rpos.z, 240, 0,
                          -cptr->alpha + pi / 2 + CameraAlpha,
                          CameraBeta );
   else
-    RenderModel(cptr->pinfo->mptr,
+    RenderModel(cptr->pinfo->mptr.get(),
                 cptr->rpos.x, cptr->rpos.y, cptr->rpos.z, 240,  0,
                 -cptr->alpha + pi / 2 + CameraAlpha,
                 CameraBeta );
@@ -2518,13 +2518,13 @@ void RenderBag()
 		GlassL = min(255, (zs / 4 - 64 * (ctViewR - 4)));
 
 
-	CreateMorphedModel(BagModel.mptr, &BagModel.Animation[0], AmmoBag.FTime, 1.0);
+	CreateMorphedModel(BagModel.mptr.get(), &BagModel.Animation[0], AmmoBag.FTime, 1.0);
 
 	if (fabs(AmmoBag.rpos.z) < 4000)
-		RenderModelClip(BagModel.mptr,
+		RenderModelClip(BagModel.mptr.get(),
 			AmmoBag.rpos.x, AmmoBag.rpos.y, AmmoBag.rpos.z, 240, 0, -0 - pi / 2 + CameraAlpha, CameraBeta);
 	else
-		RenderModel(BagModel.mptr,
+		RenderModel(BagModel.mptr.get(),
 			AmmoBag.rpos.x, AmmoBag.rpos.y, AmmoBag.rpos.z, 240, 0, -0 - pi / 2 + CameraAlpha, CameraBeta);
 }
 
@@ -2540,13 +2540,13 @@ void RenderSShip()
 		GlassL = min(255, (zs / 4 - 64 * (ctViewR - 4)));
 
 
-	CreateMorphedModelBetaGamma(SShipModel.mptr, &SShipModel.Animation[0], SShip.FTime, 1.0, SShip.beta, SShip.gamma);
+	CreateMorphedModelBetaGamma(SShipModel.mptr.get(), &SShipModel.Animation[0], SShip.FTime, 1.0, SShip.beta, SShip.gamma);
 
 	if (fabs(SShip.rpos.z) < 4000)
-		RenderModelClip(SShipModel.mptr,
+		RenderModelClip(SShipModel.mptr.get(),
 			SShip.rpos.x, SShip.rpos.y, SShip.rpos.z, 240, 0, -SShip.alpha - pi / 2 + CameraAlpha, CameraBeta);
 	else
-		RenderModel(SShipModel.mptr,
+		RenderModel(SShipModel.mptr.get(),
 			SShip.rpos.x, SShip.rpos.y, SShip.rpos.z, 240, 0, -SShip.alpha - pi / 2 + CameraAlpha, CameraBeta);
 }
 
@@ -2563,13 +2563,13 @@ void RenderShip()
     GlassL = min(255, (zs/4 - 64*(ctViewR-4)));
 
 
-  CreateMorphedModel(ShipModel.mptr, &ShipModel.Animation[0], Ship.FTime, 1.0);
+  CreateMorphedModel(ShipModel.mptr.get(), &ShipModel.Animation[0], Ship.FTime, 1.0);
 
   if ( fabs(Ship.rpos.z)  < 4000)
-    RenderModelClip(ShipModel.mptr,
+    RenderModelClip(ShipModel.mptr.get(),
                     Ship.rpos.x, Ship.rpos.y, Ship.rpos.z, 240, 0, -Ship.alpha -pi/2 + CameraAlpha, CameraBeta);
   else
-    RenderModel(ShipModel.mptr,
+    RenderModel(ShipModel.mptr.get(),
                 Ship.rpos.x, Ship.rpos.y, Ship.rpos.z, 240, 0, -Ship.alpha -pi/2 + CameraAlpha, CameraBeta);
 }
 
@@ -2584,13 +2584,13 @@ void RenderBullet(int b)
 		GlassL = min(255, (zs / 4 - 64 * (ctViewR - 4)));
 
 
-	CreateMorphedModelBetaGamma(Weapon.Bullet[bullet[b].parent].mptr, &Weapon.Bullet[bullet[b].parent].Animation[0], bullet[b].FTime, 1.0, bullet[b].beta, 0);
+	CreateMorphedModelBetaGamma(Weapon.Bullet[bullet[b].parent].mptr.get(), &Weapon.Bullet[bullet[b].parent].Animation[0], bullet[b].FTime, 1.0, bullet[b].beta, 0);
 
 	if (fabs(bullet[b].rpos.z) < 4000)
-		RenderModelClip(Weapon.Bullet[bullet[b].parent].mptr,
+		RenderModelClip(Weapon.Bullet[bullet[b].parent].mptr.get(),
 			bullet[b].rpos.x, bullet[b].rpos.y, bullet[b].rpos.z, 240, 0, -bullet[b].alpha - pi / 2 + CameraAlpha, CameraBeta);
 	else
-		RenderModel(Weapon.Bullet[bullet[b].parent].mptr,
+		RenderModel(Weapon.Bullet[bullet[b].parent].mptr.get(),
 			bullet[b].rpos.x, bullet[b].rpos.y, bullet[b].rpos.z, 240, 0, -bullet[b].alpha - pi / 2 + CameraAlpha, CameraBeta);
 }
 
@@ -2667,7 +2667,7 @@ void DrawPicture(int x, int y, TPicture &pic)
   for (int yy=0; yy<pic.H; yy++)
     if ( (yy+y>=0) && (yy+y < WinH) )
       memcpy( static_cast<WORD*>(lpVideoBuf) + ((yy+y)*VideoPitch) + x,
-              pic.lpImage + yy*pic.W,
+              pic.lpImage.get() + yy*pic.W,
               pic.W<<1);
 }
 
@@ -2676,7 +2676,7 @@ void DrawFlash(int x, int y, int w, int h, TPicture &pic)
 	for (int yy = 0; yy < h; yy++)
 		if ((yy + y >= 0) && (yy + y < WinH))
 			memcpy(static_cast<WORD*>(lpVideoBuf) + ((yy + y) *VideoPitch) + x,
-				pic.lpImage + yy * pic.W,
+				pic.lpImage.get() + yy * pic.W,
 				w << 1);
 }
 

@@ -367,7 +367,7 @@ int TraceCheckPlane(Vector3d a, Vector3d b, Vector3d c)
 
 void TraceModel(int xx, int zz, int o)
 {
-  TModel *mptr = MObjects[o].model;
+  TModel *mptr = MObjects[o].model.get();
   v[0].x = xx * 256.f + 128.f;
   v[0].z = zz * 256.f + 128.f;
   v[0].y = static_cast<float>((HMapO[zz][xx])) * ctHScale;
@@ -408,8 +408,8 @@ void TraceHitBox()
 
 	if (PointToVectorDSq(TraceA, TraceNv, cptr->pos) > 1024.f * 1024.f) return;
 
-	TModel *mptr = HitBoxModel.mptr;
-	CreateMorphedModel(HitBoxModel.mptr, &HitBoxModel.Animation[HitBox.phase], 0, 1.0);
+	TModel *mptr = HitBoxModel.mptr.get();
+	CreateMorphedModel(HitBoxModel.mptr.get(), &HitBoxModel.Animation[HitBox.phase], 0, 1.0);
 	float ca = static_cast<float>(cos(-cptr->alpha + pi / 2.f));
 	float sa = static_cast<float>(sin(-cptr->alpha + pi / 2.f));
 	for (int vv = 0; vv < mptr->VCount; vv++)
@@ -442,7 +442,7 @@ void TraceCharacter(int c)
 
   if (PointToVectorDSq(TraceA, TraceNv, cptr->pos) > 1024.f * 1024.f) return;
 
-  TModel *mptr = cptr->pinfo->mptr;
+  TModel *mptr = cptr->pinfo->mptr.get();
   CreateChMorphedModel(cptr);
   float ca = static_cast<float>(cos(-cptr->alpha + pi / 2.f));
   float sa = static_cast<float>(sin(-cptr->alpha + pi / 2.f));

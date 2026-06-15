@@ -192,13 +192,13 @@ void UpdateLoadingWindow()
 
   for (int y=0; y<LoadWall.H/2; y++)
     memcpy( static_cast<WORD*>(lpVideoBuf) + y*VideoPitch,
-            LoadWall.lpImage  + y*LoadWall.W,
+            LoadWall.lpImage.get()  + y*LoadWall.W,
             LoadWall.W*2);
 
   if (LoadCount)
     for (int y=0; y<LoadWall.H/2; y++)
       memcpy( static_cast<WORD*>(lpVideoBuf) + y*VideoPitch,
-              LoadWall.lpImage  + (y+LoadWall.H/2)*LoadWall.W,
+              LoadWall.lpImage.get()  + (y+LoadWall.H/2)*LoadWall.W,
               (LoadWall.W*LoadCount/8)*2);
 
   //FillMemory(lpVideoBuf, 1024*loadwh*2, 1);
@@ -230,7 +230,7 @@ void StartLoading()
 void EndLoading()
 {
   FillMemory(lpVideoBuf, VideoPitchB*768, 0);
-  _HeapFree(Heap, 0, (void*)LoadWall.lpImage);
+  LoadWall.lpImage.reset();
 }
 
 

@@ -235,7 +235,7 @@ private:
     static const int kMaxTerrainTextureLayers = 1024;
     std::vector<TerrainVertex> m_terrainVertices;
     std::vector<TerrainVertex> m_waterVertices;
-    std::array<TEXTURE*, kMaxTerrainTextureLayers> m_uploadedTerrainTextures{};
+    std::array<unique_obj_ptr<TEXTURE>, kMaxTerrainTextureLayers> m_uploadedTerrainTextures{};
 
     // Sky pipeline
     unsigned int m_skyShader = 0;

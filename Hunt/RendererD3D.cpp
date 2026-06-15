@@ -110,7 +110,7 @@ void conv_pic555(TPicture &pic)
   if (!HARD3D) return;
   for (int y=0; y<pic.H; y++)
     for (int x=0; x<pic.W; x++)
-      *(pic.lpImage + x + y*pic.W) = conv_555(*(pic.lpImage + x + y*pic.W));
+      *(pic.lpImage.get() + x + y*pic.W) = conv_555(*(pic.lpImage.get() + x + y*pic.W));
 }
 
 
@@ -1107,7 +1107,7 @@ int  d3dTestAlpha()
   lpd3dDevice->BeginScene( );
 
 //	RenderSkyPlane();
-  d3dSetTexture(TFX_SPECULAR.lpImage, TFX_SPECULAR.W, TFX_SPECULAR.W);
+  d3dSetTexture(TFX_SPECULAR.lpImage.get(), TFX_SPECULAR.W, TFX_SPECULAR.W);
 
   DDBLTFX ddbltfx;
   ddbltfx.dwSize = sizeof( DDBLTFX );
@@ -1119,7 +1119,7 @@ int  d3dTestAlpha()
 
 //========= test opacity ==========//
 
-  //d3dSetTexture(TFX_SPECULAR.lpImage, TFX_SPECULAR.W, TFX_SPECULAR.W);
+  //d3dSetTexture(TFX_SPECULAR.lpImage.get(), TFX_SPECULAR.W, TFX_SPECULAR.W);
   SetRenderStates(false, D3DBLEND_INVSRCALPHA);
 
   d3dTestDrawTri(0xFFFFFFFF, 0.0);
@@ -1730,16 +1730,16 @@ void FXPutBitMap(int x0, int y0, int w, int h, int smw, LPVOID lpData)
 
 void DrawPicture(int x, int y, TPicture &pic)
 {
-  FXPutBitMap(x, y, pic.W, pic.H, pic.W, pic.lpImage);
+  FXPutBitMap(x, y, pic.W, pic.H, pic.W, pic.lpImage.get());
 }
 
 
 void DrawFlash(int x0, int y0, int w, int h, TPicture &pic)
 {
-	//FXPutBitMap(x, y, pic.W, pic.H, pic.W, pic.lpImage);
+	//FXPutBitMap(x, y, pic.W, pic.H, pic.W, pic.lpImage.get());
 
 	int smw = pic.W;
-	LPVOID lpData = pic.lpImage;
+	LPVOID lpData = pic.lpImage.get();
 
 	DDSURFACEDESC ddsd;
 	ZeroMemory(&ddsd, sizeof(DDSURFACEDESC));
@@ -2925,7 +2925,7 @@ void _RenderObject(int x, int y)
   else if (MObjects[ob].info.flags & ofGRNDLIGHT)
   {
     mlight = 128;
-    CalcModelGroundLight(MObjects[ob].model, x*256+128, y*256+128, FI);
+    CalcModelGroundLight(MObjects[ob].model.get(), x*256+128, y*256+128, FI);
     FI = 0;
   }
   else
@@ -2959,7 +2959,7 @@ void _RenderObject(int x, int y)
     if (MObjects[ob].info.LastAniTime!=RealTime)
     {
       MObjects[ob].info.LastAniTime=RealTime;
-      CreateMorphedObject(MObjects[ob].model,
+      CreateMorphedObject(MObjects[ob].model.get(),
                           MObjects[ob].vtl,
                           RealTime % MObjects[ob].vtl.AniTime);
     }
@@ -2972,14 +2972,14 @@ void _RenderObject(int x, int y)
          GlassL = 255-static_cast<int>((zs - ctViewRM*256));
   	   RenderBMPModel(&MObjects[ob].bmpmodel, v[0].x, v[0].y, v[0].z, mlight-32);
   	   GlassL=255-GlassL;
-  	   RenderModel(MObjects[ob].model, v[0].x, v[0].y, v[0].z, mlight, FI, fi, CameraBeta);
+  	   RenderModel(MObjects[ob].model.get(), v[0].x, v[0].y, v[0].z, mlight, FI, fi, CameraBeta);
   	  } else	   */
   if (zs>ctViewRM*256)
     RenderBMPModel(&MObjects[ob].bmpmodel, v[0].x, v[0].y, v[0].z, mlight-16);
   else if (v[0].z<-256*8)
-    RenderModel(MObjects[ob].model, v[0].x, v[0].y, v[0].z, mlight, FI, fi, CameraBeta);
+    RenderModel(MObjects[ob].model.get(), v[0].x, v[0].y, v[0].z, mlight, FI, fi, CameraBeta);
   else
-    RenderModelClip(MObjects[ob].model, v[0].x, v[0].y, v[0].z, mlight, FI, fi, CameraBeta);
+    RenderModelClip(MObjects[ob].model.get(), v[0].x, v[0].y, v[0].z, mlight, FI, fi, CameraBeta);
 
 }
 
@@ -3273,13 +3273,13 @@ void RenderWCircles()
 
     GlassL = 255 - (2000-wptr->FTime) / 38;
 
-    CreateMorphedModel(WCircleModel.mptr, &WCircleModel.Animation[0], static_cast<int>((wptr->FTime)), wptr->scale);
+    CreateMorphedModel(WCircleModel.mptr.get(), &WCircleModel.Animation[0], static_cast<int>((wptr->FTime)), wptr->scale);
 
     if ( fabs(rpos.z) + fabs(rpos.x) < 1000)
-      RenderModelClip(WCircleModel.mptr,
+      RenderModelClip(WCircleModel.mptr.get(),
                       rpos.x, rpos.y, rpos.z, 250, 0, 0, CameraBeta);
     else
-      RenderModel(WCircleModel.mptr,
+      RenderModel(WCircleModel.mptr.get(),
                   rpos.x, rpos.y, rpos.z, 250, 0, 0, CameraBeta);
 
   }
@@ -3657,7 +3657,7 @@ void RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, int light)
   int argb = light * 0x00010101 + ((255-GlassL)<<24);
 
   float d = static_cast<float>(sqrt(x0*x0 + y0*y0 + z0*z0));
-  d3dSetTexture(mptr->lpTexture, 128, 128);
+  d3dSetTexture(mptr->lpTexture.get(), 128, 128);
 
 
   //d3dStartBuffer();
@@ -3845,8 +3845,8 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
   float d = static_cast<float>(sqrt(x0*x0 + y0*y0 + z0*z0));
   if (LOWRESTX) d = 14*256;
 
-  if (MIPMAP && (d > 12*256)) d3dSetTexture(mptr->lpTexture2, 128, 128);
-  else d3dSetTexture(mptr->lpTexture, 256, 256);
+  if (MIPMAP && (d > 12*256)) d3dSetTexture(mptr->lpTexture2.get(), 128, 128);
+  else d3dSetTexture(mptr->lpTexture.get(), 256, 256);
 
   int PrevOpacity = 0;
   int NewOpacity = 0;
@@ -3978,8 +3978,8 @@ void RenderShadowClip(TModel* _mptr,
 
   float d = static_cast<float>(sqrt(x0*x0 + y0*y0 + z0*z0));
   if (LOWRESTX) d = 14*256;
-  if (MIPMAP && (d > 12*256)) d3dSetTexture(mptr->lpTexture2, 128, 128);
-  else d3dSetTexture(mptr->lpTexture, 256, 256);
+  if (MIPMAP && (d > 12*256)) d3dSetTexture(mptr->lpTexture2.get(), 128, 128);
+  else d3dSetTexture(mptr->lpTexture.get(), 256, 256);
 
   BuildTreeClipNoSort();
 
@@ -4142,8 +4142,8 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
 
   if (!BL) return;
 
-  if (LOWRESTX) d3dSetTexture(mptr->lpTexture2, 128, 128);
-  else d3dSetTexture(mptr->lpTexture, 256, 256);
+  if (LOWRESTX) d3dSetTexture(mptr->lpTexture2.get(), 128, 128);
+  else d3dSetTexture(mptr->lpTexture.get(), 256, 256);
 
   BuildTreeClipNoSort();
 
@@ -4298,7 +4298,7 @@ void RenderModelClipEnvMap(TModel* _mptr, float x0, float y0, float z0, float al
   }
 
 
-  d3dSetTexture(TFX_ENVMAP.lpImage, TFX_ENVMAP.W, TFX_ENVMAP.W);
+  d3dSetTexture(TFX_ENVMAP.lpImage.get(), TFX_ENVMAP.W, TFX_ENVMAP.W);
   SetRenderStates(false, D3DBLEND_ONE);
 
   BuildTreeClipNoSort();
@@ -4446,7 +4446,7 @@ void RenderModelClipPhongMap(TModel* _mptr, float x0, float y0, float z0, float 
 
   }
 
-  d3dSetTexture(TFX_SPECULAR.lpImage, TFX_SPECULAR.W, TFX_SPECULAR.W);
+  d3dSetTexture(TFX_SPECULAR.lpImage.get(), TFX_SPECULAR.W, TFX_SPECULAR.W);
   SetRenderStates(false, D3DBLEND_ONE);
 
   BuildTreeClipNoSort();
@@ -4574,7 +4574,7 @@ void RenderModelSun(TModel* _mptr, float x0, float y0, float z0, int Alpha)
 
   BuildTreeNoSort();
 
-  d3dSetTexture(mptr->lpTexture2, 128, 128);
+  d3dSetTexture(mptr->lpTexture2.get(), 128, 128);
 
   d3dStartBuffer();
 
@@ -4914,12 +4914,12 @@ void RenderCharacterPost(TCharacter *cptr)
 
 
   if ( cptr->rpos.z >-256*10)
-    RenderModelClip(cptr->pinfo->mptr,
+    RenderModelClip(cptr->pinfo->mptr.get(),
                     cptr->rpos.x, cptr->rpos.y, cptr->rpos.z, 210, 0,
                     -cptr->alpha + pi / 2 + CameraAlpha,
                     CameraBeta );
   else
-    RenderModel(cptr->pinfo->mptr,
+    RenderModel(cptr->pinfo->mptr.get(),
                 cptr->rpos.x, cptr->rpos.y, cptr->rpos.z, 210, 0,
                 -cptr->alpha + pi / 2 + CameraAlpha,
                 CameraBeta );
@@ -4941,7 +4941,7 @@ void RenderCharacterPost(TCharacter *cptr)
 
   GlassL = (Al<<24) + 0x00222222;
 
-  RenderShadowClip(cptr->pinfo->mptr,
+  RenderShadowClip(cptr->pinfo->mptr.get(),
                    cptr->pos.x, cptr->pos.y, cptr->pos.z,
                    cptr->rpos.x, cptr->rpos.y, cptr->rpos.z,
                    pi/2-cptr->alpha,
@@ -4965,13 +4965,13 @@ void RenderShipPost()
 
   /*grConstantColorValue( (255-GlassL) << 24);*/
 
-  CreateMorphedModel(ShipModel.mptr, &ShipModel.Animation[0], Ship.FTime, 1.0);
+  CreateMorphedModel(ShipModel.mptr.get(), &ShipModel.Animation[0], Ship.FTime, 1.0);
 
   if ( fabs(Ship.rpos.z) < 4000)
-    RenderModelClip(ShipModel.mptr,
+    RenderModelClip(ShipModel.mptr.get(),
                     Ship.rpos.x, Ship.rpos.y, Ship.rpos.z, 210, 0, -Ship.alpha -pi/2 + CameraAlpha, CameraBeta);
   else
-    RenderModel(ShipModel.mptr,
+    RenderModel(ShipModel.mptr.get(),
                 Ship.rpos.x, Ship.rpos.y, Ship.rpos.z, 210, 0, -Ship.alpha -pi/2+ CameraAlpha, CameraBeta);
 
   /*grConstantColorValue( 0xFF000000);*/
@@ -4990,13 +4990,13 @@ void RenderSShipPost()
 
 	/*grConstantColorValue( (255-GlassL) << 24);*/
 
-	CreateMorphedModelBetaGamma(SShipModel.mptr, &SShipModel.Animation[0], SShip.FTime, 1.0, SShip.beta, SShip.gamma);
+	CreateMorphedModelBetaGamma(SShipModel.mptr.get(), &SShipModel.Animation[0], SShip.FTime, 1.0, SShip.beta, SShip.gamma);
 
 	if (fabs(SShip.rpos.z) < 4000)
-		RenderModelClip(SShipModel.mptr,
+		RenderModelClip(SShipModel.mptr.get(),
 			SShip.rpos.x, SShip.rpos.y, SShip.rpos.z, 210, 0, -SShip.alpha - pi / 2 + CameraAlpha, CameraBeta);
 	else
-		RenderModel(SShipModel.mptr,
+		RenderModel(SShipModel.mptr.get(),
 			SShip.rpos.x, SShip.rpos.y, SShip.rpos.z, 210, 0, -SShip.alpha - pi / 2 + CameraAlpha, CameraBeta);
 
 	/*grConstantColorValue( 0xFF000000);*/
@@ -5015,13 +5015,13 @@ void RenderBagPost()
 
 	/*grConstantColorValue( (255-GlassL) << 24);*/
 
-	CreateMorphedModel(BagModel.mptr, &BagModel.Animation[0], AmmoBag.FTime, 1.0);
+	CreateMorphedModel(BagModel.mptr.get(), &BagModel.Animation[0], AmmoBag.FTime, 1.0);
 
 	if (fabs(AmmoBag.rpos.z) < 4000)
-		RenderModelClip(BagModel.mptr,
+		RenderModelClip(BagModel.mptr.get(),
 			AmmoBag.rpos.x, AmmoBag.rpos.y, AmmoBag.rpos.z, 210, 0, -0 - pi / 2 + CameraAlpha, CameraBeta);
 	else
-		RenderModel(BagModel.mptr,
+		RenderModel(BagModel.mptr.get(),
 			AmmoBag.rpos.x, AmmoBag.rpos.y, AmmoBag.rpos.z, 210, 0, -0 - pi / 2 + CameraAlpha, CameraBeta);
 
 	/*grConstantColorValue( 0xFF000000);*/
@@ -5040,13 +5040,13 @@ void RenderBulletPost(int b)
 
 	/*grConstantColorValue( (255-GlassL) << 24);*/
 
-	CreateMorphedModelBetaGamma(Weapon.Bullet[bullet[b].parent].mptr, &Weapon.Bullet[bullet[b].parent].Animation[0], bullet[b].FTime, 1.0, bullet[b].beta, 0);
+	CreateMorphedModelBetaGamma(Weapon.Bullet[bullet[b].parent].mptr.get(), &Weapon.Bullet[bullet[b].parent].Animation[0], bullet[b].FTime, 1.0, bullet[b].beta, 0);
 
 	if (fabs(bullet[b].rpos.z) < 4000)
-		RenderModelClip(Weapon.Bullet[bullet[b].parent].mptr,
+		RenderModelClip(Weapon.Bullet[bullet[b].parent].mptr.get(),
 			bullet[b].rpos.x, bullet[b].rpos.y, bullet[b].rpos.z, 210, 0, -bullet[b].alpha - pi / 2 + CameraAlpha, -bullet[b].beta - pi / 2 + CameraBeta);
 	else
-		RenderModel(Weapon.Bullet[bullet[b].parent].mptr,
+		RenderModel(Weapon.Bullet[bullet[b].parent].mptr.get(),
 			bullet[b].rpos.x, bullet[b].rpos.y, bullet[b].rpos.z, 210, 0, -bullet[b].alpha - pi / 2 + CameraAlpha, -bullet[b].beta - pi / 2 + CameraBeta);
 
 	/*grConstantColorValue( 0xFF000000);*/
@@ -5465,7 +5465,7 @@ void RenderSun(float x, float y, float z)
   d = (2048.f + d) / 3048.f;
   d+=(1.f-SkyTraceK)/2.f;
   if (OptDayNight==2)  d=1.5;
-  RenderModelSun(SunModel,  x*d, y*d, z*d, static_cast<int>((200.f* SkyTraceK)));
+  RenderModelSun(SunModel.get(),  x*d, y*d, z*d, static_cast<int>((200.f* SkyTraceK)));
 }
 
 
