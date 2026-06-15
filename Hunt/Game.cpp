@@ -1708,7 +1708,13 @@ void InitEngine()
                 "unique_obj_ptr<TModel> must be the same size as a raw pointer (x86 EBO)");
   LevelArena = new MemoryArena(LEVEL_ARENA_SIZE, "LevelArena");
 
-  Textures[255].reset((TEXTURE*) _HeapAlloc(Heap, 0, sizeof(TEXTURE)));
+  // Phase 5E: tag as MemoryTag::Global. This is a one-time
+  // allocation in InitEngine that lives for the whole session --
+  // it backs the "null" texture at index 255 (used as a fallback
+  // when a model references a missing texture). It's released by
+  // ReleaseGlobalResources at shutdown. Goes to the heap, not the
+  // arena, because it must survive all LevelArena->Reset() calls.
+  Textures[255].reset((TEXTURE*) _HeapAlloc(Heap, 0, sizeof(TEXTURE), MemoryTag::Global));
 
   WaterR = 10;
   WaterG = 38;

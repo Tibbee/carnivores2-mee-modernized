@@ -97,7 +97,13 @@ struct Td3dmemmap
 Td3dmemmap d3dMemMap[d3dmemmapsize+2];
 
 void AllocateRenderTables(void) {
-  vFogT = static_cast<int*>(_HeapAlloc(Heap, 0, sizeof(int) * MaxObjectVCount));
+  // Phase 5E: tag as MemoryTag::Level. AllocateRenderTables is called
+  // from ReInitGame() on every level load, so vFogT is per-level
+  // scratch that gets reallocated each time. The Render3DFX.cpp
+  // version (vFogT/vLight) was tagged in Phase 5C.2; this is the
+  // D3D renderer's parallel allocation. The D3D renderer doesn't
+  // use vLight, so only vFogT needs the tag here.
+  vFogT = static_cast<int*>(_HeapAlloc(Heap, 0, sizeof(int) * MaxObjectVCount, MemoryTag::Level));
 }
 
 WORD conv_555(WORD c)

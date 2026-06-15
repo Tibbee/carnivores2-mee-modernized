@@ -783,7 +783,13 @@ void CalcLights(TModel* mptr)
   int FCount = mptr->FCount;
   int FUsed;
   float c;
-  Vector3d* norms = (Vector3d*)_HeapAlloc(Heap, 0, sizeof(Vector3d) * FCount);
+  // Phase 5E: tag as MemoryTag::Level. norms is per-frame scratch
+  // that lives for the duration of CalcNormals -- it gets reallocated
+  // on every call, so the arena's bulk-reset on LevelArena->Reset()
+  // is the right lifetime. The corresponding _HeapFree at the end of
+  // the function stays; it correctly no-ops via LevelArena->Contains()
+  // in _HeapFree.
+  Vector3d* norms = (Vector3d*)_HeapAlloc(Heap, 0, sizeof(Vector3d) * FCount, MemoryTag::Level);
   Vector3d a, b, nv, rv;
   Vector3d slight;
   slight.x =-Sun3dPos.x;
