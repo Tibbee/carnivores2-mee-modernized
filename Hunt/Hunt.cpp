@@ -1589,17 +1589,40 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
   case WM_DESTROY:
     PostQuitMessage(0);
     break;
-  /*
-  case WM_PAINT:
-  case WM_ERASEBKGND:
-  case WM_NCPAINT   : break;
-  */
-  /*case WM_PAINT: {
+
+  // WM_PAINT / WM_ERASEBKGND: the game loop renders every frame via
+  // ShowVideo() and SwapBuffers, so the WndProc must NOT let
+  // DefWindowProc paint anything. If it does, DefWindowProc fills the
+  // window with the background brush (black by default), which
+  // manifests as a black screen after any event that generates
+  // WM_PAINT — Alt-tabbing back, uncovering the window, and crucially
+  // for the OpenGL renderer, external screenshot tools that send
+  // WM_PRINT -> WM_PRINTCLIENT -> WM_PAINT.
+  //
+  // BeginPaint/EndPaint validates the update region without painting,
+  // which is the standard idiom for windows rendered by a separate
+  // API (OpenGL, Direct3D, etc.). Returning 1 from WM_ERASEBKGND tells
+  // Windows the background is already erased (it isn't, but the next
+  // SwapBuffers will overwrite it).
+  case WM_PAINT: {
     PAINTSTRUCT ps;
-    HDC  hdc =  BeginPaint(hWnd, &ps );
+    BeginPaint(hWnd, &ps);
     EndPaint(hWnd, &ps);
     return 0;
-  } */
+  }
+  case WM_ERASEBKGND:
+    return 1;
+
+  // WM_PRINT / WM_PRINTCLIENT: PrintWindow() sends these to capture
+  // window content. Returning TRUE tells the caller we've handled it;
+  // the caller then falls back to whatever is currently in the window
+  // (DWM-composited SwapBuffers output for the GL renderer, swap
+  // chain present for D3D). Without this, DefWindowProc paints the
+  // background brush over the GPU content, producing a black capture.
+  case WM_PRINT:
+  case WM_PRINTCLIENT:
+    return 1;
+
   default:
     return (DefWindowProc(hWnd, message, wParam, lParam));
   }

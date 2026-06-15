@@ -58,6 +58,17 @@ void Activate3DHardware()
     // Set video mode (this sets window size and position)
     SetVideoMode(WinW, WinH);
 
+    // If the renderer was shut down (e.g., during RestartMode), create a
+    // new one. ShutDown3DHardware() deletes g_GLRenderer and nulls the
+    // pointer; the restart flow then sets NeedRVM which routes through
+    // here. Without this, g_GLRenderer stays null, every GL draw call
+    // becomes a no-op, and the screen stays black after Escape+R.
+    // Init3DHardware() handles the "already exists" case by shutting
+    // down first, so it's safe to call unconditionally.
+    if (!g_GLRenderer) {
+        Init3DHardware();
+    }
+
     if (g_GLRenderer) {
         g_GLRenderer->SetVideoMode(WinW, WinH);
     }
