@@ -8,17 +8,60 @@ void GenerateModelMipMaps(TModel *mptr);
 void GenerateAlphaFlags(TModel *mptr);
 
 
+// Phase 5A: the 3-arg _HeapAlloc is preserved as a one-line forwarder to
+// the new 4-arg overload that takes a MemoryTag. Call sites can be migrated
+// incrementally (per phase 5B-5E) by switching to the explicit 4-arg form
+// with the appropriate tag. The default tag here is MemoryTag::Level to
+// match the doc's incremental-migration plan; once Phase 5B lands the bulk
+// of Resources.cpp's call sites will use MemoryTag::Global for session-
+// lifetime allocations and MemoryTag::Level for per-level ones.
 LPVOID _HeapAlloc(HANDLE hHeap,
                   DWORD dwFlags,
                   DWORD dwBytes)
 {
-  LPVOID res = HeapAlloc(hHeap,
-                         dwFlags | HEAP_ZERO_MEMORY,
-                         dwBytes);
-  if (!res)
-    DoHalt("Heap allocation error!");
+  return _HeapAlloc(hHeap, dwFlags, dwBytes, MemoryTag::Level);
+}
 
-  HeapAllocated+=dwBytes;
+
+// 4-arg _HeapAlloc: dispatches between arena and heap based on `tag`.
+//   tag == MemoryTag::Level AND LevelArena != nullptr → allocate from
+//     the per-level arena. The arena does not zero-initialize, so the
+//     returned block is explicitly memset to 0 (matches C1's behavior;
+//     the heap path gets HEAP_ZERO_MEMORY for the same effect).
+//   otherwise → HeapAlloc on the game heap with HEAP_ZERO_MEMORY.
+//
+// HeapAllocated is incremented for ALL allocations (arena + heap),
+// matching C1. The name is a misnomer — it's really "total bytes
+// allocated" — but the counter feeds carnivor.log lines that downstream
+// tooling may parse, so the accounting is preserved verbatim.
+//
+// In Phase 5A LevelArena is null so the arena branch is never taken;
+// in Phase 5C InitEngine() will construct it and Level-tagged
+// allocations will start landing in the arena.
+LPVOID _HeapAlloc(HANDLE hHeap,
+                  DWORD dwFlags,
+                  DWORD dwBytes,
+                  MemoryTag tag)
+{
+  LPVOID res = nullptr;
+
+  if (tag == MemoryTag::Level && LevelArena != nullptr)
+  {
+    res = LevelArena->Allocate(dwBytes);
+    if (res)
+      memset(res, 0, dwBytes);
+  }
+  else
+  {
+    res = HeapAlloc(hHeap,
+                    dwFlags | HEAP_ZERO_MEMORY,
+                    dwBytes);
+  }
+
+  if (!res)
+    DoHalt("Memory allocation error!");
+
+  HeapAllocated += dwBytes;
   return res;
 }
 
@@ -28,6 +71,13 @@ BOOL _HeapFree(HANDLE hHeap,
                LPVOID lpMem)
 {
   if (!lpMem) return false;
+
+  // Phase 5A: arena allocations are silently ignored. The arena owns
+  // them and will reclaim them in bulk on Reset() (LevelArena is null
+  // in Phase 5A, so this check is always false and behavior is identical
+  // to pre-5A).
+  if (LevelArena != nullptr && LevelArena->Contains(lpMem))
+    return true;
 
   HeapReleased+=
     HeapSize(hHeap, HEAP_NO_SERIALIZE, lpMem);

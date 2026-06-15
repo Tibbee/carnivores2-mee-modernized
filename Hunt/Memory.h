@@ -1,0 +1,248 @@
+#ifndef HUNT_MEMORY_H
+#define HUNT_MEMORY_H
+
+// Memory.h
+// ============================================================================
+// Phase 5A: Memory management system migration types.
+//
+// Ported from C1 (E:/Munka/Programming/C++/Carnivores1/Hunt/Memory.h) with
+// the C2-specific additions documented in
+// docs/design/memory-system-migration.md layered on top:
+//
+//   * LEVEL_ARENA_SIZE constant (256 MiB; C1 hardcodes 128 MiB at the
+//     construction site because its world is half C2 ME's scale).
+//   * static_assert checks confirming the smart-pointer types are the
+//     same size as raw pointers (so adopting them in TModel / TObject /
+//     TPicture / TAni / TCharacterInfo in later phases doesn't bloat the
+//     structures or shift the MObjects[256] global).
+//
+// The bulk of the content below is C1 verbatim (C1's comment headers and
+// naming conventions are preserved). The C2-specific items are clearly
+// marked.
+// ============================================================================
+
+#include <cstdint>
+#include <cstddef>
+#include <windows.h>
+#include <memory>
+#include <new>
+#include <type_traits>
+
+
+// ----------------------------------------------------------------------------
+// Configuration (C2 ME addition — not present in C1)
+// ----------------------------------------------------------------------------
+
+// Per-level arena size. C2 ME's world is 4x larger than C1's (ctHScale=64
+// vs 32, ctMapSize=1024 vs 512), so C1's 128 MiB default is not always
+// enough. 256 MiB gives 50-70% headroom on memory-hungry areas. Tunable
+// here. A future Phase 5C pass can expose a command-line override
+// (smod=arena=N) and emit peak-usage stats to carnivor.log.
+inline constexpr size_t LEVEL_ARENA_SIZE = 256 * 1024 * 1024;  // 256 MiB
+
+
+// ----------------------------------------------------------------------------
+// Memory tag
+// ----------------------------------------------------------------------------
+
+// Tags that classify allocations by subsystem. Used by _HeapAlloc to dispatch
+// between arena (Level) and heap (everything else), and (in Phase 5F) by
+// the MEM_DEBUG leak detector to attribute leaks to subsystems.
+//
+// Only Global and Level are exercised in current C2 ME code. The other tags
+// are reserved for future subsystems and cost nothing to keep — the type
+// system stays symmetric with C1's Memory.h.
+enum class MemoryTag {
+    Global,    // Lives for the entire session (SunModel, SFX, ChInfo[])
+    Level,     // Lives for the current hunt (per-level textures, MObjects)
+    Graphics,  // Reserved for future per-renderer allocations
+    Audio,     // Reserved for future per-audio allocations
+    AI,        // Reserved for future per-AI allocations
+    Physics    // Reserved for future per-physics allocations
+};
+
+
+// ----------------------------------------------------------------------------
+// Forward declarations (match C1)
+// ----------------------------------------------------------------------------
+
+extern HANDLE Heap;
+BOOL   _HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem);
+void   DoHalt(char* msg);
+void   PrintLog(char* msg);
+
+
+// ----------------------------------------------------------------------------
+// Helper: allocate array or halt (match C1)
+// ----------------------------------------------------------------------------
+
+// Allocates a value-initialized array of `count` elements of type T. On
+// failure calls DoHalt with a diagnostic. Used by per-level loaders that
+// want a single line for "alloc or die" without rolling their own
+// _HeapAlloc+nullcheck+DoHalt pattern.
+template<typename T>
+T* AllocateArrayOrHalt(size_t count, const char* source, const char* what)
+{
+    if (count == 0) return nullptr;
+    T* ptr = new (std::nothrow) T[count]();  // value-init to zero for POD types
+    if (!ptr) {
+        char buf[256];
+        wsprintf(buf, "Memory allocation error for %s in %s", what, source ? source : "?");
+        DoHalt(buf);
+    }
+    return ptr;
+}
+
+
+// ----------------------------------------------------------------------------
+// Deleter + smart pointer aliases (match C1)
+// ----------------------------------------------------------------------------
+
+// Stateless function-object deleter that:
+//   1. Calls T's destructor if T is destructible (skipped for trivially
+//      destructible types by the compiler; the if constexpr guard keeps
+//      this safe for types that opt out of destructibility).
+//   2. Frees the underlying memory via _HeapFree, which silently ignores
+//      arena-owned pointers (LevelArena->Contains() check in _HeapFree).
+//
+// The struct has no members, so std::unique_ptr applies the empty base
+// optimization and ends up the same size as a raw pointer — verified by
+// the static_assert at the bottom of this file.
+template<typename T>
+struct HeapDeleter {
+    void operator()(T *ptr) const
+    {
+        if (!ptr)
+            return;
+        if constexpr (std::is_destructible<T>::value)
+            ptr->~T();
+        _HeapFree(Heap, 0, ptr);
+    }
+};
+
+// Owns a heap-allocated array. std::remove_extent<T>::type strips the
+// array extent so HeapDeleter is templated on the element type (so the
+// is_destructible check works on WORD/int/etc., not on the array type).
+template<typename T>
+using unique_heap_ptr = std::unique_ptr<T, HeapDeleter<typename std::remove_extent<T>::type>>;
+
+// Owns a single object allocated with _HeapAlloc.
+template<typename T>
+using unique_obj_ptr = std::unique_ptr<T, HeapDeleter<T>>;
+
+
+// ----------------------------------------------------------------------------
+// Per-level arena (bump allocator backed by VirtualAlloc) — match C1
+// ----------------------------------------------------------------------------
+
+class MemoryArena {
+public:
+    MemoryArena(size_t size, const char* debugName = nullptr)
+        : m_Size(size), m_Offset(0), m_DebugName(debugName)
+    {
+        m_Base = static_cast<uint8_t*>(
+            VirtualAlloc(nullptr, m_Size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+    }
+
+    ~MemoryArena() {
+        if (m_Base) {
+            VirtualFree(m_Base, 0, MEM_RELEASE);
+        }
+    }
+
+    // Non-copyable, non-movable: the arena owns a VirtualAlloc block that
+    // must be released exactly once.
+    MemoryArena(const MemoryArena&) = delete;
+    MemoryArena& operator=(const MemoryArena&) = delete;
+
+    void* Allocate(size_t size, size_t alignment = 16) {
+        if (!m_Base) return nullptr;
+
+        // Padding-based alignment: aligns the actual returned address
+        // (not just the offset), so this is correct even if m_Base were
+        // not naturally aligned to `alignment`. VirtualAlloc returns
+        // 64-KiB-aligned memory so alignment=16 is always satisfied on
+        // the first allocation; the general formula is what matters for
+        // correctness on subsequent allocations.
+        size_t padding = (alignment - (reinterpret_cast<uintptr_t>(m_Base + m_Offset) % alignment)) % alignment;
+
+        if (m_Offset + padding + size > m_Size) {
+#ifdef _DEBUG
+            char buf[128];
+            sprintf(buf, "Arena '%s' overflow: need %u, free %u (used %u / %u)\n",
+                    m_DebugName ? m_DebugName : "?",
+                    (unsigned)size, (unsigned)(m_Size - m_Offset),
+                    (unsigned)m_Offset, (unsigned)m_Size);
+            PrintLog(buf);
+#endif
+            return nullptr;
+        }
+
+        void* ptr = m_Base + m_Offset + padding;
+        m_Offset += padding + size;
+        m_AllocCount++;
+        if (m_Offset > m_PeakUsage) m_PeakUsage = m_Offset;
+        return ptr;
+    }
+
+    void Reset() {
+        m_Offset = 0;
+        m_AllocCount = 0;
+    }
+
+    size_t GetUsed() const      { return m_Offset; }
+    size_t GetCapacity() const   { return m_Size; }
+    size_t GetRemaining() const  { return m_Size - m_Offset; }
+    float  GetUtilization() const { return static_cast<float>(m_Offset) / static_cast<float>(m_Size); }
+    size_t GetAllocCount() const { return m_AllocCount; }
+    size_t GetPeakUsage() const  { return m_PeakUsage; }
+
+    void LogStats(const char* context = nullptr) const {
+        char buf[160];
+        sprintf(buf, "Arena '%s'%s: %u KB used / %u KB (%.1f%%), %u allocs, peak %u KB\n",
+                m_DebugName ? m_DebugName : "?",
+                context ? context : "",
+                (unsigned)(m_Offset / 1024),
+                (unsigned)(m_Size / 1024),
+                GetUtilization() * 100.0f,
+                (unsigned)m_AllocCount,
+                (unsigned)(m_PeakUsage / 1024));
+        PrintLog(buf);
+    }
+
+    bool Contains(void* ptr) const {
+        if (!m_Base || !ptr) return false;
+        auto base = reinterpret_cast<uintptr_t>(m_Base);
+        auto addr = reinterpret_cast<uintptr_t>(ptr);
+        return addr >= base && addr < (base + m_Size);
+    }
+
+private:
+    uint8_t* m_Base;
+    size_t m_Size;
+    size_t m_Offset;
+    size_t m_AllocCount = 0;
+    size_t m_PeakUsage = 0;
+    const char* m_DebugName;
+};
+
+
+// ----------------------------------------------------------------------------
+// Size sanity checks (C2 ME addition — not present in C1)
+// ----------------------------------------------------------------------------
+
+// The smart-pointer types are designed to be drop-in replacements for raw
+// pointers: their sizeof must match sizeof(void*) so adopting them in
+// TModel, TObject, TPicture, TAni, TCharacterInfo, etc. in later phases
+// doesn't bloat the structures or shift the MObjects[256] global.
+static_assert(sizeof(void*) == 4,
+              "C2 ME x86 build expected (see doc §9 hand-off #5)");
+static_assert(sizeof(unique_heap_ptr<WORD[]>) == sizeof(void*),
+              "unique_heap_ptr<WORD[]> must be the same size as a raw pointer "
+              "(empty base optimization on HeapDeleter must apply)");
+static_assert(sizeof(unique_obj_ptr<int>) == sizeof(void*),
+              "unique_obj_ptr<T> must be the same size as a raw pointer "
+              "(empty base optimization on HeapDeleter must apply)");
+
+
+#endif // HUNT_MEMORY_H

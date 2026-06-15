@@ -21,6 +21,8 @@ inline constexpr int MODDERS_EDITION_VERSION_ID = 9; //1.1.1
 inline constexpr int DEFAULT_BUFLEN = 512;
 inline constexpr char DEFAULT_PORT[] = "1986";
 
+#include "Memory.h"  // Phase 5A: tagged allocator types (MemoryTag, MemoryArena, smart pointers)
+
 #include "math.h"
 #include "windows.h"
 #include "winuser.h"
@@ -1194,7 +1196,22 @@ Vector3d SubVectors2d(Vector3d& v1, Vector3d& v2);
 void NormVector(Vector3d& v, float Scale);
 
 LPVOID _HeapAlloc(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes);
+// Phase 5A: 4-arg overload with MemoryTag dispatch. No default for `tag` —
+// MSVC's overload resolution treats a 3-arg call as ambiguous between this
+// overload (using the default) and the 3-arg overload above, so the tag
+// must be explicit. The 3-arg forwarder in Resources.cpp routes legacy
+// 3-arg calls through this overload with MemoryTag::Level. Migration
+// phases 5B-5E will update individual call sites to the explicit 4-arg
+// form with the appropriate tag (Global for session-lifetime, Level for
+// per-level).
+LPVOID _HeapAlloc(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes, MemoryTag tag);
 BOOL _HeapFree(HANDLE hHeap, DWORD  dwFlags, LPVOID lpMem);
+
+// Phase 5A: per-level arena. Constructed in InitEngine() and destroyed in
+// ShutDownEngine() (both Phase 5C). nullptr in Phase 5A — _HeapAlloc
+// checks for nullptr and falls through to HeapAlloc, so pre-5A call
+// sites are bit-for-bit unaffected.
+_EXTORNOT MemoryArena *LevelArena;
 
 //============ game ===========================//
 float GetLandCeilH(float, float);
