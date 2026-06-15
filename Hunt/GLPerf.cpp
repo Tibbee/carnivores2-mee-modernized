@@ -49,6 +49,34 @@ constexpr int   kMaxCaptureFrames   = 120;   // ~2 seconds at 60 fps
 constexpr int   kMaxTextureHistory  = 256;   // ring of last-N distinct handles
 constexpr float kLogIntervalSeconds = 1.0f;  // rolling dump cadence
 
+// File-naming helpers. One log per game session (timestamp at glperf_init),
+// one CSV per F11 press (timestamp at the trigger). This avoids the old
+// "glperf-frame.csv overwritten on every capture" anti-pattern where you
+// could not keep two captures side by side.
+
+// Formats a time_t into "YYYY-MM-DD-HHMMSS" in out. Returns out.
+char* MakeTimestamp(char* out, size_t outSize, std::time_t t) {
+    struct tm tm_buf {};
+#ifdef _WIN32
+    localtime_s(&tm_buf, &t);
+#else
+    localtime_r(&t, &tm_buf);
+#endif
+    std::strftime(out, outSize, "%Y-%m-%d-%H%M%S", &tm_buf);
+    return out;
+}
+
+constexpr size_t kTimestampLen = 32;
+constexpr size_t kFilenameLen  = 96;
+
+void MakeLogFilename(char* out, size_t outSize, const char* timestamp) {
+    std::snprintf(out, outSize, "glperf-%s.log", timestamp);
+}
+
+void MakeCaptureFilename(char* out, size_t outSize, const char* timestamp) {
+    std::snprintf(out, outSize, "glperf-capture-%s.csv", timestamp);
+}
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -106,6 +134,8 @@ struct GLPerfState {
     std::chrono::steady_clock::time_point lastFlush;
     bool logOpened = false;
     FILE* logFile = nullptr;
+    char logTimestamp[kTimestampLen] = {};     // set at glperf_init, used for filename
+    char logFilename[kFilenameLen]  = {};      // cached "glperf-<ts>.log"
 
     // F11 capture
     bool captureActive = false;
@@ -113,6 +143,7 @@ struct GLPerfState {
     int  captureFramesWritten   = 0;
     bool captureHeaderWritten   = false;
     FILE* captureFile = nullptr;
+    char captureTimestamp[kTimestampLen] = {}; // refreshed per F11 press
     std::vector<std::string> captureScopeOrder;
 };
 
@@ -156,7 +187,16 @@ void startCapture() {
         std::fclose(g_state.captureFile);
         g_state.captureFile = nullptr;
     }
-    g_state.captureFile = std::fopen("glperf-frame.csv", "w");
+
+    // Refresh the capture timestamp so multiple F11 presses in the same
+    // session each get their own file. If two captures happen within the
+    // same second, the second overwrites the first -- rare in practice
+    // (the user has to press F11 twice in <1s).
+    char captureFilename[kFilenameLen] = {};
+    MakeTimestamp(g_state.captureTimestamp, sizeof(g_state.captureTimestamp), std::time(nullptr));
+    MakeCaptureFilename(captureFilename, sizeof(captureFilename), g_state.captureTimestamp);
+
+    g_state.captureFile = std::fopen(captureFilename, "w");
     if (g_state.captureFile) {
         // Seed header with the scope names we know about right now.
         g_state.captureScopeOrder.clear();
@@ -207,7 +247,7 @@ void writeCaptureFrame() {
 void flushRollingLog() {
     if (!g_state.initialized) return;
     if (!g_state.logFile) {
-        g_state.logFile = std::fopen("glperf.log", "a");
+        g_state.logFile = std::fopen(g_state.logFilename, "a");
         g_state.logOpened = (g_state.logFile != nullptr);
         if (!g_state.logFile) return;
     }
@@ -492,15 +532,20 @@ extern "C" void glperf_init() {
     g_state.lastFlush = std::chrono::steady_clock::now();
     g_state.initialized = true;
 
-    // Open glperf.log immediately and write a startup banner. This way the
-    // user can confirm the harness is alive even before the first frame
-    // runs (e.g. by checking after a quick launch+quit).
-    if (FILE* f = std::fopen("glperf.log", "w")) {
+    // Pick a timestamp for this session's log file. Computed once at init
+    // so all rolling dumps in this session land in the same file.
+    MakeTimestamp(g_state.logTimestamp, sizeof(g_state.logTimestamp), std::time(nullptr));
+    MakeLogFilename(g_state.logFilename, sizeof(g_state.logFilename), g_state.logTimestamp);
+
+    // Open the timestamped log immediately and write a startup banner. This
+    // way the user can confirm the harness is alive even before the first
+    // frame runs (e.g. by checking after a quick launch+quit).
+    if (FILE* f = std::fopen(g_state.logFilename, "w")) {
         std::fprintf(f, "GLPerf harness v1 (Phase 0.1) -- started\n");
         std::fprintf(f, "  gpu_timers=%s\n", gpuOk ? "ok" : "n/a");
         char cwd[MAX_PATH] = {};
         if (GetCurrentDirectoryA(MAX_PATH, cwd) > 0) {
-            std::fprintf(f, "  log_path=%s\\glperf.log\n", cwd);
+            std::fprintf(f, "  log_path=%s\\%s\n", cwd, g_state.logFilename);
         }
         std::fprintf(f, "  rolling 1s averages will append below once frames run\n\n");
         std::fclose(f);
