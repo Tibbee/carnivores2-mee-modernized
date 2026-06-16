@@ -2544,8 +2544,8 @@ void GLRenderer::RenderMappedObject(int x, int y)
         //            .z = fogBase (pocket-fog amount at object centre).
         const float alpha = std::clamp((255.0f - static_cast<float>(GlassL)) / 255.0f, 0.0f, 1.0f);
         instance.instanceFlags[0] = meshEntry.hasCutout ? 1.0f : 0.0f; // cutout
-        instance.instanceFlags[1] = fogGrad / 255.0f; // Phase 2.x: fog Y-gradient
-        instance.instanceFlags[2] = fogBase / 255.0f; // Phase 2.x: fog base amount
+        instance.instanceFlags[1] = (fogGrad / 255.0f) * kFogDensity; // Phase 2.x: fog Y-gradient
+        instance.instanceFlags[2] = (fogBase / 255.0f) * kFogDensity; // Phase 2.x: fog base amount
         instance.instanceFlags[3] = alpha; // alpha
 
         // Ensure capacity and add instance.
@@ -3310,7 +3310,7 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
     // Build two triangles (0-1-2, 0-2-3) for the billboard quad.
     auto makeVertex = [&](int index, float u, float v) -> ModelVertex {
         const float vertexFog = fogBase + mptr->gVertex[index].y * fogGrad;
-        const float fogAmount = std::clamp(vertexFog / 255.0f, 0.0f, 1.0f);
+        const float fogAmount = std::clamp((vertexFog / 255.0f) * kFogDensity, 0.0f, 1.0f);
         return {
             mptr->gVertex[index].x + x0,
             mptr->gVertex[index].y + y0,

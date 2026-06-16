@@ -420,6 +420,11 @@ private:
 
     static const int kTerrainMipLevels = 4;
     static const int kMaxTerrainTextureLayers = 1024;
+    // Phase 2.x: global pocket-fog density multiplier. Default 1.0 matches
+    // the D3D/3DFX look.  Increase to make fog pockets denser / more
+    // opaque (e.g. 1.5 = 50% thicker fog, 2.0 = double).  Values above
+    // 1.0 are per-vertex clamped so fog saturates at 1.0.
+    static inline constexpr float kFogDensity = 1.25f;
     // Phase 2.1: initial capacity for the per-frame instance array.
     // The dense custom map Phase 0 baseline measured ~2,400 visible model
     // objects per frame; reserve 4,096 to absorb the high end with
