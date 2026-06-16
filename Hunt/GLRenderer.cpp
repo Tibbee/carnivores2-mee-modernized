@@ -701,6 +701,106 @@ bool GLRenderer::Initialize()
         return false;
     }
 
+    // Phase 2.3: instanced model shader.
+    // Per-vertex (from static mesh VBO, binding 0):
+    //   attribute 0: vec3 aPos        — model-space position
+    //   attribute 1: vec3 aNormal      — face normal (unused in Phase 2.3, reserved for Phase 2.5)
+    //   attribute 2: vec2 aTexCoord    — pre-baked UV
+    // Per-instance (from instance VBO, binding 1, divisor=1):
+    //   attribute 4: vec4 aWorldRow0   — instance world transform row 0
+    //   attribute 5: vec4 aWorldRow1   — instance world transform row 1
+    //   attribute 6: vec4 aWorldRow2   — instance world transform row 2
+    //   attribute 7: vec4 aWorldRow3   — instance world transform row 3
+    //   attribute 8: vec4 aInstanceLight — .x = base light [0,1]
+    //   attribute 9: vec4 aInstanceFlags — .x = cutout, .y = tintByFog, .z = fogAmount, .w = alpha
+    //
+    // The shader applies the per-instance world transform to the
+    // model-space vertex position, then projects. Lighting is
+    // per-instance * texture color. Fog is distance-based (computed
+    // from view-space Z). Cutout discard uses the same threshold as
+    // the non-instanced shader.
+    const char* instancedModelVertexSource =
+        "#version 330 core\n"
+        "// Per-vertex from static mesh VBO (binding 0)\n"
+        "layout (location = 0) in vec3 aPos;\n"
+        "layout (location = 1) in vec3 aNormal;\n"
+        "layout (location = 2) in vec2 aTexCoord;\n"
+        "// Per-instance from instance VBO (binding 1, divisor=1)\n"
+        "layout (location = 4) in vec4 aWorldCol0;\n"
+        "layout (location = 5) in vec4 aWorldCol1;\n"
+        "layout (location = 6) in vec4 aWorldCol2;\n"
+        "layout (location = 7) in vec4 aWorldCol3;\n"
+        "layout (location = 8) in vec4 aInstanceLight;\n"
+        "layout (location = 9) in vec4 aInstanceFlags;\n"
+        "uniform PerFrame {\n"
+        "   mat4 uProjection;\n"
+        "   vec2 uFogRange;\n"
+        "   vec3 uDistanceFogColor;\n"
+        "   float uForceFog;\n"
+        "   vec3 uFogColor;\n"
+        "};\n"
+        "out vec2 vTexCoord;\n"
+        "out float vLight;\n"
+        "out float vFog;\n"
+        "out vec3 vFogColor;\n"
+        "out float vAlpha;\n"
+        "out float vCutout;\n"
+        "out float vTintByFog;\n"
+        "void main() {\n"
+        "   mat4 iWorld = mat4(aWorldCol0, aWorldCol1, aWorldCol2, aWorldCol3);\n"
+        "   vec4 worldPos = iWorld * vec4(aPos, 1.0);\n"
+        "   gl_Position = uProjection * worldPos;\n"
+        "   vTexCoord = aTexCoord;\n"
+        "   vLight = aInstanceLight.x;\n"
+        "   vCutout = aInstanceFlags.x;\n"
+        "   vTintByFog = aInstanceFlags.y;\n"
+        "   vAlpha = aInstanceFlags.w;\n"
+        "   // Distance-based fog: compute from view-space Z.\n"
+        "   // Phase 2.6 will refine to per-instance pocket fog.\n"
+        "   float fogStart = uFogRange.x;\n"
+        "   float fogDist = uFogRange.y;\n"
+        "   float dist = length(worldPos.xyz);\n"
+        "   vFog = clamp((dist - fogStart) / max(fogDist, 0.001), 0.0, 1.0);\n"
+        "   vFog = mix(vFog, 1.0, uForceFog);\n"
+        "   vFogColor = uDistanceFogColor;\n"
+        "}\n";
+
+    const char* instancedModelFragmentSource =
+        "#version 330 core\n"
+        "out vec4 FragColor;\n"
+        "in vec2 vTexCoord;\n"
+        "in float vLight;\n"
+        "in float vFog;\n"
+        "in vec3 vFogColor;\n"
+        "in float vAlpha;\n"
+        "in float vCutout;\n"
+        "in float vTintByFog;\n"
+        "uniform sampler2D uModelTexture;\n"
+        "void main() {\n"
+        "   vec4 texColor = texture(uModelTexture, vTexCoord);\n"
+        "   if (vCutout > 0.5 && dot(texColor.rgb, vec3(1.0)) < 0.01) discard;\n"
+        "   vec3 litColor = texColor.rgb * vLight;\n"
+        "   if (vTintByFog > 0.5) {\n"
+        "      litColor *= vFogColor;\n"
+        "   }\n"
+        "   vec3 finalColor = mix(litColor, vFogColor, vFog);\n"
+        "   FragColor = vec4(finalColor, texColor.a * vAlpha);\n"
+        "}\n";
+
+    GLuint instancedVertexShader = CompileShader(GL_VERTEX_SHADER, instancedModelVertexSource);
+    if (!instancedVertexShader) {
+        return false;
+    }
+    GLuint instancedFragmentShader = CompileShader(GL_FRAGMENT_SHADER, instancedModelFragmentSource);
+    if (!instancedFragmentShader) {
+        glDeleteShader(instancedVertexShader);
+        return false;
+    }
+    m_instancedModelShader = LinkProgram(instancedVertexShader, instancedFragmentShader);
+    if (!m_instancedModelShader) {
+        return false;
+    }
+
     if (!InitializeTerrainPipeline()) {
         return false;
     }
@@ -709,11 +809,14 @@ bool GLRenderer::Initialize()
         return false;
     }
 
-    if (!InitializeInstancingPipeline()) {
+    // Phase 2.3 fix: StaticMeshPipeline must initialize before
+    // InstancingPipeline so m_instanceVAO can reference m_staticMeshVBO
+    // (which doesn't exist yet if the order is reversed).
+    if (!InitializeStaticMeshPipeline()) {
         return false;
     }
 
-    if (!InitializeStaticMeshPipeline()) {
+    if (!InitializeInstancingPipeline()) {
         return false;
     }
 
@@ -723,6 +826,10 @@ bool GLRenderer::Initialize()
     glUseProgram(m_modelShader);
     glUniform1i(glGetUniformLocation(m_modelShader, "uModelTexture"), 0);
     glUniform1f(glGetUniformLocation(m_modelShader, "uTintByFogColor"), 0.0f);
+
+    // Phase 2.3: set instanced model shader's texture uniform.
+    glUseProgram(m_instancedModelShader);
+    glUniform1i(glGetUniformLocation(m_instancedModelShader, "uModelTexture"), 0);
 
     glUseProgram(m_terrainShader);
     glUniform1i(glGetUniformLocation(m_terrainShader, "uTerrainArray"), 0);
@@ -743,6 +850,11 @@ bool GLRenderer::Initialize()
         const GLuint perFrameBlock_model = glGetUniformBlockIndex(m_modelShader, "PerFrame");
         if (perFrameBlock_model != GL_INVALID_INDEX) {
             glUniformBlockBinding(m_modelShader, perFrameBlock_model, 0);
+        }
+        // Phase 2.3: bind instanced model shader's PerFrame UBO.
+        const GLuint perFrameBlock_instanced = glGetUniformBlockIndex(m_instancedModelShader, "PerFrame");
+        if (perFrameBlock_instanced != GL_INVALID_INDEX) {
+            glUniformBlockBinding(m_instancedModelShader, perFrameBlock_instanced, 0);
         }
         const GLuint perFrameBlock_sky = glGetUniformBlockIndex(m_skyShader, "PerFrame");
         if (perFrameBlock_sky != GL_INVALID_INDEX) {
@@ -927,6 +1039,11 @@ void GLRenderer::ShutdownModelPipeline()
         glDeleteProgram(m_modelShader);
         m_modelShader = 0;
     }
+    // Phase 2.3: clean up instanced model shader.
+    if (m_instancedModelShader) {
+        glDeleteProgram(m_instancedModelShader);
+        m_instancedModelShader = 0;
+    }
     if (m_whiteTexture) {
         glDeleteTextures(1, &m_whiteTexture);
         m_whiteTexture = 0;
@@ -947,24 +1064,67 @@ void GLRenderer::ShutdownModelPipeline()
 
 bool GLRenderer::InitializeInstancingPipeline()
 {
-    // Phase 2.1 scaffolding. Allocate the per-instance VBO and VAO.
-    // The VAO is intentionally empty for now — Phase 2.3 will set up
-    // the per-vertex attribute pointers (binding m_modelVBO as
-    // ARRAY_BUFFER 0) and the per-instance attribute pointers (binding
-    // m_instanceVBO as ARRAY_BUFFER 1, divisor=1) right before the first
-    // instanced draw.
+    // Phase 2.1 + 2.3: allocate and configure the instance VBO and VAO.
+    //
+    // The instance VAO combines:
+    //   - Static mesh VBO (per-vertex: position, normal, UV)
+    //   - Instance VBO (per-instance: world matrix, light, flags)
+    //
+    // Per-vertex attributes (from static mesh VBO):
+    //   attribute 0: vec3 aPos       (offset  0, 12 bytes)
+    //   attribute 1: vec3 aNormal    (offset 12, 12 bytes)
+    //   attribute 2: vec2 aTexCoord  (offset 24,  8 bytes)
+    //
+    // Per-instance attributes (from instance VBO, divisor=1):
+    //   attribute 4: vec4 aWorldRow0      (offset  0)
+    //   attribute 5: vec4 aWorldRow1      (offset 16)
+    //   attribute 6: vec4 aWorldRow2      (offset 32)
+    //   attribute 7: vec4 aWorldRow3      (offset 48)
+    //   attribute 8: vec4 aInstanceLight  (offset 64)
+    //   attribute 9: vec4 aInstanceFlags  (offset 80)
 
     glGenBuffers(1, &m_instanceVBO);
     glGenVertexArrays(1, &m_instanceVAO);
 
     glBindVertexArray(m_instanceVAO);
+
+    // Per-vertex attributes from static mesh VBO.
+    // Bind the static mesh VBO and set up per-vertex attributes.
+    glBindBuffer(GL_ARRAY_BUFFER, m_staticMeshVBO);
+
+    glEnableVertexAttribArray(0); // aPos
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(StaticMeshVertex),
+                          reinterpret_cast<void*>(offsetof(StaticMeshVertex, x)));
+
+    glEnableVertexAttribArray(1); // aNormal
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(StaticMeshVertex),
+                          reinterpret_cast<void*>(offsetof(StaticMeshVertex, nx)));
+
+    glEnableVertexAttribArray(2); // aTexCoord
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(StaticMeshVertex),
+                          reinterpret_cast<void*>(offsetof(StaticMeshVertex, u)));
+
+    // Per-instance attributes from instance VBO.
+    // Bind the instance VBO and set up per-instance attributes with divisor=1.
     glBindBuffer(GL_ARRAY_BUFFER, m_instanceVBO);
     glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_STREAM_DRAW);
+
+    // Each instance attribute is a vec4 (4 floats).
+    // The attributes are at locations 4-9.
+    for (GLuint loc = 4; loc <= 9; ++loc) {
+        glEnableVertexAttribArray(loc);
+        glVertexAttribPointer(loc, 4, GL_FLOAT, GL_FALSE, sizeof(ModelInstance),
+                              reinterpret_cast<void*>(
+                                  static_cast<uintptr_t>((loc - 4) * 4 * sizeof(float))));
+        glVertexAttribDivisor(loc, 1); // advance once per instance
+    }
+
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     m_instanceData.clear();
     m_instanceData.reserve(kInitialInstanceCapacity);
+    m_instanceInfo.clear();
 
     return true;
 }
@@ -981,6 +1141,8 @@ void GLRenderer::ShutdownInstancingPipeline()
     }
     m_instanceData.clear();
     m_instanceData.shrink_to_fit();
+    m_instanceInfo.clear();
+    m_instanceInfo.shrink_to_fit();
 }
 
 bool GLRenderer::InitializeStaticMeshPipeline()
@@ -1099,8 +1261,23 @@ GLRenderer::StaticMeshEntry GLRenderer::UploadStaticMesh(TModel* mptr)
 
     const int texHeight = (mptr->TextureHeight > 1) ? mptr->TextureHeight : 1;
 
+    // Phase 2.3: scan face flags to determine if the model has
+    // cutout (sfOpacity) or transparent (sfTransparent) faces.
+    // These are per-model booleans cached in the entry so the
+    // instanced draw path can set the correct shader flags.
+    bool hasCutout = false;
+    bool hasTransparent = false;
+
     for (int f = 0; f < mptr->FCount; ++f) {
         const TFace& face = mptr->gFace[f];
+
+        // Phase 2.3: detect cutout / transparent face flags.
+        if (!hasCutout && (face.Flags & (sfOpacity | sfTransparent))) {
+            hasCutout = true;
+        }
+        if (!hasTransparent && (face.Flags & sfTransparent)) {
+            hasTransparent = true;
+        }
 
         const TPoint3d& p0Raw = mptr->gVertex[face.v1];
         const TPoint3d& p1Raw = mptr->gVertex[face.v2];
@@ -1152,6 +1329,8 @@ GLRenderer::StaticMeshEntry GLRenderer::UploadStaticMesh(TModel* mptr)
     entry.baseIndex = iboOffset;
     entry.vertexCount = static_cast<uint32_t>(vertexCount);
     entry.indexCount = static_cast<uint32_t>(indexCount);
+    entry.hasCutout = hasCutout;
+    entry.hasTransparent = hasTransparent;
     m_staticMeshCache[mptr] = entry;
 
     // Advance the next-offset cursors.
@@ -2244,13 +2423,230 @@ void GLRenderer::RenderMappedObject(int x, int y)
     }
 
     if (renderAsBMP) {
+        // Phase 2.3: BMP fallback path unchanged.
         RenderBMPModel(&MObjects[ob].bmpmodel, pos.x, pos.y, pos.z, mlight - 16);
     } else if (waterclip) {
+        // Phase 2.3: water-clipped objects use legacy path (Phase 2.10
+        // will move water clip to fragment shader).
+        UploadStaticMesh(MObjects[ob].model.get());
         RenderModelClipWater(MObjects[ob].model.get(), pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
-    } else if (pos.z < -256 * 8) {
-        RenderModel(MObjects[ob].model.get(), pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
     } else {
-        RenderModelClip(MObjects[ob].model.get(), pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+        // Phase 2.3: instanced path for non-BMP, non-water-clip objects.
+        // Compute world matrix from position and rotation.
+        const StaticMeshEntry meshEntry = UploadStaticMesh(MObjects[ob].model.get());
+
+        // Phase 2.3: route models with sfTransparent faces through the
+        // legacy path (they need blend which the instanced opaque pass
+        // does not set up).  The proper instanced transparent pass is
+        // deferred to a follow-up task.
+        if (meshEntry.hasTransparent) {
+            RenderModelClip(MObjects[ob].model.get(), pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+            return;
+        }
+
+        const float ca = std::cos(fi);
+        const float sa = std::sin(fi);
+        const float cb = std::cos(CameraBeta);
+        const float sb = std::sin(CameraBeta);
+
+        ModelInstance instance;
+        // Phase 2.3: populate the view-from-model matrix COLUMNS.
+        // GLSL mat4(col0,col1,col2,col3) takes column vectors, so
+        // we fill worldCol0-3 as the four columns of:
+        //   | ca       0        sa       pos.x |
+        //   | sa*sb    cb       -ca*sb   pos.y |
+        //   | -sa*cb   sb       ca*cb    pos.z |
+        //   | 0        0        0        1     |
+        instance.worldCol0[0] = ca;
+        instance.worldCol0[1] = sa * sb;
+        instance.worldCol0[2] = -sa * cb;
+        instance.worldCol0[3] = 0.0f;
+        instance.worldCol1[0] = 0.0f;
+        instance.worldCol1[1] = cb;
+        instance.worldCol1[2] = sb;
+        instance.worldCol1[3] = 0.0f;
+        instance.worldCol2[0] = sa;
+        instance.worldCol2[1] = -ca * sb;
+        instance.worldCol2[2] = ca * cb;
+        instance.worldCol2[3] = 0.0f;
+        instance.worldCol3[0] = pos.x;
+        instance.worldCol3[1] = pos.y;
+        instance.worldCol3[2] = pos.z;
+        instance.worldCol3[3] = 1.0f;
+
+        // Instance light: normalize to [0,1] range (current mlight is 64-192).
+        instance.instanceLight[0] = static_cast<float>(mlight) / 255.0f;
+        instance.instanceLight[1] = 0.0f;
+        instance.instanceLight[2] = 0.0f;
+        instance.instanceLight[3] = 0.0f;
+
+        // Phase 2.3: cutout flag from the static mesh cache (set during
+        // UploadStaticMesh based on sfOpacity/sfTransparent face flags).
+        // The fragment shader discards near-black fragments when
+        // vCutout > 0.5, which is the correct behaviour for leaves
+        // and other sfOpacity-marked faces.
+        const float alpha = std::clamp((255.0f - static_cast<float>(GlassL)) / 255.0f, 0.0f, 1.0f);
+        instance.instanceFlags[0] = meshEntry.hasCutout ? 1.0f : 0.0f; // cutout
+        instance.instanceFlags[1] = 0.0f; // tintByFog — Phase 2.3: no tint
+        instance.instanceFlags[2] = 0.0f; // fog — computed in shader
+        instance.instanceFlags[3] = alpha; // alpha
+
+        // Ensure capacity and add instance.
+        m_instanceData.push_back(instance);
+
+        // Track model and texture for instanced draw grouping.
+        InstanceInfo info;
+        info.model = MObjects[ob].model.get();
+        info.texture = UploadModelTexture(MObjects[ob].model.get());
+        m_instanceInfo.push_back(info);
+    }
+}
+
+void GLRenderer::RenderInstancedModels()
+{
+    // Phase 2.3: render instanced models with one glDrawElementsInstanced
+    // per (model, texture) group. The instance data was populated by
+    // RenderMappedObject calls above.
+
+    if (m_instanceData.empty() || m_instanceInfo.empty() ||
+        !m_instancedModelShader || !m_instanceVAO) {
+        return;
+    }
+
+    // Upload instance data to the instance VBO.
+    glBindBuffer(GL_ARRAY_BUFFER, m_instanceVBO);
+    const GLsizeiptr instanceBytes =
+        static_cast<GLsizeiptr>(m_instanceData.size() * sizeof(ModelInstance));
+    glBufferData(GL_ARRAY_BUFFER, instanceBytes, nullptr, GL_STREAM_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, instanceBytes, m_instanceData.data());
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // Group instances by (model, texture) for instanced draws.
+    struct InstanceGroup {
+        const TModel* model;
+        GLuint texture;
+        uint32_t instanceStart;
+        uint32_t instanceCount;
+    };
+    std::vector<InstanceGroup> groups;
+
+    // Build groups by detecting transitions in the instance list.
+    // Instances are added in object-list order, so objects with the
+    // same model/texture are often adjacent.
+    {
+        const TModel* curModel = m_instanceInfo[0].model;
+        GLuint curTexture = m_instanceInfo[0].texture;
+        uint32_t groupStart = 0;
+
+        for (size_t i = 1; i < m_instanceInfo.size(); ++i) {
+            if (m_instanceInfo[i].model != curModel ||
+                m_instanceInfo[i].texture != curTexture) {
+                // End of current group.
+                groups.push_back({curModel, curTexture, groupStart,
+                                  static_cast<uint32_t>(i - groupStart)});
+                curModel = m_instanceInfo[i].model;
+                curTexture = m_instanceInfo[i].texture;
+                groupStart = static_cast<uint32_t>(i);
+            }
+        }
+        // Add the last group.
+        groups.push_back({curModel, curTexture, groupStart,
+                          static_cast<uint32_t>(m_instanceInfo.size() - groupStart)});
+    }
+
+    // Set up rendering state.
+    const auto projection = BuildLegacyProjection();
+    UpdatePerFrameUBO(projection);
+
+    glUseProgram(m_instancedModelShader);
+    glBindVertexArray(m_instanceVAO);
+
+    // Phase 2.3 fix: m_instanceVAO was set up at init time with the
+    // correct attribute pointers (per-vertex from m_staticMeshVBO,
+    // per-instance from m_instanceVBO, divisor=1).  Repeating the
+    // glVertexAttribPointer / glEnableVertexAttribArray / divisor
+    // calls is unnecessary — the VAO captures them — but we ensure
+    // the instance VBO has the current frame's data and the IBO is
+    // bound for indexed drawing.
+
+    // Bind the static IBO for indexed drawing.
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_staticMeshIBO);
+
+    // Enable depth test, disable blend (opaque pass).
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+
+    // Draw each group with instanced rendering.
+    uint32_t totalDrawCalls = 0;
+    uint32_t totalInstances = 0;
+
+    for (const auto& group : groups) {
+        const StaticMeshEntry* meshEntry = GetStaticMeshEntry(group.model);
+        if (!meshEntry || meshEntry->indexCount == 0) {
+            continue;
+        }
+
+        // Phase 2.3: GL 3.3 Core has no glDrawElementsInstancedBaseInstance
+        // (requires GL 4.2 / ARB_base_instance).  Work around this by
+        // re-uploading only the current group's instance slice to VBO
+        // offset 0 so the draw always reads from instance 0.  The total
+        // bandwidth is the same as uploading the whole array once; the
+        // per-group glBufferSubData call overhead is acceptable.
+        const GLsizeiptr groupSliceBytes =
+            static_cast<GLsizeiptr>(group.instanceCount) * sizeof(ModelInstance);
+        glBindBuffer(GL_ARRAY_BUFFER, m_instanceVBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, groupSliceBytes,
+                        &m_instanceData[group.instanceStart]);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        // Phase 2.3: cutout models need GL_NEAREST filtering (matches
+        // NeedsNearestModelFiltering logic from the legacy path).
+        // Without this, GL_LINEAR smears black transparent pixels
+        // into visible areas, creating dark borders on leaves.
+        SetModelTextureFiltering(group.texture, meshEntry->hasCutout);
+
+        // Bind the texture for this group.
+        if (group.texture != m_lastBoundModelTexture) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, group.texture);
+            m_lastBoundModelTexture = group.texture;
+#ifdef GL_PERF_HOOKS
+            GL_PERF_TEXTURE_BIND(group.texture);
+#endif
+        }
+
+        // Issue the instanced draw call.
+        // The indices in the static IBO reference the static VBO directly.
+        glDrawElementsInstanced(
+            GL_TRIANGLES,
+            static_cast<GLsizei>(meshEntry->indexCount),
+            GL_UNSIGNED_INT,
+            reinterpret_cast<void*>(
+                static_cast<uintptr_t>(meshEntry->baseIndex * sizeof(uint32_t))),
+            static_cast<GLsizei>(group.instanceCount));
+
+#ifdef GL_PERF_HOOKS
+        GL_PERF_DRAW(static_cast<uint32_t>(group.instanceCount));
+#endif
+        totalDrawCalls++;
+        totalInstances += group.instanceCount;
+    }
+
+    // Phase 2.3: unbind the VAO to avoid leaking instance-attribute
+    // state into subsequent draws (e.g., the legacy model path in
+    // RenderWorldModels).  Do NOT reset glVertexAttribDivisor on
+    // m_instanceVAO — VAO state is persistent and we need divisor=1
+    // for the next frame's instanced draws.
+    glBindVertexArray(0);
+    glUseProgram(0);
+
+    // Log instancing stats.
+    {
+        char buf[200];
+        sprintf(buf, "GL: Phase 2.3: %u instanced draws, %u instances, %zu groups\n",
+                totalDrawCalls, totalInstances, groups.size());
+        PrintLog(buf);
     }
 }
 
@@ -2260,16 +2656,25 @@ void GLRenderer::RenderModelsList()
     GL_PERF_SCOPE("RenderModelsList");
 #endif
     // Phase 1.11: reset the last-bound model texture tracker at the
-    // start of each frame's model-draw session. The sky pass runs
-    // first in the frame and binds m_skyTexture to GL_TEXTURE_2D
-    // (a different handle than the first model draw's), so we
-    // need to force a re-bind here. Within the session, the tracker
-    // correctly skips consecutive buckets that share a texture.
+    // start of each frame's model-draw session.
     m_lastBoundModelTexture = 0;
+
+    // Phase 2.3: populate instance data for instanced objects.
+    // RenderMappedObject now adds to m_instanceData for non-BMP,
+    // non-water-clip objects.
+    m_instanceData.clear();
+    m_instanceInfo.clear();
     for (const Vector2di& object : m_objectList) {
         RenderMappedObject(object.x, object.y);
     }
     m_objectList.clear();
+
+    // Phase 2.3: render instanced models (non-BMP, non-water-clip).
+    if (!m_instanceData.empty()) {
+        RenderInstancedModels();
+    }
+
+    // Phase 2.3: render legacy path models (water-clip, BMP).
     RenderWorldModels();
 }
 

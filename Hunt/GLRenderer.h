@@ -154,40 +154,29 @@ private:
         std::vector<ModelVertex> transparentVertices;
     };
 
-    // Phase 2.1: per-instance data layout for geometry instancing.
-    //   attribute 4: vec4 aWorldRow0    (offset  0)  -- instance world transform, row 0
-    //   attribute 5: vec4 aWorldRow1    (offset 16)  -- instance world transform, row 1
-    //   attribute 6: vec4 aWorldRow2    (offset 32)  -- instance world transform, row 2
-    //   attribute 7: vec4 aWorldRow3    (offset 48)  -- instance world transform, row 3
+    // Phase 2.1+2.3: per-instance data layout for geometry instancing.
+    // GLSL mat4(col0,col1,col2,col3) takes COLUMN vectors, so the four
+    // vec4 attributes must be the columns of the view-from-model matrix.
+    //   attribute 4: vec4 aWorldCol0    (offset  0)  -- matrix column 0
+    //   attribute 5: vec4 aWorldCol1    (offset 16)  -- matrix column 1
+    //   attribute 6: vec4 aWorldCol2    (offset 32)  -- matrix column 2
+    //   attribute 7: vec4 aWorldCol3    (offset 48)  -- matrix column 3
     //   attribute 8: vec4 aInstanceLight (offset 64) -- .x = base; .yzw = reserved
     //   attribute 9: vec4 aInstanceFlags (offset 80) -- .x = bitfield; .yzw = reserved
     // Total: 96 bytes per instance, 16-byte aligned.
     //
-    // The 4x4 world form (16 floats) is one Mat4 + one Vec4 + one Vec4
-    // and reads in the vertex shader as:
-    //   mat4 iWorld = mat4(aWorldRow0, aWorldRow1, aWorldRow2, aWorldRow3);
+    // Vertex shader usage:
+    //   mat4 iWorld = mat4(aWorldCol0, aWorldCol1, aWorldCol2, aWorldCol3);
     //   gl_Position = uProjection * iWorld * vec4(aPos, 1.0);
-    //
-    // The compact 4x3 form (12 floats: worldPos + 3 basis vec4s) was an
-    // option in the design doc but adds shader complexity (the world
-    // transform is no longer a single mat4 construction) for a 16 B/instance
-    // saving. At kInitialInstanceCapacity (4,096) instances per frame, the
-    // saving is 64 KB — not worth the readability cost.
-    //
-    // This struct is the data that the GPU vertex shader (Phase 2.4) will
-    // use to transform model-space vertices to world space without CPU
-    // work. It is allocated in 2.1 but not yet consumed — the new VAO/VBO
-    // are created empty; the per-frame upload and the instanced draw calls
-    // land in Phase 2.3.
     struct ModelInstance {
-        float worldRow0[4];     // 16
-        float worldRow1[4];     // 16
-        float worldRow2[4];     // 16
-        float worldRow3[4];     // 16
+        float worldCol0[4];     // 16
+        float worldCol1[4];     // 16
+        float worldCol2[4];     // 16
+        float worldCol3[4];     // 16
         float instanceLight[4]; // 16 -- .x = base; .yzw = reserved for future
         float instanceFlags[4]; // 16 -- .x = bitfield (cutout, transparent, additive, shadow); .yzw = reserved
     };
-    static_assert(sizeof(ModelInstance) == 96, "ModelInstance must stay 96 bytes (Phase 2.1)");
+    static_assert(sizeof(ModelInstance) == 96, "ModelInstance must stay 96 bytes (Phase 2.1+2.3)");
 
     // Phase 2.2: static mesh vertex (data that's truly static per-model —
     // positions in model space, pre-baked UVs, and a face-baked normal).
@@ -216,6 +205,8 @@ private:
         uint32_t baseIndex = 0;   // IBO offset of first index (in indices)
         uint32_t vertexCount = 0; // number of vertices in the VBO
         uint32_t indexCount = 0;  // number of indices in the IBO
+        bool hasCutout = false;   // Phase 2.3: model has faces with sfOpacity|sfTransparent
+        bool hasTransparent = false; // Phase 2.3: model has faces with sfTransparent
     };
 
     bool InitGLState();
@@ -333,12 +324,31 @@ private:
     unsigned int m_modelVAO = 0;
     unsigned int m_modelVBO = 0;
 
+    // Phase 2.3: instanced model shader for geometry instancing.
+    // The instanced shader takes per-vertex position/UV from the static
+    // mesh VBO and per-instance world matrix + light + flags from the
+    // instance VBO. One glDrawElementsInstanced per (mesh, texture, pass)
+    // replaces hundreds of per-object draw calls.
+    // The VAO used for instanced draws is m_instanceVAO (created in
+    // InitializeInstancingPipeline, which pairs the static VBO attributes
+    // with the per-instance VBO).
+    unsigned int m_instancedModelShader = 0;
+
+    // Phase 2.3: per-instance tracking for instanced draws.
+    // Each entry corresponds to one ModelInstance in m_instanceData.
+    struct InstanceInfo {
+        const TModel* model;   // key for static mesh lookup
+        GLuint texture;        // GL texture handle
+    };
+    std::vector<InstanceInfo> m_instanceInfo;
+
+    // Phase 2.3: instanced model rendering function.
+    void RenderInstancedModels();
+
     // Phase 2.1: per-instance data plumbing for geometry instancing.
-    // These GL objects are allocated at InitializeInstancingPipeline() but
-    // not yet used by the renderer; the per-frame upload and instanced
-    // draw calls land in Phase 2.3. Kept as siblings of m_modelVAO /
-    // m_modelVBO so the instance pipeline lifetime is paired with the
-    // model pipeline lifetime.
+    // Phase 2.3: now actively used. The instance VBO holds per-instance
+    // world matrix + light + flags. The instance VAO binds the static
+    // mesh VBO (per-vertex) and instance VBO (per-instance, divisor=1).
     unsigned int m_instanceVBO = 0;
     unsigned int m_instanceVAO = 0;
 
