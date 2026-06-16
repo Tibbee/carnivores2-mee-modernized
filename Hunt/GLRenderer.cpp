@@ -1337,13 +1337,6 @@ GLRenderer::StaticMeshEntry GLRenderer::UploadStaticMesh(TModel* mptr)
     m_staticMeshNextVertexOffset += static_cast<uint32_t>(vertexCount);
     m_staticMeshNextIndexOffset += static_cast<uint32_t>(indexCount);
 
-    {
-        char uploadBuf[160];
-        sprintf(uploadBuf, "GL: Static mesh upload: TModel=0x%p vertices=%u indices=%u\n",
-                static_cast<const void*>(mptr), entry.vertexCount, entry.indexCount);
-        PrintLog(uploadBuf);
-    }
-
     return entry;
 }
 
@@ -2646,13 +2639,8 @@ void GLRenderer::RenderInstancedModels()
     glBindVertexArray(0);
     glUseProgram(0);
 
-    // Log instancing stats.
-    {
-        char buf[200];
-        sprintf(buf, "GL: Phase 2.3: %u instanced draws, %u instances, %zu groups\n",
-                totalDrawCalls, totalInstances, groups.size());
-        PrintLog(buf);
-    }
+    (void)totalDrawCalls;
+    (void)totalInstances;
 }
 
 void GLRenderer::RenderModelsList()
