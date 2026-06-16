@@ -984,10 +984,7 @@ void AllocateMemoryForModel(TModel* mptr, MemoryTag tag) {
 
 void LoadModel(unique_obj_ptr<TModel> &mptr)
 {
-  // Phase 5E follow-up (Gap #2): LoadModel is per-level (called from
-  // LoadResources). Tag the TModel body and its arrays as Level so they
-  // land in the arena and are bulk-freed on Reset().
-  TModel* raw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel), MemoryTag::Level);
+  TModel* raw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel));
   mptr.reset(new(raw) TModel());
 
   ReadFile( hfile, &mptr->VCount,      4,         &l, nullptr );
@@ -995,7 +992,7 @@ void LoadModel(unique_obj_ptr<TModel> &mptr)
   ReadFile( hfile, &OCount,            4,         &l, nullptr );
   ReadFile( hfile, &mptr->TextureSize, 4,         &l, nullptr );
 
-  AllocateMemoryForModel(mptr.get(), MemoryTag::Level);
+  AllocateMemoryForModel(mptr.get(), MemoryTag::Global);
 
   ReadFile( hfile, mptr->gFace,        mptr->FCount<<6, &l, nullptr );
   ReadFile( hfile, mptr->gVertex.get(),      mptr->VCount<<4, &l, nullptr );
@@ -1010,7 +1007,7 @@ void LoadModel(unique_obj_ptr<TModel> &mptr)
 
   mptr->TextureSize = mptr->TextureHeight*512;
 
-  mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize, MemoryTag::Level)));
+  mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize)));
 
   ReadFile(hfile, mptr->lpTexture.get(), ts, &l, nullptr);
   BrightenTexture(mptr->lpTexture.get(), ts/2);
@@ -1022,7 +1019,7 @@ void LoadModel(unique_obj_ptr<TModel> &mptr)
     mptr->gVertex[v].z*=-2.f;
   }
 
-  CorrectModel(mptr.get(), MemoryTag::Level);
+  CorrectModel(mptr.get(), MemoryTag::Global);
 
   DATASHIFT(mptr->lpTexture.get(), mptr->TextureSize);
 }
@@ -1065,8 +1062,7 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName)
     DoHalt(sz);
   }
 
-  // Phase 5E follow-up (Gap #2): LoadModelEx is per-level. Tag as Level.
-  TModel* raw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel), MemoryTag::Level);
+  TModel* raw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel));
   mptr.reset(new(raw) TModel());
 
   ReadFile( hfile, &mptr->VCount,      4,         &l, nullptr );
@@ -1074,7 +1070,7 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName)
   ReadFile( hfile, &OCount,            4,         &l, nullptr );
   ReadFile( hfile, &mptr->TextureSize, 4,         &l, nullptr );
 
-  AllocateMemoryForModel(mptr.get(), MemoryTag::Level);
+  AllocateMemoryForModel(mptr.get(), MemoryTag::Global);
 
   ReadFile( hfile, mptr->gFace,        mptr->FCount<<6, &l, nullptr );
   ReadFile( hfile, mptr->gVertex.get(),      mptr->VCount<<4, &l, nullptr );
@@ -1085,7 +1081,7 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName)
   else  mptr->TextureHeight = mptr->TextureSize>>9;
   mptr->TextureSize = mptr->TextureHeight*512;
 
-  mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize, MemoryTag::Level)));
+  mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize)));
 
   ReadFile(hfile, mptr->lpTexture.get(), ts, &l, nullptr);
   BrightenTexture(mptr->lpTexture.get(), ts/2);
@@ -1097,7 +1093,7 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName)
     mptr->gVertex[v].z*=-2.f;
   }
 
-  CorrectModel(mptr.get(), MemoryTag::Level);
+  CorrectModel(mptr.get(), MemoryTag::Global);
 
   DATASHIFT(mptr->lpTexture.get(), mptr->TextureSize);
   GenerateModelMipMaps(mptr.get());
