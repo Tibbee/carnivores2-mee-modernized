@@ -4254,6 +4254,12 @@ NOAmmoBag:
 
 
 
+void ClearRendererLevelCache()
+{
+  // No-op: 3DFX renderer doesn't cache per-level model textures.
+}
+
+
 void ClearVideoBuf()
 {
   //grBufferClear( 0xFF000000, 0, 0);

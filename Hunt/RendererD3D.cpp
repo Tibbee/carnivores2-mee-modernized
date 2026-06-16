@@ -5225,6 +5225,11 @@ NOBAG:
 
 
 
+void ClearRendererLevelCache()
+{
+    // No-op: D3D renderer doesn't cache per-level model textures.
+}
+
 void ClearVideoBuf()
 {
 }

@@ -1477,6 +1477,14 @@ void ReleaseResources()
     LevelArena->Reset();
   }
 
+  // Phase 5E follow-up (Gap #1 fix): clear per-level GPU texture caches
+  // after the arena frees the TModel* pointers that key them. Must run
+  // BEFORE the loop below loads new models (which happens in the caller,
+  // LoadResources, immediately after ReleaseResources returns). This
+  // prevents the GL renderer from serving stale textures when the arena
+  // reuses the same virtual addresses for new TModels.
+  ClearRendererLevelCache();
+
 #ifdef MEM_DEBUG
   // Phase 5F.2: strip the per-level entries out of the leak map.
   // The arena just bulk-freed them, but the map would still show

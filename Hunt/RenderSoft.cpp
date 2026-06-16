@@ -2681,6 +2681,11 @@ void DrawFlash(int x, int y, int w, int h, TPicture &pic)
 }
 
 
+void ClearRendererLevelCache()
+{
+  // No-op: software renderer doesn't cache per-level model textures.
+}
+
 void ClearVideoBuf()
 {
   WORD w = HiColor(SkyR/8, SkyG/8, SkyB/8);

@@ -1238,6 +1238,11 @@ void ProcessMapW2(int x, int y, int r);
 void DrawTPlane(BOOL);
 void DrawTPlaneClip(BOOL);
 void ClearVideoBuf();
+// Phase 5E follow-up: clear renderer-side per-level texture caches before
+// LoadResources loads new models. Only the GL renderer currently has such
+// caches (m_modelTextureCache / m_bmpTextureCache keyed by TModel*); the
+// other renderers implement this as a no-op.
+void ClearRendererLevelCache();
 void DrawScoreText(int, int);
 void DrawTrophyText(int, int);
 void DrawSurvivalText(int, int);

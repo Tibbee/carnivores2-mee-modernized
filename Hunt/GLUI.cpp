@@ -97,6 +97,20 @@ void ShutDown3DHardware()
 // Frame management
 // ============================================================================
 
+void ClearRendererLevelCache()
+{
+    // Phase 5E follow-up: delete GL textures from the per-level model
+    // caches before LoadResources loads new models. This is called from
+    // ReleaseResources() (in Resources.cpp), which runs at the START of
+    // LoadResources, before any new textures are uploaded. The arena
+    // Reset() has already freed the TModel* pointers that key these
+    // caches; clearing them here prevents the GL renderer from serving
+    // stale textures when the same arena addresses are reused.
+    if (g_GLRenderer) {
+        g_GLRenderer->ClearLevelTextureCache();
+    }
+}
+
 void ClearVideoBuf()
 {
     if (g_GLRenderer) g_GLRenderer->ClearVideoBuf();
@@ -713,14 +727,6 @@ void ShowControlElements()
 void AllocateRenderTables()
 {
     // GL renderer doesn't need software render tables.
-    // Phase 5E follow-up (Gap #1 fix): the arena frees per-level TModels
-    // on Reset(), but GLRenderer's m_modelTextureCache / m_bmpTextureCache
-    // still hold entries keyed by those now-dangling TModel* pointers. Clear
-    // the caches here (ReInitGame runs on every level load) so the next
-    // level's models get fresh GL texture uploads instead of stale ones.
-    if (g_GLRenderer) {
-        g_GLRenderer->ClearLevelTextureCache();
-    }
 }
 
 #endif // _gl
