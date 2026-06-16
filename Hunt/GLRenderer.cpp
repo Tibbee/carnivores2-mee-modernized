@@ -2330,14 +2330,19 @@ void GLRenderer::RenderObject(int x, int y)
     if (OMap[y][x] == 255 || !MODELS) {
         return;
     }
-    if (m_objectList.size() >= 2048) {
-        // Phase 1.14: surface the silent cap as a warning. D3D/3DFX have
-        // the same cap, so the issue (if it triggers) is in the shared
-        // HUNTDAT, not the GL path. PrintLog so the user can see it.
-        static bool warned = false;
-        if (!warned) {
-            PrintLog("WARNING: m_objectList hit 2048 cap; further objects are dropped silently\n");
-            warned = true;
+    // Phase 2.3: raised cap from 2048 to 8192.  Dense custom maps
+    // routinely exceed 2048 (Phase 0 baseline measured ~2,400 visible
+    // objects per frame).  With instanced rendering the per-object CPU
+    // cost is negligible — m_objectList is just 8 B/entry, m_instanceData
+    // is 96 B/entry, both well within reason at 8K entries.
+    if (m_objectList.size() >= 8192) {
+        static int hitCount = 0;
+        ++hitCount;
+        if (hitCount <= 20 || hitCount % 100 == 0) {
+            char buf[128];
+            sprintf(buf, "WARNING: m_objectList hit 8192 cap (%zu entries); objects dropped (hit #%d)\n",
+                    m_objectList.size(), hitCount);
+            PrintLog(buf);
         }
         return;
     }
