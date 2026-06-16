@@ -486,7 +486,6 @@ private:
     GLuint m_uiTexture = 0;
     int m_uiTextureWidth = 0;
     int m_uiTextureHeight = 0;
-    std::vector<uint32_t> m_uiPixels;
     void InitializeHudPipeline();
     void ShutdownHudPipeline();
     void EnsureUITexture();
