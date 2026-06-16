@@ -831,7 +831,10 @@ void CalcMidColor(WORD* tptr, int l, int &mr, int &mg, int &mb)
 
 void LoadTexture(unique_obj_ptr<TEXTURE> &T)
 {
-  T.reset((TEXTURE*) _HeapAlloc(Heap, 0, sizeof(TEXTURE)));
+  // Phase 5E follow-up (Gap #2): LoadTexture is only called from
+  // LoadResources (per-level). Tag as Level so the arena reclaims
+  // per-level textures in bulk on Reset().
+  T.reset((TEXTURE*) _HeapAlloc(Heap, 0, sizeof(TEXTURE), MemoryTag::Level));
   DWORD L;
   ReadFile(hfile, T->DataA, 128*128*2, &L, nullptr);
   for (int y=0; y<128; y++)
@@ -904,12 +907,12 @@ void fp_conv(LPVOID d)
 
 
 
-void CorrectModel(TModel *mptr)
+void CorrectModel(TModel *mptr, MemoryTag tag)
 {
 	// Allocating for 2x the faces here, since the code below could potentially
 	// result in duplicated faces when sfOpacity & sfTransparent is set for the same
 	// face.
-	TFace *tface = (TFace*)_HeapAlloc(Heap, 0, sizeof(TFace) * mptr->FCount * 2);
+	TFace *tface = (TFace*)_HeapAlloc(Heap, 0, sizeof(TFace) * mptr->FCount * 2, tag);
 
   for (int f=0; f<mptr->FCount; f++)
   {
@@ -961,17 +964,17 @@ void CorrectModel(TModel *mptr)
   _HeapFree(Heap, 0, tface);
 }
 
-void AllocateMemoryForModel(TModel* mptr) {
-	mptr->gVertex.reset((TPoint3d*)_HeapAlloc(Heap, 0, mptr->VCount << 4));
-	mptr->gFace = (TFace*)_HeapAlloc(Heap, 0, mptr->FCount << 6);
+void AllocateMemoryForModel(TModel* mptr, MemoryTag tag) {
+	mptr->gVertex.reset((TPoint3d*)_HeapAlloc(Heap, 0, mptr->VCount << 4, tag));
+	mptr->gFace = (TFace*)_HeapAlloc(Heap, 0, mptr->FCount << 6, tag);
 
 	// Keep track of maximum VCount value
 	MaxObjectVCount = MAX(MaxObjectVCount, mptr->VCount);
 
 #ifdef _d3d
-	int *lightBuffer = static_cast<int*>(_HeapAlloc(Heap, 0, mptr->VCount * 4 * sizeof(int)));
+	int *lightBuffer = static_cast<int*>(_HeapAlloc(Heap, 0, mptr->VCount * 4 * sizeof(int), tag));
 #else
-	float *lightBuffer = static_cast<float*>(_HeapAlloc(Heap, 0, mptr->VCount * 4 * sizeof(float)));
+	float *lightBuffer = static_cast<float*>(_HeapAlloc(Heap, 0, mptr->VCount * 4 * sizeof(float), tag));
 #endif
 	mptr->VLight[0] = lightBuffer;
 	mptr->VLight[1] = lightBuffer + mptr->VCount;
@@ -981,7 +984,10 @@ void AllocateMemoryForModel(TModel* mptr) {
 
 void LoadModel(unique_obj_ptr<TModel> &mptr)
 {
-  TModel* raw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel));
+  // Phase 5E follow-up (Gap #2): LoadModel is per-level (called from
+  // LoadResources). Tag the TModel body and its arrays as Level so they
+  // land in the arena and are bulk-freed on Reset().
+  TModel* raw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel), MemoryTag::Level);
   mptr.reset(new(raw) TModel());
 
   ReadFile( hfile, &mptr->VCount,      4,         &l, nullptr );
@@ -989,7 +995,7 @@ void LoadModel(unique_obj_ptr<TModel> &mptr)
   ReadFile( hfile, &OCount,            4,         &l, nullptr );
   ReadFile( hfile, &mptr->TextureSize, 4,         &l, nullptr );
 
-  AllocateMemoryForModel(mptr.get());
+  AllocateMemoryForModel(mptr.get(), MemoryTag::Level);
 
   ReadFile( hfile, mptr->gFace,        mptr->FCount<<6, &l, nullptr );
   ReadFile( hfile, mptr->gVertex.get(),      mptr->VCount<<4, &l, nullptr );
@@ -1004,7 +1010,7 @@ void LoadModel(unique_obj_ptr<TModel> &mptr)
 
   mptr->TextureSize = mptr->TextureHeight*512;
 
-  mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize)));
+  mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize, MemoryTag::Level)));
 
   ReadFile(hfile, mptr->lpTexture.get(), ts, &l, nullptr);
   BrightenTexture(mptr->lpTexture.get(), ts/2);
@@ -1016,7 +1022,7 @@ void LoadModel(unique_obj_ptr<TModel> &mptr)
     mptr->gVertex[v].z*=-2.f;
   }
 
-  CorrectModel(mptr.get());
+  CorrectModel(mptr.get(), MemoryTag::Level);
 
   DATASHIFT(mptr->lpTexture.get(), mptr->TextureSize);
 }
@@ -1034,9 +1040,11 @@ void LoadAnimation(TVTL &vtl)
   ReadFile( hfile, &vtl.FramesCount,  4,    &l, nullptr );
   vtl.FramesCount++;
 
+  // Phase 5E follow-up (Gap #2): LoadAnimation is only called from
+  // LoadResources (per-level). Tag as Level for arena reclamation.
   vtl.AniTime = (vtl.FramesCount * 1000) / vtl.aniKPS;
   vtl.aniData.reset((short int*)
-                _HeapAlloc(Heap, 0, (vc*vtl.FramesCount*6) ));
+                _HeapAlloc(Heap, 0, (vc*vtl.FramesCount*6), MemoryTag::Level));
   ReadFile( hfile, vtl.aniData.get(), (vc*vtl.FramesCount*6), &l, nullptr);
 
 }
@@ -1057,7 +1065,8 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName)
     DoHalt(sz);
   }
 
-  TModel* raw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel));
+  // Phase 5E follow-up (Gap #2): LoadModelEx is per-level. Tag as Level.
+  TModel* raw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel), MemoryTag::Level);
   mptr.reset(new(raw) TModel());
 
   ReadFile( hfile, &mptr->VCount,      4,         &l, nullptr );
@@ -1065,7 +1074,7 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName)
   ReadFile( hfile, &OCount,            4,         &l, nullptr );
   ReadFile( hfile, &mptr->TextureSize, 4,         &l, nullptr );
 
-  AllocateMemoryForModel(mptr.get());
+  AllocateMemoryForModel(mptr.get(), MemoryTag::Level);
 
   ReadFile( hfile, mptr->gFace,        mptr->FCount<<6, &l, nullptr );
   ReadFile( hfile, mptr->gVertex.get(),      mptr->VCount<<4, &l, nullptr );
@@ -1076,7 +1085,7 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName)
   else  mptr->TextureHeight = mptr->TextureSize>>9;
   mptr->TextureSize = mptr->TextureHeight*512;
 
-  mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize)));
+  mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize, MemoryTag::Level)));
 
   ReadFile(hfile, mptr->lpTexture.get(), ts, &l, nullptr);
   BrightenTexture(mptr->lpTexture.get(), ts/2);
@@ -1088,7 +1097,7 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName)
     mptr->gVertex[v].z*=-2.f;
   }
 
-  CorrectModel(mptr.get());
+  CorrectModel(mptr.get(), MemoryTag::Level);
 
   DATASHIFT(mptr->lpTexture.get(), mptr->TextureSize);
   GenerateModelMipMaps(mptr.get());
@@ -1536,7 +1545,9 @@ void ReleaseResources()
 
 void LoadBMPModel(TObject &obj)
 {
-  obj.bmpmodel.lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, 128 * 128 * 2)));
+  // Phase 5E follow-up (Gap #2): LoadBMPModel is per-level (called from
+  // LoadResources). Tag as Level so the arena reclaims this allocation.
+  obj.bmpmodel.lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, 128 * 128 * 2, MemoryTag::Level)));
   //WORD * lpT             = static_cast<WORD*>(_HeapAlloc(Heap, 0, 256 * 256 * 2));
   //ReadFile(hfile, lpT, 256*256*2, &l, nullptr);
   //DATASHIFT(obj.bmpmodel.lpTexture.get(), 128*128*2);
@@ -2284,7 +2295,7 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName)
   ReadFile( hfile, &chinfo.mptr->FCount,      4,         &l, nullptr );
   ReadFile( hfile, &chinfo.mptr->TextureSize, 4,         &l, nullptr );
 
-  AllocateMemoryForModel(chinfo.mptr.get());
+  AllocateMemoryForModel(chinfo.mptr.get(), MemoryTag::Global);
 
   ReadFile( hfile, chinfo.mptr->gFace,        chinfo.mptr->FCount<<6, &l, nullptr );
   ReadFile( hfile, chinfo.mptr->gVertex.get(),      chinfo.mptr->VCount<<4, &l, nullptr );
@@ -2338,7 +2349,7 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName)
     chinfo.mptr->gVertex[v].z*=-2.f;
   }
 
-  CorrectModel(chinfo.mptr.get());
+  CorrectModel(chinfo.mptr.get(), MemoryTag::Global);
 
 
   ReadFile(hfile, chinfo.Anifx, 64*4, &l, nullptr);

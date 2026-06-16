@@ -713,6 +713,14 @@ void ShowControlElements()
 void AllocateRenderTables()
 {
     // GL renderer doesn't need software render tables.
+    // Phase 5E follow-up (Gap #1 fix): the arena frees per-level TModels
+    // on Reset(), but GLRenderer's m_modelTextureCache / m_bmpTextureCache
+    // still hold entries keyed by those now-dangling TModel* pointers. Clear
+    // the caches here (ReInitGame runs on every level load) so the next
+    // level's models get fresh GL texture uploads instead of stale ones.
+    if (g_GLRenderer) {
+        g_GLRenderer->ClearLevelTextureCache();
+    }
 }
 
 #endif // _gl

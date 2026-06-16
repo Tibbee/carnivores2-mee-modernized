@@ -3236,6 +3236,28 @@ void GLRenderer::ResetTerrainTextureCache()
 
 void GLRenderer::ClearLevelTextureCache()
 {
+    // Phase 5E follow-up: clear model texture caches between levels.
+    // The arena frees per-level TModels on Reset(), but the GL renderer
+    // still holds entries in m_modelTextureCache / m_bmpTextureCache keyed
+    // by those now-dangling TModel* pointers. If the arena reuses the same
+    // virtual addresses for new models, the renderer would serve stale
+    // textures. Deleting the GL textures and clearing the maps here prevents
+    // that class of bug.
+
+    for (const auto& item : m_modelTextureCache) {
+        if (item.second) {
+            glDeleteTextures(1, &item.second);
+        }
+    }
+    m_modelTextureCache.clear();
+
+    for (const auto& item : m_bmpTextureCache) {
+        if (item.second) {
+            glDeleteTextures(1, &item.second);
+        }
+    }
+    m_bmpTextureCache.clear();
+
     m_skyTextureDirty = true;
 }
 
