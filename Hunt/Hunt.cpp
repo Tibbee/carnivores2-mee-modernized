@@ -361,6 +361,10 @@ void AddShadowCircle(int x, int y, int R, int D)
 
 void DrawScene()
 {
+#ifdef GL_PERF_HOOKS
+  PerfFrameBegin();
+#endif
+
   dFacesCount = 0;
 
   ca = static_cast<float>(cos(CameraAlpha));
@@ -1237,7 +1241,10 @@ SKIPWEAPON:
 
 		  }
   }
-  
+
+#ifdef GL_PERF_HOOKS
+  PerfFrameEnd();
+#endif
 }
 
 

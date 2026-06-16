@@ -32,6 +32,20 @@ void PerfTriggerCapture()
 {
     glperf_trigger_capture();
 }
+
+// Frame boundary hooks — called from Hunt.cpp::DrawScene (begin) and
+// Hunt.cpp::DrawPostObjects (end). Bracket the per-frame GL work so
+// glperf.log reports a clean "frame total" alongside the per-pass
+// scopes. No-op when GL_PERF_HOOKS is not defined.
+void PerfFrameBegin()
+{
+    glperf_frame_begin();
+}
+
+void PerfFrameEnd()
+{
+    glperf_frame_end();
+}
 #endif
 
 

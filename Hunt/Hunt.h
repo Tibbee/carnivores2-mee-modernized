@@ -1365,6 +1365,14 @@ void SaveScreenShot();
 // (glperf-frame.csv in the working directory). No-op when the GL perf
 // harness is not compiled in.
 void PerfTriggerCapture();
+
+// Frame boundary hooks for the GL perf harness. PerfFrameBegin() is
+// called at the start of Hunt.cpp::DrawScene(); PerfFrameEnd() at the
+// end of Hunt.cpp::DrawPostObjects(). Bracket the per-frame GL work so
+// glperf.log can report a clean "frame total" alongside the per-pass
+// scopes. No-op when the harness is not compiled in.
+void PerfFrameBegin();
+void PerfFrameEnd();
 #endif
 
 void CreateWaterTab();
