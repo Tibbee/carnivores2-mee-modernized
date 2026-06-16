@@ -3961,6 +3961,12 @@ void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int 
 #endif
     // uProjection in PerFrame UBO (Phase 1.1)
 
+    // The weapon's phong/env-map draw passes set uTintByFogColor=1.0 on this
+    // shader. With vFogColor=(0,0,0) on the sun, that multiplies litColor to
+    // black and the sun goes invisible under additive blending. Reset to 0
+    // here so the sun renders normally.
+    glUniform1f(m_locModelTint, 0.0f);
+
     glEnable(GL_BLEND);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
