@@ -760,9 +760,9 @@ bool GLRenderer::Initialize()
         "   vViewZ = max(-viewPos.z, 0.0);\n"
         "   // Phase 2.5: transform face normal for directional light\n"
         "   vWorldNormal = mat3(iWorld) * aNormal;\n"
-        "   // Phase 2.6 placeholder: volumetric fog (set to zero for now)\n"
-        "   vVolumetricFogColor = vec3(0.0);\n"
-        "   vVolumetricFog = 0.0;\n"
+        "   // Phase 2.6: per-object volumetric (pocket) fog from CPU\n"
+        "   vVolumetricFogColor = aInstanceLight.yzw;\n"
+        "   vVolumetricFog = aInstanceFlags.z;\n"
         "}\n";
 
     const char* instancedModelFragmentSource =
@@ -2420,6 +2420,12 @@ void GLRenderer::RenderMappedObject(int x, int y)
         waterclip = true;
     }
 
+    // Phase 2.6: sample pocket fog at the object center (unrotated
+    // camera-relative position), one FogsMap lookup per object instead
+    // of 3 per vertex in the legacy BuildModelDrawItem path.
+    const Vector3d unrotatedFogPos = pos;  // before RotateVector
+    const FogSample fogSample = SampleFogAtPoint(unrotatedFogPos, false);
+
     pos = RotateVector(pos);
     float zs = 0.0f;
     const float fadeStart = 256.0f * (ctViewR - 4);
@@ -2506,20 +2512,22 @@ void GLRenderer::RenderMappedObject(int x, int y)
         instance.worldCol3[3] = 1.0f;
 
         // Instance light: normalize to [0,1] range (current mlight is 64-192).
+        // Phase 2.6: .yzw carry the per-object pocket-fog colour.
         instance.instanceLight[0] = static_cast<float>(mlight) / 255.0f;
-        instance.instanceLight[1] = 0.0f;
-        instance.instanceLight[2] = 0.0f;
-        instance.instanceLight[3] = 0.0f;
+        instance.instanceLight[1] = fogSample.color.x;
+        instance.instanceLight[2] = fogSample.color.y;
+        instance.instanceLight[3] = fogSample.color.z;
 
         // Phase 2.3: cutout flag from the static mesh cache (set during
         // UploadStaticMesh based on sfOpacity/sfTransparent face flags).
         // The fragment shader discards near-black fragments when
         // vCutout > 0.5, which is the correct behaviour for leaves
         // and other sfOpacity-marked faces.
+        // Phase 2.6: .z carries the per-object pocket-fog amount.
         const float alpha = std::clamp((255.0f - static_cast<float>(GlassL)) / 255.0f, 0.0f, 1.0f);
         instance.instanceFlags[0] = meshEntry.hasCutout ? 1.0f : 0.0f; // cutout
         instance.instanceFlags[1] = 0.0f; // tintByFog — Phase 2.3: no tint
-        instance.instanceFlags[2] = 0.0f; // fog — computed in shader
+        instance.instanceFlags[2] = fogSample.amount; // Phase 2.6: volumetric fog amount
         instance.instanceFlags[3] = alpha; // alpha
 
         // Ensure capacity and add instance.
