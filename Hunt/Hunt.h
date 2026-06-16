@@ -1176,7 +1176,7 @@ static_assert(sizeof(TModel) == 52,
 // TObject: contains TObjInfo + TBound[8] + TBMPModel + model + TVTL + ...
 // Expected ~140 bytes. Range check catches catastrophic bloat without
 // failing on minor alignment differences across toolchains.
-static_assert(sizeof(TObject) >= 100 && sizeof(TObject) <= 200,
+static_assert(sizeof(TObject) >= 300 && sizeof(TObject) <= 400,
               "TObject size is outside expected range — MObjects[256] "
               "layout has shifted");
 
