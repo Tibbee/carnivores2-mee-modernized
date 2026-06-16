@@ -2552,13 +2552,10 @@ void GLRenderer::RenderInstancedModels()
         return;
     }
 
-    // Upload instance data to the instance VBO.
-    glBindBuffer(GL_ARRAY_BUFFER, m_instanceVBO);
-    const GLsizeiptr instanceBytes =
-        static_cast<GLsizeiptr>(m_instanceData.size() * sizeof(ModelInstance));
-    glBufferData(GL_ARRAY_BUFFER, instanceBytes, nullptr, GL_STREAM_DRAW);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, instanceBytes, m_instanceData.data());
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    // Phase 2.9: removed wasteful full-array upload.  The per-group
+    // loop below uploads only the current group's slice to VBO offset 0
+    // (GL 3.3 workaround for missing glDrawElementsInstancedBaseInstance).
+    // The full-array upload was always overwritten by the first group.
 
     // Group instances by (model, texture) for instanced draws.
     struct InstanceGroup {
@@ -2600,13 +2597,23 @@ void GLRenderer::RenderInstancedModels()
     glUseProgram(m_instancedModelShader);
     glBindVertexArray(m_instanceVAO);
 
-    // Phase 2.3 fix: m_instanceVAO was set up at init time with the
-    // correct attribute pointers (per-vertex from m_staticMeshVBO,
-    // per-instance from m_instanceVBO, divisor=1).  Repeating the
-    // glVertexAttribPointer / glEnableVertexAttribArray / divisor
-    // calls is unnecessary — the VAO captures them — but we ensure
-    // the instance VBO has the current frame's data and the IBO is
-    // bound for indexed drawing.
+    // Phase 2.9: orphan the instance VBO once (glBufferData with
+    // nullptr) to avoid per-group stalls.  Size to the largest group
+    // in bytes.  The per-group loop then uses glBufferSubData without
+    // further orphans — the buffer was just orphaned so the driver
+    // knows all content is being replaced.
+    GLsizeiptr maxGroupBytes = 0;
+    for (const auto& g : groups) {
+        const GLsizeiptr gb = static_cast<GLsizeiptr>(g.instanceCount) * sizeof(ModelInstance);
+        if (gb > maxGroupBytes) maxGroupBytes = gb;
+    }
+    if (maxGroupBytes < static_cast<GLsizeiptr>(sizeof(ModelInstance)))
+        maxGroupBytes = sizeof(ModelInstance);
+
+    glBindBuffer(GL_ARRAY_BUFFER, m_instanceVBO);
+    glBufferData(GL_ARRAY_BUFFER, maxGroupBytes, nullptr, GL_STREAM_DRAW);
+    // Keep m_instanceVBO bound — the VAO references it for attributes
+    // 4-9.  The per-group loop glBufferSubData's into this same buffer.
 
     // Bind the static IBO for indexed drawing.
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_staticMeshIBO);
@@ -2626,18 +2633,13 @@ void GLRenderer::RenderInstancedModels()
             continue;
         }
 
-        // Phase 2.3: GL 3.3 Core has no glDrawElementsInstancedBaseInstance
-        // (requires GL 4.2 / ARB_base_instance).  Work around this by
-        // re-uploading only the current group's instance slice to VBO
-        // offset 0 so the draw always reads from instance 0.  The total
-        // bandwidth is the same as uploading the whole array once; the
-        // per-group glBufferSubData call overhead is acceptable.
+        // Phase 2.9: m_instanceVBO was already bound + orphaned above.
+        // glBufferSubData writes the group's slice to offset 0 without
+        // an extra bind/unbind round-trip.
         const GLsizeiptr groupSliceBytes =
             static_cast<GLsizeiptr>(group.instanceCount) * sizeof(ModelInstance);
-        glBindBuffer(GL_ARRAY_BUFFER, m_instanceVBO);
         glBufferSubData(GL_ARRAY_BUFFER, 0, groupSliceBytes,
                         &m_instanceData[group.instanceStart]);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         // Phase 2.3: cutout models need GL_NEAREST filtering (matches
         // NeedsNearestModelFiltering logic from the legacy path).
@@ -2671,6 +2673,10 @@ void GLRenderer::RenderInstancedModels()
         totalDrawCalls++;
         totalInstances += group.instanceCount;
     }
+
+    // Phase 2.9: unbind the instance VBO (was left bound for the
+    // per-group glBufferSubData loop).
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     // Phase 2.3: unbind the VAO to avoid leaking instance-attribute
     // state into subsequent draws (e.g., the legacy model path in
