@@ -701,24 +701,21 @@ bool GLRenderer::Initialize()
         return false;
     }
 
-    // Phase 2.3: instanced model shader.
+    // Phase 2.3+2.4: instanced model shader.
     // Per-vertex (from static mesh VBO, binding 0):
     //   attribute 0: vec3 aPos        — model-space position
-    //   attribute 1: vec3 aNormal      — face normal (unused in Phase 2.3, reserved for Phase 2.5)
+    //   attribute 1: vec3 aNormal      — face normal (unused in 2.3, reserved for 2.5)
     //   attribute 2: vec2 aTexCoord    — pre-baked UV
     // Per-instance (from instance VBO, binding 1, divisor=1):
-    //   attribute 4: vec4 aWorldRow0   — instance world transform row 0
-    //   attribute 5: vec4 aWorldRow1   — instance world transform row 1
-    //   attribute 6: vec4 aWorldRow2   — instance world transform row 2
-    //   attribute 7: vec4 aWorldRow3   — instance world transform row 3
+    //   attribute 4: vec4 aWorldCol0   — matrix column 0 (model→view for now)
+    //   attribute 5: vec4 aWorldCol1   — matrix column 1
+    //   attribute 6: vec4 aWorldCol2   — matrix column 2
+    //   attribute 7: vec4 aWorldCol3   — matrix column 3
     //   attribute 8: vec4 aInstanceLight — .x = base light [0,1]
     //   attribute 9: vec4 aInstanceFlags — .x = cutout, .y = tintByFog, .z = fogAmount, .w = alpha
-    //
-    // The shader applies the per-instance world transform to the
-    // model-space vertex position, then projects. Lighting is
-    // per-instance * texture color. Fog is distance-based (computed
-    // from view-space Z). Cutout discard uses the same threshold as
-    // the non-instanced shader.
+    // Phase 2.4: uView added to PerFrame UBO (currently identity).
+    //   gl_Position = uProjection * uView * iWorld * vec4(aPos, 1.0)
+    // Future phases will split iWorld into model→world and uView into world→view.
     const char* instancedModelVertexSource =
         "#version 330 core\n"
         "// Per-vertex from static mesh VBO (binding 0)\n"
@@ -738,6 +735,7 @@ bool GLRenderer::Initialize()
         "   vec3 uDistanceFogColor;\n"
         "   float uForceFog;\n"
         "   vec3 uFogColor;\n"
+        "   mat4 uView;              // Phase 2.4: view matrix (identity for now)\n"
         "};\n"
         "out vec2 vTexCoord;\n"
         "out float vLight;\n"
@@ -749,7 +747,10 @@ bool GLRenderer::Initialize()
         "void main() {\n"
         "   mat4 iWorld = mat4(aWorldCol0, aWorldCol1, aWorldCol2, aWorldCol3);\n"
         "   vec4 worldPos = iWorld * vec4(aPos, 1.0);\n"
-        "   gl_Position = uProjection * worldPos;\n"
+        "   // Phase 2.4: uView is currently identity (per-instance matrix\n"
+        "   // is model→view directly).  Future phases will split into\n"
+        "   // model→world (per-instance) and world→view (uView).\n"
+        "   gl_Position = uProjection * uView * worldPos;\n"
         "   vTexCoord = aTexCoord;\n"
         "   vLight = aInstanceLight.x;\n"
         "   vCutout = aInstanceFlags.x;\n"
@@ -1377,7 +1378,7 @@ void GLRenderer::ShutdownTerrainPipeline()
 }
 
 // ==========================================================================
-// PerFrame UBO (Phase 1.1)
+// PerFrame UBO (Phase 1.1 + Phase 2.4)
 // Shared by terrain and model shaders. std140 layout:
 //   offset 0   : mat4  uProjection           (64 bytes)
 //   offset 64  : vec2  uFogRange             ( 8 bytes)  (fadeStart, distance)
@@ -1385,7 +1386,12 @@ void GLRenderer::ShutdownTerrainPipeline()
 //   offset 80  : vec3  uDistanceFogColor     (12 bytes)
 //   offset 92  : float uForceFog             ( 4 bytes)
 //   offset 96  : vec3  uFogColor             (12 bytes)
-//   total 108 bytes; UBO is 112 bytes (padded to next 16-byte boundary).
+//   offset 108 :        (pad to mat4 align)  ( 4 bytes)  -- Phase 2.4
+//   offset 112 : mat4  uView                 (64 bytes)  -- Phase 2.4
+//   total 176 bytes.
+// Phase 2.4: uView is identity for legacy shaders (they receive view-
+// space vertices).  The instanced shader uses it as a placeholder for
+// the world→view split; currently identity, to be refined in 2.5+.
 // ==========================================================================
 
 void GLRenderer::EnsurePerFrameUBO()
@@ -1393,7 +1399,7 @@ void GLRenderer::EnsurePerFrameUBO()
     if (m_perFrameUBOInitialized) {
         return;
     }
-    constexpr GLsizeiptr kUBOBytes = 112;
+    constexpr GLsizeiptr kUBOBytes = 176;  // Phase 2.4: +64 bytes for uView
     glGenBuffers(1, &m_perFrameUBO);
     glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
     glBufferData(GL_UNIFORM_BUFFER, kUBOBytes, nullptr, GL_DYNAMIC_DRAW);
@@ -1445,15 +1451,16 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection)
 
     m_cachedForceFog = UNDERWATER ? 1.0f : 0.0f;
 
-    // Pack into a 28-float (112-byte) buffer matching the GLSL std140 layout:
+    // Phase 2.4: pack into a 44-float (176-byte) buffer.
     //   offset 0   : mat4 uProjection           (16 floats)
-    //   offset 64  : vec2 uFogRange             ( 2 floats)  (fadeStart, distance)
+    //   offset 64  : vec2 uFogRange             ( 2 floats)
     //   offset 72  :        (pad to vec3 align) ( 2 floats)
     //   offset 80  : vec3 uDistanceFogColor     ( 3 floats)
-    //   offset 92  : float uForceFog             ( 1 float)
-    //   offset 96  : vec3 uFogColor              ( 3 floats)
-    //   offset 108 :        (pad to 16)          ( 1 float)
-    std::array<float, 28> data{};
+    //   offset 92  : float uForceFog            ( 1 float)
+    //   offset 96  : vec3 uFogColor             ( 3 floats)
+    //   offset 108 :        (pad to mat4 align) ( 1 float)   -- Phase 2.4
+    //   offset 112 : mat4 uView                 (16 floats)   -- Phase 2.4
+    std::array<float, 44> data{};
     std::memcpy(&data[0],  m_cachedProjection.data(), 16 * sizeof(float));
     data[16] = m_cachedFogStart;     // uFogRange.x
     data[17] = m_cachedFogDistance;  // uFogRange.y
@@ -1466,7 +1473,16 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection)
     data[24] = m_cachedFogColor[0];
     data[25] = m_cachedFogColor[1];
     data[26] = m_cachedFogColor[2];
-    data[27] = 0.0f;                 // pad to 16-byte boundary
+    data[27] = 0.0f;                 // pad to mat4 alignment (Phase 2.4)
+    // Phase 2.4: uView identity matrix (column-major).
+    // Currently identity so legacy shaders (view-space vertices) and
+    // instanced shader (model→view baked into per-instance matrix)
+    // both produce identical output.  Future phases will populate
+    // a real view-from-world matrix and split the instance transform.
+    data[28] = 1.0f; data[29] = 0.0f; data[30] = 0.0f; data[31] = 0.0f;  // col0
+    data[32] = 0.0f; data[33] = 1.0f; data[34] = 0.0f; data[35] = 0.0f;  // col1
+    data[36] = 0.0f; data[37] = 0.0f; data[38] = 1.0f; data[39] = 0.0f;  // col2
+    data[40] = 0.0f; data[41] = 0.0f; data[42] = 0.0f; data[43] = 1.0f;  // col3
 
     glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, data.size() * sizeof(float), data.data());
