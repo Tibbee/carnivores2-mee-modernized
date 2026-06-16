@@ -713,6 +713,10 @@ bool GLRenderer::Initialize()
         return false;
     }
 
+    if (!InitializeStaticMeshPipeline()) {
+        return false;
+    }
+
     InitializeSkyPipeline();
     InitializeHudPipeline();
 
@@ -780,6 +784,7 @@ void GLRenderer::Shutdown()
     ShutdownTerrainPipeline();
     ShutdownModelPipeline();
     ShutdownInstancingPipeline();
+    ShutdownStaticMeshPipeline();
     ShutdownSkyPipeline();
     ShutdownHudPipeline();
 
@@ -976,6 +981,203 @@ void GLRenderer::ShutdownInstancingPipeline()
     }
     m_instanceData.clear();
     m_instanceData.shrink_to_fit();
+}
+
+bool GLRenderer::InitializeStaticMeshPipeline()
+{
+    // Phase 2.2: allocate the static VBO/IBO pair that holds every
+    // unique TModel*'s geometry. Both buffers are GL_STATIC_DRAW
+    // (data doesn't change after upload). Initial capacities cover a
+    // typical custom map; growth is handled in EnsureStaticMeshCapacity.
+
+    glGenBuffers(1, &m_staticMeshVBO);
+    glGenBuffers(1, &m_staticMeshIBO);
+
+    m_staticMeshVBOCapacity = kInitialStaticMeshVBOCapacity;
+    m_staticMeshIBOCapacity = kInitialStaticMeshIBOCapacity;
+
+    glBindBuffer(GL_ARRAY_BUFFER, m_staticMeshVBO);
+    glBufferData(GL_ARRAY_BUFFER, m_staticMeshVBOCapacity, nullptr, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_staticMeshIBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_staticMeshIBOCapacity, nullptr, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    m_staticMeshNextVertexOffset = 0;
+    m_staticMeshNextIndexOffset = 0;
+    m_staticMeshCache.clear();
+
+    return true;
+}
+
+void GLRenderer::ShutdownStaticMeshPipeline()
+{
+    if (m_staticMeshVBO) {
+        glDeleteBuffers(1, &m_staticMeshVBO);
+        m_staticMeshVBO = 0;
+    }
+    if (m_staticMeshIBO) {
+        glDeleteBuffers(1, &m_staticMeshIBO);
+        m_staticMeshIBO = 0;
+    }
+    m_staticMeshVBOCapacity = 0;
+    m_staticMeshIBOCapacity = 0;
+    m_staticMeshNextVertexOffset = 0;
+    m_staticMeshNextIndexOffset = 0;
+    m_staticMeshCache.clear();
+}
+
+void GLRenderer::EnsureStaticMeshCapacity(size_t vertexBytes, size_t indexBytes)
+{
+    const bool needGrowVBO = vertexBytes > m_staticMeshVBOCapacity;
+    const bool needGrowIBO = indexBytes > m_staticMeshIBOCapacity;
+
+    if (!needGrowVBO && !needGrowIBO) {
+        return;
+    }
+
+    if (needGrowVBO) {
+        size_t newCapacity = m_staticMeshVBOCapacity;
+        while (newCapacity < vertexBytes) newCapacity *= 2;
+        m_staticMeshVBOCapacity = newCapacity;
+        glBindBuffer(GL_ARRAY_BUFFER, m_staticMeshVBO);
+        glBufferData(GL_ARRAY_BUFFER, m_staticMeshVBOCapacity, nullptr, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+
+    if (needGrowIBO) {
+        size_t newCapacity = m_staticMeshIBOCapacity;
+        while (newCapacity < indexBytes) newCapacity *= 2;
+        m_staticMeshIBOCapacity = newCapacity;
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_staticMeshIBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_staticMeshIBOCapacity, nullptr, GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    }
+
+    // Both VBO and IBO data was orphaned; clear the cache so models
+    // get re-uploaded on next access. The next-offset cursors also
+    // reset to 0 so the re-upload starts from the new buffer start.
+    m_staticMeshCache.clear();
+    m_staticMeshNextVertexOffset = 0;
+    m_staticMeshNextIndexOffset = 0;
+}
+
+GLRenderer::StaticMeshEntry GLRenderer::UploadStaticMesh(TModel* mptr)
+{
+    if (!mptr || !mptr->gVertex || !mptr->gFace) {
+        return {};
+    }
+
+    // Cache hit: return existing entry.
+    auto it = m_staticMeshCache.find(mptr);
+    if (it != m_staticMeshCache.end()) {
+        return it->second;
+    }
+
+    // Compute upload size: triangle list, 3 vertices + 3 indices per face.
+    const size_t faceCount = static_cast<size_t>(mptr->FCount);
+    const size_t vertexCount = faceCount * 3;
+    const size_t indexCount = faceCount * 3;
+    const size_t vertexBytes = vertexCount * sizeof(StaticMeshVertex);
+    const size_t indexBytes = indexCount * sizeof(uint32_t);
+
+    // Grow buffers if needed. This may clear the cache if growth happens.
+    EnsureStaticMeshCapacity(vertexBytes, indexBytes);
+
+    // Re-check cache after a possible growth-induced clear.
+    it = m_staticMeshCache.find(mptr);
+    if (it != m_staticMeshCache.end()) {
+        return it->second;
+    }
+
+    // Build the upload data on the CPU.
+    std::vector<StaticMeshVertex> vertices;
+    vertices.reserve(vertexCount);
+    std::vector<uint32_t> indices;
+    indices.reserve(indexCount);
+
+    const int texHeight = (mptr->TextureHeight > 1) ? mptr->TextureHeight : 1;
+
+    for (int f = 0; f < mptr->FCount; ++f) {
+        const TFace& face = mptr->gFace[f];
+
+        const TPoint3d& p0Raw = mptr->gVertex[face.v1];
+        const TPoint3d& p1Raw = mptr->gVertex[face.v2];
+        const TPoint3d& p2Raw = mptr->gVertex[face.v3];
+
+        const Vector2df uv0 = DecodeLegacyFaceUV(face.tax, face.tay, texHeight);
+        const Vector2df uv1 = DecodeLegacyFaceUV(face.tbx, face.tby, texHeight);
+        const Vector2df uv2 = DecodeLegacyFaceUV(face.tcx, face.tcy, texHeight);
+
+        // Face normal: e1 × e2 where e1 = p1-p0, e2 = p2-p0.
+        // (Not normalized — the vertex shader normalizes when needed.
+        // Saves a sqrt per face for a one-time upload cost.)
+        const float e1x = p1Raw.x - p0Raw.x;
+        const float e1y = p1Raw.y - p0Raw.y;
+        const float e1z = p1Raw.z - p0Raw.z;
+        const float e2x = p2Raw.x - p0Raw.x;
+        const float e2y = p2Raw.y - p0Raw.y;
+        const float e2z = p2Raw.z - p0Raw.z;
+        const float nx = e1y * e2z - e1z * e2y;
+        const float ny = e1z * e2x - e1x * e2z;
+        const float nz = e1x * e2y - e1y * e2x;
+
+        const uint32_t baseIdx = m_staticMeshNextVertexOffset + static_cast<uint32_t>(vertices.size());
+
+        vertices.push_back({p0Raw.x, p0Raw.y, p0Raw.z, nx, ny, nz, uv0.x, uv0.y});
+        vertices.push_back({p1Raw.x, p1Raw.y, p1Raw.z, nx, ny, nz, uv1.x, uv1.y});
+        vertices.push_back({p2Raw.x, p2Raw.y, p2Raw.z, nx, ny, nz, uv2.x, uv2.y});
+
+        indices.push_back(baseIdx);
+        indices.push_back(baseIdx + 1);
+        indices.push_back(baseIdx + 2);
+    }
+
+    // Upload to the static VBO.
+    const uint32_t vboOffset = m_staticMeshNextVertexOffset;
+    glBindBuffer(GL_ARRAY_BUFFER, m_staticMeshVBO);
+    glBufferSubData(GL_ARRAY_BUFFER, vboOffset * sizeof(StaticMeshVertex), vertexBytes, vertices.data());
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // Upload to the static IBO.
+    const uint32_t iboOffset = m_staticMeshNextIndexOffset;
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_staticMeshIBO);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, iboOffset * sizeof(uint32_t), indexBytes, indices.data());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    // Cache the entry.
+    StaticMeshEntry entry;
+    entry.baseVertex = vboOffset;
+    entry.baseIndex = iboOffset;
+    entry.vertexCount = static_cast<uint32_t>(vertexCount);
+    entry.indexCount = static_cast<uint32_t>(indexCount);
+    m_staticMeshCache[mptr] = entry;
+
+    // Advance the next-offset cursors.
+    m_staticMeshNextVertexOffset += static_cast<uint32_t>(vertexCount);
+    m_staticMeshNextIndexOffset += static_cast<uint32_t>(indexCount);
+
+    {
+        char uploadBuf[160];
+        sprintf(uploadBuf, "GL: Static mesh upload: TModel=0x%p vertices=%u indices=%u\n",
+                static_cast<const void*>(mptr), entry.vertexCount, entry.indexCount);
+        PrintLog(uploadBuf);
+    }
+
+    return entry;
+}
+
+const GLRenderer::StaticMeshEntry* GLRenderer::GetStaticMeshEntry(const TModel* mptr) const
+{
+    if (!mptr) {
+        return nullptr;
+    }
+    auto it = m_staticMeshCache.find(mptr);
+    if (it == m_staticMeshCache.end()) {
+        return nullptr;
+    }
+    return &it->second;
 }
 
 void GLRenderer::ShutdownTerrainPipeline()
@@ -2672,6 +2874,9 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
 void GLRenderer::RenderModel(TModel* mptr, float x0, float y0, float z0,
                              int light, int vt, float al, float bt)
 {
+    // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
+    UploadStaticMesh(mptr);
+
     ModelDrawItem item;
     if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, false, false, false, false)) {
         return;
@@ -2686,6 +2891,9 @@ void GLRenderer::RenderModel(TModel* mptr, float x0, float y0, float z0,
 void GLRenderer::RenderModelClip(TModel* mptr, float x0, float y0, float z0,
                                  int light, int vt, float al, float bt)
 {
+    // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
+    UploadStaticMesh(mptr);
+
     ModelDrawItem item;
     if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, false, false, true, false)) {
         return;
@@ -2700,6 +2908,9 @@ void GLRenderer::RenderModelClip(TModel* mptr, float x0, float y0, float z0,
 void GLRenderer::RenderModelClipWater(TModel* mptr, float x0, float y0, float z0,
                                       int light, int vt, float al, float bt)
 {
+    // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
+    UploadStaticMesh(mptr);
+
     ModelDrawItem item;
     if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, true, false, true, false)) {
         return;
@@ -2714,6 +2925,9 @@ void GLRenderer::RenderModelClipWater(TModel* mptr, float x0, float y0, float z0
 void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
                                  int light, int vt, float al, float bt)
 {
+    // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
+    UploadStaticMesh(mptr);
+
     ModelDrawItem item;
     if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, false, true, true, false)) {
         return;
@@ -2760,6 +2974,9 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
 void GLRenderer::RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float z0,
                                          float al, float bt)
 {
+    // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
+    UploadStaticMesh(mptr);
+
     if (!m_modelShader || !m_modelVAO || !m_modelVBO) {
         return;
     }
@@ -2795,6 +3012,9 @@ void GLRenderer::RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float
 void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z0,
                                        float al, float bt)
 {
+    // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
+    UploadStaticMesh(mptr);
+
     if (!m_modelShader || !m_modelVAO || !m_modelVBO) {
         return;
     }
@@ -3959,6 +4179,9 @@ void GLRenderer::RenderSun(float x, float y, float z)
 
 void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int alpha)
 {
+    // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
+    UploadStaticMesh(mptr);
+
     if (!mptr || !mptr->lpTexture || !mptr->gVertex || !mptr->gFace) return;
 
     const GLuint texture = UploadModelTexture(mptr);

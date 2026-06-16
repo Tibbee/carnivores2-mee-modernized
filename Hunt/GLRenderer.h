@@ -189,6 +189,35 @@ private:
     };
     static_assert(sizeof(ModelInstance) == 96, "ModelInstance must stay 96 bytes (Phase 2.1)");
 
+    // Phase 2.2: static mesh vertex (data that's truly static per-model —
+    // positions in model space, pre-baked UVs, and a face-baked normal).
+    //   attribute 0: vec3 aPos             (12 bytes) -- model space
+    //   attribute 1: vec3 aNormal          (12 bytes) -- face normal, baked at upload
+    //   attribute 2: vec2 aTexCoord        ( 8 bytes) -- pre-baked UV (deferred 1.10 work)
+    // Total: 32 bytes per vertex, no padding. The normal is the face
+    // normal (flat-shaded); per-vertex smooth shading requires sharing
+    // vertices between faces, which is a later optimization.
+    struct StaticMeshVertex {
+        float x, y, z;      // 12
+        float nx, ny, nz;   // 12
+        float u, v;         //  8
+    };
+    static_assert(sizeof(StaticMeshVertex) == 32, "StaticMeshVertex must stay 32 bytes (Phase 2.2)");
+
+    // Phase 2.2: per-model location in the global static VBO/IBO.
+    // The static VBO and IBO hold ALL uploaded models concatenated.
+    // The model's vertices occupy VBO[baseVertex .. baseVertex+vertexCount).
+    // The model's indices occupy IBO[baseIndex .. baseIndex+indexCount)
+    // and the index values reference the VBO from the global origin
+    // (i.e. index k references VBO[k], so model B's first index is
+    //  (A's vertex count), not 0).
+    struct StaticMeshEntry {
+        uint32_t baseVertex = 0;  // VBO offset of first vertex (in vertices)
+        uint32_t baseIndex = 0;   // IBO offset of first index (in indices)
+        uint32_t vertexCount = 0; // number of vertices in the VBO
+        uint32_t indexCount = 0;  // number of indices in the IBO
+    };
+
     bool InitGLState();
     void LoadGLExtensions();
     bool InitializeTerrainPipeline();
@@ -197,6 +226,11 @@ private:
     void ShutdownModelPipeline();
     bool InitializeInstancingPipeline();
     void ShutdownInstancingPipeline();
+    bool InitializeStaticMeshPipeline();
+    void ShutdownStaticMeshPipeline();
+    StaticMeshEntry UploadStaticMesh(TModel* mptr);
+    const StaticMeshEntry* GetStaticMeshEntry(const TModel* mptr) const;
+    void EnsureStaticMeshCapacity(size_t vertexBytes, size_t indexBytes);
     void UpdatePerFrameUBO();
     void UpdatePerFrameUBO(const std::array<float, 16>& projection);
     void EnsurePerFrameUBO();
@@ -312,6 +346,21 @@ private:
     // vector's backing storage lives for the whole program (avoid
     // per-frame heap churn once 2.3 starts using it).
     std::vector<ModelInstance> m_instanceData;
+
+    // Phase 2.2: static mesh infrastructure. The static VBO and IBO
+    // hold every unique TModel*'s data concatenated. Uploaded lazily
+    // by the per-call hook in the RenderModel* family; cached in
+    // m_staticMeshCache by TModel* pointer. The m_staticMeshNext*Offset
+    // cursors track the next free slot in each buffer; they reset to
+    // 0 when EnsureStaticMeshCapacity grows the buffer (which also
+    // clears the cache, forcing all models to re-upload).
+    unsigned int m_staticMeshVBO = 0;
+    unsigned int m_staticMeshIBO = 0;
+    size_t m_staticMeshVBOCapacity = 0;
+    size_t m_staticMeshIBOCapacity = 0;
+    uint32_t m_staticMeshNextVertexOffset = 0;
+    uint32_t m_staticMeshNextIndexOffset = 0;
+    std::map<const TModel*, StaticMeshEntry> m_staticMeshCache;
     // Phase 1.11: last-bound model texture, used to skip redundant
     // glBindTexture calls when consecutive buckets share a texture
     // (which is the common case after Phase 1.7's bucket sort).
@@ -365,6 +414,14 @@ private:
     // objects per frame; reserve 4,096 to absorb the high end with
     // headroom. The vector grows automatically if a frame exceeds this.
     static const int kInitialInstanceCapacity = 4096;
+    // Phase 2.2: initial capacities for the static VBO/IBO. The VBO
+    // holds 32 B/vertex; 8 MB = 256K vertices. The IBO holds 4 B/index
+    // (uint32_t); 4 MB = 1M indices = 333K faces. Both grow by
+    // doubling when a model doesn't fit (clearing the cache). For a
+    // typical custom map these are enough; large maps will trigger
+    // one growth, which is fine — the cache rebuilds on next access.
+    static const size_t kInitialStaticMeshVBOCapacity = 8 * 1024 * 1024;
+    static const size_t kInitialStaticMeshIBOCapacity = 4 * 1024 * 1024;
     std::vector<TerrainVertex> m_terrainVertices;
     std::vector<TerrainVertex> m_waterVertices;
     // Non-owning cache: tracks which terrain textures are currently
