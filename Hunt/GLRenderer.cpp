@@ -709,6 +709,10 @@ bool GLRenderer::Initialize()
         return false;
     }
 
+    if (!InitializeInstancingPipeline()) {
+        return false;
+    }
+
     InitializeSkyPipeline();
     InitializeHudPipeline();
 
@@ -775,6 +779,7 @@ void GLRenderer::Shutdown()
 
     ShutdownTerrainPipeline();
     ShutdownModelPipeline();
+    ShutdownInstancingPipeline();
     ShutdownSkyPipeline();
     ShutdownHudPipeline();
 
@@ -933,6 +938,44 @@ void GLRenderer::ShutdownModelPipeline()
     m_worldModelItems.clear();
     m_transparentModelItems.clear();
     m_objectList.clear();
+}
+
+bool GLRenderer::InitializeInstancingPipeline()
+{
+    // Phase 2.1 scaffolding. Allocate the per-instance VBO and VAO.
+    // The VAO is intentionally empty for now — Phase 2.3 will set up
+    // the per-vertex attribute pointers (binding m_modelVBO as
+    // ARRAY_BUFFER 0) and the per-instance attribute pointers (binding
+    // m_instanceVBO as ARRAY_BUFFER 1, divisor=1) right before the first
+    // instanced draw.
+
+    glGenBuffers(1, &m_instanceVBO);
+    glGenVertexArrays(1, &m_instanceVAO);
+
+    glBindVertexArray(m_instanceVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_instanceVBO);
+    glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_STREAM_DRAW);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    m_instanceData.clear();
+    m_instanceData.reserve(kInitialInstanceCapacity);
+
+    return true;
+}
+
+void GLRenderer::ShutdownInstancingPipeline()
+{
+    if (m_instanceVBO) {
+        glDeleteBuffers(1, &m_instanceVBO);
+        m_instanceVBO = 0;
+    }
+    if (m_instanceVAO) {
+        glDeleteVertexArrays(1, &m_instanceVAO);
+        m_instanceVAO = 0;
+    }
+    m_instanceData.clear();
+    m_instanceData.shrink_to_fit();
 }
 
 void GLRenderer::ShutdownTerrainPipeline()

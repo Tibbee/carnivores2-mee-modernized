@@ -154,12 +154,49 @@ private:
         std::vector<ModelVertex> transparentVertices;
     };
 
+    // Phase 2.1: per-instance data layout for geometry instancing.
+    //   attribute 4: vec4 aWorldRow0    (offset  0)  -- instance world transform, row 0
+    //   attribute 5: vec4 aWorldRow1    (offset 16)  -- instance world transform, row 1
+    //   attribute 6: vec4 aWorldRow2    (offset 32)  -- instance world transform, row 2
+    //   attribute 7: vec4 aWorldRow3    (offset 48)  -- instance world transform, row 3
+    //   attribute 8: vec4 aInstanceLight (offset 64) -- .x = base; .yzw = reserved
+    //   attribute 9: vec4 aInstanceFlags (offset 80) -- .x = bitfield; .yzw = reserved
+    // Total: 96 bytes per instance, 16-byte aligned.
+    //
+    // The 4x4 world form (16 floats) is one Mat4 + one Vec4 + one Vec4
+    // and reads in the vertex shader as:
+    //   mat4 iWorld = mat4(aWorldRow0, aWorldRow1, aWorldRow2, aWorldRow3);
+    //   gl_Position = uProjection * iWorld * vec4(aPos, 1.0);
+    //
+    // The compact 4x3 form (12 floats: worldPos + 3 basis vec4s) was an
+    // option in the design doc but adds shader complexity (the world
+    // transform is no longer a single mat4 construction) for a 16 B/instance
+    // saving. At kInitialInstanceCapacity (4,096) instances per frame, the
+    // saving is 64 KB — not worth the readability cost.
+    //
+    // This struct is the data that the GPU vertex shader (Phase 2.4) will
+    // use to transform model-space vertices to world space without CPU
+    // work. It is allocated in 2.1 but not yet consumed — the new VAO/VBO
+    // are created empty; the per-frame upload and the instanced draw calls
+    // land in Phase 2.3.
+    struct ModelInstance {
+        float worldRow0[4];     // 16
+        float worldRow1[4];     // 16
+        float worldRow2[4];     // 16
+        float worldRow3[4];     // 16
+        float instanceLight[4]; // 16 -- .x = base; .yzw = reserved for future
+        float instanceFlags[4]; // 16 -- .x = bitfield (cutout, transparent, additive, shadow); .yzw = reserved
+    };
+    static_assert(sizeof(ModelInstance) == 96, "ModelInstance must stay 96 bytes (Phase 2.1)");
+
     bool InitGLState();
     void LoadGLExtensions();
     bool InitializeTerrainPipeline();
     void ShutdownTerrainPipeline();
     bool InitializeModelPipeline();
     void ShutdownModelPipeline();
+    bool InitializeInstancingPipeline();
+    void ShutdownInstancingPipeline();
     void UpdatePerFrameUBO();
     void UpdatePerFrameUBO(const std::array<float, 16>& projection);
     void EnsurePerFrameUBO();
@@ -261,6 +298,20 @@ private:
     unsigned int m_modelShader = 0;
     unsigned int m_modelVAO = 0;
     unsigned int m_modelVBO = 0;
+
+    // Phase 2.1: per-instance data plumbing for geometry instancing.
+    // These GL objects are allocated at InitializeInstancingPipeline() but
+    // not yet used by the renderer; the per-frame upload and instanced
+    // draw calls land in Phase 2.3. Kept as siblings of m_modelVAO /
+    // m_modelVBO so the instance pipeline lifetime is paired with the
+    // model pipeline lifetime.
+    unsigned int m_instanceVBO = 0;
+    unsigned int m_instanceVAO = 0;
+
+    // Per-frame instance array. Filled in 2.3; declared here so the
+    // vector's backing storage lives for the whole program (avoid
+    // per-frame heap churn once 2.3 starts using it).
+    std::vector<ModelInstance> m_instanceData;
     // Phase 1.11: last-bound model texture, used to skip redundant
     // glBindTexture calls when consecutive buckets share a texture
     // (which is the common case after Phase 1.7's bucket sort).
@@ -309,6 +360,11 @@ private:
 
     static const int kTerrainMipLevels = 4;
     static const int kMaxTerrainTextureLayers = 1024;
+    // Phase 2.1: initial capacity for the per-frame instance array.
+    // The dense custom map Phase 0 baseline measured ~2,400 visible model
+    // objects per frame; reserve 4,096 to absorb the high end with
+    // headroom. The vector grows automatically if a frame exceeds this.
+    static const int kInitialInstanceCapacity = 4096;
     std::vector<TerrainVertex> m_terrainVertices;
     std::vector<TerrainVertex> m_waterVertices;
     // Non-owning cache: tracks which terrain textures are currently
