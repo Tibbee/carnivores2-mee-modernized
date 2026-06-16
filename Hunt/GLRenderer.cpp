@@ -678,9 +678,9 @@ bool GLRenderer::Initialize()
         "   vec4 texColor = texture(uModelTexture, vTexCoord);\n"
         "   if (vCutout > 0.5 && dot(texColor.rgb, vec3(1.0)) < 0.01) discard;\n"
         "   vec3 litColor = texColor.rgb * vLight;\n"
-        "   if (uTintByFogColor > 0.5) {\n"
-        "      litColor *= vFogColor;\n"
-        "   }\n"
+        "   // Phase 2.7: branch-less tint via mix (was if > 0.5).\n"
+        "   vec3 tinted = litColor * vFogColor;\n"
+        "   litColor = mix(litColor, tinted, uTintByFogColor);\n"
         "   vec3 finalColor = mix(litColor, vFogColor, vFog);\n"
         "   FragColor = vec4(finalColor, texColor.a * vAlpha);\n"
         "}\n";
@@ -745,7 +745,7 @@ bool GLRenderer::Initialize()
         "out float vCutout;\n"
         "out float vTintByFog;\n"
         "out vec3 vVolumetricFogColor; // Phase 2.6: per-instance pocket fog colour\n"
-        "out float vVolumetricFog;     // Phase 2.6: per-instance pocket fog amount\n"
+        "out float vVolumetricFog;     // Phase 2.6: per-vertex pocket fog amount\n"
         "void main() {\n"
         "   mat4 iWorld = mat4(aWorldCol0, aWorldCol1, aWorldCol2, aWorldCol3);\n"
         "   vec4 viewPos = uView * iWorld * vec4(aPos, 1.0);\n"
@@ -753,16 +753,21 @@ bool GLRenderer::Initialize()
         "   vTexCoord = aTexCoord;\n"
         "   vLight = aInstanceLight.x;\n"
         "   vCutout = aInstanceFlags.x;\n"
-        "   vTintByFog = aInstanceFlags.y;\n"
+        "   // Phase 2.x: tintByFog not used for instanced; slot .y is now fogGrad.\n"
+        "   vTintByFog = 0.0;\n"
         "   vAlpha = aInstanceFlags.w;\n"
         "   // Phase 2.5: vViewZ = view-space depth (positive in front of camera).\n"
         "   // Matches the terrain shader's vViewZ = max(-aPos.z, 0.0).\n"
         "   vViewZ = max(-viewPos.z, 0.0);\n"
         "   // Phase 2.5: transform face normal for directional light\n"
         "   vWorldNormal = mat3(iWorld) * aNormal;\n"
-        "   // Phase 2.6: per-object volumetric (pocket) fog from CPU\n"
+        "   // Phase 2.x: 3DFX-style height-graded pocket fog.\n"
+        "   // fogGrad is the Y-gradient (dFog/dY), aInstanceFlags.z is fogBase.\n"
+        "   // Per-vertex fog = fogBase + modelSpaceY * fogGrad, clamped.\n"
+        "   float fogGrad = aInstanceFlags.y;\n"
+        "   float perVertexFog = aInstanceFlags.z + aPos.y * fogGrad;\n"
+        "   vVolumetricFog = clamp(perVertexFog, 0.0, 1.0);\n"
         "   vVolumetricFogColor = aInstanceLight.yzw;\n"
-        "   vVolumetricFog = aInstanceFlags.z;\n"
         "}\n";
 
     const char* instancedModelFragmentSource =
@@ -790,9 +795,9 @@ bool GLRenderer::Initialize()
         "   vec4 texColor = texture(uModelTexture, vTexCoord);\n"
         "   if (vCutout > 0.5 && dot(texColor.rgb, vec3(1.0)) < 0.01) discard;\n"
         "   vec3 litColor = texColor.rgb * vLight;\n"
-        "   if (vTintByFog > 0.5) {\n"
-        "      litColor *= uDistanceFogColor;\n"
-        "   }\n"
+        "   // Phase 2.7: branch-less tint via mix (was if > 0.5).\n"
+        "   vec3 tinted = litColor * uDistanceFogColor;\n"
+        "   litColor = mix(litColor, tinted, vTintByFog);\n"
         "   // Phase 2.5: per-pixel distance fog matching the terrain shader.\n"
         "   // Ramp from uFogRange.x to uFogRange.y, uses view-space Z\n"
         "   // (not Euclidean distance) for parity with the terrain.\n"
@@ -2420,11 +2425,23 @@ void GLRenderer::RenderMappedObject(int x, int y)
         waterclip = true;
     }
 
-    // Phase 2.6: sample pocket fog at the object center (unrotated
-    // camera-relative position), one FogsMap lookup per object instead
-    // of 3 per vertex in the legacy BuildModelDrawItem path.
+    // Phase 2.x: 3DFX-style height-graded pocket fog for instanced models.
+    // CalcFogLevel at the object centre gives the base fog level and the
+    // pocket colour (via global CurFogColor).  Sampling 800 units higher
+    // gives the Y-gradient.  The vertex shader computes per-vertex fog as:
+    //   fog = fogBase + modelSpaceY * fogGrad
+    // This matches the D3D / 3DFX look: tall objects fade more at the top.
     const Vector3d unrotatedFogPos = pos;  // before RotateVector
-    const FogSample fogSample = SampleFogAtPoint(unrotatedFogPos, false);
+    const float fogBase = CalcFogLevel(unrotatedFogPos);
+    const Vector3d fogPocketColor = DecodeFogColor(CurFogColor);
+
+    float fogGrad = 0.0f;
+    if (fogBase > 0.0f) {
+        Vector3d highPoint = unrotatedFogPos;
+        highPoint.y += 800.0f;
+        const float fogHigh = CalcFogLevel(highPoint);
+        fogGrad = (fogHigh - fogBase) / 800.0f;
+    }
 
     pos = RotateVector(pos);
     float zs = 0.0f;
@@ -2512,22 +2529,23 @@ void GLRenderer::RenderMappedObject(int x, int y)
         instance.worldCol3[3] = 1.0f;
 
         // Instance light: normalize to [0,1] range (current mlight is 64-192).
-        // Phase 2.6: .yzw carry the per-object pocket-fog colour.
+        // Phase 2.x: .yzw carry the per-object pocket-fog colour (3DFX-style).
         instance.instanceLight[0] = static_cast<float>(mlight) / 255.0f;
-        instance.instanceLight[1] = fogSample.color.x;
-        instance.instanceLight[2] = fogSample.color.y;
-        instance.instanceLight[3] = fogSample.color.z;
+        instance.instanceLight[1] = fogPocketColor.x;
+        instance.instanceLight[2] = fogPocketColor.y;
+        instance.instanceLight[3] = fogPocketColor.z;
 
         // Phase 2.3: cutout flag from the static mesh cache (set during
         // UploadStaticMesh based on sfOpacity/sfTransparent face flags).
         // The fragment shader discards near-black fragments when
         // vCutout > 0.5, which is the correct behaviour for leaves
         // and other sfOpacity-marked faces.
-        // Phase 2.6: .z carries the per-object pocket-fog amount.
+        // Phase 2.x: .y = fogGrad (Y-gradient, was tintByFog=0).
+        //            .z = fogBase (pocket-fog amount at object centre).
         const float alpha = std::clamp((255.0f - static_cast<float>(GlassL)) / 255.0f, 0.0f, 1.0f);
         instance.instanceFlags[0] = meshEntry.hasCutout ? 1.0f : 0.0f; // cutout
-        instance.instanceFlags[1] = 0.0f; // tintByFog — Phase 2.3: no tint
-        instance.instanceFlags[2] = fogSample.amount; // Phase 2.6: volumetric fog amount
+        instance.instanceFlags[1] = fogGrad / 255.0f; // Phase 2.x: fog Y-gradient
+        instance.instanceFlags[2] = fogBase / 255.0f; // Phase 2.x: fog base amount
         instance.instanceFlags[3] = alpha; // alpha
 
         // Ensure capacity and add instance.
@@ -3265,15 +3283,25 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
         ucY,
         ::sa * x0 + ::ca * ucZ
     };
-    FogSample fogSamples[4];
-    for (int i = 0; i < 4; ++i) {
-        const Vector3d worldRel = {
-            unrotatedCenter.x + mptr->gVertex[i].x,
-            unrotatedCenter.y + mptr->gVertex[i].y,
-            unrotatedCenter.z + mptr->gVertex[i].z
-        };
-        fogSamples[i] = SampleFogAtPoint(worldRel, false);
+    // Phase 2.x: 3DFX-style height-graded fog for billboards.
+    // CalcFogLevel at the object centre gives the base fog level
+    // (FogYBase) and the pocket colour (stored in global CurFogColor).
+    // Sampling 800 units higher gives the Y-gradient (FogYGrad).
+    // Each vertex then gets: fog = FogYBase + localY * FogYGrad.
+    // This produces the same per-vertex gradient the 3DFX / D3D
+    // renderers produce, with more fog at the top of tall sprites
+    // (e.g. tree-tops) and less at the base.
+    const float fogBase = CalcFogLevel(unrotatedCenter);
+    const Vector3d fogColor3dfx = DecodeFogColor(CurFogColor);
+
+    float fogGrad = 0.0f;
+    if (fogBase > 0.0f) {
+        Vector3d highPoint = unrotatedCenter;
+        highPoint.y += 800.0f;
+        const float fogHigh = CalcFogLevel(highPoint);
+        fogGrad = (fogHigh - fogBase) / 800.0f;
     }
+
     const bool hasFade = alpha < 0.999f;
 
     // Visibility check: all 4 billboard corners share the same z.
@@ -3281,19 +3309,20 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
 
     // Build two triangles (0-1-2, 0-2-3) for the billboard quad.
     auto makeVertex = [&](int index, float u, float v) -> ModelVertex {
-        const FogSample& fog = fogSamples[index];
+        const float vertexFog = fogBase + mptr->gVertex[index].y * fogGrad;
+        const float fogAmount = std::clamp(vertexFog / 255.0f, 0.0f, 1.0f);
         return {
             mptr->gVertex[index].x + x0,
             mptr->gVertex[index].y + y0,
             z0,
             u, v,
             Light255ToByte(baseLight),
-            Float01ToByte(fog.amount),
+            Float01ToByte(fogAmount),
             Float01ToByte(alpha),
             CutoutToByte(!hasFade),  // cutout when no fade, opaque when fading
-            Float01ToByte(fog.color.x),
-            Float01ToByte(fog.color.y),
-            Float01ToByte(fog.color.z),
+            Float01ToByte(fogColor3dfx.x),
+            Float01ToByte(fogColor3dfx.y),
+            Float01ToByte(fogColor3dfx.z),
             {0, 0, 0, 0, 0}
         };
     };
@@ -3664,6 +3693,22 @@ Vector3d GLRenderer::GetFogColorForMapPoint(int mapX, int mapY)
     return GetDistanceFogColor();
 }
 
+// Phase 2.x: fogIndex overload — caller already computed GetFogIndexForMapPoint.
+// Eliminates the duplicate FogsMap lookup when both fog amount and fog color
+// are needed for the same (x,y) corner.
+Vector3d GLRenderer::GetFogColorForMapPoint(int fogIndex)
+{
+    if (UNDERWATER) {
+        return GetDistanceFogColor();
+    }
+
+    if (FOGON && fogIndex > 0) {
+        return DecodeFogColor(FogsList[fogIndex].fogRGB);
+    }
+
+    return GetDistanceFogColor();
+}
+
 float GLRenderer::Clamp01(float value)
 {
     if (value < 0.0f) return 0.0f;
@@ -3789,6 +3834,22 @@ float GetTerrainFogAmountForMapPoint(int mapX, int mapY, int legacyFog)
     return static_cast<float>(std::clamp(legacyFog, 0, 255));
 }
 
+// Phase 2.x: fogIndex overload — caller already computed GetFogIndexForMapPoint.
+// Eliminates the duplicate FogsMap lookup when both fog amount and fog color
+// are needed for the same (x,y) corner.
+static float GetTerrainFogAmountForMapPoint(int fogIndex, int legacyFog)
+{
+    if (UNDERWATER) {
+        return static_cast<float>(legacyFog);
+    }
+
+    if (!FOGON || fogIndex <= 0) {
+        return 0.0f;
+    }
+
+    return static_cast<float>(std::clamp(legacyFog, 0, 255));
+}
+
 void GLRenderer::AppendWaterTriangle(std::vector<TerrainVertex>& vertices,
                                      const EPoint& v0,
                                      const EPoint& v1,
@@ -3874,10 +3935,17 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
     EPoint v01 = VMap[localY + 1][localX];
     EPoint v11 = VMap[localY + 1][localX + 1];
 
-    v00.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x, y, v00.Fog));
-    v10.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x + 1, y, v10.Fog));
-    v01.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x, y + 1, v01.Fog));
-    v11.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x + 1, y + 1, v11.Fog));
+    // Phase 2.x: compute fog indices once per corner, then reuse for
+    // both fog amount and fog color (was 8 FogsMap lookups, now 4).
+    const int fogIdx00 = GetFogIndexForMapPoint(x, y);
+    const int fogIdx10 = GetFogIndexForMapPoint(x + 1, y);
+    const int fogIdx01 = GetFogIndexForMapPoint(x, y + 1);
+    const int fogIdx11 = GetFogIndexForMapPoint(x + 1, y + 1);
+
+    v00.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx00, v00.Fog));
+    v10.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx10, v10.Fog));
+    v01.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx01, v01.Fog));
+    v11.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx11, v11.Fog));
 
     const float xx = (v00.v.x + v11.v.x) * 0.5f;
     const float yy = (v00.v.y + v11.v.y) * 0.5f;
@@ -3894,10 +3962,12 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
 
     const bool reverse = (FMap[y][x] & fmReverse) != 0;
     const int direction = FMap[y][x] & 3;
-    const Vector3d fog00 = GetFogColorForMapPoint(x, y);
-    const Vector3d fog10 = GetFogColorForMapPoint(x + 1, y);
-    const Vector3d fog01 = GetFogColorForMapPoint(x, y + 1);
-    const Vector3d fog11 = GetFogColorForMapPoint(x + 1, y + 1);
+    // Phase 2.x: reuse fog indices from above for fog color (was 4 more
+    // FogsMap lookups, now zero — fogIdx00..fogIdx11 already computed).
+    const Vector3d fog00 = GetFogColorForMapPoint(fogIdx00);
+    const Vector3d fog10 = GetFogColorForMapPoint(fogIdx10);
+    const Vector3d fog01 = GetFogColorForMapPoint(fogIdx01);
+    const Vector3d fog11 = GetFogColorForMapPoint(fogIdx11);
     const float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd);
     const float alpha10 = CalcTerrainAlpha(VertexDistanceSq(v10.v), fadeStart, fadeStartSq, fadeEnd);
     const float alpha01 = CalcTerrainAlpha(VertexDistanceSq(v01.v), fadeStart, fadeStartSq, fadeEnd);
@@ -3948,10 +4018,17 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
     EPoint v02 = VMap[localY + 2][localX];
     EPoint v22 = VMap[localY + 2][localX + 2];
 
-    v00.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x, y, v00.Fog));
-    v20.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x + 2, y, v20.Fog));
-    v02.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x, y + 2, v02.Fog));
-    v22.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(x + 2, y + 2, v22.Fog));
+    // Phase 2.x: compute fog indices once per corner, then reuse for
+    // both fog amount and fog color (was 8 FogsMap lookups, now 4).
+    const int fogIdx00 = GetFogIndexForMapPoint(x, y);
+    const int fogIdx20 = GetFogIndexForMapPoint(x + 2, y);
+    const int fogIdx02 = GetFogIndexForMapPoint(x, y + 2);
+    const int fogIdx22 = GetFogIndexForMapPoint(x + 2, y + 2);
+
+    v00.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx00, v00.Fog));
+    v20.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx20, v20.Fog));
+    v02.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx02, v02.Fog));
+    v22.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx22, v22.Fog));
 
     const float xx = (v00.v.x + v22.v.x) * 0.5f;
     const float yy = (v00.v.y + v22.v.y) * 0.5f;
@@ -3967,10 +4044,12 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
     }
 
     const int direction = (FMap[y][x] >> 8) & 3;
-    const Vector3d fog00 = GetFogColorForMapPoint(x, y);
-    const Vector3d fog20 = GetFogColorForMapPoint(x + 2, y);
-    const Vector3d fog02 = GetFogColorForMapPoint(x, y + 2);
-    const Vector3d fog22 = GetFogColorForMapPoint(x + 2, y + 2);
+    // Phase 2.x: reuse fog indices from above for fog color (was 4 more
+    // FogsMap lookups, now zero — fogIdx00..fogIdx22 already computed).
+    const Vector3d fog00 = GetFogColorForMapPoint(fogIdx00);
+    const Vector3d fog20 = GetFogColorForMapPoint(fogIdx20);
+    const Vector3d fog02 = GetFogColorForMapPoint(fogIdx02);
+    const Vector3d fog22 = GetFogColorForMapPoint(fogIdx22);
     const float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd);
     const float alpha20 = CalcTerrainAlpha(VertexDistanceSq(v20.v), fadeStart, fadeStartSq, fadeEnd);
     const float alpha02 = CalcTerrainAlpha(VertexDistanceSq(v02.v), fadeStart, fadeStartSq, fadeEnd);

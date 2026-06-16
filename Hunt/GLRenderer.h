@@ -161,8 +161,8 @@ private:
     //   attribute 5: vec4 aWorldCol1    (offset 16)  -- matrix column 1
     //   attribute 6: vec4 aWorldCol2    (offset 32)  -- matrix column 2
     //   attribute 7: vec4 aWorldCol3    (offset 48)  -- matrix column 3
-    //   attribute 8: vec4 aInstanceLight (offset 64) -- .x = base; .yzw = reserved
-    //   attribute 9: vec4 aInstanceFlags (offset 80) -- .x = bitfield; .yzw = reserved
+    //   attribute 8: vec4 aInstanceLight (offset 64) -- .x = base light; .yzw = pocket fog colour
+    //   attribute 9: vec4 aInstanceFlags (offset 80) -- .x = cutout; .y = fogGrad; .z = fogBase; .w = alpha
     // Total: 96 bytes per instance, 16-byte aligned.
     //
     // Vertex shader usage:
@@ -304,6 +304,7 @@ private:
     static std::array<float, 16> BuildLegacyProjection();
     static Vector3d GetCurrentFogColor();
     static Vector3d GetFogColorForMapPoint(int mapX, int mapY);
+    static Vector3d GetFogColorForMapPoint(int fogIndex);  // Phase 2.x: fogIndex overload avoids duplicate FogsMap lookup
     static Vector3d DecodeFogColor(int rgb);
     static bool IsWaterTriangleValid(const EPoint& v0, const EPoint& v1, const EPoint& v2, float backR);
     static float CalcWaterAlpha(const EPoint& vertex, float centerDistanceSq, float fadeStart, float fadeStartSq, float fadeEnd);
