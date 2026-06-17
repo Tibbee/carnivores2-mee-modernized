@@ -104,15 +104,19 @@ Vector3d DecodeFogColor(int rgb)
     };
 }
 
+Vector3d DecodeFogColorBGR(int rgb)
+{
+    return {
+        static_cast<float>((rgb >> 16) & 0xFF) / 255.0f,
+        static_cast<float>((rgb >> 8) & 0xFF) / 255.0f,
+        static_cast<float>(rgb & 0xFF) / 255.0f
+    };
+}
+
 Vector3d GetFogColor()
 {
     if (UNDERWATER && FogsList[127].fogRGB) {
-        int rgb = FogsList[127].fogRGB;
-        return {
-            static_cast<float>((rgb >> 16) & 0xFF) / 255.0f,
-            static_cast<float>((rgb >> 8) & 0xFF) / 255.0f,
-            static_cast<float>(rgb & 0xFF) / 255.0f
-        };
+        return DecodeFogColorBGR(FogsList[127].fogRGB);
     }
 
     if (CAMERAINFOG && CameraFogI > 0) {
@@ -134,12 +138,7 @@ Vector3d GetDistanceFogColor()
     // color of fixed map fog volumes; those are applied separately as
     // local volumetric fog inside their boundaries.
     if (UNDERWATER && FogsList[127].fogRGB) {
-        int rgb = FogsList[127].fogRGB;
-        return {
-            static_cast<float>((rgb >> 16) & 0xFF) / 255.0f,
-            static_cast<float>((rgb >> 8) & 0xFF) / 255.0f,
-            static_cast<float>(rgb & 0xFF) / 255.0f
-        };
+        return DecodeFogColorBGR(FogsList[127].fogRGB);
     }
 
     return {
@@ -320,12 +319,7 @@ FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog)
         }
 
         const float amount = std::clamp(fl / 255.0f, 0.0f, fog.FLimit / 255.0f);
-        const int rgb = fog.fogRGB;
-        return {amount, {
-            static_cast<float>((rgb >> 16) & 0xFF) / 255.0f,
-            static_cast<float>((rgb >> 8) & 0xFF) / 255.0f,
-            static_cast<float>(rgb & 0xFF) / 255.0f
-        }};
+        return {amount, DecodeFogColorBGR(fog.fogRGB)};
     }
 
     // Fixed fog volumes are local: only sample the volume that contains
@@ -802,7 +796,6 @@ bool GLRenderer::Initialize()
         "   // Ramp from uFogRange.x to uFogRange.y, uses view-space Z\n"
         "   // (not Euclidean distance) for parity with the terrain.\n"
         "   float distanceFog = clamp((vViewZ - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);\n"
-        "   distanceFog = mix(distanceFog, 1.0, uForceFog);\n"
         "   // Phase 2.6: volumetric (pocket) fog placeholder — zero for now.\n"
         "   vec3 afterVolumetric = mix(litColor, vVolumetricFogColor, vVolumetricFog);\n"
         "   // Final: fade to distance fog colour over the ramp.\n"
@@ -2433,7 +2426,8 @@ void GLRenderer::RenderMappedObject(int x, int y)
     // This matches the D3D / 3DFX look: tall objects fade more at the top.
     const Vector3d unrotatedFogPos = pos;  // before RotateVector
     const float fogBase = CalcFogLevel(unrotatedFogPos);
-    const Vector3d fogPocketColor = DecodeFogColor(CurFogColor);
+    const Vector3d fogPocketColor =
+        UNDERWATER ? DecodeFogColorBGR(FogsList[127].fogRGB) : DecodeFogColor(CurFogColor);
 
     float fogGrad = 0.0f;
     if (fogBase > 0.0f) {
@@ -3292,7 +3286,8 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
     // renderers produce, with more fog at the top of tall sprites
     // (e.g. tree-tops) and less at the base.
     const float fogBase = CalcFogLevel(unrotatedCenter);
-    const Vector3d fogColor3dfx = DecodeFogColor(CurFogColor);
+    const Vector3d fogColor3dfx =
+        UNDERWATER ? DecodeFogColorBGR(FogsList[127].fogRGB) : DecodeFogColor(CurFogColor);
 
     float fogGrad = 0.0f;
     if (fogBase > 0.0f) {
@@ -3656,12 +3651,7 @@ Vector3d GLRenderer::DecodeFogColor(int rgb)
 Vector3d GLRenderer::GetCurrentFogColor()
 {
     if (UNDERWATER && FogsList[127].fogRGB) {
-        int rgb = FogsList[127].fogRGB;
-        return {
-            static_cast<float>((rgb >> 16) & 0xFF) / 255.0f,
-            static_cast<float>((rgb >> 8) & 0xFF) / 255.0f,
-            static_cast<float>(rgb & 0xFF) / 255.0f
-        };
+        return DecodeFogColorBGR(FogsList[127].fogRGB);
     }
 
     if (CAMERAINFOG && CameraFogI > 0) {
