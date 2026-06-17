@@ -192,7 +192,12 @@ void PreCashGroundModel()
         rv = v[0];
         rv.y = WaterList[ WMap[yy][xx] ].wlevel*ctHScale - CameraY;
 
-        float wdelta = static_cast<float>(sin(-pi/2 + RandomMap[yy & 31][xx & 31]/128+RealTime/200.f));
+        // Use the per-RealTime wave offset cache built at the top of
+        // PreCashGroundModel(). The cache reduces ~2,600 sin() calls per
+        // frame to 1,024 per RealTime change (and zero in steady state).
+        // The 4ab70c8 commit introduced the cache but never wired the
+        // lookup; this change completes that fix.
+        float wdelta = waveCache[yy & 31][xx & 31];
 
         if ( (FMap[yy][xx] & fmWater) && (r < ctViewR-4))
         {
