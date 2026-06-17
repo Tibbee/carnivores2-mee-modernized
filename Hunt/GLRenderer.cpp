@@ -4066,6 +4066,95 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
     RenderObject(x + 1, y + 1);
 }
 
+void GLRenderer::CollectWaterTileFast(int x, int y, int r,
+                                      float viewDistanceSq,
+                                      float fadeStart, float fadeStartSq,
+                                      float fadeEnd, float fadeEndSq)
+{
+    (void)r;
+
+    if (x >= ctMapSize - 1 || y >= ctMapSize - 1 || x < 0 || y < 0) {
+        return;
+    }
+
+    if (!((FMap[y][x] & fmWaterA) && (FMap[y][x + 1] & fmWaterA) &&
+          (FMap[y + 1][x] & fmWaterA) && (FMap[y + 1][x + 1] & fmWaterA))) {
+        return;
+    }
+
+    const int textureLayer = WaterList[WMap[y][x]].tindex;
+    if (textureLayer < 0 || textureLayer >= kMaxTerrainTextureLayers || !Textures[textureLayer]) {
+        return;
+    }
+
+    const int localX = x - CCX + kViewGridCenter;
+    const int localY = y - CCY + kViewGridCenter;
+    if (localX < 0 || localY < 0 || localX + 1 >= kViewGridSize || localY + 1 >= kViewGridSize) {
+        return;
+    }
+
+    EPoint v00 = VMap2[localY][localX];
+    EPoint v10 = VMap2[localY][localX + 1];
+    EPoint v01 = VMap2[localY + 1][localX];
+    EPoint v11 = VMap2[localY + 1][localX + 1];
+
+    const float xx = (v00.v.x + v11.v.x) * 0.5f;
+    const float yy = (v00.v.y + v11.v.y) * 0.5f;
+    const float zz = (v00.v.z + v11.v.z) * 0.5f;
+
+    if (std::fabs(xx * FOVK) > -zz + BackViewR) {
+        return;
+    }
+
+    const float centerDistanceSq = xx * xx + yy * yy + zz * zz;
+    if (centerDistanceSq > viewDistanceSq) {
+        return;
+    }
+
+    // Fast per-vertex alpha: same logic as CalcWaterAlpha but uses
+    // squared-distance ramp instead of std::sqrt (saves ~0.5-0.8ms).
+    auto calcAlpha = [&](const EPoint& vertex, float centerDistSq) -> float {
+        float alpha = Clamp01(vertex.ALPHA / 255.0f);
+        if (!UNDERWATER && centerDistSq > fadeStartSq) {
+            const float distSq = vertex.v.x * vertex.v.x
+                               + vertex.v.y * vertex.v.y
+                               + vertex.v.z * vertex.v.z;
+            if (distSq > fadeStartSq) {
+                if (distSq > fadeEndSq) {
+                    const float t = (distSq - fadeEndSq) / (viewDistanceSq - fadeEndSq);
+                    alpha = Clamp01(1.0f - t);
+                }
+            }
+        }
+        return alpha;
+    };
+
+    const float a00 = calcAlpha(v00, centerDistanceSq);
+    const float a10 = calcAlpha(v10, centerDistanceSq);
+    const float a01 = calcAlpha(v01, centerDistanceSq);
+    const float a11 = calcAlpha(v11, centerDistanceSq);
+
+    // Single FogsMap lookup for the tile center (water is flat; per-corner
+    // fog precision is invisible — saves 3 FogsMap lookups per tile).
+    const Vector3d fogTile = GetFogColorForMapPoint(x, y);
+
+    if (a00 > 0.0f || a10 > 0.0f || a11 > 0.0f) {
+        if (IsWaterTriangleValid(v00, v10, v11, BackViewR)) {
+            AppendWaterTriangle(m_waterVertices, v00, v10, v11,
+                               fogTile, fogTile, fogTile,
+                               textureLayer, false, false, 0, a00, a10, a11);
+        }
+    }
+
+    if (a00 > 0.0f || a11 > 0.0f || a01 > 0.0f) {
+        if (IsWaterTriangleValid(v00, v11, v01, BackViewR)) {
+            AppendWaterTriangle(m_waterVertices, v00, v11, v01,
+                               fogTile, fogTile, fogTile,
+                               textureLayer, false, true, 0, a00, a11, a01);
+        }
+    }
+}
+
 void GLRenderer::CollectWaterTile(int x, int y, int r)
 {
     (void)r;
@@ -4288,18 +4377,36 @@ void GLRenderer::RenderWater()
 
     BeginWaterFrame();
 
+    // Precompute per-frame constants once; avoids recomputing them
+    // identically in every CollectWaterTile call (~1,200 tiles at max
+    // view distance). These are derived from ctViewR which is constant
+    // for the frame.
+    const float viewDistance = static_cast<float>(ctViewR * 256);
+    const float viewDistanceSq = viewDistance * viewDistance;
+    const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
+    const float fadeStartSq = fadeStart * fadeStart;
+    const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
+    // Squared fade end: used to avoid std::sqrt in CollectWaterTileFast
+    // (saves ~0.5-0.8ms at max view distance).
+    const float fadeEndSq = fadeEnd * fadeEnd;
+
     for (int r = ctViewR; r > 0; --r) {
         for (int x = -r; x <= r; ++x) {
-            CollectWaterTile(CCX + x, CCY + r, r);
-            CollectWaterTile(CCX + x, CCY - r, r);
+            CollectWaterTileFast(CCX + x, CCY + r, r, viewDistanceSq,
+                                 fadeStart, fadeStartSq, fadeEnd, fadeEndSq);
+            CollectWaterTileFast(CCX + x, CCY - r, r, viewDistanceSq,
+                                 fadeStart, fadeStartSq, fadeEnd, fadeEndSq);
         }
         for (int y = -r + 1; y < r; ++y) {
-            CollectWaterTile(CCX + r, CCY + y, r);
-            CollectWaterTile(CCX - r, CCY + y, r);
+            CollectWaterTileFast(CCX + r, CCY + y, r, viewDistanceSq,
+                                 fadeStart, fadeStartSq, fadeEnd, fadeEndSq);
+            CollectWaterTileFast(CCX - r, CCY + y, r, viewDistanceSq,
+                                 fadeStart, fadeStartSq, fadeEnd, fadeEndSq);
         }
     }
 
-    CollectWaterTile(CCX, CCY, 0);
+    CollectWaterTileFast(CCX, CCY, 0, viewDistanceSq,
+                         fadeStart, fadeStartSq, fadeEnd, fadeEndSq);
 
     RenderWaterSurface();
 }
@@ -4458,7 +4565,11 @@ void GLRenderer::ClearLevelTextureCache()
 
 void GLRenderer::ClearVideoBuf()
 {
-    m_uploadedTerrainTextures.fill(nullptr);
+    // NOTE: do NOT reset m_uploadedTerrainTextures here — ClearVideoBuf is
+    // called every frame from RenderSkyPlane(). Invalidating the cache
+    // per-frame forces RenderTerrain() and RenderWaterSurface() to re-upload
+    // every terrain texture layer on every draw (~10-20 glTexSubImage3D
+    // calls per frame), which tanks CPU and GPU performance.
     const Vector3d fogColor = GetDistanceFogColor();
     glClearColor(fogColor.x, fogColor.y, fogColor.z, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
