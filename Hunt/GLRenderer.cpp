@@ -551,6 +551,8 @@ bool GLRenderer::Initialize()
         "   vec3 uDistanceFogColor;\n"
         "   float uForceFog;\n"
         "   vec3 uFogColor;\n"
+        "   mat4 uView;\n"
+        "   vec4 uWaterAlphaFade;    // x=start, y=end, z=enabled, w=fade step\n"
         "};\n"
         "out vec2 vTexCoord;\n"
         "flat out int vLayer;\n"
@@ -559,6 +561,8 @@ bool GLRenderer::Initialize()
         "out vec3 vFogColor;\n"
         "out float vAlpha;\n"
         "out float vViewZ;\n"
+        "out float vViewDistance;\n"
+        "out float vWaterAlphaFade;\n"
         "void main() {\n"
         "   gl_Position = uProjection * vec4(aPos, 1.0);\n"
         "   vTexCoord = aTexCoord;\n"
@@ -569,6 +573,8 @@ bool GLRenderer::Initialize()
         "   vAlpha = aLightFogAlpha.z;\n"
         "   vFogColor = aFogColor;\n"
         "   vViewZ = max(-aPos.z, 0.0);\n"
+        "   vViewDistance = length(aPos);\n"
+        "   vWaterAlphaFade = aLightFogAlpha.w;\n"
         "}\n";
 
     const char* terrainFragmentSource =
@@ -581,12 +587,16 @@ bool GLRenderer::Initialize()
         "in vec3 vFogColor;\n"
         "in float vAlpha;\n"
         "in float vViewZ;\n"
+        "in float vViewDistance;\n"
+        "in float vWaterAlphaFade;\n"
         "uniform PerFrame {\n"
         "   mat4 uProjection;\n"
         "   vec2 uFogRange;          // (fadeStart, distance)\n"
         "   vec3 uDistanceFogColor;\n"
         "   float uForceFog;\n"
         "   vec3 uFogColor;\n"
+        "   mat4 uView;\n"
+        "   vec4 uWaterAlphaFade;    // x=start, y=end, z=enabled, w=fade step\n"
         "};\n"
         "uniform sampler2DArray uTerrainArray;\n"
         "void main() {\n"
@@ -601,7 +611,14 @@ bool GLRenderer::Initialize()
         "   // bleeding into the horizon fade.\n"
         "   float distanceFog = clamp((vViewZ - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);\n"
         "   vec3 finalColor = mix(volumetricFogColor, uDistanceFogColor, distanceFog);\n"
-        "   FragColor = vec4(finalColor, texColor.a * vAlpha);\n"
+        "   float waterAlphaFade = 1.0;\n"
+        "   if (vWaterAlphaFade > 0.5 && uWaterAlphaFade.z > 0.5) {\n"
+        "      float zz = vViewDistance - uWaterAlphaFade.y;\n"
+        "      if (zz > 0.0) {\n"
+        "         waterAlphaFade = clamp((255.0 - zz / max(uWaterAlphaFade.w, 1.0)) / 255.0, 0.0, 1.0);\n"
+        "      }\n"
+        "   }\n"
+        "   FragColor = vec4(finalColor, texColor.a * vAlpha * waterAlphaFade);\n"
         "}\n";
 
     GLuint vertexShader = CompileShader(GL_VERTEX_SHADER, terrainVertexSource);
@@ -1403,7 +1420,7 @@ void GLRenderer::ShutdownTerrainPipeline()
 //   offset 96  : vec3  uFogColor             (12 bytes)
 //   offset 108 :        (pad to mat4 align)  ( 4 bytes)  -- Phase 2.4
 //   offset 112 : mat4  uView                 (64 bytes)  -- Phase 2.4
-//   total 176 bytes.
+//   total 192 bytes.
 // Phase 2.4: uView is identity for legacy shaders (they receive view-
 // space vertices).  The instanced shader uses it as a placeholder for
 // the world→view split; currently identity, to be refined in 2.5+.
@@ -1414,7 +1431,7 @@ void GLRenderer::EnsurePerFrameUBO()
     if (m_perFrameUBOInitialized) {
         return;
     }
-    constexpr GLsizeiptr kUBOBytes = 176;  // Phase 2.4: +64 bytes for uView
+    constexpr GLsizeiptr kUBOBytes = 192;  // Phase 2.4: +64 bytes for uView, +16 bytes for uWaterAlphaFade
     glGenBuffers(1, &m_perFrameUBO);
     glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
     glBufferData(GL_UNIFORM_BUFFER, kUBOBytes, nullptr, GL_DYNAMIC_DRAW);
@@ -1466,7 +1483,7 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection)
 
     m_cachedForceFog = UNDERWATER ? 1.0f : 0.0f;
 
-    // Phase 2.4: pack into a 44-float (176-byte) buffer.
+    // Phase 2.4: pack into a 48-float (192-byte) buffer.
     //   offset 0   : mat4 uProjection           (16 floats)
     //   offset 64  : vec2 uFogRange             ( 2 floats)
     //   offset 72  :        (pad to vec3 align) ( 2 floats)
@@ -1475,7 +1492,8 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection)
     //   offset 96  : vec3 uFogColor             ( 3 floats)
     //   offset 108 :        (pad to mat4 align) ( 1 float)   -- Phase 2.4
     //   offset 112 : mat4 uView                 (16 floats)   -- Phase 2.4
-    std::array<float, 44> data{};
+    //   offset 176 : vec4 uWaterAlphaFade       ( 4 floats)   -- x=start, y=end, z=enabled, w=fade step
+    std::array<float, 48> data{};
     std::memcpy(&data[0],  m_cachedProjection.data(), 16 * sizeof(float));
     data[16] = m_cachedFogStart;     // uFogRange.x
     data[17] = m_cachedFogDistance;  // uFogRange.y
@@ -1489,18 +1507,36 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection)
     data[25] = m_cachedFogColor[1];
     data[26] = m_cachedFogColor[2];
     data[27] = 0.0f;                 // pad to mat4 alignment (Phase 2.4)
-    // Phase 2.4: uView identity matrix (column-major).
-    // Currently identity so legacy shaders (view-space vertices) and
-    // instanced shader (model→view baked into per-instance matrix)
-    // both produce identical output.  Future phases will populate
-    // a real view-from-world matrix and split the instance transform.
     data[28] = 1.0f; data[29] = 0.0f; data[30] = 0.0f; data[31] = 0.0f;  // col0
     data[32] = 0.0f; data[33] = 1.0f; data[34] = 0.0f; data[35] = 0.0f;  // col1
     data[36] = 0.0f; data[37] = 0.0f; data[38] = 1.0f; data[39] = 0.0f;  // col2
     data[40] = 0.0f; data[41] = 0.0f; data[42] = 0.0f; data[43] = 1.0f;  // col3
+    // Phase 2.4: uWaterAlphaFade packed after uView.
+    data[44] = 0.0f;                 // uWaterAlphaFade.x
+    data[45] = 0.0f;                 // uWaterAlphaFade.y
+    data[46] = 0.0f;                 // uWaterAlphaFade.z = disabled
+    data[47] = 765.0f;               // uWaterAlphaFade.w = fade step (matches CPU formula: zz/3.0 => step = 255*3 = 765)
 
     glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, data.size() * sizeof(float), data.data());
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+void GLRenderer::SetWaterAlphaFade(float enabled, float fadeStart, float fadeEnd, float fadeStep)
+{
+    if (!m_perFrameUBO) {
+        return;
+    }
+
+    const float data[4] = {
+        fadeStart,
+        fadeEnd,
+        enabled,
+        fadeStep
+    };
+
+    glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
+    glBufferSubData(GL_UNIFORM_BUFFER, 176, sizeof(data), data);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
@@ -1543,6 +1579,7 @@ void GLRenderer::RenderWaterSurface()
 
     const auto projection = BuildLegacyProjection();
     UpdatePerFrameUBO();
+    SetWaterAlphaFade(1.0f, static_cast<float>((ctViewR - 8) << 8), 256.0f * static_cast<float>(ctViewR - 4), 765.0f);
     glUseProgram(m_terrainShader);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
@@ -1561,6 +1598,7 @@ void GLRenderer::RenderWaterSurface()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
     DrawVertexBatch(m_waterVertices);
+    SetWaterAlphaFade(0.0f, static_cast<float>((ctViewR - 8) << 8), 256.0f * static_cast<float>(ctViewR - 4), 765.0f);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
 
@@ -3795,7 +3833,7 @@ void GLRenderer::AppendTerrainTriangle(std::vector<TerrainVertex>& vertices,
                         Light255ToByte(static_cast<float>(v1.Light)),
                         Light255ToByte(v1.Fog),
                         Float01ToByte(alpha1),
-                        0,
+                        0,  // pad1
                         Float01ToByte(fogColor1.x),
                         Float01ToByte(fogColor1.y),
                         Float01ToByte(fogColor1.z),
@@ -3804,7 +3842,7 @@ void GLRenderer::AppendTerrainTriangle(std::vector<TerrainVertex>& vertices,
                         Light255ToByte(static_cast<float>(v2.Light)),
                         Light255ToByte(v2.Fog),
                         Float01ToByte(alpha2),
-                        0,
+                        0,  // pad1
                         Float01ToByte(fogColor2.x),
                         Float01ToByte(fogColor2.y),
                         Float01ToByte(fogColor2.z),
@@ -3853,7 +3891,8 @@ void GLRenderer::AppendWaterTriangle(std::vector<TerrainVertex>& vertices,
                                      int direction,
                                      float alpha0,
                                      float alpha1,
-                                     float alpha2)
+                                     float alpha2,
+                                     float fadeEnabled)
 {
     const auto uv = GetTerrainUVs(reverse, second, direction);
     const float layer = static_cast<float>(textureLayer);
@@ -3866,7 +3905,7 @@ void GLRenderer::AppendWaterTriangle(std::vector<TerrainVertex>& vertices,
                         Light255ToByte(static_cast<float>(v0.Light)),
                         Light255ToByte(v0.Fog),
                         Float01ToByte(alpha0),
-                        0,
+                        Float01ToByte(fadeEnabled),
                         Float01ToByte(fogColor0.x),
                         Float01ToByte(fogColor0.y),
                         Float01ToByte(fogColor0.z),
@@ -3875,7 +3914,7 @@ void GLRenderer::AppendWaterTriangle(std::vector<TerrainVertex>& vertices,
                         Light255ToByte(static_cast<float>(v1.Light)),
                         Light255ToByte(v1.Fog),
                         Float01ToByte(alpha1),
-                        0,
+                        Float01ToByte(fadeEnabled),
                         Float01ToByte(fogColor1.x),
                         Float01ToByte(fogColor1.y),
                         Float01ToByte(fogColor1.z),
@@ -3884,7 +3923,7 @@ void GLRenderer::AppendWaterTriangle(std::vector<TerrainVertex>& vertices,
                         Light255ToByte(static_cast<float>(v2.Light)),
                         Light255ToByte(v2.Fog),
                         Float01ToByte(alpha2),
-                        0,
+                        Float01ToByte(fadeEnabled),
                         Float01ToByte(fogColor2.x),
                         Float01ToByte(fogColor2.y),
                         Float01ToByte(fogColor2.z),
@@ -4062,6 +4101,9 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
                                       float fadeEnd, float fadeEndSq)
 {
     (void)r;
+    (void)fadeStart;
+    (void)fadeEnd;
+    (void)fadeEndSq;
 
     if (x >= ctMapSize - 1 || y >= ctMapSize - 1 || x < 0 || y < 0) {
         return;
@@ -4101,28 +4143,12 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
         return;
     }
 
-    // Fast per-vertex alpha: same logic as CalcWaterAlpha but uses
-    // squared-distance ramp instead of std::sqrt (saves ~0.5-0.8ms).
-    auto calcAlpha = [&](const EPoint& vertex, float centerDistSq) -> float {
-        float alpha = Clamp01(vertex.ALPHA / 255.0f);
-        if (!UNDERWATER && centerDistSq > fadeStartSq) {
-            const float distSq = vertex.v.x * vertex.v.x
-                               + vertex.v.y * vertex.v.y
-                               + vertex.v.z * vertex.v.z;
-            if (distSq > fadeStartSq) {
-                if (distSq > fadeEndSq) {
-                    const float t = (distSq - fadeEndSq) / (viewDistanceSq - fadeEndSq);
-                    alpha = Clamp01(1.0f - t);
-                }
-            }
-        }
-        return alpha;
-    };
+    const float fadeEnabled = (!UNDERWATER && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
 
-    const float a00 = calcAlpha(v00, centerDistanceSq);
-    const float a10 = calcAlpha(v10, centerDistanceSq);
-    const float a01 = calcAlpha(v01, centerDistanceSq);
-    const float a11 = calcAlpha(v11, centerDistanceSq);
+    const float a00 = Clamp01(v00.ALPHA / 255.0f);
+    const float a10 = Clamp01(v10.ALPHA / 255.0f);
+    const float a01 = Clamp01(v01.ALPHA / 255.0f);
+    const float a11 = Clamp01(v11.ALPHA / 255.0f);
 
     // Single FogsMap lookup for the tile center (water is flat; per-corner
     // fog precision is invisible — saves 3 FogsMap lookups per tile).
@@ -4132,7 +4158,7 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
         if (IsWaterTriangleValid(v00, v10, v11, BackViewR)) {
             AppendWaterTriangle(m_waterVertices, v00, v10, v11,
                                fogTile, fogTile, fogTile,
-                               textureLayer, false, false, 0, a00, a10, a11);
+                               textureLayer, false, false, 0, a00, a10, a11, fadeEnabled);
         }
     }
 
@@ -4140,7 +4166,7 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
         if (IsWaterTriangleValid(v00, v11, v01, BackViewR)) {
             AppendWaterTriangle(m_waterVertices, v00, v11, v01,
                                fogTile, fogTile, fogTile,
-                               textureLayer, false, true, 0, a00, a11, a01);
+                               textureLayer, false, true, 0, a00, a11, a01, fadeEnabled);
         }
     }
 }
@@ -4193,10 +4219,12 @@ void GLRenderer::CollectWaterTile(int x, int y, int r)
         return;
     }
 
-    const float a00 = CalcWaterAlpha(v00, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
-    const float a10 = CalcWaterAlpha(v10, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
-    const float a01 = CalcWaterAlpha(v01, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
-    const float a11 = CalcWaterAlpha(v11, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
+    const float fadeEnabled = (!UNDERWATER && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
+
+    const float a00 = Clamp01(v00.ALPHA / 255.0f);
+    const float a10 = Clamp01(v10.ALPHA / 255.0f);
+    const float a01 = Clamp01(v01.ALPHA / 255.0f);
+    const float a11 = Clamp01(v11.ALPHA / 255.0f);
 
     // Per-corner map-based fog color (mirrors the terrain path in
     // CollectTerrainTile). GetFogColorForMapPoint looks up the active
@@ -4212,13 +4240,13 @@ void GLRenderer::CollectWaterTile(int x, int y, int r)
 
     if (a00 > 0.0f || a10 > 0.0f || a11 > 0.0f) {
         if (IsWaterTriangleValid(v00, v10, v11, BackViewR)) {
-            AppendWaterTriangle(m_waterVertices, v00, v10, v11, fog00, fog10, fog11, textureLayer, false, false, 0, a00, a10, a11);
+            AppendWaterTriangle(m_waterVertices, v00, v10, v11, fog00, fog10, fog11, textureLayer, false, false, 0, a00, a10, a11, fadeEnabled);
         }
     }
 
     if (a00 > 0.0f || a11 > 0.0f || a01 > 0.0f) {
         if (IsWaterTriangleValid(v00, v11, v01, BackViewR)) {
-            AppendWaterTriangle(m_waterVertices, v00, v11, v01, fog00, fog11, fog01, textureLayer, false, true, 0, a00, a11, a01);
+            AppendWaterTriangle(m_waterVertices, v00, v11, v01, fog00, fog11, fog01, textureLayer, false, true, 0, a00, a11, a01, fadeEnabled);
         }
     }
 }
@@ -4271,10 +4299,12 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
         return;
     }
 
-    const float a00 = CalcWaterAlpha(v00, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
-    const float a20 = CalcWaterAlpha(v20, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
-    const float a02 = CalcWaterAlpha(v02, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
-    const float a22 = CalcWaterAlpha(v22, centerDistanceSq, fadeStart, fadeStartSq, fadeEnd);
+    const float fadeEnabled = (!UNDERWATER && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
+
+    const float a00 = Clamp01(v00.ALPHA / 255.0f);
+    const float a20 = Clamp01(v20.ALPHA / 255.0f);
+    const float a02 = Clamp01(v02.ALPHA / 255.0f);
+    const float a22 = Clamp01(v22.ALPHA / 255.0f);
 
     // Per-corner map-based fog color (far-detail water path; mirrors
     // the near-detail CollectWaterTile and the terrain path in
@@ -4286,13 +4316,13 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
 
     if (a00 > 0.0f || a20 > 0.0f || a22 > 0.0f) {
         if (IsWaterTriangleValid(v00, v20, v22, BackViewR)) {
-            AppendWaterTriangle(m_waterVertices, v00, v20, v22, fog00, fog20, fog22, textureLayer, false, false, 0, a00, a20, a22);
+            AppendWaterTriangle(m_waterVertices, v00, v20, v22, fog00, fog20, fog22, textureLayer, false, false, 0, a00, a20, a22, fadeEnabled);
         }
     }
 
     if (a00 > 0.0f || a22 > 0.0f || a02 > 0.0f) {
         if (IsWaterTriangleValid(v00, v22, v02, BackViewR)) {
-            AppendWaterTriangle(m_waterVertices, v00, v22, v02, fog00, fog22, fog02, textureLayer, false, true, 0, a00, a22, a02);
+            AppendWaterTriangle(m_waterVertices, v00, v22, v02, fog00, fog22, fog02, textureLayer, false, true, 0, a00, a22, a02, fadeEnabled);
         }
     }
 }
@@ -4342,6 +4372,7 @@ void GLRenderer::RenderTerrain()
     }
 
     UpdatePerFrameUBO();
+    SetWaterAlphaFade(0.0f, 0.0f, 0.0f, 765.0f);
     glUseProgram(m_terrainShader);
 
     glActiveTexture(GL_TEXTURE0);

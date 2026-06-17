@@ -93,7 +93,7 @@ private:
     //   offset 12: vec2  aTexCoord                ( 8 bytes)  -- attribute 1, float
     //   offset 20: float aLayer                   ( 4 bytes)  -- attribute 2, float
     //   offset 24: vec4  aLightFogAlpha           ( 4 bytes)  -- attribute 3, uint8 normalized
-    //                 .x = light, .y = fog, .z = alpha, .w = pad
+    //                 .x = light, .y = fog, .z = alpha, .w = water fade enable for water verts
     //   offset 28: vec3  aFogColor                ( 3 bytes)  -- attribute 4, uint8 normalized
     //   offset 31: 1 byte explicit padding to round the vertex up to 32 bytes
     struct TerrainVertex {
@@ -225,6 +225,7 @@ private:
     void UpdatePerFrameUBO();
     void UpdatePerFrameUBO(const std::array<float, 16>& projection);
     void EnsurePerFrameUBO();
+    void SetWaterAlphaFade(float enabled, float fadeStart, float fadeEnd, float fadeStep);
     void BeginTerrainFrame();
     void BeginWaterFrame();
     void RenderTerrain();
@@ -305,7 +306,8 @@ private:
                              int direction,
                              float alpha0,
                              float alpha1,
-                             float alpha2);
+                             float alpha2,
+                             float fadeEnabled = 0.0f);
     static std::array<Vector2df, 3> GetTerrainUVs(bool reverse, bool second, int direction);
     static std::array<float, 16> BuildLegacyProjection();
     static Vector3d GetCurrentFogColor();
@@ -401,7 +403,7 @@ private:
 
     // PerFrame UBO (Phase 1.1): binding 0, shared by terrain and model shaders.
     // std140 layout: mat4 uProjection + vec2 uFogRange + vec3 uDistanceFogColor
-    // + float uForceFog + vec3 uFogColor = 108 bytes, padded to 112.
+    // + float uForceFog + vec3 uFogColor + mat4 uView + vec4 uWaterAlphaFade.
     // The cached fields are repacked into the UBO on every UpdatePerFrameUBO()
     // call. The projection is recomputed each call because near-model draws
     // (wind indicator, compass, weapon viewmodels) change VideoCX/VideoCY/
