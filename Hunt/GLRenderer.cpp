@@ -1549,6 +1549,7 @@ void GLRenderer::BeginTerrainFrame()
 void GLRenderer::BeginWaterFrame()
 {
     m_waterVertices.clear();
+    m_waterUsedLayers.fill(false);
 }
 
 void GLRenderer::RenderWaterSurface()
@@ -1559,16 +1560,13 @@ void GLRenderer::RenderWaterSurface()
 
     EnsureTerrainTextureArray();
 
-    std::array<bool, kMaxTerrainTextureLayers> usedLayers{};
-    for (const TerrainVertex& vertex : m_waterVertices) {
-        const int layer = static_cast<int>(vertex.layer + 0.5f);
-        if (layer >= 0 && layer < kMaxTerrainTextureLayers && Textures[layer]) {
-            usedLayers[layer] = true;
-        }
-    }
-
+    // m_waterUsedLayers is maintained incrementally by AppendWaterTriangle
+    // (called from CollectWaterTileFast / CollectWaterTile / CollectWaterTile2),
+    // so we no longer need to scan m_waterVertices to discover which layers
+    // are in use. The Textures[layer] check mirrors the previous behavior:
+    // a vertex referencing a null texture pointer should be skipped.
     for (int layer = 0; layer < kMaxTerrainTextureLayers; ++layer) {
-        if (!usedLayers[layer] || !Textures[layer]) {
+        if (!m_waterUsedLayers[layer] || !Textures[layer]) {
             continue;
         }
         if (m_uploadedTerrainTextures[layer] != Textures[layer].get()) {
@@ -3896,6 +3894,15 @@ void GLRenderer::AppendWaterTriangle(std::vector<TerrainVertex>& vertices,
 {
     const auto uv = GetTerrainUVs(reverse, second, direction);
     const float layer = static_cast<float>(textureLayer);
+
+    // Mark the water texture layer as used this frame so RenderWaterSurface
+    // can skip its O(m_waterVertices) layer scan. All three Collect paths
+    // (Fast, Tile, Tile2) go through this function, so the mark is
+    // centralized here. The bounds check is defensive — callers already
+    // validate, but a stray out-of-range layer would corrupt the array.
+    if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers) {
+        m_waterUsedLayers[textureLayer] = true;
+    }
 
     // Phase 1.5: same uint8 packing as AppendTerrainTriangle. v0.Fog
     // is in 0..200 from CalcFogLevel (clamped to FLimit, typically

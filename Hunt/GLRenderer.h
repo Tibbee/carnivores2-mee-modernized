@@ -456,6 +456,12 @@ private:
     // frame and crashing the terrain renderer.
     std::array<TEXTURE*, kMaxTerrainTextureLayers> m_uploadedTerrainTextures{};
 
+    // Per-frame mask of water texture layers actually referenced by
+    // collected water vertices. Maintained incrementally by
+    // AppendWaterTriangle so RenderWaterSurface can skip its
+    // O(m_waterVertices) layer scan.
+    std::array<bool, kMaxTerrainTextureLayers> m_waterUsedLayers{};
+
     // Sky pipeline
     unsigned int m_skyShader = 0;
     unsigned int m_skyVAO = 0;
