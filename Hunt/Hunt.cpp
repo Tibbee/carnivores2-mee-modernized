@@ -141,6 +141,31 @@ void PreCashGroundModel()
   BOOL FogFound = false;
   NeedWater = false;
 
+  static float waveCache[32][32];
+  static int waveCacheRandomMap[32][32] = {};
+  static int waveCacheTime = 0;
+  static bool waveCacheReady = false;
+
+  if (!waveCacheReady || waveCacheTime != RealTime) {
+    waveCacheTime = RealTime;
+    for (int wy = 0; wy < 32; wy++) {
+      for (int wx = 0; wx < 32; wx++) {
+        waveCacheRandomMap[wy][wx] = RandomMap[wy][wx];
+        waveCache[wy][wx] = static_cast<float>(sin(-pi/2 + waveCacheRandomMap[wy][wx] / 128 + static_cast<float>(RealTime) / 200.f));
+      }
+    }
+    waveCacheReady = true;
+  } else {
+    for (int wy = 0; wy < 32; wy++) {
+      for (int wx = 0; wx < 32; wx++) {
+        if (waveCacheRandomMap[wy][wx] != RandomMap[wy][wx]) {
+          waveCacheRandomMap[wy][wx] = RandomMap[wy][wx];
+          waveCache[wy][wx] = static_cast<float>(sin(-pi/2 + waveCacheRandomMap[wy][wx] / 128 + static_cast<float>(RealTime) / 200.f));
+        }
+      }
+    }
+  }
+
   MapMinY = 10241024;
   Vector3d rv;
 
