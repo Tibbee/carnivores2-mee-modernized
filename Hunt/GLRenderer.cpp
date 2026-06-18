@@ -656,6 +656,7 @@ bool GLRenderer::Initialize()
         "out vec3 vFogColor;\n"
         "out float vAlpha;\n"
         "out float vCutout;\n"
+        "out float vViewZ;\n"
         "void main() {\n"
         "   gl_Position = uProjection * vec4(aPos, 1.0);\n"
         "   vTexCoord = aTexCoord;\n"
@@ -665,6 +666,7 @@ bool GLRenderer::Initialize()
         "   vAlpha  = aLightFogAlphaCutout.z;\n"
         "   vCutout = aLightFogAlphaCutout.w;\n"
         "   vFogColor = aFogColor;\n"
+        "   vViewZ = max(-aPos.z, 0.0);\n"
         "}\n";
 
     const char* modelFragmentSource =
@@ -676,6 +678,7 @@ bool GLRenderer::Initialize()
         "in vec3 vFogColor;\n"
         "in float vAlpha;\n"
         "in float vCutout;\n"
+        "in float vViewZ;\n"
         "uniform PerFrame {\n"
         "   mat4 uProjection;\n"
         "   vec2 uFogRange;\n"
@@ -693,6 +696,10 @@ bool GLRenderer::Initialize()
         "   vec3 tinted = litColor * vFogColor;\n"
         "   litColor = mix(litColor, tinted, uTintByFogColor);\n"
         "   vec3 finalColor = mix(litColor, vFogColor, vFog);\n"
+        "   // Match the terrain/instanced-model horizon fade for legacy\n"
+        "   // model-path objects (BMP billboards and water-clipped meshes).\n"
+        "   float distanceFog = clamp((vViewZ - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);\n"
+        "   finalColor = mix(finalColor, uDistanceFogColor, distanceFog);\n"
         "   FragColor = vec4(finalColor, texColor.a * vAlpha);\n"
         "}\n";
 
