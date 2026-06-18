@@ -200,6 +200,11 @@ void CopyHARDToDIB()
             dstRow[x] = static_cast<WORD>((r << 10) | (g << 5) | b);
         }
     }
+
+    // The full DIB was overwritten with 3D scene pixels.  The next
+    // frame must do a full clear + full upload so the HUD overlay
+    // texture doesn't show stale scene data.
+    g_GLRenderer->InvalidateHUDOverlay();
 }
 
 // ============================================================================
@@ -213,9 +218,10 @@ void RenderSkyPlane()
 #endif
     if (g_GLRenderer) {
         g_GLRenderer->ClearVideoBuf();
-        // Clear lpVideoBuf at the start of each frame for HUD overlay
-        if (lpVideoBuf && VideoPitchB > 0 && WinH > 0)
-            memset(lpVideoBuf, 0, static_cast<size_t>(VideoPitchB) * WinH);
+        // Clear only previous frame's dirty HUD regions (not the whole buffer).
+        // The rest of lpVideoBuf retains its state from the last upload — no
+        // need to zero it out because the GPU texture already matches.
+        g_GLRenderer->ClearStaleHUDRegions();
         g_GLRenderer->RenderSkyPlane();
     }
 }
@@ -518,6 +524,8 @@ void DrawPicture(int x, int y, TPicture& pic)
             d[i] = Conv565to555(src[i]);
         }
     }
+
+    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x, y, pic.W, pic.H);
 }
 
 void DrawScaledPicture(int x, int y, int w, int h, TPicture& pic)
@@ -548,6 +556,7 @@ void DrawFlash(int x, int y, int w, int h, TPicture& pic)
             WORD* d = dst + dstY * VideoPitch + dstX;
             memcpy(d, src, copyW * sizeof(WORD));
         }
+        if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x, y, w, h);
         return;
     }
 
@@ -562,6 +571,8 @@ void DrawFlash(int x, int y, int w, int h, TPicture& pic)
             dst[dstY * VideoPitch + dstX] = pic.lpImage[sy * pic.W + sx];
         }
     }
+
+    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x, y, w, h);
 }
 
 void DrawTrophyText(int x, int y)
@@ -596,6 +607,9 @@ void DrawScoreText(int x, int y)
     tx += sz.cx;
     wsprintf(t, "%d", ScoreDisp);
     textOut(tx, ty, t, 0x0000BFBF);
+
+    // Mark dirty: 1 line at (x+14, y+18) + shadow
+    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x + 13, y + 17, 260, 18);
 
     if (oldFont) SelectObject(hdcCMain, oldFont);
     SelectObject(hdcCMain, hbmpOld);
@@ -636,6 +650,9 @@ void DrawSurvivalText(int x, int y)
     tx += sz.cx;
     wsprintf(t, "%i", TrophyRoom2.survivalHighScore);
     textOut(tx, ty, t, 0x0000BFBF);
+
+    // Mark dirty: 2 lines at (x+40, y+98) and (x+40, y+124) + shadow
+    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x + 39, y + 97, 180, 45);
 
     if (oldFont) SelectObject(hdcCMain, oldFont);
     SelectObject(hdcCMain, hbmpOld);
@@ -692,6 +709,9 @@ void RenderHealthBar()
         for (int x = 0; x < L0; x++)
             row[x0 + x] = static_cast<WORD>(HCOLOR);
     }
+
+    // Mark dirty: health bar rect including 1px border on all sides
+    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x0 - 1, y0 - 1, L + 2, H + 3);
 }
 
 void ShowControlElements()
@@ -719,12 +739,16 @@ void ShowControlElements()
         textOut(WinEX - 81, 11, buf, 0x0020A0A0);
         wsprintf(buf, "polys: %d", dFacesCount);
         textOut(WinEX - 90, 24, buf, 0x0020A0A0);
+        // 2 lines of timer text near top-left of extended area
+        if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(WinEX - 91, 9, 100, 32);
     }
 
     if (MessageList.timeleft)
     {
         if (RealTime > MessageList.timeleft) MessageList.timeleft = 0;
         textOut(10, 10, MessageList.mtext, 0x0020A0A0);
+        // Variable-length message, generous estimate
+        if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(8, 8, 500, 20);
     }
 
     if (ExitTime)
@@ -734,6 +758,8 @@ void ShowControlElements()
         textOut(VideoCX - GetTextW(hdcMain, buf) / 2, yline, buf, 0x0060C0D0);
         wsprintf(buf, "%d seconds left.", 1 + ExitTime / 1000);
         textOut(VideoCX - GetTextW(hdcMain, buf) / 2, yline + 18, buf, 0x0060C0D0);
+        // 2 lines centered, ~300px wide
+        if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(VideoCX - 150, yline - 1, 300, 36);
     }
 
     if (WaveNoteTime)
@@ -741,6 +767,8 @@ void ShowControlElements()
         int yline = WinH / 3;
         wsprintf(buf, "Waves Survived: %i", SurvivalWave - 1);
         textOut(VideoCX - GetTextW(hdcMain, buf) / 2, yline, buf, 0x0060C0D0);
+        // 1 line centered
+        if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(VideoCX - 120, yline - 1, 240, 18);
     }
 
     if (oldFont) SelectObject(hdcCMain, oldFont);

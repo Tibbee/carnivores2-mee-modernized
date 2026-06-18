@@ -511,11 +511,35 @@ private:
     void EnsureUITexture();
     void UpdateUIPixels();
 
+    // Dirty-rectangle HUD upload tracking — avoids uploading the entire
+    // lpVideoBuf every frame when only small regions changed.
+    static constexpr int kMaxDirtyRects = 24;
+    struct DirtyRect { int x, y, w, h; };
+    DirtyRect m_dirtyRects[kMaxDirtyRects];       // rects drawn this frame
+    DirtyRect m_prevDirtyRects[kMaxDirtyRects];   // rects from previous frame
+    int  m_dirtyRectCount = 0;
+    int  m_prevDirtyRectCount = 0;
+    bool m_hudNeedsFullUpload = true;  // set after texture (re)creation
+    bool m_hudNeedsFullClear  = false; // set after CopyHARDToDIB screenshot
+
 public:
     float GetSunLight() const { return m_sunLight; }
     void RenderFSRect(uint32_t color);
     void ApplySunDepthOcclusion();
     void DrawHUDOverlay();
+
+    // Called by functions that write to lpVideoBuf to mark the affected
+    // screen region (in lpVideoBuf pixel coordinates, clamped).
+    void MarkDirtyRect(int x, int y, int w, int h);
+
+    // Called at frame start instead of full-buffer memset.
+    // Clears only the regions that were uploaded last frame, so the
+    // lpVideoBuf is zeroed precisely where stale content may remain.
+    void ClearStaleHUDRegions();
+
+    // Called after a full-DIB write (e.g., CopyHARDToDIB screenshot)
+    // to force the next frame to do a full clear + full upload.
+    void InvalidateHUDOverlay();
 };
 
 extern GLRenderer* g_GLRenderer;
