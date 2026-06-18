@@ -1,6 +1,6 @@
 # Carnivores 2 Menu
 
-Standalone launcher / menu executable for **Carnivores 2 Modder’s Engine**, replacing `StartLegacy.exe`.
+Standalone launcher / menu executable for **Carnivores 2 Modder's Engine**, replacing `StartLegacy.exe`.
 
 **_Derived from [C2MenuAttempt](https://github.com/carnivores-cpe/Carn2-Menu)._**
 
@@ -19,24 +19,46 @@ Standalone launcher / menu executable for **Carnivores 2 Modder’s Engine**, re
 2. Make sure the chosen renderer `.ren` is either on PATH or in the same folder.
 3. Run `Carnivores2Menu.exe`.
 
+## Current feature state
+
+The menu now matches or exceeds the `carnivores_menu_mee` reference in every tracked feature. See `CarnivoresPort/docs/issues/menu-feature-gaps.md` for the full tracker.
+
+| Feature | Status | Since |
+|---------|--------|-------|
+| `_RES.TXT` C2ME block skipping (`overwrite{}`, etc.) | ✅ | `5a84f62` |
+| Audio feedback (ambient, hover, click) | ✅ | `5e4d647` + follow-ups |
+| Save-on-quit | ✅ | `5acc0e8` |
+| `.c2map` custom map discovery | ✅ | `fe42409` |
+| Accessory score multipliers (`accessories {}` in `_MENU.TXT`) | ✅ | `6b9c421` |
+| FOV slider in video options | ✅ | `c37ed16` |
+| `config.cfg` for extended settings | ✅ | `cc8c637` |
+| TrophyLoad/TrophySave bool overflow fix | ✅ | `b958205` |
+| Resolution index remapping (StartLegacy compat) | ✅ | `b958205` |
+| Renderer persistence across launches | ✅ | `f2953ff` |
+| TGA slider art | ❌ | (only remaining gap) |
+
 ## Known compatibility notes
 
-- The bundled `Resources.cpp` is the original C2MenuAttempt parser.
-  It handles vanilla Carnivores 2 `_RES.TXT`, but may fail on C2ME-era
-  `_RES.TXT` files because it does not understand `overwrite{…}` blocks
-  inside `characters`.
-- The long-term plan is to reuse the game’s own parser from `Hunt/Resources.cpp`
-  so the menu and the engine read the same format.
-- Audio selection is now trimmed to the two supported backends: DirectSound and OpenAL Soft.
+- The bundled `Menu/Resources.cpp` parser handles vanilla Carnivores 2 `_RES.TXT` and all C2ME-era `_MENU.TXT` extensions (`overwrite{…}` blocks inside `characters`, `accessories{}`, `prices{}`). C2ME-specific sub-blocks in `characters` (`spawninfo`, `spawngroup`, `killtype`, `tropinfo`, `deathtype`, `idlegroup`, `packinfo`, `packgroup`, `waterIgroup`) are skipped via `SkipNestedBlock()`.
+- Audio selection is trimmed to the two supported backends: DirectSound and OpenAL Soft.
 - Menu audio feedback is enabled via OpenAL Soft: ambient music on main menu, hover and click sounds.
+- `config.cfg` (text-based, in working directory) stores FOV and other extended settings not in the legacy binary trophy format. Written on change, read at menu startup.
 
 ## Targets / outputs
 
 - Executable name: `Carnivores2Menu.exe`
-- Produced by the `Carnivores2Menu` cmake target
+- Produced by the `Carnivores2Menu` cmake target via the `menu-release` preset
 - 32-bit (`Win32`) only
+- Fastest build: `cmake --build --preset menu-release`
 
 ---
 
-See **CarnivoresPort/docs/design/menu-system-analysis.md** and
-**CarnivoresPort/docs/issues/menu-recreation-status.md** for broader context.
+## See also
+
+- **CarnivoresPort/docs/design/menu-system-analysis.md** — current architecture and parser behavior
+- **CarnivoresPort/docs/issues/menu-feature-gaps.md** — full feature tracker
+- **CarnivoresPort/docs/issues/resolved.md** — historically fixed menu bugs (stub DLLs, EFX detection, parser compatibility, renderer persistence)
+- **../../AGENTS.md** § "Menu System" — fuller menu documentation
+- **../../CURRENT_STATUS.md** — overall C2 ME state, including this menu's status
+
+The menu was originally adapted from `C2MenuAttempt/` (a community effort, gitignored and not part of the tracked source). The current `Menu/` directory is the live implementation.
