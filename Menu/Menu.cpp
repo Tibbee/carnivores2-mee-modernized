@@ -227,17 +227,25 @@ const char st_UnitText[2][10] = { "Metric", "Imperial" };
 const char st_HMLText[4][8] = { "Low", "Medium", "High", "Ultra" };
 const char st_TextureText[3][5] = { "Low", "High", "Auto" };
 const char st_AlphaKeyText[2][14] = { "Color Key", "Alpha Channel" };
-// Index 1 was 3Dfx Glide in the original launcher; we repurpose it as
-// OpenGL so that old trophy saves with RenderAPI=1 still launch a
-// working renderer (v_gl.ren) instead of the removed 3DFX binary.
-const char st_RenText[7][12] = { "Software", "OpenGL", "Direct3D 7", "OpenGL", "Direct3D 9", "Direct3D 11", "Vulkan" };
-const char g_RendererFile[7][8] = { "v_soft", "v_gl", "v_d3d", "v_gl", "v_d3d9", "v_d3d11", "v_vulk" };
+// The new menu exposes only Software and OpenGL. Legacy Direct3D values are
+// normalized back to OpenGL so old profiles/configs never launch v_d3d.ren.
+const char st_RenText[kRenderAPI_Count][12] = { "Software", "OpenGL" };
+const char g_RendererFile[kRenderAPI_Count][8] = { "v_soft", "v_gl" };
 const char st_AudText[2][16] = { "DirectSound", "OpenAL Soft" };
 const char st_FpsText[kFpsLimitCount][12] = { "Unlimited", "60", "120", "240" };
 
 static bool IsOpenGLRendererIndex(int api)
 {
-	return api == 1 || api == 3;
+	return NormalizeMenuRenderAPI(api) == kRenderAPI_OpenGL;
+}
+
+static void NormalizeRendererOption()
+{
+	const int32_t normalized = NormalizeMenuRenderAPI(g_Options.RenderAPI);
+	if (normalized != g_Options.RenderAPI) {
+		g_Options.RenderAPI = normalized;
+		SaveConfig();
+	}
 }
 
 static void AppendOpenGLLaunchFlags(std::stringstream& params)
@@ -1938,8 +1946,9 @@ void MenuEventInput(int32_t menu)
 							{
 								WaitForMouseRelease();
 								g_Options.RenderAPI++;
-								if (g_Options.RenderAPI == 3)
-									g_Options.RenderAPI = 0;
+								if (g_Options.RenderAPI >= kRenderAPI_Count)
+									g_Options.RenderAPI = kRenderAPI_Software;
+								g_Options.RenderAPI = NormalizeMenuRenderAPI(g_Options.RenderAPI);
 								SaveConfig();
 							}
 							if (mo.Hilite == 1) // Resolution
@@ -2473,6 +2482,8 @@ Perform per-frame/tick update of the menus
 */
 void ProcessMenu()
 {
+	NormalizeRendererOption();
+
 	GetCursorPos(&g_CursorPos);
 	ScreenToClient(hwndMain, &g_CursorPos);
 

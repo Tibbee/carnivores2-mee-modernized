@@ -1062,6 +1062,7 @@ void TrophyLoad(Profile& profile, int pr)
 	fs.read(reinterpret_cast<char*>(&g_Options.OptSys), 4);
 	fs.read(reinterpret_cast<char*>(&g_Options.SoundAPI), 4);
 	fs.read(reinterpret_cast<char*>(&g_Options.RenderAPI), 4);
+	g_Options.RenderAPI = NormalizeMenuRenderAPI(g_Options.RenderAPI);
 	g_Options.SoundAPI = NormalizeAudioBackend(g_Options.SoundAPI);
 
 	// FOV and other extended settings are now in config.cfg, not here.
@@ -1455,10 +1456,9 @@ static bool ParseConfigLine(const std::string& line)
 	if (key == "renderer") {
 		int v;
 		if (iss >> v) {
-			// 0=Software, 1=OpenGL (was 3Dfx), 2=Direct3D 7
-			if (v < 0) v = 0;
-			if (v > 2) v = 0;
-			g_Options.RenderAPI = v;
+			// 0=Software, 1=OpenGL. Legacy Direct3D values are normalized
+			// to OpenGL so old configs do not launch v_d3d.ren.
+			g_Options.RenderAPI = NormalizeMenuRenderAPI(v);
 		}
 		return true;
 	}

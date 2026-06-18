@@ -553,6 +553,18 @@ public:
 #endif
 };
 
+enum MenuRenderAPI : int32_t
+{
+	kRenderAPI_Software = 0,
+	kRenderAPI_OpenGL = 1,
+	kRenderAPI_Count = 2
+};
+
+inline int32_t NormalizeMenuRenderAPI(int32_t api)
+{
+	return api == kRenderAPI_Software ? kRenderAPI_Software : kRenderAPI_OpenGL;
+}
+
 class Options
 {
 public:
