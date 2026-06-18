@@ -1451,6 +1451,7 @@ void DoHalt2(LPSTR);
 _EXTORNOT   char logt[128];
 void CreateLog();
 void PrintLog(LPSTR l);
+void PrintLogVerbose(LPSTR l);
 void CloseLog();
 
 _EXTORNOT   float BackViewR;
@@ -1908,6 +1909,7 @@ _EXTORNOT TRes ResolutionList[128];
 _EXTORNOT BOOL SHADOWS3D,REVERSEMS;
 
 _EXTORNOT BOOL SLOW, DEBUG, MORPHP, MORPHA;
+_EXTORNOT bool g_VerboseLogging;
 _EXTORNOT HANDLE hlog;
 
 

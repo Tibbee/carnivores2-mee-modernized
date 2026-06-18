@@ -2411,7 +2411,7 @@ void GLRenderer::RenderObject(int x, int y)
             char buf[128];
             sprintf(buf, "WARNING: m_objectList hit 8192 cap (%zu entries); objects dropped (hit #%d)\n",
                     m_objectList.size(), hitCount);
-            PrintLog(buf);
+            PrintLogVerbose(buf);
         }
         return;
     }

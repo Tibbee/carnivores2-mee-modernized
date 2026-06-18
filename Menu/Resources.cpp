@@ -1332,6 +1332,7 @@ void Options::Default()
 	this->SoundAPI = AUDIO_OPENALSOFT; // Default to OpenAL Soft
 	this->RenderAPI = 1; // Default to OpenGL
 	this->OptFpsLimit = kFpsLimitDefault;
+	this->VerboseLogging = false;
 }
 
 
@@ -1438,6 +1439,7 @@ void SaveConfig()
 	fs << "fov " << g_Options.FOV << "\n";
 	fs << "object_detail " << g_Options.ObjectDetail << "\n";
 	fs << "fps_limit " << g_Options.OptFpsLimit << "\n";
+	fs << "verbose_logging " << (g_Options.VerboseLogging ? 1 : 0) << "\n";
 
 	std::cout << "Config Saved (" << kConfigFile << ")." << std::endl;
 }
@@ -1486,6 +1488,14 @@ static bool ParseConfigLine(const std::string& line)
 			if (v < 0) v = 0;
 			if (v >= kFpsLimitCount) v = kFpsLimitDefault;
 			g_Options.OptFpsLimit = v;
+		}
+		return true;
+	}
+
+	if (key == "verbose_logging") {
+		int v;
+		if (iss >> v) {
+			g_Options.VerboseLogging = (v != 0);
 		}
 		return true;
 	}

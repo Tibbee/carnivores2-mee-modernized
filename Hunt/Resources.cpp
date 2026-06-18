@@ -3372,9 +3372,9 @@ void ReadAreaTable (FILE *stream, int areaNumber)
 
 				char testBuff[100];
 				sprintf(testBuff, "\n TEST: %i", TotalAreaInfo);
-				PrintLog(testBuff);
+				PrintLogVerbose(testBuff);
 				sprintf(testBuff, "\n TES2: %i", areaNumber);
-				PrintLog(testBuff);
+				PrintLogVerbose(testBuff);
 
 
 				if (TotalAreaInfo == areaNumber) {
@@ -5210,6 +5210,12 @@ void PrintLog(LPSTR l)
   else
     WriteFile(hlog, l, strlen(l), &w, nullptr);
 
+}
+
+void PrintLogVerbose(LPSTR l)
+{
+  if (!g_VerboseLogging) return;
+  PrintLog(l);
 }
 
 void CloseLog()

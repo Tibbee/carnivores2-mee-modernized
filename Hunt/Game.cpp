@@ -816,9 +816,9 @@ void AddShipTask(int cindex)
 		  TrophyRoom2.Body[t].time = Characters[cindex].tempTime;
 		  TrophyRoom2.Body[t].date = Characters[cindex].tempDate;
 		  TrophyRoom2.Body[t].range = Characters[cindex].tempRange;
-		  PrintLog("Trophy added: ");
-		  PrintLog(DinoInfo[Characters[cindex].CType].Name);
-		  PrintLog("\n");
+		  PrintLogVerbose("Trophy added: ");
+		  PrintLogVerbose(DinoInfo[Characters[cindex].CType].Name);
+		  PrintLogVerbose("\n");
 	  
   }
 }
@@ -1253,7 +1253,7 @@ DWORD WINAPI ServerCommsThread(LPVOID lpParameter)
 			if (init) {
 				SendPacket(&ClientSocket, bufSizeHostInit, true);
 				init = false;
-				PrintLog("INIT_PACKET_SENT\n");//TEST
+				PrintLogVerbose("INIT_PACKET_SENT\n");//TEST
 			} else SendPacket(&ClientSocket, bufSizeHost, false);
 
 		} else if (iResult != 0) {
@@ -1290,7 +1290,7 @@ DWORD WINAPI ClientCommsThread(LPVOID lpParameter)
 
 		} while (!responded);
 
-		if (init) PrintLog("INIT_PACKET_RECV\n");//TEST
+		if (init) PrintLogVerbose("INIT_PACKET_RECV\n");//TEST
 		init = false;
 
 		//Sleep(10);//test
@@ -3118,10 +3118,10 @@ void RemoveCurrentTrophy()
   if (!TrophyMode) return;
   if (!TrophyRoom2.Body[TrophyBody].ctype) return;
 
-  PrintLog("Trophy removed: ");
+  PrintLogVerbose("Trophy removed: ");
   //PrintLog(DinoInfo[TrophyRoom.Body[TrophyBody].ctype].Name);
-  PrintLog(DinoInfo[TrophyRoom2.Body[TrophyBody].ctype].Name);
-  PrintLog("\n");
+  PrintLogVerbose(DinoInfo[TrophyRoom2.Body[TrophyBody].ctype].Name);
+  PrintLogVerbose("\n");
 
   
   for (int c=0; c<TrophyBody; c++)
@@ -3357,6 +3357,9 @@ static void LoadConfig()
         if (value >= 0 && value <= 3) {
           OptFpsLimit = value;
         }
+      }
+      else if (_stricmp(key, "verbose_logging") == 0) {
+        g_VerboseLogging = (value != 0);
       }
       // Future settings: add else-if branches here
     }

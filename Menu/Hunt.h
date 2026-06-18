@@ -582,6 +582,7 @@ public:
 
 	int32_t	SoundAPI; // Audio system
 	int32_t OptFpsLimit; // FPS limit, 0=Unlimited, 1=60, 2=120, 3=240
+	bool VerboseLogging; // Enable verbose (per-frame) debug logging
 
 	TKeyMap KeyMap; // Controls mapping
 	bool	MouseInvert;
