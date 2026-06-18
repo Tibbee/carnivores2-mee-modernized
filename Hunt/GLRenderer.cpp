@@ -4404,18 +4404,58 @@ void GLRenderer::RenderGround()
     m_transparentModelItems.clear();
     m_objectList.clear();
 
+    // If water is needed this frame, begin water collection here so we
+    // can collect terrain + water vertices in a single ring walk instead
+    // of two separate passes over the same ~1,800 tiles.
+    if (NeedWater) {
+        BeginWaterFrame();
+    }
+
+    // Precompute water distance/fade constants once for the unified walk.
+    float wViewDistSq = 0.0f, wFadeStart = 0.0f, wFadeStartSq = 0.0f;
+    float wFadeEnd = 0.0f, wFadeEndSq = 0.0f;
+    if (NeedWater) {
+        const float vd = static_cast<float>(ctViewR * 256);
+        wViewDistSq = vd * vd;
+        wFadeStart = static_cast<float>((ctViewR - 8) << 8);
+        wFadeStartSq = wFadeStart * wFadeStart;
+        wFadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
+        wFadeEndSq = wFadeEnd * wFadeEnd;
+    }
+
     for (int r = ctViewR; r > 0; --r) {
         for (int x = -r; x <= r; ++x) {
             CollectTerrainTile(CCX + x, CCY + r, r);
             CollectTerrainTile(CCX + x, CCY - r, r);
+            if (NeedWater) {
+                CollectWaterTileFast(CCX + x, CCY + r, r, wViewDistSq,
+                                     wFadeStart, wFadeStartSq,
+                                     wFadeEnd, wFadeEndSq);
+                CollectWaterTileFast(CCX + x, CCY - r, r, wViewDistSq,
+                                     wFadeStart, wFadeStartSq,
+                                     wFadeEnd, wFadeEndSq);
+            }
         }
         for (int y = -r + 1; y < r; ++y) {
             CollectTerrainTile(CCX + r, CCY + y, r);
             CollectTerrainTile(CCX - r, CCY + y, r);
+            if (NeedWater) {
+                CollectWaterTileFast(CCX + r, CCY + y, r, wViewDistSq,
+                                     wFadeStart, wFadeStartSq,
+                                     wFadeEnd, wFadeEndSq);
+                CollectWaterTileFast(CCX - r, CCY + y, r, wViewDistSq,
+                                     wFadeStart, wFadeStartSq,
+                                     wFadeEnd, wFadeEndSq);
+            }
         }
     }
 
     CollectTerrainTile(CCX, CCY, 0);
+    if (NeedWater) {
+        CollectWaterTileFast(CCX, CCY, 0, wViewDistSq,
+                             wFadeStart, wFadeStartSq,
+                             wFadeEnd, wFadeEndSq);
+    }
 
     RenderTerrain();
 }
@@ -4463,39 +4503,9 @@ void GLRenderer::RenderWater()
         return;
     }
 
-    BeginWaterFrame();
-
-    // Precompute per-frame constants once; avoids recomputing them
-    // identically in every CollectWaterTile call (~1,200 tiles at max
-    // view distance). These are derived from ctViewR which is constant
-    // for the frame.
-    const float viewDistance = static_cast<float>(ctViewR * 256);
-    const float viewDistanceSq = viewDistance * viewDistance;
-    const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
-    const float fadeStartSq = fadeStart * fadeStart;
-    const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
-    // Squared fade end: used to avoid std::sqrt in CollectWaterTileFast
-    // (saves ~0.5-0.8ms at max view distance).
-    const float fadeEndSq = fadeEnd * fadeEnd;
-
-    for (int r = ctViewR; r > 0; --r) {
-        for (int x = -r; x <= r; ++x) {
-            CollectWaterTileFast(CCX + x, CCY + r, r, viewDistanceSq,
-                                 fadeStart, fadeStartSq, fadeEnd, fadeEndSq);
-            CollectWaterTileFast(CCX + x, CCY - r, r, viewDistanceSq,
-                                 fadeStart, fadeStartSq, fadeEnd, fadeEndSq);
-        }
-        for (int y = -r + 1; y < r; ++y) {
-            CollectWaterTileFast(CCX + r, CCY + y, r, viewDistanceSq,
-                                 fadeStart, fadeStartSq, fadeEnd, fadeEndSq);
-            CollectWaterTileFast(CCX - r, CCY + y, r, viewDistanceSq,
-                                 fadeStart, fadeStartSq, fadeEnd, fadeEndSq);
-        }
-    }
-
-    CollectWaterTileFast(CCX, CCY, 0, viewDistanceSq,
-                         fadeStart, fadeStartSq, fadeEnd, fadeEndSq);
-
+    // Water vertices were already collected during the unified ring walk
+    // in RenderGround().  Only the GL draw call remains here — it must
+    // stay after the model/shadow passes for correct alpha blending order.
     RenderWaterSurface();
 }
 
