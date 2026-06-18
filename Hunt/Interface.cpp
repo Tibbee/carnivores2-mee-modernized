@@ -142,6 +142,10 @@ void SetFullScreen()
   if (!_GameState) return;
 
   FULLSCREEN = !FULLSCREEN;
+  if (BORDERLESS) {
+    BORDERLESS = false;
+    FULLSCREEN = true;
+  }
 
 #ifndef _gl
   if (lpDD) {
@@ -175,6 +179,20 @@ void Wait(int time)
 {
   unsigned int t = timeGetTime() + time;
   while (t>timeGetTime()) ;
+}
+
+
+static void GetBorderlessWindowRect(RECT& rc)
+{
+  if (SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0) &&
+      (rc.right - rc.left) > 0 && (rc.bottom - rc.top) > 0) {
+    return;
+  }
+
+  rc.left = 0;
+  rc.top = 0;
+  rc.right = GetSystemMetrics(SM_CXSCREEN);
+  rc.bottom = GetSystemMetrics(SM_CYSCREEN);
 }
 
 
@@ -266,6 +284,18 @@ void SetVideoMode(int W, int H)
     // resolutions where the window extends off-screen (e.g. 2560x1440 windowed
     // on a 2560x1440 desktop).
     SetWindowPos(hwndMain, HWND_TOP, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+
+    POINT center = { VideoCX, VideoCY };
+    SetCursorPos(center.x, center.y);
+  } else if (BORDERLESS) {
+    RECT desktopRect;
+    GetBorderlessWindowRect(desktopRect);
+
+    SetWindowLong(hwndMain, GWL_STYLE, WS_VISIBLE | WS_OVERLAPPED);
+    SetWindowPos(hwndMain, HWND_TOP, desktopRect.left, desktopRect.top,
+                desktopRect.right - desktopRect.left,
+                desktopRect.bottom - desktopRect.top,
+                SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 
     POINT center = { VideoCX, VideoCY };
     SetCursorPos(center.x, center.y);

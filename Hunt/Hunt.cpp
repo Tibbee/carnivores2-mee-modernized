@@ -6,6 +6,22 @@
 float rav=0;
 float rbv=0;
 
+#ifndef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+#define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 ((DPI_AWARENESS_CONTEXT)-4)
+#endif
+
+static void EnablePerMonitorV2DpiAwareness()
+{
+  using SetProcessDpiAwarenessContextProc = BOOL(WINAPI*)(DPI_AWARENESS_CONTEXT);
+  auto setProcessDpiAwarenessContext =
+    reinterpret_cast<SetProcessDpiAwarenessContextProc>(
+      GetProcAddress(GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessContext"));
+
+  if (setProcessDpiAwarenessContext) {
+    setProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+  }
+}
+
 #ifdef _soft
 BOOL PHONG = false;
 BOOL GOUR  = false;
@@ -57,15 +73,10 @@ void ResetMousePos()
 {
   if (!hwndMain) return;
 
-  if (FULLSCREEN) {
-    if (_GameState && !PAUSE)
-      SetCursorPos(VideoCX, VideoCY);
-  } else {
-    if (blActive && _GameState && !PAUSE) {
-      POINT p = { VideoCX, VideoCY };
-      ClientToScreen(hwndMain, &p);
-      SetCursorPos(p.x, p.y);
-    }
+  if (blActive && _GameState && !PAUSE) {
+    POINT p = { VideoCX, VideoCY };
+    ClientToScreen(hwndMain, &p);
+    SetCursorPos(p.x, p.y);
   }
 }
 
@@ -1930,7 +1941,7 @@ void ProcessPlayerMovement()
   POINT ms;
 
   GetCursorPos(&ms);
-  if (!FULLSCREEN) ScreenToClient(hwndMain, &ms);
+  ScreenToClient(hwndMain, &ms);
   if (REVERSEMS) ms.y = -ms.y+VideoCY*2;
   // The per-frame mouse delta naturally scales with frame time because the
   // cursor is reset to the centre every frame, so ms-VideoCX/Y ~= V*T. The
@@ -2824,6 +2835,8 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	MSG msg;
 
   hInst = hInstance;
+  EnablePerMonitorV2DpiAwareness();
+
   CreateLog();
 
   CreateMainWindow();

@@ -235,6 +235,23 @@ const char g_RendererFile[7][8] = { "v_soft", "v_gl", "v_d3d", "v_gl", "v_d3d9",
 const char st_AudText[2][16] = { "DirectSound", "OpenAL Soft" };
 const char st_FpsText[kFpsLimitCount][12] = { "Unlimited", "60", "120", "240" };
 
+static bool IsOpenGLRendererIndex(int api)
+{
+	return api == 1 || api == 3;
+}
+
+static void AppendOpenGLLaunchFlags(std::stringstream& params)
+{
+	if (!IsOpenGLRendererIndex(g_Options.RenderAPI))
+		return;
+
+	// DWM-composed borderless mode keeps Windows 11 color management active
+	// for wide-gamut displays while still covering the desktop like fullscreen.
+	// The renderer resolves the borderless work area itself so menu DPI
+	// virtualization cannot pass scaled desktop metrics into the game.
+	params << " -borderless";
+}
+
 
 // ======================================================================= //
 // Global Layout Columns (initialized in InitInterface)
@@ -2281,6 +2298,7 @@ void MenuEventInput(int32_t menu)
 				if (wep && din)
 				{
 					TrophySave(g_UserProfile); // Save all the settings
+					AppendOpenGLLaunchFlags(params);
 					std::cout << "Launching...  `> " << renderer.str() << " " << params.str() << "`" << std::endl;
 					LaunchProcess(renderer.str(), params.str());
 					TrophyLoad(g_UserProfile, g_UserProfile.RegNumber); // Load the changes
@@ -2317,6 +2335,7 @@ void MenuEventInput(int32_t menu)
 					std::stringstream renderer("");
 					renderer << g_RendererFile[g_Options.RenderAPI] << ".ren";
 
+					AppendOpenGLLaunchFlags(params);
 					std::cout << "Execute: [" << renderer.str() << " " << params.str() << "]" << std::endl;
 					TrophySave(g_UserProfile); // Save the changes
 					LaunchProcess(renderer.str(), params.str());

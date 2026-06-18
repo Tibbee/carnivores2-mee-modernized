@@ -622,8 +622,10 @@ void ProcessCommandLine()
   int requestedWidth = WinW;
   int requestedHeight = WinH;
   BOOL requestedFullscreen = FULLSCREEN;
+  BOOL requestedBorderless = BORDERLESS;
   bool hasRequestedResolution = false;
   bool hasRequestedFullscreen = false;
+  bool hasRequestedBorderless = false;
 
   for (int a=0; a<__argc; a++)
   {
@@ -632,13 +634,25 @@ void ProcessCommandLine()
     if (equals_nocase(s, "/nofullscreen") || equals_nocase(s, "-nofullscreen") ||
         equals_nocase(s, "/windowed") || equals_nocase(s, "-windowed")) {
       requestedFullscreen = false;
+      requestedBorderless = false;
       hasRequestedFullscreen = true;
+      hasRequestedBorderless = true;
       continue;
     }
 
     if (equals_nocase(s, "/fullscreen") || equals_nocase(s, "-fullscreen")) {
       requestedFullscreen = true;
+      requestedBorderless = false;
       hasRequestedFullscreen = true;
+      hasRequestedBorderless = true;
+      continue;
+    }
+
+    if (equals_nocase(s, "/borderless") || equals_nocase(s, "-borderless")) {
+      requestedFullscreen = false;
+      requestedBorderless = true;
+      hasRequestedFullscreen = true;
+      hasRequestedBorderless = true;
       continue;
     }
 
@@ -710,6 +724,7 @@ void ProcessCommandLine()
   }
 
   if (hasRequestedFullscreen) FULLSCREEN = requestedFullscreen;
+  if (hasRequestedBorderless) BORDERLESS = requestedBorderless;
 
   if (hasRequestedResolution) {
     if (ResCount > 0) {
@@ -1593,6 +1608,7 @@ static void LoadConfig();
 void InitEngine()
 {
   FULLSCREEN   = true;
+  BORDERLESS   = false;
   DEBUG        = false;
 
   WATERANI     = true;
