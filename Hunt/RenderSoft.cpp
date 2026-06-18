@@ -2415,12 +2415,12 @@ void RenderNearModel(TModel* _mptr, float x0, float y0, float z0, int light, flo
     for (u=0; u<vused; u++) cp[u].ev.v.z-=12.0f;
     if (vused<3) goto LNEXT;
 
-    for (u=0; u<vused; u++) ClipVector(ClipA,u);
-    for (u=0; u<vused; u++) ClipVector(ClipC,u);
-
-    for (u=0; u<vused; u++) ClipVector(ClipB,u);
-    for (u=0; u<vused; u++) ClipVector(ClipD,u);
-    if (vused<3) goto LNEXT;
+    // near models (weapon, compass, wind dial) are placed in screen space
+    // via VideoCX/VideoCY and CameraW/CameraH. The fixed frustum planes
+    // (designed for the world view) clip them too aggressively in
+    // widescreen/high-res. The GL renderer avoids this by deriving the
+    // frustum from the current viewport. The rasterizer has its own X/Y
+    // scissor (WinEX/WinEY/WinW), so skip ClipA/B/C/D here.
 
     for (u=0; u<vused; u++)
     {
