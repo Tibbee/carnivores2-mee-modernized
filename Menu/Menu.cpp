@@ -49,6 +49,148 @@ enum MenuSetEnum {
 	OPT_MAX
 };
 
+// ======================================================================= //
+// Layout System
+// ======================================================================= //
+//
+// Modern layout system that auto-calculates spacing and supports proper
+// text alignment. Replaces hardcoded pixel coordinates for menu sections.
+//
+namespace Layout {
+
+	// Text alignment options (matches DTA_* values from wingdi.h)
+	enum Align {
+		LEFT   = 0,
+		RIGHT  = 2,
+		CENTER = 6
+	};
+
+	// A vertical column of items with consistent spacing and alignment
+	struct Column {
+		int x0;            // X position (left for LEFT, right for RIGHT, center for CENTER)
+		int yStart;        // Y position of first item
+		int yEnd;          // Y position of last item (bottom of column)
+		int itemCount;     // Number of items to display
+		Align align;       // Text alignment
+		int padding;       // Extra padding from edges
+
+		Column() : x0(0), yStart(0), yEnd(0), itemCount(0), align(LEFT), padding(0) {}
+
+		// Calculate Y position for item i, auto-spacing to fill panel height
+		int GetItemY(int i) const {
+			if (itemCount <= 0) return yStart;
+			int availableHeight = yEnd - yStart;
+			int spacing = availableHeight / itemCount;
+			return yStart + (spacing * i) + (spacing / 2) - 7; // Center vertically in slot
+		}
+
+		// Get the actual spacing being used
+		int GetSpacing() const {
+			if (itemCount <= 0) return 20;
+			return (yEnd - yStart) / itemCount;
+		}
+	};
+
+	// A rectangular region in the background artwork
+	struct Panel {
+		int x, y, w, h;
+
+		Panel() : x(0), y(0), w(0), h(0) {}
+		Panel(int x, int y, int w, int h) : x(x), y(y), w(w), h(h) {}
+
+		int GetRight() const { return x + w; }
+		int GetBottom() const { return y + h; }
+	};
+
+	// Helper: Get X position based on alignment within a panel
+	int GetAlignedX(int panelLeft, int panelRight, Align align, int padding = 15) {
+		switch (align) {
+			case LEFT:   return panelLeft + padding;
+			case RIGHT:  return panelRight - padding;
+			case CENTER: return (panelLeft + panelRight) / 2;
+			default:     return panelLeft + padding;
+		}
+	}
+
+} // namespace Layout
+
+// ======================================================================= //
+// Options Screen Layout Definition
+// ======================================================================= //
+// These values follow the original StartLegacy option screen spacing:
+// labels are right-aligned, values sit just to the right of the label column,
+// and sliders use the same track positions as the legacy artwork.
+//
+namespace OptionsLayout {
+
+	const int ROW_HEIGHT = 22;
+	const int ROW_HEIGHT_VIDEO = 21; // Fits the extra C2ME video rows inside the legacy panel.
+
+	// Panel regions from the original options artwork.
+	const Layout::Panel PANEL_GAME     (40,  75,  340, 175);  // Top-left game settings
+	const Layout::Panel PANEL_CONTROLS (422, 75,  338, 425);  // Right side key bindings
+	const Layout::Panel PANEL_VIDEO    (40, 285, 340, 255);  // Bottom-left video/settings
+
+	// Legacy-aligned option columns. yStart is biased so Column::GetItemY()
+	// returns the exact baseline used by the original menu (100, 353, 71).
+	const int GAME_LABEL_RIGHT_X   = 190;
+	const int OPTION_VALUE_X       = 205;
+	const int OPTION_SLIDER_X      = OPTION_VALUE_X;
+	const int OPTION_SLIDER_W      = 123;
+
+	const int CONTROLS_LABEL_RIGHT_X = 600;
+	const int CONTROLS_VALUE_X       = 617;
+	const int CONTROLS_SLIDER_X      = CONTROLS_VALUE_X + 1;
+	const int CONTROLS_SLIDER_W      = 123;
+
+	const int GAME_FIRST_Y   = 100;
+	const int VIDEO_FIRST_Y  = 353;
+	const int CONTROLS_FIRST_Y = 71;
+
+	Layout::Column MakeColumn(int x0, int firstY, int count, Layout::Align align, int rowHeight = ROW_HEIGHT)
+	{
+		Layout::Column col;
+		col.x0 = x0;
+		col.yStart = firstY - 4;
+		col.yEnd = col.yStart + (count * rowHeight);
+		col.itemCount = count;
+		col.align = align;
+		return col;
+	}
+
+	// Labels are right-aligned in their panel, values are left-aligned.
+	Layout::Column MakeGameLabels(int count)
+	{
+		return MakeColumn(GAME_LABEL_RIGHT_X, GAME_FIRST_Y, count, Layout::RIGHT);
+	}
+
+	Layout::Column MakeGameValues(int count)
+	{
+		return MakeColumn(OPTION_VALUE_X, GAME_FIRST_Y, count, Layout::LEFT);
+	}
+
+	Layout::Column MakeControlsLabels(int count)
+	{
+		return MakeColumn(CONTROLS_LABEL_RIGHT_X, CONTROLS_FIRST_Y, count, Layout::RIGHT);
+	}
+
+	Layout::Column MakeControlsValues(int count)
+	{
+		return MakeColumn(CONTROLS_VALUE_X, CONTROLS_FIRST_Y, count, Layout::LEFT);
+	}
+
+	Layout::Column MakeVideoLabels(int count)
+	{
+		return MakeColumn(GAME_LABEL_RIGHT_X, VIDEO_FIRST_Y, count, Layout::RIGHT, ROW_HEIGHT_VIDEO);
+	}
+
+	Layout::Column MakeVideoValues(int count)
+	{
+		return MakeColumn(OPTION_VALUE_X, VIDEO_FIRST_Y, count, Layout::LEFT, ROW_HEIGHT_VIDEO);
+	}
+
+} // namespace OptionsLayout
+
 
 enum DrawTextAlignEnum {
 	// Uses the same values as wingdi.h TA_LEFT and so on.
@@ -92,6 +234,14 @@ const char st_RenText[7][12] = { "Software", "OpenGL", "Direct3D 7", "OpenGL", "
 const char g_RendererFile[7][8] = { "v_soft", "v_gl", "v_d3d", "v_gl", "v_d3d9", "v_d3d11", "v_vulk" };
 const char st_AudText[2][16] = { "DirectSound", "OpenAL Soft" };
 const char st_FpsText[kFpsLimitCount][12] = { "Unlimited", "60", "120", "240" };
+
+
+// ======================================================================= //
+// Global Layout Columns (initialized in InitInterface)
+// ======================================================================= //
+Layout::Column g_GameLabels, g_GameValues;
+Layout::Column g_ControlsLabels, g_ControlsValues;
+Layout::Column g_VideoLabels, g_VideoValues;
 
 
 int MapVKKey(int k);
@@ -423,23 +573,23 @@ void InitInterface()
 	* Options lists
 	*/
 	int m = OPT_GAME;
-	MenuOptions[m].x0 = 40; // 170 HX, 380 W
-	MenuOptions[m].y0 = 75;
-	MenuOptions[m].Padding = 20;
+	MenuOptions[m].x0 = OptionsLayout::PANEL_GAME.x;
+	MenuOptions[m].y0 = OptionsLayout::PANEL_GAME.y;
+	MenuOptions[m].Padding = 15;
 	MenuOptions[m].Count = 0;
 	MenuOptions[m].AddItem("Agressivity");
 	MenuOptions[m].AddItem("Density");
 	MenuOptions[m].AddItem("Sensitivity");
-	MenuOptions[m].AddItem("View distance");
+	MenuOptions[m].AddItem("View range");
 	MenuOptions[m].AddItem("Measurement");
 	MenuOptions[m].AddItem("Sound API");
-MenuOptions[m].AddItem("FPS limit");
-	MenuOptions[m].Rect = { 40, 75, 380, 75 + static_cast<long>(MenuOptions[0].Count * 24) };
+	MenuOptions[m].AddItem("FPS limit");
+	MenuOptions[m].Rect = { OptionsLayout::PANEL_GAME.x, OptionsLayout::PANEL_GAME.y, OptionsLayout::PANEL_GAME.GetRight(), OptionsLayout::PANEL_GAME.GetBottom() };
 
 	m = OPT_KEYBINDINGS;
-	MenuOptions[m].x0 = 422;
-	MenuOptions[m].y0 = 130;
-	MenuOptions[m].Padding = 20;
+	MenuOptions[m].x0 = OptionsLayout::PANEL_CONTROLS.x;
+	MenuOptions[m].y0 = OptionsLayout::PANEL_CONTROLS.y;
+	MenuOptions[m].Padding = 15;
 	MenuOptions[m].Count = 0;
 	MenuOptions[m].AddItem("Forward");
 	MenuOptions[m].AddItem("Backward");
@@ -448,7 +598,7 @@ MenuOptions[m].AddItem("FPS limit");
 	MenuOptions[m].AddItem("Hold Breath");
 	MenuOptions[m].AddItem("Firing Mode");
 	MenuOptions[m].AddItem("Fire");
-	MenuOptions[m].AddItem("Draw Weapon");
+	MenuOptions[m].AddItem("Get weapon");
 	MenuOptions[m].AddItem("Step Left");
 	MenuOptions[m].AddItem("Step Right");
 	MenuOptions[m].AddItem("Rack");
@@ -461,25 +611,38 @@ MenuOptions[m].AddItem("FPS limit");
 #ifdef _iceage
 	MenuOptions[m].AddItem("Call Resupply");
 #endif //_iceage
-	MenuOptions[m].AddItem("Invert Mouse");
+	MenuOptions[m].AddItem("Reverse mouse");
 	MenuOptions[m].AddItem("Mouse sensitivity");
-	MenuOptions[m].Rect = { 422, 130, 760, 130 + static_cast<long>(MenuOptions[1].Count * 22) };
+	MenuOptions[m].Rect = { OptionsLayout::PANEL_CONTROLS.x, OptionsLayout::PANEL_CONTROLS.y, OptionsLayout::PANEL_CONTROLS.GetRight(), OptionsLayout::PANEL_CONTROLS.GetBottom() };
 
 	m = OPT_VIDEO;
-	MenuOptions[m].x0 = 70;
-	MenuOptions[m].y0 = 350;
-	MenuOptions[m].Padding = 20;
+	MenuOptions[m].x0 = OptionsLayout::PANEL_VIDEO.x;
+	MenuOptions[m].y0 = OptionsLayout::PANEL_VIDEO.y;
+	MenuOptions[m].Padding = 15;
 	MenuOptions[m].Count = 0;
-	MenuOptions[m].AddItem("Graphics API");
+	MenuOptions[m].AddItem("Video Driver");
 	MenuOptions[m].AddItem("Resolution");
-	MenuOptions[m].AddItem("Shadows");
+	MenuOptions[m].AddItem("3D Shadows");
 	MenuOptions[m].AddItem("Fog");
 	MenuOptions[m].AddItem("Textures");
 	MenuOptions[m].AddItem("Alpha Source");
 	MenuOptions[m].AddItem("Brightness");
 	MenuOptions[m].AddItem("Field of View");
 	MenuOptions[m].AddItem("Object detail");
-	MenuOptions[m].Rect = { 40, 350, 380, 350 + static_cast<long>(MenuOptions[2].Count * 24) };
+	MenuOptions[m].Rect = { OptionsLayout::PANEL_VIDEO.x, OptionsLayout::PANEL_VIDEO.y, OptionsLayout::PANEL_VIDEO.GetRight(), OptionsLayout::PANEL_VIDEO.GetBottom() };
+
+	/************************************************************
+	* Initialize Layout Columns
+	* Fixed StartLegacy-style rows keep labels/values inside the artwork panels.
+	*/
+	g_GameLabels = OptionsLayout::MakeGameLabels(static_cast<int>(MenuOptions[OPT_GAME].Item.size()));
+	g_GameValues = OptionsLayout::MakeGameValues(static_cast<int>(MenuOptions[OPT_GAME].Item.size()));
+
+	g_ControlsLabels = OptionsLayout::MakeControlsLabels(static_cast<int>(MenuOptions[OPT_KEYBINDINGS].Item.size()));
+	g_ControlsValues = OptionsLayout::MakeControlsValues(static_cast<int>(MenuOptions[OPT_KEYBINDINGS].Item.size()));
+
+	g_VideoLabels = OptionsLayout::MakeVideoLabels(static_cast<int>(MenuOptions[OPT_VIDEO].Item.size()));
+	g_VideoValues = OptionsLayout::MakeVideoValues(static_cast<int>(MenuOptions[OPT_VIDEO].Item.size()));
 
 	/************************************************************
 	* Hunt lists
@@ -1482,6 +1645,13 @@ void DrawMenuRegistry()
 			}
 
 			DrawTextShadow(320, 370 + (16 * i), tname, color);
+
+			if (!g_Profiles[i].m_Name.empty())
+			{
+				std::stringstream score_ss;
+				score_ss << g_Profiles[i].m_Score;
+				DrawTextShadow(480, 370 + (16 * i), score_ss.str(), color, DTA_RIGHT);
+			}
 		}
 
 		InterfaceSetFont(0);
@@ -1576,6 +1746,7 @@ void MenuEventInput(int32_t menu)
 				WaitForMouseRelease();
 				MenuAudioPlayHover();
 				g_ProfileIndex = g_HiliteProfileIndex;
+				g_TypingBuffer = g_Profiles[g_ProfileIndex].m_Name;
 			}
 		}
 	}
@@ -1644,43 +1815,57 @@ void MenuEventInput(int32_t menu)
 				MenuSet& mo = MenuOptions[m];
 				if (IsPointInRect(g_CursorPos, mo.Rect))
 				{
-					int yd = g_CursorPos.y - mo.y0;
 					g_MenuItem.SetIsElementSet(m + 1, true);
 
-					// We use a little division to find out what item is hovered over
-					// the original games used for loops to do this... crazy
-					if (yd > 0)
-					{
-						mo.Hilite = yd / 22; // 22 is the height of each item, we should store this in a variable
+					// Use layout system for hit detection
+					Layout::Column* col = nullptr;
+					if (m == OPT_GAME) col = &g_GameLabels;
+					else if (m == OPT_KEYBINDINGS) col = &g_ControlsLabels;
+					else if (m == OPT_VIDEO) col = &g_VideoLabels;
+
+					if (col && col->itemCount > 0) {
+						int spacing = col->GetSpacing();
+						int yd = g_CursorPos.y - col->yStart;
+						if (yd >= 0 && yd < (col->yEnd - col->yStart)) {
+							mo.Hilite = yd / spacing;
+							if (mo.Hilite >= (int)col->itemCount)
+								mo.Hilite = col->itemCount - 1;
+						}
+						else mo.Hilite = -1;
 					}
 					else mo.Hilite = -1;
 
 					if (g_KeyboardState[VK_LBUTTON] & 128) // Left Click
 					{
-						if (m == OPT_GAME) {
-							MenuSet& menu = MenuOptions[OPT_GAME];
-							//int w = (menu.Rect.right - menu.Rect.left) - menu.Padding;
-							int x1 = menu.Rect.right - menu.Padding;
-							int tbw = ((menu.Rect.right - menu.Rect.left) / 2) - menu.Padding;
-							float v = static_cast<float>((g_CursorPos.x - (x1 - tbw))) / static_cast<float>(tbw);
+						if (m == OPT_GAME)
+						{
+							int sliderX = OptionsLayout::OPTION_SLIDER_X;
+							int tbw = OptionsLayout::OPTION_SLIDER_W;
+							float v = static_cast<float>((g_CursorPos.x - sliderX)) / static_cast<float>(tbw);
+							if (v < 0.0f) v = 0.0f;
+							if (v > 1.0f) v = 1.0f;
 
 							mo.Selected = mo.Hilite;
 
 							if (mo.Hilite == 0)
 							{
-								g_Options.Aggression = static_cast<int>((v * 255.f));
+								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw)
+									g_Options.Aggression = static_cast<int>((v * 255.f));
 							}
 							else if (mo.Hilite == 1)
 							{
-								g_Options.Density = static_cast<int>((v * 255.f));
+								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw)
+									g_Options.Density = static_cast<int>((v * 255.f));
 							}
 							else if (mo.Hilite == 2)
 							{
-								g_Options.Sensitivity = static_cast<int>((v * 255.f));
+								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw)
+									g_Options.Sensitivity = static_cast<int>((v * 255.f));
 							}
 							else if (mo.Hilite == 3)
 							{
-								g_Options.ViewRange = MenuViewOptFromSlider(v);
+								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw)
+									g_Options.ViewRange = MenuViewOptFromSlider(v);
 							}
 							else if (mo.Hilite == 4) // Metric or Imperial(US)
 							{
@@ -1700,11 +1885,11 @@ void MenuEventInput(int32_t menu)
 							}
 						}
 						else if (m == OPT_KEYBINDINGS) { // Left Click
-							MenuSet& menu = MenuOptions[OPT_KEYBINDINGS];
-							//int w = (menu.Rect.right - menu.Rect.left) - menu.Padding;
-							int x1 = menu.Rect.right - menu.Padding;
-							int tbw = ((menu.Rect.right - menu.Rect.left) / 2) - menu.Padding;
-							float v = static_cast<float>((g_CursorPos.x - (x1 - tbw))) / static_cast<float>(tbw);
+							int sliderX = OptionsLayout::CONTROLS_SLIDER_X;
+							int tbw = OptionsLayout::CONTROLS_SLIDER_W;
+							float v = static_cast<float>((g_CursorPos.x - sliderX)) / static_cast<float>(tbw);
+							if (v < 0.0f) v = 0.0f;
+							if (v > 1.0f) v = 1.0f;
 
 							mo.Selected = mo.Hilite;
 
@@ -1720,15 +1905,16 @@ void MenuEventInput(int32_t menu)
 							}
 							else if (static_cast<int>(mo.Hilite) == MenuOptions[OPT_KEYBINDINGS].Item.size() - 1) // Mouse Sensitivty Slider
 							{
-								g_Options.MouseSensitivity = static_cast<int>((v * 255.f));
+								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw)
+									g_Options.MouseSensitivity = static_cast<int>((v * 255.f));
 							}
 						}
 						else if (m == OPT_VIDEO) { // Left Click
-							MenuSet& menu = MenuOptions[OPT_VIDEO];
-							//int w = (menu.Rect.right - menu.Rect.left) - menu.Padding;
-							int x1 = menu.Rect.right - menu.Padding;
-							int tbw = ((menu.Rect.right - menu.Rect.left) / 2) - menu.Padding;
-							float v = static_cast<float>((g_CursorPos.x - (x1 - tbw))) / static_cast<float>(tbw);
+							int sliderX = OptionsLayout::OPTION_SLIDER_X;
+							int tbw = OptionsLayout::OPTION_SLIDER_W;
+							float v = static_cast<float>((g_CursorPos.x - sliderX)) / static_cast<float>(tbw);
+							if (v < 0.0f) v = 0.0f;
+							if (v > 1.0f) v = 1.0f;
 
 							mo.Selected = mo.Hilite;
 							if (mo.Hilite == 0)
@@ -1774,23 +1960,30 @@ void MenuEventInput(int32_t menu)
 							}
 							else if (mo.Hilite == 6) // Brightness
 							{
-								g_Options.Brightness = static_cast<int>((v * 255.f));
+								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw)
+									g_Options.Brightness = static_cast<int>((v * 255.f));
 							}
 							else if (mo.Hilite == 7) // Field of View
 							{
-								int fov = kFovMin + static_cast<int>((v * static_cast<float>((kFovMax - kFovMin))));
-								fov = kFovMin + ((fov - kFovMin) / kFovStep) * kFovStep;
-								if (fov < kFovMin) fov = kFovMin;
-								if (fov > kFovMax) fov = kFovMax;
-								g_Options.FOV = fov;
-								SaveConfig();
+								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw)
+								{
+									int fov = kFovMin + static_cast<int>((v * static_cast<float>((kFovMax - kFovMin))));
+									fov = kFovMin + ((fov - kFovMin) / kFovStep) * kFovStep;
+									if (fov < kFovMin) fov = kFovMin;
+									if (fov > kFovMax) fov = kFovMax;
+									g_Options.FOV = fov;
+									SaveConfig();
+								}
 							}
 							else if (mo.Hilite == 8) // Object detail
 							{
-								g_Options.ObjectDetail = MenuObjectDetailFromSlider(v);
-								SaveConfig();
+								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw)
+								{
+									g_Options.ObjectDetail = MenuObjectDetailFromSlider(v);
+									SaveConfig();
+								}
 							}
-							}
+						}
 					}
 				}
 				else
@@ -2163,78 +2356,57 @@ void MenuEventInput(int32_t menu)
 
 void DrawMenuOptions()
 {
-	const int label_c = 0x007696b5; // From Carnivores: Ice Age (JPEG image)
-	const int value_c = 0x00abb4a7; // From Carnivores: Ice Age (JPEG image)
-	const int off_c = RGB(239, 228, 176);
-	const int on_c = RGB(30, 239, 30);
-	int c = off_c;
+	const int label_c = RGB(181, 134, 82);  // StartLegacy option label color
+	const int value_c = RGB(165, 181, 181); // StartLegacy option value color
+	const int on_c = RGB(255, 210, 80);
 
 	InterfaceSetFont(g_FontOptions);
 
 	// Game options
 	for (auto i = 0U; i < MenuOptions[OPT_GAME].Item.size(); i++) {
-		MenuSet& menu = MenuOptions[OPT_GAME];
-		int x0 = menu.Rect.left + menu.Padding;// .x0;
-		int x1 = menu.Rect.right - menu.Padding;// .x0;
-		int y0 = menu.y0 + (22 * i);
-		int tbw = ((menu.Rect.right - menu.Rect.left) / 2) - menu.Padding;
+		int y0 = g_GameLabels.GetItemY(i);
+		int c = (MenuOptions[OPT_GAME].Hilite == i) ? on_c : label_c;
 
-		if (menu.Hilite == i) c = on_c;
-		else c = label_c;
+		DrawTextShadow(g_GameLabels.x0, y0, MenuOptions[OPT_GAME].Item[i].first, c, DTA_RIGHT);
 
-		DrawTextShadow(x0, y0, menu.Item[i].first, c);
-
-		if (i == 0) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.Aggression) / 255.0f, label_c);
-		if (i == 1) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.Density) / 255.0f, label_c);
-		if (i == 2) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.Sensitivity) / 255.0f, label_c);
-		if (i == 3) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>((g_Options.ViewRange - kViewOptMin)) / static_cast<float>((kViewOptMax - kViewOptMin)), label_c);
-		if (i == 4) DrawTextShadow(x1, y0, st_UnitText[g_Options.OptSys], value_c, DTA_RIGHT);
-		if (i == 5) DrawTextShadow(x1, y0, st_AudText[NormalizeAudioBackend(g_Options.SoundAPI)], value_c, DTA_RIGHT);
-		if (i == 6) DrawTextShadow(x1, y0, st_FpsText[g_Options.OptFpsLimit], value_c, DTA_RIGHT);
+		if (i == 0) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>(g_Options.Aggression) / 255.0f, label_c);
+		else if (i == 1) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>(g_Options.Density) / 255.0f, label_c);
+		else if (i == 2) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>(g_Options.Sensitivity) / 255.0f, label_c);
+		else if (i == 3) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>((g_Options.ViewRange - kViewOptMin)) / static_cast<float>((kViewOptMax - kViewOptMin)), label_c);
+		else DrawTextShadow(g_GameValues.x0, y0, i == 4 ? st_UnitText[g_Options.OptSys] : (i == 5 ? st_AudText[NormalizeAudioBackend(g_Options.SoundAPI)] : st_FpsText[g_Options.OptFpsLimit]), value_c);
 	}
 
 	// Control key bindings
 	for (auto i = 0U; i < MenuOptions[OPT_KEYBINDINGS].Item.size(); i++) {
-		MenuSet& menu = MenuOptions[OPT_KEYBINDINGS];
-		int x0 = menu.Rect.left + menu.Padding;// .x0;
-		int x1 = menu.Rect.right - menu.Padding;// .x0;
-		int y0 = menu.y0 + (22 * i);
-		int tbw = ((menu.Rect.right - menu.Rect.left) / 2) - menu.Padding;
-
 		std::stringstream ss;
-
 		ss << g_KeyNames[MapVKKey(*((int32_t*)&g_Options.KeyMap + i))];
 
-		if (menu.Hilite == i) c = on_c;
-		else c = label_c;
+		int y0 = g_ControlsLabels.GetItemY(i);
+		int c = (MenuOptions[OPT_KEYBINDINGS].Hilite == i) ? on_c : label_c;
 
-		DrawTextShadow(x0, y0, menu.Item[i].first, c);
+		DrawTextShadow(g_ControlsLabels.x0, y0, MenuOptions[OPT_KEYBINDINGS].Item[i].first, c, DTA_RIGHT);
 
 		if (i < MenuOptions[OPT_KEYBINDINGS].Item.size() - 2)
 		{
-			if (g_WaitKey == i) DrawTextShadow(x1, y0, "<?>", value_c, DTA_RIGHT);
-			else                DrawTextShadow(x1, y0, ss.str(), value_c, DTA_RIGHT);
+			if (g_WaitKey == i)
+				DrawTextShadow(g_ControlsValues.x0, y0, "<?>", value_c);
+			else
+				DrawTextShadow(g_ControlsValues.x0, y0, ss.str(), value_c);
 		}
 		else if (i == MenuOptions[OPT_KEYBINDINGS].Item.size() - 2)
-			DrawTextShadow(x1, y0, st_BoolText[static_cast<int>(g_Options.MouseInvert)], value_c, DTA_RIGHT);
+			DrawTextShadow(g_ControlsValues.x0, y0, st_BoolText[static_cast<int>(g_Options.MouseInvert)], value_c);
 		else if (i == MenuOptions[OPT_KEYBINDINGS].Item.size() - 1)
-			DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.MouseSensitivity) / 255.0f, label_c);
+			DrawSliderBar(OptionsLayout::CONTROLS_SLIDER_X, y0 + 12, OptionsLayout::CONTROLS_SLIDER_W, static_cast<float>(g_Options.MouseSensitivity) / 255.0f, label_c);
 	}
 
 	// Video/Graphics options
 	for (auto i = 0U; i < MenuOptions[OPT_VIDEO].Item.size(); i++) {
-		MenuSet& menu = MenuOptions[OPT_VIDEO];
-		int x0 = menu.Rect.left + menu.Padding;// x0;
-		int x1 = menu.Rect.right - menu.Padding;// x0;
-		int y0 = menu.y0 + (22 * i);
-		int tbw = ((menu.Rect.right - menu.Rect.left) / 2) - menu.Padding;
+		int y0 = g_VideoLabels.GetItemY(i);
+		int c = (MenuOptions[OPT_VIDEO].Hilite == i) ? on_c : label_c;
 
-		if (menu.Hilite == i) c = on_c;
-		else c = label_c;
+		DrawTextShadow(g_VideoLabels.x0, y0, MenuOptions[OPT_VIDEO].Item[i].first, c, DTA_RIGHT);
 
-		DrawTextShadow(x0, y0, menu.Item[i].first, c);
-
-		if (i == 0) DrawTextShadow(x1, y0, st_RenText[g_Options.RenderAPI], value_c, DTA_RIGHT);
+		if (i == 0) DrawTextShadow(g_VideoValues.x0, y0, st_RenText[g_Options.RenderAPI], value_c);
 		else if (i == 1) {
 			// Render the selected resolution from g_ResolutionList[]. The list
 			// is built by EnumerateResolutions() at menu startup, so any mode
@@ -2245,20 +2417,20 @@ void DrawMenuOptions()
 			if (idx < 0 || idx >= g_ResCount) idx = 0;
 			static char resStr[32];
 			sprintf(resStr, "%d x %d", g_ResolutionList[idx].w, g_ResolutionList[idx].h);
-			DrawTextShadow(x1, y0, resStr, value_c, DTA_RIGHT);
+			DrawTextShadow(g_VideoValues.x0, y0, resStr, value_c);
 		}
-		else if (i == 2) DrawTextShadow(x1, y0, st_BoolText[g_Options.Shadows], value_c, DTA_RIGHT);
-		else if (i == 3) DrawTextShadow(x1, y0, st_BoolText[g_Options.Fog], value_c, DTA_RIGHT);
-		else if (i == 4) DrawTextShadow(x1, y0, st_TextureText[g_Options.Textures], value_c, DTA_RIGHT);
-		else if (i == 5) DrawTextShadow(x1, y0, st_AlphaKeyText[g_Options.AlphaColorKey], value_c, DTA_RIGHT);
-		else if (i == 6) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>(g_Options.Brightness) / 255.0f, label_c);
+		else if (i == 2) DrawTextShadow(g_VideoValues.x0, y0, st_BoolText[g_Options.Shadows], value_c);
+		else if (i == 3) DrawTextShadow(g_VideoValues.x0, y0, st_BoolText[g_Options.Fog], value_c);
+		else if (i == 4) DrawTextShadow(g_VideoValues.x0, y0, st_TextureText[g_Options.Textures], value_c);
+		else if (i == 5) DrawTextShadow(g_VideoValues.x0, y0, st_AlphaKeyText[g_Options.AlphaColorKey], value_c);
+		else if (i == 6) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>(g_Options.Brightness) / 255.0f, label_c);
 		else if (i == 7) {
 			float t = static_cast<float>((g_Options.FOV - kFovMin)) / static_cast<float>((kFovMax - kFovMin));
-			DrawSliderBar(x1 - tbw, y0 + 12, tbw, t, label_c);
+			DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, t, label_c);
 		}
 		else if (i == 8) {
 			float t = static_cast<float>((g_Options.ObjectDetail - kObjectDetailMin)) / static_cast<float>((kObjectDetailMax - kObjectDetailMin));
-			DrawSliderBar(x1 - tbw, y0 + 12, tbw, t, label_c);
+			DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, t, label_c);
 		}
 	}
 
