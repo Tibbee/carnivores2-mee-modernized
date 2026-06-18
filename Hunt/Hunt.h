@@ -66,7 +66,7 @@ inline constexpr int kViewOptMin = 0;
 inline constexpr int kViewOptMax = 255;
 inline constexpr int kViewOptDefault = 128;
 inline constexpr int kViewDistanceMin = 42;
-inline constexpr int kViewDistanceMax = 160;
+inline constexpr int kViewDistanceMax = 200;
 inline constexpr int kViewDistanceDefault = 72;
 
 inline int ClampViewOpt(int value)

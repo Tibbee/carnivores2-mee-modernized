@@ -45,7 +45,7 @@
 #define kViewOptMax      255
 #define kViewOptDefault  128
 #define kViewDistanceMin 42
-#define kViewDistanceMax 160
+#define kViewDistanceMax 200
 
 // Bitmap sprite LOD distance stored in config.cfg.
 #define kObjectDetailMin     24

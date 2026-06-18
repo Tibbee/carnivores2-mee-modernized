@@ -97,7 +97,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "RENDERER": "GL",
-        "GL_PERF_HOOKS": "OFF"
+        "GL_PERF_HOOKS": "ON"
       }
     },
     {
