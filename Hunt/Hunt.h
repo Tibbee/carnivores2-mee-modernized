@@ -103,7 +103,7 @@ inline int ClampObjectDetail(int value)
 }
 
 // Field of view (vertical, degrees) — modder-editable range
-inline constexpr int kFovMin = 50;
+inline constexpr int kFovMin = 35;
 inline constexpr int kFovMax = 90;
 inline constexpr int kFovStep = 2;
 inline constexpr int kFovDefault = 62;

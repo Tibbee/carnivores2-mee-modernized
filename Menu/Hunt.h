@@ -26,7 +26,7 @@
 
 // Field of view (vertical, degrees) — modder-editable range
 // Kept in sync with Hunt/Hunt.h's kFov* defines.
-#define kFovMin      50
+#define kFovMin      35
 #define kFovMax      90
 #define kFovStep     2
 #define kFovDefault  62
