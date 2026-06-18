@@ -687,7 +687,7 @@ bool GLRenderer::Initialize()
         "uniform float uTintByFogColor;\n"
         "void main() {\n"
         "   vec4 texColor = texture(uModelTexture, vTexCoord);\n"
-        "   if (vCutout > 0.5 && dot(texColor.rgb, vec3(1.0)) < 0.01) discard;\n"
+        "   if (vCutout > 0.5 && texColor.a <= 0.5) discard;\n"
         "   vec3 litColor = texColor.rgb * vLight;\n"
         "   // Phase 2.7: branch-less tint via mix (was if > 0.5).\n"
         "   vec3 tinted = litColor * vFogColor;\n"
@@ -804,7 +804,7 @@ bool GLRenderer::Initialize()
         "uniform sampler2D uModelTexture;\n"
         "void main() {\n"
         "   vec4 texColor = texture(uModelTexture, vTexCoord);\n"
-        "   if (vCutout > 0.5 && dot(texColor.rgb, vec3(1.0)) < 0.01) discard;\n"
+        "   if (vCutout > 0.5 && texColor.a <= 0.5) discard;\n"
         "   vec3 litColor = texColor.rgb * vLight;\n"
         "   // Phase 2.7: branch-less tint via mix (was if > 0.5).\n"
         "   vec3 tinted = litColor * uDistanceFogColor;\n"
@@ -1058,8 +1058,6 @@ void GLRenderer::ShutdownModelPipeline()
     }
     m_bmpTextureCache.clear();
 
-    m_modelTextureFilterState.clear();
-
     if (m_modelVBO) {
         glDeleteBuffers(1, &m_modelVBO);
         m_modelVBO = 0;
@@ -1294,18 +1292,17 @@ GLRenderer::StaticMeshEntry GLRenderer::UploadStaticMesh(TModel* mptr)
 
     const int texHeight = (mptr->TextureHeight > 1) ? mptr->TextureHeight : 1;
 
-    // Phase 2.3: scan face flags to determine if the model has
-    // cutout (sfOpacity) or transparent (sfTransparent) faces.
-    // These are per-model booleans cached in the entry so the
-    // instanced draw path can set the correct shader flags.
+    // Phase 2.3: sfOpacity faces are alpha-tested cutouts. sfTransparent
+    // faces are real blended/non-solid faces and must not force cutout handling.
+    // These are per-model booleans cached in the entry so the instanced draw
+    // path can set the correct shader flags.
     bool hasCutout = false;
     bool hasTransparent = false;
 
     for (int f = 0; f < mptr->FCount; ++f) {
         const TFace& face = mptr->gFace[f];
 
-        // Phase 2.3: detect cutout / transparent face flags.
-        if (!hasCutout && (face.Flags & (sfOpacity | sfTransparent))) {
+        if (!hasCutout && (face.Flags & sfOpacity)) {
             hasCutout = true;
         }
         if (!hasTransparent && (face.Flags & sfTransparent)) {
@@ -1649,7 +1646,6 @@ GLuint GLRenderer::UploadModelTexture(TModel* mptr)
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, expanded.data());
     m_modelTextureCache[mptr] = texture;
-    m_modelTextureFilterState[texture] = false;
     return texture;
 }
 
@@ -1670,8 +1666,8 @@ GLuint GLRenderer::UploadBMPModelTexture(TBMPModel* mptr)
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 
@@ -1682,7 +1678,6 @@ GLuint GLRenderer::UploadBMPModelTexture(TBMPModel* mptr)
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 128, 128, 0, GL_RGBA, GL_UNSIGNED_BYTE, expanded.data());
     m_bmpTextureCache[mptr] = texture;
-    m_modelTextureFilterState[texture] = true;
     return texture;
 }
 
@@ -2017,7 +2012,8 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
         }
 
         const bool isFaceTransparent = (face.Flags & sfTransparent) != 0;
-        const bool cutout = (face.Flags & (sfOpacity | sfTransparent)) != 0;
+        const bool isFaceAlphaTest = (face.Flags & sfOpacity) != 0;
+        const bool cutout = isFaceAlphaTest;
         for (size_t i = 1; i + 1 < polygon.size(); ++i) {
             // Pass the original face unrotated positions to
             // appendTriangle so the fog is computed from the
@@ -2135,31 +2131,6 @@ void GLRenderer::DrawModelVertices(GLuint texture,
     }
 }
 
-bool GLRenderer::NeedsNearestModelFiltering(const std::vector<ModelVertex>& vertices) const
-{
-    return std::any_of(vertices.begin(), vertices.end(), [](const ModelVertex& vertex) {
-        return vertex.cutout != 0;  // uint8 (0 or 1) -- Phase 1.4 packing
-    });
-}
-
-void GLRenderer::SetModelTextureFiltering(GLuint texture, bool nearest)
-{
-    if (!texture) {
-        return;
-    }
-
-    const auto it = m_modelTextureFilterState.find(texture);
-    if (it != m_modelTextureFilterState.end() && it->second == nearest) {
-        return;
-    }
-
-    glBindTexture(GL_TEXTURE_2D, texture);
-    const GLint filter = nearest ? GL_NEAREST : GL_LINEAR;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
-    m_modelTextureFilterState[texture] = nearest;
-}
-
 void GLRenderer::RenderWorldModels()
 {
     if (m_worldModelItems.empty()) {
@@ -2220,19 +2191,9 @@ void GLRenderer::RenderWorldModels()
             continue;
         }
 
-        // Cutout pass: nearest filtering for crisp alpha edges. Reset after
-        // the draw so subsequent draws of the same texture see the default.
-        if (key.pass == 1) {
-            SetModelTextureFiltering(key.texture, true);
-        }
-
         const bool enableBlend = (key.pass == 2);
         const bool additive     = (key.pass == 2) && key.additive;
         DrawModelVertices(key.texture, verts, projection, true, enableBlend, additive);
-
-        if (key.pass == 1) {
-            SetModelTextureFiltering(key.texture, false);
-        }
     }
 
     m_worldModelItems.clear();
@@ -2574,11 +2535,10 @@ void GLRenderer::RenderMappedObject(int x, int y)
         instance.instanceLight[2] = fogPocketColor.y;
         instance.instanceLight[3] = fogPocketColor.z;
 
-        // Phase 2.3: cutout flag from the static mesh cache (set during
-        // UploadStaticMesh based on sfOpacity/sfTransparent face flags).
-        // The fragment shader discards near-black fragments when
-        // vCutout > 0.5, which is the correct behaviour for leaves
-        // and other sfOpacity-marked faces.
+        // Phase 2.3: sfOpacity flag from the static mesh cache. The fragment
+        // shader alpha-tests cutout faces with linear filtering, matching the
+        // Ice Age 3DFX-style handling instead of switching whole textures to
+        // nearest filtering.
         // Phase 2.x: .y = fogGrad (Y-gradient, was tintByFog=0).
         //            .z = fogBase (pocket-fog amount at object centre).
         const float alpha = std::clamp((255.0f - static_cast<float>(GlassL)) / 255.0f, 0.0f, 1.0f);
@@ -2697,12 +2657,6 @@ void GLRenderer::RenderInstancedModels()
             static_cast<GLsizeiptr>(group.instanceCount) * sizeof(ModelInstance);
         glBufferSubData(GL_ARRAY_BUFFER, 0, groupSliceBytes,
                         &m_instanceData[group.instanceStart]);
-
-        // Phase 2.3: cutout models need GL_NEAREST filtering (matches
-        // NeedsNearestModelFiltering logic from the legacy path).
-        // Without this, GL_LINEAR smears black transparent pixels
-        // into visible areas, creating dark borders on leaves.
-        SetModelTextureFiltering(group.texture, meshEntry->hasCutout);
 
         // Bind the texture for this group.
         if (group.texture != m_lastBoundModelTexture) {
@@ -3469,19 +3423,10 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
     glClear(GL_DEPTH_BUFFER_BIT);
     DrawModelVertices(item.texture, item.opaqueVertices, projection, true, false, false);
     if (!item.cutoutVertices.empty()) {
-        SetModelTextureFiltering(item.texture, true);
         DrawModelVertices(item.texture, item.cutoutVertices, projection, true, false, false);
-        SetModelTextureFiltering(item.texture, false);
     }
     if (!item.transparentVertices.empty()) {
-        const bool useNearestFiltering = NeedsNearestModelFiltering(item.transparentVertices);
-        if (useNearestFiltering) {
-            SetModelTextureFiltering(item.texture, true);
-        }
         DrawModelVertices(item.texture, item.transparentVertices, projection, true, true, false);
-        if (useNearestFiltering) {
-            SetModelTextureFiltering(item.texture, false);
-        }
     }
 }
 
@@ -4622,7 +4567,6 @@ void GLRenderer::ReleaseModelTextures(const TModel* mptr)
 
     const GLuint texture = it->second;
     m_modelTextureCache.erase(it);
-    m_modelTextureFilterState.erase(texture);
 
     if (texture && m_hrc) {
         glDeleteTextures(1, &texture);

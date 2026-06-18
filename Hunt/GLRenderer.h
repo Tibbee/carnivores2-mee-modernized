@@ -142,7 +142,7 @@ private:
         return static_cast<uint8_t>(std::clamp(v, 0.0f, 255.0f) + 0.5f);
     }
     static inline uint8_t CutoutToByte(bool on) {
-        return on ? 255 : 0;  // normalized to 1.0 or 0.0; shader checks vCutout > 0.5
+        return on ? 255 : 0;  // normalized to 1.0 or 0.0; shader alpha-tests when vCutout > 0.5
     }
 
     struct ModelDrawItem {
@@ -205,8 +205,8 @@ private:
         uint32_t baseIndex = 0;   // IBO offset of first index (in indices)
         uint32_t vertexCount = 0; // number of vertices in the VBO
         uint32_t indexCount = 0;  // number of indices in the IBO
-        bool hasCutout = false;   // Phase 2.3: model has faces with sfOpacity|sfTransparent
-        bool hasTransparent = false; // Phase 2.3: model has faces with sfTransparent
+        bool hasCutout = false;   // Phase 2.3: model has sfOpacity alpha-test faces
+        bool hasTransparent = false; // Phase 2.3: model has sfTransparent blended faces
     };
 
     bool InitGLState();
@@ -269,8 +269,6 @@ private:
                            bool enableBlend,
                            bool additive,
                            bool tintByFogColor = false);
-    bool NeedsNearestModelFiltering(const std::vector<ModelVertex>& vertices) const;
-    void SetModelTextureFiltering(GLuint texture, bool nearest);
     void EnsureTerrainTextureArray();
     void UploadTerrainLayer(int layer, const TEXTURE& texture);
     void CollectTerrainTile(int x, int y, int r);
@@ -425,7 +423,6 @@ private:
     std::array<float, 16> m_lastNearModelProjection{};
     std::map<const TModel*, GLuint> m_modelTextureCache;
     std::map<const TBMPModel*, GLuint> m_bmpTextureCache;
-    std::map<GLuint, bool> m_modelTextureFilterState;
     std::vector<ModelDrawItem> m_worldModelItems;
     std::vector<const ModelDrawItem*> m_transparentModelItems;
     std::vector<Vector2di> m_objectList;
