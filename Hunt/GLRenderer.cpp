@@ -3967,7 +3967,24 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
         return;
     }
 
-    // Fetch vertices first — needed for frustum + distance culling
+    // Coarse frustum pre-test using map coordinates + HMapO height
+    // estimate.  Avoids reading 4 VMap EPoints (64 bytes) for tiles
+    // that are clearly outside the horizontal frustum.
+    // Uses a generous margin (backR*2 + 2048) so we never false-reject
+    // tiles that the precise VMap-based test would accept.
+    {
+        const float wx = static_cast<float>(x * 256 + 128) - CameraX;
+        const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
+        const float wy = static_cast<float>(HMapO[y][x]) * ctHScale - CameraY;
+        const float cx  = wx * ca + wz * sa;
+        const float cz1 = wz * ca - wx * sa;
+        const float cz  = cz1 * cb + wy * sb;
+        if (std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
+            return;
+        }
+    }
+
+    // Fetch vertices — needed for precise frustum + distance culling
     EPoint v00 = VMap[localY][localX];
     if (v00.v.z > backR) {
         return;
@@ -3977,8 +3994,7 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
     EPoint v01 = VMap[localY + 1][localX];
     EPoint v11 = VMap[localY + 1][localX + 1];
 
-    // Frustum cull BEFORE any fog computation — ~45% of tiles fail
-    // this test and would waste fog lookups.
+    // Precise frustum cull using VMap vertices
     const float xx = (v00.v.x + v11.v.x) * 0.5f;
     const float yy = (v00.v.y + v11.v.y) * 0.5f;
     const float zz = (v00.v.z + v11.v.z) * 0.5f;
@@ -4000,8 +4016,6 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
     const float fadeStartSq = fadeStart * fadeStart;
     const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
 
-    // Compute fog indices once per corner, then reuse for both fog
-    // amount and fog color (was 8 FogsMap lookups in Phase 1, now 4).
     const int fogIdx00 = GetFogIndexForMapPoint(x, y);
     const int fogIdx10 = GetFogIndexForMapPoint(x + 1, y);
     const int fogIdx01 = GetFogIndexForMapPoint(x, y + 1);
@@ -4053,11 +4067,18 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
         return;
     }
 
-    const float viewDistance = static_cast<float>(ctViewR * 256);
-    const float viewDistanceSq = viewDistance * viewDistance;
-    const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
-    const float fadeStartSq = fadeStart * fadeStart;
-    const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
+    // Coarse frustum pre-test (same pattern as CollectTerrainTile)
+    {
+        const float wx = static_cast<float>(x * 256 + 128) - CameraX;
+        const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
+        const float wy = static_cast<float>(HMapO[y][x]) * ctHScale - CameraY;
+        const float cx  = wx * ca + wz * sa;
+        const float cz1 = wz * ca - wx * sa;
+        const float cz  = cz1 * cb + wy * sb;
+        if (std::fabs(cx * FOVK) > -cz + BackViewR * 2.0f + 2048.0f) {
+            return;
+        }
+    }
 
     EPoint v00 = VMap[localY][localX];
     if (v00.v.z > BackViewR) {
@@ -4070,8 +4091,27 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
     EPoint v02 = VMap[localY + 2][localX];
     EPoint v22 = VMap[localY + 2][localX + 2];
 
-    // Phase 2.x: compute fog indices once per corner, then reuse for
-    // both fog amount and fog color (was 8 FogsMap lookups, now 4).
+    // Frustum + distance culls before fog computation
+    const float xx = (v00.v.x + v22.v.x) * 0.5f;
+    const float yy = (v00.v.y + v22.v.y) * 0.5f;
+    const float zz = (v00.v.z + v22.v.z) * 0.5f;
+
+    if (std::fabs(xx * FOVK) > -zz + BackViewR) {
+        return;
+    }
+
+    const float viewDistance = static_cast<float>(ctViewR * 256);
+    const float viewDistanceSq = viewDistance * viewDistance;
+    const float distanceSq = xx * xx + yy * yy + zz * zz;
+    if (distanceSq > viewDistanceSq) {
+        return;
+    }
+
+    // Tile survived — now compute fog + alpha
+    const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
+    const float fadeStartSq = fadeStart * fadeStart;
+    const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
+
     const int fogIdx00 = GetFogIndexForMapPoint(x, y);
     const int fogIdx20 = GetFogIndexForMapPoint(x + 2, y);
     const int fogIdx02 = GetFogIndexForMapPoint(x, y + 2);
@@ -4082,30 +4122,17 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
     v02.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx02, v02.Fog));
     v22.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx22, v22.Fog));
 
-    const float xx = (v00.v.x + v22.v.x) * 0.5f;
-    const float yy = (v00.v.y + v22.v.y) * 0.5f;
-    const float zz = (v00.v.z + v22.v.z) * 0.5f;
-
-    if (std::fabs(xx * FOVK) > -zz + BackViewR) {
-        return;
-    }
-
-    const float distanceSq = xx * xx + yy * yy + zz * zz;
-    if (distanceSq > viewDistanceSq) {
-        return;
-    }
-
-    const int direction = (FMap[y][x] >> 8) & 3;
-    // Phase 2.x: reuse fog indices from above for fog color (was 4 more
-    // FogsMap lookups, now zero — fogIdx00..fogIdx22 already computed).
     const Vector3d fog00 = GetFogColorForMapPoint(fogIdx00);
     const Vector3d fog20 = GetFogColorForMapPoint(fogIdx20);
     const Vector3d fog02 = GetFogColorForMapPoint(fogIdx02);
     const Vector3d fog22 = GetFogColorForMapPoint(fogIdx22);
+
     const float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd);
     const float alpha20 = CalcTerrainAlpha(VertexDistanceSq(v20.v), fadeStart, fadeStartSq, fadeEnd);
     const float alpha02 = CalcTerrainAlpha(VertexDistanceSq(v02.v), fadeStart, fadeStartSq, fadeEnd);
     const float alpha22 = CalcTerrainAlpha(VertexDistanceSq(v22.v), fadeStart, fadeStartSq, fadeEnd);
+
+    const int direction = (FMap[y][x] >> 8) & 3;
 
     if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
         AppendTerrainTriangle(m_terrainVertices, v00, v20, v22, fog00, fog20, fog22, textureLayer, false, false, direction, alpha00, alpha20, alpha22);
@@ -4146,6 +4173,23 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
     const int localY = y - CCY + kViewGridCenter;
     if (localX < 0 || localY < 0 || localX + 1 >= kViewGridSize || localY + 1 >= kViewGridSize) {
         return;
+    }
+
+    // Coarse frustum pre-test — same as CollectTerrainTile, but using
+    // HMapO as a rough height proxy for the water surface (water level
+    // is typically close to terrain height).  Skips 4 VMap2 reads for
+    // tiles outside the horizontal frustum.
+    // Uses a generous margin to avoid false rejects.
+    {
+        const float wx = static_cast<float>(x * 256 + 128) - CameraX;
+        const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
+        const float wy = static_cast<float>(HMapO[y][x]) * ctHScale - CameraY;
+        const float cx  = wx * ca + wz * sa;
+        const float cz1 = wz * ca - wx * sa;
+        const float cz  = cz1 * cb + wy * sb;
+        if (std::fabs(cx * FOVK) > -cz + BackViewR * 2.0f + 2048.0f) {
+            return;
+        }
     }
 
     EPoint v00 = VMap2[localY][localX];
