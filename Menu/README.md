@@ -59,6 +59,6 @@ The menu now matches or exceeds the `carnivores_menu_mee` reference in every tra
 - **CarnivoresPort/docs/issues/menu-feature-gaps.md** — full feature tracker
 - **CarnivoresPort/docs/issues/resolved.md** — historically fixed menu bugs (stub DLLs, EFX detection, parser compatibility, renderer persistence)
 - **../../AGENTS.md** § "Menu System" — fuller menu documentation
-- **../../CURRENT_STATUS.md** — overall C2 ME state, including this menu's status
+- **../../CarnivoresPort/CURRENT_STATUS.md** — overall C2 ME state, including this menu's status
 
 The menu was originally adapted from `C2MenuAttempt/` (a community effort, gitignored and not part of the tracked source). The current `Menu/` directory is the live implementation.
