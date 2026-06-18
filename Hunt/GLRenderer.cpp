@@ -1444,7 +1444,11 @@ void GLRenderer::UpdatePerFrameUBO()
     UpdatePerFrameUBO(BuildLegacyProjection());
 }
 
-void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection)
+void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection,
+                                   float waterAlphaEnabled,
+                                   float waterAlphaFadeStart,
+                                   float waterAlphaFadeEnd,
+                                   float waterAlphaFadeStep)
 {
     if (!m_perFrameUBO || !m_perFrameUBOInitialized) {
         return;
@@ -1512,10 +1516,10 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection)
     data[36] = 0.0f; data[37] = 0.0f; data[38] = 1.0f; data[39] = 0.0f;  // col2
     data[40] = 0.0f; data[41] = 0.0f; data[42] = 0.0f; data[43] = 1.0f;  // col3
     // Phase 2.4: uWaterAlphaFade packed after uView.
-    data[44] = 0.0f;                 // uWaterAlphaFade.x
-    data[45] = 0.0f;                 // uWaterAlphaFade.y
-    data[46] = 0.0f;                 // uWaterAlphaFade.z = disabled
-    data[47] = 765.0f;               // uWaterAlphaFade.w = fade step (matches CPU formula: zz/3.0 => step = 255*3 = 765)
+    data[44] = waterAlphaFadeStart;   // uWaterAlphaFade.x
+    data[45] = waterAlphaFadeEnd;     // uWaterAlphaFade.y
+    data[46] = waterAlphaEnabled;     // uWaterAlphaFade.z
+    data[47] = waterAlphaFadeStep;    // uWaterAlphaFade.w
 
     glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, data.size() * sizeof(float), data.data());
@@ -1543,7 +1547,8 @@ void GLRenderer::SetWaterAlphaFade(float enabled, float fadeStart, float fadeEnd
 void GLRenderer::BeginTerrainFrame()
 {
     m_terrainVertices.clear();
-    m_waterVertices.clear();
+    // m_waterVertices is cleared in BeginWaterFrame (called by RenderWater).
+    // Clearing here too was redundant — RenderGround never touches water.
 }
 
 void GLRenderer::BeginWaterFrame()
@@ -1576,8 +1581,12 @@ void GLRenderer::RenderWaterSurface()
     }
 
     const auto projection = BuildLegacyProjection();
-    UpdatePerFrameUBO();
-    SetWaterAlphaFade(1.0f, static_cast<float>((ctViewR - 8) << 8), 256.0f * static_cast<float>(ctViewR - 4), 765.0f);
+    // Bake water alpha fade into the UBO update — saves a separate
+    // glBufferSubData call vs. UpdatePerFrameUBO() + SetWaterAlphaFade().
+    UpdatePerFrameUBO(projection, 1.0f,
+                      static_cast<float>((ctViewR - 8) << 8),
+                      256.0f * static_cast<float>(ctViewR - 4),
+                      765.0f);
     glUseProgram(m_terrainShader);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
@@ -3770,12 +3779,14 @@ static float CalcTerrainAlpha(float distanceSq, float fadeStart, float fadeStart
         return 1.0f;
     }
 
-    const float distance = std::sqrt(distanceSq);
-    const float zz = distance - fadeEnd;
-    if (zz <= 0.0f) {
+    // Tiles between fadeStart and fadeEnd all return 1.0 — avoid the
+    // std::sqrt for this common range by comparing squared distances.
+    if (distanceSq <= fadeEnd * fadeEnd) {
         return 1.0f;
     }
 
+    const float distance = std::sqrt(distanceSq);
+    const float zz = distance - fadeEnd;
     return std::clamp((255.0f - zz / 3.0f) / 255.0f, 0.0f, 1.0f);
 }
 
@@ -3956,12 +3967,7 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
         return;
     }
 
-    const float viewDistance = static_cast<float>(ctViewR * 256);
-    const float viewDistanceSq = viewDistance * viewDistance;
-    const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
-    const float fadeStartSq = fadeStart * fadeStart;
-    const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
-
+    // Fetch vertices first — needed for frustum + distance culling
     EPoint v00 = VMap[localY][localX];
     if (v00.v.z > backR) {
         return;
@@ -3971,8 +3977,31 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
     EPoint v01 = VMap[localY + 1][localX];
     EPoint v11 = VMap[localY + 1][localX + 1];
 
-    // Phase 2.x: compute fog indices once per corner, then reuse for
-    // both fog amount and fog color (was 8 FogsMap lookups, now 4).
+    // Frustum cull BEFORE any fog computation — ~45% of tiles fail
+    // this test and would waste fog lookups.
+    const float xx = (v00.v.x + v11.v.x) * 0.5f;
+    const float yy = (v00.v.y + v11.v.y) * 0.5f;
+    const float zz = (v00.v.z + v11.v.z) * 0.5f;
+
+    if (std::fabs(xx * FOVK) > -zz + backR) {
+        return;
+    }
+
+    // Distance cull
+    const float viewDistance = static_cast<float>(ctViewR * 256);
+    const float viewDistanceSq = viewDistance * viewDistance;
+    const float distanceSq = xx * xx + yy * yy + zz * zz;
+    if (distanceSq > viewDistanceSq) {
+        return;
+    }
+
+    // Tile survived culling — now compute fog + alpha
+    const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
+    const float fadeStartSq = fadeStart * fadeStart;
+    const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
+
+    // Compute fog indices once per corner, then reuse for both fog
+    // amount and fog color (was 8 FogsMap lookups in Phase 1, now 4).
     const int fogIdx00 = GetFogIndexForMapPoint(x, y);
     const int fogIdx10 = GetFogIndexForMapPoint(x + 1, y);
     const int fogIdx01 = GetFogIndexForMapPoint(x, y + 1);
@@ -3983,31 +4012,18 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
     v01.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx01, v01.Fog));
     v11.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx11, v11.Fog));
 
-    const float xx = (v00.v.x + v11.v.x) * 0.5f;
-    const float yy = (v00.v.y + v11.v.y) * 0.5f;
-    const float zz = (v00.v.z + v11.v.z) * 0.5f;
-
-    if (std::fabs(xx * FOVK) > -zz + backR) {
-        return;
-    }
-
-    const float distanceSq = xx * xx + yy * yy + zz * zz;
-    if (distanceSq > viewDistanceSq) {
-        return;
-    }
-
-    const bool reverse = (FMap[y][x] & fmReverse) != 0;
-    const int direction = FMap[y][x] & 3;
-    // Phase 2.x: reuse fog indices from above for fog color (was 4 more
-    // FogsMap lookups, now zero — fogIdx00..fogIdx11 already computed).
     const Vector3d fog00 = GetFogColorForMapPoint(fogIdx00);
     const Vector3d fog10 = GetFogColorForMapPoint(fogIdx10);
     const Vector3d fog01 = GetFogColorForMapPoint(fogIdx01);
     const Vector3d fog11 = GetFogColorForMapPoint(fogIdx11);
+
     const float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd);
     const float alpha10 = CalcTerrainAlpha(VertexDistanceSq(v10.v), fadeStart, fadeStartSq, fadeEnd);
     const float alpha01 = CalcTerrainAlpha(VertexDistanceSq(v01.v), fadeStart, fadeStartSq, fadeEnd);
     const float alpha11 = CalcTerrainAlpha(VertexDistanceSq(v11.v), fadeStart, fadeStartSq, fadeEnd);
+
+    const bool reverse = (FMap[y][x] & fmReverse) != 0;
+    const int direction = FMap[y][x] & 3;
 
     const int textureLayer = TMap1[y][x];
     if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {

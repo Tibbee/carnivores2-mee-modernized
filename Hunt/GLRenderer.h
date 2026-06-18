@@ -223,7 +223,11 @@ private:
     const StaticMeshEntry* GetStaticMeshEntry(const TModel* mptr) const;
     void EnsureStaticMeshCapacity(size_t vertexBytes, size_t indexBytes);
     void UpdatePerFrameUBO();
-    void UpdatePerFrameUBO(const std::array<float, 16>& projection);
+    void UpdatePerFrameUBO(const std::array<float, 16>& projection,
+                           float waterAlphaEnabled = 0.0f,
+                           float waterAlphaFadeStart = 0.0f,
+                           float waterAlphaFadeEnd = 0.0f,
+                           float waterAlphaFadeStep = 765.0f);
     void EnsurePerFrameUBO();
     void SetWaterAlphaFade(float enabled, float fadeStart, float fadeEnd, float fadeStep);
     void BeginTerrainFrame();
