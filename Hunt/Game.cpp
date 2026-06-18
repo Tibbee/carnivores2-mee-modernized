@@ -1776,6 +1776,7 @@ void InitEngine()
   OptFov = kFovDefault;
   OptViewR = kViewOptDefault;
   OptObjectDetail = kObjectDetailDefault;
+OptFpsLimit = 0;  // 0 = unlimited
 
   LoadTrophy();
   OptViewR = ClampViewOpt(OptViewR);
@@ -3333,6 +3334,12 @@ static void LoadConfig()
           wsprintfA(msg, "Config: object_detail %d out of range [%d..%d], ignoring.\n",
                     value, kObjectDetailMin, kObjectDetailMax);
           PrintLog(msg);
+        }
+      }
+      else if (_stricmp(key, "fps_limit") == 0) {
+        // 0=unlimited, 1=60, 2=120, 3=240
+        if (value >= 0 && value <= 3) {
+          OptFpsLimit = value;
         }
       }
       // Future settings: add else-if branches here

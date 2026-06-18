@@ -17,6 +17,7 @@
 #include <sstream>
 #include <thread>
 #include <chrono>
+#include <timeapi.h>
 
 // Network stubs (menu does not require networking)
 void InitNetwork();
@@ -343,6 +344,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 			else
 			{
 				ProcessMenu();
+
+				// Limit menu to 60 FPS to avoid burning CPU
+				static LARGE_INTEGER menuFreq = { 0 };
+				static LARGE_INTEGER menuFrameStart = { 0 };
+				static bool menuFpsInit = false;
+				if (!menuFpsInit) {
+					QueryPerformanceFrequency(&menuFreq);
+					QueryPerformanceCounter(&menuFrameStart);
+					timeBeginPeriod(1);
+					menuFpsInit = true;
+				}
+				const INT64 target_us = 16667; // 60 FPS
+				LARGE_INTEGER now;
+				QueryPerformanceCounter(&now);
+				INT64 elapsed = (now.QuadPart - menuFrameStart.QuadPart) * 1000000 / menuFreq.QuadPart;
+				while (elapsed < target_us) {
+					if (target_us - elapsed > 2000) Sleep(1);
+					QueryPerformanceCounter(&now);
+					elapsed = (now.QuadPart - menuFrameStart.QuadPart) * 1000000 / menuFreq.QuadPart;
+				}
+				QueryPerformanceCounter(&menuFrameStart);
 
 				if (GetActiveWindow() != hwndMain) {
 					// Sleep when the window is not the active one (10 ticks/frames per second)

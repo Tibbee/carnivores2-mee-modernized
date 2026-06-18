@@ -31,6 +31,14 @@
 #define kFovStep     2
 #define kFovDefault  62
 
+// FPS limit option indexes
+#define kFpsLimitOff      0   // Unlimited
+#define kFpsLimit60       1
+#define kFpsLimit120      2
+#define kFpsLimit240      3
+#define kFpsLimitCount    4
+#define kFpsLimitDefault  kFpsLimitOff
+
 // View distance option stored as OptViewR in trophy0N.sav.
 // Kept in sync with Hunt/Hunt.h's view distance constants.
 #define kViewOptMin      0
@@ -573,6 +581,7 @@ public:
 	bool Shadows; // Render real-time shadows
 
 	int32_t	SoundAPI; // Audio system
+	int32_t OptFpsLimit; // FPS limit, 0=Unlimited, 1=60, 2=120, 3=240
 
 	TKeyMap KeyMap; // Controls mapping
 	bool	MouseInvert;

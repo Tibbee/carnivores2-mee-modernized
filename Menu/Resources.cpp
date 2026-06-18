@@ -1331,6 +1331,7 @@ void Options::Default()
 	this->OptSys = 1;
 	this->SoundAPI = AUDIO_OPENALSOFT; // Default to OpenAL Soft
 	this->RenderAPI = 1; // Default to OpenGL
+	this->OptFpsLimit = kFpsLimitDefault;
 }
 
 
@@ -1436,6 +1437,7 @@ void SaveConfig()
 	fs << "renderer " << g_Options.RenderAPI << "\n";
 	fs << "fov " << g_Options.FOV << "\n";
 	fs << "object_detail " << g_Options.ObjectDetail << "\n";
+	fs << "fps_limit " << g_Options.OptFpsLimit << "\n";
 
 	std::cout << "Config Saved (" << kConfigFile << ")." << std::endl;
 }
@@ -1474,6 +1476,16 @@ static bool ParseConfigLine(const std::string& line)
 		if (iss >> v) {
 			v = ClampMenuObjectDetail(v);
 			g_Options.ObjectDetail = v;
+		}
+		return true;
+	}
+
+	if (key == "fps_limit") {
+		int v;
+		if (iss >> v) {
+			if (v < 0) v = 0;
+			if (v >= kFpsLimitCount) v = kFpsLimitDefault;
+			g_Options.OptFpsLimit = v;
 		}
 		return true;
 	}

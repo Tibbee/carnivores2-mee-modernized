@@ -1,6 +1,7 @@
 #define _MAIN_
 #include "Hunt.h"
 #include "stdio.h"
+#include <timeapi.h>
 
 float rav=0;
 float rbv=0;
@@ -2655,6 +2656,40 @@ SKIPYMOVE:
 
 
 
+// FPS limit values matching menu indexes: 0=Unlimited, 1=60, 2=120, 3=240
+static const int kFpsValues[] = { 0, 60, 120, 240 };
+
+static void LimitFPS()
+{
+	int targetFps = kFpsValues[OptFpsLimit];
+	if (targetFps <= 0) return;
+
+	static LARGE_INTEGER freq = { 0 };
+	static LARGE_INTEGER frameStart = { 0 };
+	static bool init = false;
+
+	if (!init) {
+		QueryPerformanceFrequency(&freq);
+		QueryPerformanceCounter(&frameStart);
+		timeBeginPeriod(1);
+		init = true;
+	}
+
+	INT64 target_us = 1000000 / targetFps;
+	LARGE_INTEGER now;
+	QueryPerformanceCounter(&now);
+	INT64 elapsed_us = (now.QuadPart - frameStart.QuadPart) * 1000000 / freq.QuadPart;
+
+	while (elapsed_us < target_us) {
+		if (target_us - elapsed_us > 2000)
+			Sleep(1);
+		QueryPerformanceCounter(&now);
+		elapsed_us = (now.QuadPart - frameStart.QuadPart) * 1000000 / freq.QuadPart;
+	}
+
+	QueryPerformanceCounter(&frameStart);
+}
+
 void ProcessGame()
 {
   if (RestartMode)
@@ -2907,7 +2942,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     }
     else
     {
-      if (blActive) ProcessGame();
+      if (blActive) { ProcessGame(); LimitFPS(); }
       else Sleep(100);
     }
   }

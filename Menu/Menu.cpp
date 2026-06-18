@@ -91,6 +91,7 @@ const char st_AlphaKeyText[2][14] = { "Color Key", "Alpha Channel" };
 const char st_RenText[7][12] = { "Software", "OpenGL", "Direct3D 7", "OpenGL", "Direct3D 9", "Direct3D 11", "Vulkan" };
 const char g_RendererFile[7][8] = { "v_soft", "v_gl", "v_d3d", "v_gl", "v_d3d9", "v_d3d11", "v_vulk" };
 const char st_AudText[2][16] = { "DirectSound", "OpenAL Soft" };
+const char st_FpsText[kFpsLimitCount][12] = { "Unlimited", "60", "120", "240" };
 
 
 int MapVKKey(int k);
@@ -432,6 +433,7 @@ void InitInterface()
 	MenuOptions[m].AddItem("View distance");
 	MenuOptions[m].AddItem("Measurement");
 	MenuOptions[m].AddItem("Sound API");
+MenuOptions[m].AddItem("FPS limit");
 	MenuOptions[m].Rect = { 40, 75, 380, 75 + static_cast<long>(MenuOptions[0].Count * 24) };
 
 	m = OPT_KEYBINDINGS;
@@ -1690,6 +1692,12 @@ void MenuEventInput(int32_t menu)
 								WaitForMouseRelease();
 								g_Options.SoundAPI = (g_Options.SoundAPI + 1) % AUDIO_BACKEND_COUNT;
 							}
+							else if (mo.Hilite == 6)
+							{
+								WaitForMouseRelease();
+								g_Options.OptFpsLimit = (g_Options.OptFpsLimit + 1) % kFpsLimitCount;
+								SaveConfig();
+							}
 						}
 						else if (m == OPT_KEYBINDINGS) { // Left Click
 							MenuSet& menu = MenuOptions[OPT_KEYBINDINGS];
@@ -2182,6 +2190,7 @@ void DrawMenuOptions()
 		if (i == 3) DrawSliderBar(x1 - tbw, y0 + 12, tbw, static_cast<float>((g_Options.ViewRange - kViewOptMin)) / static_cast<float>((kViewOptMax - kViewOptMin)), label_c);
 		if (i == 4) DrawTextShadow(x1, y0, st_UnitText[g_Options.OptSys], value_c, DTA_RIGHT);
 		if (i == 5) DrawTextShadow(x1, y0, st_AudText[NormalizeAudioBackend(g_Options.SoundAPI)], value_c, DTA_RIGHT);
+		if (i == 6) DrawTextShadow(x1, y0, st_FpsText[g_Options.OptFpsLimit], value_c, DTA_RIGHT);
 	}
 
 	// Control key bindings
