@@ -2686,6 +2686,11 @@ void ClearRendererLevelCache()
   // No-op: software renderer doesn't cache per-level model textures.
 }
 
+void ClearRendererTerrainCache()
+{
+  // No-op: software renderer doesn't cache terrain textures.
+}
+
 void ReleaseModelTexture(const TModel* mptr)
 {
   // No-op: software renderer doesn't cache per-level model textures.

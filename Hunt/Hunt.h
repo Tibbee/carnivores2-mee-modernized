@@ -1243,6 +1243,7 @@ void ClearVideoBuf();
 // caches (m_modelTextureCache / m_bmpTextureCache keyed by TModel*); the
 // other renderers implement this as a no-op.
 void ClearRendererLevelCache();
+void ClearRendererTerrainCache();
 void ReleaseModelTexture(const TModel* mptr);
 void DrawScoreText(int, int);
 void DrawTrophyText(int, int);

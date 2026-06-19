@@ -4587,13 +4587,14 @@ void GLRenderer::ResetTerrainTextureCache()
 
 void GLRenderer::ClearLevelTextureCache()
 {
-    // Phase 5E follow-up: clear model texture caches between levels.
-    // The arena frees per-level TModels on Reset(), but the GL renderer
-    // still holds entries in m_modelTextureCache / m_bmpTextureCache keyed
-    // by those now-dangling TModel* pointers. If the arena reuses the same
-    // virtual addresses for new models, the renderer would serve stale
-    // textures. Deleting the GL textures and clearing the maps here prevents
-    // that class of bug.
+    // Clear per-level model texture and mesh caches between levels.
+    // Per-level TModels are heap-allocated (unique addresses across
+    // levels), so address recycling is not a concern, but the cache
+    // entries and GPU resources from the previous level are dead
+    // weight. Clearing them here prevents unbounded VRAM growth.
+    // Global models (ChInfo, SunModel, etc.) survive this clear;
+    // their textures and meshes are re-uploaded on first use next
+    // level (a one-time cost per level transition).
 
     for (const auto& item : m_modelTextureCache) {
         if (item.second) {
@@ -4608,6 +4609,12 @@ void GLRenderer::ClearLevelTextureCache()
         }
     }
     m_bmpTextureCache.clear();
+
+    // Static mesh cache entries hold VBO/IBO offsets that are no longer
+    // valid for the new level's models. Clear the map so UploadStaticMesh
+    // re-uploads fresh geometry. The VBO/IBO data is orphaned but will be
+    // reused when EnsureStaticMeshCapacity regrows the buffers.
+    m_staticMeshCache.clear();
 
     m_skyTextureDirty = true;
 }

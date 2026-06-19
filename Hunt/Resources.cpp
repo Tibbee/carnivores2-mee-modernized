@@ -1576,6 +1576,15 @@ void ReleaseResources()
     PhongMapping = nullptr;
   }
 
+  // Clear the GL renderer's per-level caches now that all per-level
+  // objects have been released. This prevents unbounded VRAM growth
+  // (model textures, BMP textures, static geometry VBO/IBO offsets)
+  // and ensures the terrain texture upload cache is fresh for the next
+  // level. C1 does the same in its ReleaseResources via
+  // renderer->ClearLevelTextureCache() and ResetTerrainTextureCache().
+  ClearRendererLevelCache();
+  ClearRendererTerrainCache();
+
   // Phase 5F.2: reset the per-level arena after per-level owners have
   // dropped their pointers. Keep the MEM_DEBUG cleanup after the reset so
   // the arena still owns the addresses while the leak map is pruned.

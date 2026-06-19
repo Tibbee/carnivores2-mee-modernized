@@ -136,6 +136,15 @@ void ClearRendererLevelCache()
     }
 }
 
+void ClearRendererTerrainCache()
+{
+    // Reset the terrain texture upload cache between levels so the next
+    // level's terrain tiles trigger fresh glTexSubImage3D uploads.
+    if (g_GLRenderer) {
+        g_GLRenderer->ResetTerrainTextureCache();
+    }
+}
+
 void ReleaseModelTexture(const TModel* mptr)
 {
     // Remove the GL texture cache entry for a single model before the
