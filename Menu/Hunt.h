@@ -53,6 +53,11 @@
 #define kObjectDetailStep    4
 #define kObjectDetailDefault 48
 
+#define kTerrainLODMin     0
+#define kTerrainLODMax     100
+#define kTerrainLODStep    10
+#define kTerrainLODDefault 100  // 100 = off (no terrain LOD)
+
 inline int ClampMenuViewOpt(int value)
 {
 	if (value < kViewOptMin) return kViewOptMin;
@@ -585,6 +590,7 @@ public:
 	int32_t Textures;
 	int32_t ViewRange; // OptViewR, 0..255; mapped to ctViewR by the engine
 	int32_t ObjectDetail; // ctViewRM, bitmap sprite LOD distance in map cells
+	int32_t TerrainLOD; // Terrain LOD percentage, 0..100; 100=off
 	int32_t Brightness;
 	int32_t FOV; // Vertical FOV in degrees, [kFovMin..kFovMax]
 	int32_t AlphaColorKey;

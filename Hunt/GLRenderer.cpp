@@ -2367,17 +2367,17 @@ void GLRenderer::RenderObject(int x, int y)
     if (OMap[y][x] == 255 || !MODELS) {
         return;
     }
-    // Phase 2.3: raised cap from 2048 to 8192.  Dense custom maps
-    // routinely exceed 2048 (Phase 0 baseline measured ~2,400 visible
-    // objects per frame).  With instanced rendering the per-object CPU
-    // cost is negligible — m_objectList is just 8 B/entry, m_instanceData
-    // is 96 B/entry, both well within reason at 8K entries.
-    if (m_objectList.size() >= 8192) {
+    // Safety cap.  With the dedup fix in CollectTerrainTile2 (only the
+    // primary cell calls RenderObject), each cell is visited at most once
+    // per frame.  Dense custom maps at max view distance may still push
+    // beyond 8K unique objects — 32K is a generous upper bound (~256 KB
+    // in m_objectList, ~3 MB in m_instanceData).
+    if (m_objectList.size() >= 32768) {
         static int hitCount = 0;
         ++hitCount;
         if (hitCount <= 20 || hitCount % 100 == 0) {
             char buf[128];
-            sprintf(buf, "WARNING: m_objectList hit 8192 cap (%zu entries); objects dropped (hit #%d)\n",
+            sprintf(buf, "WARNING: m_objectList hit 32768 cap (%zu entries); objects dropped (hit #%d)\n",
                     m_objectList.size(), hitCount);
             PrintLogVerbose(buf);
         }
@@ -4091,10 +4091,10 @@ void GLRenderer::CollectTerrainTile2(int x, int y, int r)
         AppendTerrainTriangle(m_terrainVertices, v00, v22, v02, fog00, fog22, fog02, textureLayer, false, true, direction, alpha00, alpha22, alpha02);
     }
 
+    // Primary cell only — neighbor cells are covered by adjacent
+    // 2×2 tiles (same ring) or by the inner 1×1 loop (inner rings).
+    // Calling all four would duplicate entries in m_objectList.
     RenderObject(x, y);
-    RenderObject(x + 1, y);
-    RenderObject(x, y + 1);
-    RenderObject(x + 1, y + 1);
 }
 
 void GLRenderer::CollectWaterTileFast(int x, int y, int r,
@@ -4294,6 +4294,19 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
         return;
     }
 
+    // Coarse frustum pre-test (same pattern as CollectTerrainTile2)
+    {
+        const float wx = static_cast<float>(x * 256 + 128) - CameraX;
+        const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
+        const float wy = WaterList[WMap[y][x]].wlevel * ctHScale - CameraY;
+        const float cx  = wx * ca + wz * sa;
+        const float cz1 = wz * ca - wx * sa;
+        const float cz  = cz1 * cb + wy * sb;
+        if (std::fabs(cx * FOVK) > -cz + BackViewR * 2.0f + 2048.0f) {
+            return;
+        }
+    }
+
     const float viewDistance = static_cast<float>(ctViewR * 256);
     const float viewDistanceSq = viewDistance * viewDistance;
     const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
@@ -4375,7 +4388,34 @@ void GLRenderer::RenderGround()
         wFadeEndSq = wFadeEnd * wFadeEnd;
     }
 
-    for (int r = ctViewR; r > 0; --r) {
+    // Terrain and water share the same LOD boundary (ctViewR1). Water is
+    // flat, so 2x2 tiles are geometrically identical to 1x1 — this is
+    // always a pure win. Terrain 2x2 trades a slight blur for fewer
+    // vertices, controlled by the TerrainLOD percentage slider.
+    for (int r = ctViewR; r > ctViewR1; --r) {
+        for (int x = -r; x <= r; ++x) {
+            if (ctViewR1 < ctViewR) {
+                CollectTerrainTile2(CCX + x, CCY + r, r);
+                CollectTerrainTile2(CCX + x, CCY - r, r);
+            }
+            if (NeedWater) {
+                CollectWaterTile2(CCX + x, CCY + r, r);
+                CollectWaterTile2(CCX + x, CCY - r, r);
+            }
+        }
+        for (int y = -r + 1; y < r; ++y) {
+            if (ctViewR1 < ctViewR) {
+                CollectTerrainTile2(CCX + r, CCY + y, r);
+                CollectTerrainTile2(CCX - r, CCY + y, r);
+            }
+            if (NeedWater) {
+                CollectWaterTile2(CCX + r, CCY + y, r);
+                CollectWaterTile2(CCX - r, CCY + y, r);
+            }
+        }
+    }
+
+    for (int r = ctViewR1; r > 0; --r) {
         for (int x = -r; x <= r; ++x) {
             CollectTerrainTile(CCX + x, CCY + r, r);
             CollectTerrainTile(CCX + x, CCY - r, r);

@@ -1905,6 +1905,7 @@ _EXTORNOT int OptDayNight, OptAgres, OptDens, OptSens, OptRes, OptViewR,
           OptText, OptSys, WaitKey, OPT_ALPHA_COLORKEY;
 _EXTORNOT int  OptFov;
 _EXTORNOT int  OptFpsLimit;
+_EXTORNOT int  OptTerrainLOD;
 _EXTORNOT float UIScale;
 _EXTORNOT int  CurRes, ResCount;
 _EXTORNOT TRes ResolutionList[128];

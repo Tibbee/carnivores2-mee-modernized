@@ -606,6 +606,8 @@ void InitInterface()
 	MenuOptions[m].AddItem("Density");
 	MenuOptions[m].AddItem("Sensitivity");
 	MenuOptions[m].AddItem("View range");
+	MenuOptions[m].AddItem("Object detail");
+	MenuOptions[m].AddItem("Terrain LOD");
 	MenuOptions[m].AddItem("Measurement");
 	MenuOptions[m].AddItem("Sound API");
 	MenuOptions[m].AddItem("FPS limit");
@@ -653,7 +655,6 @@ void InitInterface()
 	MenuOptions[m].AddItem("Alpha Source");
 	MenuOptions[m].AddItem("Brightness");
 	MenuOptions[m].AddItem("Field of View");
-	MenuOptions[m].AddItem("Object detail");
 	MenuOptions[m].Rect = { OptionsLayout::PANEL_VIDEO.x, OptionsLayout::PANEL_VIDEO.y, OptionsLayout::PANEL_VIDEO.GetRight(), OptionsLayout::PANEL_VIDEO.GetBottom() };
 
 	/************************************************************
@@ -1892,17 +1893,35 @@ void MenuEventInput(int32_t menu)
 								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw)
 									g_Options.ViewRange = MenuViewOptFromSlider(v);
 							}
-							else if (mo.Hilite == 4) // Metric or Imperial(US)
+							else if (mo.Hilite == 4) // Object detail
+							{
+								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw) {
+									g_Options.ObjectDetail = MenuObjectDetailFromSlider(v);
+									SaveConfig();
+								}
+							}
+							else if (mo.Hilite == 5) // Terrain LOD
+							{
+								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw) {
+									int lod = kTerrainLODMin + static_cast<int>((v * static_cast<float>((kTerrainLODMax - kTerrainLODMin))));
+									lod = kTerrainLODMin + ((lod - kTerrainLODMin) / kTerrainLODStep) * kTerrainLODStep;
+									if (lod < kTerrainLODMin) lod = kTerrainLODMin;
+									if (lod > kTerrainLODMax) lod = kTerrainLODMax;
+									g_Options.TerrainLOD = lod;
+									SaveConfig();
+								}
+							}
+							else if (mo.Hilite == 6) // Metric or Imperial(US)
 							{
 								WaitForMouseRelease();
 								g_Options.OptSys = !g_Options.OptSys;
 							}
-							else if (mo.Hilite == 5)
+							else if (mo.Hilite == 7)
 							{
 								WaitForMouseRelease();
 								g_Options.SoundAPI = (g_Options.SoundAPI + 1) % AUDIO_BACKEND_COUNT;
 							}
-							else if (mo.Hilite == 6)
+							else if (mo.Hilite == 8)
 							{
 								WaitForMouseRelease();
 								g_Options.OptFpsLimit = (g_Options.OptFpsLimit + 1) % kFpsLimitCount;
@@ -1998,14 +2017,6 @@ void MenuEventInput(int32_t menu)
 									if (fov < kFovMin) fov = kFovMin;
 									if (fov > kFovMax) fov = kFovMax;
 									g_Options.FOV = fov;
-									SaveConfig();
-								}
-							}
-							else if (mo.Hilite == 8) // Object detail
-							{
-								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw)
-								{
-									g_Options.ObjectDetail = MenuObjectDetailFromSlider(v);
 									SaveConfig();
 								}
 							}
@@ -2401,7 +2412,9 @@ void DrawMenuOptions()
 		else if (i == 1) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>(g_Options.Density) / 255.0f, label_c);
 		else if (i == 2) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>(g_Options.Sensitivity) / 255.0f, label_c);
 		else if (i == 3) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>((g_Options.ViewRange - kViewOptMin)) / static_cast<float>((kViewOptMax - kViewOptMin)), label_c);
-		else DrawTextShadow(g_GameValues.x0, y0, i == 4 ? st_UnitText[g_Options.OptSys] : (i == 5 ? st_AudText[NormalizeAudioBackend(g_Options.SoundAPI)] : st_FpsText[g_Options.OptFpsLimit]), value_c);
+		else if (i == 4) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>((g_Options.ObjectDetail - kObjectDetailMin)) / static_cast<float>((kObjectDetailMax - kObjectDetailMin)), label_c);
+		else if (i == 5) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>((g_Options.TerrainLOD - kTerrainLODMin)) / static_cast<float>((kTerrainLODMax - kTerrainLODMin)), label_c);
+		else DrawTextShadow(g_GameValues.x0, y0, i == 6 ? st_UnitText[g_Options.OptSys] : (i == 7 ? st_AudText[NormalizeAudioBackend(g_Options.SoundAPI)] : st_FpsText[g_Options.OptFpsLimit]), value_c);
 	}
 
 	// Control key bindings
@@ -2454,10 +2467,6 @@ void DrawMenuOptions()
 		else if (i == 6) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>(g_Options.Brightness) / 255.0f, label_c);
 		else if (i == 7) {
 			float t = static_cast<float>((g_Options.FOV - kFovMin)) / static_cast<float>((kFovMax - kFovMin));
-			DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, t, label_c);
-		}
-		else if (i == 8) {
-			float t = static_cast<float>((g_Options.ObjectDetail - kObjectDetailMin)) / static_cast<float>((kObjectDetailMax - kObjectDetailMin));
 			DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, t, label_c);
 		}
 	}
@@ -2538,10 +2547,10 @@ void ProcessMenu()
 	// Perform some framerate metric stuff, only for [Debug] builds though
 	g_Frames++;
 
+	InterfaceSetFont(fnt_Small);
+
 	int64_t t = Timer::GetTime();
 	int64_t t_diff = t - g_PrevFrameTime;
-
-	InterfaceSetFont(fnt_Small);
 
 	std::stringstream ss;
 	ss << "FPS: " << g_FramesPerSecond;
@@ -2555,27 +2564,13 @@ void ProcessMenu()
 	ss << "XY:  " << g_CursorPos.x << "x" << g_CursorPos.y;
 	DrawTextShadow(2, 2 + 28, ss.str(), RGB(255, 60, 60));
 
-	if (t_diff < FRAME_TIME_DELTA) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(FRAME_TIME_DELTA - t_diff));
-	}
-
 	if ((t - g_PrevFrameCountTime) >= 1000) {
 		g_FramesPerSecond = g_Frames;
 		g_Frames = 0;
 		g_PrevFrameCountTime = t;
 	}
 
-	g_PrevFrameTime = Timer::GetTime();
-#else // [Release] build frame limiter
-
-	int64_t t = Timer::GetTime();
-	int64_t t_diff = t - g_PrevFrameTime;
-
-	if (t_diff < 16) {
-		std::this_thread::sleep_for(std::chrono::milliseconds(16 - t_diff));
-	}
-
-	g_PrevFrameTime = Timer::GetTime();
+	g_PrevFrameTime = t;
 #endif
 
 	// Draw the GDI buffer to the window

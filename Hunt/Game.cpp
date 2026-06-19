@@ -1792,6 +1792,7 @@ void InitEngine()
   OptFov = kFovDefault;
   OptViewR = kViewOptDefault;
   OptObjectDetail = kObjectDetailDefault;
+  OptTerrainLOD = 100;  // 100 = off (no terrain LOD)
 OptFpsLimit = 0;  // 0 = unlimited
 
   LoadTrophy();
@@ -1810,7 +1811,7 @@ OptFpsLimit = 0;  // 0 = unlimited
   if (SurvivalMode) OptViewR = kViewOptMax;
 
   ctViewR = ViewOptToCtViewR(OptViewR);
-  ctViewR1 = ctViewR; // Terrain LOD is disabled; ctViewR1 remains for compatibility.
+  ctViewR1 = (ctViewR * OptTerrainLOD) / 100;
   ctViewRM = ClampObjectDetail(OptObjectDetail);
 
   Soft_Persp_K = 1.5f;
@@ -3349,6 +3350,15 @@ static void LoadConfig()
           char msg[128];
           wsprintfA(msg, "Config: object_detail %d out of range [%d..%d], ignoring.\n",
                     value, kObjectDetailMin, kObjectDetailMax);
+          PrintLog(msg);
+        }
+      }
+      else if (_stricmp(key, "terrain_lod") == 0) {
+        if (value >= 0 && value <= 100) {
+          OptTerrainLOD = value;
+        } else {
+          char msg[128];
+          wsprintfA(msg, "Config: terrain_lod %d out of range [0..100], ignoring.\n", value);
           PrintLog(msg);
         }
       }

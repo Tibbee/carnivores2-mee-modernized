@@ -1312,7 +1312,7 @@ void ChangeViewR(int d1, int d2, int d3)
   ctViewRM+=d3;
   if (ctViewR<kViewDistanceMin) ctViewR = kViewDistanceMin;
   if (ctViewR>kViewDistanceMax) ctViewR = kViewDistanceMax;
-  ctViewR1 = ctViewR;
+  ctViewR1 = (ctViewR * OptTerrainLOD) / 100;
   if (ctViewRM < kObjectDetailMin) ctViewRM = kObjectDetailMin;
   if (ctViewRM > kObjectDetailMax) ctViewRM = kObjectDetailMax;
 
