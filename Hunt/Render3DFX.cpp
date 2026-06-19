@@ -4259,6 +4259,11 @@ void ClearRendererLevelCache()
   // No-op: 3DFX renderer doesn't cache per-level model textures.
 }
 
+void ReleaseModelTexture(const TModel* mptr)
+{
+  // No-op: 3DFX renderer doesn't cache per-level model textures.
+}
+
 
 void ClearVideoBuf()
 {

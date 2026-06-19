@@ -2686,6 +2686,11 @@ void ClearRendererLevelCache()
   // No-op: software renderer doesn't cache per-level model textures.
 }
 
+void ReleaseModelTexture(const TModel* mptr)
+{
+  // No-op: software renderer doesn't cache per-level model textures.
+}
+
 void ClearVideoBuf()
 {
   WORD w = HiColor(SkyR/8, SkyG/8, SkyB/8);

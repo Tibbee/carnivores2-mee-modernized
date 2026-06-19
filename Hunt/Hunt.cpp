@@ -2914,19 +2914,19 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   LoadWav("HUNTDAT\\SOUNDFX\\hum_die3.wav",  fxScream[2]);
   LoadWav("HUNTDAT\\SOUNDFX\\hum_die4.wav",  fxScream[3]);
 
-  LoadPictureTGA(PausePic,   "HUNTDAT\\MENU\\pause.tga");
+  LoadPictureTGA(PausePic,   "HUNTDAT\\MENU\\pause.tga", MemoryTag::Global);
   conv_pic(PausePic);
-  if (SurvivalMode) LoadPictureTGA(ExitPic, "HUNTDAT\\MENU\\exit_s.tga");
-  else LoadPictureTGA(ExitPic,    "HUNTDAT\\MENU\\exit.tga");
+  if (SurvivalMode) LoadPictureTGA(ExitPic, "HUNTDAT\\MENU\\exit_s.tga", MemoryTag::Global);
+  else LoadPictureTGA(ExitPic,    "HUNTDAT\\MENU\\exit.tga", MemoryTag::Global);
   conv_pic(ExitPic);
-  LoadPictureTGA(TrophyExit, "HUNTDAT\\MENU\\trophy_e.tga");
+  LoadPictureTGA(TrophyExit, "HUNTDAT\\MENU\\trophy_e.tga", MemoryTag::Global);
   conv_pic(TrophyExit);
-  LoadPictureTGA(MapPic,     "HUNTDAT\\MENU\\mapframe.tga");
+  LoadPictureTGA(MapPic,     "HUNTDAT\\MENU\\mapframe.tga", MemoryTag::Global);
   conv_pic(MapPic);
 
-  LoadPictureTGA(TFX_ENVMAP,    "HUNTDAT\\FX\\envmap.tga");
+  LoadPictureTGA(TFX_ENVMAP,    "HUNTDAT\\FX\\envmap.tga", MemoryTag::Global);
   ApplyAlphaFlags(TFX_ENVMAP.lpImage.get(), TFX_ENVMAP.W*TFX_ENVMAP.W);
-  LoadPictureTGA(TFX_SPECULAR,  "HUNTDAT\\FX\\specular.tga");
+  LoadPictureTGA(TFX_SPECULAR,  "HUNTDAT\\FX\\specular.tga", MemoryTag::Global);
   ApplyAlphaFlags(TFX_SPECULAR.lpImage.get(), TFX_SPECULAR.W*TFX_SPECULAR.W);
 
 

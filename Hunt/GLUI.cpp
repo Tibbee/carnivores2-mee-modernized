@@ -136,6 +136,20 @@ void ClearRendererLevelCache()
     }
 }
 
+void ReleaseModelTexture(const TModel* mptr)
+{
+    // Remove the GL texture cache entry for a single model before the
+    // model is freed (either via arena reset or explicit _HeapFree).
+    // This prevents stale cache hits when a new model reuses the same
+    // arena address. Global models (heap-allocated) also pass through
+    // here during ReleaseGlobalResources — the cache entry is removed
+    // once and the GL texture is deleted, which is correct since the
+    // global model is being destroyed permanently.
+    if (g_GLRenderer) {
+        g_GLRenderer->ReleaseModelTextures(mptr);
+    }
+}
+
 void ClearVideoBuf()
 {
     if (g_GLRenderer) g_GLRenderer->ClearVideoBuf();

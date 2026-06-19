@@ -14,7 +14,7 @@ std::map<void*, AllocationInfo>* g_Allocations = nullptr;
 HANDLE hfile;
 DWORD  l;
 
-void GenerateModelMipMaps(TModel *mptr);
+void GenerateModelMipMaps(TModel *mptr, MemoryTag tag);
 void GenerateAlphaFlags(TModel *mptr);
 
 
@@ -984,6 +984,15 @@ void AllocateMemoryForModel(TModel* mptr, MemoryTag tag) {
 
 void LoadModel(unique_obj_ptr<TModel> &mptr)
 {
+  // Per-level MObjects models go to the heap, NOT the arena.
+  // Rationale: the GL renderer caches GPU resources (textures
+  // in m_modelTextureCache and geometry in m_staticMeshCache)
+  // keyed by TModel*. If the arena recycled TModel* addresses
+  // across level transitions, both caches would serve stale
+  // data for completely different models. Keeping TModels on
+  // the heap guarantees stable addresses and correct cache
+  // behaviour across level loads. Per-level texture pixel data
+  // and animations still go to the arena.
   TModel* raw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel));
   mptr.reset(new(raw) TModel());
 
@@ -1048,7 +1057,7 @@ void LoadAnimation(TVTL &vtl)
 
 
 
-void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName)
+void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName, MemoryTag tag)
 {
 
   hfile = CreateFile(FName,
@@ -1062,7 +1071,7 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName)
     DoHalt(sz);
   }
 
-  TModel* raw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel));
+  TModel* raw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel), tag);
   mptr.reset(new(raw) TModel());
 
   ReadFile( hfile, &mptr->VCount,      4,         &l, nullptr );
@@ -1070,7 +1079,7 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName)
   ReadFile( hfile, &OCount,            4,         &l, nullptr );
   ReadFile( hfile, &mptr->TextureSize, 4,         &l, nullptr );
 
-  AllocateMemoryForModel(mptr.get(), MemoryTag::Global);
+  AllocateMemoryForModel(mptr.get(), tag);
 
   ReadFile( hfile, mptr->gFace,        mptr->FCount<<6, &l, nullptr );
   ReadFile( hfile, mptr->gVertex.get(),      mptr->VCount<<4, &l, nullptr );
@@ -1081,7 +1090,7 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName)
   else  mptr->TextureHeight = mptr->TextureSize>>9;
   mptr->TextureSize = mptr->TextureHeight*512;
 
-  mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize)));
+  mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize, tag)));
 
   ReadFile(hfile, mptr->lpTexture.get(), ts, &l, nullptr);
   BrightenTexture(mptr->lpTexture.get(), ts/2);
@@ -1093,10 +1102,10 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName)
     mptr->gVertex[v].z*=-2.f;
   }
 
-  CorrectModel(mptr.get(), MemoryTag::Global);
+  CorrectModel(mptr.get(), tag);
 
   DATASHIFT(mptr->lpTexture.get(), mptr->TextureSize);
-  GenerateModelMipMaps(mptr.get());
+  GenerateModelMipMaps(mptr.get(), tag);
   GenerateAlphaFlags(mptr.get());
 }
 
@@ -1177,7 +1186,7 @@ void conv_pic(TPicture &pic)
 
 
 
-void LoadPicture(TPicture &pic, LPSTR pname)
+void LoadPicture(TPicture &pic, LPSTR pname, MemoryTag tag)
 {
   int C;
   byte fRGB[800][3];
@@ -1203,7 +1212,7 @@ void LoadPicture(TPicture &pic, LPSTR pname)
 
   pic.W = bmpIH.biWidth;
   pic.H = bmpIH.biHeight;
-  pic.lpImage.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, pic.W * pic.H * 2)));
+  pic.lpImage.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, pic.W * pic.H * 2, tag)));
 
 
 
@@ -1222,7 +1231,7 @@ void LoadPicture(TPicture &pic, LPSTR pname)
 
 
 
-void LoadPictureTGA(TPicture &pic, LPSTR pname)
+void LoadPictureTGA(TPicture &pic, LPSTR pname, MemoryTag tag)
 {
   DWORD l;
   WORD w,h;
@@ -1249,7 +1258,7 @@ void LoadPictureTGA(TPicture &pic, LPSTR pname)
 
   pic.W = w;
   pic.H = h;
-  pic.lpImage.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, pic.W * pic.H * 2)));
+  pic.lpImage.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, pic.W * pic.H * 2, tag)));
 
   for (int y=0; y<pic.H; y++)
     ReadFile( hfile, (void*)(pic.lpImage.get() + (pic.H-y-1)*pic.W), 2*pic.W, &l, nullptr );
@@ -1408,16 +1417,16 @@ void GenerateAlphaFlags(TModel *mptr)
 
 
 
-void GenerateModelMipMaps(TModel *mptr)
+void GenerateModelMipMaps(TModel *mptr, MemoryTag tag)
 {
   int th = (mptr->TextureHeight) / 2;
   mptr->lpTexture2.reset(
-    static_cast<WORD*>(_HeapAlloc(Heap, HEAP_ZERO_MEMORY, (1+th)*128*2)));
+    static_cast<WORD*>(_HeapAlloc(Heap, HEAP_ZERO_MEMORY, (1+th)*128*2, tag)));
   CreateMipMapMT(mptr->lpTexture2.get(), mptr->lpTexture.get(), th);
 
   th = (mptr->TextureHeight) / 4;
   mptr->lpTexture3.reset(
-    static_cast<WORD*>(_HeapAlloc(Heap, HEAP_ZERO_MEMORY, (1+th)*64*2)));
+    static_cast<WORD*>(_HeapAlloc(Heap, HEAP_ZERO_MEMORY, (1+th)*64*2, tag)));
   CreateMipMapMT2(mptr->lpTexture3.get(), mptr->lpTexture2.get(), th);
 }
 
@@ -1456,35 +1465,9 @@ void ReleaseResources()
 {
   HeapReleased=0;
 
-  // Phase 5F.2: reset the per-level arena BEFORE iterating over the
-  // level resources. The bulk release rewinds the offset to zero in
-  // O(1) and is the whole point of the arena -- per-level
-  // allocations don't need individual _HeapFree calls because the
-  // arena owns them. C1's ReleaseResources does this (see C1's
-  // _HeapFree which calls Reset()). The reset must come before the
-  // smart-pointer .reset() loop below so the dangling-pointer check
-  // (the .reset() path that calls _HeapFree via HeapDeleter) doesn't
-  // see arena pointers that are about to be reclaimed.
-  //
-  // If LevelArena is null (Phase 5A build, or a build where the
-  // arena was never constructed), this is a no-op -- the for loops
-  // below do the manual cleanup.
-  if (LevelArena != nullptr) {
-    LevelArena->Reset();
-  }
-
-#ifdef MEM_DEBUG
-  // Phase 5F.2: strip the per-level entries out of the leak map.
-  // The arena just bulk-freed them, but the map would still show
-  // them as 'leaks' on shutdown unless we remove them here. C1 does
-  // the same in its ReleaseResources (see C1's Resources.cpp after
-  // the Reset() call). Only Level entries are stripped -- Global
-  // entries (menu SFX, SunModel, etc.) are _HeapFree'd by their
-  // owners and erase themselves from the map in _HeapFree.
-  if (LevelArena != nullptr) {
-    ClearTagAllocations(MemoryTag::Level);
-  }
-#endif
+  // Release per-level objects before rewinding the arena. _HeapFree() knows
+  // how to ignore arena-owned pointers, and this also covers Phase 5A builds
+  // where LevelArena is null and the allocations really are heap-backed.
   for (int t=0; t<1024; t++)
     if (Textures[t].get())
     {
@@ -1508,12 +1491,32 @@ void ReleaseResources()
         MObjects[m].vtl.aniData = nullptr;
       }
 
+      // Remove GL texture cache entry before freeing the TModel.
+      ReleaseModelTexture(mptr);
+
       mptr->lpTexture.reset();
       mptr->lpTexture  = nullptr;
       mptr->lpTexture2.reset();
       mptr->lpTexture2 = nullptr;
       mptr->lpTexture3.reset();
       mptr->lpTexture3 = nullptr;
+
+      // gFace and VLight[0] are raw heap pointers allocated by
+      // AllocateMemoryForModel. They are not managed by unique_ptr
+      // (~TModel() is default) and must be freed explicitly before
+      // the model is destroyed.
+      if (mptr->gFace) {
+        _HeapFree(Heap, 0, mptr->gFace);
+        mptr->gFace = nullptr;
+      }
+      if (mptr->VLight[0]) {
+        _HeapFree(Heap, 0, mptr->VLight[0]);
+        mptr->VLight[0] = nullptr;
+        mptr->VLight[1] = nullptr;
+        mptr->VLight[2] = nullptr;
+        mptr->VLight[3] = nullptr;
+      }
+
       MObjects[m].model.reset();
       MObjects[m].model = nullptr;
       MObjects[m].vtl.FramesCount = 0;
@@ -1536,6 +1539,55 @@ void ReleaseResources()
     RandSound[r].lpData.clear();
     RandSound[r].length = 0;
   }
+
+  // Per-level UI pictures and weapon scratch buffers loaded from the
+  // current .rsc/map pass.
+  MapPic.lpImage.reset();
+  TrophyPic.lpImage.reset();
+  TrophyNoCollectPic.lpImage.reset();
+  ScorePic.lpImage.reset();
+  for (int i=0; i<4; i++)
+    Weapon.Flash[i].lpImage.reset();
+  for (int i=0; i<10; i++)
+  {
+    Weapon.BulletPic[i].lpImage.reset();
+    Weapon.ChambPic[i].lpImage.reset();
+  }
+  for (int i=0; i<16; i++)
+    MenuDinoInfo[i].CallIcon.lpImage.reset();
+
+  Weapon.normals.reset();
+
+  // Raw per-level render scratch buffers. _HeapFree() ignores arena-owned
+  // pointers and frees them when LevelArena is null (Phase 5A compatibility).
+  if (rVertex)
+  {
+    _HeapFree(Heap, 0, rVertex);
+    rVertex = nullptr;
+  }
+  if (gScrp)
+  {
+    _HeapFree(Heap, 0, gScrp);
+    gScrp = nullptr;
+  }
+  if (PhongMapping)
+  {
+    _HeapFree(Heap, 0, PhongMapping);
+    PhongMapping = nullptr;
+  }
+
+  // Phase 5F.2: reset the per-level arena after per-level owners have
+  // dropped their pointers. Keep the MEM_DEBUG cleanup after the reset so
+  // the arena still owns the addresses while the leak map is pruned.
+  if (LevelArena != nullptr) {
+    LevelArena->Reset();
+  }
+
+#ifdef MEM_DEBUG
+  if (LevelArena != nullptr) {
+    ClearTagAllocations(MemoryTag::Level);
+  }
+#endif
 }
 
 
@@ -1637,6 +1689,10 @@ void ReleaseGlobalResources()
   DinoPicM.lpImage.reset();
   MapPic.lpImage.reset();
   WepPic.lpImage.reset();
+
+  // OpenGL/D3D/3DFX effect lookup textures loaded once in WinMain().
+  TFX_SPECULAR.lpImage.reset();
+  TFX_ENVMAP.lpImage.reset();
 
   // The "null" texture (index 255) is the one InitEngine allocates
   // before any level loads; it's never reset by ReleaseResources()
@@ -1760,7 +1816,7 @@ void LoadResources()
     if (MObjects[mm].info.flags & ofBOUND)
       CalcBoundBox(MObjects[mm].model.get(), MObjects[mm].bound);
 
-    GenerateModelMipMaps(MObjects[mm].model.get());
+    GenerateModelMipMaps(MObjects[mm].model.get(), MemoryTag::Level);
     GenerateAlphaFlags(MObjects[mm].model.get());
   }
   PrintLog(" Done.\n");
@@ -1905,7 +1961,7 @@ void LoadResources()
   CreateTMap();
   RenderLightMap();
 
-  LoadPictureTGA(MapPic, "HUNTDAT\\MENU\\mapframe.tga");
+  LoadPictureTGA(MapPic, "HUNTDAT\\MENU\\mapframe.tga", MemoryTag::Level);
   conv_pic(MapPic);
 
   GenerateMapImage();
@@ -1913,18 +1969,18 @@ void LoadResources()
   for (int i = 0; i < 4;i++) {
 	  char buff[100];
 	  sprintf(buff, "HUNTDAT\\WEAPONS\\flash%i.tga", i+1);
-	  LoadPictureTGA(Weapon.Flash[i], buff);
+	  LoadPictureTGA(Weapon.Flash[i], buff, MemoryTag::Level);
 	  conv_pic(Weapon.Flash[i]);
   }
 
-  if (TrophyMode) LoadPictureTGA(TrophyPic, "HUNTDAT\\MENU\\trophy.tga");
+  if (TrophyMode) LoadPictureTGA(TrophyPic, "HUNTDAT\\MENU\\trophy.tga", MemoryTag::Level);
   else {
-	  LoadPictureTGA(TrophyPic, "HUNTDAT\\MENU\\collect.tga");
-	  LoadPictureTGA(TrophyNoCollectPic, "HUNTDAT\\MENU\\trophy_g.tga");
+	  LoadPictureTGA(TrophyPic, "HUNTDAT\\MENU\\collect.tga", MemoryTag::Level);
+	  LoadPictureTGA(TrophyNoCollectPic, "HUNTDAT\\MENU\\trophy_g.tga", MemoryTag::Level);
 	  conv_pic(TrophyNoCollectPic);
   }
   conv_pic(TrophyPic);
-  LoadPictureTGA(ScorePic, "HUNTDAT\\MENU\\score.tga");
+  LoadPictureTGA(ScorePic, "HUNTDAT\\MENU\\score.tga", MemoryTag::Level);
   conv_pic(ScorePic);
 
 //    ReInitGame();
@@ -1961,7 +2017,7 @@ void LoadCharacters()
       if (!MenuDinoInfo[c-10].CallIcon.lpImage)
       {
         wsprintf(logt, "HUNTDAT\\MENU\\PICS\\call%d.tga", c-9);
-        LoadPictureTGA(MenuDinoInfo[c - 10].CallIcon, logt);
+        LoadPictureTGA(MenuDinoInfo[c - 10].CallIcon, logt, MemoryTag::Level);
         conv_pic(MenuDinoInfo[c - 10].CallIcon);
       }
 
@@ -1993,7 +2049,7 @@ void LoadCharacters()
       if (!Weapon.BulletPic[c].lpImage)
       {
         wsprintf(logt, "HUNTDAT\\WEAPONS\\%s", WeapInfo[c].BFName);
-        LoadPictureTGA(Weapon.BulletPic[c], logt);
+        LoadPictureTGA(Weapon.BulletPic[c], logt, MemoryTag::Level);
         conv_pic(Weapon.BulletPic[c]);
         PrintLog("Loading: ");
         PrintLog(logt);
@@ -2003,7 +2059,7 @@ void LoadCharacters()
 	  if (!Weapon.ChambPic[c].lpImage && WeapInfo[c].picch)
 	  {
 		  wsprintf(logt, "HUNTDAT\\WEAPONS\\%s", WeapInfo[c].CFName);
-		  LoadPictureTGA(Weapon.ChambPic[c], logt);
+		  LoadPictureTGA(Weapon.ChambPic[c], logt, MemoryTag::Level);
 		  conv_pic(Weapon.ChambPic[c]);
 		  PrintLog("Loading: ");
 		  PrintLog(logt);
@@ -2223,15 +2279,36 @@ void ReInitGame()
 
 void ReleaseModel(unique_obj_ptr<TModel> &mptr)
 {
-  // Phase 5C.1: release the GPU-side texture handles owned by the renderer
-  // before dropping the model. C1's releaseModelTextures call is
-  // duplicated here as a plain release of the TModel's own texture
-  // pointers; the renderer's own ReleaseModelTextures callback is a
-  // separate concern (some renderers cache GPU handles by TModel*).
+  // Release the GL texture cache entry for this model before dropping
+  // the TModel. C1 calls renderer->ReleaseModelTextures() here for the
+  // same reason: the GL renderer caches GPU textures keyed by TModel*,
+  // and if this TModel* is reused (arena recycling) the stale cache
+  // entry would serve the wrong texture. ReleaseModelTexture does the
+  // cache removal + glDeleteTextures on the GL side; the unique_ptrs
+  // below handle the CPU-side memory.
   if (!mptr) return;
+  ReleaseModelTexture(mptr.get());
   mptr->lpTexture.reset();
   mptr->lpTexture2.reset();
   mptr->lpTexture3.reset();
+
+  // gFace and VLight[0] are raw pointers (not smart pointers) because
+  // gFace lives in a union and VLight is a 4-channel view into one
+  // allocation. They are heap-allocated by AllocateMemoryForModel and
+  // must be freed explicitly. _HeapFree safely no-ops for arena-owned
+  // addresses, so this is correct regardless of the MemoryTag used at
+  // allocation time.
+  if (mptr->gFace) {
+    _HeapFree(Heap, 0, mptr->gFace);
+    mptr->gFace = nullptr;
+  }
+  if (mptr->VLight[0]) {
+    _HeapFree(Heap, 0, mptr->VLight[0]);
+    for (int i = 0; i < 4; i++) {
+      mptr->VLight[i] = nullptr;
+    }
+  }
+
   mptr.reset();
 }
 
@@ -2263,7 +2340,7 @@ void ReleaseCharacterInfo(TCharacterInfo &chinfo)
 
 
 
-void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName)
+void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
 {
   ReleaseCharacterInfo(chinfo);
 
@@ -2284,14 +2361,14 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName)
 
 //============= read model =================//
 
-  TModel* chraw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel));
+  TModel* chraw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel), tag);
   chinfo.mptr.reset(new(chraw) TModel());
 
   ReadFile( hfile, &chinfo.mptr->VCount,      4,         &l, nullptr );
   ReadFile( hfile, &chinfo.mptr->FCount,      4,         &l, nullptr );
   ReadFile( hfile, &chinfo.mptr->TextureSize, 4,         &l, nullptr );
 
-  AllocateMemoryForModel(chinfo.mptr.get(), MemoryTag::Global);
+  AllocateMemoryForModel(chinfo.mptr.get(), tag);
 
   ReadFile( hfile, chinfo.mptr->gFace,        chinfo.mptr->FCount<<6, &l, nullptr );
   ReadFile( hfile, chinfo.mptr->gVertex.get(),      chinfo.mptr->VCount<<4, &l, nullptr );
@@ -2301,13 +2378,13 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName)
   else  chinfo.mptr->TextureHeight = chinfo.mptr->TextureSize>>9;
   chinfo.mptr->TextureSize = chinfo.mptr->TextureHeight*512;
 
-  chinfo.mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, chinfo.mptr->TextureSize)));
+  chinfo.mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, chinfo.mptr->TextureSize, tag)));
 
   ReadFile(hfile, chinfo.mptr->lpTexture.get(), ts, &l, nullptr);
   BrightenTexture(chinfo.mptr->lpTexture.get(), ts/2);
 
   DATASHIFT(chinfo.mptr->lpTexture.get(), chinfo.mptr->TextureSize);
-  GenerateModelMipMaps(chinfo.mptr.get());
+  GenerateModelMipMaps(chinfo.mptr.get(), tag);
   GenerateAlphaFlags(chinfo.mptr.get());
   //CalcLights(chinfo.mptr.get());
 
@@ -2321,7 +2398,7 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName)
     ReadFile(hfile, &chinfo.Animation[a].FramesCount, 4, &l, nullptr);
     chinfo.Animation[a].AniTime = (chinfo.Animation[a].FramesCount * 1000) / chinfo.Animation[a].aniKPS;
     chinfo.Animation[a].aniData.reset((short int*)
-                                  _HeapAlloc(Heap, 0, (chinfo.mptr->VCount*chinfo.Animation[a].FramesCount*6)));
+                                  _HeapAlloc(Heap, 0, (chinfo.mptr->VCount*chinfo.Animation[a].FramesCount*6), tag));
 
     ReadFile(hfile, chinfo.Animation[a].aniData.get(), (chinfo.mptr->VCount*chinfo.Animation[a].FramesCount*6), &l, nullptr);
   }
@@ -2345,7 +2422,7 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName)
     chinfo.mptr->gVertex[v].z*=-2.f;
   }
 
-  CorrectModel(chinfo.mptr.get(), MemoryTag::Global);
+  CorrectModel(chinfo.mptr.get(), tag);
 
 
   ReadFile(hfile, chinfo.Anifx, 64*4, &l, nullptr);

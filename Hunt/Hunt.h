@@ -66,7 +66,7 @@ inline constexpr int kViewOptMin = 0;
 inline constexpr int kViewOptMax = 255;
 inline constexpr int kViewOptDefault = 128;
 inline constexpr int kViewDistanceMin = 42;
-inline constexpr int kViewDistanceMax = 200;
+inline constexpr int kViewDistanceMax = 230;
 inline constexpr int kViewDistanceDefault = 72;
 
 inline int ClampViewOpt(int value)
@@ -1243,6 +1243,7 @@ void ClearVideoBuf();
 // caches (m_modelTextureCache / m_bmpTextureCache keyed by TModel*); the
 // other renderers implement this as a no-op.
 void ClearRendererLevelCache();
+void ReleaseModelTexture(const TModel* mptr);
 void DrawScoreText(int, int);
 void DrawTrophyText(int, int);
 void DrawSurvivalText(int, int);
@@ -1344,10 +1345,10 @@ void ApplyAlphaFlags(WORD*, int);
 WORD conv_565(WORD c);
 int  conv_xGx(int);
 void conv_pic(TPicture &pic);
-void LoadPicture(TPicture &pic, LPSTR pname);
-void LoadPictureTGA(TPicture &pic, LPSTR pname);
-void LoadCharacterInfo(TCharacterInfo&, char*);
-void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName);
+void LoadPicture(TPicture &pic, LPSTR pname, MemoryTag tag = MemoryTag::Global);
+void LoadPictureTGA(TPicture &pic, LPSTR pname, MemoryTag tag = MemoryTag::Global);
+void LoadCharacterInfo(TCharacterInfo&, char*, MemoryTag tag = MemoryTag::Global);
+void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName, MemoryTag tag = MemoryTag::Global);
 void LoadModel(unique_obj_ptr<TModel> &mptr);
 void LoadResources();
 void ReleaseResources();
