@@ -930,12 +930,24 @@ void LoadResources()
 	ui.m_Description.clear();
 #endif //_iceage
 
-	// TODO: Add observer and tranquiliser information to resolve GitHub issue #16
-	g_TranqInfo.m_Name = "Tranquilizer";
-	LoadText(g_TranqInfo.m_Description, "huntdat/menu/txt/tranq.nfo");
-	g_TranqInfo.m_Command = "-tranq -tranquilizer";
-	g_TranqInfo.m_ScoreMod = LookupAccessoryScoreMod("tranq", 1.25f); // default +25%
+	ui.m_Name = "Night vision";
+	LoadText(ui.m_Description, "huntdat/menu/txt/nightvis.nfo");
+	ui.m_Command = "-nightvision";
+	ui.m_ScoreMod = LookupAccessoryScoreMod("nightvision", 1.0f); // neutral
+	ui.m_Price = 50; // costs 50 points to purchase
+	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip_nv.tga");
+	g_UtilInfo.push_back(ui);
+	ui.m_Description.clear();
 
+	ui.m_Name = "Tranquilizers";
+	LoadText(ui.m_Description, "huntdat/menu/txt/tranq.nfo");
+	ui.m_Command = "-tranq -tranquilizer";
+	ui.m_ScoreMod = LookupAccessoryScoreMod("tranq", 1.25f); // default +25%
+	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip6.tga");
+	g_UtilInfo.push_back(ui);
+	ui.m_Description.clear();
+
+	// Observer info (used for info panel display, not in equipment list)
 	g_ObserverInfo.m_Name = "Observer";
 	LoadText(g_ObserverInfo.m_Description, "huntdat/menu/txt/observe.nfo");
 	g_ObserverInfo.m_Command = "-observe -observer";
@@ -1071,6 +1083,7 @@ void TrophyLoad(Profile& profile, int pr)
 	g_Options.ViewRange = ClampMenuViewOpt(g_Options.ViewRange);
 	g_Options.ObjectDetail = kObjectDetailDefault;
 	g_Options.TerrainLOD = kTerrainLODDefault;
+	g_Options.NightVisionKey = 0x4E; // Default: 'N' key
 
 	//Temporary:
 	int r = profile.Rank;
@@ -1335,6 +1348,7 @@ void Options::Default()
 	this->RenderAPI = 1; // Default to OpenGL
 	this->OptFpsLimit = kFpsLimitDefault;
 	this->VerboseLogging = false;
+	this->NightVisionKey = 0x4E; // Default: 'N' key
 }
 
 
@@ -1443,6 +1457,7 @@ void SaveConfig()
 	fs << "terrain_lod " << g_Options.TerrainLOD << "\n";
 	fs << "fps_limit " << g_Options.OptFpsLimit << "\n";
 	fs << "verbose_logging " << (g_Options.VerboseLogging ? 1 : 0) << "\n";
+	fs << "nightvision_key " << g_Options.NightVisionKey << "\n";
 
 	std::cout << "Config Saved (" << kConfigFile << ")." << std::endl;
 }
@@ -1508,6 +1523,14 @@ static bool ParseConfigLine(const std::string& line)
 		int v;
 		if (iss >> v) {
 			g_Options.VerboseLogging = (v != 0);
+		}
+		return true;
+	}
+
+	if (key == "nightvision_key") {
+		int v;
+		if (iss >> v) {
+			g_Options.NightVisionKey = v;
 		}
 		return true;
 	}

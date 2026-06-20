@@ -183,6 +183,16 @@ void ShowVideo()
         }
     }
 
+    // Apply night darkness overlay (when night hunt and night vision is off)
+    if (OptDayNight == 2 && !NightVisionOn) {
+        g_GLRenderer->RenderFSRect(0x80000000);
+    }
+
+    // Apply night vision green overlay (toggleable via equipment + keybind)
+    if (NightVisionOn) {
+        g_GLRenderer->RenderFSRect(0x6000FF00);
+    }
+
     // Swap buffers
     if (g_GLRenderer && hwndMain) {
         HDC hdc = GetDC(hwndMain);

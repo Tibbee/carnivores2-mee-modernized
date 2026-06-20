@@ -123,7 +123,7 @@ namespace Layout {
 //
 namespace OptionsLayout {
 
-	const int ROW_HEIGHT = 22;
+	const int ROW_HEIGHT = 20;
 	const int ROW_HEIGHT_VIDEO = 21; // Fits the extra C2ME video rows inside the legacy panel.
 
 	// Panel regions from the original options artwork.
@@ -143,7 +143,7 @@ namespace OptionsLayout {
 	const int CONTROLS_SLIDER_X      = CONTROLS_VALUE_X + 1;
 	const int CONTROLS_SLIDER_W      = 123;
 
-	const int GAME_FIRST_Y   = 100;
+	const int GAME_FIRST_Y   = 80;
 	const int VIDEO_FIRST_Y  = 353;
 	const int CONTROLS_FIRST_Y = 71;
 
@@ -294,7 +294,13 @@ void AcceptNewKey()
 
 		if (keystate[VK_ESCAPE] & 128)
 		{
-			*((uint32_t*)(&g_Options.KeyMap) + g_WaitKey) = 0;
+			// Check if we're setting the NightVision key (the last keybinding item before Reverse mouse)
+			const int nvIndex = static_cast<int>(MenuOptions[OPT_KEYBINDINGS].Item.size() - 3);
+			if (g_WaitKey == nvIndex) {
+				g_Options.NightVisionKey = 0;
+			} else {
+				*((uint32_t*)(&g_Options.KeyMap) + g_WaitKey) = 0;
+			}
 			g_WaitKey = -2;
 			return;
 		}
@@ -304,11 +310,21 @@ void AcceptNewKey()
 			{
 				if (keystate[k] & 128)
 				{
-					for (int t = 0; t < 16; t++)
-						if (*((uint32_t*)(&g_Options.KeyMap) + t) == k)
-							*((uint32_t*)(&g_Options.KeyMap) + t) = 0;
+					// Check if this is the NightVision key slot
+					const int nvIndex = static_cast<int>(MenuOptions[OPT_KEYBINDINGS].Item.size() - 3);
+					if (g_WaitKey == nvIndex) {
+						// Avoid reassigning an already-used key — check only other NV keys
+						if (g_Options.NightVisionKey == k) return;
+						g_Options.NightVisionKey = k;
+					} else {
+						// Unassign any existing binding that uses the same key
+						const int keyFieldCount = static_cast<int>(sizeof(g_Options.KeyMap) / sizeof(int32_t));
+						for (int t = 0; t < keyFieldCount; t++)
+							if (*((uint32_t*)(&g_Options.KeyMap) + t) == k)
+								*((uint32_t*)(&g_Options.KeyMap) + t) = 0;
 
-					*(reinterpret_cast<int*>((&g_Options.KeyMap)) + g_WaitKey) = k;
+						*(reinterpret_cast<int*>((&g_Options.KeyMap)) + g_WaitKey) = k;
+					}
 
 #ifdef _DEBUG
 					std::cout << "AcceptNewKey() : " << (static_cast<int>(k)) << " MapVK: " << (MapVKKey(k)) << std::endl;
@@ -415,7 +431,14 @@ int32_t CalculateDebit()
 		}
 	}
 
-	// TODO: Accessories
+	// Equipment prices (utilities/accessories)
+	for (unsigned i = 0; i < MenuHunt[3].Item.size() && i < g_UtilInfo.size(); i++)
+	{
+		if (MenuHunt[3].Item[i].second)
+		{
+			debit += g_UtilInfo[i].m_Price;
+		}
+	}
 
 	return debit;
 }
@@ -635,6 +658,7 @@ void InitInterface()
 	MenuOptions[m].AddItem("Lure Call");
 	MenuOptions[m].AddItem("Change Call");
 	MenuOptions[m].AddItem("Binoculars");
+	MenuOptions[m].AddItem("Night vision");
 #ifdef _iceage
 	MenuOptions[m].AddItem("Call Resupply");
 #endif //_iceage
@@ -713,6 +737,8 @@ void InitInterface()
 #ifdef _iceage
 	MenuHunt[m].AddItem("Supply drop");
 #endif //_iceage
+	MenuHunt[m].AddItem("Night vision");
+	MenuHunt[m].AddItem("Tranquilizers");
 	MenuHunt[m].Rect = { 610, 382, 790, 542 };
 
 	std::cout << "Interface: Initialisation Ok!" << std::endl;
@@ -1937,7 +1963,12 @@ void MenuEventInput(int32_t menu)
 
 							mo.Selected = mo.Hilite;
 
-							if (static_cast<size_t>(mo.Hilite) < MenuOptions[OPT_KEYBINDINGS].Item.size() - 2)
+							if (static_cast<size_t>(mo.Hilite) < MenuOptions[OPT_KEYBINDINGS].Item.size() - 3)
+							{
+								WaitForMouseRelease();
+								g_WaitKey = mo.Hilite;
+							}
+							else if (static_cast<int>(mo.Hilite) == MenuOptions[OPT_KEYBINDINGS].Item.size() - 3) // Night vision toggle key
 							{
 								WaitForMouseRelease();
 								g_WaitKey = mo.Hilite;
@@ -2170,15 +2201,8 @@ void MenuEventInput(int32_t menu)
 				}
 			}
 		}
-		else if (id == 5) {
-			// TODO: Finish this for GitHub issue #16
-			g_HuntSelectPic = &g_TranqInfo.m_Thumbnail;
-			g_HuntInfo.first = 3; // Accessories
-			g_HuntInfo.second = 9998;
-
-		}
 		else if (id == 6) {
-			// TODO: Finish this for GitHub issue #16
+			// Observer info panel
 			g_HuntSelectPic = &g_ObserverInfo.m_Thumbnail;
 			g_HuntInfo.first = 3; // Accessories
 			g_HuntInfo.second = 9999;
@@ -2206,9 +2230,6 @@ void MenuEventInput(int32_t menu)
 
 				if (id == 4)
 					b = false; // Unused
-				if (id == 5) {
-					g_Options.TranqMode = b;
-				}
 				if (id == 6) {
 					g_ObserverMode = b;
 				}
@@ -2265,6 +2286,13 @@ void MenuEventInput(int32_t menu)
 				if (MenuHunt[3].Item[3].second)
 					params << " " << g_UtilInfo[3].m_Command;
 
+				// Night vision goggles (index 4 in g_UtilInfo)
+				{
+					const int nvIdx = 4;
+					if (nvIdx < static_cast<int>(MenuHunt[3].Item.size()) && MenuHunt[3].Item[nvIdx].second)
+						params << " " << g_UtilInfo[nvIdx].m_Command;
+				}
+
 				if (MenuHunt[3].Item[0].second) {
 					g_Options.CamoMode = true;
 					params << " -camo";
@@ -2289,8 +2317,12 @@ void MenuEventInput(int32_t menu)
 					g_Options.ScentMode = true;
 				}
 
-				if (g_Options.TranqMode)
-					params << " -tranq";
+				// Tranquilizers (index 5 in g_UtilInfo)
+				{
+					const int tranqIdx = 5;
+					if (tranqIdx < static_cast<int>(MenuHunt[3].Item.size()) && MenuHunt[3].Item[tranqIdx].second)
+						params << " " << g_UtilInfo[tranqIdx].m_Command;
+				}
 
 				if (g_ObserverMode)
 					params << " -observ";
@@ -2304,7 +2336,7 @@ void MenuEventInput(int32_t menu)
 				       << ","  << g_UtilInfo[1].m_ScoreMod    // radar
 				       << ","  << g_UtilInfo[2].m_ScoreMod    // scent
 				       << ","  << g_UtilInfo[3].m_ScoreMod    // double
-				       << ","  << g_TranqInfo.m_ScoreMod      // tranq
+				       << ","  << g_UtilInfo[5].m_ScoreMod    // tranq
 				       << ","  << g_ObserverInfo.m_ScoreMod;  // observer
 
 #ifdef _DEBUG
@@ -2419,24 +2451,40 @@ void DrawMenuOptions()
 
 	// Control key bindings
 	for (auto i = 0U; i < MenuOptions[OPT_KEYBINDINGS].Item.size(); i++) {
+		const int nvIndex = static_cast<int>(MenuOptions[OPT_KEYBINDINGS].Item.size() - 3);
+
+		// Key name string: use NightVisionKey for the NV slot, KeyMap for others
 		std::stringstream ss;
-		ss << g_KeyNames[MapVKKey(*((int32_t*)&g_Options.KeyMap + i))];
+		if (static_cast<int>(i) == nvIndex) {
+			ss << g_KeyNames[MapVKKey(g_Options.NightVisionKey)];
+		} else {
+			ss << g_KeyNames[MapVKKey(*((int32_t*)&g_Options.KeyMap + i))];
+		}
 
 		int y0 = g_ControlsLabels.GetItemY(i);
 		int c = (MenuOptions[OPT_KEYBINDINGS].Hilite == i) ? on_c : label_c;
 
 		DrawTextShadow(g_ControlsLabels.x0, y0, MenuOptions[OPT_KEYBINDINGS].Item[i].first, c, DTA_RIGHT);
 
-		if (i < MenuOptions[OPT_KEYBINDINGS].Item.size() - 2)
+		if (static_cast<int>(i) < MenuOptions[OPT_KEYBINDINGS].Item.size() - 3)
 		{
+			// KeyMap-bound keys
 			if (g_WaitKey == i)
 				DrawTextShadow(g_ControlsValues.x0, y0, "<?>", value_c);
 			else
 				DrawTextShadow(g_ControlsValues.x0, y0, ss.str(), value_c);
 		}
-		else if (i == MenuOptions[OPT_KEYBINDINGS].Item.size() - 2)
+		else if (static_cast<int>(i) == nvIndex)
+		{
+			// Night vision toggle key (stored in NightVisionKey, not KeyMap)
+			if (g_WaitKey == i)
+				DrawTextShadow(g_ControlsValues.x0, y0, "<?>", value_c);
+			else
+				DrawTextShadow(g_ControlsValues.x0, y0, ss.str(), value_c);
+		}
+		else if (static_cast<int>(i) == MenuOptions[OPT_KEYBINDINGS].Item.size() - 2)
 			DrawTextShadow(g_ControlsValues.x0, y0, st_BoolText[static_cast<int>(g_Options.MouseInvert)], value_c);
-		else if (i == MenuOptions[OPT_KEYBINDINGS].Item.size() - 1)
+		else if (static_cast<int>(i) == MenuOptions[OPT_KEYBINDINGS].Item.size() - 1)
 			DrawSliderBar(OptionsLayout::CONTROLS_SLIDER_X, y0 + 12, OptionsLayout::CONTROLS_SLIDER_W, static_cast<float>(g_Options.MouseSensitivity) / 255.0f, label_c);
 	}
 

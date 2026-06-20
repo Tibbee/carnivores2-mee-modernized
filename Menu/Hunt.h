@@ -498,6 +498,7 @@ public:
 	std::vector<std::string> m_Description;
 	std::string m_Command;
 	Picture m_Thumbnail; // Preview icon/image associated with this area
+	int32_t m_Price; // Credits cost for this accessory (0 = free)
 	float m_ScoreMod; // Score multiplier when this accessory is selected (1.0 = neutral, 0.85 = -15%)
 
 //public:
@@ -507,6 +508,7 @@ public:
 		m_Description(),
 		m_Command(""),
 		m_Thumbnail(),
+		m_Price(0),
 		m_ScoreMod(1.0f)
 	{
 	}
@@ -516,6 +518,7 @@ public:
 		m_Description(description),
 		m_Command(command),
 		m_Thumbnail(),
+		m_Price(0),
 		m_ScoreMod(1.0f)
 	{
 		//if (!thumbnail.empty())
@@ -527,6 +530,7 @@ public:
 		m_Description(ui.m_Description),
 		m_Command(ui.m_Command),
 		m_Thumbnail(ui.m_Thumbnail),
+		m_Price(ui.m_Price),
 		m_ScoreMod(ui.m_ScoreMod)
 	{
 	}
@@ -605,6 +609,7 @@ public:
 	TKeyMap KeyMap; // Controls mapping
 	bool	MouseInvert;
 	int32_t	MouseSensitivity;
+	int32_t	NightVisionKey; // Key to toggle night vision (default: 'N' = 0x4E)
 
 	void Default();
 };

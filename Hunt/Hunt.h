@@ -1576,6 +1576,8 @@ _EXTORNOT bool alreadyFired;
 _EXTORNOT Vector3d answpos;
 _EXTORNOT int answtime, answcall;
 
+_EXTORNOT BOOL NightVisionMode, NightVisionOn;
+
 _EXTORNOT BOOL ScentMode, CamoMode,
           RadarMode, LockLanding,
           TrophyMode, DoubleAmmo,
@@ -1903,6 +1905,7 @@ _EXTORNOT int  CameraFogI;
 _EXTORNOT int OptDayNight, OptAgres, OptDens, OptSens, OptRes, OptViewR,
           OptMsSens, OptBrightness, OptSound, OptRender, OptObjectDetail,
           OptText, OptSys, WaitKey, OPT_ALPHA_COLORKEY;
+_EXTORNOT int  NightVisionKey;
 _EXTORNOT int  OptFov;
 _EXTORNOT int  OptFpsLimit;
 _EXTORNOT int  OptTerrainLOD;

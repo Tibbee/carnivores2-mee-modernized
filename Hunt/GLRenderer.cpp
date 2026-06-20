@@ -4881,7 +4881,7 @@ float GLRenderer::GetSkyK(int x, int y)
     if (k < 0.0f) k = 0.0f;
     k = 1.0f - k / 80.0f;
     if (k < 0.2f) k = 0.2f;
-    if (OptDayNight == 2) k = 0.3f + k / 2.75f;
+    if (OptDayNight == 2) k = 0.12f + k / 5.0f;
 
     DeltaFunc(m_skyTraceK, k, (0.07f + std::fabs(k - m_skyTraceK)) * (TimeDt / 512.0f));
     return m_skyTraceK;

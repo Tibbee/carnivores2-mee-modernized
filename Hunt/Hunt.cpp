@@ -1409,13 +1409,20 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 
   }
 
-  if (message == WM_KEYDOWN && !SurvivalMode)
+  if (message == WM_KEYDOWN)
   {
-    if (static_cast<int>(wParam) == KeyMap.fkBinoc) ToggleBinocular();
-    if (static_cast<int>(wParam) == KeyMap.fkCCall) ChangeCall();
-    if (static_cast<int>(wParam) == KeyMap.fkRun  ) ToggleRunMode();
-	if (static_cast<int>(wParam) == KeyMap.fkCrouch) ToggleCrouchMode();
-    if (static_cast<int>(wParam) == cheatcode[cheati])
+    if (static_cast<int>(wParam) == KeyMap.fkBinoc && !SurvivalMode) ToggleBinocular();
+    if (static_cast<int>(wParam) == KeyMap.fkCCall && !SurvivalMode) ChangeCall();
+    if (static_cast<int>(wParam) == KeyMap.fkRun  && !SurvivalMode) ToggleRunMode();
+	if (static_cast<int>(wParam) == KeyMap.fkCrouch && !SurvivalMode) ToggleCrouchMode();
+    if (static_cast<int>(wParam) == NightVisionKey && NightVisionMode) {
+      NightVisionOn = !NightVisionOn;
+      if (NightVisionOn)
+        AddMessage("Night vision ON");
+      else
+        AddMessage("Night vision OFF");
+    }
+    if (static_cast<int>(wParam) == cheatcode[cheati] && !SurvivalMode)
     {
       cheati++;
       if (cheati>6)

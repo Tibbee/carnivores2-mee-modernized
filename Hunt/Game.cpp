@@ -693,6 +693,7 @@ void ProcessCommandLine()
     if (strstr(s,"-debug"))   DEBUG = true;
     if (strstr(s,"-double"))  DoubleAmmo = true;
 	if (strstr(s, "-huntdog"))  DogMode = true;
+	if (strstr(s, "-nightvision")) NightVisionMode = true;
     if (strstr(s,"-radar"))   RadarMode = true;
 	if (strstr(s, "-survival"))  SurvivalMode = true;
 	if (strstr(s, "-sonar"))   SonarMode = true;
@@ -1638,6 +1639,9 @@ void InitEngine()
   _MultiplayerState = 0;
 
   RadarMode    = false;
+  NightVisionMode = false;
+  NightVisionOn   = false;
+  NightVisionKey  = 0x4E; // Default: 'N' key
 
   // Accessory score multipliers. Defaults match the legacy hardcoded
   // values that used to live in SubmitDinoScore() so legacy hunts
@@ -3370,6 +3374,9 @@ static void LoadConfig()
       }
       else if (_stricmp(key, "verbose_logging") == 0) {
         g_VerboseLogging = (value != 0);
+      }
+      else if (_stricmp(key, "nightvision_key") == 0) {
+        NightVisionKey = value;
       }
       // Future settings: add else-if branches here
     }

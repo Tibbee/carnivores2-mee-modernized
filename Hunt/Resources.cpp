@@ -714,12 +714,6 @@ void BrightenTexture(WORD* A, int L)
     R = (R * factor) >> 8;
     if (R > 31) R = 31;
 
-    if (OptDayNight==2)
-    {
-      B=G>>3;
-      R=G>>3;
-    }
-
     *(A + c) = (B) + (G<<5) + (R<<10);
   }
 }
@@ -1165,7 +1159,7 @@ WORD conv_565(WORD c)
 
 int conv_xGx(int c)
 {
-  if (OptDayNight!=2) return c;
+  if (!NightVisionOn) return c;
   DWORD a = c;
   int r = ((c>> 0) & 0xFF);
   int g = ((c>> 8) & 0xFF);
@@ -1851,7 +1845,7 @@ void LoadResources()
 #ifdef _d3d
     FogsList[f].fogRGB = (fr) + (fg<<8) + (fb<<16);
 #endif
-    if (OptDayNight==2) FogsList[f].fogRGB&=0x00FF00;
+    // Night vision green fog tint removed — handled by per-frame overlay
   }
 
 

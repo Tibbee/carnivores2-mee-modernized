@@ -1595,7 +1595,7 @@ float GetSkyK(int x, int y)
   if (k<  0) k = 0;
   k = 1.0f - k/80.f;
   if (k<0.2) k=0.2f;
-  if (OptDayNight==2) k=0.3 + k/2.75;
+  if (OptDayNight==2) k=0.12f + k/5.0f;
   DeltaFunc(SkyTraceK, k, (0.07f + static_cast<float>(fabs(k-SkyTraceK))) * (TimeDt / 512.f) );
   return SkyTraceK;
 }
@@ -1655,6 +1655,16 @@ void ShowVideo()
     {
       RenderFSRect(0xFFFFC0 + (static_cast<int>(SunLight)<<24));
     }
+
+  // Night darkness overlay (when night hunt and night vision is off)
+  if (OptDayNight == 2 && !NightVisionOn) {
+    RenderFSRect(0x80000000);
+  }
+
+  // Night vision green overlay (toggleable via equipment + keybind)
+  if (NightVisionOn) {
+    RenderFSRect(0x6000FF00);
+  }
 
   RenderHealthBar();
 

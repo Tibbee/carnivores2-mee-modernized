@@ -3210,6 +3210,37 @@ void ShowVideo()
       for (int x=0; x<WinW; x++)
         *(static_cast<WORD*>(lpVideoBuf) + y*VideoPitch + x) = FadeTab[64][*(static_cast<WORD*>(lpVideoBuf) + y*VideoPitch + x) & 0x7FFF];
 
+  // Night darkness overlay (when night hunt and night vision is off)
+  if (OptDayNight == 2 && !NightVisionOn) {
+    for (int y=0; y<WinH; y++)
+      for (int x=0; x<WinW; x++) {
+        WORD* p = static_cast<WORD*>(lpVideoBuf) + y*VideoPitch + x;
+        int r = (*p >> 10) & 0x1F;
+        int g = (*p >> 5) & 0x1F;
+        int b = *p & 0x1F;
+        // Reduce all channels to ~50% brightness (match 0x80000000 overlay)
+        r = r / 2;
+        g = g / 2;
+        b = b / 2;
+        *p = static_cast<WORD>((r << 10) | (g << 5) | b);
+      }
+  }
+
+  // Night vision green overlay (toggleable via equipment + keybind)
+  if (NightVisionOn) {
+    for (int y=0; y<WinH; y++)
+      for (int x=0; x<WinW; x++) {
+        WORD* p = static_cast<WORD*>(lpVideoBuf) + y*VideoPitch + x;
+        int r = (*p >> 10) & 0x1F;
+        int g = (*p >> 5) & 0x1F;
+        int b = *p & 0x1F;
+        // Boost green channel, reduce red and blue (night vision effect)
+        g = (g + 8 > 31) ? 31 : g + 8;
+        r = r * 3 / 4;
+        b = b * 3 / 4;
+        *p = static_cast<WORD>((r << 10) | (g << 5) | b);
+      }
+  }
 
   RenderHealthBar();
 
