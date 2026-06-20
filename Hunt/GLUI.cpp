@@ -184,8 +184,9 @@ void ShowVideo()
     }
 
     // Apply night darkness overlay (when night hunt and night vision is off)
+    // Use alpha blending (additive=false) — additive blending has no effect with black
     if (OptDayNight == 2 && !NightVisionOn) {
-        g_GLRenderer->RenderFSRect(0x80000000);
+        g_GLRenderer->RenderFSRect(0x80000000, false);
     }
 
     // Apply night vision green overlay (toggleable via equipment + keybind)

@@ -525,7 +525,7 @@ private:
 
 public:
     float GetSunLight() const { return m_sunLight; }
-    void RenderFSRect(uint32_t color);
+    void RenderFSRect(uint32_t color, bool additive = true);
     void ApplySunDepthOcclusion();
     void DrawHUDOverlay();
 

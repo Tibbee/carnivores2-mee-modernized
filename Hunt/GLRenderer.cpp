@@ -5070,7 +5070,7 @@ void GLRenderer::ApplySunDepthOcclusion()
     m_sunLight *= traceK;
 }
 
-void GLRenderer::RenderFSRect(uint32_t color)
+void GLRenderer::RenderFSRect(uint32_t color, bool additive)
 {
     float a = static_cast<float>((color >> 24) & 0xFF) / 255.0f;
     float r = static_cast<float>((color >> 16) & 0xFF) / 255.0f;
@@ -5122,7 +5122,11 @@ void GLRenderer::RenderFSRect(uint32_t color)
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);  // additive blending for glare
+    // Use additive blending (glare) or standard alpha blending (dark overlay)
+    if (additive)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    else
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
