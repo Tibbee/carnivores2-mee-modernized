@@ -541,6 +541,21 @@ public:
     // Called after a full-DIB write (e.g., CopyHARDToDIB screenshot)
     // to force the next frame to do a full clear + full upload.
     void InvalidateHUDOverlay();
+
+    // Night desaturation + darkness overlay pipeline
+    void InitializeNightDesaturation();
+    void ShutdownNightDesaturation();
+    void RenderSceneDesaturated();   // desaturate 3D scene only (before HUD)
+    void RenderNightDarkness();      // dark overlay only (after HUD)
+
+private:
+    // Night overlay resources
+    GLuint m_nightDesatProgram = 0;
+    GLuint m_nightSceneTex = 0;
+    GLint  m_locNightDesatTexture = -1;
+    GLint  m_locNightDesatStrength = -1;
+    int    m_nightTexWidth = 0;
+    int    m_nightTexHeight = 0;
 };
 
 extern GLRenderer* g_GLRenderer;

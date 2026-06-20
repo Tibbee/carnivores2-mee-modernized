@@ -183,10 +183,9 @@ void ShowVideo()
         }
     }
 
-    // Apply night darkness overlay (when night hunt and night vision is off)
-    // Use alpha blending (additive=false) — additive blending has no effect with black
+    // Apply night darkness overlay (desaturation was done before HUD in ShowControlElements)
     if (OptDayNight == 2 && !NightVisionOn) {
-        g_GLRenderer->RenderFSRect(0x80000000, false);
+        g_GLRenderer->RenderNightDarkness();
     }
 
     // Apply night vision green overlay (toggleable via equipment + keybind)
@@ -812,7 +811,13 @@ void ShowControlElements()
     // sits on top in the overlay upload.
     RenderHealthBar();
 
-    // Upload lpVideoBuf overlay to GL
+    // Apply desaturation to the 3D scene BEFORE the HUD overlay,
+    // so the HUD (health bar, text) stays at full color.
+    if (OptDayNight == 2 && !NightVisionOn && g_GLRenderer) {
+        g_GLRenderer->RenderSceneDesaturated();
+    }
+
+    // Upload lpVideoBuf overlay to GL (composited on top of the desaturated scene)
     if (g_GLRenderer) g_GLRenderer->DrawHUDOverlay();
 }
 

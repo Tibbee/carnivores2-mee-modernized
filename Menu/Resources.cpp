@@ -511,8 +511,8 @@ void ReadPrices(FILE* stream)
 	uint32_t CurW = 0;
 	uint32_t CurD = 0;
 	uint32_t CurU = 0;
+	g_AccessoryPrices.clear();  // reset on each script load
 	char line[256], * value;
-	int dummy = 0;
 
 	// Initialise the `CurD` variable to the first huntable index
 	for (uint32_t i = 0; i < g_DinoInfo.size(); i++)
@@ -559,7 +559,7 @@ void ReadPrices(FILE* stream)
 			CurW++;
 		}
 		else if (strstr(line, "acces")) {
-			dummy = atoi(value);// We don't use this right now
+			g_AccessoryPrices.push_back(static_cast<int32_t>(atoi(value)));
 			CurU++;
 		}
 	}
@@ -802,6 +802,7 @@ void LoadResourcesScript()
 	g_StartCredits = 100; // Default
 	g_ScriptLine = 0;
 	g_AccessoryScoreMods.clear(); // reset on each script load
+	g_AccessoryPrices.clear();
 
 	// Try _MENU.TXT first (simplified menu data with prices)
 	// Fall back to _res.txt if _MENU.TXT doesn't exist
@@ -888,64 +889,25 @@ void LoadResources()
 	//LoadPicture(g_TrackBar[1], "huntdat/menu/sl_but.tga");
 
 	UtilInfo ui;
-	ui.m_Name = "Camouflage";
-	LoadText(ui.m_Description, "huntdat/menu/txt/camoflag.nfo");
-	ui.m_Command = "-camo";
-	ui.m_ScoreMod = LookupAccessoryScoreMod("camo", 0.85f); // default -15%
-	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip1.tga");
-	g_UtilInfo.push_back(ui);
-	ui.m_Description.clear();
+	size_t accIdx = 0;
+	auto addUtil = [&](const char* name, const char* descFile, const char* cmd, const char* scoreKey, float scoreDefault, int32_t defaultPrice, const char* pic) {
+		ui.m_Name = name;
+		LoadText(ui.m_Description, descFile);
+		ui.m_Command = cmd;
+		ui.m_ScoreMod = LookupAccessoryScoreMod(scoreKey, scoreDefault);
+		ui.m_Price = (accIdx < g_AccessoryPrices.size()) ? g_AccessoryPrices[accIdx] : defaultPrice;
+		accIdx++;
+		LoadPicture(ui.m_Thumbnail, pic);
+		g_UtilInfo.push_back(ui);
+		ui.m_Description.clear();
+	};
 
-	ui.m_Name = "Radar";
-	LoadText(ui.m_Description, "huntdat/menu/txt/radar.nfo");
-	ui.m_Command = "-radar";
-	ui.m_ScoreMod = LookupAccessoryScoreMod("radar", 0.70f); // default -30%
-	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip2.tga");
-	g_UtilInfo.push_back(ui);
-	ui.m_Description.clear();
-
-	ui.m_Name = "Cover scent";
-	LoadText(ui.m_Description, "huntdat/menu/txt/scent.nfo");
-	ui.m_Command = "";
-	ui.m_ScoreMod = LookupAccessoryScoreMod("scent", 0.80f); // default -20%
-	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip3.tga");
-	g_UtilInfo.push_back(ui);
-	ui.m_Description.clear();
-
-	ui.m_Name = "Double ammo";
-	LoadText(ui.m_Description, "huntdat/menu/txt/double.nfo");
-	ui.m_Command = "-double";
-	ui.m_ScoreMod = LookupAccessoryScoreMod("double", 1.0f); // neutral
-	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip4.tga");
-	g_UtilInfo.push_back(ui);
-	ui.m_Description.clear();
-
-#ifdef _iceage
-	ui.m_Name = "Supply drop";
-	LoadText(ui.m_Description, "huntdat/menu/txt/resupply.nfo");
-	ui.m_Command = "-supply -resupply";
-	ui.m_ScoreMod = LookupAccessoryScoreMod("supply", 1.0f); // neutral
-	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip5.tga");
-	g_UtilInfo.push_back(ui);
-	ui.m_Description.clear();
-#endif //_iceage
-
-	ui.m_Name = "Night vision";
-	LoadText(ui.m_Description, "huntdat/menu/txt/nightvis.nfo");
-	ui.m_Command = "-nightvision";
-	ui.m_ScoreMod = LookupAccessoryScoreMod("nightvision", 1.0f); // neutral
-	ui.m_Price = 50; // costs 50 points to purchase
-	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip_nv.tga");
-	g_UtilInfo.push_back(ui);
-	ui.m_Description.clear();
-
-	ui.m_Name = "Tranquilizers";
-	LoadText(ui.m_Description, "huntdat/menu/txt/tranq.nfo");
-	ui.m_Command = "-tranq -tranquilizer";
-	ui.m_ScoreMod = LookupAccessoryScoreMod("tranq", 1.25f); // default +25%
-	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip6.tga");
-	g_UtilInfo.push_back(ui);
-	ui.m_Description.clear();
+	addUtil("Camouflage",  "huntdat/menu/txt/camoflag.nfo", "-camo",  "camo", 0.85f, 30,  "huntdat/menu/pics/equip1.tga");
+	addUtil("Radar",       "huntdat/menu/txt/radar.nfo",    "-radar", "radar", 0.70f, 40,  "huntdat/menu/pics/equip2.tga");
+	addUtil("Cover scent", "huntdat/menu/txt/scent.nfo",    "",       "scent", 0.80f, 20,  "huntdat/menu/pics/equip3.tga");
+	addUtil("Double ammo", "huntdat/menu/txt/double.nfo",   "-double","double",1.0f,  50,  "huntdat/menu/pics/equip4.tga");
+	addUtil("Night vision","huntdat/menu/txt/nightvis.nfo", "-nightvision", "nightvision", 1.0f, 50, "huntdat/menu/pics/equip_nv.tga");
+	addUtil("Tranquilizers","huntdat/menu/txt/tranq.nfo",  "-tranq -tranquilizer", "tranq", 1.25f, 60, "huntdat/menu/pics/equip6.tga");
 
 	// Observer info (used for info panel display, not in equipment list)
 	g_ObserverInfo.m_Name = "Observer";

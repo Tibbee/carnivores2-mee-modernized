@@ -3210,7 +3210,8 @@ void ShowVideo()
       for (int x=0; x<WinW; x++)
         *(static_cast<WORD*>(lpVideoBuf) + y*VideoPitch + x) = FadeTab[64][*(static_cast<WORD*>(lpVideoBuf) + y*VideoPitch + x) & 0x7FFF];
 
-  // Night darkness overlay (when night hunt and night vision is off)
+  // Night darkness + desaturation overlay (when night hunt and night vision is off)
+  // Partial desaturation to 60%: mix original color with luminance grayscale, then darken
   if (OptDayNight == 2 && !NightVisionOn) {
     for (int y=0; y<WinH; y++)
       for (int x=0; x<WinW; x++) {
@@ -3218,7 +3219,12 @@ void ShowVideo()
         int r = (*p >> 10) & 0x1F;
         int g = (*p >> 5) & 0x1F;
         int b = *p & 0x1F;
-        // Reduce all channels to ~50% brightness (match 0x80000000 overlay)
+        // Partial desaturate: mix 40% original + 60% luminance grayscale
+        int gray = (r*10 + g*19 + b*3) / 32;  // 5-bit luminance weights
+        r = (r * 2 + gray * 3) / 5;  // 40% original, 60% gray
+        g = (g * 2 + gray * 3) / 5;
+        b = (b * 2 + gray * 3) / 5;
+        // Darken to ~50%
         r = r / 2;
         g = g / 2;
         b = b / 2;

@@ -718,6 +718,7 @@ EXTERNAL std::vector<AreaInfo>	g_AreaInfo;
 EXTERNAL std::vector<UtilInfo>	g_UtilInfo;
 EXTERNAL UtilInfo				g_TranqInfo, g_ObserverInfo;
 EXTERNAL std::map<std::string, float> g_AccessoryScoreMods; // populated by ReadAccessories()
+EXTERNAL std::vector<int32_t> g_AccessoryPrices; // parsed from 'acces' lines in _MENU.TXT prices block
 EXTERNAL std::vector<unsigned int> g_DinoList;
 EXTERNAL uint32_t				g_ProfileIndex;
 EXTERNAL uint32_t				g_HiliteProfileIndex;
