@@ -290,7 +290,7 @@ void d3dStartBufferGBMP()
   {
     lpState->drstRenderStateType = D3DRENDERSTATE_FOGCOLOR;
     lpState->dwArg[0] = CurFogColor;
-    /*if (UNDERWATER) lpState->dwArg[0] = 0x00004560;
+    /*if (IsUnderwater()) lpState->dwArg[0] = 0x00004560;
                else lpState->dwArg[0] = 0x00606065;*/
     lpState++;
   }
@@ -1647,11 +1647,11 @@ void ShowVideo()
 
 
 
-  if (UNDERWATER)
+  if (IsUnderwater())
     RenderFSRect(CurFogColor+0x70000000);
 
   if (OptDayNight!=2)
-    if (!UNDERWATER && (SunLight>1.0f) )
+    if (!IsUnderwater() && (SunLight>1.0f) )
     {
       RenderFSRect(0xFFFFC0 + (static_cast<int>(SunLight)<<24));
     }
@@ -2831,7 +2831,7 @@ void DrawTPlaneW(BOOL SECONT)
   }
 
 
-  if (!UNDERWATER)
+  if (!IsUnderwater())
     if (zs > (ctViewR-8)<<8)
     {
       float zz;
@@ -5332,7 +5332,7 @@ void DrawHMap()
 {
 
 
-	if (SurvivalMode) return;
+	if (g_GameMode == GameMode::SurvivalMode) return;
 
   int c;
 
@@ -5369,7 +5369,7 @@ void DrawHMap()
 
 
   float _sonarPos;
-  if (SonarMode) {
+  if (g_GameMode == GameMode::SonarMode) {
 	  _sonarPos = sonarPos;
 	  sonarPos += TimeDt * 0.02 * cos((pi / 2)*(sonarPos / 41));
 	  if (sonarPos > 38) sonarPos = 1;
@@ -5436,7 +5436,7 @@ void DrawHMap()
 				  else DrawBox(static_cast<WORD*>(ddsd.lpSurface), lsw, xx, yy, *colour);
 		  }
 
-		  if (SonarMode) {
+		  if (g_GameMode == GameMode::SonarMode) {
 			  int dx, dz;
 			  dx = px - xx;
 			  dz = py - yy;
@@ -5795,7 +5795,7 @@ void RenderSkyPlane()
   lpState++;
 
   lpState->drstRenderStateType = D3DRENDERSTATE_FOGCOLOR;
-  if (UNDERWATER) lpState->dwArg[0] = CurFogColor;
+  if (IsUnderwater()) lpState->dwArg[0] = CurFogColor;
   else lpState->dwArg[0] = (SkyR<<16) + (SkyG<<8) + SkyB;
   lpState++;
 

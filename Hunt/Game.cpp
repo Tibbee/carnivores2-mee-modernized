@@ -877,16 +877,16 @@ void InitShip(int cindex){
 void HideWeapon()
 {
   TWeapon *wptr = &Weapon;
-  if (UNDERWATER && !wptr->state && !WeapInfo[CurrentWeapon].harpoon) return;
-  if (ObservMode || TrophyMode) return;
-  if (SurvivalMode) return;
+  if (IsUnderwater() && !wptr->state && !WeapInfo[CurrentWeapon].harpoon) return;
+  if (ObservMode || g_GameMode == GameMode::TrophyMode) return;
+  if (g_GameMode == GameMode::SurvivalMode) return;
 
   if (wptr->state == 0)
   {  
 	//if (!ShotsLeft[CurrentWeapon]) return;
     if (WeapInfo[CurrentWeapon].Optic) OPTICMODE = true;
     
-	if (UNDERWATER) {
+	if (IsUnderwater()) {
 		if (WeapInfo[CurrentWeapon].getAqSnd >= 0)
 			AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].getAqSnd].length,
 				wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].getAqSnd].lpData.data(), 256);
@@ -907,7 +907,7 @@ void HideWeapon()
   }
 
   if (wptr->state!=2 || wptr->FTime!=0) return;
-  if (UNDERWATER) {
+  if (IsUnderwater()) {
 	  if (WeapInfo[CurrentWeapon].putAqSnd >= 0)
 		  AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].putAqSnd].length,
 			  wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].putAqSnd].lpData.data(), 256);
@@ -1812,7 +1812,7 @@ OptFpsLimit = 0;  // 0 = unlimited
   ProcessCommandLine();
   CreateVideoDIB();
 
-  if (SurvivalMode) OptViewR = kViewOptMax;
+  if (g_GameMode == GameMode::SurvivalMode) OptViewR = kViewOptMax;
 
   ctViewR = ViewOptToCtViewR(OptViewR);
   ctViewR1 = (ctViewR * OptTerrainLOD) / 100;
@@ -1888,7 +1888,7 @@ void ProcessSyncro()
   if (TimeDt>1000) TimeDt = 1000;
   PrevTime = RealTime;
   Takt++;
-  if (!PAUSE)
+  if (!IsPaused())
     if (MyHealth) MyHealth+=TimeDt*4;
   if (MyHealth>MAX_HEALTH) MyHealth = MAX_HEALTH;
 }
@@ -1923,8 +1923,8 @@ void AddBloodTrail(TCharacter *cptr)
 void MakeCall()
 {
   if (!TargetDino) return;
-  if (UNDERWATER) return;
-  if (ObservMode || TrophyMode) return;
+  if (IsUnderwater()) return;
+  if (ObservMode || g_GameMode == GameMode::TrophyMode) return;
   if (CallLockTime) return;
 
   CallLockTime=1024*3;
@@ -2185,14 +2185,14 @@ int AnimateBullet(float ax, float ay, float az,
 	  if (sres == tresGround) {
 		  if (!poon) AddElements(bx, by, bz, partGround, 6 + powerL * 4);
 		  int sNo = rRand(2);
-		  if (!UNDERWATER && !poon) AddVoice3dv(fxImpactGround[sNo].length, fxImpactGround[sNo].lpData.data(), bx, by, bz, 256);
-		  if (UNDERWATER && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData.data(), bx, by, bz, 256);
+		  if (!IsUnderwater() && !poon) AddVoice3dv(fxImpactGround[sNo].length, fxImpactGround[sNo].lpData.data(), bx, by, bz, 256);
+		  if (IsUnderwater() && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData.data(), bx, by, bz, 256);
 	  }
 	  if (sres == tresModel) {
 		  if (!poon) AddElements(bx, by, bz, partGround, 6 + powerL * 4);
 		  int sNo = rRand(2);
-		  if (!UNDERWATER && !poon) AddVoice3dv(fxImpactModel[sNo].length, fxImpactModel[sNo].lpData.data(), bx, by, bz, 256);
-		  if (UNDERWATER && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData.data(), bx, by, bz, 256); //change this to aquatic sound
+		  if (!IsUnderwater() && !poon) AddVoice3dv(fxImpactModel[sNo].length, fxImpactModel[sNo].lpData.data(), bx, by, bz, 256);
+		  if (IsUnderwater() && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData.data(), bx, by, bz, 256); //change this to aquatic sound
 	  }
 
 	  if (sres == tresWater)
@@ -2210,8 +2210,8 @@ int AnimateBullet(float ax, float ay, float az,
 	  if (sres != tresChar && sres != tresHunter) return sres;
 	  if (!poon) AddElements(bx, by, bz, partBlood, 4 + powerL * 4);
 	  int sNo = rRand(2);
-	  if (!UNDERWATER && !poon) AddVoice3dv(fxImpactChar[sNo].length, fxImpactChar[sNo].lpData.data(), bx, by, bz, 256);
-	  if (UNDERWATER && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData.data(), bx, by, bz, 256); //change this to aquatic sound
+	  if (!IsUnderwater() && !poon) AddVoice3dv(fxImpactChar[sNo].length, fxImpactChar[sNo].lpData.data(), bx, by, bz, 256);
+	  if (IsUnderwater() && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData.data(), bx, by, bz, 256); //change this to aquatic sound
 
 	  if (sres == tresHunter) {
 		AddDeadBody(nullptr, HUNT_EAT, true);
@@ -2277,7 +2277,7 @@ void AddBullet(float ax, float ay, float az,
 		if (WeapInfo[parent].onRadar) bullet[bulletCh].RTime = 1;
 		if (WeapInfo[parent].radarTime) bullet[bulletCh].RTime = WeapInfo[parent].radarTime;
 	}
-	if (UNDERWATER) bullet[bulletCh].aqState = 1;
+	if (IsUnderwater()) bullet[bulletCh].aqState = 1;
 	else bullet[bulletCh].aqState = 0;
 	bulletCh++;
 }
@@ -2404,7 +2404,7 @@ void registerDamage(int Dino, bool enemyBullet) {
 
 	if (!Characters[Dino].Health)
 	{
-		if ((DinoInfo[Characters[Dino].CType].BaseScore || DinoInfo[Characters[Dino].CType].trophy) && !Multiplayer && !SurvivalMode && !enemyBullet) //No trophies in multiplayer for now - update this at later date?
+		if ((DinoInfo[Characters[Dino].CType].BaseScore || DinoInfo[Characters[Dino].CType].trophy) && !Multiplayer && g_GameMode != GameMode::SurvivalMode && !enemyBullet) //No trophies in multiplayer for now - update this at later date?
 		{
 			TrophyRoom.Last.success++;
 			SubmitDinoScore(Dino);
@@ -3076,7 +3076,7 @@ void AnimateProcesses()
   AnimateShip();
   AnimateSShip();
   AnimateBag();
-  if (TrophyMode)
+  if (g_GameMode == GameMode::TrophyMode)
     ProcessTrophy();
 
   for (int w=0; w<WCCount; w++)
@@ -3120,7 +3120,7 @@ void AnimateProcesses()
 void RemoveCurrentTrophy()
 {
   int p = 0;
-  if (!TrophyMode) return;
+  if (g_GameMode != GameMode::TrophyMode) return;
   if (!TrophyRoom2.Body[TrophyBody].ctype) return;
 
   PrintLogVerbose("Trophy removed: ");

@@ -272,7 +272,7 @@ void PlaceHunter()
 {
   if (LockLanding) return;
 
-  if (TrophyMode)
+  if (g_GameMode == GameMode::TrophyMode)
   {
     PlayerX = 76*256+128;
     PlayerZ = 70*256+128;
@@ -280,7 +280,7 @@ void PlaceHunter()
     return;
   }
 
-  if (SurvivalMode) {
+  if (g_GameMode == GameMode::SurvivalMode) {
 	  PlayerX = SurvivalSpawnX * 256 + 128;
 	  PlayerZ = SurvivalSpawnZ * 256 + 128;
 	  PlayerY = GetLandQH(PlayerX, PlayerZ);
@@ -585,7 +585,7 @@ void CreateTMap()
 
     }
 
-  if (!LandingList.PCount && !TrophyMode)
+  if (!LandingList.PCount && g_GameMode != GameMode::TrophyMode)
   {
 	//MessageBox(hwndMain, "URRRR WHAT?", "Woah what the fuck", IDOK);
     LandingList.list[LandingList.PCount].x = 256;
@@ -594,7 +594,7 @@ void CreateTMap()
   }
 
   /*
-  if (TrophyMode)
+  if (g_GameMode == GameMode::TrophyMode)
   {
     LandingList.PCount = 0;
     for (x=0; x<6; x++)
@@ -1989,7 +1989,7 @@ void LoadResources()
 	  conv_pic(Weapon.Flash[i]);
   }
 
-  if (TrophyMode) LoadPictureTGA(TrophyPic, "HUNTDAT\\MENU\\trophy.tga", MemoryTag::Level);
+  if (g_GameMode == GameMode::TrophyMode) LoadPictureTGA(TrophyPic, "HUNTDAT\\MENU\\trophy.tga", MemoryTag::Level);
   else {
 	  LoadPictureTGA(TrophyPic, "HUNTDAT\\MENU\\collect.tga", MemoryTag::Level);
 	  LoadPictureTGA(TrophyNoCollectPic, "HUNTDAT\\MENU\\trophy_g.tga", MemoryTag::Level);
@@ -2014,7 +2014,7 @@ void LoadCharacters()
     pres[Characters[c].CType] = true;
   }
 
-  for (int c=0; c<TotalC; c++) if (pres[c] || (SurvivalMode && DinoInfo[c].survivalDino))
+  for (int c=0; c<TotalC; c++) if (pres[c] || (g_GameMode == GameMode::SurvivalMode && DinoInfo[c].survivalDino))
     {
 
       if (!ChInfo[c].mptr)
@@ -2193,8 +2193,8 @@ void ReInitGame()
   PlaceHunter();
   Muzz = false;
   MuzzFTime = 0;
-  if (TrophyMode)	PlaceTrophy();
-  else if (SurvivalMode) {
+  if (g_GameMode == GameMode::TrophyMode)	PlaceTrophy();
+  else if (g_GameMode == GameMode::SurvivalMode) {
 	  SurvivalWave = 0;
 	  PlaceCharactersSurvival();
   } else {
@@ -2250,7 +2250,7 @@ void ReInitGame()
   EXITMODE = false;
   PAUSE = false;
 
-  if (SurvivalMode) {
+  if (g_GameMode == GameMode::SurvivalMode) {
 	  PlayerAlpha = pi * 2 * SurvivalSpawnA / 360.f;
 	  Weapon.state = 2;
 	  if (WeapInfo[CurrentWeapon].Optic) OPTICMODE = true;
@@ -2266,7 +2266,7 @@ void ReInitGame()
   Ship.tgpos.y = GetLandUpH(Ship.tgpos.x, Ship.tgpos.z) + 2048;
   ShipTask.tcount = 0;
 
-  if (!TrophyMode)
+  if (g_GameMode != GameMode::TrophyMode)
   {
     TrophyRoom.Last.smade = 0;
     TrophyRoom.Last.success = 0;
@@ -3146,7 +3146,7 @@ void ReadSpawnGroup(FILE *stream, char line[256], int mode) {
 void ReadSpawnTable(FILE *stream)
 {
 
-	if (SurvivalMode)
+	if (g_GameMode == GameMode::SurvivalMode)
 	{
 		spawnGroup[0].spawnRegion[0].XMax = SurvivalDinoSpawn.XMax;
 		spawnGroup[0].spawnRegion[0].XMin = SurvivalDinoSpawn.XMin;
@@ -3356,7 +3356,7 @@ void ReadPackTable(FILE *stream)
 {
 	packTypeCount = 0;
 
-	if (SurvivalMode) {
+	if (g_GameMode == GameMode::SurvivalMode) {
 		SkipSector(stream);
 		return;
 	}
@@ -4363,7 +4363,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	}
 
 	if (strstr(line, "spawninfo")) {
-		if (SurvivalMode) {
+		if (g_GameMode == GameMode::SurvivalMode) {
 			SkipSector(stream);
 		} else {
 			if (spawnInfoOverwrite) {
@@ -4375,7 +4375,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	}
 
 	if (strstr(line, "spawngroup")) {
-		if (SurvivalMode) {
+		if (g_GameMode == GameMode::SurvivalMode) {
 			SkipSector(stream);
 		} else {
 			if (spawnGroupOverwrite) {
@@ -4439,7 +4439,7 @@ void ReadCharacters(FILE *stream)
         if (strstr(line, "}"))
         {
 
-			if (SurvivalMode && DinoInfo[TotalC].survivalDino)
+			if (g_GameMode == GameMode::SurvivalMode && DinoInfo[TotalC].survivalDino)
 			{
 				DinoInfo[TotalC].SpawnInfoCh = 1;
 				DinoInfo[TotalC].SpawnInfo[0].spawnGroup = 0;
@@ -5246,7 +5246,7 @@ void LoadResourcesScript()
   }
 
   //default region
-  if (!SurvivalMode)
+  if (g_GameMode != GameMode::SurvivalMode)
   for (int sg = 0; sg < TotalSpawnGroup; sg++) {    
 	  if (!spawnGroup[sg].spawnRegionCh) {
 		  spawnGroup[sg].spawnRegion[0].XMax = 988;

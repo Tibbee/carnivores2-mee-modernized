@@ -720,12 +720,12 @@ void ShowVideo()
   gvtx[1].a = 0;
 
 
-  if (UNDERWATER) RenderFSRect(0x80000000 + CurFogColor);
+  if (IsUnderwater()) RenderFSRect(0x80000000 + CurFogColor);
 
 
 
   if (OptDayNight!=2)
-    if (!UNDERWATER && (SunLight>1.0f) )
+    if (!IsUnderwater() && (SunLight>1.0f) )
     {
       SunLight *= GetTraceK(SunScrX, SunScrY);
       RenderFSRect(0xC0FFFF + (static_cast<int>(SunLight)<<24));
@@ -1875,7 +1875,7 @@ void DrawTPlaneW(BOOL SECOND)
 
   _fillmapping(SECOND);
 
-  if (!UNDERWATER)
+  if (!IsUnderwater())
     if (zs > (ctViewR-8)<<8)
     {
       float zz;
@@ -2253,7 +2253,7 @@ void ProcessMap(int x, int y, int r)
   if (FOGON)
   {
     int cf = FogsMap[y>>1][x>>1];
-    if (UNDERWATER) cf=127;
+    if (IsUnderwater()) cf=127;
     if (cf)
     {
       CurFogColor = FogsList[ cf ].fogRGB;
@@ -2339,7 +2339,7 @@ void ProcessMap2(int x, int y, int r)
   if (FOGON)
   {
     int cf = FogsMap[y>>1][x>>1];
-    if (UNDERWATER) cf=127;
+    if (IsUnderwater()) cf=127;
     if (cf)
     {
       CurFogColor = FogsList[ cf ].fogRGB;
@@ -4426,7 +4426,7 @@ void DrawBox( WORD *lfbPtr, int lsw, int xx, int yy, WORD c)
 void DrawHMap()
 {
 	if (CiskMode && !DEBUG) return;
-	if (SurvivalMode) return;
+	if (g_GameMode == GameMode::SurvivalMode) return;
 
   int c;
 
@@ -4459,7 +4459,7 @@ void DrawHMap()
 
 
   float _sonarPos;
-  if (SonarMode) {
+  if (g_GameMode == GameMode::SonarMode) {
 	  _sonarPos = sonarPos;
 	  sonarPos += TimeDt * 0.02 * cos((pi/2)*(sonarPos/41));
 	  if (sonarPos > 38) sonarPos = 1;
@@ -4468,7 +4468,7 @@ void DrawHMap()
 	  _CRCOLOR = 30 << 6;
 	  DrawCircle(xx, yy, sonarPos);
   }
-  if (ScannerMode) {
+  if (g_GameMode == GameMode::ScannerMode) {
 	  _sonarPos = sonarPos;
 	  sonarPos += TimeDt * 0.0002;
 	  if (sonarPos > 2 * pi) sonarPos -= 2 * pi;
@@ -4484,7 +4484,7 @@ void DrawHMap()
   _CRCOLOR = 4 << 6;
   DrawCircle(xx + 1, yy + 1, (ctViewR / 4));
   _CRCOLOR = 18 << 6;
-  if (SonarMode || ScannerMode) _CRCOLOR = 14 << 6;
+  if (g_GameMode == GameMode::SonarMode || g_GameMode == GameMode::ScannerMode) _CRCOLOR = 14 << 6;
   DrawCircle(xx, yy, (ctViewR / 4));
 
 
@@ -4541,7 +4541,7 @@ void DrawHMap()
 
 				}
 				
-				if (SonarMode) {
+				if (g_GameMode == GameMode::SonarMode) {
 
 					xx = VideoCX - 128 + static_cast<int>(Characters[c].pos.x) / 1024;
 					yy = VideoCY - 128 + static_cast<int>(Characters[c].pos.z) / 1024;
@@ -4752,7 +4752,7 @@ void RenderSkyPlane2()
     float dtt = static_cast<float>((SKYDTime)) / 256.f;
 
     float dt = (static_cast<float>(sqrt( (fxb-fxa)*(fxb-fxa) + (fyb-fya)*(fyb-fya) )) / 0x40 ) - 4.f;
-    if (UNDERWATER) dt=6 + dt*3;
+    if (IsUnderwater()) dt=6 + dt*3;
     if (dt>10.f) dt = 10.f;
     if (dt<lastdt) dt = lastdt;
     lastdt = dt;
@@ -4873,7 +4873,7 @@ void RenderSkyPlane()
   grFogMode(GR_FOG_WITH_ITERATED_ALPHA);
   grConstantColorValue(0xFF000000);
   grTexClampMode(GR_TMU0, GR_TEXTURECLAMP_WRAP, GR_TEXTURECLAMP_WRAP);
-  if (UNDERWATER) grFogColorValue( CurFogColor );
+  if (IsUnderwater()) grFogColorValue( CurFogColor );
   else grFogColorValue( (SkyB<<16) + (SkyG<<8) + SkyR);
 
   float l = 255.f;
@@ -4912,7 +4912,7 @@ void RenderSkyPlane()
     float dtt = static_cast<float>((SKYDTime)) / 512.f;
 
     float dt = (static_cast<float>(sqrt( (fxb-fxa)*(fxb-fxa) + (fyb-fya)*(fyb-fya) )) / 0x40 ) - 5.f;
-    if (UNDERWATER) dt=6 + dt*3;
+    if (IsUnderwater()) dt=6 + dt*3;
     if (dt>10.f) dt = 10.f;
     if (dt<lastdt) dt = lastdt;
     lastdt = dt;

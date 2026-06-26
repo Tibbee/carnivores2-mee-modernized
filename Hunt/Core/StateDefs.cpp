@@ -6,3 +6,7 @@
 
 #define GLOBAL_DEFINE
 #include "Core/GameState.h"
+#include "Core/GameMode.h"
+
+// Define the game mode global (declared extern in GameMode.h)
+GameMode g_GameMode = GameMode::Normal;

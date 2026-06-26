@@ -160,7 +160,7 @@ void _RenderObject(int x, int y)
 
   waterclip = false;
 
-  if (!UNDERWATER)
+  if (!IsUnderwater())
     if (FMap[y][x] & fmWaterA)
       if (HMapO[y][x] < WaterList[ WMap[y][x] ].wlevel)
       {
@@ -686,7 +686,7 @@ void ProcessMap2(int x, int y, int r)
 
 
 
-  if (!UNDERWATER)
+  if (!IsUnderwater())
     if (ReverseOn)
     {
       if ( (HMap[_y][_x]<hw) && (HMap[_y][_x+2]<hw) && (HMap[_y+2][_x]<hw) )   goto S1;
@@ -700,7 +700,7 @@ void ProcessMap2(int x, int y, int r)
 
 S1:
 
-  if (!UNDERWATER)
+  if (!IsUnderwater())
     if (ReverseOn)
     {
       if ( (HMap[_y][_x+2]<hw) && (HMap[_y+2][_x+2]<hw) && (HMap[_y+2][_x]<hw) )   goto S2;
@@ -813,7 +813,7 @@ void ProcessMap(int x, int y, int r)
     HLineT = (void*) HLineTxC;
   }
 
-  if (!UNDERWATER)
+  if (!IsUnderwater())
     if (wpr)
       if (ReverseOn)
       {
@@ -839,7 +839,7 @@ S1:
     ev[2] = VMap[y+1][x];
   }
 
-  if (!UNDERWATER)
+  if (!IsUnderwater())
     if (wpr)
       if (ReverseOn)
       {
@@ -934,13 +934,13 @@ void ProcessMapW(int x, int y, int r)
     HLineT = (void*) HLineTxC;
   }
 
-  if (UNDERWATER)
+  if (IsUnderwater())
   {
     lpTextureAddr = &(Textures[t1]->DataB[0]);
     HLineT = (void*) HLineTBGlass25;
   }
 
-  WATERREVERSE = UNDERWATER;
+  WATERREVERSE = IsUnderwater();
 
   if (ReverseOn)
   {
@@ -1033,7 +1033,7 @@ void ProcessMapW2(int x, int y, int r)
   else ts = 128;
 
 
-  if (UNDERWATER)
+  if (IsUnderwater())
   {
     lpTextureAddr = &(Textures[t1]->DataB[0]);
     HLineT = (void*) HLineTBGlass25;
@@ -1045,7 +1045,7 @@ void ProcessMapW2(int x, int y, int r)
   }
 
 
-  WATERREVERSE = UNDERWATER;
+  WATERREVERSE = IsUnderwater();
 
   if (ReverseOn)
   {
@@ -2479,7 +2479,7 @@ void RenderCharacter(TCharacter *cptr)
   float wh = GetLandUpH(cptr->pos.x, cptr->pos.z);
   waterclip = false;
 
-  if (!UNDERWATER)
+  if (!IsUnderwater())
     if (wh > cptr->pos.y + 32*2)
     {
       waterclipbase.x = cptr->pos.x - CameraX;
@@ -2784,7 +2784,7 @@ void DrawHMap()
 {
 
 
-	if (SurvivalMode) return;
+	if (g_GameMode == GameMode::SurvivalMode) return;
 
   //if (WinH < 280) return;
   DrawPicture(VideoCX-MapPic.W/2, VideoCY - MapPic.H/2, MapPic);
@@ -2801,7 +2801,7 @@ void DrawHMap()
   }
 
   float _sonarPos;
-  if (SonarMode) {
+  if (g_GameMode == GameMode::SonarMode) {
 	  _sonarPos = sonarPos;
 	  sonarPos += TimeDt * 0.02 * cos((pi / 2)*(sonarPos / 41));
 	  if (sonarPos > 38) sonarPos = 1;
@@ -2846,7 +2846,7 @@ void DrawHMap()
 					else DrawBox(static_cast<WORD*>(lpVideoBuf), xx, yy, *colour); //30<<5
 				}
 
-				if (SonarMode) {
+				if (g_GameMode == GameMode::SonarMode) {
 					int dx, dz;
 					dx = px - xx;
 					dz = py - yy;
@@ -3205,7 +3205,7 @@ void ShowVideo()
   HDC _hdc =  hdcCMain;
   HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(_hdc,hbmpVideoBuf));
 
-  if (UNDERWATER & CORRECTION)
+  if (IsUnderwater() & CORRECTION)
     for (int y=0; y<WinH; y++)
       for (int x=0; x<WinW; x++)
         *(static_cast<WORD*>(lpVideoBuf) + y*VideoPitch + x) = FadeTab[64][*(static_cast<WORD*>(lpVideoBuf) + y*VideoPitch + x) & 0x7FFF];

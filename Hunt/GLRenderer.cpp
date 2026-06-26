@@ -115,7 +115,7 @@ Vector3d DecodeFogColorBGR(int rgb)
 
 Vector3d GetFogColor()
 {
-    if (UNDERWATER && FogsList[127].fogRGB) {
+    if (IsUnderwater() && FogsList[127].fogRGB) {
         return DecodeFogColorBGR(FogsList[127].fogRGB);
     }
 
@@ -137,7 +137,7 @@ Vector3d GetDistanceFogColor()
     // Distance fog is the global horizon fade. It must not inherit the
     // color of fixed map fog volumes; those are applied separately as
     // local volumetric fog inside their boundaries.
-    if (UNDERWATER && FogsList[127].fogRGB) {
+    if (IsUnderwater() && FogsList[127].fogRGB) {
         return DecodeFogColorBGR(FogsList[127].fogRGB);
     }
 
@@ -309,7 +309,7 @@ FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog)
         return std::clamp(fl, 0.0f, fog.FLimit);
     };
 
-    if (UNDERWATER) {
+    if (IsUnderwater()) {
         const TFogEntity& fog = FogsList[127];
         bool vinFog = true;
         float fl = computeFog(fog, vinFog);
@@ -1491,7 +1491,7 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection,
     m_cachedFogColor[1] = m_smoothedSkyFogColor.y;
     m_cachedFogColor[2] = m_smoothedSkyFogColor.z;
 
-    m_cachedForceFog = UNDERWATER ? 1.0f : 0.0f;
+    m_cachedForceFog = IsUnderwater() ? 1.0f : 0.0f;
 
     // Phase 2.4: pack into a 48-float (192-byte) buffer.
     //   offset 0   : mat4 uProjection           (16 floats)
@@ -2214,7 +2214,7 @@ void GLRenderer::RenderProjectedShadows()
 #ifdef GL_PERF_HOOKS
     GL_PERF_SCOPE("RenderProjectedShadows");
 #endif
-    if (!SHADOWS3D || UNDERWATER) {
+    if (!SHADOWS3D || IsUnderwater()) {
         return;
     }
 
@@ -2422,7 +2422,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
     }
 
     waterclip = false;
-    if (!UNDERWATER && (FMap[y][x] & fmWaterA) && HMapO[y][x] < WaterList[WMap[y][x]].wlevel) {
+    if (!IsUnderwater() && (FMap[y][x] & fmWaterA) && HMapO[y][x] < WaterList[WMap[y][x]].wlevel) {
         if (WaterList[WMap[y][x]].wlevel * ctHScale > HMapO[y][x] * ctHScale + MObjects[ob].info.YHi) {
             return;
         }
@@ -2442,7 +2442,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
     const Vector3d unrotatedFogPos = pos;  // before RotateVector
     const float fogBase = CalcFogLevel(unrotatedFogPos);
     const Vector3d fogPocketColor =
-        UNDERWATER ? DecodeFogColorBGR(FogsList[127].fogRGB) : DecodeFogColor(CurFogColor);
+        IsUnderwater() ? DecodeFogColorBGR(FogsList[127].fogRGB) : DecodeFogColor(CurFogColor);
 
     float fogGrad = 0.0f;
     if (fogBase > 0.0f) {
@@ -3295,7 +3295,7 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
     // (e.g. tree-tops) and less at the base.
     const float fogBase = CalcFogLevel(unrotatedCenter);
     const Vector3d fogColor3dfx =
-        UNDERWATER ? DecodeFogColorBGR(FogsList[127].fogRGB) : DecodeFogColor(CurFogColor);
+        IsUnderwater() ? DecodeFogColorBGR(FogsList[127].fogRGB) : DecodeFogColor(CurFogColor);
 
     float fogGrad = 0.0f;
     if (fogBase > 0.0f) {
@@ -3649,7 +3649,7 @@ Vector3d GLRenderer::DecodeFogColor(int rgb)
 
 Vector3d GLRenderer::GetCurrentFogColor()
 {
-    if (UNDERWATER && FogsList[127].fogRGB) {
+    if (IsUnderwater() && FogsList[127].fogRGB) {
         return DecodeFogColorBGR(FogsList[127].fogRGB);
     }
 
@@ -3670,7 +3670,7 @@ Vector3d GLRenderer::GetCurrentFogColor()
 
 Vector3d GLRenderer::GetFogColorForMapPoint(int mapX, int mapY)
 {
-    if (UNDERWATER) {
+    if (IsUnderwater()) {
         return GetDistanceFogColor();
     }
 
@@ -3687,7 +3687,7 @@ Vector3d GLRenderer::GetFogColorForMapPoint(int mapX, int mapY)
 // are needed for the same (x,y) corner.
 Vector3d GLRenderer::GetFogColorForMapPoint(int fogIndex)
 {
-    if (UNDERWATER) {
+    if (IsUnderwater()) {
         return GetDistanceFogColor();
     }
 
@@ -3725,7 +3725,7 @@ bool GLRenderer::IsWaterTriangleValid(const EPoint& v0, const EPoint& v1, const 
 
 static float CalcTerrainAlpha(float distanceSq, float fadeStart, float fadeStartSq, float fadeEnd)
 {
-    if (UNDERWATER) {
+    if (IsUnderwater()) {
         return 1.0f;
     }
 
@@ -3748,7 +3748,7 @@ float GLRenderer::CalcWaterAlpha(const EPoint& vertex, float centerDistanceSq, f
 {
     float alpha = Clamp01(vertex.ALPHA / 255.0f);
 
-    if (!UNDERWATER && centerDistanceSq > fadeStartSq) {
+    if (!IsUnderwater() && centerDistanceSq > fadeStartSq) {
         const float distanceSq = VertexDistanceSq(vertex.v);
         if (distanceSq > fadeStartSq) {
             const float zz = std::sqrt(distanceSq) - fadeEnd;
@@ -3814,7 +3814,7 @@ void GLRenderer::AppendTerrainTriangle(std::vector<TerrainVertex>& vertices,
 
 float GetTerrainFogAmountForMapPoint(int mapX, int mapY, int legacyFog)
 {
-    if (UNDERWATER) {
+    if (IsUnderwater()) {
         return static_cast<float>(legacyFog);
     }
 
@@ -3830,7 +3830,7 @@ float GetTerrainFogAmountForMapPoint(int mapX, int mapY, int legacyFog)
 // are needed for the same (x,y) corner.
 static float GetTerrainFogAmountForMapPoint(int fogIndex, int legacyFog)
 {
-    if (UNDERWATER) {
+    if (IsUnderwater()) {
         return static_cast<float>(legacyFog);
     }
 
@@ -4164,7 +4164,7 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
         return;
     }
 
-    const float fadeEnabled = (!UNDERWATER && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
+    const float fadeEnabled = (!IsUnderwater() && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
 
     const float a00 = Clamp01(v00.ALPHA / 255.0f);
     const float a10 = Clamp01(v10.ALPHA / 255.0f);
@@ -4240,7 +4240,7 @@ void GLRenderer::CollectWaterTile(int x, int y, int r)
         return;
     }
 
-    const float fadeEnabled = (!UNDERWATER && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
+    const float fadeEnabled = (!IsUnderwater() && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
 
     const float a00 = Clamp01(v00.ALPHA / 255.0f);
     const float a10 = Clamp01(v10.ALPHA / 255.0f);
@@ -4333,7 +4333,7 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
         return;
     }
 
-    const float fadeEnabled = (!UNDERWATER && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
+    const float fadeEnabled = (!IsUnderwater() && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
 
     const float a00 = Clamp01(v00.ALPHA / 255.0f);
     const float a20 = Clamp01(v20.ALPHA / 255.0f);
@@ -5293,7 +5293,7 @@ void GLRenderer::RenderSkyPlane()
 #endif
 
     // Render sun on top of sky (matching D3D/3DFX: sky plane renders sun)
-    if (SunModel && !UNDERWATER) {
+    if (SunModel && !IsUnderwater()) {
         m_sunLight = 0.0f;
         Vector3d sunDir = {-2048.0f, 4048.0f, -2048.0f};
         sunDir = RotateVector(sunDir);

@@ -202,7 +202,7 @@ void ProcessPrevPhase(TCharacter *cptr)
 void ActivateCharacterFxAquatic(TCharacter *cptr)
 {
 	if (cptr->CType) //== not hunter ==//
-		if (!UNDERWATER) return;
+		if (!IsUnderwater()) return;
 	int fx = cptr->pinfo->Anifx[cptr->Phase];
 	if (fx == -1) return;
 
@@ -226,7 +226,7 @@ void ActivateCharacterFx(TCharacter *cptr)
 	//PrintLog(buff2);
 
 	if (cptr->CType) //== not hunter ==//
-		if (UNDERWATER) return;
+		if (IsUnderwater()) return;
 	int fx = cptr->pinfo->Anifx[cptr->Phase];
 	if (fx == -1) return;
 
@@ -2299,7 +2299,7 @@ TBEGIN:
 		aDist = ctViewR * DinoInfo[cptr->CType].aggress + OptAgres / AIInfo[cptr->Clone].agressMulti;
 		if (cptr->gliding) aDist *= 2;
 
-		if (!SurvivalMode) {
+		if (g_GameMode != GameMode::SurvivalMode) {
 			if (pdist > aDist || ((PlayerY - cptr->pos.y > pdist) && cptr->gliding) ||
 				DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
@@ -2936,7 +2936,7 @@ ENDPSELECT:
 				nv.z *= cb;
 
 				float v = WeapInfo[DinoInfo[cptr->CType].Weapon].Veloc;
-				if (UNDERWATER) v = WeapInfo[DinoInfo[cptr->CType].Weapon].VelocAq;
+				if (IsUnderwater()) v = WeapInfo[DinoInfo[cptr->CType].Weapon].VelocAq;
 				float l = WeapInfo[DinoInfo[cptr->CType].Weapon].Veloc;
 				if (WeapInfo[DinoInfo[cptr->CType].Weapon].aqLow) l = WeapInfo[DinoInfo[cptr->CType].Weapon].VelocAq;
 
@@ -3058,7 +3058,7 @@ TBEGIN:
 		}
 
 		bool fleeMode = false;
-		if (!SurvivalMode) {
+		if (g_GameMode != GameMode::SurvivalMode) {
 			if (pdistSq > aDist * aDist ||
 				DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
@@ -3713,7 +3713,7 @@ TBEGIN:
 		if (cptr->gliding) aDist *= 2;
 
 		bool fleeMode = false;
-		if (!SurvivalMode) {
+		if (g_GameMode != GameMode::SurvivalMode) {
 			if (pdistSq > aDist * aDist ||
 				DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
@@ -4215,7 +4215,7 @@ boolean huntDogSearch(TCharacter *cptr)
 	int preyNo;
 
 	//if (!MyHealth) return false;
-	if (TrophyMode) return false;
+	if (g_GameMode == GameMode::TrophyMode) return false;
 
 	float kR, kwind, klook, kstand;
 
@@ -5641,7 +5641,7 @@ TBEGIN:
 
 		bool attackmode = pdistSq <= attackDist * attackDist && playerInWater && !DinoInfo[cptr->CType].dontSwimAway
 			&& MyHealth && !ObservMode && !DEBUG;
-		if (SurvivalMode) attackmode = true;
+		if (g_GameMode == GameMode::SurvivalMode) attackmode = true;
 		if (attackmode)	cptr->AfraidTime = static_cast<int>((10.f)) * 1024;
 		if (cptr->packId >= 0 && MyHealth) {
 			if (attackmode) Packs[cptr->packId].alert = true;
@@ -5723,7 +5723,7 @@ TBEGIN:
 
 		}
 
-		if (DinoInfo[cptr->CType].DangerFish || SurvivalMode) {
+		if (DinoInfo[cptr->CType].DangerFish || g_GameMode == GameMode::SurvivalMode) {
 			cptr->tgx = PlayerX;
 			cptr->tgz = PlayerZ;
 			cptr->tgtime = 0;
@@ -7247,7 +7247,7 @@ TBEGIN:
 		cptr->currentIdleGroup = -1;
 
 		bool fleeMode = false;
-		if (!SurvivalMode) {
+		if (g_GameMode != GameMode::SurvivalMode) {
 			if (pdist > attackDist || !playerAttackable || DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
 			}
@@ -8060,7 +8060,7 @@ void AnimateCharacters()
 	HitBox.pos.z = PlayerZ;
 	HitBox.alpha = PlayerAlpha;
 
-	if (TrophyMode) {
+	if (g_GameMode == GameMode::TrophyMode) {
 
 		for (CurDino = 0; CurDino < ChCount; CurDino++)
 		{
@@ -8094,7 +8094,7 @@ void AnimateCharacters()
 		return;
 	}
 
-	if (SurvivalMode) {
+	if (g_GameMode == GameMode::SurvivalMode) {
 		bool waveOver = true;
 		for (CurDino = 0; CurDino < ChCount; CurDino++) {
 			if (Characters[CurDino].Health) waveOver = false;
@@ -8191,7 +8191,7 @@ void AnimateCharacters()
 		
 
 		//disp ship info
-		if (!cptr->Health && DinoInfo[cptr->CType].trophy && !SurvivalMode) {
+		if (!cptr->Health && DinoInfo[cptr->CType].trophy && g_GameMode != GameMode::SurvivalMode) {
 			if (fabs(VectorLength(SubVectors(PlayerPos, cptr->pos))) < DinoInfo[cptr->CType].Radius) {
 				TrophyDisplayBody.ctype = cptr->CType;
 				TrophyDisplayBody.scale = cptr->scale;
@@ -8332,12 +8332,12 @@ void MakeNoise(Vector3d pos, float range)
 void CheckAfraid()
 {
 	if (!MyHealth) return;
-	if (TrophyMode) return;
+	if (g_GameMode == GameMode::TrophyMode) return;
 
 	Vector3d ppos, plook, clook, wlook, rlook;
 	ppos = PlayerPos;
 
-	if (DEBUG || UNDERWATER || ObservMode) return;
+	if (DEBUG || IsUnderwater() || ObservMode) return;
 
 	plook.y = 0;
 	plook.x = static_cast<float>(sin(CameraAlpha));
@@ -8363,7 +8363,7 @@ void CheckAfraid()
 
 		if (cptr->Clone == AI_TREX && (cptr->AfraidTime || cptr->State == 1)) continue; //here to check if hunter detected once it starts running from fear call, trex doesn't like it tho
 
-		if (SurvivalMode) goto isAfraid;
+		if (g_GameMode == GameMode::SurvivalMode) goto isAfraid;
 
 		rlook = SubVectors(ppos, cptr->pos);
 		kR = VectorLength(rlook) / 256.f / (32.f + ctViewR / 2);
@@ -8635,7 +8635,7 @@ replaceSMA:
 
 
 	int mindist = 40;
-	if (SurvivalMode) {
+	if (g_GameMode == GameMode::SurvivalMode) {
 		mindist = ctViewR + 1;
 	}
 
@@ -9244,7 +9244,7 @@ void PlaceCharacters()
 	/*
 	//place hunting dog
 	DogMode = false;
-	if (DogMode) {
+	if (g_GameMode == GameMode::DogMode) {
 		tr = 0;
 		Characters[ChCount].CType = AI_to_CIndex[AI_HUNTDOG];
 		replacehuntDog:

@@ -290,7 +290,7 @@ void CheckCollision(float &cx, float &cz)
         }
       }
 
-  if (!TrophyMode) return;
+  if (g_GameMode != GameMode::TrophyMode) return;
   for (int c=0; c<ChCount; c++)
   {
     float px = Characters[c].pos.x;

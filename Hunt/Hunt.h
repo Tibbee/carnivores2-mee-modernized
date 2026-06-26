@@ -30,6 +30,7 @@
 #include "Core/ModelTypes.h"
 #include "Core/GameTypes.h"
 #include "Core/GameState.h"
+#include "Core/GameMode.h"
 #include "Core/EngineAPI.h"
 
 #ifdef _d3d

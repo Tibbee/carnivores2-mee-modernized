@@ -22,6 +22,7 @@
 #include <array>
 #include "ddraw.h"
 #include "Core/GameTypes.h"
+#include "Core/GameMode.h"
 
 class MemoryArena;
 GLOBAL MemoryArena *LevelArena;

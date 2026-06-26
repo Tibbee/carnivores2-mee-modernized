@@ -177,7 +177,7 @@ void ShowVideo()
     // Apply sun glare/blinding effect (matching D3D/3DFX ShowVideo)
     if (g_GLRenderer) {
         float sunLight = g_GLRenderer->GetSunLight();
-        if (!UNDERWATER && sunLight > 1.0f) {
+        if (!IsUnderwater() && sunLight > 1.0f) {
             uint32_t glareColor = 0xFFFFC0 | (static_cast<uint32_t>(sunLight) << 24);
             g_GLRenderer->RenderFSRect(glareColor);
         }
@@ -371,7 +371,7 @@ static void DrawBoxMysteryBuf(int x, int y, WORD color)
 
 void DrawHMap()
 {
-    if (SurvivalMode) return;
+    if (g_GameMode == GameMode::SurvivalMode) return;
     if (!lpVideoBuf || !MapPic.lpImage) return;
 
     // Draw map background
@@ -388,7 +388,7 @@ void DrawHMap()
     DrawBoxBuf(xx, yy, 2, static_cast<WORD>(30 << 10));            // bright red
 
     float previousSonarPos = 0.0f;
-    if (SonarMode)
+    if (g_GameMode == GameMode::SonarMode)
     {
         previousSonarPos = sonarPos;
         sonarPos += TimeDt * 0.02f * static_cast<float>(std::cos((pi / 2.0f) * (sonarPos / 41.0f)));
@@ -437,7 +437,7 @@ void DrawHMap()
                 DrawBoxBuf(xx, yy, 2, colour);
         }
 
-        if (SonarMode)
+        if (g_GameMode == GameMode::SonarMode)
         {
             const int dx = playerX - xx;
             const int dz = playerY - yy;

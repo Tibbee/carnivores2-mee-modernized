@@ -72,7 +72,7 @@ void ResetMousePos()
 {
   if (!hwndMain) return;
 
-  if (blActive && _GameState && !PAUSE) {
+  if (blActive && _GameState && !IsPaused()) {
     POINT p = { VideoCX, VideoCY };
     ClientToScreen(hwndMain, &p);
     SetCursorPos(p.x, p.y);
@@ -86,7 +86,7 @@ float CalcFogLevel(Vector3d v)
   if (!FOGON) return 0;
   BOOL vinfog = true;
   int cf;
-  if (!UNDERWATER)
+  if (!IsUnderwater())
   {
     cf = FogsMap[ (static_cast<int>((v.z + CameraZ)))>>9 ][ (static_cast<int>((v.x + CameraX)))>>9 ];
     if ((!cf) && CAMERAINFOG)
@@ -229,7 +229,7 @@ void PreCashGroundModel()
           VMap2[kViewGridCenter + y][kViewGridCenter + x].Light = 168-static_cast<int>((wdelta*24));
 
           float Alpha;
-          if (UNDERWATER)
+          if (IsUnderwater())
           {
             Alpha =	160 - VectorLength(rv)* 160 / 220 / ctViewR;
             if (Alpha<10) Alpha=10;
@@ -299,7 +299,7 @@ void PreCashGroundModel()
 
 
       if (HARD3D)
-        if (  ((FMap[yy][xx] & fmWater)==0) || UNDERWATER)
+        if (  ((FMap[yy][xx] & fmWater)==0) || IsUnderwater())
           VMap[kViewGridCenter + y][kViewGridCenter + x].Fog = CalcFogLevel(v[0]);
         else
           VMap[kViewGridCenter + y][kViewGridCenter + x].Fog = 0;
@@ -370,7 +370,7 @@ void PreCashGroundModel()
       VMap[kViewGridCenter + y][kViewGridCenter + x].DFlags = DF;
     }
 
-  FOGON = FogFound || UNDERWATER;
+  FOGON = FogFound || IsUnderwater();
 }
 
 
@@ -378,7 +378,7 @@ void PreCashGroundModel()
 
 void AddShadowCircle(int x, int y, int R, int D)
 {
-  if (UNDERWATER) return;
+  if (IsUnderwater()) return;
 
   int cx = x / 256;
   int cy = y / 256;
@@ -511,7 +511,7 @@ void ProcessReload() {
 					{
 						wptr->state = 5;
 						wptr->FTime = 1;
-						if (UNDERWATER) {
+						if (IsUnderwater()) {
 							if (WeapInfo[CurrentWeapon].rldAqSndPart >= 0)
 								AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSndPart].length,
 									wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSndPart].lpData.data(), 256);
@@ -531,7 +531,7 @@ void ProcessReload() {
 					{
 						wptr->state = 4;
 						wptr->FTime = 1;
-						if (UNDERWATER) {
+						if (IsUnderwater()) {
 							if (WeapInfo[CurrentWeapon].rldAqSnd >= 0)
 								AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSnd].length,
 									wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSnd].lpData.data(), 256);
@@ -572,7 +572,7 @@ void ProcessReload() {
 
 					wptr->state = 5;
 					wptr->FTime = 1;
-					if (UNDERWATER) {
+					if (IsUnderwater()) {
 						if (WeapInfo[CurrentWeapon].rldAqSndPart >= 0)
 							AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSndPart].length,
 								wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSndPart].lpData.data(), 256);
@@ -591,7 +591,7 @@ void ProcessReload() {
 
 					wptr->state = 4;
 					wptr->FTime = 1;
-					if (UNDERWATER) {
+					if (IsUnderwater()) {
 						if (WeapInfo[CurrentWeapon].rldAqSnd >= 0)
 							AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSnd].length,
 								wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].rldAqSnd].lpData.data(), 256);
@@ -623,7 +623,7 @@ void ProcessFireMode() {
 	if (wptr->state == 2 && wptr->FTime == 0) {
 		wptr->state = 7;
 		wptr->FTime = 1;
-		if (UNDERWATER) {
+		if (IsUnderwater()) {
 			if (WeapInfo[CurrentWeapon].modAqSnd >= 0)
 				AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].modAqSnd].length,
 					wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].modAqSnd].lpData.data(), 256);
@@ -649,7 +649,7 @@ void ProcessPump() {
 			//if (!ShotsLeft[CurrentWeapon]) return;
 			wptr->state = 6;
 			wptr->FTime = 1;
-			if (UNDERWATER) {
+			if (IsUnderwater()) {
 				if (WeapInfo[CurrentWeapon].pmpAqSnd >= 0)
 					AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].pmpAqSnd].length,
 						wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].pmpAqSnd].lpData.data(), 256);
@@ -679,7 +679,7 @@ void DrawPostObjects()
   // and scope overlays fill the widescreen width (C1 has the same
   // logic in InsertModelList).
   float nearModelScale = FovScaleFromDegrees(kFovDefault) / FovScaleFromDegrees(OptFov);
-  if (BINMODE)
+  if (g_GameMode == GameMode::Binocular)
   {
     float oldCW = CameraW;
     float oldCH = CameraH;
@@ -696,9 +696,9 @@ void DrawPostObjects()
   }
 
   //goto SKIPWIND;
-  if (BINMODE || (OPTICMODE && (!WeapInfo[CurrentWeapon].unzoom || Weapon.state==2))) goto SKIPWIND;
+  if (g_GameMode == GameMode::Binocular || (g_GameMode == GameMode::OpticScope && (!WeapInfo[CurrentWeapon].unzoom || Weapon.state==2))) goto SKIPWIND;
 
-  if (!TrophyMode && !SurvivalMode)
+  if (g_GameMode != GameMode::TrophyMode && g_GameMode != GameMode::SurvivalMode)
     if (!KeyboardState[VK_CAPITAL] & 1)
     {
       BOOL lr = LOWRESTX;
@@ -752,7 +752,7 @@ SKIPWIND:
 
   MapMode = false;
 
-  if (!SurvivalMode) {
+  if (g_GameMode != GameMode::SurvivalMode) {
 	  float tempT = static_cast<float>(TimeDt) / 10000.f;
 	  wptr->shakel += tempT;
 	  if (wptr->shakel > 4.0f) wptr->shakel = 4.0f;
@@ -760,7 +760,7 @@ SKIPWIND:
 
   if (wptr->state == 1)
   {
-	  if (UNDERWATER) wptr->FTime += TimeDt/2.f;
+	  if (IsUnderwater()) wptr->FTime += TimeDt/2.f;
 	  else wptr->FTime+=TimeDt;
     if (wptr->FTime >= wptr->chinfo[CurrentWeapon].Animation[WeapInfo[CurrentWeapon].getAnim].AniTime)
     {
@@ -771,14 +771,14 @@ SKIPWIND:
 
   if (wptr->state == 4)
   {
-	  if (UNDERWATER) wptr->FTime += TimeDt / 2.f;
+	  if (IsUnderwater()) wptr->FTime += TimeDt / 2.f;
 	  else wptr->FTime += TimeDt;
 	  if (wptr->FTime >= wptr->chinfo[CurrentWeapon].Animation[WeapInfo[CurrentWeapon].rldAnim].AniTime)
 	  {
 		wptr->FTime = 0;
 		wptr->state = 2;
 		if (WeapInfo[CurrentWeapon].Reload) {
-			if (!SurvivalMode) ShotsLeft[CurrentWeapon] -= wptr->ammoIn;
+			if (g_GameMode != GameMode::SurvivalMode) ShotsLeft[CurrentWeapon] -= wptr->ammoIn;
 			Chambered[CurrentWeapon] += wptr->ammoIn;
 		} else {
 		  int temp = MagShotsLeft[CurrentWeapon];
@@ -798,14 +798,14 @@ SKIPWIND:
 
   if (wptr->state == 5)
   {
-	  if (UNDERWATER) wptr->FTime += TimeDt / 2.f;
+	  if (IsUnderwater()) wptr->FTime += TimeDt / 2.f;
 	  else wptr->FTime += TimeDt;
 	  if (wptr->FTime >= wptr->chinfo[CurrentWeapon].Animation[WeapInfo[CurrentWeapon].rldAnimPart].AniTime)
 	  {
 		  wptr->FTime = 0;
 		  wptr->state = 2;
 		  if (WeapInfo[CurrentWeapon].Reload) {
-			if (!SurvivalMode) ShotsLeft[CurrentWeapon] -= wptr->ammoIn;
+			if (g_GameMode != GameMode::SurvivalMode) ShotsLeft[CurrentWeapon] -= wptr->ammoIn;
 			Chambered[CurrentWeapon] += wptr->ammoIn;
 		  } else {
 			  int temp = MagShotsLeft[CurrentWeapon];
@@ -818,9 +818,9 @@ SKIPWIND:
 
   if (wptr->state == 2 && wptr->FTime>0)
   {
-	  if (UNDERWATER) wptr->FTime += TimeDt / 2.f;
+	  if (IsUnderwater()) wptr->FTime += TimeDt / 2.f;
 	  else wptr->FTime += TimeDt;
-	  if (Muzz && !UNDERWATER) {
+	  if (Muzz && !IsUnderwater()) {
 		if (wptr->FTime > MuzzModel.Animation[0].AniTime) {
 			Muzz = false;
 			MuzzFTime = 0;
@@ -836,7 +836,7 @@ SKIPWIND:
 	  if (!WeapInfo[CurrentWeapon].Reload && !WeapInfo[CurrentWeapon].mustPump)
 		  if (ShotsLeft[CurrentWeapon]) {
 			  Chambered[CurrentWeapon] = 1;
-			  if (!SurvivalMode) ShotsLeft[CurrentWeapon]--;
+			  if (g_GameMode != GameMode::SurvivalMode) ShotsLeft[CurrentWeapon]--;
 		  }
 	  if (WeapInfo[CurrentWeapon].mustPump && WeapInfo[CurrentWeapon].autoPump && ShotsLeft[CurrentWeapon]) ProcessPump();
 
@@ -848,7 +848,7 @@ SKIPWIND:
 
   if (wptr->state == 6)
   {
-	  if (UNDERWATER) wptr->FTime += TimeDt / 2.f;
+	  if (IsUnderwater()) wptr->FTime += TimeDt / 2.f;
 	  else wptr->FTime += TimeDt;
 	  if (wptr->FTime >= wptr->chinfo[CurrentWeapon].Animation[WeapInfo[CurrentWeapon].pmpAnim].AniTime)
 	  {
@@ -856,7 +856,7 @@ SKIPWIND:
 		  wptr->state = 2;
 		  if (ShotsLeft[CurrentWeapon]){
 			Chambered[CurrentWeapon] = 1;
-			if (!SurvivalMode) ShotsLeft[CurrentWeapon]--;
+			if (g_GameMode != GameMode::SurvivalMode) ShotsLeft[CurrentWeapon]--;
 		  }
 	  }
   }
@@ -864,7 +864,7 @@ SKIPWIND:
 
   if (wptr->state == 7)
   {
-	  if (UNDERWATER) wptr->FTime += TimeDt / 2.f;
+	  if (IsUnderwater()) wptr->FTime += TimeDt / 2.f;
 	  else wptr->FTime += TimeDt;
 	  if (wptr->FTime >= wptr->chinfo[CurrentWeapon].Animation[WeapInfo[CurrentWeapon].modAnim].AniTime)
 	  {
@@ -876,7 +876,7 @@ SKIPWIND:
 
   if (wptr->state == 3)
   {
-	  if (UNDERWATER) wptr->FTime += TimeDt / 2.f;
+	  if (IsUnderwater()) wptr->FTime += TimeDt / 2.f;
 	  else wptr->FTime+=TimeDt;
     if (wptr->FTime >= wptr->chinfo[CurrentWeapon].Animation[WeapInfo[CurrentWeapon].putAnim].AniTime)
     {
@@ -946,10 +946,10 @@ SKIPWIND:
 	  if (Weapon.BTime >= 4000) {
 		  Weapon.BTime = 4000;
 		  Weapon.HoldBreath = false;
-		  if (Weapon.breathPressed==1 && !UNDERWATER) AddVoicev(fxBreathOut.length, fxBreathOut.lpData.data(), 256);
+		  if (Weapon.breathPressed==1 && !IsUnderwater()) AddVoicev(fxBreathOut.length, fxBreathOut.lpData.data(), 256);
 		  Weapon.breathPressed = 2;
 	  }
-  } else if (Weapon.BTime && !UNDERWATER) {
+  } else if (Weapon.BTime && !IsUnderwater()) {
 	  Weapon.BTime -= TimeDt*2;
 	  if (Weapon.BTime < 0) Weapon.BTime = 0;
   }
@@ -998,14 +998,14 @@ SKIPWIND:
     float savedCW = CameraW;
     float savedCH = CameraH;
     float opticScale = nearModelScale;
-    if (OPTICMODE) {
+    if (g_GameMode == GameMode::OpticScope) {
       float arScale = static_cast<float>(WinW) / (static_cast<float>(WinH) * 1.3333333f);
       if (arScale > 1.0f) opticScale *= arScale;
     }
     CameraW *= opticScale;
     CameraH *= opticScale;
 
-    if (Muzz && !UNDERWATER) {
+    if (Muzz && !IsUnderwater()) {
     CreateMorphedModelBetaGamma(MuzzModel.mptr.get(),
 	    &MuzzModel.Animation[0], MuzzFTime, 1.0, 0, MuzzGamma);
     RenderNearModel(MuzzModel.mptr.get(), 0, wpshy, wpshz, wpnlight,
@@ -1039,7 +1039,7 @@ SKIPWIND:
 
 
   //Render_Cross(VideoCX, VideoCY);
-  if ((!WeapInfo[CurrentWeapon].Optic || OPTICMODE) && WeapInfo[CurrentWeapon].cross
+  if ((!WeapInfo[CurrentWeapon].Optic || g_GameMode == GameMode::OpticScope) && WeapInfo[CurrentWeapon].cross
 	  && (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2))
 	  DrawOpticCross(wptr->chinfo[CurrentWeapon].mptr->VCount-1);
 
@@ -1058,7 +1058,7 @@ SKIPWEAPON:
   if (Weapon.state && MyHealth)
   {
     int y0 = 5;
-    if (!SurvivalMode)
+    if (g_GameMode != GameMode::SurvivalMode)
     {
 
 		
@@ -1178,7 +1178,7 @@ SKIPWEAPON:
   }
 
 
-  if (TrophyMode)
+  if (g_GameMode == GameMode::TrophyMode)
 #ifdef _gl
   {
     const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
@@ -1189,7 +1189,7 @@ SKIPWEAPON:
     DrawPicture( VideoCX - TrophyExit.W / 2, 2, TrophyExit);
 #endif
 
-  if (EXITMODE) {
+  if (g_GameMode == GameMode::ExitCountdown) {
 #ifdef _gl
 	  const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
 	  const int exitW = static_cast<int>((ExitPic.W * uiscale));
@@ -1198,7 +1198,7 @@ SKIPWEAPON:
 #else
 	  DrawPicture((WinW - ExitPic.W) / 2, (WinH - ExitPic.H) / 2, ExitPic);
 #endif
-	  if (SurvivalMode) {
+	  if (g_GameMode == GameMode::SurvivalMode) {
 #ifdef _gl
 		  DrawSurvivalText(
 			  (WinW - exitW) / 2,
@@ -1213,7 +1213,7 @@ SKIPWEAPON:
 	  }
   }
 
-  if (PAUSE)
+  if (IsPaused())
 #ifdef _gl
   {
     const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
@@ -1249,31 +1249,31 @@ SKIPWEAPON:
 	  }
 
   } else {
-	  if (TrophyMode || TrophyDisplay)
+	  if (g_GameMode == GameMode::TrophyMode || TrophyDisplay)
 		  if (TrophyBody != -1 || TrophyDisplay)
 		  {
 #ifdef _gl
 			  const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
 			  TPicture *Pic = &TrophyPic;
-			  if (!TrophyMode && (Tranq || Characters[TrophyDisplayC].claimed)) {
+			  if (g_GameMode != GameMode::TrophyMode && (Tranq || Characters[TrophyDisplayC].claimed)) {
 				  Pic = &TrophyNoCollectPic;
 			  }
 			  const int trophyW = static_cast<int>((Pic->W * uiscale));
 			  const int trophyH = static_cast<int>((Pic->H * uiscale));
 			  int x0 = WinW - trophyW - static_cast<int>((16.0f * uiscale));
 			  int y0 = WinH - trophyH - static_cast<int>((12.0f * uiscale));
-			  if (!TrophyMode)
+			  if (g_GameMode != GameMode::TrophyMode)
 				  x0 = VideoCX - trophyW / 2;
 
 			  DrawScaledPicture(x0, y0, trophyW, trophyH, *Pic);
 #else
 			  TPicture *Pic = &TrophyPic;
-			  if (!TrophyMode && (Tranq || Characters[TrophyDisplayC].claimed)) {
+			  if (g_GameMode != GameMode::TrophyMode && (Tranq || Characters[TrophyDisplayC].claimed)) {
 				  Pic = &TrophyNoCollectPic;
 			  }
 			  int x0 = WinW - Pic->W - 16;
 			  int y0 = WinH - Pic->H - 12;
-			  if (!TrophyMode)
+			  if (g_GameMode != GameMode::TrophyMode)
 				  x0 = VideoCX - Pic->W / 2;
 
 			  DrawPicture(x0, y0, *Pic);
@@ -1341,9 +1341,9 @@ void ChangeCall()
 void ToggleBinocular()
 {
   if (Weapon.state) return;
-  if (UNDERWATER) return;
+  if (IsUnderwater()) return;
   if (!MyHealth) return;
-  BINMODE = !BINMODE;
+  BINMODE = g_GameMode != GameMode::Binocular;
   MapMode = false;
 }
 
@@ -1357,9 +1357,9 @@ void ToggleRunMode()
 
 void ToggleCrouchMode()
 {
-	CrouchMode = !CrouchMode;
-	HitBox.phase = CrouchMode;
-	if (CrouchMode) AddMessage("Crouch mode is ON");
+	CrouchMode = g_GameMode != GameMode::Crouching;
+	HitBox.phase = g_GameMode == GameMode::Crouching;
+	if (g_GameMode == GameMode::Crouching) AddMessage("Crouch mode is ON");
 	else AddMessage("Crouch mode is OFF");
 }
 
@@ -1367,9 +1367,9 @@ void ToggleCrouchMode()
 void ToggleMapMode()
 {
   if (!MyHealth) return;
-  if (BINMODE) return;
+  if (g_GameMode == GameMode::Binocular) return;
   if (Weapon.state) return;
-  MapMode = !MapMode;
+  MapMode = g_GameMode != GameMode::MapMode;
 }
 
 
@@ -1403,25 +1403,25 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     {
       Audio_Restore();
       NeedRVM = true;
-      if (_GameState && !PAUSE) CaptureMouse(true);
+      if (_GameState && !IsPaused()) CaptureMouse(true);
     }
 
   }
 
   if (message == WM_KEYDOWN)
   {
-    if (static_cast<int>(wParam) == KeyMap.fkBinoc && !SurvivalMode) ToggleBinocular();
-    if (static_cast<int>(wParam) == KeyMap.fkCCall && !SurvivalMode) ChangeCall();
-    if (static_cast<int>(wParam) == KeyMap.fkRun  && !SurvivalMode) ToggleRunMode();
-	if (static_cast<int>(wParam) == KeyMap.fkCrouch && !SurvivalMode) ToggleCrouchMode();
-    if (static_cast<int>(wParam) == NightVisionKey && NightVisionMode) {
+    if (static_cast<int>(wParam) == KeyMap.fkBinoc && g_GameMode != GameMode::SurvivalMode) ToggleBinocular();
+    if (static_cast<int>(wParam) == KeyMap.fkCCall && g_GameMode != GameMode::SurvivalMode) ChangeCall();
+    if (static_cast<int>(wParam) == KeyMap.fkRun  && g_GameMode != GameMode::SurvivalMode) ToggleRunMode();
+	if (static_cast<int>(wParam) == KeyMap.fkCrouch && g_GameMode != GameMode::SurvivalMode) ToggleCrouchMode();
+    if (static_cast<int>(wParam) == NightVisionKey && g_GameMode == GameMode::NightVision) {
       NightVisionOn = !NightVisionOn;
       if (NightVisionOn)
         AddMessage("Night vision ON");
       else
         AddMessage("Night vision OFF");
     }
-    if (static_cast<int>(wParam) == cheatcode[cheati] && !SurvivalMode)
+    if (static_cast<int>(wParam) == cheatcode[cheati] && g_GameMode != GameMode::SurvivalMode)
     {
       cheati++;
       if (cheati>6)
@@ -1440,7 +1440,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     return 0;
 
   case WM_SYSKEYDOWN:
-    if (static_cast<int>(wParam) == VK_RETURN && !SurvivalMode) {
+    if (static_cast<int>(wParam) == VK_RETURN && g_GameMode != GameMode::SurvivalMode) {
       SetFullScreen();
       return 0;
     }
@@ -1463,7 +1463,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     case '8':
     case '9':
     {
-		if (SurvivalMode) break;
+		if (g_GameMode == GameMode::SurvivalMode) break;
       if (Weapon.FTime) break;
       int w;
       if (wParam == '0')
@@ -1476,7 +1476,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
         break;
       }
       TargetWeapon = w;
-	  if (!UNDERWATER || WeapInfo[TargetWeapon].harpoon) {
+	  if (!IsUnderwater() || WeapInfo[TargetWeapon].harpoon) {
 		  if (!Weapon.state)
 			  CurrentWeapon = TargetWeapon;
 		  HideWeapon();
@@ -1554,39 +1554,39 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 //	case VK_DOWN:
 
     case VK_TAB:
-      if (!TrophyMode) ToggleMapMode();
+      if (g_GameMode != GameMode::TrophyMode) ToggleMapMode();
       break;
 
     case VK_PAUSE:
-		if (!SurvivalMode) {
-      PAUSE = !PAUSE;
+		if (g_GameMode != GameMode::SurvivalMode) {
+      PAUSE = !IsPaused();
       EXITMODE = false;
-      CaptureMouse(!PAUSE);
+      CaptureMouse(!IsPaused());
       ResetMousePos();
       break;
 		}
 
     case 'N':
-      if (EXITMODE) EXITMODE = false;
+      if (g_GameMode == GameMode::ExitCountdown) EXITMODE = false;
       break;
 
     case VK_ESCAPE:
-      if (TrophyMode || SurvivalMode)
+      if (g_GameMode == GameMode::TrophyMode || g_GameMode == GameMode::SurvivalMode)
       {
         SaveTrophy();
         ExitTime = 1;
       }
       else
       {
-        if (PAUSE) { PAUSE = false; CaptureMouse(true); }
-        else { EXITMODE = !EXITMODE; CaptureMouse(true); }
+        if (IsPaused()) { PAUSE = false; CaptureMouse(true); }
+        else { EXITMODE = g_GameMode != GameMode::ExitCountdown; CaptureMouse(true); }
         if (ExitTime) EXITMODE = false;
         ResetMousePos();
       }
       break;
 
     case 'Y':
-		if (EXITMODE && !SurvivalMode)
+		if (g_GameMode == GameMode::ExitCountdown && g_GameMode != GameMode::SurvivalMode)
 		{
 			if (MyHealth) ExitTime = 4000;
 			else ExitTime = 1;
@@ -1595,16 +1595,16 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 		break;
 
     case VK_RETURN:
-      if (EXITMODE )
+      if (g_GameMode == GameMode::ExitCountdown )
       {
-		if (MyHealth && !SurvivalMode) ExitTime = 4000;
+		if (MyHealth && g_GameMode != GameMode::SurvivalMode) ExitTime = 4000;
         else ExitTime = 1;
         EXITMODE = false;
       }
       break;
 
 	case 'Q':
-		if (EXITMODE && SurvivalMode)
+		if (g_GameMode == GameMode::ExitCountdown && g_GameMode == GameMode::SurvivalMode)
 		{
 			ExitTime = 1;
 			EXITMODE = false;
@@ -1613,9 +1613,9 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 
     case 'R':
 	if (TrophyBody!=-1) RemoveCurrentTrophy();
-      if (EXITMODE)
+      if (g_GameMode == GameMode::ExitCountdown)
       {
-		  if (SurvivalMode) {
+		  if (g_GameMode == GameMode::SurvivalMode) {
 			  SurvivalWave = 0;
 			  ChCount = 0;
 		  }
@@ -1729,7 +1729,7 @@ void ProcessShoot()
   //if (HeadBackR) return;
 	
   TWeapon *wptr = &Weapon;
-  if (UNDERWATER && !WeapInfo[CurrentWeapon].harpoon)
+  if (IsUnderwater() && !WeapInfo[CurrentWeapon].harpoon)
   {
     HideWeapon();
     return;
@@ -1739,7 +1739,7 @@ void ProcessShoot()
   {
 	  int clickNo = rRand(2);
 	  if (!Chambered[CurrentWeapon]) {
-		  if (!alreadyFired && !UNDERWATER) AddVoicev(fxClick[clickNo].length, fxClick[clickNo].lpData.data(), 256);
+		  if (!alreadyFired && !IsUnderwater()) AddVoicev(fxClick[clickNo].length, fxClick[clickNo].lpData.data(), 256);
 		  return;
 	  }
 
@@ -1754,7 +1754,7 @@ void ProcessShoot()
 	rx *= static_cast<float>(WeapInfo[CurrentWeapon].recoil) / 100.f;
 	Recoil.x += rx;
 
-	if (UNDERWATER) {
+	if (IsUnderwater()) {
 		if (WeapInfo[CurrentWeapon].shtAqSnd >= 0)
 			AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].shtAqSnd].length,
 				wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].shtAqSnd].lpData.data(), 256);
@@ -1781,7 +1781,7 @@ void ProcessShoot()
       float rA = 0;
       float rB = 0;
 
-	  if (UNDERWATER) {
+	  if (IsUnderwater()) {
 		  rA = siRand(128) * 0.00010 * (2.f - WeapInfo[CurrentWeapon].PrecAq);
 		  rB = siRand(128) * 0.00010 * (2.f - WeapInfo[CurrentWeapon].PrecAq);
 	  }else{
@@ -1804,7 +1804,7 @@ void ProcessShoot()
       nv.z*=cb;
 
 	  float v = WeapInfo[CurrentWeapon].Veloc;
-	  if (UNDERWATER) v = WeapInfo[CurrentWeapon].VelocAq;
+	  if (IsUnderwater()) v = WeapInfo[CurrentWeapon].VelocAq;
 	  float l = WeapInfo[CurrentWeapon].Veloc;
 	  if (WeapInfo[CurrentWeapon].aqLow) l = WeapInfo[CurrentWeapon].VelocAq;
 
@@ -1827,7 +1827,7 @@ void ProcessShoot()
     v.x = PlayerX;
     v.y = PlayerY;
     v.z = PlayerZ;
-    if (!UNDERWATER) MakeNoise(v, ctViewR*200 * WeapInfo[CurrentWeapon].Loud);
+    if (!IsUnderwater()) MakeNoise(v, ctViewR*200 * WeapInfo[CurrentWeapon].Loud);
     Chambered[CurrentWeapon]-=1;
 //	else if (WeapInfo[CurrentWeapon].Reload) {
 //		if (!Chambered[CurrentWeapon]) Chambered[CurrentWeapon] = WeapInfo[CurrentWeapon].Reload;
@@ -1838,7 +1838,7 @@ void ProcessShoot()
 
 void ProcessSlide()
 {
-  if (NOCLIP || UNDERWATER) return;
+  if (NOCLIP || IsUnderwater()) return;
   float ch = GetLandQHNoObj(PlayerX, PlayerZ);
   float mh = ch;
   float chh;
@@ -1993,7 +1993,7 @@ void ProcessPlayerMovement()
     else SSpeed-=DeltaT*4;
 
 
-  if (SWIM)
+  if (g_GameMode == GameMode::Swimming)
   {
     if (VSpeed > 0.25f) VSpeed = 0.25f;
     if (VSpeed <-0.25f) VSpeed =-0.25f;
@@ -2033,7 +2033,7 @@ void ProcessPlayerMovement()
   if (KeyboardState[KeyMap.fkResupply] & 128) AddShipSupply(PlayerX,PlayerZ);
 
   if (Weapon.state) {
-	  if (KeyboardState[KeyMap.fkHoldBreath] & 128 && !UNDERWATER) {
+	  if (KeyboardState[KeyMap.fkHoldBreath] & 128 && !IsUnderwater()) {
 		  if (Weapon.breathPressed == 0) {
 			  AddVoicev(fxBreathIn.length, fxBreathIn.lpData.data(), 256);
 			  Weapon.breathPressed = 1;
@@ -2045,7 +2045,7 @@ void ProcessPlayerMovement()
 	  else {
 		  if (Weapon.HoldBreath) {
 			  Weapon.HoldBreath = false;
-			  if (Weapon.breathPressed == 1 && !UNDERWATER) AddVoicev(fxBreathOut.length, fxBreathOut.lpData.data(), 256);
+			  if (Weapon.breathPressed == 1 && !IsUnderwater()) AddVoicev(fxBreathOut.length, fxBreathOut.lpData.data(), 256);
 		  }
 		  Weapon.breathPressed = 0;
 	  }
@@ -2066,7 +2066,7 @@ void ProcessPlayerMovement()
 
   if (KeyboardState [KeyMap.fkShow] & 128) HideWeapon();
 
-  if (BINMODE)
+  if (g_GameMode == GameMode::Binocular)
   {
     if (KeyboardState[VK_ADD     ] & 128) BinocularPower+=BinocularPower * TimeDt / 4000.f;
     if (KeyboardState[VK_SUBTRACT] & 128) BinocularPower-=BinocularPower * TimeDt / 4000.f;
@@ -2082,7 +2082,7 @@ void ProcessPlayerMovement()
       else VSpeed = 8;
 
   if (KeyFlags & kfJump)
-    if (YSpeed == 0 && !SWIM)
+    if (YSpeed == 0 && g_GameMode != GameMode::Swimming)
     {
       YSpeed = 600 + static_cast<float>(fabs(VSpeed)) * 600;
       AddVoicev(fxJump.length, fxJump.lpData.data(), 256);
@@ -2107,7 +2107,7 @@ void ProcessPlayerMovement()
 
 
   PlayerNv = nv;
-  if (UNDERWATER || FLY)
+  if (IsUnderwater() || FLY)
   {
     nv.x*=cb;
     nv.y=-sb;
@@ -2130,7 +2130,7 @@ void ProcessPlayerMovement()
   sv.y=0;
   sv.z*=static_cast<float>(TimeDt)*SSpeed;
 
-  if (!TrophyMode)
+  if (g_GameMode != GameMode::TrophyMode)
   {
     TrophyRoom.Last.path+=(TimeDt*VSpeed) / 128.f;
     TrophyRoom.Last.time+=TimeDt/1000.f;
@@ -2175,7 +2175,7 @@ void ProcessDemoMovement()
   MapMode = false;
 
   if (DemoPoint.DemoTime>6*1000)
-    if (!PAUSE)
+    if (!IsPaused())
     {
       EXITMODE = true;
       ResetMousePos();
@@ -2280,7 +2280,7 @@ void ProcessControls()
   if (KeyboardState[KeyMap.fkReload] & 128)  KeyFlags += kfLookUp;
   if (KeyboardState[KeyMap.fkResupply] & 128)  KeyFlags += kfLookDn;
 
-  if (!SurvivalMode) {
+  if (g_GameMode != GameMode::SurvivalMode) {
     if (KeyboardState [KeyMap.fkStrafe] & 128) KeyFlags+=kfStrafe;
 
 	if (KeyboardState [KeyMap.fkForward ] & 128) KeyFlags+=kfForward;
@@ -2330,7 +2330,7 @@ void ProcessControls()
     }
   }
 
-  if ((CrouchMode) | (UNDERWATER) )
+  if ((g_GameMode == GameMode::Crouching) | (IsUnderwater()) )
   {
     if (HeadY<110.f) HeadY = 110.f;
     HeadY-=DeltaT*(60 + (HeadY-110)*5);
@@ -2350,7 +2350,7 @@ void ProcessControls()
 
   if (DemoPoint.DemoTime) goto SKIPYMOVE;
 
-  if (!UNDERWATER)
+  if (!IsUnderwater())
   {
     if (PlayerY>h) YSpeed-=DeltaT*3000;
   }
@@ -2391,7 +2391,7 @@ void ProcessControls()
 SKIPYMOVE:
 
   SWIM = false;
-  if (!UNDERWATER && (KeyFlags & kfJump) )
+  if (!IsUnderwater() && (KeyFlags & kfJump) )
     if (PlayerY<hwater-148)
     {
       SWIM = true;
@@ -2401,11 +2401,11 @@ SKIPYMOVE:
 
   float _s = stepdy;
 
-  if (SWIM) stepdy = static_cast<float>(sin(static_cast<float>(RealTime) / 360)) * 20;
+  if (g_GameMode == GameMode::Swimming) stepdy = static_cast<float>(sin(static_cast<float>(RealTime) / 360)) * 20;
   else stepdy = static_cast<float>(MIN(1.f,fabs(VSpeed) + static_cast<float>(fabs(SSpeed)))) * static_cast<float>(sin(static_cast<float>(RealTime) / 80.f)) * 22.f;
   float d = stepdy - _s;
 
-  if (!UNDERWATER)
+  if (!IsUnderwater())
     if (PlayerY<h+64)
       if (d<0 && stepdd >= 0)
         if (ONWATER)
@@ -2469,7 +2469,7 @@ SKIPYMOVE:
     if (sb<0) BackViewR = (320.f - 1024.f * sb) * aspectScale;
     else BackViewR = (320.f + 512.f * sb) * aspectScale;
     BackViewRR = static_cast<int>(((380 + static_cast<int>((1024 * fabs(sb)))) * aspectScale));
-    if (UNDERWATER) BackViewR -= 512.f * static_cast<float>(MIN(0,sb)) * aspectScale;
+    if (IsUnderwater()) BackViewR -= 512.f * static_cast<float>(MIN(0,sb)) * aspectScale;
   }
   else
   {
@@ -2481,10 +2481,10 @@ SKIPYMOVE:
 //==================== SWIM & UNDERWATER =========================//
   ONWATER = GetLandUpH(CameraX, CameraZ) > GetLandH(CameraX, CameraZ);
 
-  if (UNDERWATER)
+  if (IsUnderwater())
   {
     UNDERWATER = (GetLandUpH(CameraX, CameraZ)-4>= CameraY);
-    if (!UNDERWATER)
+    if (!IsUnderwater())
     {
       HeadY+=20;
       CameraY+=20;
@@ -2495,7 +2495,7 @@ SKIPYMOVE:
   else
   {
     UNDERWATER = (GetLandUpH(CameraX, CameraZ)+28 >= CameraY);
-    if (UNDERWATER)
+    if (IsUnderwater())
     {
       HeadY-=20;
       CameraY-=20;
@@ -2506,7 +2506,7 @@ SKIPYMOVE:
   }
 
   if (MyHealth)
-    if (UNDERWATER)
+    if (IsUnderwater())
     {
       MyHealth-=TimeDt*12;
       //if ( !(Takt & 31)) AddElements(CameraX + sa*64*cb, CameraY - 32 - sb*64, CameraZ - ca*64*cb, 4);
@@ -2514,14 +2514,14 @@ SKIPYMOVE:
         AddDeadBody(nullptr, HUNT_BREATH, true);
     }
 
-  if (UNDERWATER && !WeapInfo[CurrentWeapon].harpoon)
+  if (IsUnderwater() && !WeapInfo[CurrentWeapon].harpoon)
     if (Weapon.state) HideWeapon();
 
-  if (!UNDERWATER) UnderWaterT = 0;
+  if (!IsUnderwater()) UnderWaterT = 0;
   else if (UnderWaterT<512) UnderWaterT += TimeDt;
   else UnderWaterT = 512;
 
-  if (UNDERWATER)
+  if (IsUnderwater())
   {
 	  if (MyHealth) {
 		// Underwater camera has a wobble + dive-recovery effect. The base
@@ -2558,12 +2558,12 @@ SKIPYMOVE:
   }
 
 
-  if (BINMODE)
+  if (g_GameMode == GameMode::Binocular)
   {
     CameraW*=BinocularPower;
     CameraH*=BinocularPower;
   }
-  else if (OPTICMODE && (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2))
+  else if (g_GameMode == GameMode::OpticScope && (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2))
   {
 	  CameraW *= WeapInfo[CurrentWeapon].Optic;
 	  CameraH *= WeapInfo[CurrentWeapon].Optic;
@@ -2581,7 +2581,7 @@ SKIPYMOVE:
 
   InitClips();
 
-  if (SWIM)
+  if (g_GameMode == GameMode::Swimming)
   {
     if (!(Takt & 31)) AddWCircle(CameraX, CameraZ, 1.5);
     CameraBeta -=static_cast<float>(cos(RealTime/360.f)) / 80;
@@ -2591,7 +2591,7 @@ SKIPYMOVE:
 
 
   CameraFogI = FogsMap [(static_cast<int>(CameraZ))>>9][(static_cast<int>(CameraX))>>9];
-  if (UNDERWATER) CameraFogI=127;
+  if (IsUnderwater()) CameraFogI=127;
   if (FogsList[CameraFogI].YBegin*ctHScale> CameraY)
     CAMERAINFOG = (CameraFogI>0);
   else
@@ -2610,7 +2610,7 @@ SKIPYMOVE:
   int CameraAmb = AmbMap [(static_cast<int>(CameraZ))>>9][(static_cast<int>(CameraX))>>9];
 
 
-  if (UNDERWATER)
+  if (IsUnderwater())
   {
     SetAmbient(fxUnderwater.length,
                fxUnderwater.lpData.data(),
@@ -2803,7 +2803,7 @@ void ProcessGame()
 
   ProcessSyncro();
 
-  if (!PAUSE || !MyHealth)
+  if (!IsPaused() || !MyHealth)
   {
     ProcessControls();
     AudioSetCameraPos(CameraX, CameraY, CameraZ, CameraAlpha, CameraBeta);
@@ -2816,14 +2816,14 @@ void ProcessGame()
     AnimateProcesses();
   }
 
-  if (DEBUG || ObservMode || TrophyMode)
+  if (DEBUG || ObservMode || g_GameMode == GameMode::TrophyMode)
     if (MyHealth) MyHealth = MAX_HEALTH;
   if (DEBUG) ShotsLeft[CurrentWeapon] = WeapInfo[CurrentWeapon].Shots;
 
   DrawScene();
 
-  if (!TrophyMode)
-    if (MapMode) DrawHMap();
+  if (g_GameMode != GameMode::TrophyMode)
+    if (g_GameMode == GameMode::MapMode) DrawHMap();
 
   DrawPostObjects();
 
@@ -2922,7 +2922,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
   LoadPictureTGA(PausePic,   "HUNTDAT\\MENU\\pause.tga", MemoryTag::Global);
   conv_pic(PausePic);
-  if (SurvivalMode) LoadPictureTGA(ExitPic, "HUNTDAT\\MENU\\exit_s.tga", MemoryTag::Global);
+  if (g_GameMode == GameMode::SurvivalMode) LoadPictureTGA(ExitPic, "HUNTDAT\\MENU\\exit_s.tga", MemoryTag::Global);
   else LoadPictureTGA(ExitPic,    "HUNTDAT\\MENU\\exit.tga", MemoryTag::Global);
   conv_pic(ExitPic);
   LoadPictureTGA(TrophyExit, "HUNTDAT\\MENU\\trophy_e.tga", MemoryTag::Global);
