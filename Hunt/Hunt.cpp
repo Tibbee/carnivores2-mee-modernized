@@ -1067,9 +1067,7 @@ SKIPWEAPON:
 					Chambered[w] = WeapInfo[w].Reload;
 		*/
 
-#ifdef _gl
       const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
-#endif
 
 		int ind = 9;
 		int ch = 1;
@@ -1078,7 +1076,6 @@ SKIPWEAPON:
 		int y2 = Weapon.BulletPic[CurrentWeapon].H + 9;
 		int x1 = 0;
 		int x2 = 0;
-#ifdef _gl
       const int bulletW = MAX(1, static_cast<int>((Weapon.BulletPic[CurrentWeapon].W * uiscale)));
       const int bulletH = MAX(1, static_cast<int>((Weapon.BulletPic[CurrentWeapon].H * uiscale)));
       const int chamberW = MAX(1, static_cast<int>((Weapon.ChambPic[CurrentWeapon].W * uiscale)));
@@ -1088,13 +1085,6 @@ SKIPWEAPON:
       y1 = y0;
       y2 = static_cast<int>(((Weapon.BulletPic[CurrentWeapon].H + 9.0f) * uiscale));
       ind = static_cast<int>((9.0f * uiscale));
-#else
-      const int bulletW = Weapon.BulletPic[CurrentWeapon].W;
-      const int bulletH = Weapon.BulletPic[CurrentWeapon].H;
-      const int chamberW = Weapon.ChambPic[CurrentWeapon].W;
-      const int chamberH = Weapon.ChambPic[CurrentWeapon].H;
-      const int hudGap = 3;
-#endif
 
 		if (wptr->state == 4 || wptr->state == 5) {
 			float d = -cos(pi/2+(pi/2 * (static_cast<float>(wptr->FTime) / static_cast<float>(wptr->chinfo[CurrentWeapon].Animation[phas].AniTime))));
@@ -1118,127 +1108,73 @@ SKIPWEAPON:
 		}
 
 		if (WeapInfo[CurrentWeapon].picch)
-#ifdef _gl
 			DrawScaledPicture(static_cast<int>((5.0f * uiscale)),
 				(y0 - static_cast<int>(uiscale)) + (bulletH - (chamberH - 2 * static_cast<int>(uiscale))),
 				chamberW, chamberH,
 				Weapon.ChambPic[CurrentWeapon]);
-#else
-			DrawPicture(5, (y0-1) + (Weapon.BulletPic[CurrentWeapon].H-(Weapon.ChambPic[CurrentWeapon].H-2)),
-				Weapon.ChambPic[CurrentWeapon]);
-#endif
 
 		if (wptr->FlashP) {
 			wptr->FlashP++;
 			if (wptr->FlashP > 4)wptr->FlashP = 0;
-#ifdef _gl
 			else DrawFlash(static_cast<int>((6.0f * uiscale)) + Chambered[CurrentWeapon] * bulletW,
 					y0,
 					bulletW,
 					bulletH,
 					wptr->Flash[wptr->FlashP - 1]
 				);
-#else
-			else DrawFlash(6 + Chambered[CurrentWeapon] * Weapon.BulletPic[CurrentWeapon].W,
-					y0,
-					Weapon.BulletPic[CurrentWeapon].W,
-					Weapon.BulletPic[CurrentWeapon].H,
-					wptr->Flash[wptr->FlashP - 1]
-				);
-#endif
 		}
 
 		for (int bl = 0; bl < Chambered[CurrentWeapon]; bl++)
-#ifdef _gl
 			DrawScaledPicture(static_cast<int>((6.0f * uiscale)) + bl * bulletW, y0, bulletW, bulletH, Weapon.BulletPic[CurrentWeapon]);
-#else
-			DrawPicture(6 + bl * Weapon.BulletPic[CurrentWeapon].W, y0, Weapon.BulletPic[CurrentWeapon]);
-#endif
 
 		for (int bl = 0; bl < ShotsLeft[CurrentWeapon]; bl++) {
-#ifdef _gl
 			if (bl < wptr->ammoIn) DrawScaledPicture(ind + x2 + ch * bulletW + bl * bulletW, y1, bulletW, bulletH, Weapon.BulletPic[CurrentWeapon]);
 			else DrawScaledPicture(ind + x1 + ch * bulletW + bl * bulletW, y1, bulletW, bulletH, Weapon.BulletPic[CurrentWeapon]);
-#else
-			if (bl < wptr->ammoIn) DrawPicture(ind + x2 + ch * Weapon.BulletPic[CurrentWeapon].W + bl * Weapon.BulletPic[CurrentWeapon].W, y1, Weapon.BulletPic[CurrentWeapon]);
-			else DrawPicture(ind + x1 + ch * Weapon.BulletPic[CurrentWeapon].W + bl * Weapon.BulletPic[CurrentWeapon].W, y1, Weapon.BulletPic[CurrentWeapon]);
-#endif
 		}
 
-#ifdef _gl
 	  if (AmmoMag[CurrentWeapon])
 		  for (int bl=0; bl< MagShotsLeft[CurrentWeapon]; bl++)
 			  DrawScaledPicture(ind + ch * bulletW + bl*bulletW, y2, bulletW, bulletH, Weapon.BulletPic[CurrentWeapon]);
-#else
-	  if (AmmoMag[CurrentWeapon])
-		  for (int bl=0; bl< MagShotsLeft[CurrentWeapon]; bl++)
-			  DrawPicture(ind + ch * Weapon.BulletPic[CurrentWeapon].W + bl*Weapon.BulletPic[CurrentWeapon].W, y2, Weapon.BulletPic[CurrentWeapon]);
-#endif
 	}
   }
 
 
   if (g_GameMode == GameMode::TrophyMode)
-#ifdef _gl
   {
     const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
     DrawScaledPicture(VideoCX - static_cast<int>((TrophyExit.W * uiscale)) / 2, 2,
       static_cast<int>((TrophyExit.W * uiscale)), static_cast<int>((TrophyExit.H * uiscale)), TrophyExit);
   }
-#else
-    DrawPicture( VideoCX - TrophyExit.W / 2, 2, TrophyExit);
-#endif
 
   if (g_GameMode == GameMode::ExitCountdown) {
-#ifdef _gl
 	  const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
 	  const int exitW = static_cast<int>((ExitPic.W * uiscale));
 	  const int exitH = static_cast<int>((ExitPic.H * uiscale));
 	  DrawScaledPicture((WinW - exitW) / 2, (WinH - exitH) / 2, exitW, exitH, ExitPic);
-#else
-	  DrawPicture((WinW - ExitPic.W) / 2, (WinH - ExitPic.H) / 2, ExitPic);
-#endif
 	  if (g_GameMode == GameMode::SurvivalMode) {
-#ifdef _gl
 		  DrawSurvivalText(
 			  (WinW - exitW) / 2,
 			  (WinH - exitH) / 2
 		  );
-#else
-		  DrawSurvivalText(
-			  (WinW - ExitPic.W) / 2,
-			  (WinH - ExitPic.H) / 2
-		  );
-#endif
 	  }
   }
 
   if (IsPaused())
-#ifdef _gl
   {
     const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
     DrawScaledPicture((WinW - static_cast<int>((PausePic.W * uiscale))) / 2,
       (WinH - static_cast<int>((PausePic.H * uiscale))) / 2,
       static_cast<int>((PausePic.W * uiscale)), static_cast<int>((PausePic.H * uiscale)), PausePic);
   }
-#else
-    DrawPicture( (WinW - PausePic.W) / 2, (WinH - PausePic.H) / 2, PausePic);
-#endif
 
   if (ScoreDispTime) {
 
-#ifdef _gl
 	  const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
 	  const int scoreW = static_cast<int>((ScorePic.W * uiscale));
 	  const int scoreH = static_cast<int>((ScorePic.H * uiscale));
 	  int x0 = VideoCX - scoreW /2;
 	  int y0 = WinH - scoreH - static_cast<int>((12.0f * uiscale));
 	  DrawScaledPicture(x0, y0, scoreW, scoreH, ScorePic);
-#else
-	  int x0 = VideoCX - ScorePic.W /2;
-	  int y0 = WinH - ScorePic.H - 12;
-	  DrawPicture(x0, y0, ScorePic);
-#endif
 	  DrawScoreText(x0, y0);
 
 	  if (ScoreDispTime)
@@ -1252,7 +1188,6 @@ SKIPWEAPON:
 	  if (g_GameMode == GameMode::TrophyMode || TrophyDisplay)
 		  if (TrophyBody != -1 || TrophyDisplay)
 		  {
-#ifdef _gl
 			  const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
 			  TPicture *Pic = &TrophyPic;
 			  if (g_GameMode != GameMode::TrophyMode && (Tranq || Characters[TrophyDisplayC].claimed)) {
@@ -1266,18 +1201,6 @@ SKIPWEAPON:
 				  x0 = VideoCX - trophyW / 2;
 
 			  DrawScaledPicture(x0, y0, trophyW, trophyH, *Pic);
-#else
-			  TPicture *Pic = &TrophyPic;
-			  if (g_GameMode != GameMode::TrophyMode && (Tranq || Characters[TrophyDisplayC].claimed)) {
-				  Pic = &TrophyNoCollectPic;
-			  }
-			  int x0 = WinW - Pic->W - 16;
-			  int y0 = WinH - Pic->H - 12;
-			  if (g_GameMode != GameMode::TrophyMode)
-				  x0 = VideoCX - Pic->W / 2;
-
-			  DrawPicture(x0, y0, *Pic);
-#endif
 			  DrawTrophyText(x0, y0);
 
 		  }

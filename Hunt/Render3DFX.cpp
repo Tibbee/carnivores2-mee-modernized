@@ -824,6 +824,12 @@ void DrawPicture(int x, int y, TPicture &pic)
   FXPutBitMap(x, y, pic.W, pic.H, pic.W, pic.lpImage);
 }
 
+void DrawScaledPicture(int x, int y, int w, int h, TPicture &pic)
+{
+  // Phase 2.2: unified UIScale — fall back to unscaled draw for 3DFX renderer
+  DrawPicture(x, y, pic);
+}
+
 void DrawFlash(int x0, int y0, int w, int h, TPicture &pic)
 {
 	int smw = pic.W;

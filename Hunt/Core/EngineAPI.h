@@ -86,9 +86,7 @@ void RenderModelClipWater(TModel*, float, float, float, int, int, float, float);
 void RenderModelClip     (TModel*, float, float, float, int, int, float, float);
 void RenderNearModel     (TModel*, float, float, float, int, float, float);
 void DrawPicture         (int x, int y, TPicture &pic);
-#ifdef _gl
 void DrawScaledPicture   (int x, int y, int w, int h, TPicture &pic);
-#endif
 void DrawFlash		 (int x, int y, int w, int h, TPicture &pic);
 
 void InitClips();

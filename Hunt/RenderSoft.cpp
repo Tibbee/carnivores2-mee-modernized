@@ -2671,6 +2671,12 @@ void DrawPicture(int x, int y, TPicture &pic)
               pic.W<<1);
 }
 
+void DrawScaledPicture(int x, int y, int w, int h, TPicture &pic)
+{
+  // Phase 2.2: unified UIScale — fall back to unscaled draw for software
+  DrawPicture(x, y, pic);
+}
+
 void DrawFlash(int x, int y, int w, int h, TPicture &pic)
 {
 	for (int yy = 0; yy < h; yy++)
