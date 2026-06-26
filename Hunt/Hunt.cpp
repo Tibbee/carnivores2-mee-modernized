@@ -1337,8 +1337,9 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     if (static_cast<int>(wParam) == KeyMap.fkCCall && g_GameMode != GameMode::SurvivalMode) ChangeCall();
     if (static_cast<int>(wParam) == KeyMap.fkRun  && g_GameMode != GameMode::SurvivalMode) ToggleRunMode();
 	if (static_cast<int>(wParam) == KeyMap.fkCrouch && g_GameMode != GameMode::SurvivalMode) ToggleCrouchMode();
-    if (static_cast<int>(wParam) == NightVisionKey && g_GameMode == GameMode::NightVision) {
+    if (static_cast<int>(wParam) == NightVisionKey && NightVisionMode) {
       NightVisionOn = !NightVisionOn;
+      g_GameMode = NightVisionOn ? GameMode::NightVision : GameMode::Normal;
       if (NightVisionOn)
         AddMessage("Night vision ON");
       else

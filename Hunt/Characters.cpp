@@ -9243,7 +9243,7 @@ void PlaceCharacters()
 
 	/*
 	//place hunting dog
-	DogMode = false;
+	g_GameMode = GameMode::Normal;
 	if (g_GameMode == GameMode::DogMode) {
 		tr = 0;
 		Characters[ChCount].CType = AI_to_CIndex[AI_HUNTDOG];

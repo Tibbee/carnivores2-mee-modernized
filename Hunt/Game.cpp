@@ -692,12 +692,12 @@ void ProcessCommandLine()
 
     if (strstr(s,"-debug"))   DEBUG = true;
     if (strstr(s,"-double"))  DoubleAmmo = true;
-	if (strstr(s, "-huntdog"))  DogMode = true;
-	if (strstr(s, "-nightvision")) NightVisionMode = true;
+	if (strstr(s, "-huntdog"))  g_GameMode = GameMode::DogMode;
+	if (strstr(s, "-nightvision")) { NightVisionMode = true; g_GameMode = GameMode::NightVision; }
     if (strstr(s,"-radar"))   RadarMode = true;
 	if (strstr(s, "-survival"))  g_GameMode = GameMode::SurvivalMode;
-	if (strstr(s, "-sonar"))   SonarMode = true;
-	if (strstr(s, "-scanner"))   ScannerMode = true;
+	if (strstr(s, "-sonar"))   { SonarMode = true; g_GameMode = GameMode::SonarMode; }
+	if (strstr(s, "-scanner"))   { ScannerMode = true; g_GameMode = GameMode::ScannerMode; }
 	if (strstr(s, "-scent"))   ScentMode = true;
 	if (strstr(s, "-camo"))   CamoMode = true;
 	if (strstr(s, "-multiplayer"))   Multiplayer = true;
