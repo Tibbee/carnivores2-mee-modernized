@@ -26,6 +26,7 @@
 #include "Core/Constants.h"
 #include "Core/MathTypes.h"
 #include "Core/AudioTypes.h"
+#include "Core/RenderTypes.h"
 
 #ifdef _d3d
 #include "d3d.h"
@@ -38,18 +39,9 @@
 #endif
 
 
-struct TMessageList
-{
-  int timeleft;
-  char mtext[256];
-};
 
-struct TRGB
-{
-  BYTE B;
-  BYTE G;
-  BYTE R;
-};
+
+
 
 struct TAni
 {
@@ -83,33 +75,16 @@ struct TVTL
 
 
 
-struct TRes
-{
-  int w, h;
-};
 
 
 
 
-struct TEXTURE
-{
-  WORD DataA[128*128];
-  WORD DataB[64*64];
-  WORD DataC[32*32];
-  WORD DataD[16*16];
-  WORD SDataC[2][32*32];
-  int mR, mG, mB;
-};
 
 
 
-struct TPicture
-{
-  int W,H;
-  // Phase 5B.2: lpImage is now unique_heap_ptr<WORD[]>. Freed
-  // automatically when the TPicture is destroyed.
-  unique_heap_ptr<WORD[]> lpImage;
-};
+
+
+
 
 
 //================= MODEL ========================
@@ -655,10 +630,7 @@ struct TDinoIdleType
 	bool instantRepeat;
 };
 
-struct TMenuDinoInfo
-{
-	TPicture CallIcon;
-};
+
 
 struct TDinoInfo
 {
@@ -899,13 +871,7 @@ struct TWeapInfo
 };
 
 
-struct TFogEntity
-{
-  int fogRGB;
-  float YBegin;
-  BOOL  Mortal;
-  float Transp, FLimit;
-};
+
 
 
 struct TWaterEntity
@@ -1452,6 +1418,10 @@ _EXTORNOT TCharacterInfo WCircleModel;
 _EXTORNOT unique_obj_ptr<TModel> CompasModel;
 _EXTORNOT unique_obj_ptr<TModel> Binocular;
 _EXTORNOT TDinoInfo DinoInfo[DINOINFO_MAX];
+struct TMenuDinoInfo
+{
+	TPicture CallIcon;
+};
 _EXTORNOT TMenuDinoInfo MenuDinoInfo[16];
 _EXTORNOT int sendGunShot;
 _EXTORNOT int mGunShot[4];
