@@ -31,24 +31,15 @@ struct TPoint3d
 struct TFace
 {
   int v1, v2, v3;
-#ifdef _soft
-  int   tax, tbx, tcx, tay, tby, tcy;
-#else
   float tax, tbx, tcx, tay, tby, tcy;
-#endif
   unsigned short Flags, DMask;
   int Distant, Next, group;
   char reserv[12];
 };
 
-struct TFacef
-{
-  int v1, v2, v3;
-  float tax, tbx, tcx, tay, tby, tcy;
-  unsigned short Flags, DMask;
-  int Distant, Next, group;
-  char reserv[12];
-};
+// TFacef is now identical to TFace (unified in Phase 1.4). Kept as an alias
+// for compatibility; the union in TModel can use either.
+using TFacef = TFace;
 
 struct TObj
 {
@@ -98,11 +89,7 @@ struct TModel
 
   unique_heap_ptr<unsigned short[]> lpTexture, lpTexture2, lpTexture3;
 
-#ifdef _d3d
-  int*      VLight[4];
-#else
   float*    VLight[4];
-#endif
 
   TModel() = default;
 

@@ -913,12 +913,29 @@ void CorrectModel(TModel *mptr, MemoryTag tag)
     if (!(mptr->gFace[f].Flags & sfDoubleSide))
       mptr->gFace[f].Flags |= sfNeedVC;
 #ifdef _soft
-    mptr->gFace[f].tax = (mptr->gFace[f].tax<<16) + 0x8000;
-    mptr->gFace[f].tay = (mptr->gFace[f].tay<<16) + 0x8000;
-    mptr->gFace[f].tbx = (mptr->gFace[f].tbx<<16) + 0x8000;
-    mptr->gFace[f].tby = (mptr->gFace[f].tby<<16) + 0x8000;
-    mptr->gFace[f].tcx = (mptr->gFace[f].tcx<<16) + 0x8000;
-    mptr->gFace[f].tcy = (mptr->gFace[f].tcy<<16) + 0x8000;
+    {
+        // Phase 1.4: TFace is unified to float. Convert the loaded integer UV
+        // (bitcast through float) to 16.16 fixed-point for the software renderer.
+        int raw;
+        memcpy(&raw, &mptr->gFace[f].tax, sizeof(int));
+        raw = (raw << 16) + 0x8000;
+        memcpy(&mptr->gFace[f].tax, &raw, sizeof(int));
+        memcpy(&raw, &mptr->gFace[f].tay, sizeof(int));
+        raw = (raw << 16) + 0x8000;
+        memcpy(&mptr->gFace[f].tay, &raw, sizeof(int));
+        memcpy(&raw, &mptr->gFace[f].tbx, sizeof(int));
+        raw = (raw << 16) + 0x8000;
+        memcpy(&mptr->gFace[f].tbx, &raw, sizeof(int));
+        memcpy(&raw, &mptr->gFace[f].tby, sizeof(int));
+        raw = (raw << 16) + 0x8000;
+        memcpy(&mptr->gFace[f].tby, &raw, sizeof(int));
+        memcpy(&raw, &mptr->gFace[f].tcx, sizeof(int));
+        raw = (raw << 16) + 0x8000;
+        memcpy(&mptr->gFace[f].tcx, &raw, sizeof(int));
+        memcpy(&raw, &mptr->gFace[f].tcy, sizeof(int));
+        raw = (raw << 16) + 0x8000;
+        memcpy(&mptr->gFace[f].tcy, &raw, sizeof(int));
+    }
 #else
     fp_conv(&mptr->gFace[f].tax);
     fp_conv(&mptr->gFace[f].tay);
@@ -965,11 +982,7 @@ void AllocateMemoryForModel(TModel* mptr, MemoryTag tag) {
 	// Keep track of maximum VCount value
 	MaxObjectVCount = MAX(MaxObjectVCount, mptr->VCount);
 
-#ifdef _d3d
-	int *lightBuffer = static_cast<int*>(_HeapAlloc(Heap, 0, mptr->VCount * 4 * sizeof(int), tag));
-#else
 	float *lightBuffer = static_cast<float*>(_HeapAlloc(Heap, 0, mptr->VCount * 4 * sizeof(float), tag));
-#endif
 	mptr->VLight[0] = lightBuffer;
 	mptr->VLight[1] = lightBuffer + mptr->VCount;
 	mptr->VLight[2] = lightBuffer + mptr->VCount * 2;

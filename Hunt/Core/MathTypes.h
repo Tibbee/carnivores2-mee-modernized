@@ -24,11 +24,7 @@ struct Vector2df
 
 struct ScrPoint
 {
-#ifdef _soft
-  int   x, y, tx, ty;
-#else
   float x, y, tx, ty;
-#endif
   int Light, z, r2, r3;
 };
 
