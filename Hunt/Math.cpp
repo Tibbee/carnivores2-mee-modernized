@@ -851,7 +851,7 @@ void CalcLights(TModel* mptr)
     }
   }
 
-  _HeapFree(Heap, 0, norms);
+  (void)_HeapFree(Heap, 0, norms);
 }
 
 

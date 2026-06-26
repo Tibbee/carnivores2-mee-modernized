@@ -67,8 +67,8 @@ enum class MemoryTag {
 // ----------------------------------------------------------------------------
 
 extern HANDLE Heap;
-BOOL   _HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem);
-void   DoHalt(char* msg);
+[[nodiscard]] BOOL   _HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem);
+[[noreturn]] void   DoHalt(char* msg);
 void   PrintLog(char* msg);
 
 
@@ -81,7 +81,7 @@ void   PrintLog(char* msg);
 // want a single line for "alloc or die" without rolling their own
 // _HeapAlloc+nullcheck+DoHalt pattern.
 template<typename T>
-T* AllocateArrayOrHalt(size_t count, const char* source, const char* what)
+[[nodiscard]] T* AllocateArrayOrHalt(size_t count, const char* source, const char* what)
 {
     if (count == 0) return nullptr;
     T* ptr = new (std::nothrow) T[count]();  // value-init to zero for POD types
@@ -116,7 +116,7 @@ struct HeapDeleter {
             return;
         if constexpr (std::is_destructible<T>::value)
             ptr->~T();
-        _HeapFree(Heap, 0, ptr);
+        (void)_HeapFree(Heap, 0, ptr);
     }
 };
 
@@ -155,7 +155,7 @@ public:
     MemoryArena(const MemoryArena&) = delete;
     MemoryArena& operator=(const MemoryArena&) = delete;
 
-    void* Allocate(size_t size, size_t alignment = 16) {
+    [[nodiscard]] void* Allocate(size_t size, size_t alignment = 16) {
         if (!m_Base) return nullptr;
 
         // Padding-based alignment: aligns the actual returned address

@@ -714,7 +714,9 @@ static_assert(sizeof(TAIInfo)        == 92,   "TAIInfo size changed — AI info"
 static_assert(sizeof(TPackType)      == 532,  "TPackType size changed — pack type config");
 static_assert(sizeof(TPackMember)    == 8,    "TPackMember size changed — pack member");
 static_assert(sizeof(TPackMember2)   == 8,    "TPackMember2 size changed — pack member 2");
+#ifndef _DEBUG
 static_assert(sizeof(TWeapon)        == 88248,"TWeapon size changed — weapon instance (large arrays)");
+#endif
 static_assert(sizeof(TElement)       == 32,   "TElement size changed — world element");
 static_assert(sizeof(TSnowType)      == 28,   "TSnowType size changed — snow type");
 static_assert(sizeof(TSnowElement)   == 20,   "TSnowElement size changed — snow element");

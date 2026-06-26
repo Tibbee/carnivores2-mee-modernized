@@ -955,7 +955,7 @@ void CorrectModel(TModel *mptr, MemoryTag tag)
 
 
   memcpy( mptr->gFace, tface, mptr->FCount << 6 );
-  _HeapFree(Heap, 0, tface);
+  (void)_HeapFree(Heap, 0, tface);
 }
 
 void AllocateMemoryForModel(TModel* mptr, MemoryTag tag) {
@@ -1500,11 +1500,11 @@ void ReleaseResources()
       // (~TModel() is default) and must be freed explicitly before
       // the model is destroyed.
       if (mptr->gFace) {
-        _HeapFree(Heap, 0, mptr->gFace);
+        (void)_HeapFree(Heap, 0, mptr->gFace);
         mptr->gFace = nullptr;
       }
       if (mptr->VLight[0]) {
-        _HeapFree(Heap, 0, mptr->VLight[0]);
+        (void)_HeapFree(Heap, 0, mptr->VLight[0]);
         mptr->VLight[0] = nullptr;
         mptr->VLight[1] = nullptr;
         mptr->VLight[2] = nullptr;
@@ -1556,17 +1556,17 @@ void ReleaseResources()
   // pointers and frees them when LevelArena is null (Phase 5A compatibility).
   if (rVertex)
   {
-    _HeapFree(Heap, 0, rVertex);
+    (void)_HeapFree(Heap, 0, rVertex);
     rVertex = nullptr;
   }
   if (gScrp)
   {
-    _HeapFree(Heap, 0, gScrp);
+    (void)_HeapFree(Heap, 0, gScrp);
     gScrp = nullptr;
   }
   if (PhongMapping)
   {
-    _HeapFree(Heap, 0, PhongMapping);
+    (void)_HeapFree(Heap, 0, PhongMapping);
     PhongMapping = nullptr;
   }
 
@@ -2302,11 +2302,11 @@ void ReleaseModel(unique_obj_ptr<TModel> &mptr)
   // addresses, so this is correct regardless of the MemoryTag used at
   // allocation time.
   if (mptr->gFace) {
-    _HeapFree(Heap, 0, mptr->gFace);
+    (void)_HeapFree(Heap, 0, mptr->gFace);
     mptr->gFace = nullptr;
   }
   if (mptr->VLight[0]) {
-    _HeapFree(Heap, 0, mptr->VLight[0]);
+    (void)_HeapFree(Heap, 0, mptr->VLight[0]);
     for (int i = 0; i < 4; i++) {
       mptr->VLight[i] = nullptr;
     }

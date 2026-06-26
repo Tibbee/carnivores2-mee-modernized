@@ -203,7 +203,7 @@ Vector3d SubVectors( Vector3d& v1, Vector3d& v2 );
 Vector3d SubVectors2d(Vector3d& v1, Vector3d& v2);
 void NormVector(Vector3d& v, float Scale);
 
-LPVOID _HeapAlloc(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes);
+[[nodiscard]] LPVOID _HeapAlloc(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes);
 // Phase 5A: 4-arg overload with MemoryTag dispatch. No default for `tag` —
 // MSVC's overload resolution treats a 3-arg call as ambiguous between this
 // overload (using the default) and the 3-arg overload above, so the tag
@@ -212,8 +212,8 @@ LPVOID _HeapAlloc(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes);
 // phases 5B-5E will update individual call sites to the explicit 4-arg
 // form with the appropriate tag (Global for session-lifetime, Level for
 // per-level).
-LPVOID _HeapAlloc(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes, MemoryTag tag);
-BOOL _HeapFree(HANDLE hHeap, DWORD  dwFlags, LPVOID lpMem);
+[[nodiscard]] LPVOID _HeapAlloc(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes, MemoryTag tag);
+[[nodiscard]] BOOL _HeapFree(HANDLE hHeap, DWORD  dwFlags, LPVOID lpMem);
 
 // Phase 5A: per-level arena. Constructed in InitEngine() and destroyed in
 // ShutDownEngine() (both Phase 5C). nullptr in Phase 5A — _HeapAlloc
@@ -259,8 +259,8 @@ void AddElements(float, float, float, int, int);
 void AddElementsA(float, float, float, int, int, int, bool, float);
 void AddWCircle(float, float, float);
 void AnimateProcesses();
-void DoHalt(LPSTR);
-void DoHalt2(LPSTR);
+[[noreturn]] void DoHalt(LPSTR);
+[[noreturn]] void DoHalt2(LPSTR);
 
 void CreateLog();
 void PrintLog(LPSTR l);
