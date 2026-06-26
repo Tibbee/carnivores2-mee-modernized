@@ -125,7 +125,15 @@ set(CORE_FILES
     Hunt/AppRes.rc
     Hunt/Carnivores1.manifest
     # Headers (optional, for IDE)
+    Hunt/Core/StateDefs.cpp
     Hunt/Hunt.h
+    Hunt/Core/Constants.h
+    Hunt/Core/MathTypes.h
+    Hunt/Core/AudioTypes.h
+    Hunt/Core/RenderTypes.h
+    Hunt/Core/ModelTypes.h
+    Hunt/Core/GameTypes.h
+    Hunt/Core/GameState.h
     Hunt/AppRes.h
 )
 

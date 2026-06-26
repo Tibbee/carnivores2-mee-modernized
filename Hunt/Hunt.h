@@ -29,6 +29,7 @@
 #include "Core/RenderTypes.h"
 #include "Core/ModelTypes.h"
 #include "Core/GameTypes.h"
+#include "Core/GameState.h"
 
 #ifdef _d3d
 #include "d3d.h"
@@ -486,7 +487,6 @@ BOOL _HeapFree(HANDLE hHeap, DWORD  dwFlags, LPVOID lpMem);
 // ShutDownEngine() (both Phase 5C). nullptr in Phase 5A — _HeapAlloc
 // checks for nullptr and falls through to HeapAlloc, so pre-5A call
 // sites are bit-for-bit unaffected.
-_EXTORNOT MemoryArena *LevelArena;
 
 //============ game ===========================//
 float GetLandCeilH(float, float);
@@ -530,38 +530,19 @@ void AnimateProcesses();
 void DoHalt(LPSTR);
 void DoHalt2(LPSTR);
 
-_EXTORNOT   char logt[128];
 void CreateLog();
 void PrintLog(LPSTR l);
 void PrintLogVerbose(LPSTR l);
 void CloseLog();
 
-_EXTORNOT   float BackViewR;
-_EXTORNOT   int   BackViewRR;
-_EXTORNOT   int   UnderWaterT;
-_EXTORNOT   int   TotalTreeTable, TotalAreaInfo, TotalSpawnGroup, TotalC, TotalW, TotalMA, TotalTrophy;// , TotalRegion, TotalAvoid;
 
 
 //========== multiplayer =============//
 
-_EXTORNOT   char    ServerAddress[128];
-_EXTORNOT   WSADATA wsaData;
-_EXTORNOT   int iResult;
-_EXTORNOT   SOCKET ListenSocket;
-_EXTORNOT   SOCKET ClientSocket;
-_EXTORNOT   SOCKET ConnectSocket;
 
-_EXTORNOT   struct addrinfo *result;
-_EXTORNOT   struct addrinfo hints;
 
-_EXTORNOT   int iSendResult;
 
-_EXTORNOT   HANDLE CommsThreadHandle;
-_EXTORNOT   LPDWORD CommsThreadID;
-_EXTORNOT   BOOL HaltThread;
 
-_EXTORNOT   char recvbuf[DEFAULT_BUFLEN];
-_EXTORNOT   int recvbuflen;
 
 void StartupServerCommsThread();
 void StartupClientCommsThread();
@@ -570,61 +551,13 @@ void StartupClientCommsThread();
 
 
 //========== common ==================//
-_EXTORNOT   HWND    hwndMain;
-_EXTORNOT   HINSTANCE  hInst;
-_EXTORNOT   HANDLE  Heap;
-_EXTORNOT   HDC     hdcMain, hdcCMain;
-_EXTORNOT   BOOL    blActive;
-_EXTORNOT   BYTE    KeyboardState[256];
-_EXTORNOT   int     KeyFlags, _shotcounter;
 
-_EXTORNOT   TMessageList MessageList;
-_EXTORNOT   char    ProjectName[128];
 
-_EXTORNOT   int     _GameState, _MultiplayerState;//multiplayer
-_EXTORNOT   TSFX    fxBlip;
-_EXTORNOT   TSFX    fxClick[3];
-_EXTORNOT   TSFX    fxBreathIn;
-_EXTORNOT   TSFX    fxBreathOut;
-_EXTORNOT   TSFX    fxCollect[3];
-_EXTORNOT   TSFX    fxImpactAquatic[3];
-_EXTORNOT   TSFX    fxImpactGround[3];
-_EXTORNOT   TSFX    fxImpactModel[3];
-_EXTORNOT   TSFX    fxImpactWater[3];
-_EXTORNOT   TSFX    fxImpactChar[3];
-_EXTORNOT   TSFX    fxCall[10][3], fxScream[4];
-_EXTORNOT   TSFX	fxGunShot[11];
-_EXTORNOT   TSFX    fxUnderwater, fxWaterIn, fxWaterOut, fxJump, fxStep[3], fxStepW[3];
 //========== map =====================//
-_EXTORNOT   byte HMap[ctMapSize][ctMapSize];
-_EXTORNOT   byte WMap[ctMapSize][ctMapSize];
-_EXTORNOT   byte HMapO[ctMapSize][ctMapSize];
-_EXTORNOT   WORD FMap[ctMapSize][ctMapSize];
-_EXTORNOT   byte LMap[ctMapSize][ctMapSize];
-_EXTORNOT   WORD TMap1[ctMapSize][ctMapSize];
-_EXTORNOT   WORD TMap2[ctMapSize][ctMapSize];
-_EXTORNOT   byte OMap[ctMapSize][ctMapSize];
 
-_EXTORNOT   byte FogsMap[512][512];
-_EXTORNOT   byte AmbMap[512][512];
 
-_EXTORNOT   TFogEntity    FogsList[256];
-_EXTORNOT   TWaterEntity  WaterList[256];
-_EXTORNOT   TWind       Wind;
-_EXTORNOT   TShip       Ship;
-_EXTORNOT   TShip       SShip;
-_EXTORNOT   TShipTask   ShipTask;
-_EXTORNOT   TBag        AmmoBag;
 
-_EXTORNOT   int SkyR, SkyG, SkyB, WaterR, WaterG, WaterB, WaterA,
-            SkyTR,SkyTG,SkyTB, CurFogColor;
-_EXTORNOT   int RandomMap[32][32];
 
-_EXTORNOT   Vector2df *PhongMapping;
-_EXTORNOT   TPicture TFX_SPECULAR, TFX_ENVMAP;
-_EXTORNOT   WORD SkyPic[256*256];
-_EXTORNOT   WORD SkyFade[9][128*128];
-_EXTORNOT   BYTE SkyMap[128*128];
 
 // Phase 5B.2: Textures is now std::array<unique_obj_ptr<TEXTURE>, 1024>.
 // std::array is used (not a raw C array) so the size is fixed at
@@ -634,36 +567,17 @@ _EXTORNOT   BYTE SkyMap[128*128];
 // pattern is unchanged: Textures[t] returns a unique_obj_ptr<TEXTURE>&
 // that supports operator bool, operator->, and .reset() the same way
 // a raw TEXTURE* did.
-_EXTORNOT   std::array<unique_obj_ptr<TEXTURE>, 1024> Textures;
-_EXTORNOT   TAmbient Ambient[256];
-_EXTORNOT   TSFX     RandSound[256];
 
 //========= WEATHER =================//
 
-_EXTORNOT TSnowType SnowInfo[32];
-_EXTORNOT int SnowCh;
 
 //========= GAME ====================//
-_EXTORNOT int TargetDino, TargetArea, TargetWeapon, WeaponPres, TargetCall,
-          ObservMode, Tranq, ObjectsOnLook, RenderHitBox,
-          CurrentWeapon, ShotsLeft[10], AmmoMag[10],
-	MagShotsLeft[10], Chambered[10], FiringMode[10]; //TrophyTime,
 
 //firing mode 0-semiauto 1-fullauto
 
-_EXTORNOT bool alreadyFired;
 
-_EXTORNOT Vector3d answpos;
-_EXTORNOT int answtime, answcall;
 
-_EXTORNOT BOOL NightVisionMode, NightVisionOn;
 
-_EXTORNOT BOOL ScentMode, CamoMode,
-          RadarMode, LockLanding,
-          TrophyMode, DoubleAmmo,
-          DogMode, Multiplayer,
-          Host, CiskMode, SonarMode,
-          ScannerMode, SurvivalMode;
 
 // Score multipliers for accessories. Defaults are set in Hunt/Game.cpp
 // InitEngine() and match the legacy hardcoded values from
@@ -671,176 +585,46 @@ _EXTORNOT BOOL ScentMode, CamoMode,
 // argument behaves identically to the original game. The Menu passes
 // 'smod=camo,radar,scent,double,tranq,observer' in the same order to
 // override these from _RES.TXT (see Menu/Resources.cpp ReadAccessories()).
-_EXTORNOT float ScoreMod_Camo;
-_EXTORNOT float ScoreMod_Radar;
-_EXTORNOT float ScoreMod_Scent;
-_EXTORNOT float ScoreMod_Double;
-_EXTORNOT float ScoreMod_Tranq;
-_EXTORNOT float ScoreMod_Observer;
 
-_EXTORNOT float sonarPos;
 
-_EXTORNOT TTrophyRoom TrophyRoom;
-_EXTORNOT TTrophyRoom2 TrophyRoom2;
-_EXTORNOT TPicture LandPic,DinoPic,DinoPicM, MapPic, WepPic;
-_EXTORNOT HFONT fnt_BIG, fnt_Small, fnt_Midd;
-_EXTORNOT TLandingList LandingList;
 
-_EXTORNOT TBullet bullet[256];
-_EXTORNOT int bulletCh;
 
-_EXTORNOT Vector3d TraceB;
 
 
 //======== MODEL ======================//
-_EXTORNOT TObject  MObjects[256];
-_EXTORNOT TModel* mptr;
-_EXTORNOT TWeapon Weapon;
 
 
 
-_EXTORNOT int   OCount, iModelFade, iModelBaseFade, Current;
-_EXTORNOT Vector3d  *rVertex;
-_EXTORNOT TObj      gObj[1024];
-_EXTORNOT Vector2di *gScrp;
 
-_EXTORNOT int MaxObjectVCount; // Maximum VCount of any (loaded) object
 
 //============= Characters ==============//
-_EXTORNOT TPicture  PausePic, ExitPic, TrophyExit, TrophyPic, TrophyNoCollectPic, ScorePic;
-_EXTORNOT unique_obj_ptr<TModel> SunModel;
-_EXTORNOT TCharacterInfo WCircleModel;
-_EXTORNOT unique_obj_ptr<TModel> CompasModel;
-_EXTORNOT unique_obj_ptr<TModel> Binocular;
-_EXTORNOT TDinoInfo DinoInfo[DINOINFO_MAX];
 
-_EXTORNOT TMenuDinoInfo MenuDinoInfo[16];
-_EXTORNOT int sendGunShot;
-_EXTORNOT int mGunShot[4];
-_EXTORNOT int sendHunterCall;
-_EXTORNOT int sendHunterCallType;
-_EXTORNOT int mHunterCall[4];
-_EXTORNOT int mHunterCallType[4];
-_EXTORNOT int sendDamage[DINOINFO_MAX];
-_EXTORNOT int mDamage[4][DINOINFO_MAX];
 //Add these after dino positions alligned
 
-_EXTORNOT bool TreeTable[255];
-_EXTORNOT TAIInfo AIInfo[DINOINFO_MAX];
-
-_EXTORNOT TWeapInfo WeapInfo[10];
-_EXTORNOT bool Muzz;
-_EXTORNOT int MuzzFTime;
-_EXTORNOT float MuzzGamma;
-_EXTORNOT TCharacterInfo MuzzModel;
-_EXTORNOT TCharacterInfo ShipModel;
-_EXTORNOT TCharacterInfo SShipModel;
-_EXTORNOT TCharacterInfo BagModel;
-_EXTORNOT TSpawnGroup spawnGroup[256];
-
-_EXTORNOT int trophyGroupCount;
-_EXTORNOT TPackType packType[1024];
-_EXTORNOT int packTypeCount;
-_EXTORNOT TTrophyType trophyType[TROPHY2_COUNT];
-_EXTORNOT int trophyTypeCount;
-_EXTORNOT int ChCount, WCCount, ElCount,
-          ShotDino, TrophyBody, HunterCount; //HunterCount is for multiplayer, up to 3 others
-_EXTORNOT bool TrophyDisplay;
-_EXTORNOT int TrophyDisplayC;
-_EXTORNOT int ScoreDispTime;
-_EXTORNOT int ScoreDisp;
-_EXTORNOT TTrophyItem TrophyDisplayBody;
-_EXTORNOT TCharacterInfo WindModel;
-_EXTORNOT TCharacterInfo PlayerInfo;
-_EXTORNOT TCharacterInfo ChInfo[DINOINFO_MAX];
-_EXTORNOT TCharacterInfo MPlayerInfo[3]; //multiplayer
-_EXTORNOT TCharacterInfo HitBoxModel;
-_EXTORNOT TPack          Packs[256];
-_EXTORNOT int PackCount;
-_EXTORNOT TCharacter     Characters[256];
-_EXTORNOT TCharacter     MPlayers[3]; //multiplayer
-_EXTORNOT THitBox     HitBox;
-
-_EXTORNOT int SurvivalSpawnX; //survival
-_EXTORNOT int SurvivalSpawnZ;
-_EXTORNOT float SurvivalSpawnA;
-_EXTORNOT TSpawnRegion SurvivalDinoSpawn; //dino spawn zone
-_EXTORNOT int SurvivalWave;
-_EXTORNOT int SurvivalIndex[128];
-_EXTORNOT int SurvivalIndexCh;
 
 
-_EXTORNOT TWCircle       WCircles[2096]; //increased
 
-_EXTORNOT TSnowElement*  Snow;
 
-_EXTORNOT TDemoPoint     DemoPoint;
-_EXTORNOT TCharacter     *killerDino;
-_EXTORNOT BOOL			 killedwater;
 
-_EXTORNOT TPlayer        Players[16];
-_EXTORNOT Vector3d       PlayerPos, CameraPos;
+
+
+
 
 //========== Render ==================//
-_EXTORNOT   LPDIRECTDRAW lpDD;
-_EXTORNOT   LPDIRECTDRAW2 lpDD2;
-
-_EXTORNOT   void* lpVideoRAM;
-_EXTORNOT   LPDIRECTDRAWSURFACE lpddsPrimary;
-_EXTORNOT   BOOL DirectActive, FULLSCREEN, BORDERLESS, RestartMode;
-_EXTORNOT   BOOL LoDetailSky;
-_EXTORNOT   int  WinW,WinH,WinEX,WinEY,VideoCX,VideoCY,VideoPitch,VideoPitchB,iBytesPerLine,ts,r,MapMinY;
-_EXTORNOT   float CameraW,CameraH,Soft_Persp_K, stepdy, stepdd, SunShadowK, FOVK;
-_EXTORNOT   CLIPPLANE ClipA,ClipB,ClipC,ClipD,ClipZ,ClipW;
-_EXTORNOT   int u,vused, CCX, CCY;
-
-_EXTORNOT   DWORD Mask1,Mask2;
-_EXTORNOT   DWORD HeapAllocated, HeapReleased;
 
 
-_EXTORNOT   EPoint VMap[kViewGridSize][kViewGridSize];
-_EXTORNOT   EPoint VMap2[kViewGridSize][kViewGridSize];
-_EXTORNOT   EPoint ev[3];
-
-_EXTORNOT   ClipPoint cp[16];
-_EXTORNOT   ClipPoint hleft,hright;
 
 
-_EXTORNOT   void  *HLineT;
-_EXTORNOT   int   rTColor;
-_EXTORNOT   int   SKYMin, SKYDTime, GlassL, ctViewR, ctViewR1, ctViewRM,
-            dFacesCount, ReverseOn, TDirection;
-_EXTORNOT   WORD  FadeTab[65][0x8000];
-_EXTORNOT   TElements Elements[700];
-_EXTORNOT   TBTrail   BloodTrail;
-
-_EXTORNOT   int     PrevTime, TimeDt, T, Takt, RealTime, StepTime, MyHealth, ExitTime, WaveNoteTime,
-            ChCallTime, CallLockTime, NextCall;
-_EXTORNOT   float   DeltaT;
-_EXTORNOT   float   CameraX, CameraY, CameraZ, CameraAlpha, CameraBeta;
-_EXTORNOT   float   PlayerX, PlayerY, PlayerZ, PlayerAlpha, PlayerBeta,
-            HeadY, HeadBackR, HeadBSpeed, HeadAlpha, HeadBeta,
-            SSpeed,VSpeed,RSpeed,YSpeed;
-_EXTORNOT   Vector3d PlayerNv;
-
-_EXTORNOT	Vector3d Recoil;
-
-_EXTORNOT   float   ca,sa,cb,sb, wpnDAlpha, wpnDBeta;
-_EXTORNOT   void    *lpVideoBuf, *lpTextureAddr;
-_EXTORNOT   HBITMAP hbmpVideoBuf;
-_EXTORNOT   HCURSOR hcArrow;
-_EXTORNOT   int     DivTbl[10240];
-
-_EXTORNOT   Vector3d  v[3];
-_EXTORNOT   ScrPoint  scrp[3];
-_EXTORNOT   MScrPoint mscrp[3];
-_EXTORNOT   Vector3d  nv, waterclipbase, Sun3dPos;
 
 
-_EXTORNOT   struct _t
-{
-  int fkForward, fkBackward, fkReload, fkResupply, fkHoldBreath, fkFiringMode, fkFire, fkShow, fkSLeft, fkSRight, fkStrafe, fkJump, fkRun, fkCrouch, fkCall, fkCCall, fkBinoc;
-} KeyMap;
+
+
+
+
+
+
+
+
 
 
 
@@ -869,28 +653,7 @@ _EXTORNOT   struct _t
 
 
 
-_EXTORNOT BOOL WATERANI,Clouds,SKY,GOURAUD,
-          MODELS,TIMER,BITMAPP,MIPMAP,
-          NOCLIP,CLIP3D,NODARKBACK,CORRECTION, LOWRESTX,
-          FOGENABLE, FOGON, CAMERAINFOG,
-          WATERREVERSE,waterclip,UNDERWATER, ONWATER, NeedWater,
-          SWIM, FLY, PAUSE, OPTICMODE, BINMODE, EXITMODE, MapMode, RunMode, CrouchMode;
-_EXTORNOT int  CameraFogI;
-_EXTORNOT int OptDayNight, OptAgres, OptDens, OptSens, OptRes, OptViewR,
-          OptMsSens, OptBrightness, OptSound, OptRender, OptObjectDetail,
-          OptText, OptSys, WaitKey, OPT_ALPHA_COLORKEY;
-_EXTORNOT int  NightVisionKey;
-_EXTORNOT int  OptFov;
-_EXTORNOT int  OptFpsLimit;
-_EXTORNOT int  OptTerrainLOD;
-_EXTORNOT float UIScale;
-_EXTORNOT int  CurRes, ResCount;
-_EXTORNOT TRes ResolutionList[128];
-_EXTORNOT BOOL SHADOWS3D,REVERSEMS;
 
-_EXTORNOT BOOL SLOW, DEBUG, MORPHP, MORPHA;
-_EXTORNOT bool g_VerboseLogging;
-_EXTORNOT HANDLE hlog;
 
 
 //========== for audio ==============//
@@ -909,13 +672,8 @@ void Audio_SetEnvironment(int, float);
 void Audio_UploadGeometry();
 //=================================
 
-_EXTORNOT int AudioFCount;
-_EXTORNOT AudioQuad data[8192];
-_EXTORNOT void UploadGeometry();
-_EXTORNOT int Env;
 
 //========== for 3d hardware =============//
-_EXTORNOT BOOL HARD3D;
 void ShowVideo();
 void Init3DHardware();
 void Activate3DHardware();
@@ -933,146 +691,4 @@ void StartLoading();
 void EndLoading();
 void PrintLoad(char *t);
 
-#ifdef _MAIN_
-_EXTORNOT char KeysName[256][24] =
-{
-  "...",
-  "Esc",
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
-  "6",
-  "7",
-  "8",
-  "9",
-  "0",
-  "-",
-  "=",
-  "BSpace",
-  "Tab",
-  "Q",
-  "W",
-  "E",
-  "R",
-  "T",
-  "Y",
-  "U",
-  "I",
-  "O",
-  "P",
-  "[",
-  "]",
-  "Enter",
-  "Ctrl",
-  "A",
-  "S",
-  "D",
-  "F",
-  "G",
-  "H",
-  "J",
-  "K",
-  "L",
-  ";",
-  "'",
-  "~",
-  "Shift",
-  "\\",
-  "Z",
-  "X",
-  "C",
-  "V",
-  "B",
-  "N",
-  "M",
-  ",",
-  ".",
-  "/",
-  "Shift",
-  "*",
-  "Alt",
-  "Space",
-  "CLock",
-  "F1",
-  "F2",
-  "F3",
-  "F4",
-  "F5",
-  "F6",
-  "F7",
-  "F8",
-  "F9",
-  "F10",
-  "NLock",
-  "SLock",
-  "Home",
-  "Up",
-  "PgUp",
-  "-",
-  "Left",
-  "Midle",
-  "Right",
-  "+",
-  "End",
-  "Down",
-  "PgDn",
-  "Ins",
-  "Del",
-  "",
-  "",
-  "",
-  "F11",
-  "F12",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "Mouse1",
-  "Mouse2",
-  "Mouse3",
-  "<?>",
-  "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-  "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-  "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-  "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-  "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-  "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-  "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-  "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
-};
-#else
-_EXTORNOT char KeysName[128][24];
-#endif
+

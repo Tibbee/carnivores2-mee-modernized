@@ -50,7 +50,7 @@ struct TWeapon
 struct TBullet
 {
 	float fallTotal;
-	byte aqState; //0 land //1 aqua //2 min
+	unsigned char aqState; //0 land //1 aqua //2 min
 	Vector3d a,dif,ldif,rpos,orig;
 	int parent, state;
 	int FTime, RTime;
@@ -75,7 +75,7 @@ struct TSnowType  {
 	int snow_hSpd;//horizontal
 	int snow_dens;//density
 
-	byte snow_r, snow_g, snow_b, snow_a;
+	unsigned char snow_r, snow_g, snow_b, snow_a;
 	float snow_rad;//radius
 	int addr; //start address in snow particle array
 	int SnCount;//total number of snow particles
@@ -483,7 +483,7 @@ struct TDinoInfo
 
   float climbDist;
 
-  byte radarRed, radarGreen, radarBlue, bloodRed, bloodGreen, bloodBlue;
+  unsigned char radarRed, radarGreen, radarBlue, bloodRed, bloodGreen, bloodBlue;
   WORD radarColour565, radarColour555;
 
 
@@ -610,13 +610,13 @@ struct TWeapInfo
   float FallAq = -1;
 
   bool onRadar;
-  byte radarRed, radarGreen, radarBlue;
+  unsigned char radarRed, radarGreen, radarBlue;
   WORD radarColour565, radarColour555;
   int radarTime;
 
   bool MuzzFlash, ChamFlash;
   bool cross;
-  byte crossRed, crossGreen, crossBlue;
+  unsigned char crossRed, crossGreen, crossBlue;
   WORD crossColour565, crossColour555;
 
   int recoil;

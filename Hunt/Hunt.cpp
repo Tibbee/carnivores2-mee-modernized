@@ -1,4 +1,3 @@
-#define _MAIN_
 #include "Hunt.h"
 #include "stdio.h"
 #include <timeapi.h>
