@@ -692,7 +692,6 @@ void DrawPostObjects()
     CameraW = oldCW;
     CameraH = oldCH;
     ScanLifeForms();
-    g_GameMode = GameMode::Normal;
   }
 
   //goto SKIPWIND;
@@ -749,8 +748,6 @@ SKIPWIND:
 	  }
 	  goto SKIPWEAPON;
   }
-
-  g_GameMode = GameMode::Normal;
 
   if (g_GameMode != GameMode::SurvivalMode) {
 	  float tempT = static_cast<float>(TimeDt) / 10000.f;
@@ -1483,9 +1480,13 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 
     case VK_PAUSE:
 		if (g_GameMode != GameMode::SurvivalMode) {
-      g_GameMode = IsPaused() ? GameMode::Normal : GameMode::Paused;
-      g_GameMode = GameMode::Normal;
-      CaptureMouse(!IsPaused());
+      if (IsPaused()) {
+        g_GameMode = GameMode::Normal;
+        CaptureMouse(true);
+      } else {
+        g_GameMode = GameMode::Paused;
+        CaptureMouse(false);
+      }
       ResetMousePos();
       break;
 		}
