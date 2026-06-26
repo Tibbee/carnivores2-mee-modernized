@@ -2820,6 +2820,12 @@ void ProcessGame()
     if (MyHealth) MyHealth = MAX_HEALTH;
   if (DEBUG) ShotsLeft[CurrentWeapon] = WeapInfo[CurrentWeapon].Shots;
 
+  // Phase 2.1: build per-frame render context and pass to the renderer
+  RenderFrameContext ctx = RenderFrameContext::FromGlobals();
+#ifdef _gl
+  if (g_GLRenderer) g_GLRenderer->DrawFrame(ctx);
+#endif
+
   DrawScene();
 
   if (g_GameMode != GameMode::TrophyMode)

@@ -4588,6 +4588,14 @@ void GLRenderer::DrawVertexBatch(const std::vector<TerrainVertex>& vertices) con
 #endif
 }
 
+void GLRenderer::DrawFrame(const RenderFrameContext& ctx)
+{
+    // Phase 2.1: initial implementation — forward to DrawScene.
+    // Future: replace global reads with ctx.WinW, ctx.fogColor, etc.
+    (void)ctx;
+    DrawScene();
+}
+
 void GLRenderer::DrawScene()
 {
     RenderGround();

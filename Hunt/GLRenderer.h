@@ -28,6 +28,7 @@ public:
     bool CreateContext();
     void DestroyContext();
 
+    void DrawFrame(const RenderFrameContext& ctx) override;
     void DrawScene() override;
     void DrawPostObjects() override;
 

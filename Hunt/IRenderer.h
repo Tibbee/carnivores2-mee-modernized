@@ -16,6 +16,8 @@
 
 // Types are defined in Hunt.h — include that first.
 
+#include "Renderer/RenderContext.h"
+
 class IRenderer {
 public:
     virtual ~IRenderer() = default;
@@ -25,6 +27,11 @@ public:
     virtual void Shutdown() = 0;
 
     // ── Scene ──────────────────────────────────────────────────────────
+    // Phase 2.1: DrawFrame replaces individual DrawScene, DrawPostObjects,
+    // and all the scattered per-frame global reads with a single context.
+    virtual void DrawFrame(const RenderFrameContext& ctx) = 0;
+
+    // Legacy entry points — kept for renderers not yet migrated to DrawFrame.
     virtual void DrawScene() = 0;
     virtual void DrawPostObjects() = 0;
 

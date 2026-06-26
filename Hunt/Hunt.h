@@ -31,7 +31,13 @@
 #include "Core/GameTypes.h"
 #include "Core/GameState.h"
 #include "Core/GameMode.h"
+
+#include "Renderer/RenderContext.h"
 #include "Core/EngineAPI.h"
+
+#ifdef _gl
+#include "GLRenderer.h"
+#endif
 
 #ifdef _d3d
 #include "d3d.h"

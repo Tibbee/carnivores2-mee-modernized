@@ -134,6 +134,9 @@ set(CORE_FILES
     Hunt/Core/ModelTypes.h
     Hunt/Core/GameTypes.h
     Hunt/Core/GameState.h
+    Hunt/Core/GameMode.h
+    Hunt/Renderer/RenderContext.h
+    Hunt/Renderer/RenderContext.cpp
     Hunt/AppRes.h
 )
 
