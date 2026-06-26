@@ -27,6 +27,7 @@
 #include "Core/MathTypes.h"
 #include "Core/AudioTypes.h"
 #include "Core/RenderTypes.h"
+#include "Core/ModelTypes.h"
 
 #ifdef _d3d
 #include "d3d.h"
@@ -43,22 +44,9 @@
 
 
 
-struct TAni
-{
-  char aniName[32];
-  int aniKPS, FramesCount, AniTime;
-  // Phase 5B.2: aniData is now unique_heap_ptr<short int[]>. Freed
-  // automatically when the TAni is destroyed.
-  unique_heap_ptr<short int[]> aniData;
-};
 
-struct TVTL
-{
-  int aniKPS, FramesCount, AniTime;
-  // Phase 5B.2: aniData is now unique_heap_ptr<short int[]>. Freed
-  // automatically when the TVTL is destroyed.
-  unique_heap_ptr<short int[]> aniData;
-};
+
+
 
 
 
@@ -88,184 +76,33 @@ struct TVTL
 
 
 //================= MODEL ========================
-struct TPoint3d
-{
-  float x;
-  float y;
-  float z;
-  short owner;
-  short hide;
-};
 
 
 
-struct TFace
-{
-  int v1, v2, v3;
-#ifdef _soft
-  int   tax, tbx, tcx, tay, tby, tcy;
-#else
-  float tax, tbx, tcx, tay, tby, tcy;
-#endif
-  WORD Flags,DMask;
-  int Distant, Next, group;
-  char reserv[12];
-};
-
-
-struct TFacef
-{
-  int v1, v2, v3;
-  float tax, tbx, tcx, tay, tby, tcy;
-  WORD Flags,DMask;
-  int Distant, Next, group;
-  char reserv[12];
-};
 
 
 
-struct TObj
-{
-  char OName [32];
-  float ox;
-  float oy;
-  float oz;
-  short owner;
-  short hide;
-};
 
 
-struct TModel
-{
-  int VCount, FCount, TextureSize, TextureHeight;
-  // Phase 5B.2: gVertex is now unique_heap_ptr<TPoint3d[]>. Allocated in
-  // AllocateMemoryForModel and freed automatically when the TModel is
-  // destroyed (via HeapDeleter -> ~TModel -> ~unique_heap_ptr).
-  unique_heap_ptr<TPoint3d[]> gVertex;
 
-  // gFace/gFacef stays as a raw pointer union: the union of TFace* and
-  // TFacef* can't hold a unique_ptr (no two active members in a union
-  // with a non-trivial destructor). The face array is still allocated
-  // via _HeapAlloc and freed via _HeapFree in ReleaseModel; the smart
-  // pointer migration does not touch this field.
-  union
-  {
-    TFace    *gFace;
-    TFacef   *gFacef;
-  };
 
-  // Phase 5B.2: texture pointers are now unique_heap_ptr<WORD[]>.
-  unique_heap_ptr<WORD[]> lpTexture, lpTexture2, lpTexture3;
 
-  // VLight[4] stays as raw pointers: it's a 4-channel view into a
-  // single _HeapAlloc'd block (one allocation sliced into per-channel
-  // offsets). The block is freed separately in ReleaseModel, not through
-  // these pointers. The 4-channel structure must be preserved (C2 ME
-  // addition over C1's single VLight).
-#ifdef _d3d
-  int*      VLight[4];
-#else
-  float*    VLight[4];
-#endif
 
-  // Phase 5B.2: TModel now has non-trivial members (unique_heap_ptr) so
-  // it needs explicit special members. The default ctor is needed for
-  // placement new in LoadModel/LoadModelEx. The copy ctor/assignment
-  // are deleted because unique_ptr is not copyable (TModel is always
-  // used through pointers in the codebase, so this is safe). The move
-  // ctor/assignment transfer the smart pointers AND null the source's
-  // raw pointers (gFace, VLight[4]) to prevent double-free.
-  TModel() = default;
 
-  TModel(const TModel&) = delete;
-  TModel& operator=(const TModel&) = delete;
 
-  TModel(TModel&& other) noexcept
-    : VCount(other.VCount), FCount(other.FCount),
-      TextureSize(other.TextureSize), TextureHeight(other.TextureHeight),
-      gVertex(std::move(other.gVertex)),
-      gFace(other.gFace),
-      lpTexture(std::move(other.lpTexture)),
-      lpTexture2(std::move(other.lpTexture2)),
-      lpTexture3(std::move(other.lpTexture3))
-  {
-    for (int i = 0; i < 4; i++) {
-      VLight[i] = other.VLight[i];
-      other.VLight[i] = nullptr;
-    }
-    other.gFace = nullptr;
-  }
 
-  TModel& operator=(TModel&& other) noexcept
-  {
-    if (this != &other) {
-      VCount = other.VCount;
-      FCount = other.FCount;
-      TextureSize = other.TextureSize;
-      TextureHeight = other.TextureHeight;
-      gVertex = std::move(other.gVertex);
-      gFace = other.gFace;
-      lpTexture = std::move(other.lpTexture);
-      lpTexture2 = std::move(other.lpTexture2);
-      lpTexture3 = std::move(other.lpTexture3);
-      for (int i = 0; i < 4; i++) {
-        VLight[i] = other.VLight[i];
-        other.VLight[i] = nullptr;
-      }
-      other.gFace = nullptr;
-    }
-    return *this;
-  }
-
-  ~TModel() = default;  // smart pointers handle their own cleanup
-};
 
 
 //=========== END MODEL ==============================//
 
 
-struct TObjInfo
-{
-  int  Radius;
-  int  YLo, YHi;
-  int  linelenght, lintensity;
-  int  circlerad, cintensity;
-  int  flags;
-  int  GrRad;
-  int  DefLight;
-  int  LastAniTime;
-  float BoundR;
-  BYTE res[16];
-};
 
-struct TBMPModel
-{
-  Vector3d  gVertex[4];
-  // Phase 5B.2: lpTexture is now unique_heap_ptr<WORD[]>. Freed
-  // automatically when the TBMPModel is destroyed. Note: TBMPModel
-  // is embedded by value in TObject, so this changes TObject's
-  // size — see static_assert below.
-  unique_heap_ptr<WORD[]> lpTexture;
-};
 
-struct TBound
-{
-  float cx, cy, a, b,  y1, y2;
-};
 
-struct TObject
-{
-  TObjInfo info;
-  TBound   bound[8];
-  TBMPModel bmpmodel;
-  // Phase 5B.2: TObject::model is now unique_obj_ptr<TModel>. MObjects[256]
-  // is 32 KiB; this changes TObject's size by 0 bytes (EBO on the smart
-  // pointer). The struct is embedded by value in MObjects, so every
-  // MObjects[m].model access now returns a unique_ptr that must be
-  // .get()'d when passed to functions expecting TModel*.
-  unique_obj_ptr<TModel> model;
-  TVTL    vtl;
-};
+
+
+
+
 
 
 struct TCharacterInfo
