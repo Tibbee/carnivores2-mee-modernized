@@ -743,7 +743,7 @@ HRESULT WINAPI EnumDeviceCallback(
 {
   LPD3DDEVICEDESC lpd3dDeviceDesc;
 
-  wsprintf(logt,"ENUMERATE: DDesc: %s DName: %s\n", lpszDeviceDesc, lpszDeviceName);
+  sprintf_s(logt, sizeof(logt),"ENUMERATE: DDesc: %s DName: %s\n", lpszDeviceDesc, lpszDeviceName);
   //PrintLog(logt);
   if( !lpd3dHWDeviceDesc->dcmColorModel )
     return D3DENUMRET_OK; // we don't need SW rasterizer
@@ -802,7 +802,7 @@ HRESULT CreateDirect3D( HWND hwnd )
 	  DoHalt("Error setting display mode\n");
   }
 
-  wsprintf(logt, "Set Display mode %dx%d, 16bpp\n", WinW, WinH);
+  sprintf_s(logt, sizeof(logt), "Set Display mode %dx%d, 16bpp\n", WinW, WinH);
   PrintLog(logt);
 
   hRes = lpDD->QueryInterface( IID_IDirect3D, (LPVOID*) &lpd3d);
@@ -997,7 +997,7 @@ void Init3DHardware()
   hres = DirectDrawCreate( nullptr, &lpDD, nullptr );
   if( hres != DD_OK )
   {
-    wsprintf(logt, "DirectDrawCreate Error: %Xh\n", hres);
+    sprintf_s(logt, sizeof(logt), "DirectDrawCreate Error: %Xh\n", hres);
     DoHalt(logt);
   }
   PrintLog("DirectDrawCreate: Ok\n");
@@ -1025,11 +1025,11 @@ void d3dDetectCaps()
   for (t=0; t<10; t++) d3dDownLoadTexture(0, 256, 256, SkyPic);
   T = timeGetTime() - T;
 
-  wsprintf(logt, "DETECTED: Texture memory : %dK.\n", d3dTexturesMem>>10);
+  sprintf_s(logt, sizeof(logt), "DETECTED: Texture memory : %dK.\n", d3dTexturesMem>>10);
   PrintLog(logt);
   ResetTextureMap();
 
-  wsprintf(logt, "DETECTED: Texture transfer speed: %dK/sec.\n", 128*10000 / T);
+  sprintf_s(logt, sizeof(logt), "DETECTED: Texture transfer speed: %dK/sec.\n", 128*10000 / T);
   PrintLog(logt);
 
 
@@ -1616,7 +1616,7 @@ void TryHiResTx()
       UsedMem+= d3dMemMap[m].size;
   }
   /*
-    wsprintf(logt, "TOTALL: %d USED: %d", d3dTexturesMem, UsedMem);
+    sprintf_s(logt, sizeof(logt), "TOTALL: %d USED: %d", d3dTexturesMem, UsedMem);
     AddMessage(logt);
   */
   if (UsedMem*4 < static_cast<int>(d3dTexturesMem))
@@ -1628,7 +1628,7 @@ void ShowVideo()
 {
   /*
   char t[128];
-  wsprintf(t, "T-mem loaded: %dK", d3dMemLoaded >> 10);
+  sprintf_s(t, sizeof(t), "T-mem loaded: %dK", d3dMemLoaded >> 10);
   if (d3dMemLoaded) AddMessage(t);
   */
 
@@ -1803,12 +1803,12 @@ void DrawSurvivalText(int x0, int y0)
 	ddTextOut(40 + x0, 98 + y0, "Waves Survived: ", 0x00BFBFBF);
 	x += GetTextW(hdcMain, "Waves Survived: ");
 	char t[32];
-	wsprintf(t, "%i", SurvivalWave - 1);
+	sprintf_s(t, sizeof(t), "%i", SurvivalWave - 1);
 	ddTextOut(40 + x, 98 + y0, t, 0x0000BFBF);
 	x = x0;
 	ddTextOut(40 + x0, 124 + y0, "High Score: ", 0x00BFBFBF);
 	x += GetTextW(hdcMain, "High Score: ");
-	wsprintf(t, "%i", TrophyRoom2.survivalHighScore);
+	sprintf_s(t, sizeof(t), "%i", TrophyRoom2.survivalHighScore);
 	ddTextOut(40 + x, 124 + y0, t, 0x0000BFBF);
 
 	SmallFont = false;
@@ -1829,7 +1829,7 @@ void DrawScoreText(int x0, int y0) {
 
 	ddTextOut(x - 5, y0, "Unclaimed Kill - Score Added: ", 0x00BFBFBF);
 	x += GetTextW(hdcMain, "Unclaimed Kill - Score Added: ");
-	wsprintf(t, "%d", ScoreDisp);
+	sprintf_s(t, sizeof(t), "%d", ScoreDisp);
 	ddTextOut(x - 5, y0, t, 0x0000BFBF);
 
 	SmallFont = false;
@@ -1882,12 +1882,12 @@ void DrawTrophyText(int x0, int y0)
   x = x0;
   ddTextOut(x, y0+32, "Weapon: ", 0x00BFBFBF);
   x+=GetTextW(hdcMain,"Weapon: ");
-  wsprintf(t,"%s    ", WeapInfo[wep].Name);
+  sprintf_s(t, sizeof(t),"%s    ", WeapInfo[wep].Name);
   ddTextOut(x, y0+32, t, 0x0000BFBF);
   x+=GetTextW(hdcMain,t);
   ddTextOut(x, y0+32, "Score: ", 0x00BFBFBF);
   x+=GetTextW(hdcMain,"Score: ");
-  wsprintf(t,"%d", score);
+  sprintf_s(t, sizeof(t),"%d", score);
   ddTextOut(x, y0+32, t, 0x0000BFBF);
 
 
@@ -1903,15 +1903,15 @@ void DrawTrophyText(int x0, int y0)
   ddTextOut(x, y0+64, "Date: ", 0x00BFBFBF);
   x+=GetTextW(hdcMain,"Date: ");
   if (OptSys)
-    wsprintf(t,"%d.%d.%d   ", ((date>>10) & 255), (date & 255), date>>20);
+    sprintf_s(t, sizeof(t),"%d.%d.%d   ", ((date>>10) & 255), (date & 255), date>>20);
   else
-    wsprintf(t,"%d.%d.%d   ", (date & 255), ((date>>10) & 255), date>>20);
+    sprintf_s(t, sizeof(t),"%d.%d.%d   ", (date & 255), ((date>>10) & 255), date>>20);
 
   ddTextOut(x, y0+64, t, 0x0000BFBF);
   x+=GetTextW(hdcMain,t);
   ddTextOut(x, y0+64, "Time: ", 0x00BFBFBF);
   x+=GetTextW(hdcMain,"Time: ");
-  wsprintf(t,"%d:%02d", ((time>>10) & 255), (time & 255));
+  sprintf_s(t, sizeof(t),"%d:%02d", ((time>>10) & 255), (time & 255));
   ddTextOut(x, y0+64, t, 0x0000BFBF);
 
   SmallFont = false;
@@ -1971,13 +1971,13 @@ void ShowControlElements()
 
   if (TIMER)
   {
-    wsprintf(buf,"msc: %d", TimeDt);
+    sprintf_s(buf, sizeof(buf),"msc: %d", TimeDt);
     ddTextOut(WinEX-81, 11, buf, 0x0020A0A0);
 
-    wsprintf(buf,"polys: %d", dFacesCount);
+    sprintf_s(buf, sizeof(buf),"polys: %d", dFacesCount);
     ddTextOut(WinEX-90, 24, buf, 0x0020A0A0);
 
-    wsprintf(buf,"%d", Env);
+    sprintf_s(buf, sizeof(buf),"%d", Env);
     ddTextOut(10, 24, buf, 0x0020A0A0);
 
   }
@@ -1991,16 +1991,16 @@ void ShowControlElements()
   if (ExitTime)
   {
     int y = WinH / 3;
-    wsprintf(buf,"Preparing for evacuation...");
+    sprintf_s(buf, sizeof(buf),"Preparing for evacuation...");
     ddTextOut(VideoCX - GetTextW(hdcCMain, buf)/2, y, buf, 0x0060C0D0);
-    wsprintf(buf,"%d seconds left.", 1 + ExitTime / 1000);
+    sprintf_s(buf, sizeof(buf),"%d seconds left.", 1 + ExitTime / 1000);
     ddTextOut(VideoCX - GetTextW(hdcCMain, buf)/2, y + 18, buf, 0x0060C0D0);
   }
 
   if (WaveNoteTime)
   {
 	  int y = WinH / 3;
-	  wsprintf(buf, "Waves Survived: %i", SurvivalWave - 1);
+	  sprintf_s(buf, sizeof(buf), "Waves Survived: %i", SurvivalWave - 1);
 	  ddTextOut(VideoCX - GetTextW(hdcCMain, buf) / 2, y, buf, 0x0060C0D0);
   }
 
@@ -2926,7 +2926,7 @@ void _RenderObject(int x, int y)
   if (!MObjects[ob].model)
   {
     //return;
-    wsprintf(logt,"Incorrect model at [%d][%d]!", x, y);
+    sprintf_s(logt, sizeof(logt),"Incorrect model at [%d][%d]!", x, y);
     DoHalt(logt);
   }
 

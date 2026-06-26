@@ -142,7 +142,7 @@ static bool LoadLegacyAudioBackend(const char* dllName)
     if (g_LegacyAudioGetVersion) {
         int v = g_LegacyAudioGetVersion();
         char buf[128];
-        wsprintfA(buf, "Legacy audio driver version: %d.%d\n", v >> 16, v & 0xFFFF);
+        sprintf_s(buf, sizeof(buf), "Legacy audio driver version: %d.%d\n", v >> 16, v & 0xFFFF);
         PrintLog(buf);
     }
 
@@ -154,7 +154,7 @@ static bool LoadLegacyAudioBackend(const char* dllName)
 // Debug helpers
 // ---------------------------------------------------------------------------
 #define AL_CHECK(call) do { call; ALenum err = alGetError ? alGetError() : AL_NO_ERROR; \
-    if (err != AL_NO_ERROR) { char m[128]; wsprintfA(m,"ALerr 0x%04X at %s\n",err,#call); PrintLog(m); } } while(0)
+    if (err != AL_NO_ERROR) { char m[128]; sprintf_s(m, sizeof(m),"ALerr 0x%04X at %s\n",err,#call); PrintLog(m); } } while(0)
 
 // ---------------------------------------------------------------------------
 // Buffer cache
@@ -326,7 +326,7 @@ void InitAudioSystem(HWND hw, HANDLE hlog, int driver)
     {
         char buf[256];
         const char* devName = alcGetString ? alcGetString(alDevice, ALC_DEVICE_SPECIFIER) : nullptr;
-        wsprintfA(buf, "OpenAL: device=\"%s\"\n", devName ? devName : "(unknown)");
+        sprintf_s(buf, sizeof(buf), "OpenAL: device=\"%s\"\n", devName ? devName : "(unknown)");
         PrintLog(buf);
     }
     PrintLog("OpenAL: Audio System Initialized\n");
@@ -660,7 +660,7 @@ void Audio_SetEnvironment(int e, float f)
     const EAX2ENV* env = &g_EnvPresets[e];
     {
         char buf[128];
-        wsprintfA(buf, "Audio_SetEnvironment: env=%d gain=100 decay=%d decayHF=%d diff=%d reverblevel=%d\n",
+        sprintf_s(buf, sizeof(buf), "Audio_SetEnvironment: env=%d gain=100 decay=%d decayHF=%d diff=%d reverblevel=%d\n",
                   e, static_cast<int>((env->decay*10)), static_cast<int>((env->decayHF*100)), static_cast<int>((env->diffusion*100)), env->reverb);
         PrintLog(buf);
     }

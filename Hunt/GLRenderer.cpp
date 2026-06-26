@@ -5833,21 +5833,21 @@ void GLRenderer::DrawTrophyText(int x, int y)
     else        sprintf(t, "%3.2fm", DinoInfo[dtype].Length * scale);
     drawLine("Length: ", t, 0x00BFBFBF);
 
-    wsprintf(t, "%s    ", WeapInfo[wep].Name);
+    sprintf_s(t, sizeof(t), "%s    ", WeapInfo[wep].Name);
     drawLine("Weapon: ", t, 0x00BFBFBF);
 
-    wsprintf(t, "%d", score);
+    sprintf_s(t, sizeof(t), "%d", score);
     drawLine("Score: ", t, 0x00BFBFBF);
 
     if (OptSys) sprintf(t, "%3.1fft", range / 0.3f);
     else        sprintf(t, "%3.1fm", range);
     drawLine("Range of kill: ", t, 0x00BFBFBF);
 
-    if (OptSys) wsprintf(t, "%d.%d.%d   ", ((date>>10) & 255), (date & 255), date>>20);
-    else        wsprintf(t, "%d.%d.%d   ", (date & 255), ((date>>10) & 255), date>>20);
+    if (OptSys) sprintf_s(t, sizeof(t), "%d.%d.%d   ", ((date>>10) & 255), (date & 255), date>>20);
+    else        sprintf_s(t, sizeof(t), "%d.%d.%d   ", (date & 255), ((date>>10) & 255), date>>20);
     drawLine("Date: ", t, 0x00BFBFBF);
 
-    wsprintf(t, "%d:%02d", ((time>>10) & 255), (time & 255));
+    sprintf_s(t, sizeof(t), "%d:%02d", ((time>>10) & 255), (time & 255));
     drawLine("Time: ", t, 0x00BFBFBF);
 
     // Mark dirty: 7 lines × 16px step starting at (x+14, y+18),

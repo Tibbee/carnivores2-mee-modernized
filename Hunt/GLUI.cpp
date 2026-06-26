@@ -638,7 +638,7 @@ void DrawScoreText(int x, int y)
     SIZE sz;
     GetTextExtentPoint32(hdcCMain, "Unclaimed Kill - Score Added: ", 31, &sz);
     tx += sz.cx;
-    wsprintf(t, "%d", ScoreDisp);
+    sprintf_s(t, sizeof(t), "%d", ScoreDisp);
     textOut(tx, ty, t, 0x0000BFBF);
 
     // Mark dirty: 1 line at (x+14, y+18) + shadow
@@ -673,7 +673,7 @@ void DrawSurvivalText(int x, int y)
     SIZE sz;
     GetTextExtentPoint32(hdcCMain, "Waves Survived: ", 16, &sz);
     tx += sz.cx;
-    wsprintf(t, "%i", SurvivalWave - 1);
+    sprintf_s(t, sizeof(t), "%i", SurvivalWave - 1);
     textOut(tx, ty, t, 0x0000BFBF);
 
     tx = x + 40;
@@ -681,7 +681,7 @@ void DrawSurvivalText(int x, int y)
     textOut(tx, ty, "High Score: ", 0x00BFBFBF);
     GetTextExtentPoint32(hdcCMain, "High Score: ", 12, &sz);
     tx += sz.cx;
-    wsprintf(t, "%i", TrophyRoom2.survivalHighScore);
+    sprintf_s(t, sizeof(t), "%i", TrophyRoom2.survivalHighScore);
     textOut(tx, ty, t, 0x0000BFBF);
 
     // Mark dirty: 2 lines at (x+40, y+98) and (x+40, y+124) + shadow
@@ -768,9 +768,9 @@ void ShowControlElements()
 
     if (TIMER)
     {
-        wsprintf(buf, "msc: %d", TimeDt);
+        sprintf_s(buf, sizeof(buf), "msc: %d", TimeDt);
         textOut(WinEX - 81, 11, buf, 0x0020A0A0);
-        wsprintf(buf, "polys: %d", dFacesCount);
+        sprintf_s(buf, sizeof(buf), "polys: %d", dFacesCount);
         textOut(WinEX - 90, 24, buf, 0x0020A0A0);
         // 2 lines of timer text near top-left of extended area
         if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(WinEX - 91, 9, 100, 32);
@@ -787,9 +787,9 @@ void ShowControlElements()
     if (ExitTime)
     {
         int yline = WinH / 3;
-        wsprintf(buf, "Preparing for evacuation...");
+        sprintf_s(buf, sizeof(buf), "Preparing for evacuation...");
         textOut(VideoCX - GetTextW(hdcMain, buf) / 2, yline, buf, 0x0060C0D0);
-        wsprintf(buf, "%d seconds left.", 1 + ExitTime / 1000);
+        sprintf_s(buf, sizeof(buf), "%d seconds left.", 1 + ExitTime / 1000);
         textOut(VideoCX - GetTextW(hdcMain, buf) / 2, yline + 18, buf, 0x0060C0D0);
         // 2 lines centered, ~300px wide
         if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(VideoCX - 150, yline - 1, 300, 36);
@@ -798,7 +798,7 @@ void ShowControlElements()
     if (WaveNoteTime)
     {
         int yline = WinH / 3;
-        wsprintf(buf, "Waves Survived: %i", SurvivalWave - 1);
+        sprintf_s(buf, sizeof(buf), "Waves Survived: %i", SurvivalWave - 1);
         textOut(VideoCX - GetTextW(hdcMain, buf) / 2, yline, buf, 0x0060C0D0);
         // 1 line centered
         if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(VideoCX - 120, yline - 1, 240, 18);

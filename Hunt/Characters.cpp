@@ -8402,7 +8402,7 @@ void CheckAfraid()
 		/*
 		  if (kR<1.0f) {
 			  char t[32];
-		   wsprintf(t,"%d", ObjectsOnLook);
+		   sprintf_s(t, sizeof(t),"%d", ObjectsOnLook);
 		   AddMessage(t);
 		   kALook = 20.f;
 		  }

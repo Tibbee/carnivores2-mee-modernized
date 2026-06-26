@@ -88,9 +88,9 @@ void ShowControlElements()
 
   if (TIMER)
   {
-    wsprintf(buf,"msc: %d", TimeDt);
+    sprintf_s(buf, sizeof(buf),"msc: %d", TimeDt);
     STTextOut(WinEX-70, 10, buf, 0x0020A0A0);
-    wsprintf(buf,"polys: %d", dFacesCount);
+    sprintf_s(buf, sizeof(buf),"polys: %d", dFacesCount);
     STTextOut(WinEX-90, 24, buf, 0x0020A0A0);
   }
 
@@ -104,16 +104,16 @@ void ShowControlElements()
   if (ExitTime)
   {
     int y = WinH / 3;
-    wsprintf(buf,"Preparing for evacuation...");
+    sprintf_s(buf, sizeof(buf),"Preparing for evacuation...");
     STTextOut(VideoCX - GetTextW(hdcMain, buf)/2, y, buf, 0x0060C0D0);
-    wsprintf(buf,"%d seconds left.", 1 + ExitTime / 1000);
+    sprintf_s(buf, sizeof(buf),"%d seconds left.", 1 + ExitTime / 1000);
     STTextOut(VideoCX - GetTextW(hdcMain, buf)/2, y + 18, buf, 0x0060C0D0);
   }
 
   if (WaveNoteTime)
   {
 	  int y = WinH / 3;
-	  wsprintf(buf, "Waves Survived: %i", SurvivalWave - 1);
+	  sprintf_s(buf, sizeof(buf), "Waves Survived: %i", SurvivalWave - 1);
 	  STTextOut(VideoCX - GetTextW(hdcCMain, buf) / 2, y, buf, 0x0060C0D0);
   }
 
@@ -131,7 +131,7 @@ void _RenderObject(int x, int y)
   if (!MObjects[ob].model)
   {
     //return;
-    wsprintf(logt,"Incorrect model at [%d][%d]!", x, y);
+    sprintf_s(logt, sizeof(logt),"Incorrect model at [%d][%d]!", x, y);
     DoHalt(logt);
   }
 
@@ -2886,12 +2886,12 @@ void DrawSurvivalText(int x0, int y0)
 	STTextOut(40 + x0, 98 + y0, "Waves Survived: ", 0x00BFBFBF);
 	x += GetTextW(hdcMain, "Waves Survived: ");
 	char t[32];
-	wsprintf(t, "%i", SurvivalWave - 1);
+	sprintf_s(t, sizeof(t), "%i", SurvivalWave - 1);
 	STTextOut(40 + x, 98 + y0, t, 0x0000BFBF);
 	x = x0;
 	STTextOut(40 + x0, 124 + y0, "High Score: ", 0x00BFBFBF);
 	x += GetTextW(hdcMain, "High Score: ");
-	wsprintf(t, "%i", TrophyRoom2.survivalHighScore);
+	sprintf_s(t, sizeof(t), "%i", TrophyRoom2.survivalHighScore);
 	STTextOut(40 + x, 124 + y0, t, 0x0000BFBF);
 
 	SelectObject(hdcCMain, oldfont);
@@ -2911,7 +2911,7 @@ void DrawScoreText(int x0, int y0) {
 
 	STTextOut(x - 5, y0, "Unclaimed Kill - Score Added: ", 0x00BFBFBF);
 	x += GetTextW(hdcMain, "Unclaimed Kill - Score Added: ");
-	wsprintf(t, "%d", ScoreDisp);
+	sprintf_s(t, sizeof(t), "%d", ScoreDisp);
 	STTextOut(x - 5, y0, t, 0x0000BFBF);
 
 	SelectObject(hdcCMain, oldfont);
@@ -2975,12 +2975,12 @@ void DrawTrophyText(int x0, int y0)
   x = x0;
   STTextOut(x, y0+32, "Weapon: ", 0x00BFBFBF);
   x+=GetTextW(hdcCMain,"Weapon: ");
-  wsprintf(t,"%s    ", WeapInfo[wep].Name);
+  sprintf_s(t, sizeof(t),"%s    ", WeapInfo[wep].Name);
   STTextOut(x, y0+32, t, 0x0000BFBF);
   x+=GetTextW(hdcCMain,t);
   STTextOut(x, y0+32, "Score: ", 0x00BFBFBF);
   x+=GetTextW(hdcCMain,"Score: ");
-  wsprintf(t,"%d", score);
+  sprintf_s(t, sizeof(t),"%d", score);
   STTextOut(x, y0+32, t, 0x0000BFBF);
 
 
@@ -2997,15 +2997,15 @@ void DrawTrophyText(int x0, int y0)
   STTextOut(x, y0+64, "Date: ", 0x00BFBFBF);
   x+=GetTextW(hdcCMain,"Date: ");
   if (OptSys)
-    wsprintf(t,"%d.%d.%d   ", ((date>>10) & 255), (date & 255), date>>20);
+    sprintf_s(t, sizeof(t),"%d.%d.%d   ", ((date>>10) & 255), (date & 255), date>>20);
   else
-    wsprintf(t,"%d.%d.%d   ", (date & 255), ((date>>10) & 255), date>>20);
+    sprintf_s(t, sizeof(t),"%d.%d.%d   ", (date & 255), ((date>>10) & 255), date>>20);
 
   STTextOut(x, y0+64, t, 0x0000BFBF);
   x+=GetTextW(hdcCMain,t);
   STTextOut(x, y0+64, "Time: ", 0x00BFBFBF);
   x+=GetTextW(hdcCMain,"Time: ");
-  wsprintf(t,"%d:%02d", ((time>>10) & 255), (time & 255));
+  sprintf_s(t, sizeof(t),"%d:%02d", ((time>>10) & 255), (time & 255));
   STTextOut(x, y0+64, t, 0x0000BFBF);
 
   SelectObject(hdcCMain, oldfont);
@@ -3337,7 +3337,7 @@ void Init3DHardware()
   hres = DirectDrawCreate( nullptr, &lpDD, nullptr );
   if( hres != DD_OK )
   {
-    wsprintf(logt, "DirectDrawCreate Error: %Xh\n", hres);
+    sprintf_s(logt, sizeof(logt), "DirectDrawCreate Error: %Xh\n", hres);
     PrintLog(logt);
     DoHalt("");
   }
@@ -3362,7 +3362,7 @@ void Activate3DHardware()
   HRESULT hres = lpDD->SetCooperativeLevel( hwndMain, cl);
   if( hres != DD_OK )
   {
-    wsprintf(logt, "SetCooperativeLevel Error: %Xh\n", hres);
+    sprintf_s(logt, sizeof(logt), "SetCooperativeLevel Error: %Xh\n", hres);
     PrintLog(logt);
     DoHalt("");
   }
@@ -3375,7 +3375,7 @@ void Activate3DHardware()
 
   if (hres != DD_OK)
   {
-    wsprintf(logt, "DDRAW: Error set video mode %dx%d\n", WinW, WinH);
+    sprintf_s(logt, sizeof(logt), "DDRAW: Error set video mode %dx%d\n", WinW, WinH);
     PrintLog(logt);
   }
 }

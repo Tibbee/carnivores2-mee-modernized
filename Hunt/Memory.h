@@ -87,7 +87,7 @@ T* AllocateArrayOrHalt(size_t count, const char* source, const char* what)
     T* ptr = new (std::nothrow) T[count]();  // value-init to zero for POD types
     if (!ptr) {
         char buf[256];
-        wsprintf(buf, "Memory allocation error for %s in %s", what, source ? source : "?");
+        sprintf_s(buf, sizeof(buf), "Memory allocation error for %s in %s", what, source ? source : "?");
         DoHalt(buf);
     }
     return ptr;

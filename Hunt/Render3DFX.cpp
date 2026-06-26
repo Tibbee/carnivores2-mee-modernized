@@ -113,8 +113,8 @@ void Init3DHardware()
 
   FXConstTstartAddress = grTexMinAddress(GR_TMU0);
   FXConstTendAddress   = grTexMaxAddress(GR_TMU0);
-  //wsprintf(logt, "Start Address: %d\n", FXConstTstartAddress);  PrintLog(logt);
-  //wsprintf(logt, "End   Address: %d\n", FXConstTendAddress);   PrintLog(logt);
+  //sprintf_s(logt, sizeof(logt), "Start Address: %d\n", FXConstTstartAddress);  PrintLog(logt);
+  //sprintf_s(logt, sizeof(logt), "End   Address: %d\n", FXConstTendAddress);   PrintLog(logt);
   //if (FXConstTendAddress  > 2097144) FXConstTendAddress = 2097144;
 
 }
@@ -189,9 +189,9 @@ RESET:
 
   FXConstTstartAddress = grTexMinAddress(GR_TMU0);
   FXConstTendAddress   = grTexMaxAddress(GR_TMU0);
-  wsprintf(logt, "Start Address: %d\n", FXConstTstartAddress);
+  sprintf_s(logt, sizeof(logt), "Start Address: %d\n", FXConstTstartAddress);
   PrintLog(logt);
-  wsprintf(logt, "End   Address: %d\n", FXConstTendAddress);
+  sprintf_s(logt, sizeof(logt), "End   Address: %d\n", FXConstTendAddress);
   PrintLog(logt);
   //if (FXConstTendAddress  > 2097144) FXConstTendAddress = 2097144;
 
@@ -711,7 +711,7 @@ void ShowVideo()
     if (LOWRESTX && (Takt & 63)==0) TryHiResTx();
   /*
      char t[128];
-     wsprintf(t, "FX mem loaded: %dK", FxMemLoaded >> 10);
+     sprintf_s(t, sizeof(t), "FX mem loaded: %dK", FxMemLoaded >> 10);
      if (FxMemLoaded) AddMessage(t); */
   FxMemLoaded = 0;
 
@@ -916,12 +916,12 @@ void DrawSurvivalText(int x0, int y0)
 	FXTextOut(40 + x0, 98+ y0, "Waves Survived: ", 0x00BFBFBF);
 	x += GetTextW(hdcMain, "Waves Survived: ");
 	char t[32];
-	wsprintf(t, "%i", SurvivalWave-1);
+	sprintf_s(t, sizeof(t), "%i", SurvivalWave-1);
 	FXTextOut(40 + x, 98+ y0, t, 0x0000BFBF);
 	x = x0;
 	FXTextOut(40 + x0, 124 + y0, "High Score: ", 0x00BFBFBF);
 	x += GetTextW(hdcMain, "High Score: ");
-	wsprintf(t, "%i", TrophyRoom2.survivalHighScore);
+	sprintf_s(t, sizeof(t), "%i", TrophyRoom2.survivalHighScore);
 	FXTextOut(40 + x, 124 + y0, t, 0x0000BFBF);
 	SmallFont = false;
 	SelectObject(hdcMain, oldfont);
@@ -940,7 +940,7 @@ void DrawScoreText(int x0, int y0) {
 
 	FXTextOut(x-5, y0, "Unclaimed Kill - Score Added: ", 0x00BFBFBF);
 	x += GetTextW(hdcMain, "Unclaimed Kill - Score Added: ");
-	wsprintf(t, "%d", ScoreDisp);
+	sprintf_s(t, sizeof(t), "%d", ScoreDisp);
 	FXTextOut(x-5, y0, t, 0x0000BFBF);
 
 	SmallFont = false;
@@ -995,12 +995,12 @@ void DrawTrophyText(int x0, int y0)
   x = x0;
   FXTextOut(x, y0+32, "Weapon: ", 0x00BFBFBF);
   x+=GetTextW(hdcMain,"Weapon: ");
-  wsprintf(t,"%s    ", WeapInfo[wep].Name);
+  sprintf_s(t, sizeof(t),"%s    ", WeapInfo[wep].Name);
   FXTextOut(x, y0+32, t, 0x0000BFBF);
   x+=GetTextW(hdcMain,t);
   FXTextOut(x, y0+32, "Score: ", 0x00BFBFBF);
   x+=GetTextW(hdcMain,"Score: ");
-  wsprintf(t,"%d", score);
+  sprintf_s(t, sizeof(t),"%d", score);
   FXTextOut(x, y0+32, t, 0x0000BFBF);
 
 
@@ -1016,15 +1016,15 @@ void DrawTrophyText(int x0, int y0)
   FXTextOut(x, y0+64, "Date: ", 0x00BFBFBF);
   x+=GetTextW(hdcMain,"Date: ");
   if (OptSys)
-    wsprintf(t,"%d.%d.%d   ", ((date>>10) & 255), (date & 255), date>>20);
+    sprintf_s(t, sizeof(t),"%d.%d.%d   ", ((date>>10) & 255), (date & 255), date>>20);
   else
-    wsprintf(t,"%d.%d.%d   ", (date & 255), ((date>>10) & 255), date>>20);
+    sprintf_s(t, sizeof(t),"%d.%d.%d   ", (date & 255), ((date>>10) & 255), date>>20);
 
   FXTextOut(x, y0+64, t, 0x0000BFBF);
   x+=GetTextW(hdcMain,t);
   FXTextOut(x, y0+64, "Time: ", 0x00BFBFBF);
   x+=GetTextW(hdcMain,"Time: ");
-  wsprintf(t,"%d:%02d", ((time>>10) & 255), (time & 255));
+  sprintf_s(t, sizeof(t),"%d:%02d", ((time>>10) & 255), (time & 255));
   FXTextOut(x, y0+64, t, 0x0000BFBF);
 
   SmallFont = false;
@@ -1118,10 +1118,10 @@ void ShowControlElements()
 
   if (TIMER)
   {
-    wsprintf(buf,"msc: %d", TimeDt);
+    sprintf_s(buf, sizeof(buf),"msc: %d", TimeDt);
     FXTextOut(WinEX-81, 11, buf, 0x0020A0A0);
 
-    wsprintf(buf,"polys: %d", dFacesCount);
+    sprintf_s(buf, sizeof(buf),"polys: %d", dFacesCount);
     FXTextOut(WinEX-90, 24, buf, 0x0020A0A0);
 
   }
@@ -1135,16 +1135,16 @@ void ShowControlElements()
   if (ExitTime)
   {
     int y = WinH / 3;
-    wsprintf(buf,"Preparing for evacuation...");
+    sprintf_s(buf, sizeof(buf),"Preparing for evacuation...");
     FXTextOut(VideoCX - GetTextW(hdcCMain, buf)/2, y, buf, 0x0060C0D0);
-    wsprintf(buf,"%d seconds left.", 1 + ExitTime / 1000);
+    sprintf_s(buf, sizeof(buf),"%d seconds left.", 1 + ExitTime / 1000);
     FXTextOut(VideoCX - GetTextW(hdcCMain, buf)/2, y + 18, buf, 0x0060C0D0);
   }
 
   if (WaveNoteTime)
   {
 	  int y = WinH / 3;
-	  wsprintf(buf, "Waves Survived: %i", SurvivalWave-1);
+	  sprintf_s(buf, sizeof(buf), "Waves Survived: %i", SurvivalWave-1);
 	  FXTextOut(VideoCX - GetTextW(hdcCMain, buf) / 2, y, buf, 0x0060C0D0);
   }
 
@@ -1956,7 +1956,7 @@ void _RenderObject(int x, int y)
   if (!MObjects[ob].model)
   {
     //return;
-    wsprintf(logt,"Incorrect model at [%d][%d]!", x, y);
+    sprintf_s(logt, sizeof(logt),"Incorrect model at [%d][%d]!", x, y);
     DoHalt(logt);
   }
 
@@ -2283,7 +2283,7 @@ void ProcessMap(int x, int y, int r)
   float yy = (ev[0].v.y + VMap[y+1][x+1].v.y) / 2;
   float zz = (ev[0].v.z + VMap[y+1][x+1].v.z) / 2;
 
-  //wsprintf(logt, "%d", static_cast<int>((FOVK*100)));
+  //sprintf_s(logt, sizeof(logt), "%d", static_cast<int>((FOVK*100)));
   //AddMessage(logt);
 
   if ( fabs(xx*FOVK) > -zz + BackR) return;

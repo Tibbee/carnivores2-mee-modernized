@@ -1296,8 +1296,8 @@ void SwitchMode(LPSTR lps, BOOL& b)
 {
   b = !b;
   char buf[200];
-  if (b) wsprintf(buf,"%s is ON", lps);
-  else wsprintf(buf,"%s is OFF", lps);
+  if (b) sprintf_s(buf, sizeof(buf),"%s is ON", lps);
+  else sprintf_s(buf, sizeof(buf),"%s is OFF", lps);
   MessageBeep(0xFFFFFFFF);
   AddMessage(buf);
 }
@@ -1315,7 +1315,7 @@ void ChangeViewR(int d1, int d2, int d3)
   if (ctViewRM < kObjectDetailMin) ctViewRM = kObjectDetailMin;
   if (ctViewRM > kObjectDetailMax) ctViewRM = kObjectDetailMax;
 
-  wsprintf(buf,"ViewR = %d BMP at %d", ctViewR, ctViewRM);
+  sprintf_s(buf, sizeof(buf),"ViewR = %d BMP at %d", ctViewR, ctViewRM);
   //MessageBeep(0xFFFFFFFF);
   AddMessage(buf);
 
@@ -1332,7 +1332,7 @@ void ChangeCall()
       if (TargetCall>32) TargetCall=10;
       if (TargetDino & (1<<TargetCall)) break;
     }
-  //wsprintf(logt,"Call: %s", DinoInfo[ AI_to_CIndex[TargetCall] ].Name);
+  //sprintf_s(logt, sizeof(logt),"Call: %s", DinoInfo[ AI_to_CIndex[TargetCall] ].Name);
   //AddMessage(logt);
   //CallLockTime+= 1024;
   ChCallTime = 2048;

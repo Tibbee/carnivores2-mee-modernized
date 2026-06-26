@@ -1061,7 +1061,7 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName, MemoryTag tag)
   if (hfile==INVALID_HANDLE_VALUE)
   {
     char sz[512];
-    wsprintf( sz, "Error opening file\n%s.", FName );
+    sprintf_s(sz, sizeof(sz), "Error opening file\n%s.", FName );
     DoHalt(sz);
   }
 
@@ -1114,7 +1114,7 @@ void LoadWav(char* FName, TSFX &sfx)
   if( hfile==INVALID_HANDLE_VALUE )
   {
     char sz[512];
-    wsprintf( sz, "Error opening file\n%s.", FName );
+    sprintf_s(sz, sizeof(sz), "Error opening file\n%s.", FName );
     DoHalt(sz);
   }
 
@@ -1193,7 +1193,7 @@ void LoadPicture(TPicture &pic, LPSTR pname, MemoryTag tag)
   if( hfile==INVALID_HANDLE_VALUE )
   {
     char sz[512];
-    wsprintf( sz, "Error opening file\n%s.", pname );
+    sprintf_s(sz, sizeof(sz), "Error opening file\n%s.", pname );
     DoHalt(sz);
   }
 
@@ -1236,7 +1236,7 @@ void LoadPictureTGA(TPicture &pic, LPSTR pname, MemoryTag tag)
   if( hfile==INVALID_HANDLE_VALUE )
   {
     char sz[512];
-    wsprintf( sz, "Error opening file\n%s.", pname );
+    sprintf_s(sz, sizeof(sz), "Error opening file\n%s.", pname );
     DoHalt(sz);
   }
 
@@ -1720,8 +1720,8 @@ void LoadResources()
     ctViewR = 60;
     ctViewR1 = ctViewR;
   }
-  wsprintf(MapName,"%s%s", ProjectName, ".map");
-  wsprintf(RscName,"%s%s", ProjectName, ".rsc");
+  sprintf_s(MapName, sizeof(MapName),"%s%s", ProjectName, ".map");
+  sprintf_s(RscName, sizeof(RscName),"%s%s", ProjectName, ".rsc");
 
   ReleaseResources();
 
@@ -1740,7 +1740,7 @@ void LoadResources()
   if (hfile==INVALID_HANDLE_VALUE)
   {
     char sz[512];
-    wsprintf( sz, "Error opening resource file\n%s.", RscName );
+    sprintf_s(sz, sizeof(sz), "Error opening resource file\n%s.", RscName );
     DoHalt(sz);
     return;
   }
@@ -1881,7 +1881,7 @@ void LoadResources()
     int E = Ambient[a].rdata[0].REnvir;
 /////////////////
 
-    //wsprintf(logt,"Env=%d  Flag=%d  Freq=%d\n", E, Ambient[a].rdata[0].Flags, F);
+    //sprintf_s(logt, sizeof(logt),"Env=%d  Flag=%d  Freq=%d\n", E, Ambient[a].rdata[0].Flags, F);
     //PrintLog(logt);
 
     if (OptDayNight==2)
@@ -2006,7 +2006,7 @@ void LoadCharacters()
 
       if (!ChInfo[c].mptr)
       {
-        wsprintf(logt, "HUNTDAT\\%s", DinoInfo[c].FName);
+        sprintf_s(logt, sizeof(logt), "HUNTDAT\\%s", DinoInfo[c].FName);
         LoadCharacterInfo(ChInfo[c], logt);
         PrintLog("Loading: ");
         PrintLog(logt);
@@ -2019,7 +2019,7 @@ void LoadCharacters()
     if (TargetDino & (1<<c))
       if (!MenuDinoInfo[c-10].CallIcon.lpImage)
       {
-        wsprintf(logt, "HUNTDAT\\MENU\\PICS\\call%d.tga", c-9);
+        sprintf_s(logt, sizeof(logt), "HUNTDAT\\MENU\\PICS\\call%d.tga", c-9);
         LoadPictureTGA(MenuDinoInfo[c - 10].CallIcon, logt, MemoryTag::Level);
         conv_pic(MenuDinoInfo[c - 10].CallIcon);
       }
@@ -2032,7 +2032,7 @@ void LoadCharacters()
     {
       if (!Weapon.chinfo[c].mptr)
       {
-        wsprintf(logt, "HUNTDAT\\WEAPONS\\%s", WeapInfo[c].FName);
+        sprintf_s(logt, sizeof(logt), "HUNTDAT\\WEAPONS\\%s", WeapInfo[c].FName);
         LoadCharacterInfo(Weapon.chinfo[c], logt);
         PrintLog("Loading: ");
         PrintLog(logt);
@@ -2040,7 +2040,7 @@ void LoadCharacters()
       }
 
 	  if (WeapInfo[c].bullet) {
-		  wsprintf(logt, "HUNTDAT\\WEAPONS\\%s", WeapInfo[c].BLName);
+		  sprintf_s(logt, sizeof(logt), "HUNTDAT\\WEAPONS\\%s", WeapInfo[c].BLName);
 		  LoadCharacterInfo(Weapon.Bullet[c], logt);
 		  PrintLog("Loading: ");
 		  PrintLog(logt);
@@ -2051,7 +2051,7 @@ void LoadCharacters()
 
       if (!Weapon.BulletPic[c].lpImage)
       {
-        wsprintf(logt, "HUNTDAT\\WEAPONS\\%s", WeapInfo[c].BFName);
+        sprintf_s(logt, sizeof(logt), "HUNTDAT\\WEAPONS\\%s", WeapInfo[c].BFName);
         LoadPictureTGA(Weapon.BulletPic[c], logt, MemoryTag::Level);
         conv_pic(Weapon.BulletPic[c]);
         PrintLog("Loading: ");
@@ -2061,7 +2061,7 @@ void LoadCharacters()
 
 	  if (!Weapon.ChambPic[c].lpImage && WeapInfo[c].picch)
 	  {
-		  wsprintf(logt, "HUNTDAT\\WEAPONS\\%s", WeapInfo[c].CFName);
+		  sprintf_s(logt, sizeof(logt), "HUNTDAT\\WEAPONS\\%s", WeapInfo[c].CFName);
 		  LoadPictureTGA(Weapon.ChambPic[c], logt, MemoryTag::Level);
 		  conv_pic(Weapon.ChambPic[c]);
 		  PrintLog("Loading: ");
@@ -2070,7 +2070,7 @@ void LoadCharacters()
 	  }
 
 	    if (WeapInfo[c].MGSSound) {
-			wsprintf(logt, "MULTIPLAYER\\GUNSHOTS\\%s", WeapInfo[c].SFXName);
+			sprintf_s(logt, sizeof(logt), "MULTIPLAYER\\GUNSHOTS\\%s", WeapInfo[c].SFXName);
 			LoadWav(logt, fxGunShot[c]);
 			WeapInfo[c].SFXIndex = c;
 		  } else WeapInfo[c].SFXIndex = -1;
@@ -2087,16 +2087,16 @@ void LoadCharacters()
     if (TargetDino & (1<<c))
       if (fxCall[c-10][0].lpData.empty())
       {
-        wsprintf(logt,"HUNTDAT\\SOUNDFX\\CALLS\\call%d_a.wav", (c-9));
+        sprintf_s(logt, sizeof(logt),"HUNTDAT\\SOUNDFX\\CALLS\\call%d_a.wav", (c-9));
         LoadWav(logt, fxCall[c-10][0]);
-        wsprintf(logt,"HUNTDAT\\SOUNDFX\\CALLS\\call%d_b.wav", (c-9));
+        sprintf_s(logt, sizeof(logt),"HUNTDAT\\SOUNDFX\\CALLS\\call%d_b.wav", (c-9));
         LoadWav(logt, fxCall[c-10][1]);
-        wsprintf(logt,"HUNTDAT\\SOUNDFX\\CALLS\\call%d_c.wav", (c-9));
+        sprintf_s(logt, sizeof(logt),"HUNTDAT\\SOUNDFX\\CALLS\\call%d_c.wav", (c-9));
         LoadWav(logt, fxCall[c-10][2]);
       }
 
 
-  wsprintf(logt, "MULTIPLAYER\\AVATARS\\Hitbox.car");
+  sprintf_s(logt, sizeof(logt), "MULTIPLAYER\\AVATARS\\Hitbox.car");
   LoadCharacterInfo(HitBoxModel, logt);
   PrintLog("Loading: ");
   PrintLog(logt);
@@ -2106,7 +2106,7 @@ void LoadCharacters()
   //test - 1 other player
   //test - add custom models at some point?
   if (Multiplayer) {
-	  wsprintf(logt, "MULTIPLAYER\\AVATARS\\Poacher.car");
+	  sprintf_s(logt, sizeof(logt), "MULTIPLAYER\\AVATARS\\Poacher.car");
 	  LoadCharacterInfo(MPlayerInfo[0], logt);
 	  PrintLog("Loading: ");
 	  PrintLog(logt);
@@ -2354,7 +2354,7 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
   if (hfile==INVALID_HANDLE_VALUE)
   {
     char sz[512];
-    wsprintf( sz, "Error opening character file:\n%s.", FName );
+    sprintf_s(sz, sizeof(sz), "Error opening character file:\n%s.", FName );
     DoHalt(sz);
   }
 
@@ -2582,7 +2582,7 @@ void SaveScreenShot()
 
 
   char t[12];
-  wsprintf(t,"HUNT%004d.BMP",++_shotcounter);
+  sprintf_s(t, sizeof(t),"HUNT%004d.BMP",++_shotcounter);
   hf = CreateFile(t,
                   GENERIC_READ | GENERIC_WRITE,
                   static_cast<DWORD>(0),

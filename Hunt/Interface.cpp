@@ -155,7 +155,7 @@ void SetFullScreen()
       res = lpDD->RestoreDisplayMode();
 
     if (res != DD_OK) {
-      wsprintf(logt, "DDRAW: Error set video mode %dx%d\n", WinW, WinH);
+      sprintf_s(logt, sizeof(logt), "DDRAW: Error set video mode %dx%d\n", WinW, WinH);
       PrintLog(logt);
     }
 
@@ -332,7 +332,7 @@ void SetVideoMode(int W, int H)
     if (actualW > 0 && actualH > 0 &&
         (actualW != WinW || actualH != WinH)) {
       char logt[128];
-      wsprintf(logt, "Client area adjusted: requested %dx%d, actual %dx%d\n",
+      sprintf_s(logt, sizeof(logt), "Client area adjusted: requested %dx%d, actual %dx%d\n",
                WinW, WinH, actualW, actualH);
       PrintLog(logt);
       WinW = actualW;
