@@ -1729,7 +1729,7 @@ void LoadResources()
   HeapAllocated=0;
   if (strstr(ProjectName, "trophy"))
   {
-    TrophyMode = true;
+    g_GameMode = GameMode::TrophyMode;
     ctViewR = 60;
     ctViewR1 = ctViewR;
   }
@@ -2245,15 +2245,15 @@ void ReInitGame()
   WCCount = 0;
   ElCount = 0;
   BloodTrail.Count = 0;
-  BINMODE = false;
-  OPTICMODE = false;
-  EXITMODE = false;
-  PAUSE = false;
+  g_GameMode = GameMode::Normal;
+  g_GameMode = GameMode::Normal;
+  g_GameMode = GameMode::Normal;
+  g_GameMode = GameMode::Normal;
 
   if (g_GameMode == GameMode::SurvivalMode) {
 	  PlayerAlpha = pi * 2 * SurvivalSpawnA / 360.f;
 	  Weapon.state = 2;
-	  if (WeapInfo[CurrentWeapon].Optic) OPTICMODE = true;
+	  if (WeapInfo[CurrentWeapon].Optic) g_GameMode = GameMode::OpticScope;
   }
 
   Ship.pos.x = PlayerX;
@@ -5190,7 +5190,7 @@ void LoadResourcesScript()
 		  strcpy(tempProjectName, (s + 4));
 		  //break;
 	  }
-	  if (strstr(s, "-survival")) SurvivalMode = true;
+	  if (strstr(s, "-survival")) g_GameMode = GameMode::SurvivalMode;
   }
   
 

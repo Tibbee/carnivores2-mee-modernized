@@ -333,8 +333,8 @@ void AddDeadBody(TCharacter *cptr, int phase, bool scream)
 		AddMessage("Transportation cancelled.");
 	ExitTime = 0;
 
-	OPTICMODE = false;
-	BINMODE = false;
+	g_GameMode = GameMode::Normal;
+	g_GameMode = GameMode::Normal;
 	Characters[ChCount].CType = 0;
 	Characters[ChCount].alpha = CameraAlpha;
 	ResetCharacter(&Characters[ChCount]);

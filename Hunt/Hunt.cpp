@@ -692,7 +692,7 @@ void DrawPostObjects()
     CameraW = oldCW;
     CameraH = oldCH;
     ScanLifeForms();
-    MapMode = false;
+    g_GameMode = GameMode::Normal;
   }
 
   //goto SKIPWIND;
@@ -750,7 +750,7 @@ SKIPWIND:
 	  goto SKIPWEAPON;
   }
 
-  MapMode = false;
+  g_GameMode = GameMode::Normal;
 
   if (g_GameMode != GameMode::SurvivalMode) {
 	  float tempT = static_cast<float>(TimeDt) / 10000.f;
@@ -1343,8 +1343,8 @@ void ToggleBinocular()
   if (Weapon.state) return;
   if (IsUnderwater()) return;
   if (!MyHealth) return;
-  BINMODE = g_GameMode != GameMode::Binocular;
-  MapMode = false;
+  g_GameMode = (g_GameMode == GameMode::Binocular) ? GameMode::Normal : GameMode::Binocular;
+  g_GameMode = GameMode::Normal;
 }
 
 
@@ -1357,7 +1357,7 @@ void ToggleRunMode()
 
 void ToggleCrouchMode()
 {
-	CrouchMode = g_GameMode != GameMode::Crouching;
+	g_GameMode = (g_GameMode == GameMode::Crouching) ? GameMode::Normal : GameMode::Crouching;
 	HitBox.phase = g_GameMode == GameMode::Crouching;
 	if (g_GameMode == GameMode::Crouching) AddMessage("Crouch mode is ON");
 	else AddMessage("Crouch mode is OFF");
@@ -1369,7 +1369,7 @@ void ToggleMapMode()
   if (!MyHealth) return;
   if (g_GameMode == GameMode::Binocular) return;
   if (Weapon.state) return;
-  MapMode = g_GameMode != GameMode::MapMode;
+  g_GameMode = (g_GameMode == GameMode::MapMode) ? GameMode::Normal : GameMode::MapMode;
 }
 
 
@@ -1559,15 +1559,15 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 
     case VK_PAUSE:
 		if (g_GameMode != GameMode::SurvivalMode) {
-      PAUSE = !IsPaused();
-      EXITMODE = false;
+      g_GameMode = IsPaused() ? GameMode::Normal : GameMode::Paused;
+      g_GameMode = GameMode::Normal;
       CaptureMouse(!IsPaused());
       ResetMousePos();
       break;
 		}
 
     case 'N':
-      if (g_GameMode == GameMode::ExitCountdown) EXITMODE = false;
+      if (g_GameMode == GameMode::ExitCountdown) g_GameMode = GameMode::Normal;
       break;
 
     case VK_ESCAPE:
@@ -1578,9 +1578,9 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       }
       else
       {
-        if (IsPaused()) { PAUSE = false; CaptureMouse(true); }
-        else { EXITMODE = g_GameMode != GameMode::ExitCountdown; CaptureMouse(true); }
-        if (ExitTime) EXITMODE = false;
+        if (IsPaused()) { g_GameMode = GameMode::Normal; CaptureMouse(true); }
+        else { g_GameMode = (g_GameMode == GameMode::ExitCountdown) ? GameMode::Normal : GameMode::ExitCountdown; CaptureMouse(true); }
+        if (ExitTime) g_GameMode = GameMode::Normal;
         ResetMousePos();
       }
       break;
@@ -1590,7 +1590,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 		{
 			if (MyHealth) ExitTime = 4000;
 			else ExitTime = 1;
-			EXITMODE = false;
+			g_GameMode = GameMode::Normal;
 		}
 		break;
 
@@ -1599,7 +1599,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       {
 		if (MyHealth && g_GameMode != GameMode::SurvivalMode) ExitTime = 4000;
         else ExitTime = 1;
-        EXITMODE = false;
+        g_GameMode = GameMode::Normal;
       }
       break;
 
@@ -1607,7 +1607,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 		if (g_GameMode == GameMode::ExitCountdown && g_GameMode == GameMode::SurvivalMode)
 		{
 			ExitTime = 1;
-			EXITMODE = false;
+			g_GameMode = GameMode::Normal;
 		}
 		break;
 
@@ -2169,15 +2169,15 @@ void ProcessPlayerMovement()
 
 void ProcessDemoMovement()
 {
-  BINMODE = false;
+  g_GameMode = GameMode::Normal;
 
-  PAUSE = false;
-  MapMode = false;
+  g_GameMode = GameMode::Normal;
+  g_GameMode = GameMode::Normal;
 
   if (DemoPoint.DemoTime>6*1000)
     if (!IsPaused())
     {
-      EXITMODE = true;
+      g_GameMode = GameMode::ExitCountdown;
       ResetMousePos();
     }
 
@@ -2499,7 +2499,7 @@ SKIPYMOVE:
     {
       HeadY-=20;
       CameraY-=20;
-      BINMODE = false;
+      g_GameMode = GameMode::Normal;
       AddVoicev(fxWaterIn.length, fxWaterIn.lpData.data(), 256);
       AddWCircle(CameraX, CameraZ, 2.0);
     }

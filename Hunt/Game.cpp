@@ -695,7 +695,7 @@ void ProcessCommandLine()
 	if (strstr(s, "-huntdog"))  DogMode = true;
 	if (strstr(s, "-nightvision")) NightVisionMode = true;
     if (strstr(s,"-radar"))   RadarMode = true;
-	if (strstr(s, "-survival"))  SurvivalMode = true;
+	if (strstr(s, "-survival"))  g_GameMode = GameMode::SurvivalMode;
 	if (strstr(s, "-sonar"))   SonarMode = true;
 	if (strstr(s, "-scanner"))   ScannerMode = true;
 	if (strstr(s, "-scent"))   ScentMode = true;
@@ -884,7 +884,7 @@ void HideWeapon()
   if (wptr->state == 0)
   {  
 	//if (!ShotsLeft[CurrentWeapon]) return;
-    if (WeapInfo[CurrentWeapon].Optic) OPTICMODE = true;
+    if (WeapInfo[CurrentWeapon].Optic) g_GameMode = GameMode::OpticScope;
     
 	if (IsUnderwater()) {
 		if (WeapInfo[CurrentWeapon].getAqSnd >= 0)
@@ -897,8 +897,8 @@ void HideWeapon()
 	}
     wptr->FTime = 0;
     wptr->state = 1;
-    BINMODE = false;
-    MapMode = false;
+    g_GameMode = GameMode::Normal;
+    g_GameMode = GameMode::Normal;
     wptr->shakel = WeapInfo[CurrentWeapon].shake * 4.f;
 	wptr->breath = 0.f;
 	wptr->breathPressed = 0;
@@ -918,7 +918,7 @@ void HideWeapon()
   }
   wptr->state = 3;
   wptr->FTime = 0;
-  OPTICMODE = false;
+  g_GameMode = GameMode::Normal;
   return ;
 }
 
