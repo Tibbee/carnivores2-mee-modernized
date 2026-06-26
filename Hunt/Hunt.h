@@ -1428,7 +1428,6 @@ void AddShipSupply(float,float);
 void AddShipTask(int);
 void SubmitDinoScore(int);
 void LoadTrophy();
-//void LoadPlayersInfo();
 void SaveTrophy();
 void RemoveCurrentTrophy();
 void MakeCall();
@@ -1602,7 +1601,6 @@ _EXTORNOT float sonarPos;
 
 _EXTORNOT TTrophyRoom TrophyRoom;
 _EXTORNOT TTrophyRoom2 TrophyRoom2;
-//_EXTORNOT TPlayerR PlayerR[16];
 _EXTORNOT TPicture LandPic,DinoPic,DinoPicM, MapPic, WepPic;
 _EXTORNOT HFONT fnt_BIG, fnt_Small, fnt_Midd;
 _EXTORNOT TLandingList LandingList;
@@ -1644,12 +1642,10 @@ _EXTORNOT int mHunterCallType[4];
 _EXTORNOT int sendDamage[DINOINFO_MAX];
 _EXTORNOT int mDamage[4][DINOINFO_MAX];
 //Add these after dino positions alligned
-//_EXTORNOT int sendDinoCall;
-//_EXTORNOT int mDinoCall[4];
+
 _EXTORNOT bool TreeTable[255];
 _EXTORNOT TAIInfo AIInfo[DINOINFO_MAX];
-//_EXTORNOT TRegion Region[256];
-//_EXTORNOT TRegion Avoid[256];
+
 _EXTORNOT TWeapInfo WeapInfo[10];
 _EXTORNOT bool Muzz;
 _EXTORNOT int MuzzFTime;
@@ -1659,8 +1655,7 @@ _EXTORNOT TCharacterInfo ShipModel;
 _EXTORNOT TCharacterInfo SShipModel;
 _EXTORNOT TCharacterInfo BagModel;
 _EXTORNOT TSpawnGroup spawnGroup[256];
-//_EXTORNOT int AI_to_CIndex[DINOINFO_MAX];
-//_EXTORNOT int TrophyIndex[DINOINFO_MAX];
+
 _EXTORNOT int trophyGroupCount;
 _EXTORNOT TPackType packType[1024];
 _EXTORNOT int packTypeCount;
@@ -1692,9 +1687,6 @@ _EXTORNOT int SurvivalWave;
 _EXTORNOT int SurvivalIndex[128];
 _EXTORNOT int SurvivalIndexCh;
 
-//_EXTORNOT int TropSlotData[128]; //ctype per trophySlot
-//_EXTORNOT int TropSlotDataCh = 0;
-
 
 _EXTORNOT TWCircle       WCircles[2096]; //increased
 
@@ -1710,7 +1702,6 @@ _EXTORNOT Vector3d       PlayerPos, CameraPos;
 //========== Render ==================//
 _EXTORNOT   LPDIRECTDRAW lpDD;
 _EXTORNOT   LPDIRECTDRAW2 lpDD2;
-//_EXTORNOT   LPDIRECTINPUT lpDI;
 
 _EXTORNOT   void* lpVideoRAM;
 _EXTORNOT   LPDIRECTDRAWSURFACE lpddsPrimary;
