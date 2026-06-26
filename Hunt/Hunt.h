@@ -25,6 +25,7 @@
 
 #include "Core/Constants.h"
 #include "Core/MathTypes.h"
+#include "Core/AudioTypes.h"
 
 #ifdef _d3d
 #include "d3d.h"
@@ -67,21 +68,7 @@ struct TVTL
   unique_heap_ptr<short int[]> aniData;
 };
 
-struct TSFX
-{
-  int  length;
-  // Phase 5B.1: lpData migrated from raw short int* to std::vector<short int>.
-  // std::vector handles its own lifetime (no manual _HeapFree needed in
-  // ReleaseResources), and size_t/iterators prevent the buffer overruns that
-  // the raw-pointer version was prone to. Audio functions like AddVoicev take
-  // a raw pointer + length, so call sites use sfx.lpData.data().
-  //
-  // sizeof(TSFX) grows from 8 (int + raw pointer) to 16 (int + 12-byte vector
-  // on MSVC x86 with three pointer members). This affects every ChInfo[128]
-  // (128 * 64 SoundFX = 8192 instances) and the global SFX array, adding
-  // ~64 KiB to BSS. The doc documents this as the intended trade-off.
-  std::vector<short int> lpData;
-};
+
 
 // Phase 5B.1: sizeof(TSFX) grows from 8 (int + raw pointer) to 16+ bytes
 // (int + std::vector<short int>; the exact size depends on the std::vector
@@ -90,32 +77,18 @@ struct TSFX
 // BSS. The doc documents this as the intended trade-off. The range check
 // below fires if TSFX is ever back to its old 8-byte raw-pointer layout
 // (i.e., someone reverts the std::vector change without updating the doc).
-static_assert(sizeof(TSFX) > 8,
-              "TSFX is back to its old 8-byte raw-pointer layout — the Phase 5B.1 "
-              "std::vector migration was reverted. Re-apply the migration or update "
-              "the doc.");
 
 
 
-struct TRD
-{
-  int  RNumber, RVolume, RFreq;
-  WORD REnvir, Flags;
-};
+
+
 
 struct TRes
 {
   int w, h;
 };
 
-struct TAmbient
-{
-  TSFX sfx;
-  TRD  rdata[16];
-  int  RSFXCount;
-  int  AVolume;
-  int  RndTime;
-};
+
 
 
 struct TEXTURE
@@ -1673,13 +1646,7 @@ void Audio_Shutdown();
 void Audio_SetEnvironment(int, float);
 void Audio_UploadGeometry();
 //=================================
-struct AudioQuad
-{
-  float x1,y1,z1;
-  float x2,y2,z2;
-  float x3,y3,z3;
-  float x4,y4,z4;
-};
+
 _EXTORNOT int AudioFCount;
 _EXTORNOT AudioQuad data[8192];
 _EXTORNOT void UploadGeometry();
