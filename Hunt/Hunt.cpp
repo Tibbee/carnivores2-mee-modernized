@@ -1267,7 +1267,7 @@ void ToggleBinocular()
   if (IsUnderwater()) return;
   if (!MyHealth) return;
   g_GameMode = (g_GameMode == GameMode::Binocular) ? GameMode::Normal : GameMode::Binocular;
-  g_GameMode = GameMode::Normal;
+  if (g_GameMode == GameMode::Binocular) AddMessage("Binocular view");
 }
 
 
