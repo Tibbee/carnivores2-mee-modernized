@@ -116,6 +116,7 @@ set(CORE_FILES
     Hunt/Audio_DLL.cpp
     Hunt/OpenAL_Loader.cpp
     Hunt/Characters.cpp
+    Hunt/Game/CharacterMorph.cpp
     Hunt/Game.cpp
     Hunt/Hunt.cpp
     Hunt/Interface.cpp
