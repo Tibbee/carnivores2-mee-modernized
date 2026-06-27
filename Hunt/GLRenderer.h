@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include "IRenderer.h"
+#include "Renderer/IRenderer.h"
 #include "glad/glad.h"
-#include "GLPerf.h"
+#include "Renderer/GLPerf.h"
 #include <windows.h>
 #include <algorithm>
 #include <array>

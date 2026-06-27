@@ -85,7 +85,7 @@ if(RENDERER)
             add_definitions(-DGL_PERF_HOOKS)
         endif()
         set(RENDER_SRC
-            Hunt/IRenderer.h
+            Hunt/Renderer/IRenderer.h
             Hunt/GLRenderer.h
             Hunt/GLRenderer.cpp
             Hunt/Renderer/GLUtils.cpp
@@ -96,10 +96,10 @@ if(RENDERER)
             Hunt/Renderer/GLModel.cpp
             Hunt/Renderer/GLTerrain.cpp
             Hunt/Renderer/GLWater.cpp
-            Hunt/GLShader.h
-            Hunt/GLShader.cpp
-            Hunt/GLPerf.h
-            Hunt/GLPerf.cpp
+            Hunt/Renderer/GLShader.h
+            Hunt/Renderer/GLShader.cpp
+            Hunt/Renderer/GLPerf.h
+            Hunt/Renderer/GLPerf.cpp
             Hunt/GLUI.cpp
             deps/glad/glad.c
         )
@@ -121,8 +121,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Core source files (excluding renderers)
 set(CORE_FILES
-    Hunt/Audio_DLL.cpp
-    Hunt/OpenAL_Loader.cpp
+    Hunt/Audio/Audio_DLL.cpp
+    Hunt/Audio/OpenAL_Loader.cpp
     Hunt/Characters.cpp
     Hunt/Game/CharacterMorph.cpp
     Hunt/Game/CharacterSpawn.cpp

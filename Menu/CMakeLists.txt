@@ -13,7 +13,7 @@ set(MENU_SOURCES
     resource.h
     Menu.rc
     Version.h
-    ../Hunt/OpenAL_Loader.cpp
+    ../Hunt/Audio/OpenAL_Loader.cpp
 )
 
 # Add the menu executable
