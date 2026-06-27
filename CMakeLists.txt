@@ -90,6 +90,7 @@ if(RENDERER)
             Hunt/GLRenderer.cpp
             Hunt/Renderer/GLUtils.cpp
             Hunt/Renderer/GLNight.cpp
+            Hunt/Renderer/GLShadow.cpp
             Hunt/GLShader.h
             Hunt/GLShader.cpp
             Hunt/GLPerf.h
