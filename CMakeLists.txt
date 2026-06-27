@@ -134,6 +134,7 @@ set(CORE_FILES
     Hunt/Math.cpp
     Hunt/Resources.cpp
     Hunt/Loaders/ScriptParser.cpp
+    Hunt/Loaders/ModelLoader.cpp
     Hunt/renderasm.cpp
     Hunt/AppRes.rc
     Hunt/Carnivores1.manifest

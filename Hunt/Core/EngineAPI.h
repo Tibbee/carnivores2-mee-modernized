@@ -150,7 +150,7 @@ void CreateTMap();
 
 void LoadSky();
 void LoadSkyMap();
-void LoadTexture(TEXTURE*&);
+void LoadTexture(unique_obj_ptr<TEXTURE>&);
 void LoadWav(char* FName, TSFX &sfx);
 
 
