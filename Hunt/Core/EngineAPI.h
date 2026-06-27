@@ -320,6 +320,8 @@ void refillWeapons(bool);
 void registerDamage(int, bool);
 
 void AddBloodTrail(TCharacter *cptr);
+
+void AnimateBloodTrails();
 void AddElements(float, float, float, int, int);
 void AddElementsA(float, float, float, int, int, int, bool, float);
 void AddWCircle(float, float, float);

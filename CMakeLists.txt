@@ -127,6 +127,7 @@ set(CORE_FILES
     Hunt/Game/CharacterMorph.cpp
     Hunt/Game/CharacterSpawn.cpp
     Hunt/Game/CharacterAI.cpp
+    Hunt/Game/CharacterTracking.cpp
     Hunt/Game/CharacterAnimation.cpp
     Hunt/Game/Controls.cpp
     Hunt/Game/PlayerMovement.cpp
