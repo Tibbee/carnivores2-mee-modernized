@@ -117,6 +117,7 @@ set(CORE_FILES
     Hunt/OpenAL_Loader.cpp
     Hunt/Characters.cpp
     Hunt/Game/CharacterMorph.cpp
+    Hunt/Game/CharacterSpawn.cpp
     Hunt/Game.cpp
     Hunt/Hunt.cpp
     Hunt/Interface.cpp
