@@ -11,6 +11,32 @@
 // Collision / placement checks
 int CheckPlaceCollisionP(Vector3d &v, bool aquatic);
 int CheckPlaceCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc);
+int CheckPlaceCollisionFish(TCharacter *cptr, Vector3d &v, float mosaDepth, int maxDepth, int minDepth);
+
+// Movement
+void MoveCharacter(TCharacter *cptr, float dx, float dz, BOOL wc, BOOL mc);
+void MoveCharacterFish(TCharacter *cptr, float dx, float dz);
+void LookForAWay(TCharacter *cptr, BOOL wc, BOOL mc);
+
+// AI helpers
+void SetNewTargetPlace(TCharacter *cptr, float R);
+void SetNewTargetPlace_Icth(TCharacter *cptr, float R);
+void SetNewTargetPlace_Brahi(TCharacter *cptr, float R);
+void SetNewTargetPlaceFish(TCharacter *cptr, float R);
+BOOL ReplaceCharacterForward(TCharacter *cptr);
+boolean huntDogSearch(TCharacter *cptr);
 
 // Character lifecycle
 void ResetCharacter(TCharacter *cptr);
+void ProcessPrevPhase(TCharacter *cptr);
+void ActivateCharacterFx(TCharacter *cptr);
+void ActivateCharacterFxAquatic(TCharacter *cptr);
+void AddDeadBody(TCharacter *cptr, int phase, bool scream);
+
+// Animation helpers
+void ThinkY_Beta_Gamma(TCharacter *cptr, float blook, float glook, float blim, float glim);
+float AngleDifference(float a, float b);
+float CorrectedAlpha(float a, float b);
+
+// Inline helpers
+inline float GetAngleDifference(float a, float b) { return AngleDifference(a, b); }
