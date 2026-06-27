@@ -88,6 +88,8 @@ if(RENDERER)
             Hunt/IRenderer.h
             Hunt/GLRenderer.h
             Hunt/GLRenderer.cpp
+            Hunt/Renderer/GLUtils.cpp
+            Hunt/Renderer/GLNight.cpp
             Hunt/GLShader.h
             Hunt/GLShader.cpp
             Hunt/GLPerf.h
