@@ -476,6 +476,15 @@ GLOBAL int CurDino;
 GLOBAL BOOL NewPhase;
 GLOBAL HANDLE hfile;
 GLOBAL DWORD l;
+GLOBAL float rav;
+GLOBAL float rbv;
+GLOBAL float BinocularPower;
+GLOBAL float wpshy;
+GLOBAL float wpshz;
+GLOBAL float wpnb;
+GLOBAL int wpnlight;
+GLOBAL int cheati;
+extern char cheatcode[16];
 
 GLOBAL bool g_VerboseLogging;
 

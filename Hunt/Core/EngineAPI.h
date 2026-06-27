@@ -187,7 +187,34 @@ void PerfTriggerCapture();
 // scopes. No-op when the harness is not compiled in.
 void PerfFrameBegin();
 void PerfFrameEnd();
+
+
 #endif
+// === GAME CONTROLS / MOVEMENT (Hunt split) ===
+void CaptureMouse(BOOL capture);
+void ResetMousePos();
+void SwitchMode(LPSTR lps, BOOL& b);
+void ChangeViewR(int d1, int d2, int d3);
+void ChangeCall();
+void ToggleBinocular();
+void ToggleRunMode();
+void ToggleCrouchMode();
+void ToggleMapMode();
+void ShowShifts();
+void ProcessControls();
+void ProcessDemoMovement();
+
+void HideWeapon();
+void ProcessReload();
+void ProcessFireMode();
+void ProcessPump();
+void ProcessShoot();
+void ProcessSlide();
+void ProcessPlayerMovement();
+
+void AddShadowCircle(int x, int y, int R, int D);
+void PreCashGroundModel();
+
 
 void CreateWaterTab();
 void CreateFadeTab();

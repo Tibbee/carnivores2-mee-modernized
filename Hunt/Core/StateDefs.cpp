@@ -10,3 +10,6 @@
 
 // Define the game mode global (declared extern in GameMode.h)
 GameMode g_GameMode = GameMode::Normal;
+
+// Hunt.cpp globals
+char cheatcode[16] = "DEBUGUP";

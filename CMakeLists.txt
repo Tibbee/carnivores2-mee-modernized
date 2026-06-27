@@ -128,6 +128,9 @@ set(CORE_FILES
     Hunt/Game/CharacterSpawn.cpp
     Hunt/Game/CharacterAI.cpp
     Hunt/Game/CharacterAnimation.cpp
+    Hunt/Game/Controls.cpp
+    Hunt/Game/PlayerMovement.cpp
+    Hunt/Game/Effects.cpp
     Hunt/Game.cpp
     Hunt/Hunt.cpp
     Hunt/Interface.cpp
