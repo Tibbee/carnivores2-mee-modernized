@@ -253,4 +253,152 @@ WORD Conv565to555(WORD c)
     return (r << 10) | ((g >> 1) << 5) | b;
 }
 
+float DistanceToNearClipPlane(const Vector3d& position)
+{
+    return position.z - kModelNearClip;
+}
+
+void ClipTriangleAgainstNearPlane(const ModelClipVertex& a,
+                                         const ModelClipVertex& b,
+                                         const ModelClipVertex& c,
+                                         std::vector<ModelClipVertex>& output)
+{
+    output.clear();
+    output.reserve(4);
+
+    const std::array<ModelClipVertex, 3> input = {a, b, c};
+    for (size_t i = 0; i < input.size(); ++i) {
+        const ModelClipVertex& current = input[i];
+        const ModelClipVertex& previous = input[(i + input.size() - 1) % input.size()];
+        const float currentDistance = DistanceToNearClipPlane(current.position);
+        const float previousDistance = DistanceToNearClipPlane(previous.position);
+        const bool currentInside = currentDistance <= 0.0f;
+        const bool previousInside = previousDistance <= 0.0f;
+
+        if (currentInside != previousInside) {
+            const float denom = previousDistance - currentDistance;
+            const float t = std::fabs(denom) < 0.0001f ? 0.0f : previousDistance / denom;
+            output.push_back(InterpolateClipVertex(previous, current, t));
+        }
+
+        if (currentInside) {
+            output.push_back(current);
+        }
+    }
+}
+
+FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog)
+{
+    if (disableFog) {
+        return {0.0f, GetDistanceFogColor()};
+    }
+
+    float d = VectorLength(point);
+
+    // Helper: compute fog using the given pocket's parameters.
+    // Mirrors CalcFogLevel's (fla+flb) * distance formula.
+    // fla = vertex depth below pocket's YBegin
+    // flb = camera depth below pocket's YBegin
+    auto computeFog = [&](const TFogEntity& fog, bool& outVinFog) -> float {
+        float fla = -(point.y + CameraY - fog.YBegin * ctHScale) / ctHScale;
+        float flb = -(CameraY - fog.YBegin * ctHScale) / ctHScale;
+
+        if (!outVinFog && fla > 0.0f) fla = 0.0f;
+
+        if (fla < 0.0f && flb < 0.0f) return 0.0f;
+
+        if (fla < 0.0f) { d *= flb / (flb - fla); fla = 0.0f; }
+        if (flb < 0.0f) { d *= fla / (fla - flb); flb = 0.0f; }
+
+        float fl = (fla + flb) * (d + fog.Transp * 0.5f) / fog.Transp;
+        return std::clamp(fl, 0.0f, fog.FLimit);
+    };
+
+    if (IsUnderwater()) {
+        const TFogEntity& fog = FogsList[127];
+        bool vinFog = true;
+        float fl = computeFog(fog, vinFog);
+
+        if (fl <= 0.0f) {
+            fl = (d + fog.Transp * 0.5f) / fog.Transp;
+        }
+
+        const float amount = std::clamp(fl / 255.0f, 0.0f, fog.FLimit / 255.0f);
+        return {amount, DecodeFogColorBGR(fog.fogRGB)};
+    }
+
+    // Fixed fog volumes are local: only sample the volume that contains
+    // the point being fogged. Do not use the camera's current pocket as a
+    // blanket fog source, or distant objects outside the volume will inherit
+    // the volume color.
+    const int worldX = static_cast<int>(point.x + CameraX);
+    const int worldZ = static_cast<int>(point.z + CameraZ);
+    const int cf = FogsMap[(worldZ >> 9) & 511][(worldX >> 9) & 511];
+    if (cf > 0) {
+        const TFogEntity& fog = FogsList[cf];
+        bool vinFog = true;
+        const float fl = computeFog(fog, vinFog);
+        const float amount = std::clamp(fl / 255.0f, 0.0f, fog.FLimit / 255.0f);
+        if (amount > 0.0f) {
+            return {amount, DecodeFogColor(fog.fogRGB)};
+        }
+    }
+
+    // Distance-only fog: fades all objects (including BMP billboards)
+    // to the global horizon color at the view horizon. Uses the same ramp
+    // as the terrain shader (75% to 100% of view distance). This masks
+    // distant pop-in without letting local fog volumes tint the horizon.
+    {
+        const float fogDistance = static_cast<float>(ctViewR) * 256.0f;
+        const float fogFadeStart = static_cast<float>(ctViewR) * 192.0f;
+        const float fadeRange = fogDistance - fogFadeStart;
+        const float distanceFog = std::clamp(
+            (d - fogFadeStart) / (fadeRange > 1.0f ? fadeRange : 1.0f),
+            0.0f, 1.0f);
+        if (distanceFog > 0.0f) {
+            return {distanceFog, GetDistanceFogColor()};
+        }
+    }
+
+    return {0.0f, GetDistanceFogColor()};
+}
+
+float VertexDistanceSq(const Vector3d& v)
+{
+    return v.x * v.x + v.y * v.y + v.z * v.z;
+}
+
+float CalcTerrainAlpha(float distanceSq, float fadeStart, float fadeStartSq, float fadeEnd)
+{
+    if (IsUnderwater()) {
+        return 1.0f;
+    }
+
+    if (distanceSq <= fadeStartSq) {
+        return 1.0f;
+    }
+
+    // Tiles between fadeStart and fadeEnd all return 1.0 — avoid the
+    // std::sqrt for this common range by comparing squared distances.
+    if (distanceSq <= fadeEnd * fadeEnd) {
+        return 1.0f;
+    }
+
+    const float distance = std::sqrt(distanceSq);
+    const float zz = distance - fadeEnd;
+    return std::clamp((255.0f - zz / 3.0f) / 255.0f, 0.0f, 1.0f);
+}
+
+float GetTerrainFogAmountForMapPoint(int fogIndex, int legacyFog)
+{
+    if (IsUnderwater()) {
+        return static_cast<float>(legacyFog);
+    }
+
+    if (!FOGON || fogIndex <= 0) {
+        return 0.0f;
+    }
+
+    return static_cast<float>(std::clamp(legacyFog, 0, 255));
+}
 #endif // _gl

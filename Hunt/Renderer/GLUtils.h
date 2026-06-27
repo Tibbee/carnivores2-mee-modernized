@@ -56,3 +56,16 @@ void ClipTriangleAgainstWater(const ModelClipVertex& a,
 // Ensure the scene-copy texture exists and matches window size
 void EnsureNightSceneTex(GLuint& tex, int& texW, int& texH, int winW, int winH);
 WORD Conv565to555(WORD c);
+
+// Clipping / fog helpers
+float DistanceToNearClipPlane(const Vector3d& position);
+void ClipTriangleAgainstNearPlane(const ModelClipVertex& a,
+    const ModelClipVertex& b,
+    const ModelClipVertex& c,
+    std::vector<ModelClipVertex>& output);
+FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog);
+
+// Terrain / water helpers
+float VertexDistanceSq(const Vector3d& v);
+float CalcTerrainAlpha(float distanceSq, float fadeStart, float fadeStartSq, float fadeEnd);
+float GetTerrainFogAmountForMapPoint(int fogIndex, int legacyFog);
