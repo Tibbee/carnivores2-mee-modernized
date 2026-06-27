@@ -91,6 +91,8 @@ if(RENDERER)
             Hunt/Renderer/GLUtils.cpp
             Hunt/Renderer/GLNight.cpp
             Hunt/Renderer/GLShadow.cpp
+            Hunt/Renderer/GLSky.cpp
+            Hunt/Renderer/GLHUD.cpp
             Hunt/GLShader.h
             Hunt/GLShader.cpp
             Hunt/GLPerf.h

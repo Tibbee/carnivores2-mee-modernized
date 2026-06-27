@@ -1,0 +1,517 @@
+// ==========================================================================
+// GLHUD.cpp � HUD overlay and UI element rendering
+// ==========================================================================
+
+#include "Hunt.h"
+#include "GLRenderer.h"
+#include "Renderer/GLUtils.h"
+
+#ifdef _gl
+
+#include "glad/glad.h"
+
+void GLRenderer::Render_LifeInfo(int index)
+{
+    // Draw dino info when looking through binoculars
+    if (!hdcCMain || !hbmpVideoBuf || !lpVideoBuf) return;
+    if (index < 0 || index >= ChCount) return;
+
+    HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
+    SetBkMode(hdcCMain, TRANSPARENT);
+    HFONT oldFont = nullptr;
+    if (fnt_Small) oldFont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
+
+    int ctype = Characters[index].CType;
+    float scale = Characters[index].scale;
+    char t[32];
+
+    int x = VideoCX + WinW / 64;
+    int y = VideoCY + static_cast<int>((WinH / 6.8));
+
+    auto textOut = [&](int px, int py, const char* str, int color) {
+        SetTextColor(hdcCMain, 0x00000000);
+        TextOut(hdcCMain, px + 1, py + 1, str, static_cast<int>(strlen(str)));
+        SetTextColor(hdcCMain, color);
+        TextOut(hdcCMain, px, py, str, static_cast<int>(strlen(str)));
+    };
+
+    textOut(x, y, DinoInfo[ctype].Name, 0x0000b000);
+
+    if (OptSys) sprintf(t, "Weight: %3.2ft ", DinoInfo[ctype].Mass * scale * scale / 0.907f);
+    else        sprintf(t, "Weight: %3.2fT ", DinoInfo[ctype].Mass * scale * scale);
+    textOut(x, y + 16, t, 0x0000b000);
+
+    int R = static_cast<int>((VectorLength(SubVectors(Characters[index].pos, PlayerPos)) * 3 / 64.0f));
+    if (OptSys) sprintf(t, "Distance: %dft ", R);
+    else        sprintf(t, "Distance: %dm  ", R / 3);
+    textOut(x, y + 32, t, 0x0000b000);
+
+    // Mark dirty: 3 lines × 16px step + shadow + font height
+    MarkDirtyRect(x - 1, y - 1, 140, 50);
+
+    if (oldFont) SelectObject(hdcCMain, oldFont);
+    SelectObject(hdcCMain, hbmpOld);
+}
+
+void GLRenderer::Render_Cross(int x, int y)
+{
+    (void)x; (void)y;
+    // Crosshair is drawn by DrawOpticCross in Hunt.cpp via model rendering.
+    // No additional GL code needed here.
+}
+
+void GLRenderer::RenderHealthBar()
+{
+    // Interface compliance only. The GL path draws the health bar into
+    // lpVideoBuf via the free function RenderHealthBar() in GLStubs.cpp
+    // (called from ShowControlElements), and DrawHUDOverlay uploads it
+    // along with the rest of the HUD. This matches how the other 2D
+    // elements (DrawPicture, DrawTrophyText, etc.) are handled.
+}
+
+void GLRenderer::DrawTrophyText(int x, int y)
+{
+    // Trophy text is rendered via GDI onto the lpVideoBuf.
+    // D3D/3DFX call ddTextOut/FXTextOut which write to the backbuffer.
+    // For GL, we draw text onto lpVideoBuf using GDI, then DrawHUDOverlay uploads it.
+    // We need to use the hdcCMain + hbmpVideoBuf to draw onto lpVideoBuf.
+
+    if (!hdcCMain || !hbmpVideoBuf || !lpVideoBuf) return;
+
+    HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
+    SetBkMode(hdcCMain, TRANSPARENT);
+    HFONT oldFont = nullptr;
+    if (fnt_Small) oldFont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
+
+    int dtype = TrophyDisplayBody.ctype;
+    int time  = TrophyDisplayBody.time;
+    int date  = TrophyDisplayBody.date;
+    int wep   = TrophyDisplayBody.weapon;
+    int score = TrophyDisplayBody.score;
+    float scale = TrophyDisplayBody.scale;
+    float range = TrophyDisplayBody.range;
+    char t[64];
+
+    // D3D/3DFX draw at (x0+14, y0+18)
+    int tx = x + 14;
+    int ty = y + 18;
+    int lineStep = 16;
+
+    auto textOut = [&](int px, int py, const char* str, int color) {
+        SetTextColor(hdcCMain, 0x00101010);
+        TextOut(hdcCMain, px + 1, py + 1, str, static_cast<int>(strlen(str)));
+        SetTextColor(hdcCMain, color);
+        TextOut(hdcCMain, px, py, str, static_cast<int>(strlen(str)));
+    };
+
+    SIZE sz;
+    auto drawLine = [&](const char* label, const char* value, int color) {
+        textOut(tx, ty, label, color);
+        GetTextExtentPoint32(hdcCMain, label, static_cast<int>(strlen(label)), &sz);
+        int lw = sz.cx;
+        textOut(tx + lw, ty, value, 0x0000BFBF);
+        ty += lineStep;
+    };
+
+    drawLine("Name: ", DinoInfo[dtype].Name, 0x00BFBFBF);
+
+    if (OptSys) sprintf(t, "%3.2ft ", DinoInfo[dtype].Mass * scale * scale / 0.907f);
+    else        sprintf(t, "%3.2fT ", DinoInfo[dtype].Mass * scale * scale);
+    drawLine("Weight: ", t, 0x00BFBFBF);
+
+    if (OptSys) sprintf(t, "%3.2fft", DinoInfo[dtype].Length * scale / 0.3f);
+    else        sprintf(t, "%3.2fm", DinoInfo[dtype].Length * scale);
+    drawLine("Length: ", t, 0x00BFBFBF);
+
+    sprintf_s(t, sizeof(t), "%s    ", WeapInfo[wep].Name);
+    drawLine("Weapon: ", t, 0x00BFBFBF);
+
+    sprintf_s(t, sizeof(t), "%d", score);
+    drawLine("Score: ", t, 0x00BFBFBF);
+
+    if (OptSys) sprintf(t, "%3.1fft", range / 0.3f);
+    else        sprintf(t, "%3.1fm", range);
+    drawLine("Range of kill: ", t, 0x00BFBFBF);
+
+    if (OptSys) sprintf_s(t, sizeof(t), "%d.%d.%d   ", ((date>>10) & 255), (date & 255), date>>20);
+    else        sprintf_s(t, sizeof(t), "%d.%d.%d   ", (date & 255), ((date>>10) & 255), date>>20);
+    drawLine("Date: ", t, 0x00BFBFBF);
+
+    sprintf_s(t, sizeof(t), "%d:%02d", ((time>>10) & 255), (time & 255));
+    drawLine("Time: ", t, 0x00BFBFBF);
+
+    // Mark dirty: 7 lines × 16px step starting at (x+14, y+18),
+    // plus shadow offset (+1,+1) and font height (~14px).
+    MarkDirtyRect(x + 13, y + 17, 160, 128);
+
+    if (oldFont) SelectObject(hdcCMain, oldFont);
+    SelectObject(hdcCMain, hbmpOld);
+}
+
+void GLRenderer::DrawHUDOverlay()
+{
+#ifdef GL_PERF_HOOKS
+    GL_PERF_SCOPE("DrawHUDOverlay");
+#endif
+
+    if (!m_uiShader || !lpVideoBuf || WinW <= 0 || WinH <= 0) return;
+
+    EnsureUITexture();
+
+    glBindTexture(GL_TEXTURE_2D, m_uiTexture);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_TEXTURE_BIND(m_uiTexture);
+#endif
+
+    // Upload dirty regions (or full buffer if needed).
+    // The texture is top-down (EnsureUITexture allocates with nullptr data),
+    // but lpVideoBuf is top-down too (CreateVideoDIB with negative height).
+    // So no flip is needed at upload — the vertex shader handles the v-flip.
+    //
+    // We upload BOTH the previous frame's dirty rects (now cleared to zero
+    // by ClearStaleHUDRegions) AND the current frame's dirty rects (just
+    // drawn by HUD elements).  This ensures stale pixels that disappeared
+    // get zeroed on the GPU, while new pixels appear.
+    if (m_hudNeedsFullUpload) {
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, VideoPitch);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WinW, WinH,
+                        GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, lpVideoBuf);
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        m_hudNeedsFullUpload = false;
+    } else {
+        int totalRects = m_prevDirtyRectCount + m_dirtyRectCount;
+        if (totalRects > kMaxDirtyRects) {
+            // Overflow — fall back to full upload this frame
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, VideoPitch);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WinW, WinH,
+                            GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, lpVideoBuf);
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        } else {
+            // Upload previous frame's rects that are NOT fully covered by
+            // a current rect (those covered rects will be uploaded anyway
+            // by the current-rect pass below with fresh content).
+            for (int i = 0; i < m_prevDirtyRectCount; i++) {
+                const DirtyRect& r = m_prevDirtyRects[i];
+                bool covered = false;
+                for (int j = 0; j < m_dirtyRectCount; j++) {
+                    const DirtyRect& c = m_dirtyRects[j];
+                    if (r.x >= c.x && r.y >= c.y &&
+                        r.x + r.w <= c.x + c.w && r.y + r.h <= c.y + c.h) {
+                        covered = true;
+                        break;
+                    }
+                }
+                if (covered) continue;  // will be uploaded with current content below
+
+                const WORD* src = static_cast<const WORD*>(lpVideoBuf)
+                                  + static_cast<size_t>(r.y) * VideoPitch + r.x;
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, VideoPitch);
+                glTexSubImage2D(GL_TEXTURE_2D, 0, r.x, r.y, r.w, r.h,
+                                GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, src);
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+            }
+            // Then upload current frame's rects (newly drawn content)
+            for (int i = 0; i < m_dirtyRectCount; i++) {
+                const DirtyRect& r = m_dirtyRects[i];
+                const WORD* src = static_cast<const WORD*>(lpVideoBuf)
+                                  + static_cast<size_t>(r.y) * VideoPitch + r.x;
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, VideoPitch);
+                glTexSubImage2D(GL_TEXTURE_2D, 0, r.x, r.y, r.w, r.h,
+                                GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, src);
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+            }
+        }
+    }
+
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glUseProgram(m_uiShader);
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(m_uiVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_DRAW(2);
+#endif
+    glBindVertexArray(0);
+
+    glDisable(GL_BLEND);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
+    glDepthMask(GL_TRUE);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
+    glEnable(GL_DEPTH_TEST);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_STATE_CHANGE();
+#endif
+
+    // Swap: current becomes previous for next frame's clear+upload
+    for (int i = 0; i < m_dirtyRectCount && i < kMaxDirtyRects; i++)
+        m_prevDirtyRects[i] = m_dirtyRects[i];
+    m_prevDirtyRectCount = m_dirtyRectCount;
+    m_dirtyRectCount = 0;
+}
+
+void GLRenderer::DrawScaledPicture(int x, int y, int w, int h, TPicture& pic)
+{
+    if (!pic.lpImage || pic.W <= 0 || pic.H <= 0 || !lpVideoBuf) return;
+
+    WORD* dst = static_cast<WORD*>(lpVideoBuf);
+    for (int yy = 0; yy < h; yy++) {
+        int dstY = yy + y;
+        if (dstY < 0 || dstY >= WinH) continue;
+        int sy = yy * pic.H / h;
+        for (int xx = 0; xx < w; xx++) {
+            int dstX = xx + x;
+            if (dstX < 0 || dstX >= WinW) continue;
+            int sx = xx * pic.W / w;
+            WORD c = pic.lpImage[sy * pic.W + sx];
+            if (c != 0) dst[dstY * VideoPitch + dstX] = Conv565to555(c);
+        }
+    }
+
+    MarkDirtyRect(x, y, w, h);
+}
+
+void GLRenderer::DrawPicture(int x, int y, TPicture& pic)
+{
+    if (!pic.lpImage || pic.W <= 0 || pic.H <= 0 || !lpVideoBuf) return;
+
+    WORD* dst = static_cast<WORD*>(lpVideoBuf);
+    for (int yy = 0; yy < pic.H; yy++) {
+        int dstY = yy + y;
+        if (dstY < 0 || dstY >= WinH) continue;
+        int copyW = pic.W;
+        int srcX = 0;
+        int dstX = x;
+        if (dstX < 0) { srcX = -dstX; copyW += dstX; dstX = 0; }
+        if (dstX + copyW > WinW) copyW = WinW - dstX;
+        if (copyW <= 0) continue;
+        const WORD* src = pic.lpImage.get() + yy * pic.W + srcX;
+        WORD* d = dst + dstY * VideoPitch + dstX;
+        for (int i = 0; i < copyW; i++) {
+            d[i] = Conv565to555(src[i]);
+        }
+    }
+
+    MarkDirtyRect(x, y, pic.W, pic.H);
+}
+
+void GLRenderer::RegisterPicture(TPicture* pptr)
+{
+    // No-op: we copy to lpVideoBuf in DrawPicture instead
+    (void)pptr;
+}
+
+void GLRenderer::MarkDirtyRect(int x, int y, int w, int h)
+{
+    // Clamp to screen bounds
+    if (x < 0) { w += x; x = 0; }
+    if (y < 0) { h += y; y = 0; }
+    if (x + w > WinW) w = WinW - x;
+    if (y + h > WinH) h = WinH - y;
+    if (w <= 0 || h <= 0) return;
+
+    // If we already need a full upload (overflow, texture recreated, etc.),
+    // don't bother accumulating rects.
+    if (m_hudNeedsFullUpload) return;
+
+    // Check if this rect is already covered by an existing rect
+    for (int i = 0; i < m_dirtyRectCount; i++) {
+        const DirtyRect& r = m_dirtyRects[i];
+        if (x >= r.x && y >= r.y && x + w <= r.x + r.w && y + h <= r.y + r.h)
+            return;  // fully contained
+    }
+
+    // Overflow guard: fall back to full upload next frame
+    if (m_dirtyRectCount >= kMaxDirtyRects) {
+        m_hudNeedsFullUpload = true;
+        m_dirtyRectCount = 0;
+        return;
+    }
+
+    m_dirtyRects[m_dirtyRectCount++] = {x, y, w, h};
+}
+
+void GLRenderer::InvalidateHUDOverlay()
+{
+    // Called after CopyHARDToDIB writes the full 3D scene into lpVideoBuf.
+    // The next frame must do a full-buffer clear + full upload to erase
+    // the non-HUD scene pixels from the overlay texture.
+    m_hudNeedsFullClear = true;
+    m_dirtyRectCount = 0;
+    m_prevDirtyRectCount = 0;
+}
+
+void GLRenderer::ClearStaleHUDRegions()
+{
+    // Clear only the regions from the previous frame (not the whole buffer).
+    // This zeros out HUD elements that may have moved or disappeared,
+    // while leaving the rest of lpVideoBuf untouched (it will retain its
+    // previous content which is still valid on the GPU texture).
+    if (!lpVideoBuf || VideoPitch <= 0) return;
+
+    if (m_hudNeedsFullClear) {
+        // A full-DIB write (CopyHARDToDIB) happened — the entire buffer
+        // has non-zero scene data.  Clear it all and force full upload.
+        memset(lpVideoBuf, 0, static_cast<size_t>(VideoPitch) * WinH * sizeof(WORD));
+        m_hudNeedsFullClear = false;
+        m_hudNeedsFullUpload = true;
+        return;
+    }
+
+    for (int i = 0; i < m_prevDirtyRectCount; i++) {
+        const DirtyRect& r = m_prevDirtyRects[i];
+        // Clamp to be safe (rects from previous frame should already be clamped)
+        int cx = r.x, cy = r.y, cw = r.w, ch = r.h;
+        if (cx < 0) { cw += cx; cx = 0; }
+        if (cy < 0) { ch += cy; cy = 0; }
+        if (cx + cw > WinW) cw = WinW - cx;
+        if (cy + ch > WinH) ch = WinH - cy;
+        if (cw <= 0 || ch <= 0) continue;
+
+        WORD* row = static_cast<WORD*>(lpVideoBuf) + static_cast<size_t>(cy) * VideoPitch + cx;
+        for (int yy = 0; yy < ch; yy++) {
+            memset(row, 0, static_cast<size_t>(cw) * sizeof(WORD));
+            row += VideoPitch;
+        }
+    }
+}
+
+void GLRenderer::UpdateUIPixels()
+{
+    // Phase 2.20: this function is now a no-op.  lpVideoBuf is uploaded
+    // directly to the GPU as a GL_RGB5 texture in DrawHUDOverlay — no
+    // CPU-side 555→RGBA8 conversion needed.  Saved ~1ms CPU per frame.
+    (void)0;
+}
+
+void GLRenderer::EnsureUITexture()
+{
+    // Phase 2.20: allocate as GL_RGB5 (16-bit) to match lpVideoBuf's
+    // X1R5G5B5 format.  No CPU-side RGBA8 buffer needed — we upload
+    // lpVideoBuf directly via glTexSubImage2D.
+    if (WinW <= 0 || WinH <= 0) return;
+    if (m_uiTexture && m_uiTextureWidth == WinW && m_uiTextureHeight == WinH) return;
+
+    if (!m_uiTexture) glGenTextures(1, &m_uiTexture);
+    glBindTexture(GL_TEXTURE_2D, m_uiTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB5, WinW, WinH, 0,
+                 GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, nullptr);
+    m_uiTextureWidth = WinW;
+    m_uiTextureHeight = WinH;
+    m_hudNeedsFullUpload = true;  // texture recreated — must full-upload next frame
+    m_dirtyRectCount = 0;
+    m_prevDirtyRectCount = 0;
+}
+
+void GLRenderer::ShutdownHudPipeline()
+{
+    if (m_uiTexture && m_hrc) { glDeleteTextures(1, &m_uiTexture); m_uiTexture = 0; }
+    if (m_uiVBO && m_hrc) { glDeleteBuffers(1, &m_uiVBO); m_uiVBO = 0; }
+    if (m_uiVAO && m_hrc) { glDeleteVertexArrays(1, &m_uiVAO); m_uiVAO = 0; }
+    if (m_uiShader && m_hrc) { glDeleteProgram(m_uiShader); m_uiShader = 0; }
+    m_uiTextureWidth = 0;
+    m_uiTextureHeight = 0;
+}
+
+void GLRenderer::InitializeHudPipeline()
+{
+    // Phase 2.20: skip the GDI round-trip.  lpVideoBuf is 16-bit 555
+    // (X1R5G5B5), top-down.  We upload it directly as a GL_RGB5 texture
+    // and let the fragment shader convert to RGBA8 with transparency.
+    // This eliminates the UpdateUIPixels CPU loop (480K pixel conversions)
+    // and the m_uiPixels RGBA8 buffer (1.92 MB).
+    const char* vsSource =
+        "#version 330 core\n"
+        "layout (location = 0) in vec2 aPos;\n"
+        "layout (location = 1) in vec2 aTexCoord;\n"
+        "out vec2 vTexCoord;\n"
+        "void main() {\n"
+        "   gl_Position = vec4(aPos, 0.0, 1.0);\n"
+        "   // GDI lpVideoBuf is top-down; GL textures are bottom-up.\n"
+        "   // Flip by inverting the v-coordinate.\n"
+        "   vTexCoord = vec2(aTexCoord.x, 1.0 - aTexCoord.y);\n"
+        "}\n";
+
+    const char* fsSource =
+        "#version 330 core\n"
+        "in vec2 vTexCoord;\n"
+        "out vec4 FragColor;\n"
+        "uniform sampler2D uTexture;\n"
+        "void main() {\n"
+        "   vec3 rgb555 = texture(uTexture, vTexCoord).rgb;\n"
+        "   // Pixel value 0 = transparent (HUD background).\n"
+        "   if (dot(rgb555, vec3(1.0)) < 0.01) discard;\n"
+        "   FragColor = vec4(rgb555, 1.0);\n"
+        "}\n";
+
+    GLuint vertexShader = CompileShader(GL_VERTEX_SHADER, vsSource);
+    GLuint fragmentShader = CompileShader(GL_FRAGMENT_SHADER, fsSource);
+    m_uiShader = LinkProgram(vertexShader, fragmentShader);
+    if (!m_uiShader) {
+        PrintLog("GLRenderer: UI shader compilation... FAILED!\n");
+        return;
+    }
+    PrintLog("GLRenderer: UI shader compilation... OK\n");
+
+    // Static fullscreen quad in NDC: (x, y, u, v) per vertex
+    // Texture is flipped vertically in UpdateUIPixels, so:
+    //   tex (0,0) = bottom-left of image, tex (0,1) = top-left of image
+    //   Screen top-left (-1,1) should show tex (0,1) = top of image
+    constexpr float kQuadVertices[] = {
+        -1.0f,  1.0f, 0.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f, 1.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+         1.0f,  1.0f, 1.0f, 1.0f,
+    };
+
+    glGenVertexArrays(1, &m_uiVAO);
+    glGenBuffers(1, &m_uiVBO);
+
+    glBindVertexArray(m_uiVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_uiVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(kQuadVertices), kQuadVertices, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glUseProgram(m_uiShader);
+    glUniform1i(glGetUniformLocation(m_uiShader, "uTexture"), 0);
+}
+
+void GLRenderer::DrawHMap()
+{
+}
+
+void GLRenderer::DrawTPlaneClip(bool clip)
+{
+    (void)clip;
+}
+
+void GLRenderer::DrawTPlane(bool clip)
+{
+    (void)clip;
+}
+
+void GLRenderer::DrawPostObjects()
+{
+}
+
+#endif // _gl

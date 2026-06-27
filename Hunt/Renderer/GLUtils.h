@@ -55,3 +55,4 @@ void ClipTriangleAgainstWater(const ModelClipVertex& a,
 
 // Ensure the scene-copy texture exists and matches window size
 void EnsureNightSceneTex(GLuint& tex, int& texW, int& texH, int winW, int winH);
+WORD Conv565to555(WORD c);

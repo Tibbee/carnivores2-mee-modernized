@@ -11,6 +11,7 @@
 #include "glad/glad.h"
 #include <array>
 #include <cmath>
+#include <cstdint>
 
 HMODULE libGL = nullptr;
 
@@ -242,6 +243,14 @@ void EnsureNightSceneTex(GLuint& tex, int& texW, int& texH, int winW, int winH)
         texW = winW;
         texH = winH;
     }
+}
+
+WORD Conv565to555(WORD c)
+{
+    int r = (c >> 11) & 0x1F;
+    int g = (c >> 5) & 0x3F;
+    int b = c & 0x1F;
+    return (r << 10) | ((g >> 1) << 5) | b;
 }
 
 #endif // _gl
