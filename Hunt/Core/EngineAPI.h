@@ -191,22 +191,6 @@ void PerfFrameEnd();
 
 
 #endif
-// === GAME NETWORKING (Game split) ===
-void putInt(byte data[], int *pos, long in);
-void putInt2(byte data[], int *pos, long in);
-void putFloat(byte data[], int *pos, long in);
-int readInt(const byte data[], int *pos);
-int readInt2(const byte data[], int *pos);
-float readFloat(const byte data[], int *pos);
-bool RecvPacket(SOCKET *socket, int bufSize, bool init);
-void SendPacket(SOCKET *socket, const int bufSize, bool init);
-void ShutDownServer();
-void ShutDownClient();
-void _StartupServer();
-void _StartupClient();
-void StartupServerCommsThread();
-void StartupClientCommsThread();
-
 // === TERRAIN QUERIES ===
 float GetLandOH(int x, int y);
 float GetLandH(float x, float y);

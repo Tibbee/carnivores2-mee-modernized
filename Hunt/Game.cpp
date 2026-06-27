@@ -514,12 +514,7 @@ void InitEngine()
 
   //multiplayer
   Multiplayer = false;
-  HaltThread = true;
   Host = false;
-  ListenSocket = INVALID_SOCKET;
-  ClientSocket = INVALID_SOCKET;
-  ConnectSocket = INVALID_SOCKET;
-  recvbuflen = DEFAULT_BUFLEN;
   result = nullptr;
 
   fnt_BIG = CreateFont(

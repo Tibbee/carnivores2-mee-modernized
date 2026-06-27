@@ -3,6 +3,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "Network/NetworkManager.h"
 
 static bool equals_nocase(const char* lhs, const char* rhs)
 {
@@ -107,7 +108,7 @@ void ProcessCommandLine()
     if (strstr(s,"din=")) TargetDino = (atoi(&s[4])*1024);
 	if (strstr(s, "wep=")) WeaponPres = atoi(&s[4]);
 	if (strstr(s, "dtm=")) OptDayNight = atoi(&s[4]);
-    if (strstr(s, "server=")) strcpy(ServerAddress, (s + 7));
+    if (strstr(s, "server=")) strcpy(g_Network.m_serverAddress, (s + 7));
 
     if (strstr(s,"-debug"))   DEBUG = true;
     if (strstr(s,"-double"))  DoubleAmmo = true;

@@ -37,17 +37,13 @@ GLOBAL   int   UnderWaterT;
 
 GLOBAL   int   TotalTreeTable, TotalAreaInfo, TotalSpawnGroup, TotalC, TotalW, TotalMA, TotalTrophy;// , TotalRegion, TotalAvoid;
 
-GLOBAL   char    ServerAddress[128];
 
 GLOBAL   WSADATA wsaData;
 
 GLOBAL   int iResult;
 
-GLOBAL   SOCKET ListenSocket;
 
-GLOBAL   SOCKET ClientSocket;
 
-GLOBAL   SOCKET ConnectSocket;
 
 GLOBAL   struct addrinfo *result;
 
@@ -55,15 +51,10 @@ GLOBAL   struct addrinfo hints;
 
 GLOBAL   int iSendResult;
 
-GLOBAL   HANDLE CommsThreadHandle;
 
-GLOBAL   LPDWORD CommsThreadID;
 
-GLOBAL   BOOL HaltThread;
 
-GLOBAL   char recvbuf[DEFAULT_BUFLEN];
 
-GLOBAL   int recvbuflen;
 
 GLOBAL   HWND    hwndMain;
 
