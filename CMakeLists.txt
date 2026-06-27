@@ -131,6 +131,10 @@ set(CORE_FILES
     Hunt/Game/Controls.cpp
     Hunt/Game/PlayerMovement.cpp
     Hunt/Game/Effects.cpp
+    Hunt/Game/Network.cpp
+    Hunt/Game/TerrainQueries.cpp
+    Hunt/Game/Ship.cpp
+    Hunt/Game/CommandLine.cpp
     Hunt/Game.cpp
     Hunt/Hunt.cpp
     Hunt/Interface.cpp

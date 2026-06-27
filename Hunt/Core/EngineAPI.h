@@ -189,7 +189,47 @@ void PerfFrameBegin();
 void PerfFrameEnd();
 
 
+
 #endif
+// === GAME NETWORKING (Game split) ===
+void putInt(byte data[], int *pos, long in);
+void putInt2(byte data[], int *pos, long in);
+void putFloat(byte data[], int *pos, long in);
+int readInt(const byte data[], int *pos);
+int readInt2(const byte data[], int *pos);
+float readFloat(const byte data[], int *pos);
+bool RecvPacket(SOCKET *socket, int bufSize, bool init);
+void SendPacket(SOCKET *socket, const int bufSize, bool init);
+void ShutDownServer();
+void ShutDownClient();
+void _StartupServer();
+void _StartupClient();
+void StartupServerCommsThread();
+void StartupClientCommsThread();
+
+// === TERRAIN QUERIES ===
+float GetLandOH(int x, int y);
+float GetLandH(float x, float y);
+float GetLandUpH(float x, float y);
+float GetLandCeilH(float CameraX, float CameraZ);
+float GetLandQH(float CameraX, float CameraZ);
+float GetLandHObj(float CameraX, float CameraZ);
+float GetLandQHNoObj(float CameraX, float CameraZ);
+float GetLandLt(float x, float y);
+bool waterNear(float x, float y, float maxDist);
+void CalcModelGroundLight(TModel *mptr, float x0, float z0, int FI);
+BOOL PointOnBound(float &H, float px, float py, float cx, float cy, float oy, TBound *bound, int angle);
+
+// === SHIP SYSTEM ===
+void AddWCircle(float x, float z, float scale);
+void SubmitDinoScore(int cindex);
+void AddShipTask(int cindex);
+void AddShipSupply(float tx, float tz);
+void InitShip(int cindex);
+
+// === COMMAND LINE ===
+void ProcessCommandLine();
+
 // === GAME CONTROLS / MOVEMENT (Hunt split) ===
 void CaptureMouse(BOOL capture);
 void ResetMousePos();
