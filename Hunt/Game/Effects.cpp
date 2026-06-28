@@ -90,11 +90,14 @@ void PreCashGroundModel()
 
         if (fabs(rv.x) > -rv.z + 1524)
         {
+#if !defined(_gl)
           VMap2[kViewGridCenter + y][kViewGridCenter + x].DFlags = 128;
+#endif
         }
         else
         {
           NeedWater = true;
+#if !defined(_gl)
           VMap2[kViewGridCenter + y][kViewGridCenter + x].Light = 168-static_cast<int>((wdelta*24));
 
           float Alpha;
@@ -120,8 +123,10 @@ void PreCashGroundModel()
           else Alpha = 255.f;
 
           VMap2[kViewGridCenter + y][kViewGridCenter + x].ALPHA=static_cast<int>(Alpha);
+#endif
           VMap2[kViewGridCenter + y][kViewGridCenter + x].Fog = 0;
 
+#if !defined(_gl)
           if (rv.z>-256.0) VMap2[kViewGridCenter + y][kViewGridCenter + x].DFlags=128;
           else
           {
@@ -147,6 +152,7 @@ void PreCashGroundModel()
             VMap2[kViewGridCenter + y][kViewGridCenter + x].DFlags = DF;
 
           }
+#endif
         }
       }
 
@@ -162,7 +168,9 @@ void PreCashGroundModel()
       if (fabs(rv.x * FOVK) > -rv.z + 1600)
       {
         VMap[kViewGridCenter + y][kViewGridCenter + x].v = rv;
+#if !defined(_gl)
         VMap[kViewGridCenter + y][kViewGridCenter + x].DFlags = 128;
+#endif
         continue;
       }
 
@@ -173,7 +181,9 @@ void PreCashGroundModel()
         else
           VMap[kViewGridCenter + y][kViewGridCenter + x].Fog = 0;
 
+#if !defined(_gl)
       VMap[kViewGridCenter + y][kViewGridCenter + x].ALPHA = 255;
+#endif
 
       v[0]=rv;
 
@@ -212,6 +222,7 @@ void PreCashGroundModel()
 
 
 
+#if !defined(_gl)
       if (v[0].z>-256.0) DF+=128;
       else
       {
@@ -237,6 +248,7 @@ void PreCashGroundModel()
       }
 
       VMap[kViewGridCenter + y][kViewGridCenter + x].DFlags = DF;
+#endif
     }
 
   FOGON = FogFound || IsUnderwater();

@@ -167,6 +167,15 @@ set(CORE_FILES
     Hunt/AppRes.h
 )
 
+
+# ============================================================
+# Performance: LTO for Release builds (Phase 4)
+# ============================================================
+if(MSVC AND CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG")
+endif()
+
 # Menu subdirectory (always built - renderer-agnostic)
 add_subdirectory(Menu)
 
