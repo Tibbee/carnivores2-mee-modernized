@@ -197,3 +197,26 @@ if(RENDERER)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     )
 endif()
+
+# ============================================================
+# Testing
+# ============================================================
+if(MSVC)
+    enable_testing()
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/refs/tags/release-1.12.1.zip
+    )
+    set(FETCHCONTENT_QUIET OFF)
+    FetchContent_MakeAvailable(googletest)
+
+    add_executable(Carnivores2Tests
+        tests/test_math.cpp
+    )
+    target_include_directories(Carnivores2Tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Core
+    )
+    target_link_libraries(Carnivores2Tests PRIVATE gtest_main)
+    add_test(NAME Carnivores2Tests COMMAND Carnivores2Tests)
+endif()

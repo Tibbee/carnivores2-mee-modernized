@@ -5,9 +5,8 @@
 #include "Hunt.h"
 #include "Network/NetworkManager.h"
 
-// Constants and externs needed by network code
+// Constants needed by network code
 const int bufSizeMax = 189;
-extern int PlayersCount;
 
 // Global instance
 NetworkManager g_Network;

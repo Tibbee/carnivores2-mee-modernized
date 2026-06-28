@@ -1,0 +1,40 @@
+name: Build and Test
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        preset: [ogl-debug, ogl-release, soft-release, d3d-release]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure CMake
+      run: cmake --preset ${{ matrix.preset }}
+
+    - name: Build
+      run: cmake --build --preset ${{ matrix.preset }}
+
+    - name: Smoke Test (GL only)
+      if: matrix.preset == 'ogl-release'
+      shell: powershell
+      run: |
+        & ./tests/smoke_test.ps1 -ExePath build/ogl-release/bin/Carnivores1_GL.exe -Duration 10
+
+    - name: Unit Tests (debug builds)
+      if: matrix.preset == 'ogl-debug'
+      shell: powershell
+      run: |
+        cd build/ogl-debug
+        ctest --output-on-failure
+
+    - name: Memory Leak Report (debug)
+      if: matrix.preset == 'ogl-debug'
+      shell: powershell
+      run: |
+        & ./tests/smoke_test.ps1 -ExePath build/ogl-debug/bin/Carnivores1_GL.exe -Duration 10
+        Select-String -Path carnivor.log -Pattern "No memory leaks detected"
+        if ($LASTEXITCODE -ne 0) { throw "Memory leaks detected!" }

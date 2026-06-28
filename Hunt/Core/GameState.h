@@ -179,6 +179,7 @@ GLOBAL BOOL ScentMode, CamoMode,
           TrophyMode, DoubleAmmo,
           DogMode, Multiplayer,
           Host, CiskMode, SonarMode,
+          PlayersCount,
           ScannerMode, SurvivalMode;
 
 GLOBAL float ScoreMod_Camo;
