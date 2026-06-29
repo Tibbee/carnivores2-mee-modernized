@@ -73,6 +73,7 @@ void RenderBag();
 void RenderBullet(int);
 void RenderPlayer(int);
 void RenderSkyPlane();
+void DrawScene();
 void RenderHealthBar();
 void Render_Cross(int, int);
 void Render_LifeInfo(int);

@@ -1517,10 +1517,13 @@ void GLRenderer::DrawVertexBatch(const std::vector<TerrainVertex>& vertices) con
 
 void GLRenderer::DrawFrame(const RenderFrameContext& ctx)
 {
-    // Phase 2.1: initial implementation — forward to DrawScene.
+    // Phase 2.1: forward to the full rendering pipeline.
+    // DrawScene() calls PreCashGroundModel (updates VMap/VMap2 from
+    // current camera position), then renders sky, terrain, water,
+    // models, vegetation, shadows, and UI elements.
     // Future: replace global reads with ctx.WinW, ctx.fogColor, etc.
     (void)ctx;
-    DrawScene();
+    ::DrawScene();
 }
 
 void GLRenderer::DrawScene()
