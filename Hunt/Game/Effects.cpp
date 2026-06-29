@@ -97,7 +97,6 @@ void PreCashGroundModel()
         else
         {
           NeedWater = true;
-#if !defined(_gl)
           VMap2[kViewGridCenter + y][kViewGridCenter + x].Light = 168-static_cast<int>((wdelta*24));
 
           float Alpha;
@@ -123,7 +122,6 @@ void PreCashGroundModel()
           else Alpha = 255.f;
 
           VMap2[kViewGridCenter + y][kViewGridCenter + x].ALPHA=static_cast<int>(Alpha);
-#endif
           VMap2[kViewGridCenter + y][kViewGridCenter + x].Fog = 0;
 
 #if !defined(_gl)
