@@ -341,7 +341,7 @@ void ProcessControls()
 SKIPYMOVE:
 
   SWIM = false;
-  if (g_GameMode == GameMode::Swimming) {
+  if (g_GameMode == GameMode::Swimming && !UNDERWATER && !(KeyFlags & kfJump)) {
     g_GameMode = GameMode::Normal;
   }
   if (!IsUnderwater() && (KeyFlags & kfJump) )
@@ -444,6 +444,7 @@ SKIPYMOVE:
       CameraY+=20;
       AddVoicev(fxWaterOut.length, fxWaterOut.lpData.data(), 256);
       AddWCircle(CameraX, CameraZ, 2.0);
+      g_GameMode = GameMode::Normal;
     }
     if (UNDERWATER) {
         g_GameMode = GameMode::Underwater;
@@ -459,8 +460,6 @@ SKIPYMOVE:
       AddVoicev(fxWaterIn.length, fxWaterIn.lpData.data(), 256);
       AddWCircle(CameraX, CameraZ, 2.0);
       g_GameMode = GameMode::Underwater;
-    } else {
-      g_GameMode = GameMode::Normal;
     }
   }
 
