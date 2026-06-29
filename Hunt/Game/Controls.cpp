@@ -341,10 +341,14 @@ void ProcessControls()
 SKIPYMOVE:
 
   SWIM = false;
+  if (g_GameMode == GameMode::Swimming) {
+    g_GameMode = GameMode::Normal;
+  }
   if (!IsUnderwater() && (KeyFlags & kfJump) )
     if (PlayerY<hwater-148)
     {
       SWIM = true;
+      g_GameMode = GameMode::Swimming;
       PlayerY = hwater-148;
       YSpeed = 0;
     }
@@ -431,27 +435,32 @@ SKIPYMOVE:
 //==================== SWIM & UNDERWATER =========================//
   ONWATER = GetLandUpH(CameraX, CameraZ) > GetLandH(CameraX, CameraZ);
 
-  if (IsUnderwater())
+  if (UNDERWATER)
   {
     UNDERWATER = (GetLandUpH(CameraX, CameraZ)-4>= CameraY);
-    if (!IsUnderwater())
+    if (!UNDERWATER)
     {
       HeadY+=20;
       CameraY+=20;
       AddVoicev(fxWaterOut.length, fxWaterOut.lpData.data(), 256);
       AddWCircle(CameraX, CameraZ, 2.0);
     }
+    if (UNDERWATER) {
+        g_GameMode = GameMode::Underwater;
+    }
   }
   else
   {
     UNDERWATER = (GetLandUpH(CameraX, CameraZ)+28 >= CameraY);
-    if (IsUnderwater())
+    if (UNDERWATER)
     {
       HeadY-=20;
       CameraY-=20;
-      g_GameMode = GameMode::Normal;
       AddVoicev(fxWaterIn.length, fxWaterIn.lpData.data(), 256);
       AddWCircle(CameraX, CameraZ, 2.0);
+      g_GameMode = GameMode::Underwater;
+    } else {
+      g_GameMode = GameMode::Normal;
     }
   }
 
