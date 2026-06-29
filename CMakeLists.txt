@@ -134,6 +134,7 @@ set(CORE_FILES
     Hunt/Game/Effects.cpp
     Hunt/Game/Network.cpp
     Hunt/Network/NetworkManager.cpp
+    Hunt/Debug/Log.cpp
     Hunt/Game/TerrainQueries.cpp
     Hunt/Game/Ship.cpp
     Hunt/Game/CommandLine.cpp

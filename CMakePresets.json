@@ -107,6 +107,22 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "ogl-pgo-instr",
+      "displayName": "OpenGL PGO (Instrumented)",
+      "inherits": "ogl-release",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS_RELEASE": "/GL /O2 /Ob2 /DNDEBUG /GENPROFILE"
+      }
+    },
+    {
+      "name": "ogl-pgo-opt",
+      "displayName": "OpenGL PGO (Optimized)",
+      "inherits": "ogl-release",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS_RELEASE": "/GL /O2 /Ob2 /DNDEBUG /USEPROFILE"
+      }
     }
   ],
   "buildPresets": [
@@ -145,6 +161,14 @@
     {
       "name": "menu-release",
       "configurePreset": "menu-release"
+    },
+    {
+      "name": "ogl-pgo-instr",
+      "configurePreset": "ogl-pgo-instr"
+    },
+    {
+      "name": "ogl-pgo-opt",
+      "configurePreset": "ogl-pgo-opt"
     }
   ]
 }
