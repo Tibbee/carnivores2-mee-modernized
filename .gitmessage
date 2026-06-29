@@ -1,0 +1,34 @@
+# <type>(<scope>): <subject>
+# |<----  Max 72 Characters  ---->|
+#
+# Body: flat bulleted list, no indented sub-bullets
+# - Explain why this change is needed
+# - What was done (not how)
+# - Any side effects to be aware of
+#
+# Files: list of changed files (optional, omit if too long)
+#
+# --- COMMIT END ---
+# Types:
+#   feat     (new feature)
+#   fix      (bug fix)
+#   docs     (documentation only)
+#   style    (formatting, no logic change)
+#   refactor (code restructuring)
+#   perf     (performance improvement)
+#   test     (adding/updating tests)
+#   build    (build system / dependencies)
+#   ci       (CI configuration)
+#   chore    (maintenance, tooling)
+#   revert   (reverting changes)
+#
+# Scopes (examples):
+#   renderer, audio, ai, map, hud, water, terrain, model,
+#   menu, network, build, deps, game, controls
+#
+# Subject: imperative mood, present tense, no period
+#   ✅ "fix: prevent null pointer in user lookup"
+#   ❌ "fixed null pointer bug"
+#   ❌ "Fix: null pointer bug."
+#
+# Remember: one logical change per commit
