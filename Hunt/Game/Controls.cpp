@@ -436,8 +436,26 @@ SKIPYMOVE:
 //==================== SWIM & UNDERWATER =========================//
   ONWATER = GetLandUpH(CameraX, CameraZ) > GetLandH(CameraX, CameraZ);
 
+  // Only GameMode states that represent in-world movement should be silently
+  // overwritten by an underwater transition. Anything else (MapMode,
+  // ExitCountdown, Paused, TrophyMode, Binocular, OpticScope, InfoMode,
+  // SonarMode, MessageMode) is a UI overlay the player explicitly opened
+  // (e.g. Tab -> map, Escape -> exit prompt). Stomping on it every frame
+  // makes the map and exit menu unreachable while the camera is submerged,
+  // and breaks other overlays similarly. We still apply the side effects
+  // (camera tweak, splash sound, water circle) when transitioning — they're
+  // pure visual feedback from the physical state change, independent of
+  // whether the logical game mode also flips to Underwater.
+  const bool canEnterUnderwaterFrom =
+      g_GameMode == GameMode::Normal ||
+      g_GameMode == GameMode::Swimming ||
+      g_GameMode == GameMode::Crouching;
+
   if (UNDERWATER)
   {
+    // We entered this branch because the boolean was true on the
+    // PREVIOUS frame; recompute it from the current camera height to
+    // detect surface <-> submerged transitions.
     UNDERWATER = (GetLandUpH(CameraX, CameraZ)-4>= CameraY);
     if (!UNDERWATER)
     {
@@ -445,11 +463,20 @@ SKIPYMOVE:
       CameraY+=20;
       AddVoicev(fxWaterOut.length, fxWaterOut.lpData.data(), 256);
       AddWCircle(CameraX, CameraZ, 2.0);
-      g_GameMode = GameMode::Normal;
+      // Surfaced from underwater. Only normalise the mode if we were
+      // actually in the underwater (or swimming) mode; otherwise an
+      // overlay state (MapMode, ExitCountdown, Paused, ...) would be
+      // silently cleared when the camera rises out of the water.
+      if (g_GameMode == GameMode::Underwater ||
+          g_GameMode == GameMode::Swimming) {
+        g_GameMode = GameMode::Normal;
+      }
     }
-    if (UNDERWATER) {
-        g_GameMode = GameMode::Underwater;
-    }
+    // NOTE: do NOT unconditionally write g_GameMode = GameMode::Underwater
+    // when still submerged. That previously fired every single frame and
+    // clobbered MapMode / ExitCountdown / PauseMode / Binocular etc. as
+    // soon as the player opened them. The state machine must only enter
+    // the underwater mode on the surface -> underwater transition below.
   }
   else
   {
@@ -460,7 +487,16 @@ SKIPYMOVE:
       CameraY-=20;
       AddVoicev(fxWaterIn.length, fxWaterIn.lpData.data(), 256);
       AddWCircle(CameraX, CameraZ, 2.0);
-      g_GameMode = GameMode::Underwater;
+      // Only transition to the underwater GameMode when the player was
+      // actually moving around. If the player is in an overlay mode
+      // (MapMode, ExitCountdown, Paused, ...) we leave them alone — they
+      // should still be able to use the map/exit menu even while their
+      // camera is physically under water. The visual submersion cues draw
+      // independently via the renderer / underwater fog; g_GameMode is
+      // only the logical state and won't be forced into Underwater.
+      if (canEnterUnderwaterFrom) {
+        g_GameMode = GameMode::Underwater;
+      }
     }
   }
 
