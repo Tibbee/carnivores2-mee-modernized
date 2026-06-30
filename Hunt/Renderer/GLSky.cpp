@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLSky.cpp — Sky plane, sun, and atmospheric rendering
+// GLSky.cpp ï¿½ Sky plane, sun, and atmospheric rendering
 // ==========================================================================
 
 #include "Hunt.h"
@@ -100,7 +100,10 @@ void GLRenderer::RenderSkyPlane()
     glUniform1i(m_locSkyTexture, 0);
     glUniform2f(m_locSkyViewport, static_cast<float>(WinW), static_cast<float>(WinH));
     glUniform2f(m_locSkyVideoCenter, static_cast<float>(VideoCX), static_cast<float>(VideoCY));
-    // uFogColor and uForceFog now sourced from PerFrame UBO (Phase 1.1).
+    // uFogColor now sourced from PerFrame UBO (Phase 1.1). uForceFog is
+    // still bound in the UBO (kept for layout compatibility) but no longer
+    // used by this shader; the sky's underwater look comes from the
+    // 3dfx fog formula plus the uUnderwaterDepth uniform.
     glUniform3f(m_locSkyQ, qx, qy, qz);
     glUniform3f(m_locSkyP, px, py, pz);
     glUniform3f(m_locSkyR, rx, ry, rz);
@@ -143,8 +146,12 @@ void GLRenderer::RenderSkyPlane()
     GL_PERF_STATE_CHANGE();
 #endif
 
-    // Render sun on top of sky (matching D3D/3DFX: sky plane renders sun)
-    if (SunModel && !IsUnderwater()) {
+    // Render sun on top of sky (matching D3D/3DFX: sky plane renders sun).
+    // The 3dfx renderer does not skip the sun underwater; the per-vertex
+    // fog on the scene (driven by FogsList[127]) plus the sky shader's
+    // uUnderwaterDepth uniform provide the dimming effect, mirroring
+    // what Render3DFX.cpp:723 does with a 50% fog-color overlay.
+    if (SunModel) {
         m_sunLight = 0.0f;
         Vector3d sunDir = {-2048.0f, 4048.0f, -2048.0f};
         sunDir = RotateVector(sunDir);
@@ -572,8 +579,16 @@ void GLRenderer::InitializeSkyPipeline()
         "   float dy = rightV - leftV;\n"
         "   float dt = sqrt(dx*dx + dy*dy) / 96.0 - 6.0;\n"
         "   dt = clamp(dt, 0.0, 10.0);\n"
+        // 3dfx sky formula: identical above and below water.  The
+        // underwater effect comes from uFogBase being high (capped at
+        // FLimit) and from the uUnderwaterDepth uniform adding up to
+        // 30% extra fog at maximum depth, so the sky fades out like
+        // the per-vertex fog on terrain and models.  Matches
+        // Render3DFX.cpp:2621.  Previously the shader did
+        //   fogFactor = mix(fogFactor, 1.0, uForceFog)
+        // which fully replaced the sky with the fog colour when
+        // underwater, completely hiding the sky and sun.
         "   float fogFactor = clamp(max(dt * 225.0 / 10.0, uFogBase) / 255.0, 0.0, 1.0);\n"
-        "   fogFactor = mix(fogFactor, 1.0, clamp(uForceFog, 0.0, 1.0));\n"
         "   vec2 uv = vec2((skyU + uSkyTime) / 256.0, (skyV - uSkyTime) / 256.0);\n"
         "   vec3 skyColor = texture(uSkyTexture, uv).rgb;\n"
         "   FragColor = vec4(mix(skyColor, uFogColor, fogFactor), 1.0);\n"
