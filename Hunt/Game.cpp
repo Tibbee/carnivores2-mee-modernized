@@ -682,7 +682,13 @@ OptFpsLimit = 0;  // 0 = unlimited
 
   FogsList[127].fogRGB = 0x00504000;
   FogsList[127].Mortal = false;
-  FogsList[127].Transp = 460;
+  // Underwater fog density.  Transp=220, FLimit=200: builds up moderately
+  // fast, ~78% max opacity.  Was Transp=460 which gave a sparse, dark
+  // underwater look.  The depth-based multiplier in CalcFogLevel() ramps
+  // density up further as the camera goes deeper, so close-range vertices
+  // already look heavily tinted at depth and far vertices saturate at
+  // FLimit+60 (260) which the per-vertex shader clamps to 1.0.
+  FogsList[127].Transp = 220;
   FogsList[127].FLimit = 200;
 
   FillMemory( FogsMap, sizeof(FogsMap), 0);
