@@ -123,10 +123,24 @@ void ShowShifts()
 
 void ProcessDemoMovement()
 {
-  g_GameMode = GameMode::Normal;
-
-  g_GameMode = GameMode::Normal;
-  g_GameMode = GameMode::Normal;
+  // Bug fix: previously stomped g_GameMode = GameMode::Normal here
+  // three times in a row, every frame during the death cinematic.
+  // That silently reverted any user-initiated overlay state — most
+  // importantly ExitCountdown, which is what the WndProc sets when
+  // the player presses Escape — so the exit prompt wouldn't show
+  // up until the 6-second auto-transition below kicked in. The
+  // cinematic movement itself is camera/health/animation state and
+  // does not read GameMode, so the per-frame outer reset was
+  // redundant and harmful.
+  //
+  // We still want to clear Binocular / OpticScope if the player
+  // somehow toggles them mid-cinematic (AddDeadBody() already does
+  // a one-shot clear at kill time). Other UI overlays (Map,
+  // ExitCountdown, Paused, TrophyMode) are left alone so Escape
+  // works immediately after the kill.
+  if (IsScopeActive()) {
+      g_GameMode = GameMode::Normal;
+  }
 
   if (DemoPoint.DemoTime>6*1000)
     if (!IsPaused())
