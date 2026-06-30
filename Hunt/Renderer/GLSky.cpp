@@ -120,6 +120,19 @@ void GLRenderer::RenderSkyPlane()
     const float fogBase = CalcFogLevel(fogProbe);
     glUniform1f(m_locSkyFogBase, fogBase);
 
+    // uUnderwaterDepth: 0 above water, ramps to 1 at ~1024 world units
+    // below the surface.  The shader uses this to add up to 30% extra
+    // fog on top of the 3dfx sky formula, giving a depth-based dimming
+    // effect that matches the per-vertex fog on terrain and models.
+    float underwaterDepth = 0.0f;
+    if (IsUnderwater()) {
+        const float waterLevel = GetLandUpH(CameraX, CameraZ);
+        // (std::max) parenthesised to defeat the Windows max macro.
+        const float depth = (std::max)(0.0f, waterLevel - CameraY);
+        underwaterDepth = std::clamp(depth / 1024.0f, 0.0f, 1.0f);
+    }
+    glUniform1f(m_locSkyUnderwaterDepth, underwaterDepth);
+
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
@@ -432,7 +445,24 @@ void GLRenderer::RenderSun(float x, float y, float z)
     d += (1.0f - m_skyTraceK) / 2.0f;
     if (OptDayNight == 2) d = 1.5f;
 
-    RenderModelSun(SunModel.get(), x * d, y * d, z * d, static_cast<int>(200.0f * m_skyTraceK));
+    // Underwater depth fade: the sun's corona should dim the deeper the
+    // camera is below the water surface, matching the per-vertex fog
+    // behaviour on terrain and models.  waterLevel is the height of the
+    // water surface at the camera's XZ position; depthFactor is 0 at the
+    // surface and ramps to 1 around 1024 world units below it.  The sun
+    // keeps ~30% brightness at maximum fade so it remains a faint glow
+    // when very deep, rather than vanishing entirely.
+    float depthAtten = 1.0f;
+    if (IsUnderwater()) {
+        const float waterLevel = GetLandUpH(CameraX, CameraZ);
+        // (std::max) parenthesised to defeat the Windows max macro.
+        const float depth = (std::max)(0.0f, waterLevel - CameraY);
+        const float depthFactor = std::clamp(depth / 1024.0f, 0.0f, 1.0f);
+        depthAtten = 1.0f - depthFactor * 0.7f;
+    }
+
+    const int sunAlpha = static_cast<int>(200.0f * m_skyTraceK * depthAtten);
+    RenderModelSun(SunModel.get(), x * d, y * d, z * d, sunAlpha);
 }
 
 float GLRenderer::GetSkyK(int x, int y)
@@ -560,6 +590,7 @@ void GLRenderer::InitializeSkyPipeline()
         "uniform vec3 uR;\n"
         "uniform float uSkyTime;\n"
         "uniform float uFogBase;\n"
+        "uniform float uUnderwaterDepth;\n"
         "void main() {\n"
         "   vec2 pixel = vec2((vNdc.x * 0.5 + 0.5) * uViewport.x,\n"
         "                     (1.0 - (vNdc.y * 0.5 + 0.5)) * uViewport.y);\n"
@@ -589,6 +620,13 @@ void GLRenderer::InitializeSkyPipeline()
         // which fully replaced the sky with the fog colour when
         // underwater, completely hiding the sky and sun.
         "   float fogFactor = clamp(max(dt * 225.0 / 10.0, uFogBase) / 255.0, 0.0, 1.0);\n"
+        // Depth-based fade: the deeper the camera is below the water
+        // surface, the more the sky is blended toward the fog colour.
+        // uUnderwaterDepth is 0 at the surface and ramps to 1 at
+        // ~1024 world units below; we add up to 30% extra fog at
+        // maximum depth so the sky fades out like the per-vertex fog
+        // on terrain and models.
+        "   fogFactor = clamp(fogFactor + uUnderwaterDepth * 0.3, 0.0, 1.0);\n"
         "   vec2 uv = vec2((skyU + uSkyTime) / 256.0, (skyV - uSkyTime) / 256.0);\n"
         "   vec3 skyColor = texture(uSkyTexture, uv).rgb;\n"
         "   FragColor = vec4(mix(skyColor, uFogColor, fogFactor), 1.0);\n"
