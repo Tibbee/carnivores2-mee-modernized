@@ -93,18 +93,11 @@ float CalcFogLevel(Vector3d v)
   // modest (0.15× / +25 cap) so the water stays relatively clear near
   // the surface and fogs up gradually — objects remain visible longer.
   // The sky/sun use a separate, faster fade (see GLSky.cpp shader).
-  // depthFactor ramps from 0 at the water surface to 1 at ~1024 world
-  // units below.
+  // CameraWaterDepthFactor is computed once per frame in ProcessControls().
   if (IsUnderwater())
   {
-    const float waterLevel = GetLandUpH(CameraX, CameraZ);
-    const float depth = waterLevel - CameraY;
-    const float clampedDepth = (depth < 0.0f) ? 0.0f : depth;
-    float depthFactor = clampedDepth / 1024.0f;
-    if (depthFactor < 0.0f) depthFactor = 0.0f;
-    if (depthFactor > 1.0f) depthFactor = 1.0f;
-    fl *= 1.0f + depthFactor * 0.15f;
-    return MIN(fl, fptr->FLimit + depthFactor * 25.0f);
+    fl *= 1.0f + CameraWaterDepthFactor * 0.15f;
+    return MIN(fl, fptr->FLimit + CameraWaterDepthFactor * 25.0f);
   }
 
   return MIN(fl, fptr->FLimit);

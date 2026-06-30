@@ -404,6 +404,7 @@ GLOBAL   int     PrevTime, TimeDt, T, Takt, RealTime, StepTime, MyHealth, ExitTi
 GLOBAL   float   DeltaT;
 
 GLOBAL   float   CameraX, CameraY, CameraZ, CameraAlpha, CameraBeta;
+GLOBAL   float   CameraWaterDepthFactor;
 
 GLOBAL   float   PlayerX, PlayerY, PlayerZ, PlayerAlpha, PlayerBeta,
             HeadY, HeadBackR, HeadBSpeed, HeadAlpha, HeadBeta,

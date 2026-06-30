@@ -3,6 +3,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include <algorithm>
 
 void CaptureMouse(BOOL capture)
 {
@@ -515,6 +516,15 @@ SKIPYMOVE:
     CameraW = CameraH;
   }
 
+  // Cache the camera's underwater depth factor (0..1) once per frame for
+  // fog/FX calculations.  CalcFogLevel() is called many times per frame
+  // from multiple renderers; this avoids repeating the heightmap lookup.
+  if (IsUnderwater()) {
+    const float waterLevel = GetLandUpH(CameraX, CameraZ);
+    CameraWaterDepthFactor = std::clamp((waterLevel - CameraY) / 1024.0f, 0.0f, 1.0f);
+  } else {
+    CameraWaterDepthFactor = 0.0f;
+  }
 
   if (g_GameMode == GameMode::Binocular)
   {

@@ -746,14 +746,18 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection,
     m_cachedFogColor[1] = m_smoothedSkyFogColor.y;
     m_cachedFogColor[2] = m_smoothedSkyFogColor.z;
 
-    m_cachedForceFog = IsUnderwater() ? 1.0f : 0.0f;
+    // uForceFog is no longer referenced by any shader (the sky now uses
+    // CameraWaterDepthFactor/uUnderwaterDepth and the 3dfx fog formula).
+    // It is kept at offset 92 for UBO layout compatibility until all
+    // PerFrame UBO declarations are updated in lockstep.
+    m_cachedForceFog = 0.0f;
 
     // Phase 2.4: pack into a 48-float (192-byte) buffer.
     //   offset 0   : mat4 uProjection           (16 floats)
     //   offset 64  : vec2 uFogRange             ( 2 floats)
     //   offset 72  :        (pad to vec3 align) ( 2 floats)
     //   offset 80  : vec3 uDistanceFogColor     ( 3 floats)
-    //   offset 92  : float uForceFog            ( 1 float)
+    //   offset 92  : float uForceFog            ( 1 float)  -- DEPRECATED, kept for layout
     //   offset 96  : vec3 uFogColor             ( 3 floats)
     //   offset 108 :        (pad to mat4 align) ( 1 float)   -- Phase 2.4
     //   offset 112 : mat4 uView                 (16 floats)   -- Phase 2.4

@@ -122,17 +122,11 @@ void GLRenderer::RenderSkyPlane()
     glUniform1f(m_locSkyFogBase, fogBase);
 
     // uUnderwaterDepth: 0 above water, ramps to 1 at ~1024 world units
-    // below the surface.  The shader uses this to add up to 30% extra
-    // fog on top of the 3dfx sky formula, giving a depth-based dimming
-    // effect that matches the per-vertex fog on terrain and models.
-    float underwaterDepth = 0.0f;
-    if (IsUnderwater()) {
-        const float waterLevel = GetLandUpH(CameraX, CameraZ);
-        // (std::max) parenthesised to defeat the Windows max macro.
-        const float depth = (std::max)(0.0f, waterLevel - CameraY);
-        underwaterDepth = std::clamp(depth / 1024.0f, 0.0f, 1.0f);
-    }
-    glUniform1f(m_locSkyUnderwaterDepth, underwaterDepth);
+    // below the surface.  CameraWaterDepthFactor is computed once per
+    // frame in ProcessControls().  The shader uses it to add up to 30%
+    // extra fog on top of the 3dfx sky formula, giving a depth-based
+    // dimming effect that matches the per-vertex fog on terrain and models.
+    glUniform1f(m_locSkyUnderwaterDepth, CameraWaterDepthFactor);
 
     // uWaterLineY: screen Y (from top) of the water surface horizon.
     // Used by the shader to fade the sky to full fog near the water
@@ -155,19 +149,18 @@ void GLRenderer::RenderSkyPlane()
     bool underwaterFullSky = false;  // scry >= WinH: full sky, no scissor
     bool scissorEnabled = false;
     if (IsUnderwater()) {
+        // Reuse the pitch cos/sin computed at the top of this function.
         const float waterLevel = GetLandUpH(CameraX, CameraZ);
         // Camera-relative height of the water surface in world units
         // (positive when the camera is below the surface).
         const float sh = waterLevel - CameraY;
-        const float locCb = std::cos(CameraBeta);
-        const float locSb = std::sin(CameraBeta);
         // A point on the water surface at a representative distance
         // directly in front of the camera.
         const float vz = static_cast<float>(ctViewR * 4 / 5) * 256.0f;
         const float vy = sh;
         // Rotate by CameraBeta (pitch) to get view-space position.
-        float viewY = vy * locCb + vz * locSb;
-        float viewZ = vz * locCb - vy * locSb;
+        float viewY = vy * pitchCos + vz * pitchSin;
+        float viewZ = vz * pitchCos - vy * pitchSin;
         if (viewZ < 128.0f) viewZ = 128.0f;
         // Project to screen space (Y from top, matching 3DFX scry).
         int scry = VideoCY - static_cast<int>((viewY / viewZ) * CameraH);
@@ -513,18 +506,14 @@ void GLRenderer::RenderSun(float x, float y, float z)
 
     // Underwater depth fade: the sun's corona should dim the deeper the
     // camera is below the water surface, matching the per-vertex fog
-    // behaviour on terrain and models.  waterLevel is the height of the
-    // water surface at the camera's XZ position; depthFactor is 0 at the
-    // surface and ramps to 1 around 1024 world units below it.  The sun
-    // keeps ~30% brightness at maximum fade so it remains a faint glow
-    // when very deep, rather than vanishing entirely.
+    // behaviour on terrain and models.  CameraWaterDepthFactor is computed
+    // once per frame in ProcessControls() (0 at the surface, 1 at ~1024
+    // world units below).  The sun keeps ~30% brightness at maximum fade
+    // so it remains a faint glow when very deep, rather than vanishing
+    // entirely.
     float depthAtten = 1.0f;
     if (IsUnderwater()) {
-        const float waterLevel = GetLandUpH(CameraX, CameraZ);
-        // (std::max) parenthesised to defeat the Windows max macro.
-        const float depth = (std::max)(0.0f, waterLevel - CameraY);
-        const float depthFactor = std::clamp(depth / 1024.0f, 0.0f, 1.0f);
-        depthAtten = 1.0f - depthFactor * 0.7f;
+        depthAtten = 1.0f - CameraWaterDepthFactor * 0.7f;
     }
 
     const int sunAlpha = static_cast<int>(200.0f * m_skyTraceK * depthAtten);
