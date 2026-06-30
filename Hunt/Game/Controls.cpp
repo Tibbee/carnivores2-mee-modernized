@@ -138,7 +138,7 @@ void ProcessDemoMovement()
   // a one-shot clear at kill time). Other UI overlays (Map,
   // ExitCountdown, Paused, TrophyMode) are left alone so Escape
   // works immediately after the kill.
-  if (IsScopeActive()) {
+  if (IsBinocular() || IsOpticScope()) {
       g_GameMode = GameMode::Normal;
   }
 

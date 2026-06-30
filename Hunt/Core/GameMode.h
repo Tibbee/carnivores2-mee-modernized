@@ -49,3 +49,21 @@ inline bool IsUnderwater()  { return UNDERWATER != 0; }
 inline bool IsScopeActive() { return g_GameMode == GameMode::OpticScope || g_GameMode == GameMode::Binocular; }
 inline bool IsPaused()      { return g_GameMode == GameMode::Paused; }
 inline bool IsCrouching()   { return g_GameMode == GameMode::Crouching; }
+
+// --- Per-state accessors (1:1 with g_GameMode == GameMode::X) ---
+//
+// Mirrors the helper set in Carnivores1/Hunt/Core/GameMode.h so the
+// two projects read uniformly. Use these whenever you want to test
+// for a specific game-mode value without writing the inline
+// comparison — and so the call site stays readable if the underlying
+// GameMode enum evolves.
+
+inline bool IsNormal()        { return g_GameMode == GameMode::Normal; }
+inline bool IsSwimming()      { return g_GameMode == GameMode::Swimming; }
+inline bool IsUnderwaterMode() { return g_GameMode == GameMode::Underwater; }
+inline bool IsBinocular()     { return g_GameMode == GameMode::Binocular; }
+inline bool IsOpticScope()    { return g_GameMode == GameMode::OpticScope; }
+inline bool IsMapMode()       { return g_GameMode == GameMode::MapMode; }
+inline bool IsExitCountdown() { return g_GameMode == GameMode::ExitCountdown; }
+inline bool IsTrophyMode()    { return g_GameMode == GameMode::TrophyMode; }
+inline bool IsSurvivalMode()  { return g_GameMode == GameMode::SurvivalMode; }
