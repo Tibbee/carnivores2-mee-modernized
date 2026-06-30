@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLModel.cpp — 3D model rendering pipeline
+// GLModel.cpp ï¿½ 3D model rendering pipeline
 // ==========================================================================
 
 #include "Hunt.h"
@@ -166,18 +166,26 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
 void GLRenderer::RenderModelClipWater(TModel* mptr, float x0, float y0, float z0,
                                       int light, int vt, float al, float bt)
 {
-    // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
-    UploadStaticMesh(mptr);
-
-    ModelDrawItem item;
-    if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, true, false, true, false)) {
-        return;
-    }
-    item.texture = UploadModelTexture(mptr);
-    if (!item.texture) {
-        return;
-    }
-    m_worldModelItems.push_back(std::move(item));
+    // 3dfx parity: do NOT CPU-clip the model against the water plane.
+    // The 3dfx renderer's RenderModelClipWater is a no-op and falls
+    // through to RenderModelClip (which only does frustum clipping).
+    // The water surface itself is alpha-blended on top of the model
+    // in RenderWaterSurface() (drawn later in DrawScene), so the
+    // underwater portion of the model remains visible through the
+    // water -- this matches the reference 3dfx screenshot.
+    //
+    // The previous GL implementation called ClipTriangleAgainstWater
+    // for every face, which dropped entire triangles below the water
+    // plane. On models that intersect the water surface (e.g. rocks
+    // sticking out of a lake) this produced visible "missing
+    // triangle" holes, because the CPU clipper removed faces that
+    // the original 3dfx path kept.
+    //
+    // Phase 2.10 was previously expected to move the water plane cut
+    // into the fragment shader for a softer look, but until that
+    // lands, matching 3dfx by leaving the mesh intact is the
+    // visually-correct behaviour.
+    RenderModelClip(mptr, x0, y0, z0, light, vt, al, bt);
 }
 
 void GLRenderer::RenderModelClip(TModel* mptr, float x0, float y0, float z0,
@@ -586,8 +594,12 @@ void GLRenderer::RenderMappedObject(int x, int y)
         // Phase 2.3: BMP fallback path unchanged.
         RenderBMPModel(&MObjects[ob].bmpmodel, pos.x, pos.y, pos.z, mlight - 16);
     } else if (waterclip) {
-        // Phase 2.3: water-clipped objects use legacy path (Phase 2.10
-        // will move water clip to fragment shader).
+        // Water-clipped objects use the legacy non-instanced path so
+        // the model mesh is not consumed by the instanced bucket.
+        // The mesh is drawn without CPU-side water plane clipping
+        // (see RenderModelClipWater); the water surface is
+        // alpha-blended on top in RenderWaterSurface() to produce
+        // the underwater appearance, matching the 3dfx renderer.
         UploadStaticMesh(MObjects[ob].model.get());
         RenderModelClipWater(MObjects[ob].model.get(), pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
     } else {
