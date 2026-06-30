@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLTerrain.cpp — Terrain rendering pipeline
+// GLTerrain.cpp ï¿½ Terrain rendering pipeline
 // ==========================================================================
 
 #include "Hunt.h"
@@ -479,10 +479,11 @@ void GLRenderer::RenderGround()
         wFadeEndSq = wFadeEnd * wFadeEnd;
     }
 
-    // Terrain and water share the same LOD boundary (ctViewR1). Water is
-    // flat, so 2x2 tiles are geometrically identical to 1x1 â€” this is
-    // always a pure win. Terrain 2x2 trades a slight blur for fewer
-    // vertices, controlled by the TerrainLOD percentage slider.
+    // Terrain uses 2x2 LOD for far rings to reduce vertex count.  Water
+    // cannot use 2x2 tiles because their stride-2 sampling overlaps with
+    // adjacent 1x1 tiles by one row/column, and water's alpha blending
+    // turns that overlap into a visible darker band.  Water is flat, so
+    // 1x1 tiles everywhere carry no geometric penalty.
     for (int r = ctViewR; r > ctViewR1; --r) {
         for (int x = -r; x <= r; ++x) {
             if (ctViewR1 < ctViewR) {
@@ -490,8 +491,12 @@ void GLRenderer::RenderGround()
                 CollectTerrainTile2(CCX + x, CCY - r, r);
             }
             if (NeedWater) {
-                CollectWaterTile2(CCX + x, CCY + r, r);
-                CollectWaterTile2(CCX + x, CCY - r, r);
+                CollectWaterTileFast(CCX + x, CCY + r, r, wViewDistSq,
+                                     wFadeStart, wFadeStartSq,
+                                     wFadeEnd, wFadeEndSq);
+                CollectWaterTileFast(CCX + x, CCY - r, r, wViewDistSq,
+                                     wFadeStart, wFadeStartSq,
+                                     wFadeEnd, wFadeEndSq);
             }
         }
         for (int y = -r + 1; y < r; ++y) {
@@ -500,8 +505,12 @@ void GLRenderer::RenderGround()
                 CollectTerrainTile2(CCX - r, CCY + y, r);
             }
             if (NeedWater) {
-                CollectWaterTile2(CCX + r, CCY + y, r);
-                CollectWaterTile2(CCX - r, CCY + y, r);
+                CollectWaterTileFast(CCX + r, CCY + y, r, wViewDistSq,
+                                     wFadeStart, wFadeStartSq,
+                                     wFadeEnd, wFadeEndSq);
+                CollectWaterTileFast(CCX - r, CCY + y, r, wViewDistSq,
+                                     wFadeStart, wFadeStartSq,
+                                     wFadeEnd, wFadeEndSq);
             }
         }
     }

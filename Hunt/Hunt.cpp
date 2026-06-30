@@ -89,14 +89,12 @@ float CalcFogLevel(Vector3d v)
 
   // Underwater: amplify fog density with camera depth below the water
   // surface.  The base fla+flb term already gives a linear depth
-  // dependence, but the multiplicative boost makes the "deeper =
-  // denser" effect more pronounced for close/medium-range vertices.
-  // The cap itself is also raised with depth, otherwise the pre-cap
-  // result is almost always > FLimit underwater (because flb is large)
-  // and the cap clips the visible effect.  depthFactor ramps from 0 at
-  // the water surface to 1 at ~1024 world units below.  At max depth,
-  // the cap grows from FLimit to FLimit+60, letting far vertices go
-  // from ~78% to fully opaque (clamped to 1.0 in the shader).
+  // dependence.  The multiplicative boost and cap increase are kept
+  // modest (0.15× / +25 cap) so the water stays relatively clear near
+  // the surface and fogs up gradually — objects remain visible longer.
+  // The sky/sun use a separate, faster fade (see GLSky.cpp shader).
+  // depthFactor ramps from 0 at the water surface to 1 at ~1024 world
+  // units below.
   if (IsUnderwater())
   {
     const float waterLevel = GetLandUpH(CameraX, CameraZ);
@@ -105,8 +103,8 @@ float CalcFogLevel(Vector3d v)
     float depthFactor = clampedDepth / 1024.0f;
     if (depthFactor < 0.0f) depthFactor = 0.0f;
     if (depthFactor > 1.0f) depthFactor = 1.0f;
-    fl *= 1.0f + depthFactor * 0.4f;
-    return MIN(fl, fptr->FLimit + depthFactor * 60.0f);
+    fl *= 1.0f + depthFactor * 0.15f;
+    return MIN(fl, fptr->FLimit + depthFactor * 25.0f);
   }
 
   return MIN(fl, fptr->FLimit);

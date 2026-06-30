@@ -594,6 +594,7 @@ bool GLRenderer::Initialize()
     m_locSkyTime         = glGetUniformLocation(m_skyShader, "uSkyTime");
     m_locSkyFogBase      = glGetUniformLocation(m_skyShader, "uFogBase");
     m_locSkyUnderwaterDepth = glGetUniformLocation(m_skyShader, "uUnderwaterDepth");
+    m_locSkyWaterLineY     = glGetUniformLocation(m_skyShader, "uWaterLineY");
 
     m_Initialized = true;
     PrintLog("GL: Initialize() completed successfully.\n");

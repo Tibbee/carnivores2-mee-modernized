@@ -103,7 +103,8 @@ void GLRenderer::RenderSkyPlane()
     // uFogColor now sourced from PerFrame UBO (Phase 1.1). uForceFog is
     // still bound in the UBO (kept for layout compatibility) but no longer
     // used by this shader; the sky's underwater look comes from the
-    // 3dfx fog formula plus the uUnderwaterDepth uniform.
+    // 3dfx fog formula plus the uUnderwaterDepth uniform, plus scissor
+    // clipping below the water surface horizon.
     glUniform3f(m_locSkyQ, qx, qy, qz);
     glUniform3f(m_locSkyP, px, py, pz);
     glUniform3f(m_locSkyR, rx, ry, rz);
@@ -133,6 +134,65 @@ void GLRenderer::RenderSkyPlane()
     }
     glUniform1f(m_locSkyUnderwaterDepth, underwaterDepth);
 
+    // uWaterLineY: screen Y (from top) of the water surface horizon.
+    // Used by the shader to fade the sky to full fog near the water
+    // line for a seamless blend with the distance-fog colour below.
+    // Set to WinH (no fade) when not underwater or looking up.
+    float waterLineY = static_cast<float>(WinH);
+
+    // When the camera is underwater, clip the sky to only render above
+    // the water-surface horizon in screen space.  Below that line the
+    // distance-fog colour (already set as glClearColor) fills the
+    // background and terrain renders on top.  Matches the 3DFX renderer
+    // which only draws the sky plane down to scry (Render3DFX.cpp:4841).
+    //
+    // Three cases for the screen-space water horizon (scry, Y from top):
+    //   scry >= WinH  → water line below screen → looking UP through
+    //                   water surface → full sky (dimmed by shader)
+    //   0 < scry < WinH → water line on screen → scissor to top scry px
+    //   scry <= 0    → water line above screen → looking DOWN into
+    //                   water → no sky at all
+    bool underwaterFullSky = false;  // scry >= WinH: full sky, no scissor
+    bool scissorEnabled = false;
+    if (IsUnderwater()) {
+        const float waterLevel = GetLandUpH(CameraX, CameraZ);
+        // Camera-relative height of the water surface in world units
+        // (positive when the camera is below the surface).
+        const float sh = waterLevel - CameraY;
+        const float locCb = std::cos(CameraBeta);
+        const float locSb = std::sin(CameraBeta);
+        // A point on the water surface at a representative distance
+        // directly in front of the camera.
+        const float vz = static_cast<float>(ctViewR * 4 / 5) * 256.0f;
+        const float vy = sh;
+        // Rotate by CameraBeta (pitch) to get view-space position.
+        float viewY = vy * locCb + vz * locSb;
+        float viewZ = vz * locCb - vy * locSb;
+        if (viewZ < 128.0f) viewZ = 128.0f;
+        // Project to screen space (Y from top, matching 3DFX scry).
+        int scry = VideoCY - static_cast<int>((viewY / viewZ) * CameraH);
+
+        if (scry >= WinH) {
+            // Water horizon is below the screen: the entire view is above
+            // the water surface (looking up through water at the sky).
+            // Render the full sky with the shader's depth-based dimming.
+            underwaterFullSky = true;
+            waterLineY = static_cast<float>(WinH);  // no water line on screen
+        } else if (scry > 0) {
+            // Water horizon is on screen.  Clip the sky to the top
+            // scry pixels so it only appears above the water line.
+            // OpenGL window coords: Y=0 at bottom, so the region is
+            // [WinH - scry, WinH].
+            glEnable(GL_SCISSOR_TEST);
+            glScissor(0, WinH - scry, WinW, scry);
+            scissorEnabled = true;
+            waterLineY = static_cast<float>(scry);
+        }
+        // else scry <= 0: entire view is below water surface.
+        // Sky is completely hidden — scissorEnabled stays false,
+        // underwaterFullSky stays false, and the draw is skipped.
+    }
+
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
@@ -143,12 +203,16 @@ void GLRenderer::RenderSkyPlane()
     GL_PERF_TEXTURE_BIND(m_skyTexture);
 #endif
 
-    glBindVertexArray(m_skyVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    const bool shouldDrawSky = !IsUnderwater() || underwaterFullSky || scissorEnabled;
+    if (shouldDrawSky) {
+        glUniform1f(m_locSkyWaterLineY, waterLineY);
+        glBindVertexArray(m_skyVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
 #ifdef GL_PERF_HOOKS
-    GL_PERF_DRAW(1);
+        GL_PERF_DRAW(1);
 #endif
-    glBindVertexArray(0);
+        glBindVertexArray(0);
+    }
 
     glDepthMask(GL_TRUE);
 #ifdef GL_PERF_HOOKS
@@ -160,11 +224,9 @@ void GLRenderer::RenderSkyPlane()
 #endif
 
     // Render sun on top of sky (matching D3D/3DFX: sky plane renders sun).
-    // The 3dfx renderer does not skip the sun underwater; the per-vertex
-    // fog on the scene (driven by FogsList[127]) plus the sky shader's
-    // uUnderwaterDepth uniform provide the dimming effect, mirroring
-    // what Render3DFX.cpp:723 does with a 50% fog-color overlay.
-    if (SunModel) {
+    // The sun is only drawn when the sky is drawn.  The scissor (if any)
+    // is still active, so the sun is also clipped to above the water line.
+    if (SunModel && shouldDrawSky) {
         m_sunLight = 0.0f;
         Vector3d sunDir = {-2048.0f, 4048.0f, -2048.0f};
         sunDir = RotateVector(sunDir);
@@ -174,6 +236,10 @@ void GLRenderer::RenderSkyPlane()
             // GetTraceK (depth-based) is deferred to ShowVideo() after the
             // full scene is rendered, so the depth buffer has terrain/models.
         }
+    }
+
+    if (scissorEnabled) {
+        glDisable(GL_SCISSOR_TEST);
     }
 }
 
@@ -591,6 +657,7 @@ void GLRenderer::InitializeSkyPipeline()
         "uniform float uSkyTime;\n"
         "uniform float uFogBase;\n"
         "uniform float uUnderwaterDepth;\n"
+        "uniform float uWaterLineY;\n"  // screen Y (from top) of water surface, WinH if no clip
         "void main() {\n"
         "   vec2 pixel = vec2((vNdc.x * 0.5 + 0.5) * uViewport.x,\n"
         "                     (1.0 - (vNdc.y * 0.5 + 0.5)) * uViewport.y);\n"
@@ -623,10 +690,19 @@ void GLRenderer::InitializeSkyPipeline()
         // Depth-based fade: the deeper the camera is below the water
         // surface, the more the sky is blended toward the fog colour.
         // uUnderwaterDepth is 0 at the surface and ramps to 1 at
-        // ~1024 world units below; we add up to 30% extra fog at
-        // maximum depth so the sky fades out like the per-vertex fog
-        // on terrain and models.
-        "   fogFactor = clamp(fogFactor + uUnderwaterDepth * 0.3, 0.0, 1.0);\n"
+        // ~1024 world units below; the 0.55 multiplier makes the sky
+        // dim significantly faster than the per-vertex fog on terrain,
+        // so the sky/sun disappear quickly as you dive.
+        "   fogFactor = clamp(fogFactor + uUnderwaterDepth * 0.55, 0.0, 1.0);\n"
+        // Fade to full fog near the water-surface horizon so the sky
+        // blends seamlessly into the underwater distance-fog colour.
+        // pixel.y is the screen-space Y from the top (see above).
+        // uWaterLineY is WinH when there is no water line on screen.
+        "   float distToWaterLine = uWaterLineY - pixel.y;\n"
+        "   float fadeWidth = 32.0;\n"
+        "   if (distToWaterLine < fadeWidth && uWaterLineY < uViewport.y) {\n"
+        "       fogFactor = mix(1.0, fogFactor, clamp(distToWaterLine / fadeWidth, 0.0, 1.0));\n"
+        "   }\n"
         "   vec2 uv = vec2((skyU + uSkyTime) / 256.0, (skyV - uSkyTime) / 256.0);\n"
         "   vec3 skyColor = texture(uSkyTexture, uv).rgb;\n"
         "   FragColor = vec4(mix(skyColor, uFogColor, fogFactor), 1.0);\n"

@@ -404,6 +404,7 @@ private:
     int m_locSkyTime = -1;             // sky shader: uSkyTime
     int m_locSkyFogBase = -1;          // sky shader: uFogBase
     int m_locSkyUnderwaterDepth = -1;  // sky shader: uUnderwaterDepth
+    int m_locSkyWaterLineY = -1;       // sky shader: uWaterLineY (screen Y from top)
 
     // PerFrame UBO (Phase 1.1): binding 0, shared by terrain and model shaders.
     // std140 layout: mat4 uProjection + vec2 uFogRange + vec3 uDistanceFogColor
