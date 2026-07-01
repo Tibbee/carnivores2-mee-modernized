@@ -273,7 +273,6 @@ private:
     void EnsureTerrainTextureArray();
     void UploadTerrainLayer(int layer, const TEXTURE& texture);
     void CollectTerrainTile(int x, int y, int r);
-    void CollectTerrainTile2(int x, int y, int r);
     void CollectWaterTile(int x, int y, int r);
     void CollectWaterTile2(int x, int y, int r);
     // Fast water tile collection: precomputed constants + squared-distance

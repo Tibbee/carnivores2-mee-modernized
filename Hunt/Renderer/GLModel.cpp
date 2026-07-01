@@ -684,11 +684,11 @@ void GLRenderer::RenderObject(int x, int y)
     if (OMap[y][x] == 255 || !MODELS) {
         return;
     }
-    // Safety cap.  With the dedup fix in CollectTerrainTile2 (only the
-    // primary cell calls RenderObject), each cell is visited at most once
-    // per frame.  Dense custom maps at max view distance may still push
-    // beyond 8K unique objects — 32K is a generous upper bound (~256 KB
-    // in m_objectList, ~3 MB in m_instanceData).
+    // Safety cap.  Each cell is visited at most once per frame by the
+    // 1x1 ring walk in CollectTerrainTile's caller.  Dense custom maps
+    // at max view distance may still push beyond 8K unique objects —
+    // 32K is a generous upper bound (~256 KB in m_objectList, ~3 MB in
+    // m_instanceData).
     if (m_objectList.size() >= 32768) {
         static int hitCount = 0;
         ++hitCount;

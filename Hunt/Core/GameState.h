@@ -389,7 +389,7 @@ GLOBAL   void  *HLineT;
 
 GLOBAL   int   rTColor;
 
-GLOBAL   int   SKYMin, SKYDTime, GlassL, ctViewR, ctViewR1, ctViewRM,
+GLOBAL   int   SKYMin, SKYDTime, GlassL, ctViewR, ctViewRM,
             dFacesCount, ReverseOn, TDirection;
 
 GLOBAL   WORD  FadeTab[65][0x8000];
@@ -454,7 +454,6 @@ GLOBAL int  OptFov;
 
 GLOBAL int  OptFpsLimit;
 
-GLOBAL int  OptTerrainLOD;
 
 GLOBAL float UIScale;
 

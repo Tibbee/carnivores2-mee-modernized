@@ -1044,7 +1044,6 @@ void TrophyLoad(Profile& profile, int pr)
 	g_Options.FOV = kFovDefault;
 	g_Options.ViewRange = ClampMenuViewOpt(g_Options.ViewRange);
 	g_Options.ObjectDetail = kObjectDetailDefault;
-	g_Options.TerrainLOD = kTerrainLODDefault;
 	g_Options.NightVisionKey = 0x4E; // Default: 'N' key
 
 	//Temporary:
@@ -1416,7 +1415,6 @@ void SaveConfig()
 	fs << "renderer " << g_Options.RenderAPI << "\n";
 	fs << "fov " << g_Options.FOV << "\n";
 	fs << "object_detail " << g_Options.ObjectDetail << "\n";
-	fs << "terrain_lod " << g_Options.TerrainLOD << "\n";
 	fs << "fps_limit " << g_Options.OptFpsLimit << "\n";
 	fs << "verbose_logging " << (g_Options.VerboseLogging ? 1 : 0) << "\n";
 	fs << "nightvision_key " << g_Options.NightVisionKey << "\n";
@@ -1457,16 +1455,6 @@ static bool ParseConfigLine(const std::string& line)
 		if (iss >> v) {
 			v = ClampMenuObjectDetail(v);
 			g_Options.ObjectDetail = v;
-		}
-		return true;
-	}
-
-	if (key == "terrain_lod") {
-		int v;
-		if (iss >> v) {
-			if (v < kTerrainLODMin) v = kTerrainLODMin;
-			if (v > kTerrainLODMax) v = kTerrainLODMax;
-			g_Options.TerrainLOD = v;
 		}
 		return true;
 	}

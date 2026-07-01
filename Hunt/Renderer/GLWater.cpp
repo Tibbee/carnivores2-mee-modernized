@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLWater.cpp — Water surface rendering
+// GLWater.cpp ï¿½ Water surface rendering
 // ==========================================================================
 
 #include "Hunt.h"
@@ -378,7 +378,7 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
         return;
     }
 
-    // Coarse frustum pre-test (same pattern as CollectTerrainTile2)
+    // Coarse frustum pre-test (same pattern as CollectTerrainTile)
     {
         const float wx = static_cast<float>(x * 256 + 128) - CameraX;
         const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
@@ -424,7 +424,7 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
 
     // Per-corner map-based fog color (far-detail water path; mirrors
     // the near-detail CollectWaterTile and the terrain path in
-    // CollectTerrainTile2).
+    // CollectTerrainTile).
     const Vector3d fog00 = GetFogColorForMapPoint(x, y);
     const Vector3d fog20 = GetFogColorForMapPoint(x + 2, y);
     const Vector3d fog02 = GetFogColorForMapPoint(x, y + 2);

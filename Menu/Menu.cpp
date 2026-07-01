@@ -630,7 +630,6 @@ void InitInterface()
 	MenuOptions[m].AddItem("Sensitivity");
 	MenuOptions[m].AddItem("View range");
 	MenuOptions[m].AddItem("Object detail");
-	MenuOptions[m].AddItem("Terrain LOD");
 	MenuOptions[m].AddItem("Measurement");
 	MenuOptions[m].AddItem("Sound API");
 	MenuOptions[m].AddItem("FPS limit");
@@ -1926,28 +1925,17 @@ void MenuEventInput(int32_t menu)
 									SaveConfig();
 								}
 							}
-							else if (mo.Hilite == 5) // Terrain LOD
-							{
-								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw) {
-									int lod = kTerrainLODMin + static_cast<int>((v * static_cast<float>((kTerrainLODMax - kTerrainLODMin))));
-									lod = kTerrainLODMin + ((lod - kTerrainLODMin) / kTerrainLODStep) * kTerrainLODStep;
-									if (lod < kTerrainLODMin) lod = kTerrainLODMin;
-									if (lod > kTerrainLODMax) lod = kTerrainLODMax;
-									g_Options.TerrainLOD = lod;
-									SaveConfig();
-								}
-							}
-							else if (mo.Hilite == 6) // Metric or Imperial(US)
+							else if (mo.Hilite == 5) // Metric or Imperial(US)
 							{
 								WaitForMouseRelease();
 								g_Options.OptSys = !g_Options.OptSys;
 							}
-							else if (mo.Hilite == 7)
+							else if (mo.Hilite == 6)
 							{
 								WaitForMouseRelease();
 								g_Options.SoundAPI = (g_Options.SoundAPI + 1) % AUDIO_BACKEND_COUNT;
 							}
-							else if (mo.Hilite == 8)
+							else if (mo.Hilite == 7)
 							{
 								WaitForMouseRelease();
 								g_Options.OptFpsLimit = (g_Options.OptFpsLimit + 1) % kFpsLimitCount;
@@ -2445,8 +2433,7 @@ void DrawMenuOptions()
 		else if (i == 2) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>(g_Options.Sensitivity) / 255.0f, label_c);
 		else if (i == 3) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>((g_Options.ViewRange - kViewOptMin)) / static_cast<float>((kViewOptMax - kViewOptMin)), label_c);
 		else if (i == 4) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>((g_Options.ObjectDetail - kObjectDetailMin)) / static_cast<float>((kObjectDetailMax - kObjectDetailMin)), label_c);
-		else if (i == 5) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>((g_Options.TerrainLOD - kTerrainLODMin)) / static_cast<float>((kTerrainLODMax - kTerrainLODMin)), label_c);
-		else DrawTextShadow(g_GameValues.x0, y0, i == 6 ? st_UnitText[g_Options.OptSys] : (i == 7 ? st_AudText[NormalizeAudioBackend(g_Options.SoundAPI)] : st_FpsText[g_Options.OptFpsLimit]), value_c);
+		else DrawTextShadow(g_GameValues.x0, y0, i == 5 ? st_UnitText[g_Options.OptSys] : (i == 6 ? st_AudText[NormalizeAudioBackend(g_Options.SoundAPI)] : st_FpsText[g_Options.OptFpsLimit]), value_c);
 	}
 
 	// Control key bindings

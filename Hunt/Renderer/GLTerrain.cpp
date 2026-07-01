@@ -87,7 +87,13 @@ void GLRenderer::EnsureTerrainTextureArray()
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, kTerrainMipLevels - 1);
+    // The original D3D/3DFX terrain/water renderers only ever sampled
+    // DataA (128x128) and DataB (64x64).  DataC/DataD were generated
+    // for the software renderer's very-far fallback, but using them in
+    // the GL path made distant LOD tiles look oddly blurry / differently
+    // textured.  Cap the array at mip level 1 to match the hardware
+    // renderers.
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 1);
 
     int size = 128;
     for (int level = 0; level < kTerrainMipLevels; ++level) {
@@ -282,98 +288,6 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
     RenderObject(x, y);
 }
 
-void GLRenderer::CollectTerrainTile2(int x, int y, int r)
-{
-    (void)r;
-
-    if (x >= ctMapSize - 2 || y >= ctMapSize - 2 || x < 0 || y < 0) {
-        return;
-    }
-
-    const int localX = x - CCX + kViewGridCenter;
-    const int localY = y - CCY + kViewGridCenter;
-    if (localX < 0 || localY < 0 || localX + 2 >= kViewGridSize || localY + 2 >= kViewGridSize) {
-        return;
-    }
-
-    // Coarse frustum pre-test (same pattern as CollectTerrainTile)
-    {
-        const float wx = static_cast<float>(x * 256 + 128) - CameraX;
-        const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
-        const float wy = static_cast<float>(HMapO[y][x]) * ctHScale - CameraY;
-        const float cx  = wx * ca + wz * sa;
-        const float cz1 = wz * ca - wx * sa;
-        const float cz  = cz1 * cb + wy * sb;
-        if (std::fabs(cx * FOVK) > -cz + BackViewR * 2.0f + 2048.0f) {
-            return;
-        }
-    }
-
-    EPoint v00 = VMap[localY][localX];
-    if (v00.v.z > BackViewR) {
-        return;
-    }
-
-    const int textureLayer = TMap2[y][x];
-
-    EPoint v20 = VMap[localY][localX + 2];
-    EPoint v02 = VMap[localY + 2][localX];
-    EPoint v22 = VMap[localY + 2][localX + 2];
-
-    // Frustum + distance culls before fog computation
-    const float xx = (v00.v.x + v22.v.x) * 0.5f;
-    const float yy = (v00.v.y + v22.v.y) * 0.5f;
-    const float zz = (v00.v.z + v22.v.z) * 0.5f;
-
-    if (std::fabs(xx * FOVK) > -zz + BackViewR) {
-        return;
-    }
-
-    const float viewDistance = static_cast<float>(ctViewR * 256);
-    const float viewDistanceSq = viewDistance * viewDistance;
-    const float distanceSq = xx * xx + yy * yy + zz * zz;
-    if (distanceSq > viewDistanceSq) {
-        return;
-    }
-
-    // Tile survived — now compute fog + alpha
-    const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
-    const float fadeStartSq = fadeStart * fadeStart;
-    const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
-
-    const int fogIdx00 = GetFogIndexForMapPoint(x, y);
-    const int fogIdx20 = GetFogIndexForMapPoint(x + 2, y);
-    const int fogIdx02 = GetFogIndexForMapPoint(x, y + 2);
-    const int fogIdx22 = GetFogIndexForMapPoint(x + 2, y + 2);
-
-    v00.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx00, v00.Fog));
-    v20.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx20, v20.Fog));
-    v02.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx02, v02.Fog));
-    v22.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx22, v22.Fog));
-
-    const Vector3d fog00 = GetFogColorForMapPoint(fogIdx00);
-    const Vector3d fog20 = GetFogColorForMapPoint(fogIdx20);
-    const Vector3d fog02 = GetFogColorForMapPoint(fogIdx02);
-    const Vector3d fog22 = GetFogColorForMapPoint(fogIdx22);
-
-    const float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd);
-    const float alpha20 = CalcTerrainAlpha(VertexDistanceSq(v20.v), fadeStart, fadeStartSq, fadeEnd);
-    const float alpha02 = CalcTerrainAlpha(VertexDistanceSq(v02.v), fadeStart, fadeStartSq, fadeEnd);
-    const float alpha22 = CalcTerrainAlpha(VertexDistanceSq(v22.v), fadeStart, fadeStartSq, fadeEnd);
-
-    const int direction = (FMap[y][x] >> 8) & 3;
-
-    if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
-        AppendTerrainTriangle(m_terrainVertices, v00, v20, v22, fog00, fog20, fog22, textureLayer, false, false, direction, alpha00, alpha20, alpha22);
-        AppendTerrainTriangle(m_terrainVertices, v00, v22, v02, fog00, fog22, fog02, textureLayer, false, true, direction, alpha00, alpha22, alpha02);
-    }
-
-    // Primary cell only — neighbor cells are covered by adjacent
-    // 2×2 tiles (same ring) or by the inner 1×1 loop (inner rings).
-    // Calling all four would duplicate entries in m_objectList.
-    RenderObject(x, y);
-}
-
 void GLRenderer::RenderTerrain()
 {
     if (m_terrainVertices.empty()) {
@@ -460,14 +374,13 @@ void GLRenderer::RenderGround()
     m_transparentModelItems.clear();
     m_objectList.clear();
 
-    // If water is needed this frame, begin water collection here so we
-    // can collect terrain + water vertices in a single ring walk instead
-    // of two separate passes over the same ~1,800 tiles.
+    // If water is needed this frame, begin water collection here so the
+    // water constants are ready for the ring walk.
     if (NeedWater) {
         BeginWaterFrame();
     }
 
-    // Precompute water distance/fade constants once for the unified walk.
+    // Precompute water distance/fade constants once for the ring walk.
     float wViewDistSq = 0.0f, wFadeStart = 0.0f, wFadeStartSq = 0.0f;
     float wFadeEnd = 0.0f, wFadeEndSq = 0.0f;
     if (NeedWater) {
@@ -479,43 +392,18 @@ void GLRenderer::RenderGround()
         wFadeEndSq = wFadeEnd * wFadeEnd;
     }
 
-    // Terrain uses 2x2 LOD for far rings to reduce vertex count.  Water
-    // cannot use 2x2 tiles because their stride-2 sampling overlaps with
-    // adjacent 1x1 tiles by one row/column, and water's alpha blending
-    // turns that overlap into a visible darker band.  Water is flat, so
-    // 1x1 tiles everywhere carry no geometric penalty.
-    for (int r = ctViewR; r > ctViewR1; --r) {
-        for (int x = -r; x <= r; ++x) {
-            if (ctViewR1 < ctViewR) {
-                CollectTerrainTile2(CCX + x, CCY + r, r);
-                CollectTerrainTile2(CCX + x, CCY - r, r);
-            }
-            if (NeedWater) {
-                CollectWaterTileFast(CCX + x, CCY + r, r, wViewDistSq,
-                                     wFadeStart, wFadeStartSq,
-                                     wFadeEnd, wFadeEndSq);
-                CollectWaterTileFast(CCX + x, CCY - r, r, wViewDistSq,
-                                     wFadeStart, wFadeStartSq,
-                                     wFadeEnd, wFadeEndSq);
-            }
-        }
-        for (int y = -r + 1; y < r; ++y) {
-            if (ctViewR1 < ctViewR) {
-                CollectTerrainTile2(CCX + r, CCY + y, r);
-                CollectTerrainTile2(CCX - r, CCY + y, r);
-            }
-            if (NeedWater) {
-                CollectWaterTileFast(CCX + r, CCY + y, r, wViewDistSq,
-                                     wFadeStart, wFadeStartSq,
-                                     wFadeEnd, wFadeEndSq);
-                CollectWaterTileFast(CCX - r, CCY + y, r, wViewDistSq,
-                                     wFadeStart, wFadeStartSq,
-                                     wFadeEnd, wFadeEndSq);
-            }
-        }
-    }
-
-    for (int r = ctViewR1; r > 0; --r) {
+    // Single full ring walk with 1x1 tiles. The earlier 2x2 far-LOD
+    // system had two structural problems: a stride-1 walk caused
+    // adjacent 2x2 tiles to overlap (z-fighting, texture twitching);
+    // and the 2x2 tile's inner edge has only 2 vertices over a 2-cell
+    // span while the 1x1 ring on the inside has 3, leaving a T-junction
+    // that the GL rasterizer renders as a thin gap.  Dropping the 2x2
+    // system eliminates both, at the cost of ~4x vertices in the far
+    // ring — most of which are alpha-faded to invisible anyway by
+    // CalcTerrainAlpha at ctViewR-4..ctViewR-8.  This matches the
+    // post-b4a0f2b state of the three reference renderers
+    // (Render3DFX/RenderSoft/RendererD3D).
+    for (int r = ctViewR; r > 0; --r) {
         for (int x = -r; x <= r; ++x) {
             CollectTerrainTile(CCX + x, CCY + r, r);
             CollectTerrainTile(CCX + x, CCY - r, r);
