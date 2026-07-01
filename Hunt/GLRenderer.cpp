@@ -246,7 +246,10 @@ bool GLRenderer::Initialize()
         "   vAlpha = aLightFogAlpha.z;\n"
         "   vFogColor = aFogColor;\n"
         "   vViewZ = max(-aPos.z, 0.0);\n"
-        "   vViewDistance = length(aPos);\n"
+        "   // §5.7: use dot(aPos,aPos) instead of length(aPos) to avoid\n"
+        "   // sqrt per vertex. The fragment shader computes sqrt only for\n"
+        "   // water pixels (the minority).\n"
+        "   vViewDistance = dot(aPos, aPos);\n"
         "   vWaterAlphaFade = aLightFogAlpha.w;\n"
         "}\n";
 
@@ -286,7 +289,10 @@ bool GLRenderer::Initialize()
         "   vec3 finalColor = mix(volumetricFogColor, uDistanceFogColor, distanceFog);\n"
         "   float waterAlphaFade = 1.0;\n"
         "   if (vWaterAlphaFade > 0.5 && uWaterAlphaFade.z > 0.5) {\n"
-        "      float zz = vViewDistance - uWaterAlphaFade.y;\n"
+        "      // §5.7: vViewDistance is now squared distance; compute sqrt\n"
+        "      // only for water pixels to recover the linear distance.\n"
+        "      float distance = sqrt(vViewDistance);\n"
+        "      float zz = distance - uWaterAlphaFade.y;\n"
         "      if (zz > 0.0) {\n"
         "         waterAlphaFade = clamp((255.0 - zz / max(uWaterAlphaFade.w, 1.0)) / 255.0, 0.0, 1.0);\n"
         "      }\n"
@@ -1519,19 +1525,19 @@ float GetTerrainFogAmountForMapPoint(int mapX, int mapY, int legacyFog)
 
 
 
-void GLRenderer::DrawVertexBatch(const std::vector<TerrainVertex>& vertices) const
+void GLRenderer::DrawVertexBatch(const TerrainVertex* vertices, size_t count) const
 {
-    if (vertices.empty() || !m_terrainVBO) {
+    if (count == 0 || !m_terrainVBO) {
         return;
     }
 
-    const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(vertices.size() * sizeof(TerrainVertex));
+    const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(count * sizeof(TerrainVertex));
     glBindBuffer(GL_ARRAY_BUFFER, m_terrainVBO);
     glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices.data());
-    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices);
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(count));
 #ifdef GL_PERF_HOOKS
-    GL_PERF_DRAW(static_cast<uint32_t>(vertices.size()) / 3);
+    GL_PERF_DRAW(static_cast<uint32_t>(count) / 3);
 #endif
 }
 

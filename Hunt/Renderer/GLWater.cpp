@@ -31,13 +31,16 @@ void GLRenderer::SetWaterAlphaFade(float enabled, float fadeStart, float fadeEnd
 
 void GLRenderer::BeginWaterFrame()
 {
-    m_waterVertices.clear();
+    m_waterVertexCount = 0;
+    // §5.4: Ensure worst-case capacity for the current view distance.
+    const size_t maxTiles = static_cast<size_t>(2 * ctViewR + 1) * static_cast<size_t>(2 * ctViewR + 1);
+    EnsureWaterVertexCapacity(maxTiles * 6);
     m_waterUsedLayers.fill(false);
 }
 
 void GLRenderer::RenderWaterSurface()
 {
-    if (m_waterVertices.empty()) {
+    if (m_waterVertexCount == 0) {
         return;
     }
 
@@ -82,7 +85,7 @@ void GLRenderer::RenderWaterSurface()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
-    DrawVertexBatch(m_waterVertices);
+    DrawVertexBatch(m_waterVertices.get(), m_waterVertexCount);
     SetWaterAlphaFade(0.0f, static_cast<float>((ctViewR - 8) << 8), 256.0f * static_cast<float>(ctViewR - 4), 765.0f);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
@@ -120,8 +123,7 @@ float GLRenderer::CalcWaterAlpha(const EPoint& vertex, float centerDistanceSq, f
     return alpha;
 }
 
-void GLRenderer::AppendWaterTriangle(std::vector<TerrainVertex>& vertices,
-                                     const EPoint& v0,
+void GLRenderer::AppendWaterTriangle(const EPoint& v0,
                                      const EPoint& v1,
                                      const EPoint& v2,
                                      const Vector3d& fogColor0,
@@ -152,33 +154,36 @@ void GLRenderer::AppendWaterTriangle(std::vector<TerrainVertex>& vertices,
     // is in 0..200 from CalcFogLevel (clamped to FLimit, typically
     // 200) and the old shader divided it by 255, so the uint8 packing
     // matches byte-for-byte.
-    vertices.push_back({v0.v.x, v0.v.y, v0.v.z, uv[0].x, uv[0].y, layer,
-                        Light255ToByte(static_cast<float>(v0.Light)),
-                        Light255ToByte(v0.Fog),
-                        Float01ToByte(alpha0),
-                        Float01ToByte(fadeEnabled),
-                        Float01ToByte(fogColor0.x),
-                        Float01ToByte(fogColor0.y),
-                        Float01ToByte(fogColor0.z),
-                        0});
-    vertices.push_back({v1.v.x, v1.v.y, v1.v.z, uv[1].x, uv[1].y, layer,
-                        Light255ToByte(static_cast<float>(v1.Light)),
-                        Light255ToByte(v1.Fog),
-                        Float01ToByte(alpha1),
-                        Float01ToByte(fadeEnabled),
-                        Float01ToByte(fogColor1.x),
-                        Float01ToByte(fogColor1.y),
-                        Float01ToByte(fogColor1.z),
-                        0});
-    vertices.push_back({v2.v.x, v2.v.y, v2.v.z, uv[2].x, uv[2].y, layer,
-                        Light255ToByte(static_cast<float>(v2.Light)),
-                        Light255ToByte(v2.Fog),
-                        Float01ToByte(alpha2),
-                        Float01ToByte(fadeEnabled),
-                        Float01ToByte(fogColor2.x),
-                        Float01ToByte(fogColor2.y),
-                        Float01ToByte(fogColor2.z),
-                        0});
+    // §5.4: write directly to the flat array instead of push_back.
+    TerrainVertex* dst = m_waterVertices.get() + m_waterVertexCount;
+    dst[0] = {v0.v.x, v0.v.y, v0.v.z, uv[0].x, uv[0].y, layer,
+              Light255ToByte(static_cast<float>(v0.Light)),
+              Light255ToByte(v0.Fog),
+              Float01ToByte(alpha0),
+              Float01ToByte(fadeEnabled),
+              Float01ToByte(fogColor0.x),
+              Float01ToByte(fogColor0.y),
+              Float01ToByte(fogColor0.z),
+              0};
+    dst[1] = {v1.v.x, v1.v.y, v1.v.z, uv[1].x, uv[1].y, layer,
+              Light255ToByte(static_cast<float>(v1.Light)),
+              Light255ToByte(v1.Fog),
+              Float01ToByte(alpha1),
+              Float01ToByte(fadeEnabled),
+              Float01ToByte(fogColor1.x),
+              Float01ToByte(fogColor1.y),
+              Float01ToByte(fogColor1.z),
+              0};
+    dst[2] = {v2.v.x, v2.v.y, v2.v.z, uv[2].x, uv[2].y, layer,
+              Light255ToByte(static_cast<float>(v2.Light)),
+              Light255ToByte(v2.Fog),
+              Float01ToByte(alpha2),
+              Float01ToByte(fadeEnabled),
+              Float01ToByte(fogColor2.x),
+              Float01ToByte(fogColor2.y),
+              Float01ToByte(fogColor2.z),
+              0};
+    m_waterVertexCount += 3;
 }
 
 void GLRenderer::CollectWaterTileFast(int x, int y, int r,
@@ -253,13 +258,19 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
     const float a01 = Clamp01(v01.ALPHA / 255.0f);
     const float a11 = Clamp01(v11.ALPHA / 255.0f);
 
+    // §5.1: Early-out if all water vertex alphas are zero — skip the
+    // fog lookup and triangle validation for fully transparent water.
+    if (a00 <= 0.0f && a10 <= 0.0f && a01 <= 0.0f && a11 <= 0.0f) {
+        return;
+    }
+
     // Single FogsMap lookup for the tile center (water is flat; per-corner
     // fog precision is invisible — saves 3 FogsMap lookups per tile).
     const Vector3d fogTile = GetFogColorForMapPoint(x, y);
 
     if (a00 > 0.0f || a10 > 0.0f || a11 > 0.0f) {
         if (IsWaterTriangleValid(v00, v10, v11, BackViewR)) {
-            AppendWaterTriangle(m_waterVertices, v00, v10, v11,
+            AppendWaterTriangle(v00, v10, v11,
                                fogTile, fogTile, fogTile,
                                textureLayer, false, false, 0, a00, a10, a11, fadeEnabled);
         }
@@ -267,7 +278,7 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
 
     if (a00 > 0.0f || a11 > 0.0f || a01 > 0.0f) {
         if (IsWaterTriangleValid(v00, v11, v01, BackViewR)) {
-            AppendWaterTriangle(m_waterVertices, v00, v11, v01,
+            AppendWaterTriangle(v00, v11, v01,
                                fogTile, fogTile, fogTile,
                                textureLayer, false, true, 0, a00, a11, a01, fadeEnabled);
         }
@@ -343,13 +354,13 @@ void GLRenderer::CollectWaterTile(int x, int y, int r)
 
     if (a00 > 0.0f || a10 > 0.0f || a11 > 0.0f) {
         if (IsWaterTriangleValid(v00, v10, v11, BackViewR)) {
-            AppendWaterTriangle(m_waterVertices, v00, v10, v11, fog00, fog10, fog11, textureLayer, false, false, 0, a00, a10, a11, fadeEnabled);
+            AppendWaterTriangle(v00, v10, v11, fog00, fog10, fog11, textureLayer, false, false, 0, a00, a10, a11, fadeEnabled);
         }
     }
 
     if (a00 > 0.0f || a11 > 0.0f || a01 > 0.0f) {
         if (IsWaterTriangleValid(v00, v11, v01, BackViewR)) {
-            AppendWaterTriangle(m_waterVertices, v00, v11, v01, fog00, fog11, fog01, textureLayer, false, true, 0, a00, a11, a01, fadeEnabled);
+            AppendWaterTriangle(v00, v11, v01, fog00, fog11, fog01, textureLayer, false, true, 0, a00, a11, a01, fadeEnabled);
         }
     }
 }
@@ -432,13 +443,13 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
 
     if (a00 > 0.0f || a20 > 0.0f || a22 > 0.0f) {
         if (IsWaterTriangleValid(v00, v20, v22, BackViewR)) {
-            AppendWaterTriangle(m_waterVertices, v00, v20, v22, fog00, fog20, fog22, textureLayer, false, false, 0, a00, a20, a22, fadeEnabled);
+            AppendWaterTriangle(v00, v20, v22, fog00, fog20, fog22, textureLayer, false, false, 0, a00, a20, a22, fadeEnabled);
         }
     }
 
     if (a00 > 0.0f || a22 > 0.0f || a02 > 0.0f) {
         if (IsWaterTriangleValid(v00, v22, v02, BackViewR)) {
-            AppendWaterTriangle(m_waterVertices, v00, v22, v02, fog00, fog22, fog02, textureLayer, false, true, 0, a00, a22, a02, fadeEnabled);
+            AppendWaterTriangle(v00, v22, v02, fog00, fog22, fog02, textureLayer, false, true, 0, a00, a22, a02, fadeEnabled);
         }
     }
 }

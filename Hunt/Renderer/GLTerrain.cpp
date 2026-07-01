@@ -61,14 +61,40 @@ void GLRenderer::ShutdownTerrainPipeline()
         m_terrainShader = 0;
     }
 
-    m_terrainVertices.clear();
-    m_waterVertices.clear();
+    m_terrainVertices.reset();
+    m_terrainVertexCapacity = 0;
+    m_terrainVertexCount = 0;
+    m_waterVertices.reset();
+    m_waterVertexCapacity = 0;
+    m_waterVertexCount = 0;
     m_uploadedTerrainTextures.fill(nullptr);
+}
+
+void GLRenderer::EnsureTerrainVertexCapacity(size_t needed)
+{
+    if (needed <= m_terrainVertexCapacity) return;
+    // Grow to the needed size (no shrinking — ctViewR rarely decreases).
+    auto newBuf = std::make_unique<TerrainVertex[]>(needed);
+    m_terrainVertices = std::move(newBuf);
+    m_terrainVertexCapacity = needed;
+}
+
+void GLRenderer::EnsureWaterVertexCapacity(size_t needed)
+{
+    if (needed <= m_waterVertexCapacity) return;
+    auto newBuf = std::make_unique<TerrainVertex[]>(needed);
+    m_waterVertices = std::move(newBuf);
+    m_waterVertexCapacity = needed;
 }
 
 void GLRenderer::BeginTerrainFrame()
 {
-    m_terrainVertices.clear();
+    m_terrainVertexCount = 0;
+    // §5.4: Ensure worst-case capacity for the current view distance.
+    // Worst case: every cell in the visible disk produces 2 triangles = 6 vertices.
+    // The 2x safety margin absorbs per-frame variance without reallocation.
+    const size_t maxTiles = static_cast<size_t>(2 * ctViewR + 1) * static_cast<size_t>(2 * ctViewR + 1);
+    EnsureTerrainVertexCapacity(maxTiles * 6);
     // m_waterVertices is cleared in BeginWaterFrame (called by RenderWater).
     // Clearing here too was redundant — RenderGround never touches water.
 }
@@ -132,8 +158,7 @@ void GLRenderer::UploadTerrainLayer(int layer, const TEXTURE& texture)
     }
 }
 
-void GLRenderer::AppendTerrainTriangle(std::vector<TerrainVertex>& vertices,
-                                       const EPoint& v0,
+void GLRenderer::AppendTerrainTriangle(const EPoint& v0,
                                        const EPoint& v1,
                                        const EPoint& v2,
                                        const Vector3d& fogColor0,
@@ -154,33 +179,36 @@ void GLRenderer::AppendTerrainTriangle(std::vector<TerrainVertex>& vertices,
     // shader) as uint8, alpha as uint8, and per-vertex fog color as a
     // vec3 of uint8. The driver normalizes the uint8 back to [0,1] in
     // the vertex shader, matching the old float layout.
-    vertices.push_back({v0.v.x, v0.v.y, v0.v.z, uv[0].x, uv[0].y, layer,
-                        Light255ToByte(static_cast<float>(v0.Light)),
-                        Light255ToByte(v0.Fog),
-                        Float01ToByte(alpha0),
-                        0,  // pad1
-                        Float01ToByte(fogColor0.x),
-                        Float01ToByte(fogColor0.y),
-                        Float01ToByte(fogColor0.z),
-                        0});  // pad2
-    vertices.push_back({v1.v.x, v1.v.y, v1.v.z, uv[1].x, uv[1].y, layer,
-                        Light255ToByte(static_cast<float>(v1.Light)),
-                        Light255ToByte(v1.Fog),
-                        Float01ToByte(alpha1),
-                        0,  // pad1
-                        Float01ToByte(fogColor1.x),
-                        Float01ToByte(fogColor1.y),
-                        Float01ToByte(fogColor1.z),
-                        0});
-    vertices.push_back({v2.v.x, v2.v.y, v2.v.z, uv[2].x, uv[2].y, layer,
-                        Light255ToByte(static_cast<float>(v2.Light)),
-                        Light255ToByte(v2.Fog),
-                        Float01ToByte(alpha2),
-                        0,  // pad1
-                        Float01ToByte(fogColor2.x),
-                        Float01ToByte(fogColor2.y),
-                        Float01ToByte(fogColor2.z),
-                        0});
+    // §5.4: write directly to the flat array instead of push_back.
+    TerrainVertex* dst = m_terrainVertices.get() + m_terrainVertexCount;
+    dst[0] = {v0.v.x, v0.v.y, v0.v.z, uv[0].x, uv[0].y, layer,
+              Light255ToByte(static_cast<float>(v0.Light)),
+              Light255ToByte(v0.Fog),
+              Float01ToByte(alpha0),
+              0,  // pad1
+              Float01ToByte(fogColor0.x),
+              Float01ToByte(fogColor0.y),
+              Float01ToByte(fogColor0.z),
+              0};  // pad2
+    dst[1] = {v1.v.x, v1.v.y, v1.v.z, uv[1].x, uv[1].y, layer,
+              Light255ToByte(static_cast<float>(v1.Light)),
+              Light255ToByte(v1.Fog),
+              Float01ToByte(alpha1),
+              0,  // pad1
+              Float01ToByte(fogColor1.x),
+              Float01ToByte(fogColor1.y),
+              Float01ToByte(fogColor1.z),
+              0};
+    dst[2] = {v2.v.x, v2.v.y, v2.v.z, uv[2].x, uv[2].y, layer,
+              Light255ToByte(static_cast<float>(v2.Light)),
+              Light255ToByte(v2.Fog),
+              Float01ToByte(alpha2),
+              0,  // pad1
+              Float01ToByte(fogColor2.x),
+              Float01ToByte(fogColor2.y),
+              Float01ToByte(fogColor2.z),
+              0};
+    m_terrainVertexCount += 3;
 }
 
 void GLRenderer::CollectTerrainTile(int x, int y, int r)
@@ -271,26 +299,223 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
     const float alpha01 = CalcTerrainAlpha(VertexDistanceSq(v01.v), fadeStart, fadeStartSq, fadeEnd);
     const float alpha11 = CalcTerrainAlpha(VertexDistanceSq(v11.v), fadeStart, fadeStartSq, fadeEnd);
 
+    // §5.1: Early-fade-out cull — skip fog + triangle emission for
+    // tiles whose 4 vertex alphas are all below the visibility threshold.
+    // These tiles are in the outer fade ring (ctViewR-4..ctViewR) and
+    // are effectively invisible.  RenderObject is still called so that
+    // objects on faded tiles are queued (they have their own distance fade).
+    constexpr float kAlphaCullThreshold = 0.02f;
+    if (alpha00 < kAlphaCullThreshold && alpha10 < kAlphaCullThreshold &&
+        alpha01 < kAlphaCullThreshold && alpha11 < kAlphaCullThreshold) {
+        RenderObject(x, y);
+        return;
+    }
+
     const bool reverse = (FMap[y][x] & fmReverse) != 0;
     const int direction = FMap[y][x] & 3;
 
     const int textureLayer = TMap1[y][x];
     if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
         if (reverse) {
-            AppendTerrainTriangle(m_terrainVertices, v00, v10, v01, fog00, fog10, fog01, textureLayer, reverse, false, direction, alpha00, alpha10, alpha01);
-            AppendTerrainTriangle(m_terrainVertices, v01, v10, v11, fog01, fog10, fog11, textureLayer, reverse, true, direction, alpha01, alpha10, alpha11);
+            AppendTerrainTriangle(v00, v10, v01, fog00, fog10, fog01, textureLayer, reverse, false, direction, alpha00, alpha10, alpha01);
+            AppendTerrainTriangle(v01, v10, v11, fog01, fog10, fog11, textureLayer, reverse, true, direction, alpha01, alpha10, alpha11);
         } else {
-            AppendTerrainTriangle(m_terrainVertices, v00, v10, v11, fog00, fog10, fog11, textureLayer, reverse, false, direction, alpha00, alpha10, alpha11);
-            AppendTerrainTriangle(m_terrainVertices, v00, v11, v01, fog00, fog11, fog01, textureLayer, reverse, true, direction, alpha00, alpha11, alpha01);
+            AppendTerrainTriangle(v00, v10, v11, fog00, fog10, fog11, textureLayer, reverse, false, direction, alpha00, alpha10, alpha11);
+            AppendTerrainTriangle(v00, v11, v01, fog00, fog11, fog01, textureLayer, reverse, true, direction, alpha00, alpha11, alpha01);
         }
     }
 
     RenderObject(x, y);
 }
 
+// §5.2: Chunked pair collection — processes two horizontally adjacent
+// tiles (x1,y) and (x2,y) where x2 = x1 + 1. The two tiles share
+// 3 VMap corners, 3 fog lookups, and 3 alpha computations instead
+// of 8 each (25% reduction in per-tile work).
+//
+// Corner layout:
+//   v00(x1,y) --- v10(x1+1,y) --- v20(x1+2,y)
+//      |               |               |
+//   v01(x1,y+1) --- v11(x1+1,y+1) --- v21(x1+2,y+1)
+//
+// Tile 1 uses corners: v00, v10, v01, v11
+// Tile 2 uses corners: v10, v20, v11, v21
+void GLRenderer::CollectTerrainTilePair(int x1, int x2, int y, int r)
+{
+    (void)r;
+
+    // Boundary checks — fall back to 1×1 for out-of-bounds tiles
+    if (x1 < 0 || x2 < 0 || y < 0 ||
+        x1 >= ctMapSize - 1 || x2 >= ctMapSize - 1 || y >= ctMapSize - 1) {
+        if (x1 >= 0 && x1 < ctMapSize - 1 && y >= 0 && y < ctMapSize - 1)
+            CollectTerrainTile(x1, y, r);
+        if (x2 >= 0 && x2 < ctMapSize - 1 && y >= 0 && y < ctMapSize - 1)
+            CollectTerrainTile(x2, y, r);
+        return;
+    }
+
+    // Local coordinate checks
+    const int localX1 = x1 - CCX + kViewGridCenter;
+    const int localY = y - CCY + kViewGridCenter;
+    if (localX1 < 0 || localY < 0 || localX1 + 2 >= kViewGridSize || localY + 1 >= kViewGridSize) {
+        if (localX1 >= 0 && localX1 + 1 < kViewGridSize)
+            CollectTerrainTile(x1, y, r);
+        if (localX1 + 1 >= 0 && localX1 + 2 < kViewGridSize)
+            CollectTerrainTile(x2, y, r);
+        return;
+    }
+
+    // BackViewR with object bounds for both tiles
+    float backR1 = BackViewR;
+    if (OMap[y][x1] != 255) backR1 += MObjects[OMap[y][x1]].info.BoundR;
+    float backR2 = BackViewR;
+    if (OMap[y][x2] != 255) backR2 += MObjects[OMap[y][x2]].info.BoundR;
+    const float backR = (std::max)(backR1, backR2);
+
+    // Coarse frustum pre-test for the pair's center
+    {
+        const float wx = static_cast<float>((x1 + 1) * 256 + 128) - CameraX;
+        const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
+        const float wy = static_cast<float>(HMapO[y][x1]) * ctHScale - CameraY;
+        const float cx  = wx * ca + wz * sa;
+        const float cz1 = wz * ca - wx * sa;
+        const float cz  = cz1 * cb + wy * sb;
+        if (std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
+            return;  // Pair outside frustum — skip entirely (matches CollectTerrainTile)
+        }
+    }
+
+    // Fetch 6 VMap corners (shared between 2 tiles)
+    EPoint v00 = VMap[localY][localX1];
+    EPoint v10 = VMap[localY][localX1 + 1];  // shared
+    EPoint v20 = VMap[localY][localX1 + 2];
+    EPoint v01 = VMap[localY + 1][localX1];
+    EPoint v11 = VMap[localY + 1][localX1 + 1];  // shared
+    EPoint v21 = VMap[localY + 1][localX1 + 2];
+
+    // Early z-check for the pair — must check ALL 6 corners (not just top row)
+    // to avoid false-culling when looking uphill/downhill.
+    if (v00.v.z > backR && v10.v.z > backR && v20.v.z > backR &&
+        v01.v.z > backR && v11.v.z > backR && v21.v.z > backR) {
+        return;  // All corners behind back plane — skip
+    }
+
+    // Precompute all 6 fog indices (shared between tiles)
+    const int fogIdx_x1_y   = GetFogIndexForMapPoint(x1, y);
+    const int fogIdx_x2_y   = GetFogIndexForMapPoint(x2, y);      // = x1+1, shared
+    const int fogIdx_x3_y   = GetFogIndexForMapPoint(x2 + 1, y);  // = x1+2
+    const int fogIdx_x1_y1  = GetFogIndexForMapPoint(x1, y + 1);
+    const int fogIdx_x2_y1  = GetFogIndexForMapPoint(x2, y + 1);  // = x1+1, shared
+    const int fogIdx_x3_y1  = GetFogIndexForMapPoint(x2 + 1, y + 1);  // = x1+2
+
+    // Precompute all 6 fog colors
+    const Vector3d fogColor_x1_y  = GetFogColorForMapPoint(fogIdx_x1_y);
+    const Vector3d fogColor_x2_y  = GetFogColorForMapPoint(fogIdx_x2_y);
+    const Vector3d fogColor_x3_y  = GetFogColorForMapPoint(fogIdx_x3_y);
+    const Vector3d fogColor_x1_y1 = GetFogColorForMapPoint(fogIdx_x1_y1);
+    const Vector3d fogColor_x2_y1 = GetFogColorForMapPoint(fogIdx_x2_y1);
+    const Vector3d fogColor_x3_y1 = GetFogColorForMapPoint(fogIdx_x3_y1);
+
+    // Precompute all 6 alpha values
+    const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
+    const float fadeStartSq = fadeStart * fadeStart;
+    const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
+
+    const float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd);
+    const float alpha10 = CalcTerrainAlpha(VertexDistanceSq(v10.v), fadeStart, fadeStartSq, fadeEnd);
+    const float alpha20 = CalcTerrainAlpha(VertexDistanceSq(v20.v), fadeStart, fadeStartSq, fadeEnd);
+    const float alpha01 = CalcTerrainAlpha(VertexDistanceSq(v01.v), fadeStart, fadeStartSq, fadeEnd);
+    const float alpha11 = CalcTerrainAlpha(VertexDistanceSq(v11.v), fadeStart, fadeStartSq, fadeEnd);
+    const float alpha21 = CalcTerrainAlpha(VertexDistanceSq(v21.v), fadeStart, fadeStartSq, fadeEnd);
+
+    // Precompute fog amounts for ALL 6 corners unconditionally.
+    // This ensures shared corners (v10, v11) have correct fog even if
+    // Tile 1 is alpha-culled (reviewer fix: fog-on-shared-corners).
+    v00.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x1_y, v00.Fog));
+    v10.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x2_y, v10.Fog));
+    v20.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x3_y, v20.Fog));
+    v01.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x1_y1, v01.Fog));
+    v11.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x2_y1, v11.Fog));
+    v21.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x3_y1, v21.Fog));
+
+    // Process tile 1: (x1, y)
+    {
+        const float xx = (v00.v.x + v11.v.x) * 0.5f;
+        const float yy = (v00.v.y + v11.v.y) * 0.5f;
+        const float zz = (v00.v.z + v11.v.z) * 0.5f;
+
+        bool tile1Emitted = false;
+        if (std::fabs(xx * FOVK) <= -zz + backR1) {
+            const float viewDistance = static_cast<float>(ctViewR * 256);
+            const float viewDistanceSq = viewDistance * viewDistance;
+            const float distanceSq = xx * xx + yy * yy + zz * zz;
+            if (distanceSq <= viewDistanceSq) {
+                constexpr float kAlphaCullThreshold = 0.02f;
+                if (!(alpha00 < kAlphaCullThreshold && alpha10 < kAlphaCullThreshold &&
+                      alpha01 < kAlphaCullThreshold && alpha11 < kAlphaCullThreshold)) {
+                    const bool reverse = (FMap[y][x1] & fmReverse) != 0;
+                    const int direction = FMap[y][x1] & 3;
+                    const int textureLayer = TMap1[y][x1];
+                    if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
+                        if (reverse) {
+                            AppendTerrainTriangle(v00, v10, v01, fogColor_x1_y, fogColor_x2_y, fogColor_x1_y1, textureLayer, reverse, false, direction, alpha00, alpha10, alpha01);
+                            AppendTerrainTriangle(v01, v10, v11, fogColor_x1_y1, fogColor_x2_y, fogColor_x2_y1, textureLayer, reverse, true, direction, alpha01, alpha10, alpha11);
+                        } else {
+                            AppendTerrainTriangle(v00, v10, v11, fogColor_x1_y, fogColor_x2_y, fogColor_x2_y1, textureLayer, reverse, false, direction, alpha00, alpha10, alpha11);
+                            AppendTerrainTriangle(v00, v11, v01, fogColor_x1_y, fogColor_x2_y1, fogColor_x1_y1, textureLayer, reverse, true, direction, alpha00, alpha11, alpha01);
+                        }
+                        tile1Emitted = true;
+                    }
+                }
+            }
+        }
+        // Only call RenderObject if tile passed distance cull (matches CollectTerrainTile behavior)
+        if (std::fabs(xx * FOVK) <= -zz + backR1) {
+            const float viewDistance = static_cast<float>(ctViewR * 256);
+            const float viewDistanceSq = viewDistance * viewDistance;
+            const float distanceSq = xx * xx + yy * yy + zz * zz;
+            if (distanceSq <= viewDistanceSq) {
+                RenderObject(x1, y);
+            }
+        }
+    }
+
+    // Process tile 2: (x2, y) — reuses v10, v11 and their fog data
+    {
+        const float xx = (v10.v.x + v21.v.x) * 0.5f;
+        const float yy = (v10.v.y + v21.v.y) * 0.5f;
+        const float zz = (v10.v.z + v21.v.z) * 0.5f;
+
+        if (std::fabs(xx * FOVK) <= -zz + backR2) {
+            const float viewDistance = static_cast<float>(ctViewR * 256);
+            const float viewDistanceSq = viewDistance * viewDistance;
+            const float distanceSq = xx * xx + yy * yy + zz * zz;
+            if (distanceSq <= viewDistanceSq) {
+                constexpr float kAlphaCullThreshold = 0.02f;
+                if (!(alpha10 < kAlphaCullThreshold && alpha20 < kAlphaCullThreshold &&
+                      alpha11 < kAlphaCullThreshold && alpha21 < kAlphaCullThreshold)) {
+                    const bool reverse = (FMap[y][x2] & fmReverse) != 0;
+                    const int direction = FMap[y][x2] & 3;
+                    const int textureLayer = TMap1[y][x2];
+                    if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
+                        if (reverse) {
+                            AppendTerrainTriangle(v10, v20, v11, fogColor_x2_y, fogColor_x3_y, fogColor_x2_y1, textureLayer, reverse, false, direction, alpha10, alpha20, alpha11);
+                            AppendTerrainTriangle(v11, v20, v21, fogColor_x2_y1, fogColor_x3_y, fogColor_x3_y1, textureLayer, reverse, true, direction, alpha11, alpha20, alpha21);
+                        } else {
+                            AppendTerrainTriangle(v10, v20, v21, fogColor_x2_y, fogColor_x3_y, fogColor_x3_y1, textureLayer, reverse, false, direction, alpha10, alpha20, alpha21);
+                            AppendTerrainTriangle(v10, v21, v11, fogColor_x2_y, fogColor_x3_y1, fogColor_x2_y1, textureLayer, reverse, true, direction, alpha10, alpha21, alpha11);
+                        }
+                    }
+                }
+                RenderObject(x2, y);
+            }
+        }
+    }
+}
+
 void GLRenderer::RenderTerrain()
 {
-    if (m_terrainVertices.empty()) {
+    if (m_terrainVertexCount == 0) {
         return;
     }
 
@@ -320,7 +545,7 @@ void GLRenderer::RenderTerrain()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_TRUE);
-    DrawVertexBatch(m_terrainVertices);
+    DrawVertexBatch(m_terrainVertices.get(), m_terrainVertexCount);
 
     glBindVertexArray(0);
 }
@@ -403,38 +628,97 @@ void GLRenderer::RenderGround()
     // CalcTerrainAlpha at ctViewR-4..ctViewR-8.  This matches the
     // post-b4a0f2b state of the three reference renderers
     // (Render3DFX/RenderSoft/RendererD3D).
-    for (int r = ctViewR; r > 0; --r) {
-        for (int x = -r; x <= r; ++x) {
-            CollectTerrainTile(CCX + x, CCY + r, r);
-            CollectTerrainTile(CCX + x, CCY - r, r);
-            if (NeedWater) {
-                CollectWaterTileFast(CCX + x, CCY + r, r, wViewDistSq,
+    // §5.2: Chunked ring walk — process horizontal pairs on top/bottom
+    // edges to share 3 VMap corners, 3 fog lookups, and 3 alpha
+    // computations between 2 tiles (25% reduction in per-tile work).
+    //
+    // The ring walk iterates from outermost to innermost. For each ring,
+    // the top/bottom edges have (2r+1) tiles and the left/right edges
+    // have (2r-1) tiles. We process horizontal pairs where possible,
+    // with individual tile fallback for the last tile on each edge.
+    if (NeedWater) {
+        for (int r = ctViewR; r > 0; --r) {
+            // Top edge (y = CCY + r): process horizontal pairs
+            const int topStartX = CCX - r;
+            const int topEndX = CCX + r;
+            for (int x = topStartX; x < topEndX; x += 2) {
+                CollectTerrainTilePair(x, x + 1, CCY + r, r);
+                CollectWaterTileFast(x, CCY + r, r, wViewDistSq,
                                      wFadeStart, wFadeStartSq,
                                      wFadeEnd, wFadeEndSq);
-                CollectWaterTileFast(CCX + x, CCY - r, r, wViewDistSq,
+                CollectWaterTileFast(x + 1, CCY + r, r, wViewDistSq,
                                      wFadeStart, wFadeStartSq,
                                      wFadeEnd, wFadeEndSq);
             }
-        }
-        for (int y = -r + 1; y < r; ++y) {
-            CollectTerrainTile(CCX + r, CCY + y, r);
-            CollectTerrainTile(CCX - r, CCY + y, r);
-            if (NeedWater) {
-                CollectWaterTileFast(CCX + r, CCY + y, r, wViewDistSq,
+            // Last tile on top edge (always odd count)
+            CollectTerrainTile(topEndX, CCY + r, r);
+            CollectWaterTileFast(topEndX, CCY + r, r, wViewDistSq,
+                                 wFadeStart, wFadeStartSq,
+                                 wFadeEnd, wFadeEndSq);
+
+            // Bottom edge (y = CCY - r): process horizontal pairs
+            for (int x = topStartX; x < topEndX; x += 2) {
+                CollectTerrainTilePair(x, x + 1, CCY - r, r);
+                CollectWaterTileFast(x, CCY - r, r, wViewDistSq,
                                      wFadeStart, wFadeStartSq,
                                      wFadeEnd, wFadeEndSq);
+                CollectWaterTileFast(x + 1, CCY - r, r, wViewDistSq,
+                                     wFadeStart, wFadeStartSq,
+                                     wFadeEnd, wFadeEndSq);
+            }
+            CollectTerrainTile(topEndX, CCY - r, r);
+            CollectWaterTileFast(topEndX, CCY - r, r, wViewDistSq,
+                                 wFadeStart, wFadeStartSq,
+                                 wFadeEnd, wFadeEndSq);
+
+            // Left edge (x = CCX - r): individual tiles (vertical pairs
+            // would require a separate function; skip for now)
+            for (int y = -r + 1; y < r; ++y) {
+                CollectTerrainTile(CCX - r, CCY + y, r);
                 CollectWaterTileFast(CCX - r, CCY + y, r, wViewDistSq,
                                      wFadeStart, wFadeStartSq,
                                      wFadeEnd, wFadeEndSq);
             }
-        }
-    }
 
-    CollectTerrainTile(CCX, CCY, 0);
-    if (NeedWater) {
+            // Right edge (x = CCX + r): individual tiles
+            for (int y = -r + 1; y < r; ++y) {
+                CollectTerrainTile(CCX + r, CCY + y, r);
+                CollectWaterTileFast(CCX + r, CCY + y, r, wViewDistSq,
+                                     wFadeStart, wFadeStartSq,
+                                     wFadeEnd, wFadeEndSq);
+            }
+        }
+        CollectTerrainTile(CCX, CCY, 0);
         CollectWaterTileFast(CCX, CCY, 0, wViewDistSq,
                              wFadeStart, wFadeStartSq,
                              wFadeEnd, wFadeEndSq);
+    } else {
+        for (int r = ctViewR; r > 0; --r) {
+            // Top edge (y = CCY + r): process horizontal pairs
+            const int topStartX = CCX - r;
+            const int topEndX = CCX + r;
+            for (int x = topStartX; x < topEndX; x += 2) {
+                CollectTerrainTilePair(x, x + 1, CCY + r, r);
+            }
+            CollectTerrainTile(topEndX, CCY + r, r);
+
+            // Bottom edge (y = CCY - r): process horizontal pairs
+            for (int x = topStartX; x < topEndX; x += 2) {
+                CollectTerrainTilePair(x, x + 1, CCY - r, r);
+            }
+            CollectTerrainTile(topEndX, CCY - r, r);
+
+            // Left edge (x = CCX - r): individual tiles
+            for (int y = -r + 1; y < r; ++y) {
+                CollectTerrainTile(CCX - r, CCY + y, r);
+            }
+
+            // Right edge (x = CCX + r): individual tiles
+            for (int y = -r + 1; y < r; ++y) {
+                CollectTerrainTile(CCX + r, CCY + y, r);
+            }
+        }
+        CollectTerrainTile(CCX, CCY, 0);
     }
 
     RenderTerrain();

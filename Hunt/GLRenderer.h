@@ -15,6 +15,7 @@
 #include <array>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <vector>
 
 class GLRenderer : public IRenderer {
@@ -237,7 +238,7 @@ private:
     void RenderWaterSurface();
     void RenderWorldModels();
     void RenderProjectedCharacterShadow(const TCharacter& character, float alpha);
-    void DrawVertexBatch(const std::vector<TerrainVertex>& vertices) const;
+    void DrawVertexBatch(const TerrainVertex* vertices, size_t count) const;
     GLuint UploadModelTexture(TModel* mptr);
     GLuint UploadBMPModelTexture(TBMPModel* mptr);
     GLuint UploadPictureTexture(const TPicture& pic);
@@ -273,6 +274,11 @@ private:
     void EnsureTerrainTextureArray();
     void UploadTerrainLayer(int layer, const TEXTURE& texture);
     void CollectTerrainTile(int x, int y, int r);
+    // §5.2: Chunked pair collection — processes two horizontally adjacent
+    // tiles (x1,y) and (x2,y) sharing 3 VMap corners, 3 fog lookups, and
+    // 3 alpha computations instead of 8 each. Falls back to 1×1 path
+    // for out-of-bounds tiles.
+    void CollectTerrainTilePair(int x1, int x2, int y, int r);
     void CollectWaterTile(int x, int y, int r);
     void CollectWaterTile2(int x, int y, int r);
     // Fast water tile collection: precomputed constants + squared-distance
@@ -281,8 +287,7 @@ private:
                               float viewDistanceSq,
                               float fadeStart, float fadeStartSq,
                               float fadeEnd, float fadeEndSq);
-    void AppendTerrainTriangle(std::vector<TerrainVertex>& vertices,
-                               const EPoint& v0,
+    void AppendTerrainTriangle(const EPoint& v0,
                                const EPoint& v1,
                                const EPoint& v2,
                                const Vector3d& fogColor0,
@@ -295,8 +300,7 @@ private:
                                float alpha0 = 1.0f,
                                float alpha1 = 1.0f,
                                float alpha2 = 1.0f);
-    void AppendWaterTriangle(std::vector<TerrainVertex>& vertices,
-                             const EPoint& v0,
+    void AppendWaterTriangle(const EPoint& v0,
                              const EPoint& v1,
                              const EPoint& v2,
                              const Vector3d& fogColor0,
@@ -440,7 +444,7 @@ private:
     // The dense custom map Phase 0 baseline measured ~2,400 visible model
     // objects per frame; reserve 4,096 to absorb the high end with
     // headroom. The vector grows automatically if a frame exceeds this.
-    static const int kInitialInstanceCapacity = 4096;
+    static const size_t kInitialInstanceCapacity = 4096;
     // Phase 2.2: initial capacities for the static VBO/IBO. The VBO
     // holds 32 B/vertex; 8 MB = 256K vertices. The IBO holds 4 B/index
     // (uint32_t); 4 MB = 1M indices = 333K faces. Both grow by
@@ -449,8 +453,20 @@ private:
     // one growth, which is fine — the cache rebuilds on next access.
     static const size_t kInitialStaticMeshVBOCapacity = 8 * 1024 * 1024;
     static const size_t kInitialStaticMeshIBOCapacity = 4 * 1024 * 1024;
-    std::vector<TerrainVertex> m_terrainVertices;
-    std::vector<TerrainVertex> m_waterVertices;
+
+    // §5.4: Flat vertex arrays to eliminate per-frame std::vector
+    // reallocations.  The capacity is sized to the worst-case vertex
+    // count for the current ctViewR and only grows (never shrinks
+    // within a session).  The count resets to 0 each frame.
+    std::unique_ptr<TerrainVertex[]> m_terrainVertices;
+    size_t m_terrainVertexCapacity = 0;
+    size_t m_terrainVertexCount    = 0;
+    std::unique_ptr<TerrainVertex[]> m_waterVertices;
+    size_t m_waterVertexCapacity = 0;
+    size_t m_waterVertexCount    = 0;
+    void EnsureTerrainVertexCapacity(size_t needed);
+    void EnsureWaterVertexCapacity(size_t needed);
+
     // Non-owning cache: tracks which terrain textures are currently
     // uploaded to the GPU. Raw pointer (not unique_obj_ptr) because
     // ownership stays with the global Textures[] array. A previous
