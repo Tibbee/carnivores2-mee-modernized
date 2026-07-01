@@ -1073,6 +1073,22 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
     float ndcX = (cx - VideoCX) / VideoCX;
     float ndcY = (VideoCY - cy) / VideoCY;
 
+    // Compute proper NDC depth from camera-space z so particles are
+    // correctly occluded by scene geometry. The hard-coded z=0.0001
+    // mapped every particle to the middle of the depth buffer, causing
+    // them to draw in front of almost everything.
+    const float nearPlane = 16.0f;
+    const float farPlane  = static_cast<float>(ctViewR) * 256.0f + 4096.0f;
+    const float fpn = farPlane + nearPlane;
+    const float fmn = farPlane - nearPlane;
+    float ndcZ_depth = 1.0f;          // default: far plane (behind everything)
+    if (z < 0.0f) {
+        // Standard OpenGL perspective projection of view-space z into NDC [-1,1].
+        ndcZ_depth = fpn / fmn + (2.0f * farPlane * nearPlane) / (fmn * z);
+        if (ndcZ_depth < -1.0f) ndcZ_depth = -1.0f;
+        if (ndcZ_depth >  1.0f) ndcZ_depth =  1.0f;
+    }
+
     // Use the packed ModelVertex layout (Phase 1.4: 32 bytes, color
     // attributes are uint8 normalized). The model VAO's attribute
     // pointers expect this layout; the old CircleVertex used floats
@@ -1092,32 +1108,30 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
 
     auto makeCircleVertex = [&](float x, float y, uint8_t vr, uint8_t vg,
                                uint8_t vb, uint8_t va) -> ModelVertex {
-        return {x, y, 0.0001f, 0.0f, 0.0f,
+        return {x, y, ndcZ_depth, 0.0f, 0.0f,
                 lightByte, fogByte, va, cutoutByte,
                 vr, vg, vb, {0,0,0,0,0}};
     };
 
+    // 8 screen-space offsets matching D3D/3DFX octagon layout.
+    // The diagonals are at (±R2, ±R2) giving effective radius ≈0.919·R,
+    // producing a much smoother octagon than the old polar code that
+    // placed diagonal vertices at only 0.65·R (making them look pointy).
+    const float dx[8] = { 0.0f,  r2,  r,  r2,  0.0f, -r2, -r, -r2 };
+    const float dy[8] = { -r,   -r2, 0.0f, r2,   r,    r2,  0.0f, -r2 };
+
     for (int i = 0; i < 8; i++) {
         int next = (i + 1) % 8;
 
-        // Radius alternates: even indices use R (outer), odd indices use R2 (inner)
-        float rad_i = (i % 2 == 0) ? r : r2;
-        float rad_next = (next % 2 == 0) ? r : r2;
-
-        float angle_i = i * pi / 4.0f;
-        float angle_next = next * pi / 4.0f;
-
-        // Center vertex (color RGBA)
+        // Triangle: center, vertex i, vertex i+1
         vertices.push_back(makeCircleVertex(ndcX, ndcY, cr, cg, cb, ca));
 
-        // Edge vertex i (color RGBA2)
-        float ex1 = ndcX + cosf(angle_i) * rad_i / VideoCX;
-        float ey1 = ndcY + sinf(angle_i) * rad_i / VideoCY;
+        float ex1 = ndcX + dx[i] / VideoCX;
+        float ey1 = ndcY - dy[i] / VideoCY;
         vertices.push_back(makeCircleVertex(ex1, ey1, er, eg, eb, ea));
 
-        // Edge vertex i+1 (color RGBA2)
-        float ex2 = ndcX + cosf(angle_next) * rad_next / VideoCX;
-        float ey2 = ndcY + sinf(angle_next) * rad_next / VideoCY;
+        float ex2 = ndcX + dx[next] / VideoCX;
+        float ey2 = ndcY - dy[next] / VideoCY;
         vertices.push_back(makeCircleVertex(ex2, ey2, er, eg, eb, ea));
     }
 
