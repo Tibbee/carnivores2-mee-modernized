@@ -390,7 +390,8 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     }
 
     // Coarse frustum pre-test — SAFEGUARD: only reject when cz < 0
-    // (see the original CollectTerrainTile for the full rationale).
+    // NOTE: no FOVK here — matches the software renderer's ProcessMap
+    // formula.  The precise 4-corner check below still uses FOVK.
     {
         const float wx = static_cast<float>(x * 256 + 128) - CameraX;
         const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
@@ -398,41 +399,46 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
         const float cx  = wx * ca + wz * sa;
         const float cz1 = wz * ca - wx * sa;
         const float cz  = cz1 * cb + wy * sb;
-        if (cz < 0.0f && std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
+        if (cz < 0.0f && std::fabs(cx) > -cz + backR * 2.0f + 2048.0f) {
             return;
         }
     }
 
     // Fetch vertices
     EPoint v00 = VMap[localY][localX];
-    if (v00.v.z > backR) {
-        return;
-    }
-
     EPoint v10 = VMap[localY][localX + 1];
     EPoint v01 = VMap[localY + 1][localX];
     EPoint v11 = VMap[localY + 1][localX + 1];
 
-    // Precise frustum cull.  Use the horizontal-plane depth (cz1, computed
-    // from tile-center world coords) for the frustum half-width, NOT the
-    // camera-space z (zz).  When looking up, zz = cz1*cb + wy*sb can be
-    // very shallow for edge tiles (terrain at camera height) while cz1
-    // correctly reflects the horizontal distance.  Using -zz narrows the
-    // frustum artificially and culls tiles that are well within the
-    // horizontal view distance.  cz1 is the same formula as the coarse
-    // test's forward depth but at the tile center (x+1, y+1).
+    // Only reject if ALL corners are behind the back plane.
+    if (v00.v.z > backR && v10.v.z > backR && v01.v.z > backR && v11.v.z > backR) {
+        return;
+    }
+
+    // Precise frustum cull — conservative 4-corner check.
+    // When looking up a slope, the tile center can be at shallower depth
+    // than the elevated corners, causing the single-center test to cull
+    // tiles that are still partially visible.  Only reject if ALL 4
+    // corners are outside the same frustum side.
     const float xx = (v00.v.x + v11.v.x) * 0.5f;
     const float yy = (v00.v.y + v11.v.y) * 0.5f;
     const float zz = (v00.v.z + v11.v.z) * 0.5f;
-    // Horizontal-plane depth (before pitch rotation):
-    const float wx_center = static_cast<float>((x + 1) * 256) - CameraX;
-    const float wz_center = static_cast<float>((y + 1) * 256) - CameraZ;
-    const float cz1_center = wz_center * ca - wx_center * sa;
-    // Use the deeper of cz1 and -zz so the frustum never collapses when
-    // looking up.  Edge terrain tiles at camera height have cz1 >> -zz.
-    const float depthForFrustum = (std::max)(cz1_center, -zz);
-    if (std::fabs(xx * FOVK) > depthForFrustum + backR) {
-        return;
+    {
+        bool v00OutR = ( v00.v.x * FOVK > -v00.v.z + backR);
+        bool v10OutR = ( v10.v.x * FOVK > -v10.v.z + backR);
+        bool v01OutR = ( v01.v.x * FOVK > -v01.v.z + backR);
+        bool v11OutR = ( v11.v.x * FOVK > -v11.v.z + backR);
+        bool allOutR = v00OutR && v10OutR && v01OutR && v11OutR;
+
+        bool v00OutL = (-v00.v.x * FOVK > -v00.v.z + backR);
+        bool v10OutL = (-v10.v.x * FOVK > -v10.v.z + backR);
+        bool v01OutL = (-v01.v.x * FOVK > -v01.v.z + backR);
+        bool v11OutL = (-v11.v.x * FOVK > -v11.v.z + backR);
+        bool allOutL = v00OutL && v10OutL && v01OutL && v11OutL;
+
+        if (allOutR || allOutL) {
+            return;
+        }
     }
 
     // Distance cull
@@ -530,7 +536,7 @@ void GLRenderer::CollectTerrainTilePair(int x1, int x2, int y, int r,
     if (OMap[y][x2] != 255) backR2 += MObjects[OMap[y][x2]].info.BoundR;
     const float backR = (std::max)(backR1, backR2);
 
-    // Coarse frustum pre-test
+    // Coarse frustum pre-test (no FOVK — see CollectTerrainTile)
     {
         const float wx = static_cast<float>((x1 + 1) * 256 + 128) - CameraX;
         const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
@@ -538,7 +544,7 @@ void GLRenderer::CollectTerrainTilePair(int x1, int x2, int y, int r,
         const float cx  = wx * ca + wz * sa;
         const float cz1 = wz * ca - wx * sa;
         const float cz  = cz1 * cb + wy * sb;
-        if (cz < 0.0f && std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
+        if (cz < 0.0f && std::fabs(cx) > -cz + backR * 2.0f + 2048.0f) {
             return;
         }
     }
@@ -589,17 +595,19 @@ void GLRenderer::CollectTerrainTilePair(int x1, int x2, int y, int r,
 
     // Tile 1: (x1, y) — de-duplicated cull
     {
+        // Conservative 4-corner frustum for tile 1.
+        const bool t1AllR = (v00.v.x * FOVK > -v00.v.z + backR1) &&
+                            (v10.v.x * FOVK > -v10.v.z + backR1) &&
+                            (v01.v.x * FOVK > -v01.v.z + backR1) &&
+                            (v11.v.x * FOVK > -v11.v.z + backR1);
+        const bool t1AllL = (-v00.v.x * FOVK > -v00.v.z + backR1) &&
+                            (-v10.v.x * FOVK > -v10.v.z + backR1) &&
+                            (-v01.v.x * FOVK > -v01.v.z + backR1) &&
+                            (-v11.v.x * FOVK > -v11.v.z + backR1);
+        bool tile1PassedFrustum = !(t1AllR || t1AllL);
         const float xx = (v00.v.x + v11.v.x) * 0.5f;
         const float yy = (v00.v.y + v11.v.y) * 0.5f;
         const float zz = (v00.v.z + v11.v.z) * 0.5f;
-        // Use horizontal-plane depth (cz1) so the frustum doesn't
-        // collapse when looking up (see CollectTerrainTile for rationale).
-        const float wx_t1 = static_cast<float>((x1 + 1) * 256) - CameraX;
-        const float wz_t1 = static_cast<float>((y + 1) * 256) - CameraZ;
-        const float cz1_t1 = wz_t1 * ca - wx_t1 * sa;
-        const float depthFrT1 = (std::max)(cz1_t1, -zz);
-
-        const bool tile1PassedFrustum = (std::fabs(xx * FOVK) <= depthFrT1 + backR1);
         bool tile1InView = false;
         if (tile1PassedFrustum) {
             const float viewDistance = static_cast<float>(ctViewR * 256);
@@ -631,16 +639,19 @@ void GLRenderer::CollectTerrainTilePair(int x1, int x2, int y, int r,
 
     // Tile 2: (x2, y)
     {
+        // Conservative 4-corner frustum for tile 2.
+        const bool t2AllR = (v10.v.x * FOVK > -v10.v.z + backR2) &&
+                            (v20.v.x * FOVK > -v20.v.z + backR2) &&
+                            (v11.v.x * FOVK > -v11.v.z + backR2) &&
+                            (v21.v.x * FOVK > -v21.v.z + backR2);
+        const bool t2AllL = (-v10.v.x * FOVK > -v10.v.z + backR2) &&
+                            (-v20.v.x * FOVK > -v20.v.z + backR2) &&
+                            (-v11.v.x * FOVK > -v11.v.z + backR2) &&
+                            (-v21.v.x * FOVK > -v21.v.z + backR2);
         const float xx = (v10.v.x + v21.v.x) * 0.5f;
         const float yy = (v10.v.y + v21.v.y) * 0.5f;
         const float zz = (v10.v.z + v21.v.z) * 0.5f;
-        // Horizontal-plane depth for tile 2 (center at x2+1 = x1+2, y+1).
-        const float wx_t2 = static_cast<float>((x2 + 1) * 256) - CameraX;
-        const float wz_t2 = static_cast<float>((y + 1) * 256) - CameraZ;
-        const float cz1_t2 = wz_t2 * ca - wx_t2 * sa;
-        const float depthFrT2 = (std::max)(cz1_t2, -zz);
-
-        if (std::fabs(xx * FOVK) <= depthFrT2 + backR2) {
+        if (!(t2AllR || t2AllL)) {
             const float viewDistance = static_cast<float>(ctViewR * 256);
             const float viewDistanceSq = viewDistance * viewDistance;
             const float distanceSq = xx * xx + yy * yy + zz * zz;
@@ -717,7 +728,7 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y, int r,
         }
     }
 
-    // Coarse frustum pre-test for the chunk center
+    // Coarse frustum pre-test for the chunk center (no FOVK — see CollectTerrainTile)
     {
         const float wx = static_cast<float>((x + 1) * 256 + 128) - CameraX;
         const float wz = static_cast<float>((y + 1) * 256 + 128) - CameraZ;
@@ -725,7 +736,7 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y, int r,
         const float cx  = wx * ca + wz * sa;
         const float cz1 = wz * ca - wx * sa;
         const float cz  = cz1 * cb + wy * sb;
-        if (cz < 0.0f && std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
+        if (cz < 0.0f && std::fabs(cx) > -cz + backR * 2.0f + 2048.0f) {
             return;
         }
     }
@@ -785,19 +796,24 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y, int r,
         const EPoint& tv01 = *corners[ci + 1][cj];
         const EPoint& tv11 = *corners[ci + 1][cj + 1];
 
-        const float xx = (tv00.v.x + tv11.v.x) * 0.5f;
-        const float yy = (tv00.v.y + tv11.v.y) * 0.5f;
-        const float zz = (tv00.v.z + tv11.v.z) * 0.5f;
-
         float tileBackR = BackViewR;
         if (OMap[tileY][tileX] != 255) tileBackR += MObjects[OMap[tileY][tileX]].info.BoundR;
 
-        // Horizontal-plane depth for the frustum (see CollectTerrainTile).
-        const float wx_tile2 = static_cast<float>((tileX + 1) * 256) - CameraX;
-        const float wz_tile2 = static_cast<float>((tileY + 1) * 256) - CameraZ;
-        const float cz1_tile2 = wz_tile2 * ca - wx_tile2 * sa;
-        const float depthFrTile = (std::max)(cz1_tile2, -zz);
-        if (std::fabs(xx * FOVK) > depthFrTile + tileBackR) return;
+        // Conservative 4-corner frustum — only cull when all 4 corners are
+        // outside the same frustum side.
+        const bool allOutR = (tv00.v.x * FOVK > -tv00.v.z + tileBackR) &&
+                             (tv10.v.x * FOVK > -tv10.v.z + tileBackR) &&
+                             (tv01.v.x * FOVK > -tv01.v.z + tileBackR) &&
+                             (tv11.v.x * FOVK > -tv11.v.z + tileBackR);
+        const bool allOutL = (-tv00.v.x * FOVK > -tv00.v.z + tileBackR) &&
+                             (-tv10.v.x * FOVK > -tv10.v.z + tileBackR) &&
+                             (-tv01.v.x * FOVK > -tv01.v.z + tileBackR) &&
+                             (-tv11.v.x * FOVK > -tv11.v.z + tileBackR);
+        if (allOutR || allOutL) return;
+
+        const float xx = (tv00.v.x + tv11.v.x) * 0.5f;
+        const float yy = (tv00.v.y + tv11.v.y) * 0.5f;
+        const float zz = (tv00.v.z + tv11.v.z) * 0.5f;
 
         const float distanceSq = xx * xx + yy * yy + zz * zz;
         if (distanceSq > viewDistanceSq) return;
