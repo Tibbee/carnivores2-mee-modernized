@@ -1653,7 +1653,9 @@ void ShowVideo()
   if (OptDayNight!=2)
     if (!IsUnderwater() && (SunLight>1.0f) )
     {
-      RenderFSRect(0xFFFFC0 + (static_cast<int>(SunLight)<<24));
+      // Midway boost between C1 and C2 (see GLUI.cpp ShowVideo)
+      float boosted = (std::min)(255.0f, SunLight * 1.25f);
+      RenderFSRect(0xFFFFC0 + (static_cast<int>(boosted)<<24));
     }
 
   // Night darkness overlay (when night hunt and night vision is off)

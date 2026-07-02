@@ -490,7 +490,21 @@ void GLRenderer::RenderSun(float x, float y, float z)
 {
     m_sunScrX = VideoCX + static_cast<int>(x / (-z) * CameraW);
     m_sunScrY = VideoCY - static_cast<int>(y / (-z) * CameraH);
-    GetSkyK(m_sunScrX, m_sunScrY);
+
+    // Rate-limit the sky-occlusion readback to ~15 Hz (66 ms) to avoid
+    // GPU pipeline stalls every frame.  When the sun screen position
+    // hasn't changed and we updated recently, reuse the cached value.
+    // GetTraceK (depth occlusion) is deferred to ApplySunDepthOcclusion()
+    // which has its own caching; we don't need to worry about it here.
+    if (m_sunScrX != m_lastSunVisibilityScrX ||
+        m_sunScrY != m_lastSunVisibilityScrY ||
+        RealTime - m_lastSunVisibilityUpdate >= 66) {
+        GetSkyK(m_sunScrX, m_sunScrY);
+        m_lastSunVisibilityUpdate = RealTime;
+        m_lastSunVisibilityScrX = m_sunScrX;
+        m_lastSunVisibilityScrY = m_sunScrY;
+    }
+    // else: m_skyTraceK retains the value from the last GetSkyK call
 
     float d = std::sqrt(x * x + y * y);
     if (d < 2048.0f) {
@@ -524,20 +538,27 @@ float GLRenderer::GetSkyK(int x, int y)
 {
     if (x < 10 || y < 10 || x > WinW - 10 || y > WinH - 10) return 0.5f;
 
+    // Batch-read a 13x13 block (covers all offsets from -6..+6) in one
+    // glReadPixels call instead of 9 separate 1x1 reads.  Each separate
+    // read forces a CPU-GPU pipeline stall; one larger read has nearly
+    // the same cost as a 1x1 read on most drivers.
+    unsigned char block[13 * 13 * 4];
+    glReadPixels(x - 6, WinH - (y + 6), 13, 13, GL_RGBA, GL_UNSIGNED_BYTE, block);
+
     float skySumR = 0.0f, skySumG = 0.0f, skySumB = 0.0f;
 
-    // Sample 9 points around the sun position on the color buffer
+    // Index into the block for each sample offset.
+    // block[(oy+6)*13*4 + (ox+6)*4 + 0..2]  where oy,ox are the offset from center.
     const int offsets[][2] = {
         {0, 0}, {6, 0}, {-6, 0}, {0, 6}, {0, -6},
         {4, 4}, {4, -4}, {-4, 4}, {-4, -4}
     };
     for (const auto& off : offsets) {
-        unsigned char pixel[4];
-        glReadPixels(x + off[0], WinH - (y + off[1]), 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+        const int idx = (off[1] + 6) * 13 * 4 + (off[0] + 6) * 4;
         // GL returns BGR in byte order for glReadPixels
-        skySumR += pixel[0];
-        skySumG += pixel[1];
-        skySumB += pixel[2];
+        skySumR += block[idx + 0];
+        skySumG += block[idx + 1];
+        skySumB += block[idx + 2];
     }
 
     // Subtract the expected sky color (target)
@@ -558,7 +579,12 @@ float GLRenderer::GetSkyK(int x, int y)
 
 float GLRenderer::GetTraceK(int x, int y)
 {
-    if (x < 8 || y < 8 || x > WinW - 8 || y > WinH - 8) return 0.0f;
+    if (x < 10 || y < 10 || x > WinW - 10 || y > WinH - 10) return 0.0f;
+
+    // Batch-read a 21x21 block (covers all offsets from -10..+10) in one
+    // glReadPixels call instead of 9 separate 1x1 reads.
+    float block[21 * 21];
+    glReadPixels(x - 10, WinH - (y + 10), 21, 21, GL_DEPTH_COMPONENT, GL_FLOAT, block);
 
     float k = 0.0f;
     // Sample 9 points around the sun position on the depth buffer
@@ -567,8 +593,7 @@ float GLRenderer::GetTraceK(int x, int y)
         {8, 8}, {8, -8}, {-8, 8}, {-8, -8}
     };
     for (const auto& off : offsets) {
-        float depth = 1.0f;
-        glReadPixels(x + off[0], WinH - (y + off[1]), 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
+        const float depth = block[(off[1] + 10) * 21 + (off[0] + 10)];
         // Depth near 1.0 means sky (nothing occluding)
         if (depth > 0.9999f) k += 1.0f;
     }

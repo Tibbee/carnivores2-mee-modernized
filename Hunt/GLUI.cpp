@@ -177,6 +177,10 @@ void ShowVideo()
     // Apply sun glare/blinding effect (matching D3D/3DFX ShowVideo)
     if (g_GLRenderer) {
         float sunLight = g_GLRenderer->GetSunLight();
+        // Midway boost between C1 (1.5x + double skyTraceK) and C2 (1.0x):
+        // use 1.25x with linear skyTraceK, giving peak alpha ~175/255 ≈ 0.69.
+        const float kGlareBoost = 1.25f;
+        sunLight = (std::min)(255.0f, sunLight * kGlareBoost);
         if (!IsUnderwater() && sunLight > 1.0f) {
             uint32_t glareColor = 0xFFFFC0 | (static_cast<uint32_t>(sunLight) << 24);
             g_GLRenderer->RenderFSRect(glareColor);
