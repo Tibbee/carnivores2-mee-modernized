@@ -622,6 +622,7 @@ void LoadResources()
   {
     g_GameMode = GameMode::TrophyMode;
     ctViewR = 60;
+    charViewR = ctViewR;
   }
   sprintf_s(MapName, sizeof(MapName),"%s%s", ProjectName, ".map");
   sprintf_s(RscName, sizeof(RscName),"%s%s", ProjectName, ".rsc");

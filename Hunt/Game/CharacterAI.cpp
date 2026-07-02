@@ -77,7 +77,7 @@ void CheckAfraid()
 		if (g_GameMode == GameMode::SurvivalMode) goto isAfraid;
 
 		rlook = SubVectors(ppos, cptr->pos);
-		kR = VectorLength(rlook) / 256.f / (32.f + ctViewR / 2);
+		kR = VectorLength(rlook) / 256.f / (32.f + charViewR / 2);
 		NormVector(rlook, 1.0f);
 
 		kR *= 2.5f / static_cast<float>((1.5 + OptSens / 128.f));

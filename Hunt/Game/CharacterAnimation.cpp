@@ -1218,7 +1218,7 @@ TBEGIN:
 	}
 
 
-	if (pdistSq > ((ctViewR + 20) * 256) * ((ctViewR + 20) * 256))
+	if (pdistSq > ((charViewR + 20) * 256) * ((charViewR + 20) * 256))
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 
@@ -2306,7 +2306,7 @@ boolean huntDogSearch(TCharacter *cptr)
 		if (!DinoInfo[dino->CType].dogSmell) continue;
 
 		rlook = SubVectors(dino->pos, cptr->pos);
-		kR = VectorLength(rlook) / 256.f / (32.f + ctViewR / 2);
+		kR = VectorLength(rlook) / 256.f / (32.f + charViewR / 2);
 		NormVector(rlook, 1.0f);
 
 		kR *= 2.5f / static_cast<float>((1.5 + OptSens / 128.f));
@@ -2832,7 +2832,7 @@ TBEGIN:
 
 	}
 
-	if (pdistSq > ((ctViewR + 20) * 256) * ((ctViewR + 20) * 256))
+	if (pdistSq > ((charViewR + 20) * 256) * ((charViewR + 20) * 256))
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 	if (!cptr->State) {
@@ -3339,7 +3339,7 @@ TBEGIN:
 		cptr->tgtime = 0;
 	}
 
-	if (pdistSq[0] > ((ctViewR + 20) * 256) * ((ctViewR + 20) * 256) && cptr->CType)
+	if (pdistSq[0] > ((charViewR + 20) * 256) * ((charViewR + 20) * 256) && cptr->CType)
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 
@@ -3640,7 +3640,7 @@ TBEGIN:
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 100 *cptr->scale;
 	float pdistSq = playerdx * playerdx + playerdz * playerdz;
 
-	if (pdistSq > ((ctViewR + 20) * 256) * ((ctViewR + 20) * 256)) {
+	if (pdistSq > ((charViewR + 20) * 256) * ((charViewR + 20) * 256)) {
 		if (ReplaceCharacterForward(cptr)) {
 			goto TBEGIN;
 		}
@@ -4389,7 +4389,7 @@ TBEGIN:
 	}
 
 
-	if (pdistSq > ((ctViewR + 20) * 256) * ((ctViewR + 20) * 256))
+	if (pdistSq > ((charViewR + 20) * 256) * ((charViewR + 20) * 256))
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 	//======== exploring area ===============//
@@ -5403,7 +5403,7 @@ TBEGIN:
 			}
 	}
 
-	if (pdist > (ctViewR + 20) * 256)
+	if (pdist > (charViewR + 20) * 256)
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 	if (!cptr->State)
@@ -5714,7 +5714,7 @@ TBEGIN:
 	float playerdx = PlayerX - cptr->pos.x - cptr->lookx * 108;
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
 	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
-	if (pdist > (ctViewR + 20) * 256)
+	if (pdist > (charViewR + 20) * 256)
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 	if (cptr->packId >= 0) {
@@ -5919,7 +5919,7 @@ TBEGIN:
 
 	//=========== run away =================//
 
-	if (pdist > (ctViewR + 20) * 256)
+	if (pdist > (charViewR + 20) * 256)
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 

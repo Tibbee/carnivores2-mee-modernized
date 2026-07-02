@@ -668,6 +668,12 @@ OptFpsLimit = 0;  // 0 = unlimited
   if (g_GameMode == GameMode::SurvivalMode) OptViewR = kViewOptMax;
 
   ctViewR = ViewOptToCtViewR(OptViewR);
+  // Cap the character-processing view radius independently of the
+  // rendering radius.  At ctViewR=230 the game processes characters
+  // within a ~4B sq-unit area, causing multi-second frame freezes.
+  // A cap of 120 keeps character LOD ~2.2x default while preventing
+  // the worst scalability cliff.
+  charViewR = (std::min)(ctViewR, 120);
   ctViewRM = ClampObjectDetail(OptObjectDetail);
 
   Soft_Persp_K = 1.5f;

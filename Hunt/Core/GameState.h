@@ -389,7 +389,7 @@ GLOBAL   void  *HLineT;
 
 GLOBAL   int   rTColor;
 
-GLOBAL   int   SKYMin, SKYDTime, GlassL, ctViewR, ctViewRM,
+GLOBAL   int   SKYMin, SKYDTime, GlassL, ctViewR, ctViewRM, charViewR,
             dFacesCount, ReverseOn, TDirection;
 
 GLOBAL   WORD  FadeTab[65][0x8000];

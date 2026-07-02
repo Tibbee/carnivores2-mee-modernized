@@ -1688,8 +1688,8 @@ BOOL ReplaceCharacterForward(TCharacter *cptr)
 	float sa = static_cast<float>(sin(al));
 	float ca = static_cast<float>(cos(al));
 	Vector3d p;
-	p.x = PlayerX + sa * (ctViewR + rRand(10)) * 256;
-	p.z = PlayerZ - ca * (ctViewR + rRand(10)) * 256;
+	p.x = PlayerX + sa * (charViewR + rRand(10)) * 256;
+	p.z = PlayerZ - ca * (charViewR + rRand(10)) * 256;
 	p.y = GetLandH(p.x, p.z);
 
 	if (p.x < 16 * 256) return false;
