@@ -2136,11 +2136,36 @@ void SaveTrophy()
 // ================================================================
 // config.cfg — text-based settings file (shared with Carnivores2Menu)
 // ================================================================
-static const char* kConfigFile = "config.cfg";
+// Resolve config.cfg relative to the game executable first, then fall
+// back to the current working directory. This ensures the file is found
+// regardless of how the game is launched (via Menu or directly from a
+// command prompt in a different directory).
+static void GetConfigPath(char* buf, size_t bufsz)
+{
+  // Try EXE directory first
+  char mod[MAX_PATH];
+  DWORD len = GetModuleFileNameA(nullptr, mod, sizeof(mod));
+  if (len > 0 && len < sizeof(mod)) {
+    char* sep = strrchr(mod, '\\');
+    if (sep) {
+      *(sep + 1) = '\0';
+      strcat_s(mod, sizeof(mod), "config.cfg");
+      if (GetFileAttributesA(mod) != INVALID_FILE_ATTRIBUTES) {
+        strcpy_s(buf, bufsz, mod);
+        return;
+      }
+    }
+  }
+  // Fall back to CWD
+  strcpy_s(buf, bufsz, "config.cfg");
+}
 
 static void LoadConfig()
 {
-  HANDLE hfile = CreateFileA(kConfigFile, GENERIC_READ, FILE_SHARE_READ,
+  char configPath[MAX_PATH];
+  GetConfigPath(configPath, sizeof(configPath));
+
+  HANDLE hfile = CreateFileA(configPath, GENERIC_READ, FILE_SHARE_READ,
                            nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (hfile == INVALID_HANDLE_VALUE) {
     PrintLog("Config: config.cfg not found, using defaults.\n");

@@ -1398,14 +1398,48 @@ bool Picture::IsValid() const
 // not part of the legacy binary trophy format.
 // ================================================================
 
-static const char* kConfigFile = "config.cfg";
+// Resolve config.cfg relative to the EXE directory first, falling back
+// to the current working directory.  Both the Menu and the game engine
+// use the same strategy so they share the same file regardless of which
+// directory each EXE is launched from.
+static std::string GetConfigPath()
+{
+	char mod[MAX_PATH];
+	DWORD len = GetModuleFileNameA(nullptr, mod, sizeof(mod));
+	if (len > 0 && len < sizeof(mod)) {
+		char* sep = strrchr(mod, '\\');
+		if (sep) {
+			*(sep + 1) = '\0';
+			strcat_s(mod, sizeof(mod), "config.cfg");
+			if (GetFileAttributesA(mod) != INVALID_FILE_ATTRIBUTES)
+				return std::string(mod);
+		}
+	}
+	return "config.cfg";
+}
 
-// Write the current FOV (and any future settings) to config.cfg.
+static std::string GetConfigWritePath()
+{
+	char mod[MAX_PATH];
+	DWORD len = GetModuleFileNameA(nullptr, mod, sizeof(mod));
+	if (len > 0 && len < sizeof(mod)) {
+		char* sep = strrchr(mod, '\\');
+		if (sep) {
+			*(sep + 1) = '\0';
+			return std::string(mod) + "config.cfg";
+		}
+	}
+	return "config.cfg";
+}
+
+// Write the current settings to config.cfg (EXE-directory based, shared
+// with the game engine).
 void SaveConfig()
 {
-	std::ofstream fs(kConfigFile, std::ios::trunc);
+	std::string configPath = GetConfigWritePath();
+	std::ofstream fs(configPath, std::ios::trunc);
 	if (!fs.is_open()) {
-		std::cout << "Config: could not write " << kConfigFile << std::endl;
+		std::cout << "Config: could not write " << configPath << std::endl;
 		return;
 	}
 
@@ -1419,7 +1453,7 @@ void SaveConfig()
 	fs << "verbose_logging " << (g_Options.VerboseLogging ? 1 : 0) << "\n";
 	fs << "nightvision_key " << g_Options.NightVisionKey << "\n";
 
-	std::cout << "Config Saved (" << kConfigFile << ")." << std::endl;
+	std::cout << "Config Saved (" << configPath << ")." << std::endl;
 }
 
 // Parse a single "key value" line.  Returns true if the key was recognised.
@@ -1493,9 +1527,10 @@ static bool ParseConfigLine(const std::string& line)
 // If the file does not exist, write defaults (first-run migration).
 void LoadConfig()
 {
-	std::ifstream fs(kConfigFile);
+	std::string configPath = GetConfigPath();
+	std::ifstream fs(configPath);
 	if (!fs.is_open()) {
-		std::cout << "Config: " << kConfigFile << " not found — writing defaults." << std::endl;
+		std::cout << "Config: " << configPath << " not found — writing defaults." << std::endl;
 		SaveConfig();
 		return;
 	}
@@ -1505,5 +1540,5 @@ void LoadConfig()
 		ParseConfigLine(line);
 	}
 
-	std::cout << "Config Loaded (" << kConfigFile << ")." << std::endl;
+	std::cout << "Config Loaded (" << configPath << ")." << std::endl;
 }
