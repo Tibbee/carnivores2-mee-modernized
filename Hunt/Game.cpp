@@ -1909,7 +1909,11 @@ void AnimateProcesses()
       WCircles[w].FTime+=TimeDt*3;
     if (WCircles[w].FTime >= 2000)
     {
-      memcpy(&WCircles[w], &WCircles[w+1], sizeof(TWCircle) * (WCCount+1-w) );
+      // Shift [w+1 .. WCCount-1] down to [w .. WCCount-2]. That is
+      // (WCCount-1-w) elements. The old code used (WCCount+1-w), which
+      // copied 2 extra elements and read/wrote one past the array end
+      // when the buffer was full (w == WCCount-1 == 2095).
+      memmove(&WCircles[w], &WCircles[w+1], sizeof(TWCircle) * (WCCount - 1 - w));
       w--;
       WCCount--;
     }
