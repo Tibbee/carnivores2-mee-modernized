@@ -221,6 +221,7 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
     // is typically close to terrain height).  Skips 4 VMap2 reads for
     // tiles outside the horizontal frustum.
     // Uses a generous margin to avoid false rejects.
+    // SAFEGUARD: only reject when cz < 0 (see terrain for rationale).
     {
         const float wx = static_cast<float>(x * 256 + 128) - CameraX;
         const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
@@ -228,7 +229,7 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
         const float cx  = wx * ca + wz * sa;
         const float cz1 = wz * ca - wx * sa;
         const float cz  = cz1 * cb + wy * sb;
-        if (std::fabs(cx * FOVK) > -cz + BackViewR * 2.0f + 2048.0f) {
+        if (cz < 0.0f && std::fabs(cx * FOVK) > -cz + BackViewR * 2.0f + 2048.0f) {
             return;
         }
     }
@@ -251,7 +252,7 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
         return;
     }
 
-    const float fadeEnabled = (!IsUnderwater() && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
+    const float fadeEnabled = (!m_isUnderwater && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
 
     const float a00 = Clamp01(v00.ALPHA / 255.0f);
     const float a10 = Clamp01(v10.ALPHA / 255.0f);
@@ -333,7 +334,7 @@ void GLRenderer::CollectWaterTile(int x, int y, int r)
         return;
     }
 
-    const float fadeEnabled = (!IsUnderwater() && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
+    const float fadeEnabled = (!m_isUnderwater && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
 
     const float a00 = Clamp01(v00.ALPHA / 255.0f);
     const float a10 = Clamp01(v10.ALPHA / 255.0f);
@@ -426,7 +427,7 @@ void GLRenderer::CollectWaterTile2(int x, int y, int r)
         return;
     }
 
-    const float fadeEnabled = (!IsUnderwater() && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
+    const float fadeEnabled = (!m_isUnderwater && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
 
     const float a00 = Clamp01(v00.ALPHA / 255.0f);
     const float a20 = Clamp01(v20.ALPHA / 255.0f);

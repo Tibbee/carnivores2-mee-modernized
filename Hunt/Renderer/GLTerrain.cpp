@@ -211,132 +211,14 @@ void GLRenderer::AppendTerrainTriangle(const EPoint& v0,
     m_terrainVertexCount += 3;
 }
 
+// The 3-arg version is the backward-compatible entry point.
+// It delegates to the 6-arg overload (which has the actual implementation).
 void GLRenderer::CollectTerrainTile(int x, int y, int r)
 {
-    (void)r;
-
-    if (x >= ctMapSize - 1 || y >= ctMapSize - 1 || x < 0 || y < 0) {
-        return;
-    }
-
-    float backR = BackViewR;
-    if (OMap[y][x] != 255) {
-        backR += MObjects[OMap[y][x]].info.BoundR;
-    }
-
-    const int localX = x - CCX + kViewGridCenter;
-    const int localY = y - CCY + kViewGridCenter;
-    if (localX < 0 || localY < 0 || localX + 1 >= kViewGridSize || localY + 1 >= kViewGridSize) {
-        return;
-    }
-
-    // Coarse frustum pre-test using map coordinates + HMapO height
-    // estimate.  Avoids reading 4 VMap EPoints (64 bytes) for tiles
-    // that are clearly outside the horizontal frustum.
-    // Uses a generous margin (backR*2 + 2048) so we never false-reject
-    // tiles that the precise VMap-based test would accept.
-    //
-    // SAFEGUARD: only reject when cz < 0 (representative point in front
-    // of the camera).  When looking up a steep hill the height term
-    // wy*sb can cancel the forward term cz1*cb and drive cz >= 0 (at or
-    // behind the camera origin).  In that case -cz + margin goes
-    // non-positive and |cx*FOVK| > (non-positive) is ALWAYS true, which
-    // would unconditionally cull the tile — the root cause of the
-    // steep-hill side-clipping bug (the C1 GL renderer has no such
-    // pre-test and never exhibited it).  Skipping the coarse reject
-    // when cz >= 0 lets the precise 4-corner test below decide, while
-    // preserving the optimization for the common in-front-of-camera case.
-    {
-        const float wx = static_cast<float>(x * 256 + 128) - CameraX;
-        const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
-        const float wy = static_cast<float>(HMapO[y][x]) * ctHScale - CameraY;
-        const float cx  = wx * ca + wz * sa;
-        const float cz1 = wz * ca - wx * sa;
-        const float cz  = cz1 * cb + wy * sb;
-        if (cz < 0.0f && std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
-            return;
-        }
-    }
-
-    // Fetch vertices — needed for precise frustum + distance culling
-    EPoint v00 = VMap[localY][localX];
-    if (v00.v.z > backR) {
-        return;
-    }
-
-    EPoint v10 = VMap[localY][localX + 1];
-    EPoint v01 = VMap[localY + 1][localX];
-    EPoint v11 = VMap[localY + 1][localX + 1];
-
-    // Precise frustum cull using VMap vertices
-    const float xx = (v00.v.x + v11.v.x) * 0.5f;
-    const float yy = (v00.v.y + v11.v.y) * 0.5f;
-    const float zz = (v00.v.z + v11.v.z) * 0.5f;
-
-    if (std::fabs(xx * FOVK) > -zz + backR) {
-        return;
-    }
-
-    // Distance cull
-    const float viewDistance = static_cast<float>(ctViewR * 256);
-    const float viewDistanceSq = viewDistance * viewDistance;
-    const float distanceSq = xx * xx + yy * yy + zz * zz;
-    if (distanceSq > viewDistanceSq) {
-        return;
-    }
-
-    // Tile survived culling — now compute fog + alpha
     const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
     const float fadeStartSq = fadeStart * fadeStart;
     const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
-
-    const int fogIdx00 = GetFogIndexForMapPoint(x, y);
-    const int fogIdx10 = GetFogIndexForMapPoint(x + 1, y);
-    const int fogIdx01 = GetFogIndexForMapPoint(x, y + 1);
-    const int fogIdx11 = GetFogIndexForMapPoint(x + 1, y + 1);
-
-    v00.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx00, v00.Fog));
-    v10.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx10, v10.Fog));
-    v01.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx01, v01.Fog));
-    v11.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx11, v11.Fog));
-
-    const Vector3d fog00 = GetFogColorForMapPoint(fogIdx00);
-    const Vector3d fog10 = GetFogColorForMapPoint(fogIdx10);
-    const Vector3d fog01 = GetFogColorForMapPoint(fogIdx01);
-    const Vector3d fog11 = GetFogColorForMapPoint(fogIdx11);
-
-    const float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd);
-    const float alpha10 = CalcTerrainAlpha(VertexDistanceSq(v10.v), fadeStart, fadeStartSq, fadeEnd);
-    const float alpha01 = CalcTerrainAlpha(VertexDistanceSq(v01.v), fadeStart, fadeStartSq, fadeEnd);
-    const float alpha11 = CalcTerrainAlpha(VertexDistanceSq(v11.v), fadeStart, fadeStartSq, fadeEnd);
-
-    // §5.1: Early-fade-out cull — skip fog + triangle emission for
-    // tiles whose 4 vertex alphas are all below the visibility threshold.
-    // These tiles are in the outer fade ring (ctViewR-4..ctViewR) and
-    // are effectively invisible.  RenderObject is still called so that
-    // objects on faded tiles are queued (they have their own distance fade).
-    constexpr float kAlphaCullThreshold = 0.02f;
-    if (alpha00 < kAlphaCullThreshold && alpha10 < kAlphaCullThreshold &&
-        alpha01 < kAlphaCullThreshold && alpha11 < kAlphaCullThreshold) {
-        RenderObject(x, y);
-        return;
-    }
-
-    const bool reverse = (FMap[y][x] & fmReverse) != 0;
-    const int direction = FMap[y][x] & 3;
-
-    const int textureLayer = TMap1[y][x];
-    if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
-        if (reverse) {
-            AppendTerrainTriangle(v00, v10, v01, fog00, fog10, fog01, textureLayer, reverse, false, direction, alpha00, alpha10, alpha01);
-            AppendTerrainTriangle(v01, v10, v11, fog01, fog10, fog11, textureLayer, reverse, true, direction, alpha01, alpha10, alpha11);
-        } else {
-            AppendTerrainTriangle(v00, v10, v11, fog00, fog10, fog11, textureLayer, reverse, false, direction, alpha00, alpha10, alpha11);
-            AppendTerrainTriangle(v00, v11, v01, fog00, fog11, fog01, textureLayer, reverse, true, direction, alpha00, alpha11, alpha01);
-        }
-    }
-
-    RenderObject(x, y);
+    CollectTerrainTile(x, y, r, fadeStart, fadeStartSq, fadeEnd);
 }
 
 // §5.2: Chunked pair collection — processes two horizontally adjacent
@@ -351,182 +233,14 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
 //
 // Tile 1 uses corners: v00, v10, v01, v11
 // Tile 2 uses corners: v10, v20, v11, v21
+// The 4-arg version delegates to the 7-arg overload (which has the
+// actual implementation with hoisted constants and de-dup cull).
 void GLRenderer::CollectTerrainTilePair(int x1, int x2, int y, int r)
 {
-    (void)r;
-
-    // Boundary checks — fall back to 1×1 for out-of-bounds tiles
-    if (x1 < 0 || x2 < 0 || y < 0 ||
-        x1 >= ctMapSize - 1 || x2 >= ctMapSize - 1 || y >= ctMapSize - 1) {
-        if (x1 >= 0 && x1 < ctMapSize - 1 && y >= 0 && y < ctMapSize - 1)
-            CollectTerrainTile(x1, y, r);
-        if (x2 >= 0 && x2 < ctMapSize - 1 && y >= 0 && y < ctMapSize - 1)
-            CollectTerrainTile(x2, y, r);
-        return;
-    }
-
-    // Local coordinate checks
-    const int localX1 = x1 - CCX + kViewGridCenter;
-    const int localY = y - CCY + kViewGridCenter;
-    if (localX1 < 0 || localY < 0 || localX1 + 2 >= kViewGridSize || localY + 1 >= kViewGridSize) {
-        if (localX1 >= 0 && localX1 + 1 < kViewGridSize)
-            CollectTerrainTile(x1, y, r);
-        if (localX1 + 1 >= 0 && localX1 + 2 < kViewGridSize)
-            CollectTerrainTile(x2, y, r);
-        return;
-    }
-
-    // BackViewR with object bounds for both tiles
-    float backR1 = BackViewR;
-    if (OMap[y][x1] != 255) backR1 += MObjects[OMap[y][x1]].info.BoundR;
-    float backR2 = BackViewR;
-    if (OMap[y][x2] != 255) backR2 += MObjects[OMap[y][x2]].info.BoundR;
-    const float backR = (std::max)(backR1, backR2);
-
-    // Coarse frustum pre-test for the pair's center.
-    // SAFEGUARD: only reject when cz < 0 (see CollectTerrainTile for the
-    // full rationale).  Without the guard, ascending a steep hill while
-    // looking up drives the representative cz >= 0 and makes the test
-    // unconditionally true, false-culling the pair.  The precise
-    // per-tile 4-corner test below handles the cz >= 0 case correctly.
-    {
-        const float wx = static_cast<float>((x1 + 1) * 256 + 128) - CameraX;
-        const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
-        const float wy = static_cast<float>(HMapO[y][x1]) * ctHScale - CameraY;
-        const float cx  = wx * ca + wz * sa;
-        const float cz1 = wz * ca - wx * sa;
-        const float cz  = cz1 * cb + wy * sb;
-        if (cz < 0.0f && std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
-            return;  // Pair outside frustum — skip entirely (matches CollectTerrainTile)
-        }
-    }
-
-    // Fetch 6 VMap corners (shared between 2 tiles)
-    EPoint v00 = VMap[localY][localX1];
-    EPoint v10 = VMap[localY][localX1 + 1];  // shared
-    EPoint v20 = VMap[localY][localX1 + 2];
-    EPoint v01 = VMap[localY + 1][localX1];
-    EPoint v11 = VMap[localY + 1][localX1 + 1];  // shared
-    EPoint v21 = VMap[localY + 1][localX1 + 2];
-
-    // Early z-check for the pair — must check ALL 6 corners (not just top row)
-    // to avoid false-culling when looking uphill/downhill.
-    if (v00.v.z > backR && v10.v.z > backR && v20.v.z > backR &&
-        v01.v.z > backR && v11.v.z > backR && v21.v.z > backR) {
-        return;  // All corners behind back plane — skip
-    }
-
-    // Precompute all 6 fog indices (shared between tiles)
-    const int fogIdx_x1_y   = GetFogIndexForMapPoint(x1, y);
-    const int fogIdx_x2_y   = GetFogIndexForMapPoint(x2, y);      // = x1+1, shared
-    const int fogIdx_x3_y   = GetFogIndexForMapPoint(x2 + 1, y);  // = x1+2
-    const int fogIdx_x1_y1  = GetFogIndexForMapPoint(x1, y + 1);
-    const int fogIdx_x2_y1  = GetFogIndexForMapPoint(x2, y + 1);  // = x1+1, shared
-    const int fogIdx_x3_y1  = GetFogIndexForMapPoint(x2 + 1, y + 1);  // = x1+2
-
-    // Precompute all 6 fog colors
-    const Vector3d fogColor_x1_y  = GetFogColorForMapPoint(fogIdx_x1_y);
-    const Vector3d fogColor_x2_y  = GetFogColorForMapPoint(fogIdx_x2_y);
-    const Vector3d fogColor_x3_y  = GetFogColorForMapPoint(fogIdx_x3_y);
-    const Vector3d fogColor_x1_y1 = GetFogColorForMapPoint(fogIdx_x1_y1);
-    const Vector3d fogColor_x2_y1 = GetFogColorForMapPoint(fogIdx_x2_y1);
-    const Vector3d fogColor_x3_y1 = GetFogColorForMapPoint(fogIdx_x3_y1);
-
-    // Precompute all 6 alpha values
     const float fadeStart = static_cast<float>((ctViewR - 8) << 8);
     const float fadeStartSq = fadeStart * fadeStart;
     const float fadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
-
-    const float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd);
-    const float alpha10 = CalcTerrainAlpha(VertexDistanceSq(v10.v), fadeStart, fadeStartSq, fadeEnd);
-    const float alpha20 = CalcTerrainAlpha(VertexDistanceSq(v20.v), fadeStart, fadeStartSq, fadeEnd);
-    const float alpha01 = CalcTerrainAlpha(VertexDistanceSq(v01.v), fadeStart, fadeStartSq, fadeEnd);
-    const float alpha11 = CalcTerrainAlpha(VertexDistanceSq(v11.v), fadeStart, fadeStartSq, fadeEnd);
-    const float alpha21 = CalcTerrainAlpha(VertexDistanceSq(v21.v), fadeStart, fadeStartSq, fadeEnd);
-
-    // Precompute fog amounts for ALL 6 corners unconditionally.
-    // This ensures shared corners (v10, v11) have correct fog even if
-    // Tile 1 is alpha-culled (reviewer fix: fog-on-shared-corners).
-    v00.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x1_y, v00.Fog));
-    v10.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x2_y, v10.Fog));
-    v20.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x3_y, v20.Fog));
-    v01.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x1_y1, v01.Fog));
-    v11.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x2_y1, v11.Fog));
-    v21.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x3_y1, v21.Fog));
-
-    // Process tile 1: (x1, y)
-    {
-        const float xx = (v00.v.x + v11.v.x) * 0.5f;
-        const float yy = (v00.v.y + v11.v.y) * 0.5f;
-        const float zz = (v00.v.z + v11.v.z) * 0.5f;
-
-        bool tile1Emitted = false;
-        if (std::fabs(xx * FOVK) <= -zz + backR1) {
-            const float viewDistance = static_cast<float>(ctViewR * 256);
-            const float viewDistanceSq = viewDistance * viewDistance;
-            const float distanceSq = xx * xx + yy * yy + zz * zz;
-            if (distanceSq <= viewDistanceSq) {
-                constexpr float kAlphaCullThreshold = 0.02f;
-                if (!(alpha00 < kAlphaCullThreshold && alpha10 < kAlphaCullThreshold &&
-                      alpha01 < kAlphaCullThreshold && alpha11 < kAlphaCullThreshold)) {
-                    const bool reverse = (FMap[y][x1] & fmReverse) != 0;
-                    const int direction = FMap[y][x1] & 3;
-                    const int textureLayer = TMap1[y][x1];
-                    if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
-                        if (reverse) {
-                            AppendTerrainTriangle(v00, v10, v01, fogColor_x1_y, fogColor_x2_y, fogColor_x1_y1, textureLayer, reverse, false, direction, alpha00, alpha10, alpha01);
-                            AppendTerrainTriangle(v01, v10, v11, fogColor_x1_y1, fogColor_x2_y, fogColor_x2_y1, textureLayer, reverse, true, direction, alpha01, alpha10, alpha11);
-                        } else {
-                            AppendTerrainTriangle(v00, v10, v11, fogColor_x1_y, fogColor_x2_y, fogColor_x2_y1, textureLayer, reverse, false, direction, alpha00, alpha10, alpha11);
-                            AppendTerrainTriangle(v00, v11, v01, fogColor_x1_y, fogColor_x2_y1, fogColor_x1_y1, textureLayer, reverse, true, direction, alpha00, alpha11, alpha01);
-                        }
-                        tile1Emitted = true;
-                    }
-                }
-            }
-        }
-        // Only call RenderObject if tile passed distance cull (matches CollectTerrainTile behavior)
-        if (std::fabs(xx * FOVK) <= -zz + backR1) {
-            const float viewDistance = static_cast<float>(ctViewR * 256);
-            const float viewDistanceSq = viewDistance * viewDistance;
-            const float distanceSq = xx * xx + yy * yy + zz * zz;
-            if (distanceSq <= viewDistanceSq) {
-                RenderObject(x1, y);
-            }
-        }
-    }
-
-    // Process tile 2: (x2, y) — reuses v10, v11 and their fog data
-    {
-        const float xx = (v10.v.x + v21.v.x) * 0.5f;
-        const float yy = (v10.v.y + v21.v.y) * 0.5f;
-        const float zz = (v10.v.z + v21.v.z) * 0.5f;
-
-        if (std::fabs(xx * FOVK) <= -zz + backR2) {
-            const float viewDistance = static_cast<float>(ctViewR * 256);
-            const float viewDistanceSq = viewDistance * viewDistance;
-            const float distanceSq = xx * xx + yy * yy + zz * zz;
-            if (distanceSq <= viewDistanceSq) {
-                constexpr float kAlphaCullThreshold = 0.02f;
-                if (!(alpha10 < kAlphaCullThreshold && alpha20 < kAlphaCullThreshold &&
-                      alpha11 < kAlphaCullThreshold && alpha21 < kAlphaCullThreshold)) {
-                    const bool reverse = (FMap[y][x2] & fmReverse) != 0;
-                    const int direction = FMap[y][x2] & 3;
-                    const int textureLayer = TMap1[y][x2];
-                    if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
-                        if (reverse) {
-                            AppendTerrainTriangle(v10, v20, v11, fogColor_x2_y, fogColor_x3_y, fogColor_x2_y1, textureLayer, reverse, false, direction, alpha10, alpha20, alpha11);
-                            AppendTerrainTriangle(v11, v20, v21, fogColor_x2_y1, fogColor_x3_y, fogColor_x3_y1, textureLayer, reverse, true, direction, alpha11, alpha20, alpha21);
-                        } else {
-                            AppendTerrainTriangle(v10, v20, v21, fogColor_x2_y, fogColor_x3_y, fogColor_x3_y1, textureLayer, reverse, false, direction, alpha10, alpha20, alpha21);
-                            AppendTerrainTriangle(v10, v21, v11, fogColor_x2_y, fogColor_x3_y1, fogColor_x2_y1, textureLayer, reverse, true, direction, alpha10, alpha21, alpha11);
-                        }
-                    }
-                }
-                RenderObject(x2, y);
-            }
-        }
-    }
+    CollectTerrainTilePair(x1, x2, y, r, fadeStart, fadeStartSq, fadeEnd);
 }
 
 void GLRenderer::RenderTerrain()
@@ -569,6 +283,11 @@ void GLRenderer::RenderTerrain()
 void GLRenderer::ResetTerrainTextureCache()
 {
     m_uploadedTerrainTextures.fill(nullptr);
+    // Phase 3: invalidate the water bitmask on level transition.
+    // It will be rebuilt on the first frame that needs it, AFTER the
+    // new level's FMap has been loaded (the old code rebuilt here, but
+    // that ran before LoadResources() populated the new FMap).
+    m_waterBlockBitsValid = false;
 }
 
 void GLRenderer::ClearLevelTextureCache()
@@ -605,6 +324,521 @@ void GLRenderer::ClearLevelTextureCache()
     m_skyTextureDirty = true;
 }
 
+// ---------------------------------------------------------------------------
+// Phase 3: Water bitmask — coarse "has water" bitmap for 8x8 cell blocks.
+// Built once at level load; skips CollectWaterTileFast for dry blocks.
+// ---------------------------------------------------------------------------
+
+bool GLRenderer::BlockHasWater(int x, int y) const
+{
+    if (!m_waterBlockBitsValid) return true;  // safe fallback: assume water
+    const int bx = x >> kWaterBlockShift;
+    const int by = y >> kWaterBlockShift;
+    if (bx < 0 || by < 0 || bx >= kWaterBlockDim || by >= kWaterBlockDim) return false;
+    const size_t idx = static_cast<size_t>(by) * kWaterBlockDim + static_cast<size_t>(bx);
+    return (m_waterBlockBits[idx >> 6] >> (idx & 63)) & 1ULL;
+}
+
+void GLRenderer::RebuildWaterBlockBits()
+{
+    std::fill(m_waterBlockBits.begin(), m_waterBlockBits.end(), 0ULL);
+    for (int by = 0; by < kWaterBlockDim; ++by) {
+        for (int bx = 0; bx < kWaterBlockDim; ++bx) {
+            bool any = false;
+            for (int dy = 0; dy < 8 && !any; ++dy) {
+                for (int dx = 0; dx < 8 && !any; ++dx) {
+                    const int cx = (bx << kWaterBlockShift) + dx;
+                    const int cy = (by << kWaterBlockShift) + dy;
+                    if (cx < ctMapSize && cy < ctMapSize && (FMap[cy][cx] & fmWaterA)) {
+                        any = true;
+                    }
+                }
+            }
+            if (any) {
+                const size_t idx = static_cast<size_t>(by) * kWaterBlockDim + static_cast<size_t>(bx);
+                m_waterBlockBits[idx >> 6] |= (1ULL << (idx & 63));
+            }
+        }
+    }
+    m_waterBlockBitsValid = true;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5: Overloaded CollectTerrainTile with hoisted fade constants.
+// These are called from the frustum-bounded sweep in RenderGround.
+// The original 3-arg version delegates to these for backward compat.
+// ---------------------------------------------------------------------------
+
+void GLRenderer::CollectTerrainTile(int x, int y, int r,
+                                    float fadeStart, float fadeStartSq, float fadeEnd)
+{
+    (void)r;
+
+    if (x >= ctMapSize - 1 || y >= ctMapSize - 1 || x < 0 || y < 0) {
+        return;
+    }
+
+    float backR = BackViewR;
+    if (OMap[y][x] != 255) {
+        backR += MObjects[OMap[y][x]].info.BoundR;
+    }
+
+    const int localX = x - CCX + kViewGridCenter;
+    const int localY = y - CCY + kViewGridCenter;
+    if (localX < 0 || localY < 0 || localX + 1 >= kViewGridSize || localY + 1 >= kViewGridSize) {
+        return;
+    }
+
+    // Coarse frustum pre-test — SAFEGUARD: only reject when cz < 0
+    // (see the original CollectTerrainTile for the full rationale).
+    {
+        const float wx = static_cast<float>(x * 256 + 128) - CameraX;
+        const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
+        const float wy = static_cast<float>(HMapO[y][x]) * ctHScale - CameraY;
+        const float cx  = wx * ca + wz * sa;
+        const float cz1 = wz * ca - wx * sa;
+        const float cz  = cz1 * cb + wy * sb;
+        if (cz < 0.0f && std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
+            return;
+        }
+    }
+
+    // Fetch vertices
+    EPoint v00 = VMap[localY][localX];
+    if (v00.v.z > backR) {
+        return;
+    }
+
+    EPoint v10 = VMap[localY][localX + 1];
+    EPoint v01 = VMap[localY + 1][localX];
+    EPoint v11 = VMap[localY + 1][localX + 1];
+
+    // Precise frustum cull.  Use the horizontal-plane depth (cz1, computed
+    // from tile-center world coords) for the frustum half-width, NOT the
+    // camera-space z (zz).  When looking up, zz = cz1*cb + wy*sb can be
+    // very shallow for edge tiles (terrain at camera height) while cz1
+    // correctly reflects the horizontal distance.  Using -zz narrows the
+    // frustum artificially and culls tiles that are well within the
+    // horizontal view distance.  cz1 is the same formula as the coarse
+    // test's forward depth but at the tile center (x+1, y+1).
+    const float xx = (v00.v.x + v11.v.x) * 0.5f;
+    const float yy = (v00.v.y + v11.v.y) * 0.5f;
+    const float zz = (v00.v.z + v11.v.z) * 0.5f;
+    // Horizontal-plane depth (before pitch rotation):
+    const float wx_center = static_cast<float>((x + 1) * 256) - CameraX;
+    const float wz_center = static_cast<float>((y + 1) * 256) - CameraZ;
+    const float cz1_center = wz_center * ca - wx_center * sa;
+    // Use the deeper of cz1 and -zz so the frustum never collapses when
+    // looking up.  Edge terrain tiles at camera height have cz1 >> -zz.
+    const float depthForFrustum = (std::max)(cz1_center, -zz);
+    if (std::fabs(xx * FOVK) > depthForFrustum + backR) {
+        return;
+    }
+
+    // Distance cull
+    const float viewDistance = static_cast<float>(ctViewR * 256);
+    const float viewDistanceSq = viewDistance * viewDistance;
+    const float distanceSq = xx * xx + yy * yy + zz * zz;
+    if (distanceSq > viewDistanceSq) {
+        return;
+    }
+
+    // Tile survived culling — compute fog + alpha using hoisted constants
+    const int fogIdx00 = GetFogIndexForMapPoint(x, y);
+    const int fogIdx10 = GetFogIndexForMapPoint(x + 1, y);
+    const int fogIdx01 = GetFogIndexForMapPoint(x, y + 1);
+    const int fogIdx11 = GetFogIndexForMapPoint(x + 1, y + 1);
+
+    v00.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx00, v00.Fog, m_isUnderwater));
+    v10.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx10, v10.Fog, m_isUnderwater));
+    v01.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx01, v01.Fog, m_isUnderwater));
+    v11.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx11, v11.Fog, m_isUnderwater));
+
+    const Vector3d fog00 = GetFogColorForMapPoint(fogIdx00);
+    const Vector3d fog10 = GetFogColorForMapPoint(fogIdx10);
+    const Vector3d fog01 = GetFogColorForMapPoint(fogIdx01);
+    const Vector3d fog11 = GetFogColorForMapPoint(fogIdx11);
+
+    // Phase 5: use cached m_isUnderwater to skip the global load
+    const float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+    const float alpha10 = CalcTerrainAlpha(VertexDistanceSq(v10.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+    const float alpha01 = CalcTerrainAlpha(VertexDistanceSq(v01.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+    const float alpha11 = CalcTerrainAlpha(VertexDistanceSq(v11.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+
+    // Alpha cull — skip tiles whose 4 vertex alphas are all below threshold
+    constexpr float kAlphaCullThreshold = 0.02f;
+    if (alpha00 < kAlphaCullThreshold && alpha10 < kAlphaCullThreshold &&
+        alpha01 < kAlphaCullThreshold && alpha11 < kAlphaCullThreshold) {
+        RenderObject(x, y);
+        return;
+    }
+
+    const bool reverse = (FMap[y][x] & fmReverse) != 0;
+    const int direction = FMap[y][x] & 3;
+
+    const int textureLayer = TMap1[y][x];
+    if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
+        if (reverse) {
+            AppendTerrainTriangle(v00, v10, v01, fog00, fog10, fog01, textureLayer, reverse, false, direction, alpha00, alpha10, alpha01);
+            AppendTerrainTriangle(v01, v10, v11, fog01, fog10, fog11, textureLayer, reverse, true, direction, alpha01, alpha10, alpha11);
+        } else {
+            AppendTerrainTriangle(v00, v10, v11, fog00, fog10, fog11, textureLayer, reverse, false, direction, alpha00, alpha10, alpha11);
+            AppendTerrainTriangle(v00, v11, v01, fog00, fog11, fog01, textureLayer, reverse, true, direction, alpha00, alpha11, alpha01);
+        }
+    }
+
+    RenderObject(x, y);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5: Overloaded CollectTerrainTilePair with hoisted fade constants.
+// Original 4-arg version delegates here.
+// Also fixes §4.8: tile-1 cull de-duplication (the frustum/distance test
+// is evaluated once, and the result is reused for both triangle emission
+// and RenderObject decision).
+// ---------------------------------------------------------------------------
+
+void GLRenderer::CollectTerrainTilePair(int x1, int x2, int y, int r,
+                                        float fadeStart, float fadeStartSq, float fadeEnd)
+{
+    (void)r;
+
+    // Boundary checks
+    if (x1 < 0 || x2 < 0 || y < 0 ||
+        x1 >= ctMapSize - 1 || x2 >= ctMapSize - 1 || y >= ctMapSize - 1) {
+        if (x1 >= 0 && x1 < ctMapSize - 1 && y >= 0 && y < ctMapSize - 1)
+            CollectTerrainTile(x1, y, r, fadeStart, fadeStartSq, fadeEnd);
+        if (x2 >= 0 && x2 < ctMapSize - 1 && y >= 0 && y < ctMapSize - 1)
+            CollectTerrainTile(x2, y, r, fadeStart, fadeStartSq, fadeEnd);
+        return;
+    }
+
+    // Local coordinate checks
+    const int localX1 = x1 - CCX + kViewGridCenter;
+    const int localY = y - CCY + kViewGridCenter;
+    if (localX1 < 0 || localY < 0 || localX1 + 2 >= kViewGridSize || localY + 1 >= kViewGridSize) {
+        if (localX1 >= 0 && localX1 + 1 < kViewGridSize)
+            CollectTerrainTile(x1, y, r, fadeStart, fadeStartSq, fadeEnd);
+        if (localX1 + 1 >= 0 && localX1 + 2 < kViewGridSize)
+            CollectTerrainTile(x2, y, r, fadeStart, fadeStartSq, fadeEnd);
+        return;
+    }
+
+    float backR1 = BackViewR;
+    if (OMap[y][x1] != 255) backR1 += MObjects[OMap[y][x1]].info.BoundR;
+    float backR2 = BackViewR;
+    if (OMap[y][x2] != 255) backR2 += MObjects[OMap[y][x2]].info.BoundR;
+    const float backR = (std::max)(backR1, backR2);
+
+    // Coarse frustum pre-test
+    {
+        const float wx = static_cast<float>((x1 + 1) * 256 + 128) - CameraX;
+        const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
+        const float wy = static_cast<float>(HMapO[y][x1]) * ctHScale - CameraY;
+        const float cx  = wx * ca + wz * sa;
+        const float cz1 = wz * ca - wx * sa;
+        const float cz  = cz1 * cb + wy * sb;
+        if (cz < 0.0f && std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
+            return;
+        }
+    }
+
+    // Fetch 6 VMap corners
+    EPoint v00 = VMap[localY][localX1];
+    EPoint v10 = VMap[localY][localX1 + 1];
+    EPoint v20 = VMap[localY][localX1 + 2];
+    EPoint v01 = VMap[localY + 1][localX1];
+    EPoint v11 = VMap[localY + 1][localX1 + 1];
+    EPoint v21 = VMap[localY + 1][localX1 + 2];
+
+    if (v00.v.z > backR && v10.v.z > backR && v20.v.z > backR &&
+        v01.v.z > backR && v11.v.z > backR && v21.v.z > backR) {
+        return;
+    }
+
+    // Precompute fog indices, colors, alphas
+    const int fogIdx_x1_y   = GetFogIndexForMapPoint(x1, y);
+    const int fogIdx_x2_y   = GetFogIndexForMapPoint(x2, y);
+    const int fogIdx_x3_y   = GetFogIndexForMapPoint(x2 + 1, y);
+    const int fogIdx_x1_y1  = GetFogIndexForMapPoint(x1, y + 1);
+    const int fogIdx_x2_y1  = GetFogIndexForMapPoint(x2, y + 1);
+    const int fogIdx_x3_y1  = GetFogIndexForMapPoint(x2 + 1, y + 1);
+
+    const Vector3d fogColor_x1_y  = GetFogColorForMapPoint(fogIdx_x1_y);
+    const Vector3d fogColor_x2_y  = GetFogColorForMapPoint(fogIdx_x2_y);
+    const Vector3d fogColor_x3_y  = GetFogColorForMapPoint(fogIdx_x3_y);
+    const Vector3d fogColor_x1_y1 = GetFogColorForMapPoint(fogIdx_x1_y1);
+    const Vector3d fogColor_x2_y1 = GetFogColorForMapPoint(fogIdx_x2_y1);
+    const Vector3d fogColor_x3_y1 = GetFogColorForMapPoint(fogIdx_x3_y1);
+
+    // Use hoisted fade constants
+    const float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+    const float alpha10 = CalcTerrainAlpha(VertexDistanceSq(v10.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+    const float alpha20 = CalcTerrainAlpha(VertexDistanceSq(v20.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+    const float alpha01 = CalcTerrainAlpha(VertexDistanceSq(v01.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+    const float alpha11 = CalcTerrainAlpha(VertexDistanceSq(v11.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+    const float alpha21 = CalcTerrainAlpha(VertexDistanceSq(v21.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+
+    // Precompute fog amounts
+    v00.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x1_y, v00.Fog, m_isUnderwater));
+    v10.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x2_y, v10.Fog, m_isUnderwater));
+    v20.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x3_y, v20.Fog, m_isUnderwater));
+    v01.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x1_y1, v01.Fog, m_isUnderwater));
+    v11.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x2_y1, v11.Fog, m_isUnderwater));
+    v21.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx_x3_y1, v21.Fog, m_isUnderwater));
+
+    // Tile 1: (x1, y) — de-duplicated cull
+    {
+        const float xx = (v00.v.x + v11.v.x) * 0.5f;
+        const float yy = (v00.v.y + v11.v.y) * 0.5f;
+        const float zz = (v00.v.z + v11.v.z) * 0.5f;
+        // Use horizontal-plane depth (cz1) so the frustum doesn't
+        // collapse when looking up (see CollectTerrainTile for rationale).
+        const float wx_t1 = static_cast<float>((x1 + 1) * 256) - CameraX;
+        const float wz_t1 = static_cast<float>((y + 1) * 256) - CameraZ;
+        const float cz1_t1 = wz_t1 * ca - wx_t1 * sa;
+        const float depthFrT1 = (std::max)(cz1_t1, -zz);
+
+        const bool tile1PassedFrustum = (std::fabs(xx * FOVK) <= depthFrT1 + backR1);
+        bool tile1InView = false;
+        if (tile1PassedFrustum) {
+            const float viewDistance = static_cast<float>(ctViewR * 256);
+            const float viewDistanceSq = viewDistance * viewDistance;
+            const float distanceSq = xx * xx + yy * yy + zz * zz;
+            tile1InView = (distanceSq <= viewDistanceSq);
+        }
+
+        if (tile1InView) {
+            constexpr float kAlphaCullThreshold = 0.02f;
+            if (!(alpha00 < kAlphaCullThreshold && alpha10 < kAlphaCullThreshold &&
+                  alpha01 < kAlphaCullThreshold && alpha11 < kAlphaCullThreshold)) {
+                const bool reverse = (FMap[y][x1] & fmReverse) != 0;
+                const int direction = FMap[y][x1] & 3;
+                const int textureLayer = TMap1[y][x1];
+                if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
+                    if (reverse) {
+                        AppendTerrainTriangle(v00, v10, v01, fogColor_x1_y, fogColor_x2_y, fogColor_x1_y1, textureLayer, reverse, false, direction, alpha00, alpha10, alpha01);
+                        AppendTerrainTriangle(v01, v10, v11, fogColor_x1_y1, fogColor_x2_y, fogColor_x2_y1, textureLayer, reverse, true, direction, alpha01, alpha10, alpha11);
+                    } else {
+                        AppendTerrainTriangle(v00, v10, v11, fogColor_x1_y, fogColor_x2_y, fogColor_x2_y1, textureLayer, reverse, false, direction, alpha00, alpha10, alpha11);
+                        AppendTerrainTriangle(v00, v11, v01, fogColor_x1_y, fogColor_x2_y1, fogColor_x1_y1, textureLayer, reverse, true, direction, alpha00, alpha11, alpha01);
+                    }
+                }
+            }
+            RenderObject(x1, y);
+        }
+    }
+
+    // Tile 2: (x2, y)
+    {
+        const float xx = (v10.v.x + v21.v.x) * 0.5f;
+        const float yy = (v10.v.y + v21.v.y) * 0.5f;
+        const float zz = (v10.v.z + v21.v.z) * 0.5f;
+        // Horizontal-plane depth for tile 2 (center at x2+1 = x1+2, y+1).
+        const float wx_t2 = static_cast<float>((x2 + 1) * 256) - CameraX;
+        const float wz_t2 = static_cast<float>((y + 1) * 256) - CameraZ;
+        const float cz1_t2 = wz_t2 * ca - wx_t2 * sa;
+        const float depthFrT2 = (std::max)(cz1_t2, -zz);
+
+        if (std::fabs(xx * FOVK) <= depthFrT2 + backR2) {
+            const float viewDistance = static_cast<float>(ctViewR * 256);
+            const float viewDistanceSq = viewDistance * viewDistance;
+            const float distanceSq = xx * xx + yy * yy + zz * zz;
+            if (distanceSq <= viewDistanceSq) {
+                constexpr float kAlphaCullThreshold = 0.02f;
+                if (!(alpha10 < kAlphaCullThreshold && alpha20 < kAlphaCullThreshold &&
+                      alpha11 < kAlphaCullThreshold && alpha21 < kAlphaCullThreshold)) {
+                    const bool reverse = (FMap[y][x2] & fmReverse) != 0;
+                    const int direction = FMap[y][x2] & 3;
+                    const int textureLayer = TMap1[y][x2];
+                    if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
+                        if (reverse) {
+                            AppendTerrainTriangle(v10, v20, v11, fogColor_x2_y, fogColor_x3_y, fogColor_x2_y1, textureLayer, reverse, false, direction, alpha10, alpha20, alpha11);
+                            AppendTerrainTriangle(v11, v20, v21, fogColor_x2_y1, fogColor_x3_y, fogColor_x3_y1, textureLayer, reverse, true, direction, alpha11, alpha20, alpha21);
+                        } else {
+                            AppendTerrainTriangle(v10, v20, v21, fogColor_x2_y, fogColor_x3_y, fogColor_x3_y1, textureLayer, reverse, false, direction, alpha10, alpha20, alpha21);
+                            AppendTerrainTriangle(v10, v21, v11, fogColor_x2_y, fogColor_x3_y1, fogColor_x2_y1, textureLayer, reverse, true, direction, alpha10, alpha21, alpha11);
+                        }
+                    }
+                }
+                RenderObject(x2, y);
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: 2x2 chunked collection — processes four tiles in a 2x2 block,
+// reading a 3x3 grid of VMap cells (9 reads for 4 tiles vs 16 in 1x1 mode,
+// a 44% reduction in VMap cache traffic). Used from the frustum sweep.
+//
+// Corner layout:
+//   v00 -- v10 -- v20
+//    |  T1  |  T2  |
+//   v01 -- v11 -- v21
+//    |  T3  |  T4  |
+//   v02 -- v12 -- v22
+// ---------------------------------------------------------------------------
+
+void GLRenderer::CollectTerrainChunk2x2(int x, int y, int r,
+                                        float fadeStart, float fadeStartSq, float fadeEnd)
+{
+    (void)r;
+
+    // Boundary check — needs (x..x+2, y..y+2) within map and view grid
+    if (x < 0 || y < 0 || x + 2 >= ctMapSize || y + 2 >= ctMapSize) {
+        // Fall back to individual tiles (not pairs — the outer sweep
+        // handles the odd-column/row leftovers, so this is defensive).
+        CollectTerrainTile(x,     y,     0, fadeStart, fadeStartSq, fadeEnd);
+        CollectTerrainTile(x + 1, y,     0, fadeStart, fadeStartSq, fadeEnd);
+        CollectTerrainTile(x,     y + 1, 0, fadeStart, fadeStartSq, fadeEnd);
+        CollectTerrainTile(x + 1, y + 1, 0, fadeStart, fadeStartSq, fadeEnd);
+        return;
+    }
+
+    const int localX = x - CCX + kViewGridCenter;
+    const int localY = y - CCY + kViewGridCenter;
+    if (localX < 0 || localY < 0 || localX + 2 >= kViewGridSize || localY + 2 >= kViewGridSize) {
+        CollectTerrainTile(x,     y,     0, fadeStart, fadeStartSq, fadeEnd);
+        CollectTerrainTile(x + 1, y,     0, fadeStart, fadeStartSq, fadeEnd);
+        CollectTerrainTile(x,     y + 1, 0, fadeStart, fadeStartSq, fadeEnd);
+        CollectTerrainTile(x + 1, y + 1, 0, fadeStart, fadeStartSq, fadeEnd);
+        return;
+    }
+
+    // Compute backR for all 4 tiles (max of individual backR values)
+    float backR = BackViewR;
+    for (int dy = 0; dy < 2; ++dy) {
+        for (int dx = 0; dx < 2; ++dx) {
+            if (OMap[y + dy][x + dx] != 255) {
+                float r2 = BackViewR + MObjects[OMap[y + dy][x + dx]].info.BoundR;
+                if (r2 > backR) backR = r2;
+            }
+        }
+    }
+
+    // Coarse frustum pre-test for the chunk center
+    {
+        const float wx = static_cast<float>((x + 1) * 256 + 128) - CameraX;
+        const float wz = static_cast<float>((y + 1) * 256 + 128) - CameraZ;
+        const float wy = static_cast<float>(HMapO[y][x]) * ctHScale - CameraY;
+        const float cx  = wx * ca + wz * sa;
+        const float cz1 = wz * ca - wx * sa;
+        const float cz  = cz1 * cb + wy * sb;
+        if (cz < 0.0f && std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
+            return;
+        }
+    }
+
+    // Read 3x3 VMap corners (9 reads for 4 tiles, vs 16 in 1x1 mode)
+    EPoint v00 = VMap[localY][localX];
+    EPoint v10 = VMap[localY][localX + 1];
+    EPoint v20 = VMap[localY][localX + 2];
+    EPoint v01 = VMap[localY + 1][localX];
+    EPoint v11 = VMap[localY + 1][localX + 1];
+    EPoint v21 = VMap[localY + 1][localX + 2];
+    EPoint v02 = VMap[localY + 2][localX];
+    EPoint v12 = VMap[localY + 2][localX + 1];
+    EPoint v22 = VMap[localY + 2][localX + 2];
+
+    // Early z-check — if all 9 corners are behind BackViewR, skip
+    if (v00.v.z > backR && v10.v.z > backR && v20.v.z > backR &&
+        v01.v.z > backR && v11.v.z > backR && v21.v.z > backR &&
+        v02.v.z > backR && v12.v.z > backR && v22.v.z > backR) {
+        return;
+    }
+
+    // Per-corner fog lookups (9 fog indices / colors / amounts)
+    // We compute fog at the 3x3 grid, shared by all 4 tiles.
+    const int fogIdx[3][3] = {
+        { GetFogIndexForMapPoint(x,     y    ), GetFogIndexForMapPoint(x + 1, y    ), GetFogIndexForMapPoint(x + 2, y    ) },
+        { GetFogIndexForMapPoint(x,     y + 1), GetFogIndexForMapPoint(x + 1, y + 1), GetFogIndexForMapPoint(x + 2, y + 1) },
+        { GetFogIndexForMapPoint(x,     y + 2), GetFogIndexForMapPoint(x + 1, y + 2), GetFogIndexForMapPoint(x + 2, y + 2) }
+    };
+
+    Vector3d fogColor[3][3];
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j)
+            fogColor[i][j] = GetFogColorForMapPoint(fogIdx[i][j]);
+
+    // Precompute fog amounts
+    EPoint* corners[3][3] = {{&v00, &v10, &v20}, {&v01, &v11, &v21}, {&v02, &v12, &v22}};
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j)
+            corners[i][j]->Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx[i][j], corners[i][j]->Fog, m_isUnderwater));
+
+    // Precompute alphas for all 9 vertices
+    float alpha[3][3];
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j)
+            alpha[i][j] = CalcTerrainAlpha(VertexDistanceSq(corners[i][j]->v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+
+    constexpr float kAlphaCullThreshold = 0.02f;
+    const float viewDistance = static_cast<float>(ctViewR * 256);
+    const float viewDistanceSq = viewDistance * viewDistance;
+
+    // Helper lambda to process one tile in the chunk
+    auto processTile = [&](int tileX, int tileY, int ci, int cj) {
+        // Tile uses corners (ci,cj), (ci+1,cj), (ci,cj+1), (ci+1,cj+1)
+        const EPoint& tv00 = *corners[ci][cj];
+        const EPoint& tv10 = *corners[ci][cj + 1];
+        const EPoint& tv01 = *corners[ci + 1][cj];
+        const EPoint& tv11 = *corners[ci + 1][cj + 1];
+
+        const float xx = (tv00.v.x + tv11.v.x) * 0.5f;
+        const float yy = (tv00.v.y + tv11.v.y) * 0.5f;
+        const float zz = (tv00.v.z + tv11.v.z) * 0.5f;
+
+        float tileBackR = BackViewR;
+        if (OMap[tileY][tileX] != 255) tileBackR += MObjects[OMap[tileY][tileX]].info.BoundR;
+
+        // Horizontal-plane depth for the frustum (see CollectTerrainTile).
+        const float wx_tile2 = static_cast<float>((tileX + 1) * 256) - CameraX;
+        const float wz_tile2 = static_cast<float>((tileY + 1) * 256) - CameraZ;
+        const float cz1_tile2 = wz_tile2 * ca - wx_tile2 * sa;
+        const float depthFrTile = (std::max)(cz1_tile2, -zz);
+        if (std::fabs(xx * FOVK) > depthFrTile + tileBackR) return;
+
+        const float distanceSq = xx * xx + yy * yy + zz * zz;
+        if (distanceSq > viewDistanceSq) return;
+
+        const float a00 = alpha[ci][cj];
+        const float a10 = alpha[ci][cj + 1];
+        const float a01 = alpha[ci + 1][cj];
+        const float a11 = alpha[ci + 1][cj + 1];
+
+        if (a00 < kAlphaCullThreshold && a10 < kAlphaCullThreshold &&
+            a01 < kAlphaCullThreshold && a11 < kAlphaCullThreshold) {
+            RenderObject(tileX, tileY);
+            return;
+        }
+
+        const bool reverse = (FMap[tileY][tileX] & fmReverse) != 0;
+        const int direction = FMap[tileY][tileX] & 3;
+        const int textureLayer = TMap1[tileY][tileX];
+
+        if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers && Textures[textureLayer]) {
+            if (reverse) {
+                AppendTerrainTriangle(tv00, tv10, tv01, fogColor[ci][cj], fogColor[ci][cj + 1], fogColor[ci + 1][cj], textureLayer, reverse, false, direction, a00, a10, a01);
+                AppendTerrainTriangle(tv01, tv10, tv11, fogColor[ci + 1][cj], fogColor[ci][cj + 1], fogColor[ci + 1][cj + 1], textureLayer, reverse, true, direction, a01, a10, a11);
+            } else {
+                AppendTerrainTriangle(tv00, tv10, tv11, fogColor[ci][cj], fogColor[ci][cj + 1], fogColor[ci + 1][cj + 1], textureLayer, reverse, false, direction, a00, a10, a11);
+                AppendTerrainTriangle(tv00, tv11, tv01, fogColor[ci][cj], fogColor[ci + 1][cj + 1], fogColor[ci + 1][cj], textureLayer, reverse, true, direction, a00, a11, a01);
+            }
+        }
+
+        RenderObject(tileX, tileY);
+    };
+
+    // Process the 4 tiles
+    processTile(x,     y,     0, 0);  // T1: v00,v10,v01,v11
+    processTile(x + 1, y,     0, 1);  // T2: v10,v20,v11,v21
+    processTile(x,     y + 1, 1, 0);  // T3: v01,v11,v02,v12
+    processTile(x + 1, y + 1, 1, 1);  // T4: v11,v21,v12,v22
+}
+
+// ---------------------------------------------------------------------------
+
 void GLRenderer::RenderGround()
 {
 #ifdef GL_PERF_HOOKS
@@ -614,6 +848,16 @@ void GLRenderer::RenderGround()
     m_worldModelItems.clear();
     m_transparentModelItems.clear();
     m_objectList.clear();
+
+    // Cache IsUnderwater() once per frame (Phase 5).
+    m_isUnderwater = IsUnderwater();
+
+    // Phase 3: lazily rebuild the water bitmask if it was invalidated
+    // by a level transition (the bitmap must be built AFTER the new
+    // level's FMap has been populated by LoadResources).
+    if (NeedWater && !m_waterBlockBitsValid) {
+        RebuildWaterBlockBits();
+    }
 
     // If water is needed this frame, begin water collection here so the
     // water constants are ready for the ring walk.
@@ -633,108 +877,34 @@ void GLRenderer::RenderGround()
         wFadeEndSq = wFadeEnd * wFadeEnd;
     }
 
-    // Single full ring walk with 1x1 tiles. The earlier 2x2 far-LOD
-    // system had two structural problems: a stride-1 walk caused
-    // adjacent 2x2 tiles to overlap (z-fighting, texture twitching);
-    // and the 2x2 tile's inner edge has only 2 vertices over a 2-cell
-    // span while the 1x1 ring on the inside has 3, leaving a T-junction
-    // that the GL rasterizer renders as a thin gap.  Dropping the 2x2
-    // system eliminates both, at the cost of ~4x vertices in the far
-    // ring — most of which are alpha-faded to invisible anyway by
-    // CalcTerrainAlpha at ctViewR-4..ctViewR-8.  This matches the
-    // post-b4a0f2b state of the three reference renderers
-    // (Render3DFX/RenderSoft/RendererD3D).
-    // §5.2: Chunked ring walk — process horizontal pairs on top/bottom
-    // edges to share 3 VMap corners, 3 fog lookups, and 3 alpha
-    // computations between 2 tiles (25% reduction in per-tile work).
-    //
-    // The ring walk iterates from outermost to innermost. For each ring,
-    // the top/bottom edges have (2r+1) tiles and the left/right edges
-    // have (2r-1) tiles. We process horizontal pairs where possible,
-    // with individual tile fallback for the last tile on each edge.
-    if (NeedWater) {
-        for (int r = ctViewR; r > 0; --r) {
-            // Top edge (y = CCY + r): process horizontal pairs
-            const int topStartX = CCX - r;
-            const int topEndX = CCX + r;
-            for (int x = topStartX; x < topEndX; x += 2) {
-                CollectTerrainTilePair(x, x + 1, CCY + r, r);
-                CollectWaterTileFast(x, CCY + r, r, wViewDistSq,
-                                     wFadeStart, wFadeStartSq,
-                                     wFadeEnd, wFadeEndSq);
-                CollectWaterTileFast(x + 1, CCY + r, r, wViewDistSq,
-                                     wFadeStart, wFadeStartSq,
-                                     wFadeEnd, wFadeEndSq);
-            }
-            // Last tile on top edge (always odd count)
-            CollectTerrainTile(topEndX, CCY + r, r);
-            CollectWaterTileFast(topEndX, CCY + r, r, wViewDistSq,
-                                 wFadeStart, wFadeStartSq,
-                                 wFadeEnd, wFadeEndSq);
+    // Hoist terrain fade constants once per frame (Phase 5) so that
+    // CollectTerrainTile / CollectTerrainTilePair don't recompute them
+    // per call.
+    const float tFadeStart = static_cast<float>((ctViewR - 8) << 8);
+    const float tFadeStartSq = tFadeStart * tFadeStart;
+    const float tFadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
 
-            // Bottom edge (y = CCY - r): process horizontal pairs
-            for (int x = topStartX; x < topEndX; x += 2) {
-                CollectTerrainTilePair(x, x + 1, CCY - r, r);
-                CollectWaterTileFast(x, CCY - r, r, wViewDistSq,
-                                     wFadeStart, wFadeStartSq,
-                                     wFadeEnd, wFadeEndSq);
-                CollectWaterTileFast(x + 1, CCY - r, r, wViewDistSq,
-                                     wFadeStart, wFadeStartSq,
-                                     wFadeEnd, wFadeEndSq);
-            }
-            CollectTerrainTile(topEndX, CCY - r, r);
-            CollectWaterTileFast(topEndX, CCY - r, r, wViewDistSq,
-                                 wFadeStart, wFadeStartSq,
-                                 wFadeEnd, wFadeEndSq);
-
-            // Left edge (x = CCX - r): individual tiles (vertical pairs
-            // would require a separate function; skip for now)
-            for (int y = -r + 1; y < r; ++y) {
-                CollectTerrainTile(CCX - r, CCY + y, r);
-                CollectWaterTileFast(CCX - r, CCY + y, r, wViewDistSq,
-                                     wFadeStart, wFadeStartSq,
-                                     wFadeEnd, wFadeEndSq);
-            }
-
-            // Right edge (x = CCX + r): individual tiles
-            for (int y = -r + 1; y < r; ++y) {
-                CollectTerrainTile(CCX + r, CCY + y, r);
-                CollectWaterTileFast(CCX + r, CCY + y, r, wViewDistSq,
-                                     wFadeStart, wFadeStartSq,
-                                     wFadeEnd, wFadeEndSq);
+    // Phase 1: Row-major tile sweep (replaces the outer-to-inner ring walk).
+    // Iterates every cell in the view disk once, row by row, which is
+    // simpler and more cache-friendly than the 4-sided perimeter walk.
+    // Per-tile culling is unchanged.
+    {
+#ifdef GL_PERF_HOOKS
+        GLPerfScope scope_walk("RenderGround_Walk");
+#endif
+        const int yLo = (std::max)(0, CCY - ctViewR);
+        const int yHi = (std::min)(ctMapSize - 1, CCY + ctViewR);
+        for (int y = yLo; y <= yHi; ++y) {
+            int xLeft  = (std::max)(CCX - ctViewR, 0);
+            int xRight = (std::min)(CCX + ctViewR, ctMapSize - 1);
+            if (xLeft > xRight) continue;
+            for (int x = xLeft; x <= xRight; ++x) {
+                CollectTerrainTile(x, y, 0, tFadeStart, tFadeStartSq, tFadeEnd);
+                if (NeedWater && BlockHasWater(x, y)) {
+                    CollectWaterTileFast(x, y, 0, wViewDistSq, wFadeStart, wFadeStartSq, wFadeEnd, wFadeEndSq);
+                }
             }
         }
-        CollectTerrainTile(CCX, CCY, 0);
-        CollectWaterTileFast(CCX, CCY, 0, wViewDistSq,
-                             wFadeStart, wFadeStartSq,
-                             wFadeEnd, wFadeEndSq);
-    } else {
-        for (int r = ctViewR; r > 0; --r) {
-            // Top edge (y = CCY + r): process horizontal pairs
-            const int topStartX = CCX - r;
-            const int topEndX = CCX + r;
-            for (int x = topStartX; x < topEndX; x += 2) {
-                CollectTerrainTilePair(x, x + 1, CCY + r, r);
-            }
-            CollectTerrainTile(topEndX, CCY + r, r);
-
-            // Bottom edge (y = CCY - r): process horizontal pairs
-            for (int x = topStartX; x < topEndX; x += 2) {
-                CollectTerrainTilePair(x, x + 1, CCY - r, r);
-            }
-            CollectTerrainTile(topEndX, CCY - r, r);
-
-            // Left edge (x = CCX - r): individual tiles
-            for (int y = -r + 1; y < r; ++y) {
-                CollectTerrainTile(CCX - r, CCY + y, r);
-            }
-
-            // Right edge (x = CCX + r): individual tiles
-            for (int y = -r + 1; y < r; ++y) {
-                CollectTerrainTile(CCX + r, CCY + y, r);
-            }
-        }
-        CollectTerrainTile(CCX, CCY, 0);
     }
 
     RenderTerrain();

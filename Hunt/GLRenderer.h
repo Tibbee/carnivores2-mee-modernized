@@ -274,11 +274,19 @@ private:
     void EnsureTerrainTextureArray();
     void UploadTerrainLayer(int layer, const TEXTURE& texture);
     void CollectTerrainTile(int x, int y, int r);
+    void CollectTerrainTile(int x, int y, int r,
+                            float fadeStart, float fadeStartSq, float fadeEnd);
     // §5.2: Chunked pair collection — processes two horizontally adjacent
     // tiles (x1,y) and (x2,y) sharing 3 VMap corners, 3 fog lookups, and
     // 3 alpha computations instead of 8 each. Falls back to 1×1 path
     // for out-of-bounds tiles.
     void CollectTerrainTilePair(int x1, int x2, int y, int r);
+    void CollectTerrainTilePair(int x1, int x2, int y, int r,
+                                float fadeStart, float fadeStartSq, float fadeEnd);
+    // Phase 2: 2x2 chunked collection — reads a 3x3 grid of VMap cells
+    // for 4 tiles, reducing VMap cache traffic by 44% vs 1x1.
+    void CollectTerrainChunk2x2(int x, int y, int r,
+                                float fadeStart, float fadeStartSq, float fadeEnd);
     void CollectWaterTile(int x, int y, int r);
     void CollectWaterTile2(int x, int y, int r);
     // Fast water tile collection: precomputed constants + squared-distance
@@ -480,6 +488,23 @@ private:
     // AppendWaterTriangle so RenderWaterSurface can skip its
     // O(m_waterVertices) layer scan.
     std::array<bool, kMaxTerrainTextureLayers> m_waterUsedLayers{};
+
+    // Phase 5: Cache IsUnderwater() once per frame to avoid ~500K
+    // redundant global loads during the terrain walk.
+    bool m_isUnderwater = false;
+
+    // Phase 3: Coarse water bitmask. Built once at level load.
+    // Each bit represents an 8x8 cell block; set if any cell in the
+    // block has the fmWaterA flag. Allows skipping CollectWaterTileFast
+    // for dry blocks without reading FMap[4] per position.
+    static constexpr int kWaterBlockShift = 3;  // 8x8 cell blocks
+    static constexpr int kWaterBlockDim   = ctMapSize >> kWaterBlockShift;  // 128
+    // 128*128 = 16384 bits = 2048 bytes = 256 uint64_t
+    static constexpr int kWaterBlockWords = (kWaterBlockDim * kWaterBlockDim + 63) / 64;
+    std::array<uint64_t, kWaterBlockWords> m_waterBlockBits{};
+    bool m_waterBlockBitsValid = false;
+    void RebuildWaterBlockBits();
+    bool BlockHasWater(int x, int y) const;
 
     // Sky pipeline
     unsigned int m_skyShader = 0;
