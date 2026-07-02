@@ -235,6 +235,17 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
     // that are clearly outside the horizontal frustum.
     // Uses a generous margin (backR*2 + 2048) so we never false-reject
     // tiles that the precise VMap-based test would accept.
+    //
+    // SAFEGUARD: only reject when cz < 0 (representative point in front
+    // of the camera).  When looking up a steep hill the height term
+    // wy*sb can cancel the forward term cz1*cb and drive cz >= 0 (at or
+    // behind the camera origin).  In that case -cz + margin goes
+    // non-positive and |cx*FOVK| > (non-positive) is ALWAYS true, which
+    // would unconditionally cull the tile — the root cause of the
+    // steep-hill side-clipping bug (the C1 GL renderer has no such
+    // pre-test and never exhibited it).  Skipping the coarse reject
+    // when cz >= 0 lets the precise 4-corner test below decide, while
+    // preserving the optimization for the common in-front-of-camera case.
     {
         const float wx = static_cast<float>(x * 256 + 128) - CameraX;
         const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
@@ -242,7 +253,7 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r)
         const float cx  = wx * ca + wz * sa;
         const float cz1 = wz * ca - wx * sa;
         const float cz  = cz1 * cb + wy * sb;
-        if (std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
+        if (cz < 0.0f && std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
             return;
         }
     }
@@ -372,7 +383,12 @@ void GLRenderer::CollectTerrainTilePair(int x1, int x2, int y, int r)
     if (OMap[y][x2] != 255) backR2 += MObjects[OMap[y][x2]].info.BoundR;
     const float backR = (std::max)(backR1, backR2);
 
-    // Coarse frustum pre-test for the pair's center
+    // Coarse frustum pre-test for the pair's center.
+    // SAFEGUARD: only reject when cz < 0 (see CollectTerrainTile for the
+    // full rationale).  Without the guard, ascending a steep hill while
+    // looking up drives the representative cz >= 0 and makes the test
+    // unconditionally true, false-culling the pair.  The precise
+    // per-tile 4-corner test below handles the cz >= 0 case correctly.
     {
         const float wx = static_cast<float>((x1 + 1) * 256 + 128) - CameraX;
         const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
@@ -380,7 +396,7 @@ void GLRenderer::CollectTerrainTilePair(int x1, int x2, int y, int r)
         const float cx  = wx * ca + wz * sa;
         const float cz1 = wz * ca - wx * sa;
         const float cz  = cz1 * cb + wy * sb;
-        if (std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
+        if (cz < 0.0f && std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
             return;  // Pair outside frustum — skip entirely (matches CollectTerrainTile)
         }
     }
