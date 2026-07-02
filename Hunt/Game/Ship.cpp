@@ -6,6 +6,38 @@
 
 void AddWCircle(float x, float z, float scale)
 {
+  // Bounds guard. WCircles is a fixed-size array (WCircles[2096] in
+  // GameState.h). AddWCircle is the ONLY writer that increments WCCount,
+  // and it is called from AnimateFish's per-particle loop
+  // (CharacterAnimation.cpp ~line 3665), which is gated by
+  //   pdistSq < ((ctViewR + 20) * 256) ^ 2
+  // i.e. "only create particles within player render distance". At high
+  // view distance (180+) on a map with many aquatic ambients (e.g.
+  // plesiosaurs wading on a beach), the activation radius becomes huge,
+  // so many swimmers concurrently spawn water circles every frame.
+  // Circles only expire after FTime >= 2000 (Game.cpp update loop), so
+  // the spawn rate outruns the expiry rate and WCCount climbs past 2096,
+  // writing out of bounds and clobbering the globals declared immediately
+  // after WCircles in GameState.h (Snow, DemoPoint, killerDino, Players[],
+  // PlayerPos/CameraPos, DirectDraw pointers...) -> hard crash.
+  //
+  // AddElementsA already guards Elements[700] the same way ("if (ElCount
+  // > 697) ..."); this mirrors that protection. Dropping the newest
+  // circle when full is O(1) and visually harmless: the array is only
+  // reached at all in the extreme view-distance + many-swimmer case,
+  // and the dropped ripples are far/short-lived anyway.
+  if (WCCount >= 2096) {
+    static int hitCount = 0;
+    ++hitCount;
+    if (hitCount <= 20 || hitCount % 100 == 0) {
+      char buf[128];
+      sprintf(buf, "WARNING: WCircles hit 2096 cap (ctViewR=%d); water circle dropped (hit #%d)\n",
+              ctViewR, hitCount);
+      PrintLogVerbose(buf);
+    }
+    return;
+  }
+
   WCircles[WCCount].pos.x = x;
   WCircles[WCCount].pos.z = z;
   WCircles[WCCount].pos.y = GetLandUpH(x, z);
