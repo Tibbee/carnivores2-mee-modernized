@@ -370,7 +370,14 @@ float VertexDistanceSq(const Vector3d& v)
 
 float CalcTerrainAlpha(float distanceSq, float fadeStart, float fadeStartSq, float fadeEnd)
 {
-    if (IsUnderwater()) {
+    return CalcTerrainAlpha(distanceSq, fadeStart, fadeStartSq, fadeEnd, IsUnderwater());
+}
+
+// Phase 5: overload with cached isUnderwater — avoids the per-call
+// global IsUnderwater() load (~500K calls saved per frame at max view).
+float CalcTerrainAlpha(float distanceSq, float fadeStart, float fadeStartSq, float fadeEnd, bool isUnderwater)
+{
+    if (isUnderwater) {
         return 1.0f;
     }
 
@@ -391,7 +398,14 @@ float CalcTerrainAlpha(float distanceSq, float fadeStart, float fadeStartSq, flo
 
 float GetTerrainFogAmountForMapPoint(int fogIndex, int legacyFog)
 {
-    if (IsUnderwater()) {
+    return GetTerrainFogAmountForMapPoint(fogIndex, legacyFog, IsUnderwater());
+}
+
+// Phase 5: overload with cached isUnderwater — avoids the per-call
+// global IsUnderwater() load.
+float GetTerrainFogAmountForMapPoint(int fogIndex, int legacyFog, bool isUnderwater)
+{
+    if (isUnderwater) {
         return static_cast<float>(legacyFog);
     }
 

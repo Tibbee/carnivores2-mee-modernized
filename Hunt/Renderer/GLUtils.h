@@ -68,4 +68,8 @@ FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog);
 // Terrain / water helpers
 float VertexDistanceSq(const Vector3d& v);
 float CalcTerrainAlpha(float distanceSq, float fadeStart, float fadeStartSq, float fadeEnd);
+// Phase 5: overload with cached isUnderwater to avoid per-call global load
+float CalcTerrainAlpha(float distanceSq, float fadeStart, float fadeStartSq, float fadeEnd, bool isUnderwater);
 float GetTerrainFogAmountForMapPoint(int fogIndex, int legacyFog);
+// Phase 5: overload with cached isUnderwater
+float GetTerrainFogAmountForMapPoint(int fogIndex, int legacyFog, bool isUnderwater);
