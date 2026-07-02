@@ -154,7 +154,7 @@ void GLRenderer::DrawHUDOverlay()
     GL_PERF_SCOPE("DrawHUDOverlay");
 #endif
 
-    if (!m_uiShader || !lpVideoBuf || WinW <= 0 || WinH <= 0) return;
+    if (!m_uiShader.IsValid() || !lpVideoBuf || WinW <= 0 || WinH <= 0) return;
 
     EnsureUITexture();
 
@@ -228,7 +228,7 @@ void GLRenderer::DrawHUDOverlay()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    glUseProgram(m_uiShader);
+    m_uiShader.Use();
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(m_uiVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -419,7 +419,7 @@ void GLRenderer::ShutdownHudPipeline()
     if (m_uiTexture && m_hrc) { glDeleteTextures(1, &m_uiTexture); m_uiTexture = 0; }
     if (m_uiVBO && m_hrc) { glDeleteBuffers(1, &m_uiVBO); m_uiVBO = 0; }
     if (m_uiVAO && m_hrc) { glDeleteVertexArrays(1, &m_uiVAO); m_uiVAO = 0; }
-    if (m_uiShader && m_hrc) { glDeleteProgram(m_uiShader); m_uiShader = 0; }
+    // m_uiShader destroyed by GLShader destructor
     m_uiTextureWidth = 0;
     m_uiTextureHeight = 0;
 }
@@ -431,34 +431,7 @@ void GLRenderer::InitializeHudPipeline()
     // and let the fragment shader convert to RGBA8 with transparency.
     // This eliminates the UpdateUIPixels CPU loop (480K pixel conversions)
     // and the m_uiPixels RGBA8 buffer (1.92 MB).
-    const char* vsSource =
-        "#version 330 core\n"
-        "layout (location = 0) in vec2 aPos;\n"
-        "layout (location = 1) in vec2 aTexCoord;\n"
-        "out vec2 vTexCoord;\n"
-        "void main() {\n"
-        "   gl_Position = vec4(aPos, 0.0, 1.0);\n"
-        "   // GDI lpVideoBuf is top-down; GL textures are bottom-up.\n"
-        "   // Flip by inverting the v-coordinate.\n"
-        "   vTexCoord = vec2(aTexCoord.x, 1.0 - aTexCoord.y);\n"
-        "}\n";
-
-    const char* fsSource =
-        "#version 330 core\n"
-        "in vec2 vTexCoord;\n"
-        "out vec4 FragColor;\n"
-        "uniform sampler2D uTexture;\n"
-        "void main() {\n"
-        "   vec3 rgb555 = texture(uTexture, vTexCoord).rgb;\n"
-        "   // Pixel value 0 = transparent (HUD background).\n"
-        "   if (dot(rgb555, vec3(1.0)) < 0.01) discard;\n"
-        "   FragColor = vec4(rgb555, 1.0);\n"
-        "}\n";
-
-    GLuint vertexShader = CompileShader(GL_VERTEX_SHADER, vsSource);
-    GLuint fragmentShader = CompileShader(GL_FRAGMENT_SHADER, fsSource);
-    m_uiShader = LinkProgram(vertexShader, fragmentShader);
-    if (!m_uiShader) {
+    if (!m_uiShader.LoadFromFile("shaders/ui.vert", "shaders/ui.frag")) {
         PrintLog("GLRenderer: UI shader compilation... FAILED!\n");
         return;
     }
@@ -492,8 +465,8 @@ void GLRenderer::InitializeHudPipeline()
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    glUseProgram(m_uiShader);
-    glUniform1i(glGetUniformLocation(m_uiShader, "uTexture"), 0);
+    m_uiShader.Use();
+    glUniform1i(glGetUniformLocation(m_uiShader.GetProgramID(), "uTexture"), 0);
 }
 
 void GLRenderer::DrawHMap()

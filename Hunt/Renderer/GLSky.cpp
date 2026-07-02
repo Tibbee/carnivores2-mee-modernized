@@ -16,7 +16,7 @@ void GLRenderer::RenderSkyPlane()
 #ifdef GL_PERF_HOOKS
     GL_PERF_SCOPE("RenderSkyPlane");
 #endif
-    if (!m_skyVAO || !m_skyTexture || !m_skyShader) {
+    if (!m_skyVAO || !m_skyTexture || !m_skyShader.IsValid()) {
         return;
     }
 
@@ -96,7 +96,7 @@ void GLRenderer::RenderSkyPlane()
     }
 
     UpdatePerFrameUBO();
-    glUseProgram(m_skyShader);
+    m_skyShader.Use();
     glUniform1i(m_locSkyTexture, 0);
     glUniform2f(m_locSkyViewport, static_cast<float>(WinW), static_cast<float>(WinH));
     glUniform2f(m_locSkyVideoCenter, static_cast<float>(VideoCX), static_cast<float>(VideoCY));
@@ -298,7 +298,7 @@ void GLRenderer::RenderFSRect(uint32_t color, bool additive)
 #endif
 
     UpdatePerFrameUBO(identity);
-    glUseProgram(m_modelShader);
+    m_modelShader.Use();
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
@@ -430,7 +430,7 @@ void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int 
 
     const auto projection = BuildLegacyProjection();
     UpdatePerFrameUBO();
-    glUseProgram(m_modelShader);
+    m_modelShader.Use();
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
@@ -629,103 +629,12 @@ void GLRenderer::ShutdownSkyPipeline()
         glDeleteVertexArrays(1, &m_skyVAO);
         m_skyVAO = 0;
     }
-    if (m_skyShader) {
-        glDeleteProgram(m_skyShader);
-        m_skyShader = 0;
-    }
+
 }
 
 void GLRenderer::InitializeSkyPipeline()
 {
-    const char* vsSource =
-        "#version 330 core\n"
-        "out vec2 vNdc;\n"
-        "const vec2 kPositions[3] = vec2[3](\n"
-        "   vec2(-1.0, -1.0),\n"
-        "   vec2( 3.0, -1.0),\n"
-        "   vec2(-1.0,  3.0)\n"
-        ");\n"
-        "void main() {\n"
-        "   vec2 pos = kPositions[gl_VertexID];\n"
-        "   vNdc = pos;\n"
-        "   gl_Position = vec4(pos, 0.0, 1.0);\n"
-        "}";
-
-    const char* fsSource =
-        "#version 330 core\n"
-        "in vec2 vNdc;\n"
-        "out vec4 FragColor;\n"
-        "uniform PerFrame {\n"
-        "   mat4 uProjection;\n"
-        "   vec2 uFogRange;\n"
-        "   vec3 uDistanceFogColor;\n"
-        "   float uForceFog;\n"
-        "   vec3 uFogColor;\n"
-        "};\n"
-        "uniform sampler2D uSkyTexture;\n"
-        "uniform vec2 uViewport;\n"
-        "uniform vec2 uVideoCenter;\n"
-        "uniform vec3 uQ;\n"
-        "uniform vec3 uP;\n"
-        "uniform vec3 uR;\n"
-        "uniform float uSkyTime;\n"
-        "uniform float uFogBase;\n"
-        "uniform float uUnderwaterDepth;\n"
-        "uniform float uWaterLineY;\n"  // screen Y (from top) of water surface, WinH if no clip
-        "void main() {\n"
-        "   vec2 pixel = vec2((vNdc.x * 0.5 + 0.5) * uViewport.x,\n"
-        "                     (1.0 - (vNdc.y * 0.5 + 0.5)) * uViewport.y);\n"
-        "   float sx = pixel.x - uVideoCenter.x;\n"
-        "   float sy = uVideoCenter.y - pixel.y;\n"
-        "   float sxQ = uQ.x * sx + uQ.y * sy + uQ.z;\n"
-        "   float q = sign(sxQ) * max(abs(sxQ), 0.001);\n"
-        "   float skyU = (uP.x * sx + uP.y * sy + uP.z) / q;\n"
-        "   float skyV = (uR.x * sx + uR.y * sy + uR.z) / q;\n"
-        "   float leftQ = uQ.x * (-uVideoCenter.x) + uQ.y * sy + uQ.z;\n"
-        "   float rightQ = uQ.x * uVideoCenter.x + uQ.y * sy + uQ.z;\n"
-        "   float leftU = (uP.x * (-uVideoCenter.x) + uP.y * sy + uP.z) / max(abs(leftQ), 0.001);\n"
-        "   float leftV = (uR.x * (-uVideoCenter.x) + uR.y * sy + uR.z) / max(abs(leftQ), 0.001);\n"
-        "   float rightU = (uP.x * uVideoCenter.x + uP.y * sy + uP.z) / max(abs(rightQ), 0.001);\n"
-        "   float rightV = (uR.x * uVideoCenter.x + uR.y * sy + uR.z) / max(abs(rightQ), 0.001);\n"
-        "   float dx = rightU - leftU;\n"
-        "   float dy = rightV - leftV;\n"
-        "   float dt = sqrt(dx*dx + dy*dy) / 96.0 - 6.0;\n"
-        "   dt = clamp(dt, 0.0, 10.0);\n"
-        // 3dfx sky formula: identical above and below water.  The
-        // underwater effect comes from uFogBase being high (capped at
-        // FLimit) and from the uUnderwaterDepth uniform adding up to
-        // 30% extra fog at maximum depth, so the sky fades out like
-        // the per-vertex fog on terrain and models.  Matches
-        // Render3DFX.cpp:2621.  Previously the shader did
-        //   fogFactor = mix(fogFactor, 1.0, uForceFog)
-        // which fully replaced the sky with the fog colour when
-        // underwater, completely hiding the sky and sun.
-        "   float fogFactor = clamp(max(dt * 225.0 / 10.0, uFogBase) / 255.0, 0.0, 1.0);\n"
-        // Depth-based fade: the deeper the camera is below the water
-        // surface, the more the sky is blended toward the fog colour.
-        // uUnderwaterDepth is 0 at the surface and ramps to 1 at
-        // ~1024 world units below; the 0.55 multiplier makes the sky
-        // dim significantly faster than the per-vertex fog on terrain,
-        // so the sky/sun disappear quickly as you dive.
-        "   fogFactor = clamp(fogFactor + uUnderwaterDepth * 0.55, 0.0, 1.0);\n"
-        // Fade to full fog near the water-surface horizon so the sky
-        // blends seamlessly into the underwater distance-fog colour.
-        // pixel.y is the screen-space Y from the top (see above).
-        // uWaterLineY is WinH when there is no water line on screen.
-        "   float distToWaterLine = uWaterLineY - pixel.y;\n"
-        "   float fadeWidth = 32.0;\n"
-        "   if (distToWaterLine < fadeWidth && uWaterLineY < uViewport.y) {\n"
-        "       fogFactor = mix(1.0, fogFactor, clamp(distToWaterLine / fadeWidth, 0.0, 1.0));\n"
-        "   }\n"
-        "   vec2 uv = vec2((skyU + uSkyTime) / 256.0, (skyV - uSkyTime) / 256.0);\n"
-        "   vec3 skyColor = texture(uSkyTexture, uv).rgb;\n"
-        "   FragColor = vec4(mix(skyColor, uFogColor, fogFactor), 1.0);\n"
-        "}";
-
-    GLuint vertexShader = CompileShader(GL_VERTEX_SHADER, vsSource);
-    GLuint fragmentShader = CompileShader(GL_FRAGMENT_SHADER, fsSource);
-    m_skyShader = LinkProgram(vertexShader, fragmentShader);
-    if (!m_skyShader) {
+    if (!m_skyShader.LoadFromFile("shaders/sky.vert", "shaders/sky.frag")) {
         PrintLog("GLRenderer: Sky shader compilation... FAILED!\n");
         return;
     }

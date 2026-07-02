@@ -60,7 +60,7 @@ void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z
     // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
     UploadStaticMesh(mptr);
 
-    if (!m_modelShader || !m_modelVAO || !m_modelVBO) {
+    if (!m_modelShader.IsValid() || !m_modelVAO || !m_modelVBO) {
         return;
     }
 
@@ -91,7 +91,7 @@ void GLRenderer::RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float
     // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
     UploadStaticMesh(mptr);
 
-    if (!m_modelShader || !m_modelVAO || !m_modelVBO) {
+    if (!m_modelShader.IsValid() || !m_modelVAO || !m_modelVBO) {
         return;
     }
 
@@ -358,7 +358,7 @@ void GLRenderer::RenderInstancedModels()
     // RenderMappedObject calls above.
 
     if (m_instanceData.empty() || m_instanceInfo.empty() ||
-        !m_instancedModelShader || !m_instanceVAO) {
+        !m_instancedModelShader.IsValid() || !m_instanceVAO) {
         return;
     }
 
@@ -404,7 +404,7 @@ void GLRenderer::RenderInstancedModels()
     const auto projection = BuildLegacyProjection();
     UpdatePerFrameUBO(projection);
 
-    glUseProgram(m_instancedModelShader);
+    m_instancedModelShader.Use();
     glBindVertexArray(m_instanceVAO);
 
     // Phase 2.9: orphan the instance VBO once (glBufferData with
@@ -781,12 +781,12 @@ void GLRenderer::DrawModelVertices(GLuint texture,
                                    bool additive,
                                    bool tintByFogColor)
 {
-    if (!m_modelShader || texture == 0 || vertices.empty()) {
+    if (!m_modelShader.IsValid() || texture == 0 || vertices.empty()) {
         return;
     }
 
     UpdatePerFrameUBO(projection);
-    glUseProgram(m_modelShader);
+    m_modelShader.Use();
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
@@ -1608,15 +1608,9 @@ void GLRenderer::ShutdownModelPipeline()
         glDeleteVertexArrays(1, &m_modelVAO);
         m_modelVAO = 0;
     }
-    if (m_modelShader) {
-        glDeleteProgram(m_modelShader);
-        m_modelShader = 0;
-    }
+
     // Phase 2.3: clean up instanced model shader.
-    if (m_instancedModelShader) {
-        glDeleteProgram(m_instancedModelShader);
-        m_instancedModelShader = 0;
-    }
+
     if (m_whiteTexture) {
         glDeleteTextures(1, &m_whiteTexture);
         m_whiteTexture = 0;

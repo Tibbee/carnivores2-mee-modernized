@@ -206,6 +206,9 @@ if(RENDERER)
         OUTPUT_NAME "Carnivores1_${RENDERER}"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     )
+
+    # Copy shader files to the output directory (for the GL renderer)
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders DESTINATION ${CMAKE_BINARY_DIR}/bin)
 endif()
 
 # ============================================================

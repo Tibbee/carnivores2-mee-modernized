@@ -211,312 +211,16 @@ bool GLRenderer::Initialize()
 
     LoadGLExtensions();
 
-    const char* terrainVertexSource =
-        "#version 330 core\n"
-        "layout (location = 0) in vec3 aPos;\n"
-        "layout (location = 1) in vec2 aTexCoord;\n"
-        "layout (location = 2) in float aLayer;\n"
-        "layout (location = 3) in vec4 aLightFogAlpha;\n"
-        "layout (location = 4) in vec3 aFogColor;\n"
-        "uniform PerFrame {\n"
-        "   mat4 uProjection;\n"
-        "   vec2 uFogRange;          // (fadeStart, distance)\n"
-        "   vec3 uDistanceFogColor;\n"
-        "   float uForceFog;\n"
-        "   vec3 uFogColor;\n"
-        "   mat4 uView;\n"
-        "   vec4 uWaterAlphaFade;    // x=start, y=end, z=enabled, w=fade step\n"
-        "};\n"
-        "out vec2 vTexCoord;\n"
-        "flat out int vLayer;\n"
-        "out float vLight;\n"
-        "out float vFog;\n"
-        "out vec3 vFogColor;\n"
-        "out float vAlpha;\n"
-        "out float vViewZ;\n"
-        "out float vViewDistance;\n"
-        "out float vWaterAlphaFade;\n"
-        "void main() {\n"
-        "   gl_Position = uProjection * vec4(aPos, 1.0);\n"
-        "   vTexCoord = aTexCoord;\n"
-        "   vLayer = int(aLayer + 0.5);\n"
-        "   // uint8 attributes are normalized to [0,1] by the driver.\n"
-        "   vLight = aLightFogAlpha.x;\n"
-        "   vFog   = aLightFogAlpha.y;\n"
-        "   vAlpha = aLightFogAlpha.z;\n"
-        "   vFogColor = aFogColor;\n"
-        "   vViewZ = max(-aPos.z, 0.0);\n"
-        "   // §5.7: use dot(aPos,aPos) instead of length(aPos) to avoid\n"
-        "   // sqrt per vertex. The fragment shader computes sqrt only for\n"
-        "   // water pixels (the minority).\n"
-        "   vViewDistance = dot(aPos, aPos);\n"
-        "   vWaterAlphaFade = aLightFogAlpha.w;\n"
-        "}\n";
-
-    const char* terrainFragmentSource =
-        "#version 330 core\n"
-        "out vec4 FragColor;\n"
-        "in vec2 vTexCoord;\n"
-        "flat in int vLayer;\n"
-        "in float vLight;\n"
-        "in float vFog;\n"
-        "in vec3 vFogColor;\n"
-        "in float vAlpha;\n"
-        "in float vViewZ;\n"
-        "in float vViewDistance;\n"
-        "in float vWaterAlphaFade;\n"
-        "uniform PerFrame {\n"
-        "   mat4 uProjection;\n"
-        "   vec2 uFogRange;          // (fadeStart, distance)\n"
-        "   vec3 uDistanceFogColor;\n"
-        "   float uForceFog;\n"
-        "   vec3 uFogColor;\n"
-        "   mat4 uView;\n"
-        "   vec4 uWaterAlphaFade;    // x=start, y=end, z=enabled, w=fade step\n"
-        "};\n"
-        "uniform sampler2DArray uTerrainArray;\n"
-        "void main() {\n"
-        "   vec4 texColor = texture(uTerrainArray, vec3(vTexCoord, float(vLayer)));\n"
-        "   if (texColor.a < 0.05) discard;\n"
-        "   vec3 litColor = texColor.rgb * vLight;\n"
-        "   // Per-vertex volumetric fog (volume-specific color and amount).\n"
-        "   vec3 volumetricFogColor = mix(litColor, vFogColor, vFog);\n"
-        "   // Per-pixel distance fog: smooth ramp from uFogRange.x to\n"
-        "   // uFogRange.y. Uses the global horizon color instead of the\n"
-        "   // per-vertex vFogColor, which prevents local fog volumes from\n"
-        "   // bleeding into the horizon fade.\n"
-        "   float distanceFog = clamp((vViewZ - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);\n"
-        "   vec3 finalColor = mix(volumetricFogColor, uDistanceFogColor, distanceFog);\n"
-        "   float waterAlphaFade = 1.0;\n"
-        "   if (vWaterAlphaFade > 0.5 && uWaterAlphaFade.z > 0.5) {\n"
-        "      // §5.7: vViewDistance is now squared distance; compute sqrt\n"
-        "      // only for water pixels to recover the linear distance.\n"
-        "      float distance = sqrt(vViewDistance);\n"
-        "      float zz = distance - uWaterAlphaFade.y;\n"
-        "      if (zz > 0.0) {\n"
-        "         waterAlphaFade = clamp((255.0 - zz / max(uWaterAlphaFade.w, 1.0)) / 255.0, 0.0, 1.0);\n"
-        "      }\n"
-        "   }\n"
-        "   FragColor = vec4(finalColor, texColor.a * vAlpha * waterAlphaFade);\n"
-        "}\n";
-
-    GLuint vertexShader = CompileShader(GL_VERTEX_SHADER, terrainVertexSource);
-    if (!vertexShader) {
+    if (!m_terrainShader.LoadFromFile("shaders/terrain.vert", "shaders/terrain.frag")) {
         return false;
     }
 
-    GLuint fragmentShader = CompileShader(GL_FRAGMENT_SHADER, terrainFragmentSource);
-    if (!fragmentShader) {
-        glDeleteShader(vertexShader);
+    if (!m_modelShader.LoadFromFile("shaders/model.vert", "shaders/model.frag")) {
         return false;
     }
 
-    m_terrainShader = LinkProgram(vertexShader, fragmentShader);
-    if (!m_terrainShader) {
-        return false;
-    }
-
-    const char* modelVertexSource =
-        "#version 330 core\n"
-        "layout (location = 0) in vec3 aPos;\n"
-        "layout (location = 1) in vec2 aTexCoord;\n"
-        "layout (location = 2) in vec4 aLightFogAlphaCutout;\n"
-        "layout (location = 3) in vec3 aFogColor;\n"
-        "uniform PerFrame {\n"
-        "   mat4 uProjection;\n"
-        "   vec2 uFogRange;\n"
-        "   vec3 uDistanceFogColor;\n"
-        "   float uForceFog;\n"
-        "   vec3 uFogColor;\n"
-        "};\n"
-        "out vec2 vTexCoord;\n"
-        "out float vLight;\n"
-        "out float vFog;\n"
-        "out vec3 vFogColor;\n"
-        "out float vAlpha;\n"
-        "out float vCutout;\n"
-        "out float vViewZ;\n"
-        "void main() {\n"
-        "   gl_Position = uProjection * vec4(aPos, 1.0);\n"
-        "   vTexCoord = aTexCoord;\n"
-        "   // uint8 attributes are normalized to [0,1] by the driver.\n"
-        "   vLight  = aLightFogAlphaCutout.x;\n"
-        "   vFog    = aLightFogAlphaCutout.y;\n"
-        "   vAlpha  = aLightFogAlphaCutout.z;\n"
-        "   vCutout = aLightFogAlphaCutout.w;\n"
-        "   vFogColor = aFogColor;\n"
-        "   vViewZ = max(-aPos.z, 0.0);\n"
-        "}\n";
-
-    const char* modelFragmentSource =
-        "#version 330 core\n"
-        "out vec4 FragColor;\n"
-        "in vec2 vTexCoord;\n"
-        "in float vLight;\n"
-        "in float vFog;\n"
-        "in vec3 vFogColor;\n"
-        "in float vAlpha;\n"
-        "in float vCutout;\n"
-        "in float vViewZ;\n"
-        "uniform PerFrame {\n"
-        "   mat4 uProjection;\n"
-        "   vec2 uFogRange;\n"
-        "   vec3 uDistanceFogColor;\n"
-        "   float uForceFog;\n"
-        "   vec3 uFogColor;\n"
-        "};\n"
-        "uniform sampler2D uModelTexture;\n"
-        "uniform float uTintByFogColor;\n"
-        "void main() {\n"
-        "   vec4 texColor = texture(uModelTexture, vTexCoord);\n"
-        "   if (vCutout > 0.5 && texColor.a <= 0.5) discard;\n"
-        "   vec3 litColor = texColor.rgb * vLight;\n"
-        "   // Phase 2.7: branch-less tint via mix (was if > 0.5).\n"
-        "   vec3 tinted = litColor * vFogColor;\n"
-        "   litColor = mix(litColor, tinted, uTintByFogColor);\n"
-        "   vec3 finalColor = mix(litColor, vFogColor, vFog);\n"
-        "   // Match the terrain/instanced-model horizon fade for legacy\n"
-        "   // model-path objects (BMP billboards and water-clipped meshes).\n"
-        "   float distanceFog = clamp((vViewZ - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);\n"
-        "   finalColor = mix(finalColor, uDistanceFogColor, distanceFog);\n"
-        "   FragColor = vec4(finalColor, texColor.a * vAlpha);\n"
-        "}\n";
-
-    GLuint modelVertexShader = CompileShader(GL_VERTEX_SHADER, modelVertexSource);
-    if (!modelVertexShader) {
-        return false;
-    }
-
-    GLuint modelFragmentShader = CompileShader(GL_FRAGMENT_SHADER, modelFragmentSource);
-    if (!modelFragmentShader) {
-        glDeleteShader(modelVertexShader);
-        return false;
-    }
-
-    m_modelShader = LinkProgram(modelVertexShader, modelFragmentShader);
-    if (!m_modelShader) {
-        return false;
-    }
-
-    // Phase 2.3+2.4: instanced model shader.
-    // Per-vertex (from static mesh VBO, binding 0):
-    //   attribute 0: vec3 aPos        — model-space position
-    //   attribute 1: vec3 aNormal      — face normal (unused in 2.3, reserved for 2.5)
-    //   attribute 2: vec2 aTexCoord    — pre-baked UV
-    // Per-instance (from instance VBO, binding 1, divisor=1):
-    //   attribute 4: vec4 aWorldCol0   — matrix column 0 (model→view for now)
-    //   attribute 5: vec4 aWorldCol1   — matrix column 1
-    //   attribute 6: vec4 aWorldCol2   — matrix column 2
-    //   attribute 7: vec4 aWorldCol3   — matrix column 3
-    //   attribute 8: vec4 aInstanceLight — .x = base light [0,1]
-    //   attribute 9: vec4 aInstanceFlags — .x = cutout, .y = tintByFog, .z = fogAmount, .w = alpha
-    // Phase 2.4: uView added to PerFrame UBO (currently identity).
-    //   gl_Position = uProjection * uView * iWorld * vec4(aPos, 1.0)
-    // Future phases will split iWorld into model→world and uView into world→view.
-    const char* instancedModelVertexSource =
-        "#version 330 core\n"
-        "// Per-vertex from static mesh VBO (binding 0)\n"
-        "layout (location = 0) in vec3 aPos;\n"
-        "layout (location = 1) in vec3 aNormal;\n"
-        "layout (location = 2) in vec2 aTexCoord;\n"
-        "// Per-instance from instance VBO (binding 1, divisor=1)\n"
-        "layout (location = 4) in vec4 aWorldCol0;\n"
-        "layout (location = 5) in vec4 aWorldCol1;\n"
-        "layout (location = 6) in vec4 aWorldCol2;\n"
-        "layout (location = 7) in vec4 aWorldCol3;\n"
-        "layout (location = 8) in vec4 aInstanceLight;\n"
-        "layout (location = 9) in vec4 aInstanceFlags;\n"
-        "uniform PerFrame {\n"
-        "   mat4 uProjection;\n"
-        "   vec2 uFogRange;\n"
-        "   vec3 uDistanceFogColor;\n"
-        "   float uForceFog;\n"
-        "   vec3 uFogColor;\n"
-        "   mat4 uView;              // Phase 2.4: view matrix (identity for now)\n"
-        "};\n"
-        "out vec2 vTexCoord;\n"
-        "out float vLight;\n"
-        "out float vViewZ;           // Phase 2.5: view-space Z for per-pixel fog\n"
-        "out vec3 vWorldNormal;      // Phase 2.5: face normal for directional light\n"
-        "out float vAlpha;\n"
-        "out float vCutout;\n"
-        "out float vTintByFog;\n"
-        "out vec3 vVolumetricFogColor; // Phase 2.6: per-instance pocket fog colour\n"
-        "out float vVolumetricFog;     // Phase 2.6: per-vertex pocket fog amount\n"
-        "void main() {\n"
-        "   mat4 iWorld = mat4(aWorldCol0, aWorldCol1, aWorldCol2, aWorldCol3);\n"
-        "   vec4 viewPos = uView * iWorld * vec4(aPos, 1.0);\n"
-        "   gl_Position = uProjection * viewPos;\n"
-        "   vTexCoord = aTexCoord;\n"
-        "   vLight = aInstanceLight.x;\n"
-        "   vCutout = aInstanceFlags.x;\n"
-        "   // Phase 2.x: tintByFog not used for instanced; slot .y is now fogGrad.\n"
-        "   vTintByFog = 0.0;\n"
-        "   vAlpha = aInstanceFlags.w;\n"
-        "   // Phase 2.5: vViewZ = view-space depth (positive in front of camera).\n"
-        "   // Matches the terrain shader's vViewZ = max(-aPos.z, 0.0).\n"
-        "   vViewZ = max(-viewPos.z, 0.0);\n"
-        "   // Phase 2.5: transform face normal for directional light\n"
-        "   vWorldNormal = mat3(iWorld) * aNormal;\n"
-        "   // Phase 2.x: 3DFX-style height-graded pocket fog.\n"
-        "   // fogGrad is the Y-gradient (dFog/dY), aInstanceFlags.z is fogBase.\n"
-        "   // Per-vertex fog = fogBase + modelSpaceY * fogGrad, clamped.\n"
-        "   float fogGrad = aInstanceFlags.y;\n"
-        "   float perVertexFog = aInstanceFlags.z + aPos.y * fogGrad;\n"
-        "   vVolumetricFog = clamp(perVertexFog, 0.0, 1.0);\n"
-        "   vVolumetricFogColor = aInstanceLight.yzw;\n"
-        "}\n";
-
-    const char* instancedModelFragmentSource =
-        "#version 330 core\n"
-        "out vec4 FragColor;\n"
-        "in vec2 vTexCoord;\n"
-        "in float vLight;\n"
-        "in float vViewZ;\n"
-        "in vec3 vWorldNormal;\n"
-        "in float vAlpha;\n"
-        "in float vCutout;\n"
-        "in float vTintByFog;\n"
-        "in vec3 vVolumetricFogColor;\n"
-        "in float vVolumetricFog;\n"
-        "uniform PerFrame {\n"
-        "   mat4 uProjection;\n"
-        "   vec2 uFogRange;\n"
-        "   vec3 uDistanceFogColor;\n"
-        "   float uForceFog;\n"
-        "   vec3 uFogColor;\n"
-        "   mat4 uView;\n"
-        "};\n"
-        "uniform sampler2D uModelTexture;\n"
-        "void main() {\n"
-        "   vec4 texColor = texture(uModelTexture, vTexCoord);\n"
-        "   if (vCutout > 0.5 && texColor.a <= 0.5) discard;\n"
-        "   vec3 litColor = texColor.rgb * vLight;\n"
-        "   // Phase 2.7: branch-less tint via mix (was if > 0.5).\n"
-        "   vec3 tinted = litColor * uDistanceFogColor;\n"
-        "   litColor = mix(litColor, tinted, vTintByFog);\n"
-        "   // Phase 2.5: per-pixel distance fog matching the terrain shader.\n"
-        "   // Ramp from uFogRange.x to uFogRange.y, uses view-space Z\n"
-        "   // (not Euclidean distance) for parity with the terrain.\n"
-        "   float distanceFog = clamp((vViewZ - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);\n"
-        "   // Phase 2.6: volumetric (pocket) fog placeholder — zero for now.\n"
-        "   vec3 afterVolumetric = mix(litColor, vVolumetricFogColor, vVolumetricFog);\n"
-        "   // Final: fade to distance fog colour over the ramp.\n"
-        "   vec3 finalColor = mix(afterVolumetric, uDistanceFogColor, distanceFog);\n"
-        "   FragColor = vec4(finalColor, texColor.a * vAlpha);\n"
-        "}\n";
-
-    GLuint instancedVertexShader = CompileShader(GL_VERTEX_SHADER, instancedModelVertexSource);
-    if (!instancedVertexShader) {
-        return false;
-    }
-    GLuint instancedFragmentShader = CompileShader(GL_FRAGMENT_SHADER, instancedModelFragmentSource);
-    if (!instancedFragmentShader) {
-        glDeleteShader(instancedVertexShader);
-        return false;
-    }
-    m_instancedModelShader = LinkProgram(instancedVertexShader, instancedFragmentShader);
-    if (!m_instancedModelShader) {
+    // Phase 2.3+2.4: instanced model shader for geometry instancing.
+    if (!m_instancedModelShader.LoadFromFile("shaders/instanced_model.vert", "shaders/instanced_model.frag")) {
         return false;
     }
 
@@ -543,16 +247,16 @@ bool GLRenderer::Initialize()
     InitializeHudPipeline();
     InitializeNightDesaturation();
 
-    glUseProgram(m_modelShader);
-    glUniform1i(glGetUniformLocation(m_modelShader, "uModelTexture"), 0);
-    glUniform1f(glGetUniformLocation(m_modelShader, "uTintByFogColor"), 0.0f);
+    m_modelShader.Use();
+    glUniform1i(glGetUniformLocation(m_modelShader.GetProgramID(), "uModelTexture"), 0);
+    glUniform1f(glGetUniformLocation(m_modelShader.GetProgramID(), "uTintByFogColor"), 0.0f);
 
     // Phase 2.3: set instanced model shader's texture uniform.
-    glUseProgram(m_instancedModelShader);
-    glUniform1i(glGetUniformLocation(m_instancedModelShader, "uModelTexture"), 0);
+    m_instancedModelShader.Use();
+    glUniform1i(glGetUniformLocation(m_instancedModelShader.GetProgramID(), "uModelTexture"), 0);
 
-    glUseProgram(m_terrainShader);
-    glUniform1i(glGetUniformLocation(m_terrainShader, "uTerrainArray"), 0);
+    m_terrainShader.Use();
+    glUniform1i(glGetUniformLocation(m_terrainShader.GetProgramID(), "uTerrainArray"), 0);
 
     Vector3d fogColor = GetDistanceFogColor();
     glClearColor(fogColor.x, fogColor.y, fogColor.z, 1.0f);
@@ -563,22 +267,22 @@ bool GLRenderer::Initialize()
     // Create the UBO once and bind all three shaders' PerFrame blocks to binding 0.
     EnsurePerFrameUBO();
     if (m_perFrameUBO) {
-        const GLuint perFrameBlock_terrain = glGetUniformBlockIndex(m_terrainShader, "PerFrame");
+        const GLuint perFrameBlock_terrain = glGetUniformBlockIndex(m_terrainShader.GetProgramID(), "PerFrame");
         if (perFrameBlock_terrain != GL_INVALID_INDEX) {
-            glUniformBlockBinding(m_terrainShader, perFrameBlock_terrain, 0);
+            glUniformBlockBinding(m_terrainShader.GetProgramID(), perFrameBlock_terrain, 0);
         }
-        const GLuint perFrameBlock_model = glGetUniformBlockIndex(m_modelShader, "PerFrame");
+        const GLuint perFrameBlock_model = glGetUniformBlockIndex(m_modelShader.GetProgramID(), "PerFrame");
         if (perFrameBlock_model != GL_INVALID_INDEX) {
-            glUniformBlockBinding(m_modelShader, perFrameBlock_model, 0);
+            glUniformBlockBinding(m_modelShader.GetProgramID(), perFrameBlock_model, 0);
         }
         // Phase 2.3: bind instanced model shader's PerFrame UBO.
-        const GLuint perFrameBlock_instanced = glGetUniformBlockIndex(m_instancedModelShader, "PerFrame");
+        const GLuint perFrameBlock_instanced = glGetUniformBlockIndex(m_instancedModelShader.GetProgramID(), "PerFrame");
         if (perFrameBlock_instanced != GL_INVALID_INDEX) {
-            glUniformBlockBinding(m_instancedModelShader, perFrameBlock_instanced, 0);
+            glUniformBlockBinding(m_instancedModelShader.GetProgramID(), perFrameBlock_instanced, 0);
         }
-        const GLuint perFrameBlock_sky = glGetUniformBlockIndex(m_skyShader, "PerFrame");
+        const GLuint perFrameBlock_sky = glGetUniformBlockIndex(m_skyShader.GetProgramID(), "PerFrame");
         if (perFrameBlock_sky != GL_INVALID_INDEX) {
-            glUniformBlockBinding(m_skyShader, perFrameBlock_sky, 0);
+            glUniformBlockBinding(m_skyShader.GetProgramID(), perFrameBlock_sky, 0);
         }
         // Bind the UBO to binding 0 once. The binding persists for the
         // program's lifetime; we update the data with glBufferSubData.
@@ -589,18 +293,18 @@ bool GLRenderer::Initialize()
     // glGetUniformLocation calls. Sampler uniforms (uModelTexture, uTerrainArray,
     // uSkyTexture) are set once at init; tint/light uniforms are set per draw
     // using the cached location.
-    m_locModelTexture    = glGetUniformLocation(m_modelShader, "uModelTexture");
-    m_locModelTint       = glGetUniformLocation(m_modelShader, "uTintByFogColor");
-    m_locSkyTexture      = glGetUniformLocation(m_skyShader, "uSkyTexture");
-    m_locSkyViewport     = glGetUniformLocation(m_skyShader, "uViewport");
-    m_locSkyVideoCenter  = glGetUniformLocation(m_skyShader, "uVideoCenter");
-    m_locSkyQ            = glGetUniformLocation(m_skyShader, "uQ");
-    m_locSkyP            = glGetUniformLocation(m_skyShader, "uP");
-    m_locSkyR            = glGetUniformLocation(m_skyShader, "uR");
-    m_locSkyTime         = glGetUniformLocation(m_skyShader, "uSkyTime");
-    m_locSkyFogBase      = glGetUniformLocation(m_skyShader, "uFogBase");
-    m_locSkyUnderwaterDepth = glGetUniformLocation(m_skyShader, "uUnderwaterDepth");
-    m_locSkyWaterLineY     = glGetUniformLocation(m_skyShader, "uWaterLineY");
+    m_locModelTexture    = glGetUniformLocation(m_modelShader.GetProgramID(), "uModelTexture");
+    m_locModelTint       = glGetUniformLocation(m_modelShader.GetProgramID(), "uTintByFogColor");
+    m_locSkyTexture      = glGetUniformLocation(m_skyShader.GetProgramID(), "uSkyTexture");
+    m_locSkyViewport     = glGetUniformLocation(m_skyShader.GetProgramID(), "uViewport");
+    m_locSkyVideoCenter  = glGetUniformLocation(m_skyShader.GetProgramID(), "uVideoCenter");
+    m_locSkyQ            = glGetUniformLocation(m_skyShader.GetProgramID(), "uQ");
+    m_locSkyP            = glGetUniformLocation(m_skyShader.GetProgramID(), "uP");
+    m_locSkyR            = glGetUniformLocation(m_skyShader.GetProgramID(), "uR");
+    m_locSkyTime         = glGetUniformLocation(m_skyShader.GetProgramID(), "uSkyTime");
+    m_locSkyFogBase      = glGetUniformLocation(m_skyShader.GetProgramID(), "uFogBase");
+    m_locSkyUnderwaterDepth = glGetUniformLocation(m_skyShader.GetProgramID(), "uUnderwaterDepth");
+    m_locSkyWaterLineY     = glGetUniformLocation(m_skyShader.GetProgramID(), "uWaterLineY");
 
     m_Initialized = true;
     PrintLog("GL: Initialize() completed successfully.\n");
@@ -1149,7 +853,7 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
     };
 
     UpdatePerFrameUBO(identity);
-    glUseProgram(m_modelShader);
+    m_modelShader.Use();
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif

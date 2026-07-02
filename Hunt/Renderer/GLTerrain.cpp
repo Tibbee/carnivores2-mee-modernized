@@ -56,10 +56,7 @@ void GLRenderer::ShutdownTerrainPipeline()
         glDeleteVertexArrays(1, &m_terrainVAO);
         m_terrainVAO = 0;
     }
-    if (m_terrainShader) {
-        glDeleteProgram(m_terrainShader);
-        m_terrainShader = 0;
-    }
+
 
     m_terrainVertices.reset();
     m_terrainVertexCapacity = 0;
@@ -263,7 +260,7 @@ void GLRenderer::RenderTerrain()
 
     UpdatePerFrameUBO();
     SetWaterAlphaFade(0.0f, 0.0f, 0.0f, 765.0f);
-    glUseProgram(m_terrainShader);
+    m_terrainShader.Use();
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);

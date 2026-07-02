@@ -68,7 +68,7 @@ void GLRenderer::RenderWaterSurface()
                       static_cast<float>((ctViewR - 8) << 8),
                       256.0f * static_cast<float>(ctViewR - 4),
                       765.0f);
-    glUseProgram(m_terrainShader);
+    m_terrainShader.Use();
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif

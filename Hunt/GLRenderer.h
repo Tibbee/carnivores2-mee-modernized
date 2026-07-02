@@ -9,6 +9,7 @@
 
 #include "Renderer/IRenderer.h"
 #include "glad/glad.h"
+#include "Renderer/GLShader.h"
 #include "Renderer/GLPerf.h"
 #include <windows.h>
 #include <algorithm>
@@ -338,12 +339,12 @@ private:
     HGLRC m_hrc = nullptr;
     bool m_Initialized = false;
 
-    unsigned int m_terrainShader = 0;
+    GLShader m_terrainShader;
     unsigned int m_terrainVAO = 0;
     unsigned int m_terrainVBO = 0;
     unsigned int m_terrainTextureArray = 0;
 
-    unsigned int m_modelShader = 0;
+    GLShader m_modelShader;
     unsigned int m_modelVAO = 0;
     unsigned int m_modelVBO = 0;
 
@@ -355,7 +356,7 @@ private:
     // The VAO used for instanced draws is m_instanceVAO (created in
     // InitializeInstancingPipeline, which pairs the static VBO attributes
     // with the per-instance VBO).
-    unsigned int m_instancedModelShader = 0;
+    GLShader m_instancedModelShader;
 
     // Phase 2.3: per-instance tracking for instanced draws.
     // Each entry corresponds to one ModelInstance in m_instanceData.
@@ -507,7 +508,7 @@ private:
     bool BlockHasWater(int x, int y) const;
 
     // Sky pipeline
-    unsigned int m_skyShader = 0;
+    GLShader m_skyShader;
     unsigned int m_skyVAO = 0;
     unsigned int m_skyTexture = 0;
     bool m_skyTextureDirty = true;
@@ -544,7 +545,7 @@ private:
     void UpdateSunVisibility();
 
     // HUD/UI overlay pipeline — uploads lpVideoBuf as a fullscreen quad on top of the 3D scene
-    GLuint m_uiShader = 0;
+    GLShader m_uiShader;
     GLuint m_uiVAO = 0;
     GLuint m_uiVBO = 0;
     GLuint m_uiTexture = 0;
@@ -593,7 +594,7 @@ public:
 
 private:
     // Night overlay resources
-    GLuint m_nightDesatProgram = 0;
+    GLShader m_nightDesatProgram;
     GLuint m_nightSceneTex = 0;
     GLint  m_locNightDesatTexture = -1;
     GLint  m_locNightDesatStrength = -1;

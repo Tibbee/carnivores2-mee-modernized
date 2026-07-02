@@ -19,7 +19,7 @@ void GLRenderer::RenderNightDarkness()
 
 void GLRenderer::RenderSceneDesaturated()
 {
-    if (!m_nightDesatProgram) return;
+    if (!m_nightDesatProgram.IsValid()) return;
 
     EnsureNightSceneTex(m_nightSceneTex, m_nightTexWidth, m_nightTexHeight, WinW, WinH);
 
@@ -34,7 +34,7 @@ void GLRenderer::RenderSceneDesaturated()
     glGetIntegerv(GL_BLEND, &blendSaved);
     glDisable(GL_BLEND);
 
-    glUseProgram(m_nightDesatProgram);
+    m_nightDesatProgram.Use();
     glUniform1i(m_locNightDesatTexture, 0);
     glBindTexture(GL_TEXTURE_2D, m_nightSceneTex);
     glBindVertexArray(m_uiVAO);
@@ -49,7 +49,7 @@ void GLRenderer::RenderSceneDesaturated()
 void GLRenderer::ShutdownNightDesaturation()
 {
     if (m_nightSceneTex && m_hrc) { glDeleteTextures(1, &m_nightSceneTex); m_nightSceneTex = 0; }
-    if (m_nightDesatProgram && m_hrc) { glDeleteProgram(m_nightDesatProgram); m_nightDesatProgram = 0; }
+    // m_nightDesatProgram destroyed by GLShader destructor
     m_nightTexWidth = 0;
     m_nightTexHeight = 0;
     m_locNightDesatTexture = -1;
@@ -58,43 +58,15 @@ void GLRenderer::ShutdownNightDesaturation()
 
 void GLRenderer::InitializeNightDesaturation()
 {
-    // Vertex shader: pass-through (matches m_uiVAO layout: pos + texcoord)
-    const char* vsSource =
-        "#version 330 core\n"
-        "layout (location = 0) in vec2 aPos;\n"
-        "layout (location = 1) in vec2 aTexCoord;\n"
-        "out vec2 vTexCoord;\n"
-        "void main() {\n"
-        "   gl_Position = vec4(aPos, 0.0, 1.0);\n"
-        "   vTexCoord = aTexCoord;\n"
-        "}\n";
-
-    // Fragment shader: desaturate scene with configurable strength
-    const char* fsSource =
-        "#version 330 core\n"
-        "in vec2 vTexCoord;\n"
-        "out vec4 FragColor;\n"
-        "uniform sampler2D uSceneTexture;\n"
-        "uniform float uDesaturateStrength;\n"
-        "void main() {\n"
-        "   vec3 color = texture(uSceneTexture, vTexCoord).rgb;\n"
-        "   float gray = dot(color, vec3(0.299, 0.587, 0.114));\n"
-        "   vec3 desaturated = mix(color, vec3(gray), uDesaturateStrength);\n"
-        "   FragColor = vec4(desaturated, 1.0);\n"
-        "}\n";
-
-    GLuint vertexShader = CompileShader(GL_VERTEX_SHADER, vsSource);
-    GLuint fragmentShader = CompileShader(GL_FRAGMENT_SHADER, fsSource);
-    m_nightDesatProgram = LinkProgram(vertexShader, fragmentShader);
-    if (!m_nightDesatProgram) {
-        PrintLog("GLRenderer: night desaturation shader compilation FAILED\n");
+    if (!m_nightDesatProgram.LoadFromFile("shaders/night_desat.vert", "shaders/night_desat.frag")) {
+        PrintLog("GLRenderer: night desaturation shader compilation FAILED!\n");
         return;
     }
     PrintLog("GLRenderer: night desaturation shader compilation OK\n");
 
-    glUseProgram(m_nightDesatProgram);
-    m_locNightDesatTexture = glGetUniformLocation(m_nightDesatProgram, "uSceneTexture");
-    m_locNightDesatStrength = glGetUniformLocation(m_nightDesatProgram, "uDesaturateStrength");
+    m_nightDesatProgram.Use();
+    m_locNightDesatTexture = glGetUniformLocation(m_nightDesatProgram.GetProgramID(), "uSceneTexture");
+    m_locNightDesatStrength = glGetUniformLocation(m_nightDesatProgram.GetProgramID(), "uDesaturateStrength");
     glUniform1i(m_locNightDesatTexture, 0);
     glUniform1f(m_locNightDesatStrength, 0.6f);  // 60% desaturation
 }
