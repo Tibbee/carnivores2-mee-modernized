@@ -123,7 +123,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CORE_FILES
     Hunt/Audio/Audio_DLL.cpp
     Hunt/Audio/OpenAL_Loader.cpp
-    Hunt/Characters.cpp
+    Hunt/Game/Characters.cpp
     Hunt/Game/CharacterCollision.cpp
     Hunt/Game/CharacterTargeting.cpp
     Hunt/Game/CharacterMovement.cpp
@@ -159,14 +159,14 @@ set(CORE_FILES
     Hunt/Game/TerrainQueries.cpp
     Hunt/Game/Ship.cpp
     Hunt/Game/CommandLine.cpp
-    Hunt/Game.cpp
+    Hunt/Game/Config.cpp
     Hunt/Game/EngineInit.cpp
     Hunt/Game/Projectiles.cpp
     Hunt/Game/Ships.cpp
     Hunt/Game/Trophy.cpp
     Hunt/Hunt.cpp
     Hunt/Game/Interface.cpp
-    Hunt/Math.cpp
+    Hunt/Math/Math.cpp
     Hunt/Math/Vector.cpp
     Hunt/Loaders/Resources.cpp
     Hunt/Loaders/ScriptParser.cpp
