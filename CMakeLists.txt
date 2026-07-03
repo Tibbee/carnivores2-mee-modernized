@@ -160,9 +160,14 @@ set(CORE_FILES
     Hunt/Game/Ship.cpp
     Hunt/Game/CommandLine.cpp
     Hunt/Game.cpp
+    Hunt/Game/EngineInit.cpp
+    Hunt/Game/Projectiles.cpp
+    Hunt/Game/Ships.cpp
+    Hunt/Game/Trophy.cpp
     Hunt/Hunt.cpp
     Hunt/Game/Interface.cpp
     Hunt/Math.cpp
+    Hunt/Math/Vector.cpp
     Hunt/Loaders/Resources.cpp
     Hunt/Loaders/ScriptParser.cpp
     Hunt/Loaders/ModelLoader.cpp
