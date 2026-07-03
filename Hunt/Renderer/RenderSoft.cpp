@@ -3211,7 +3211,7 @@ void ShowVideo()
   HDC _hdc =  hdcCMain;
   HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(_hdc,hbmpVideoBuf));
 
-  if (IsUnderwater() & CORRECTION)
+  if (IsUnderwater() && CORRECTION)
     for (int y=0; y<WinH; y++)
       for (int x=0; x<WinW; x++)
         *(static_cast<WORD*>(lpVideoBuf) + y*VideoPitch + x) = FadeTab[64][*(static_cast<WORD*>(lpVideoBuf) + y*VideoPitch + x) & 0x7FFF];

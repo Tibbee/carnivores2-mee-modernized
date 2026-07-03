@@ -163,7 +163,7 @@ void LoadPicture(TPicture &pic, LPSTR pname, MemoryTag tag = MemoryTag::Global);
 void LoadPictureTGA(TPicture &pic, LPSTR pname, MemoryTag tag = MemoryTag::Global);
 void LoadCharacterInfo(TCharacterInfo&, char*, MemoryTag tag = MemoryTag::Global);
 void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName, MemoryTag tag = MemoryTag::Global);
-void LoadModel(unique_obj_ptr<TModel> &mptr);
+void LoadModel(unique_obj_ptr<TModel> &mptr, MemoryTag tag = MemoryTag::Level);
 void LoadResources();
 void ReleaseResources();
 void ReleaseGlobalResources();
@@ -258,10 +258,13 @@ void NormVector(Vector3d& v, float Scale);
 // MSVC's overload resolution treats a 3-arg call as ambiguous between this
 // overload (using the default) and the 3-arg overload above, so the tag
 // must be explicit. The 3-arg forwarder in Resources.cpp routes legacy
-// 3-arg calls through this overload with MemoryTag::Level. Migration
-// phases 5B-5E will update individual call sites to the explicit 4-arg
-// form with the appropriate tag (Global for session-lifetime, Level for
-// per-level).
+// 3-arg calls through this overload with MemoryTag::Global — the safe
+// default that keeps untagged allocations on the persistent heap where
+// LevelArena->Reset() cannot invalidate them. (Changed from MemoryTag::Level
+// in Phase 5C.2 after untagged GL allocations caused arena corruption.)
+// Migration phases 5B-5E updated individual call sites to the explicit
+// 4-arg form with the appropriate tag (Global for session-lifetime, Level
+// for per-level).
 [[nodiscard]] LPVOID _HeapAlloc(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes, MemoryTag tag);
 [[nodiscard]] BOOL _HeapFree(HANDLE hHeap, DWORD  dwFlags, LPVOID lpMem);
 

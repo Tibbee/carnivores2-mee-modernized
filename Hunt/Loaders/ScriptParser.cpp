@@ -1,5 +1,5 @@
 // ==========================================================================
-// ScriptParser.cpp — _RES.TXT / _MENU.TXT script file parser
+// ScriptParser.cpp ï¿½ _RES.TXT / _MENU.TXT script file parser
 // ==========================================================================
 
 #include "Hunt.h"
@@ -805,7 +805,13 @@ void ReadAreaTable (FILE *stream, int areaNumber)
 							SnowInfo[st].addr = totalSnowTemp;
 							totalSnowTemp += SnowInfo[st].snow_dens;
 						}
-						Snow = new TSnowElement[totalSnowTemp];
+						// Allocate through the memory grid so MEM_DEBUG can track it.
+						// Tag as Global because LoadResourcesScript runs once in
+						// InitEngine and Snow is never re-allocated on level loads.
+						// Freed in ReleaseGlobalResources.
+						Snow = totalSnowTemp > 0
+						    ? (TSnowElement*)_HeapAlloc(Heap, 0, totalSnowTemp * sizeof(TSnowElement), MemoryTag::Global)
+						    : nullptr;
 					}
 					TotalAreaInfo++;
 					break;

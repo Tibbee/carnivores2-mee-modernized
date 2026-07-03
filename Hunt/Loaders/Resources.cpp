@@ -39,32 +39,15 @@ void GenerateAlphaFlags(TModel *mptr);
 // underutilized until the remaining 3-arg per-level call sites are
 // audited in Phase 5E; that's a missed optimization, not a
 // correctness issue.
-LPVOID _HeapAlloc(HANDLE hHeap,
-                  DWORD dwFlags,
-                  DWORD dwBytes)
-{
-  return _HeapAlloc(hHeap, dwFlags, dwBytes, MemoryTag::Global);
-}
-
-// 4-arg _HeapAlloc: dispatches between arena and heap based on `tag`.
-//   tag == MemoryTag::Level AND LevelArena != nullptr → allocate from
-//     the per-level arena. The arena does not zero-initialize, so the
-//     returned block is explicitly memset to 0 (matches C1's behavior;
-//     the heap path gets HEAP_ZERO_MEMORY for the same effect).
-//   otherwise → HeapAlloc on the game heap with HEAP_ZERO_MEMORY.
-//
-// HeapAllocated is incremented for ALL allocations (arena + heap),
-// matching C1. The name is a misnomer — it's really "total bytes
-// allocated" — but the counter feeds carnivor.log lines that downstream
-// tooling may parse, so the accounting is preserved verbatim.
-//
-// In Phase 5A LevelArena is null so the arena branch is never taken;
-// in Phase 5C InitEngine() will construct it and Level-tagged
-// allocations will start landing in the arena.
-LPVOID _HeapAlloc(HANDLE hHeap,
-                  DWORD dwFlags,
-                  DWORD dwBytes,
-                  MemoryTag tag)
+// --------------------------------------------------------------------------
+// AllocDispatch: shared allocation logic extracted from the 4-arg overload
+// so that MEM_DEBUG builds can record every allocation without duplicating
+// the arena-vs-heap dispatch.
+// --------------------------------------------------------------------------
+static LPVOID AllocDispatch(HANDLE hHeap,
+                            DWORD dwFlags,
+                            DWORD dwBytes,
+                            MemoryTag tag)
 {
   LPVOID res = nullptr;
 
@@ -88,11 +71,53 @@ LPVOID _HeapAlloc(HANDLE hHeap,
   return res;
 }
 
+
+// 3-arg _HeapAlloc: forwards to the 4-arg overload with MemoryTag::Global.
+// This is the safe default — untagged allocations land on the persistent
+// heap where LevelArena->Reset() cannot invalidate them.
+LPVOID _HeapAlloc(HANDLE hHeap,
+                  DWORD dwFlags,
+                  DWORD dwBytes)
+{
+  return _HeapAlloc(hHeap, dwFlags, dwBytes, MemoryTag::Global);
+}
+
+
+// 4-arg _HeapAlloc: dispatches between arena and heap based on `tag`.
+//   tag == MemoryTag::Level AND LevelArena != nullptr → allocate from
+//     the per-level arena. The arena does not zero-initialize, so the
+//     returned block is explicitly memset to 0 (matches C1's behavior;
+//     the heap path gets HEAP_ZERO_MEMORY for the same effect).
+//   otherwise → HeapAlloc on the game heap with HEAP_ZERO_MEMORY.
+//
+// HeapAllocated is incremented for ALL allocations (arena + heap),
+// matching C1. The name is a misnomer — it's really "total bytes
+// allocated" — but the counter feeds carnivor.log lines that downstream
+// tooling may parse, so the accounting is preserved verbatim.
+LPVOID _HeapAlloc(HANDLE hHeap,
+                  DWORD dwFlags,
+                  DWORD dwBytes,
+                  MemoryTag tag)
+{
+#ifndef MEM_DEBUG
+  return AllocDispatch(hHeap, dwFlags, dwBytes, tag);
+#else
+  // In MEM_DEBUG builds, every allocation is recorded so the leak report
+  // has complete coverage — even call sites that don't use _AllocTrack.
+  std::lock_guard<std::mutex> lock(g_AllocMutex);
+  if (!g_Allocations) g_Allocations = new std::map<void*, AllocationInfo>();
+  LPVOID res = AllocDispatch(hHeap, dwFlags, dwBytes, tag);
+  (*g_Allocations)[res] = { (size_t)dwBytes, tag,
+                            "unknown", 0 };
+  return res;
+#endif
+}
+
 #ifdef MEM_DEBUG
 // 5-arg _HeapAlloc (Phase 5F): additive overload that captures the
-// call-site file/line for the leak report. Forwards the actual work to
-// the 4-arg overload (the dispatch logic lives in one place) and then
-// records the allocation in g_Allocations under g_AllocMutex.
+// call-site file/line for the leak report. Calls AllocDispatch for the
+// actual allocation and then records the pointer in g_Allocations under
+// g_AllocMutex.
 //
 // The map and mutex are allocated lazily and are themselves NOT
 // tracked (recursive tracking would be unsafe; see the bootstrap note
@@ -108,7 +133,7 @@ LPVOID _HeapAlloc(HANDLE hHeap,
   std::lock_guard<std::mutex> lock(g_AllocMutex);
   if (!g_Allocations) g_Allocations = new std::map<void*, AllocationInfo>();
 
-  LPVOID res = _HeapAlloc(hHeap, dwFlags, dwBytes, tag);
+  LPVOID res = AllocDispatch(hHeap, dwFlags, dwBytes, tag);
 
   (*g_Allocations)[res] = { (size_t)dwBytes, tag,
                             file ? file : "unknown", line };
@@ -123,19 +148,26 @@ BOOL _HeapFree(HANDLE hHeap,
   if (!lpMem) return false;
 
   // Phase 5F: remove the entry from the leak map (if recording is on)
-  // before the pointer is freed. For Level-tagged allocations the
-  // pointer is owned by the arena and never reaches HeapFree, but we
-  // still want to remove its map entry so it doesn't show up as a
-  // leak. The erase is a no-op for pointers that aren't tracked.
+  // before the pointer is freed. For allocations inside the arena we
+  // skip HeapFree (the arena owns them and will reclaim them in bulk
+  // on Reset()), but we still erase the map entry so they don't show
+  // up as leaks. For MemoryTag::Level allocations that fell back to
+  // HeapAlloc (because LevelArena was null at allocation time), the
+  // map entry is erased and then the pointer is HeapFree'd normally.
+  // Using the arena Contains() check instead of the tag-only check
+  // ensures debug and release builds behave identically.
 #ifdef MEM_DEBUG
   {
     std::lock_guard<std::mutex> lock(g_AllocMutex);
     if (g_Allocations) {
       auto it = g_Allocations->find(lpMem);
       if (it != g_Allocations->end()) {
-        if (it->second.tag == MemoryTag::Level) {
+        // Only short-circuit HeapFree when the pointer is actually in
+        // the arena. A Level-tagged allocation that fell back to the
+        // heap must still be HeapFree'd.
+        if (LevelArena != nullptr && LevelArena->Contains(lpMem)) {
           g_Allocations->erase(it);
-          return TRUE;  // arena-owned: don't fall through to HeapFree
+          return TRUE;
         }
         g_Allocations->erase(it);
       }
@@ -607,6 +639,16 @@ void ReleaseGlobalResources()
   // because ReleaseResources iterates from 0 and breaks on the first
   // null pointer. Release it here.
   Textures[255].reset();
+
+  // M-3: Snow particle data was allocated via _HeapAlloc (tagged Global)
+  // during LoadResourcesScript (InitEngine). Session-lifetime allocation;
+  // freed here because ReleaseResources runs on every level transition
+  // but Snow is never re-allocated per-level.
+  if (Snow)
+  {
+    (void)_HeapFree(Heap, 0, Snow);
+    Snow = nullptr;
+  }
 }
 
 void LoadResources()
@@ -685,7 +727,7 @@ void LoadResources()
     MObjects[mm].info.YLo*=2;
     MObjects[mm].info.YHi*=2;
     MObjects[mm].info.linelenght = (MObjects[mm].info.linelenght / 128) * 128;
-    LoadModel(MObjects[mm].model);
+    LoadModel(MObjects[mm].model, MemoryTag::Level);
     LoadBMPModel(MObjects[mm]);
 
     if (MObjects[mm].info.flags & ofNOLIGHT)

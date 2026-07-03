@@ -73,28 +73,6 @@ void   PrintLog(char* msg);
 
 
 // ----------------------------------------------------------------------------
-// Helper: allocate array or halt (match C1)
-// ----------------------------------------------------------------------------
-
-// Allocates a value-initialized array of `count` elements of type T. On
-// failure calls DoHalt with a diagnostic. Used by per-level loaders that
-// want a single line for "alloc or die" without rolling their own
-// _HeapAlloc+nullcheck+DoHalt pattern.
-template<typename T>
-[[nodiscard]] T* AllocateArrayOrHalt(size_t count, const char* source, const char* what)
-{
-    if (count == 0) return nullptr;
-    T* ptr = new (std::nothrow) T[count]();  // value-init to zero for POD types
-    if (!ptr) {
-        char buf[256];
-        sprintf_s(buf, sizeof(buf), "Memory allocation error for %s in %s", what, source ? source : "?");
-        DoHalt(buf);
-    }
-    return ptr;
-}
-
-
-// ----------------------------------------------------------------------------
 // Deleter + smart pointer aliases (match C1)
 // ----------------------------------------------------------------------------
 
@@ -123,8 +101,21 @@ struct HeapDeleter {
 // Owns a heap-allocated array. std::remove_extent<T>::type strips the
 // array extent so HeapDeleter is templated on the element type (so the
 // is_destructible check works on WORD/int/etc., not on the array type).
+//
+// HeapDeleter only calls the destructor for the first element of an array
+// (it does not iterate). Therefore unique_heap_ptr<T[]> requires the
+// element type to be trivially destructible. This static_assert catches
+// non-trivial element types at compile time instead of silently
+// misbehaving at run time.
 template<typename T>
-using unique_heap_ptr = std::unique_ptr<T, HeapDeleter<typename std::remove_extent<T>::type>>;
+struct unique_heap_ptr_deleter : HeapDeleter<typename std::remove_extent<T>::type> {
+    static_assert(std::is_trivially_destructible_v<typename std::remove_extent<T>::type>,
+                  "unique_heap_ptr<T[]> requires trivially destructible element type "
+                  "(HeapDeleter only destroys element 0)");
+};
+
+template<typename T>
+using unique_heap_ptr = std::unique_ptr<T, unique_heap_ptr_deleter<T>>;
 
 // Owns a single object allocated with _HeapAlloc.
 template<typename T>
@@ -166,7 +157,13 @@ public:
         // correctness on subsequent allocations.
         size_t padding = (alignment - (reinterpret_cast<uintptr_t>(m_Base + m_Offset) % alignment)) % alignment;
 
-        if (m_Offset + padding + size > m_Size) {
+        // Wrap-safe capacity check: size alone must fit within the arena,
+        // and the true remaining space must be sufficient. Computing
+        // size > m_Size - (m_Offset + padding) avoids the 32-bit integer
+        // overflow that would let a near-4-GiB size pass the check.
+        if (size > m_Size) return nullptr;
+        size_t used = m_Offset + padding;
+        if (size > m_Size - used) {
 #ifdef _DEBUG
             char buf[128];
             sprintf(buf, "Arena '%s' overflow: need %u, free %u (used %u / %u)\n",
@@ -188,6 +185,7 @@ public:
     void Reset() {
         m_Offset = 0;
         m_AllocCount = 0;
+        m_PeakUsage = 0;  // per-level peak, not session max
     }
 
     size_t GetUsed() const      { return m_Offset; }

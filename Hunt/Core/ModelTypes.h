@@ -96,42 +96,15 @@ struct TModel
   TModel(const TModel&) = delete;
   TModel& operator=(const TModel&) = delete;
 
-  TModel(TModel&& other) noexcept
-    : VCount(other.VCount), FCount(other.FCount),
-      TextureSize(other.TextureSize), TextureHeight(other.TextureHeight),
-      gVertex(std::move(other.gVertex)),
-      gFace(other.gFace),
-      lpTexture(std::move(other.lpTexture)),
-      lpTexture2(std::move(other.lpTexture2)),
-      lpTexture3(std::move(other.lpTexture3))
-  {
-    for (int i = 0; i < 4; i++) {
-      VLight[i] = other.VLight[i];
-      other.VLight[i] = nullptr;
-    }
-    other.gFace = nullptr;
-  }
-
-  TModel& operator=(TModel&& other) noexcept
-  {
-    if (this != &other) {
-      VCount = other.VCount;
-      FCount = other.FCount;
-      TextureSize = other.TextureSize;
-      TextureHeight = other.TextureHeight;
-      gVertex = std::move(other.gVertex);
-      gFace = other.gFace;
-      lpTexture = std::move(other.lpTexture);
-      lpTexture2 = std::move(other.lpTexture2);
-      lpTexture3 = std::move(other.lpTexture3);
-      for (int i = 0; i < 4; i++) {
-        VLight[i] = other.VLight[i];
-        other.VLight[i] = nullptr;
-      }
-      other.gFace = nullptr;
-    }
-    return *this;
-  }
+  // Move ops are deleted because the hand-written versions leak gFace and
+  // VLight[0-3] (raw heap pointers that must be freed explicitly before
+  // overwriting). TModel is always managed through unique_obj_ptr, which
+  // never moves the pointee — only the pointer itself moves, so move ops
+  // are never needed. If move semantics become necessary in the future,
+  // the new implementation must free the destination's gFace and VLight
+  // buffers before moving from the source.
+  TModel(TModel&& other) noexcept = delete;
+  TModel& operator=(TModel&& other) noexcept = delete;
 
   ~TModel() = default;
 };

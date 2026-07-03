@@ -360,7 +360,7 @@ void AllocateMemoryForModel(TModel* mptr, MemoryTag tag) {
 	mptr->VLight[3] = lightBuffer + mptr->VCount * 3;
 }
 
-void LoadModel(unique_obj_ptr<TModel> &mptr)
+void LoadModel(unique_obj_ptr<TModel> &mptr, MemoryTag tag)
 {
   // Per-level MObjects models go to the heap, NOT the arena.
   // Rationale: the GL renderer caches GPU resources (textures
@@ -379,7 +379,7 @@ void LoadModel(unique_obj_ptr<TModel> &mptr)
   ReadFile( hfile, &OCount,            4,         &l, nullptr );
   ReadFile( hfile, &mptr->TextureSize, 4,         &l, nullptr );
 
-  AllocateMemoryForModel(mptr.get(), MemoryTag::Global);
+  AllocateMemoryForModel(mptr.get(), tag);
 
   ReadFile( hfile, mptr->gFace,        mptr->FCount<<6, &l, nullptr );
   ReadFile( hfile, mptr->gVertex.get(),      mptr->VCount<<4, &l, nullptr );
@@ -394,7 +394,7 @@ void LoadModel(unique_obj_ptr<TModel> &mptr)
 
   mptr->TextureSize = mptr->TextureHeight*512;
 
-  mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize)));
+  mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize, tag)));
 
   ReadFile(hfile, mptr->lpTexture.get(), ts, &l, nullptr);
   BrightenTexture(mptr->lpTexture.get(), ts/2);
@@ -406,7 +406,7 @@ void LoadModel(unique_obj_ptr<TModel> &mptr)
     mptr->gVertex[v].z*=-2.f;
   }
 
-  CorrectModel(mptr.get(), MemoryTag::Global);
+  CorrectModel(mptr.get(), tag);
 
   DATASHIFT(mptr->lpTexture.get(), mptr->TextureSize);
 }
