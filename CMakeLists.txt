@@ -56,21 +56,21 @@ if(RENDERER)
     if(RENDERER STREQUAL "D3D")
         add_definitions(-D_d3d)
         set(RENDER_SRC
-            Hunt/RendererD3D.cpp
-            Hunt/RenderSoft.cpp
+            Hunt/Renderer/RendererD3D.cpp
+            Hunt/Renderer/RenderSoft.cpp
         )
         message(STATUS "Building with Direct3D Renderer")
     elseif(RENDERER STREQUAL "SOFT")
         add_definitions(-D_soft)
         set(RENDER_SRC
-            Hunt/RenderSoft.cpp
+            Hunt/Renderer/RenderSoft.cpp
         )
         message(STATUS "Building with Software Renderer")
     elseif(RENDERER STREQUAL "3DFX")
         add_definitions(-D_3dfx)
         set(RENDER_SRC
-            Hunt/Render3DFX.cpp
-            Hunt/RenderSoft.cpp
+            Hunt/Renderer/Render3DFX.cpp
+            Hunt/Renderer/RenderSoft.cpp
         )
 
         # Glide 2.x support

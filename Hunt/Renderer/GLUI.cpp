@@ -722,9 +722,10 @@ void RenderHealthBar()
     int L  = WinW / 4;
     int x0 = WinW - (WinW / 20) - L;
     int y0 = WinH / 40;
-    int G  = (MyHealth * 240 / 100000);            if (G > 160) G = 160;
-    int R  = ((100000 - MyHealth) * 240 / 100000); if (R > 160) R = 160;
-    int HCOLOR = (G << 5) | (R << 10);            // 555: G at bits 5-9, R at 10-14
+    // 5-bit values (0..31) for 555 format: G at bits 5-9, R at bits 10-14
+    int G = (MyHealth * 31 / 100000);              // green, 0..31
+    int R = ((100000 - MyHealth) * 31 / 100000);   // red,   0..31
+    int HCOLOR = (G << 5) | (R << 10);             // 555 packed
 
     int L0 = (L * MyHealth) / 100000;
     int H  = WinH / 200;
