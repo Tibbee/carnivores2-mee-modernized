@@ -86,8 +86,8 @@ if(RENDERER)
         endif()
         set(RENDER_SRC
             Hunt/Renderer/IRenderer.h
-            Hunt/GLRenderer.h
-            Hunt/GLRenderer.cpp
+            Hunt/Renderer/GLRenderer.h
+            Hunt/Renderer/GLRenderer.cpp
             Hunt/Renderer/GLUtils.cpp
             Hunt/Renderer/GLNight.cpp
             Hunt/Renderer/GLShadow.cpp
@@ -100,7 +100,7 @@ if(RENDERER)
             Hunt/Renderer/GLShader.cpp
             Hunt/Renderer/GLPerf.h
             Hunt/Renderer/GLPerf.cpp
-            Hunt/GLUI.cpp
+            Hunt/Renderer/GLUI.cpp
             deps/glad/glad.c
         )
         if(GL_PERF_HOOKS)
@@ -124,6 +124,9 @@ set(CORE_FILES
     Hunt/Audio/Audio_DLL.cpp
     Hunt/Audio/OpenAL_Loader.cpp
     Hunt/Characters.cpp
+    Hunt/Game/CharacterCollision.cpp
+    Hunt/Game/CharacterTargeting.cpp
+    Hunt/Game/CharacterMovement.cpp
     Hunt/Game/CharacterMorph.cpp
     Hunt/Game/CharacterSpawn.cpp
     Hunt/Game/CharacterAI.cpp
@@ -158,16 +161,16 @@ set(CORE_FILES
     Hunt/Game/CommandLine.cpp
     Hunt/Game.cpp
     Hunt/Hunt.cpp
-    Hunt/Interface.cpp
+    Hunt/Game/Interface.cpp
     Hunt/Math.cpp
-    Hunt/Resources.cpp
+    Hunt/Loaders/Resources.cpp
     Hunt/Loaders/ScriptParser.cpp
     Hunt/Loaders/ModelLoader.cpp
     Hunt/Loaders/MapLoader.cpp
     Hunt/Loaders/SoundLoader.cpp
     Hunt/Loaders/PictureLoader.cpp
     Hunt/Loaders/CharacterLoader.cpp
-    Hunt/renderasm.cpp
+    Hunt/Renderer/renderasm.cpp
     Hunt/AppRes.rc
     Hunt/Carnivores1.manifest
     # Headers (optional, for IDE)

@@ -1,7 +1,7 @@
 #define INITGUID
 #include "Hunt.h"
 #ifdef _gl
-#include "GLRenderer.h"
+#include "Renderer/GLRenderer.h"
 #endif
 #include "stdio.h"
 #include "timeapi.h"

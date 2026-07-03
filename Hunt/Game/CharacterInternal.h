@@ -10,19 +10,35 @@
 
 // Collision / placement checks
 int CheckPlaceCollisionP(Vector3d &v, bool aquatic);
-int CheckPlaceCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc);
+int CheckPlaceCollisionFishP(Vector3d &v, int minDepth, int maxDepth);
 int CheckPlaceCollisionFish(TCharacter *cptr, Vector3d &v, float mosaDepth, int maxDepth, int minDepth);
+int CheckPlaceCollisionMosasaurus(TCharacter *cptr, Vector3d &v, float mosaDepth);
+bool jumpCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc);
+int CheckPlaceCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc);
+int CheckPlaceCollisionMicro(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc);
+int CheckPlaceCollisionLandBrahi(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc);
+int CheckPlaceCollisionBrahi(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc);
+int CheckPlaceCollisionBrahiP(Vector3d &v);
+int CheckPlaceCollision2(TCharacter *cptr, Vector3d &v, BOOL wc);
+int CheckPossiblePath(TCharacter *cptr, BOOL wc, BOOL mc);
 
 // Movement
 void MoveCharacter(TCharacter *cptr, float dx, float dz, BOOL wc, BOOL mc);
+void MoveCharacter2(TCharacter *cptr, float dx, float dz);
 void MoveCharacterFish(TCharacter *cptr, float dx, float dz);
+void MoveCharacterMosasaurus(TCharacter *cptr, float dx, float dz);
+void Characters_AddSecondaryOne(TCharacter *cptr);
 void LookForAWay(TCharacter *cptr, BOOL wc, BOOL mc);
 
 // AI helpers
 void SetNewTargetPlace(TCharacter *cptr, float R);
+void SetNewTargetPlaceVanilla(TCharacter *cptr, float R);
+void SetNewTargetPlaceRegion(TCharacter *cptr, float R);
 void SetNewTargetPlace_Icth(TCharacter *cptr, float R);
+void SetNewTargetPlace_IcthOld(TCharacter *cptr, float R);
 void SetNewTargetPlace_Brahi(TCharacter *cptr, float R);
 void SetNewTargetPlaceFish(TCharacter *cptr, float R);
+void SetNewTargetPlaceMosasaurus(TCharacter *cptr, float R);
 BOOL ReplaceCharacterForward(TCharacter *cptr);
 boolean huntDogSearch(TCharacter *cptr);
 

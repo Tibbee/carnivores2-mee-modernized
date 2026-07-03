@@ -36,7 +36,7 @@
 #include "Core/EngineAPI.h"
 
 #ifdef _gl
-#include "GLRenderer.h"
+#include "Renderer/GLRenderer.h"
 #endif
 
 #ifdef _d3d
