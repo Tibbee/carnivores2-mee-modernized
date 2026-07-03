@@ -164,7 +164,7 @@ set(CORE_FILES
     Hunt/Game/Projectiles.cpp
     Hunt/Game/Ships.cpp
     Hunt/Game/Trophy.cpp
-    Hunt/Hunt.cpp
+    Hunt/Game/Hunt.cpp
     Hunt/Game/Interface.cpp
     Hunt/Math/Math.cpp
     Hunt/Math/Vector.cpp
