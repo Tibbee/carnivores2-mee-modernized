@@ -129,6 +129,24 @@ set(CORE_FILES
     Hunt/Game/CharacterAI.cpp
     Hunt/Game/CharacterTracking.cpp
     Hunt/Game/CharacterAnimation.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateHuntDead.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateDeadCommon.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateTitan.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimatePoacher.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateHuntable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateMicro.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/huntDogSearch.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateHuntdog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateTRex.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateMClientCharacter.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateClassicAmbient.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateFish.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateIcth.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateDeadFish.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateIcthDead.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateBrahi.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateBrahiOld.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateDimor.cpp
     Hunt/Game/Controls.cpp
     Hunt/Game/PlayerMovement.cpp
     Hunt/Game/Effects.cpp

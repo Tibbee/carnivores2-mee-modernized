@@ -35,6 +35,8 @@ void AddDeadBody(TCharacter *cptr, int phase, bool scream);
 
 // Animation helpers
 void ThinkY_Beta_Gamma(TCharacter *cptr, float blook, float glook, float blim, float glim);
+Vector3d LookForATree(TCharacter *cptr);
+Vector3d CheckForATree(TCharacter *cptr);
 float AngleDifference(float a, float b);
 float CorrectedAlpha(float a, float b);
 
