@@ -1,0 +1,135 @@
+---
+Language:        Cpp
+BasedOnStyle:    LLVM
+IndentWidth:     4
+TabWidth:        4
+UseTab:          Never
+ColumnLimit:     120
+AccessModifierOffset: -4
+
+# ── Braces ──────────────────────────────────────────────────────────────────
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass:                true
+  AfterStruct:               true
+  AfterEnum:                 true
+  AfterNamespace:            true
+  AfterFunction:             true
+  AfterControlStatement:     Never
+  AfterExternBlock:          true
+  AfterUnion:                true
+  BeforeCatch:               true
+  BeforeElse:                true
+  BeforeLambdaBody:          false
+  BeforeWhile:               false
+  IndentBraces:              false
+  SplitEmptyFunction:        true
+  SplitEmptyRecord:          true
+  SplitEmptyNamespace:       true
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+InsertBraces:                false   # set to true after bulk-format pass
+
+# ── Spacing ──────────────────────────────────────────────────────────────────
+PointerAlignment:            Right
+ReferenceAlignment:          Pointer
+SpaceAfterCStyleCast:        false
+SpaceBeforeParens:           ControlStatements
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceInEmptyBlock:           false
+SpacesBeforeTrailingComments: 1
+SpacesInAngles:              Never
+SpacesInParens:              Never
+SpacesInSquareBrackets:      false
+SpaceAfterTemplateKeyword:   true
+SpaceBeforeRangeBasedForLoopColon: true
+
+# ── Alignment ────────────────────────────────────────────────────────────────
+AlignAfterOpenBracket:       Align
+AlignOperands:               Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveMacros:      false
+AlignTrailingComments:
+  Kind:                      Always
+  OverEmptyLines:            0
+AlignEscapedNewlines:        Right
+
+# ── Line breaks ──────────────────────────────────────────────────────────────
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType:  None
+BreakBeforeBinaryOperators:  None
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList:        BeforeColon
+BreakStringLiterals:         true
+PenaltyBreakAssignment:      2
+PenaltyBreakBeforeFirstCallParameter: 19
+PenaltyBreakComment:         300
+PenaltyBreakFirstLessLess:   120
+PenaltyExcessCharacter:      100
+PenaltyReturnTypeOnItsOwnLine: 1000
+
+# ── Indentation ──────────────────────────────────────────────────────────────
+IndentCaseLabels:            false
+IndentAccessModifiers:       false
+IndentPPDirectives:          None
+IndentWrappedFunctionNames:  false
+IndentExternBlock:           AfterExternBlock
+IndentRequiresClause:        true
+ConstructorInitializerIndentWidth: 4
+ContinuationIndentWidth:     4
+LambdaBodyIndentation:       Signature
+
+# ── Namespace ────────────────────────────────────────────────────────────────
+CompactNamespaces:           false
+NamespaceIndentation:        None
+FixNamespaceComments:        true
+EmptyLineAfterAccessModifier: Never
+EmptyLineBeforeAccessModifier: LogicalBlock
+
+# ── Includes ─────────────────────────────────────────────────────────────────
+IncludeBlocks:               Preserve
+IncludeIsMainRegex:          '(Test)?$'
+SortIncludes:                CaseSensitive
+SortUsingDeclarations:       LexicographicNumeric
+IncludeCategories:
+  - Regex:           '^<windows\.h>'
+    Priority:        1
+  - Regex:           '^<winsock2\.h>'
+    Priority:        2
+  - Regex:           '^<.*>'
+    Priority:        3
+  - Regex:           '^".*"'
+    Priority:        4
+
+# ── Misc ─────────────────────────────────────────────────────────────────────
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+BinPackArguments:            true
+BinPackParameters:           true
+Cpp11BracedListStyle:        true
+DerivePointerAlignment:      false
+DisableFormat:               false
+ExperimentalAutoDetectBinPacking: false
+MaxEmptyLinesToKeep:         1
+KeepEmptyLinesAtTheStartOfBlocks: true
+ReflowComments:              true
+Standard:                    c++17
+InsertNewlineAtEOF:          true
+RemoveBracesLLVM:            false
+SeparateDefinitionBlocks:    Leave
+
+# ── Macros ───────────────────────────────────────────────────────────────────
+ForEachMacros:
+  - foreach
+  - Q_FOREACH
+  - BOOST_FOREACH
+StatementMacros:
+  - Q_UNUSED
+  - QT_REQUIRE_VERSION
