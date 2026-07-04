@@ -57,20 +57,29 @@ if(RENDERER)
         add_definitions(-D_d3d)
         set(RENDER_SRC
             Hunt/Renderer/RendererD3D.cpp
-            Hunt/Renderer/RenderSoft.cpp
         )
         message(STATUS "Building with Direct3D Renderer")
     elseif(RENDERER STREQUAL "SOFT")
         add_definitions(-D_soft)
         set(RENDER_SRC
             Hunt/Renderer/RenderSoft.cpp
+            Hunt/Renderer/SoftInternal.h
+            Hunt/Renderer/SoftHUD.cpp
+            Hunt/Renderer/SoftModel.cpp
+            Hunt/Renderer/SoftTerrain.cpp
+            Hunt/Renderer/SoftWater.cpp
+            Hunt/Renderer/SoftEntities.cpp
+            Hunt/Renderer/SoftVideo.cpp
+            Hunt/Renderer/SoftSky.cpp
+            Hunt/Renderer/SoftMisc.cpp
+            Hunt/Renderer/SoftRenderer.cpp
+            Hunt/Renderer/SoftRenderer.h
         )
         message(STATUS "Building with Software Renderer")
     elseif(RENDERER STREQUAL "3DFX")
         add_definitions(-D_3dfx)
         set(RENDER_SRC
             Hunt/Renderer/Render3DFX.cpp
-            Hunt/Renderer/RenderSoft.cpp
         )
 
         # Glide 2.x support
@@ -252,10 +261,19 @@ if(MSVC)
 
     add_executable(Carnivores2Tests
         tests/test_math.cpp
+        tests/test_map_scaling.cpp
     )
     target_include_directories(Carnivores2Tests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Core
     )
     target_link_libraries(Carnivores2Tests PRIVATE gtest_main)
     add_test(NAME Carnivores2Tests COMMAND Carnivores2Tests)
+
+    add_test(NAME SmokeTest
+        COMMAND powershell -ExecutionPolicy Bypass -File
+            ${CMAKE_SOURCE_DIR}/tests/smoke_test.ps1
+            -ExePath $<TARGET_FILE:Carnivores1>
+            -Duration 5
+            -WorkingDir ${CMAKE_SOURCE_DIR}/release/Carnivores2_Modernized
+    )
 endif()

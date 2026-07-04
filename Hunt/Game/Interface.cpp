@@ -169,6 +169,10 @@ void SetFullScreen()
   if (g_GLRenderer)
     g_GLRenderer->SetVideoMode(WinW, WinH);
 #endif
+#ifdef _soft
+  if (g_SoftRenderer)
+    g_SoftRenderer->SetVideoMode(WinW, WinH);
+#endif
 
   ResetMousePos();
 }

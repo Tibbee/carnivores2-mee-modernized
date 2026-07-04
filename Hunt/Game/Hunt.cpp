@@ -1296,12 +1296,15 @@ void ProcessGame()
   if (DEBUG) ShotsLeft[CurrentWeapon] = WeapInfo[CurrentWeapon].Shots;
 
   // Phase 2.1: build per-frame render context and pass to the renderer.
-  // DrawFrame replaces DrawScene() for GL — it calls PreCashGroundModel
-  // first, then renders ground, water, sky, models, and shadows via the
-  // GLRenderer. Non-GL renderers use the free-function DrawScene().
+  // DrawFrame replaces DrawScene() for GL and Soft — it calls
+  // PreCashGroundModel first, then renders ground, water, sky, models,
+  // and shadows via the renderer. Other renderers use the free-function
+  // DrawScene().
   RenderFrameContext ctx = RenderFrameContext::FromGlobals();
 #ifdef _gl
   if (g_GLRenderer) g_GLRenderer->DrawFrame(ctx);
+#elif defined(_soft)
+  if (g_SoftRenderer) g_SoftRenderer->DrawFrame(ctx);
 #else
   DrawScene();
 #endif

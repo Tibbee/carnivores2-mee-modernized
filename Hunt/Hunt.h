@@ -39,6 +39,10 @@
 #include "Renderer/GLRenderer.h"
 #endif
 
+#ifdef _soft
+#include "Renderer/SoftRenderer.h"
+#endif
+
 #ifdef _d3d
 #include "d3d.h"
 #endif

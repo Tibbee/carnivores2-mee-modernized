@@ -74,6 +74,7 @@ void RenderBullet(int);
 void RenderPlayer(int);
 void RenderSkyPlane();
 void DrawScene();
+void DrawPostObjects();
 void RenderHealthBar();
 void Render_Cross(int, int);
 void Render_LifeInfo(int);
