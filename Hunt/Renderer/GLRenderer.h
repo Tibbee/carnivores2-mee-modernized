@@ -274,22 +274,8 @@ private:
                            bool tintByFogColor = false);
     void EnsureTerrainTextureArray();
     void UploadTerrainLayer(int layer, const TEXTURE& texture);
-    void CollectTerrainTile(int x, int y, int r);
     void CollectTerrainTile(int x, int y, int r,
                             float fadeStart, float fadeStartSq, float fadeEnd);
-    // §5.2: Chunked pair collection — processes two horizontally adjacent
-    // tiles (x1,y) and (x2,y) sharing 3 VMap corners, 3 fog lookups, and
-    // 3 alpha computations instead of 8 each. Falls back to 1×1 path
-    // for out-of-bounds tiles.
-    void CollectTerrainTilePair(int x1, int x2, int y, int r);
-    void CollectTerrainTilePair(int x1, int x2, int y, int r,
-                                float fadeStart, float fadeStartSq, float fadeEnd);
-    // Phase 2: 2x2 chunked collection — reads a 3x3 grid of VMap cells
-    // for 4 tiles, reducing VMap cache traffic by 44% vs 1x1.
-    void CollectTerrainChunk2x2(int x, int y, int r,
-                                float fadeStart, float fadeStartSq, float fadeEnd);
-    void CollectWaterTile(int x, int y, int r);
-    void CollectWaterTile2(int x, int y, int r);
     // Fast water tile collection: precomputed constants + squared-distance
     // alpha ramp + single FogsMap lookup per tile (~1ms saved at max dist).
     void CollectWaterTileFast(int x, int y, int r,

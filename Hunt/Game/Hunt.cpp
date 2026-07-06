@@ -104,18 +104,47 @@ float CalcFogLevel(Vector3d v)
     // independent of horizontal distance from camera.  This models the
     // natural density gradient in water — the deeper portion of a
     // terrain feature is more occluded than the shallower portion at
-    // the same horizontal distance.  Adds up to +250% fog at 512 units
-    // below the water surface, so the sea floor is always fogged even
-    // when the camera is near the surface.
+    // the same horizontal distance.
+    //
     // v.y is already in world space (CameraY added above).
     float vertDepth = (std::max)(0.0f, fptr->YBegin * ctHScale - v.y);
-    float vertFactor = std::clamp(vertDepth / 512.0f, 0.0f, 1.0f);
-    fl *= 1.0f + vertFactor * 2.5f;
 
-    // Exponential cap boost — prevents full blackout at depth
-    // but still gives a natural extinction feel
-    float capBoost = (1.0f - std::exp(-CameraWaterDepthFactor * 2.0f)) * 50.0f;
-    return MIN(fl, fptr->FLimit + capBoost);
+    // Threshold: fog gradient only starts after this depth (units)
+    // Below this depth, terrain is clear; above it, fog increases gradually
+    float fogStartDepth = 500.0f;
+    float adjustedDepth = (std::max)(0.0f, vertDepth - fogStartDepth);
+    float maxDepth = (std::max)(1.0f, 512.0f - fogStartDepth);
+    float normalizedDepth = std::clamp(adjustedDepth / maxDepth, 0.0f, 1.0f);
+
+    // Use a quadratic curve for more gradual increase
+    // Starts very slow, then increases as depth grows
+    // This creates a smooth, natural-looking gradient
+    float vertFactor = normalizedDepth * normalizedDepth;
+
+    // Multiplicative: amplify existing fog (subtle)
+    fl *= 1.0f + vertFactor * 0.1f;
+
+    // Additive: add fog DIRECTLY based on depth, independent of base fog
+    // This ensures deep terrain always has fog even when camera is near surface
+    // and base fog (fla+flb) is zero.
+    fl += vertFactor * 1.0f;
+
+    // Fog cap: when underwater, use a soft cap that allows the fog to keep
+    // increasing gradually with depth instead of hitting a hard wall.
+    //
+    // Base boost from camera depth (exponential, like before)
+    float cameraBoost = (1.0f - std::exp(-CameraWaterDepthFactor * 2.0f)) * 50.0f;
+    //
+    // Soft cap: instead of a hard MIN, use a logistic curve that:
+    // - Starts at FLimit
+    // - Increases with depth (vertFactor)
+    // - Never quite stops increasing (always some gradient)
+    // - Naturally levels off at very high depths
+    //
+    // The curve: FLimit + (maxBoost * vertFactor / (1 + vertFactor))
+    // This gives a smooth, gradual increase that never plateaus completely
+    float softCap = fptr->FLimit + cameraBoost + (100.0f * vertFactor / (1.0f + vertFactor));
+    return (std::min)(fl, softCap);
   }
 
   return MIN(fl, fptr->FLimit);
