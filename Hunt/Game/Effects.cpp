@@ -54,9 +54,23 @@ void PreCashGroundModel()
   }
 
   // §3.6: Pre-compute multi-component wave offsets for water surface
+  // Invalidate cache when wave parameters change (for real-time debug tuning)
+  static float lastWave1Amp = 0, lastWave2Amp = 0, lastWave3Amp = 0, lastWaveSpeed = 0;
+  if (WWave1Amp != lastWave1Amp || WWave2Amp != lastWave2Amp ||
+      WWave3Amp != lastWave3Amp || WWaveSpeed != lastWaveSpeed) {
+    waveCacheSurfaceReady = false;
+    lastWave1Amp = WWave1Amp;
+    lastWave2Amp = WWave2Amp;
+    lastWave3Amp = WWave3Amp;
+    lastWaveSpeed = WWaveSpeed;
+  }
   if (!waveCacheSurfaceReady || waveCacheSurfaceTime != RealTime) {
     waveCacheSurfaceTime = RealTime;
-    float t = RealTime / 200.f;
+    float t = RealTime / 200.f * WWaveSpeed;
+    // Y amplitude is ~80% of X/Z amplitude for a natural wave shape
+    float amp1y = WWave1Amp * 0.8f;
+    float amp2y = WWave2Amp * 0.8f;
+    float amp3y = WWave3Amp * 0.8f;
     for (int wy = 0; wy < 32; wy++) {
       for (int wx = 0; wx < 32; wx++) {
         int r1 = RandomMap[wy][wx];
@@ -64,17 +78,17 @@ void PreCashGroundModel()
         float px = static_cast<float>(wx) * 0.5f;
         float py = static_cast<float>(wy) * 0.5f;
         // Wave 1: primary swell — large slow heave
-        waveCacheSurface[wy][wx].wx[0] = static_cast<float>(sin(px + py + t)) * 18.f;
-        waveCacheSurface[wy][wx].wy[0] = static_cast<float>(sin(px * 0.8f + py * 0.6f + t * 0.9f)) * 14.f;
-        waveCacheSurface[wy][wx].wz[0] = static_cast<float>(sin(pi/2.f + px + py + t)) * 18.f;
+        waveCacheSurface[wy][wx].wx[0] = static_cast<float>(sin(px + py + t)) * WWave1Amp;
+        waveCacheSurface[wy][wx].wy[0] = static_cast<float>(sin(px * 0.8f + py * 0.6f + t * 0.9f)) * amp1y;
+        waveCacheSurface[wy][wx].wz[0] = static_cast<float>(sin(pi/2.f + px + py + t)) * WWave1Amp;
         // Wave 2: secondary cross-wave — medium amplitude, different direction
-        waveCacheSurface[wy][wx].wx[1] = static_cast<float>(sin(px * 1.5f - py * 0.7f + t * 1.3f + r1 * 0.01f)) * 10.f;
-        waveCacheSurface[wy][wx].wy[1] = static_cast<float>(sin(px * 1.2f - py * 0.9f + t * 1.1f + r1 * 0.01f)) * 8.f;
-        waveCacheSurface[wy][wx].wz[1] = static_cast<float>(sin(pi/3.f + px * 1.5f - py * 0.7f + t * 1.3f + r2 * 0.01f)) * 10.f;
+        waveCacheSurface[wy][wx].wx[1] = static_cast<float>(sin(px * 1.5f - py * 0.7f + t * 1.3f + r1 * 0.01f)) * WWave2Amp;
+        waveCacheSurface[wy][wx].wy[1] = static_cast<float>(sin(px * 1.2f - py * 0.9f + t * 1.1f + r1 * 0.01f)) * amp2y;
+        waveCacheSurface[wy][wx].wz[1] = static_cast<float>(sin(pi/3.f + px * 1.5f - py * 0.7f + t * 1.3f + r2 * 0.01f)) * WWave2Amp;
         // Wave 3: fine detail — small fast ripples
-        waveCacheSurface[wy][wx].wx[2] = static_cast<float>(sin(px * 2.3f + py * 1.2f + t * 2.1f + r2 * 0.01f)) * 5.f;
-        waveCacheSurface[wy][wx].wy[2] = static_cast<float>(sin(px * 2.0f + py * 1.5f + t * 1.8f + r2 * 0.01f)) * 4.f;
-        waveCacheSurface[wy][wx].wz[2] = static_cast<float>(sin(pi/4.f + px * 2.3f + py * 1.2f + t * 2.1f + r1 * 0.01f)) * 5.f;
+        waveCacheSurface[wy][wx].wx[2] = static_cast<float>(sin(px * 2.3f + py * 1.2f + t * 2.1f + r2 * 0.01f)) * WWave3Amp;
+        waveCacheSurface[wy][wx].wy[2] = static_cast<float>(sin(px * 2.0f + py * 1.5f + t * 1.8f + r2 * 0.01f)) * amp3y;
+        waveCacheSurface[wy][wx].wz[2] = static_cast<float>(sin(pi/4.f + px * 2.3f + py * 1.2f + t * 2.1f + r1 * 0.01f)) * WWave3Amp;
       }
     }
     waveCacheSurfaceReady = true;

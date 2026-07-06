@@ -795,37 +795,61 @@ void ShowControlElements()
         if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(8, 8, 500, 20);
     }
 
-    // ── Underwater fog debug menu ─────────────────────────────────
-    if (UnderwaterDebugMenu && IsUnderwater())
+    // ── Underwater debug menu ─────────────────────────────────────
+    if (UnderwaterDebugMenu)
     {
         int dx = 10;
         int dy = 40;
         int lineH = 16;
         int selected = UnderwaterDebugSelected;
 
-        // Background hint
-        textOut(dx, dy, "=== UNDERWATER FOG DEBUG (F10=close, D=dump) ===", 0x00FFFFFF);
+        // Tab header
+        const char* tabName = (UnderwaterDebugTab == 0) ? "FOG" : "WAVES";
+        char header[128];
+        sprintf_s(header, sizeof(header), "=== %s DEBUG (F10=close, PgUp/PgDn=tab, D=dump) ===", tabName);
+        textOut(dx, dy, header, 0x00FFFFFF);
         dy += lineH + 4;
 
-        // Parameter list
-        const char* names[] = { "BaseDensity", "CamDepthMult", "VertRange", "VertStrength", "CurveExp", "CapBase", "CapCamBoost" };
-        float values[] = { UWFog_BaseDensityMult, UWFog_CameraDepthMult, UWFog_VertRange, UWFog_VertStrength, UWFog_CurveExp, UWFog_CapBase, UWFog_CapCameraBoost };
-        const char* descs[] = { "(1.0=normal)", "(Beer-Lambert)", "(units)", "(fog units)", "(exponent)", "(added to FLimit)", "(camera boost)" };
+        if (UnderwaterDebugTab == 0) {
+            // ── Fog tab ──
+            const char* names[] = { "BaseDensity", "CamDepthMult", "VertRange", "VertStrength", "CurveExp", "CapBase", "CapCamBoost" };
+            float values[] = { UWFog_BaseDensityMult, UWFog_CameraDepthMult, UWFog_VertRange, UWFog_VertStrength, UWFog_CurveExp, UWFog_CapBase, UWFog_CapCameraBoost };
+            const char* descs[] = { "(1.0=normal)", "(Beer-Lambert)", "(units)", "(fog units)", "(exponent)", "(added to FLimit)", "(camera boost)" };
 
-        for (int i = 0; i < 7; i++)
-        {
-            char line[128];
-            sprintf_s(line, sizeof(line), "%s = %.2f  %s", names[i], values[i], descs[i]);
-            int color = (i == selected) ? 0x0000FFFF : 0x00C0C0C0;  // yellow if selected
-            if (i == selected) {
-                // Draw selection indicator
-                char selLine[132];
-                sprintf_s(selLine, sizeof(selLine), "> %s", line);
-                textOut(dx, dy, selLine, color);
-            } else {
-                textOut(dx + 10, dy, line, color);
+            for (int i = 0; i < 7; i++)
+            {
+                char line[128];
+                sprintf_s(line, sizeof(line), "%s = %.2f  %s", names[i], values[i], descs[i]);
+                int color = (i == selected) ? 0x0000FFFF : 0x00C0C0C0;
+                if (i == selected) {
+                    char selLine[132];
+                    sprintf_s(selLine, sizeof(selLine), "> %s", line);
+                    textOut(dx, dy, selLine, color);
+                } else {
+                    textOut(dx + 10, dy, line, color);
+                }
+                dy += lineH;
             }
-            dy += lineH;
+        } else {
+            // ── Waves tab ──
+            const char* names[] = { "Wave1Amp", "Wave2Amp", "Wave3Amp", "WaveSpeed" };
+            float values[] = { WWave1Amp, WWave2Amp, WWave3Amp, WWaveSpeed };
+            const char* descs[] = { "(primary swell)", "(cross-wave)", "(fine detail)", "(time mult)" };
+
+            for (int i = 0; i < 4; i++)
+            {
+                char line[128];
+                sprintf_s(line, sizeof(line), "%s = %.2f  %s", names[i], values[i], descs[i]);
+                int color = (i == selected) ? 0x0000FFFF : 0x00C0C0C0;
+                if (i == selected) {
+                    char selLine[132];
+                    sprintf_s(selLine, sizeof(selLine), "> %s", line);
+                    textOut(dx, dy, selLine, color);
+                } else {
+                    textOut(dx + 10, dy, line, color);
+                }
+                dy += lineH;
+            }
         }
 
         dy += 4;

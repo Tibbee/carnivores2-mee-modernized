@@ -877,54 +877,92 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 
   case WM_KEYDOWN:
   {
-    // ── Underwater fog debug menu input ──────────────────────────
+    // ── Underwater debug menu input ──────────────────────────
     if (UnderwaterDebugMenu)
     {
       char buf[128];
       float step;
+
+      // Tab switching (PgUp/PgDn)
+      if (static_cast<int>(wParam) == VK_PRIOR) {  // PgUp
+        UnderwaterDebugTab = (UnderwaterDebugTab + 1) % 2;
+        UnderwaterDebugSelected = 0;
+        AddMessage(UnderwaterDebugTab == 0 ? "Tab: FOG" : "Tab: WAVES");
+        return 0;
+      }
+      if (static_cast<int>(wParam) == VK_NEXT) {   // PgDn
+        UnderwaterDebugTab = (UnderwaterDebugTab + 1) % 2;
+        UnderwaterDebugSelected = 0;
+        AddMessage(UnderwaterDebugTab == 0 ? "Tab: FOG" : "Tab: WAVES");
+        return 0;
+      }
+
+      // Parameter count per tab
+      int paramCount = (UnderwaterDebugTab == 0) ? 7 : 4;
+
       switch (static_cast<int>(wParam))
       {
       case VK_UP:
-        UnderwaterDebugSelected = (UnderwaterDebugSelected + 6) % 7;
+        UnderwaterDebugSelected = (UnderwaterDebugSelected + paramCount - 1) % paramCount;
         break;
       case VK_DOWN:
-        UnderwaterDebugSelected = (UnderwaterDebugSelected + 1) % 7;
+        UnderwaterDebugSelected = (UnderwaterDebugSelected + 1) % paramCount;
         break;
       case VK_LEFT:
       case VK_RIGHT:
       {
-        // Adjust selected parameter: Left = -10%, Right = +10%
-        float* params[] = { &UWFog_BaseDensityMult, &UWFog_CameraDepthMult, &UWFog_VertRange, &UWFog_VertStrength, &UWFog_CurveExp, &UWFog_CapBase, &UWFog_CapCameraBoost };
-        float* p = params[UnderwaterDebugSelected];
-        // Use addition for parameters that can be 0 (multiplying 0 gives 0)
-        if (UnderwaterDebugSelected == 1 || UnderwaterDebugSelected == 3 ||
-            UnderwaterDebugSelected == 5 || UnderwaterDebugSelected == 6) {
-            float addStep = (static_cast<int>(wParam) == VK_RIGHT) ? 5.0f : -5.0f;
-            if (UnderwaterDebugSelected == 1) addStep = (static_cast<int>(wParam) == VK_RIGHT) ? 0.05f : -0.05f; // smaller for multiplier
-            *p += addStep;
+        bool right = (static_cast<int>(wParam) == VK_RIGHT);
+
+        if (UnderwaterDebugTab == 0) {
+          // ── Fog parameters ──
+          float* params[] = { &UWFog_BaseDensityMult, &UWFog_CameraDepthMult, &UWFog_VertRange, &UWFog_VertStrength, &UWFog_CurveExp, &UWFog_CapBase, &UWFog_CapCameraBoost };
+          float* p = params[UnderwaterDebugSelected];
+          if (UnderwaterDebugSelected == 1 || UnderwaterDebugSelected == 3 ||
+              UnderwaterDebugSelected == 5 || UnderwaterDebugSelected == 6) {
+              float addStep = right ? 5.0f : -5.0f;
+              if (UnderwaterDebugSelected == 1) addStep = right ? 0.05f : -0.05f;
+              *p += addStep;
+          } else {
+              step = right ? 1.1f : 0.9f;
+              if (UnderwaterDebugSelected == 4) step = right ? 1.05f : 0.95f;
+              *p *= step;
+          }
+          if (UnderwaterDebugSelected == 0) *p = std::clamp(*p, 0.1f, 3.0f);
+          if (UnderwaterDebugSelected == 1) *p = std::clamp(*p, 0.0f, 2.0f);
+          if (UnderwaterDebugSelected == 2) *p = std::clamp(*p, 50.0f, 4000.0f);
+          if (UnderwaterDebugSelected == 3) *p = std::clamp(*p, 0.0f, 300.0f);
+          if (UnderwaterDebugSelected == 4) *p = std::clamp(*p, 0.5f, 10.0f);
+          if (UnderwaterDebugSelected == 5) *p = std::clamp(*p, 0.0f, 500.0f);
+          if (UnderwaterDebugSelected == 6) *p = std::clamp(*p, 0.0f, 200.0f);
+          const char* names[] = { "BaseDensity", "CamDepthMult", "VertRange", "VertStrength", "CurveExp", "CapBase", "CapCamBoost" };
+          sprintf_s(buf, sizeof(buf), "%s = %.2f", names[UnderwaterDebugSelected], *p);
         } else {
-            step = (static_cast<int>(wParam) == VK_RIGHT) ? 1.1f : 0.9f;
-            if (UnderwaterDebugSelected == 4) step = (static_cast<int>(wParam) == VK_RIGHT) ? 1.05f : 0.95f; // curve exp
+          // ── Wave parameters ──
+          float* params[] = { &WWave1Amp, &WWave2Amp, &WWave3Amp, &WWaveSpeed };
+          float* p = params[UnderwaterDebugSelected];
+          if (UnderwaterDebugSelected == 3) {
+            // Speed: additive with small step
+            *p += right ? 0.05f : -0.05f;
+          } else {
+            // Amplitudes: multiplicative
+            step = right ? 1.1f : 0.9f;
             *p *= step;
+          }
+          if (UnderwaterDebugSelected == 0) *p = std::clamp(*p, 0.0f, 120.0f);
+          if (UnderwaterDebugSelected == 1) *p = std::clamp(*p, 0.0f, 60.0f);
+          if (UnderwaterDebugSelected == 2) *p = std::clamp(*p, 0.0f, 30.0f);
+          if (UnderwaterDebugSelected == 3) *p = std::clamp(*p, 0.1f, 4.0f);
+          const char* names[] = { "Wave1Amp", "Wave2Amp", "Wave3Amp", "WaveSpeed" };
+          sprintf_s(buf, sizeof(buf), "%s = %.2f", names[UnderwaterDebugSelected], *p);
         }
-        // Clamp to reasonable ranges
-        if (UnderwaterDebugSelected == 0) *p = std::clamp(*p, 0.1f, 3.0f);    // BaseDensityMult
-        if (UnderwaterDebugSelected == 1) *p = std::clamp(*p, 0.0f, 2.0f);    // CameraDepthMult
-        if (UnderwaterDebugSelected == 2) *p = std::clamp(*p, 50.0f, 4000.0f); // VertRange
-        if (UnderwaterDebugSelected == 3) *p = std::clamp(*p, 0.0f, 300.0f);  // VertStrength
-        if (UnderwaterDebugSelected == 4) *p = std::clamp(*p, 0.5f, 10.0f);   // CurveExp
-        if (UnderwaterDebugSelected == 5) *p = std::clamp(*p, 0.0f, 500.0f);  // CapBase
-        if (UnderwaterDebugSelected == 6) *p = std::clamp(*p, 0.0f, 200.0f);  // CapCameraBoost
-        // Show current value
-        const char* names[] = { "BaseDensity", "CamDepthMult", "VertRange", "VertStrength", "CurveExp", "CapBase", "CapCamBoost" };
-        sprintf_s(buf, sizeof(buf), "%s = %.2f", names[UnderwaterDebugSelected], *p);
         AddMessage(buf);
         return 0;
       }
       case 'D':
       case 'd':
         // Dump all values to log
-        PrintLog("=== UNDERWATER FOG DEBUG VALUES ===\n");
+        PrintLog("=== UNDERWATER DEBUG VALUES ===\n");
+        PrintLog("--- Fog ---\n");
         sprintf_s(buf, sizeof(buf), "UWFog_BaseDensityMult = %.2f", UWFog_BaseDensityMult); PrintLog(buf); PrintLog("\n");
         sprintf_s(buf, sizeof(buf), "UWFog_CameraDepthMult = %.2f", UWFog_CameraDepthMult); PrintLog(buf); PrintLog("\n");
         sprintf_s(buf, sizeof(buf), "UWFog_VertRange = %.1f", UWFog_VertRange); PrintLog(buf); PrintLog("\n");
@@ -933,6 +971,11 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
         sprintf_s(buf, sizeof(buf), "UWFog_CapBase = %.1f", UWFog_CapBase); PrintLog(buf); PrintLog("\n");
         sprintf_s(buf, sizeof(buf), "UWFog_CapCameraBoost = %.1f", UWFog_CapCameraBoost); PrintLog(buf); PrintLog("\n");
         sprintf_s(buf, sizeof(buf), "CameraWaterDepthFactor = %.3f", CameraWaterDepthFactor); PrintLog(buf); PrintLog("\n");
+        PrintLog("--- Waves ---\n");
+        sprintf_s(buf, sizeof(buf), "WWave1Amp = %.2f", WWave1Amp); PrintLog(buf); PrintLog("\n");
+        sprintf_s(buf, sizeof(buf), "WWave2Amp = %.2f", WWave2Amp); PrintLog(buf); PrintLog("\n");
+        sprintf_s(buf, sizeof(buf), "WWave3Amp = %.2f", WWave3Amp); PrintLog(buf); PrintLog("\n");
+        sprintf_s(buf, sizeof(buf), "WWaveSpeed = %.2f", WWaveSpeed); PrintLog(buf); PrintLog("\n");
         PrintLog("=== END DEBUG VALUES ===\n");
         AddMessage("Values dumped to log!");
         return 0;

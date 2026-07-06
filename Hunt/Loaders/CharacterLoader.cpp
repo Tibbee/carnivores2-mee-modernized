@@ -203,6 +203,13 @@ void ReInitGame()
   UWFog_BaseDensityMult = 1.0f;    // base fog density multiplier (1.0 = unchanged)
   UWFog_CameraDepthMult = 0.0f;    // Beer-Lambert camera depth multiplier (0=off)
 
+  // Water wave debug parameters
+  UnderwaterDebugTab = 0;
+  WWave1Amp = 18.0f;               // primary swell amplitude
+  WWave2Amp = 10.0f;               // secondary cross-wave amplitude
+  WWave3Amp = 5.0f;                // fine detail amplitude
+  WWaveSpeed = 1.0f;               // time multiplier
+
   PlaceHunter();
   Muzz = false;
   MuzzFTime = 0;

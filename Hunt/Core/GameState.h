@@ -417,6 +417,15 @@ GLOBAL   float   UWFog_CapCameraBoost;         // soft cap camera depth boost
 GLOBAL   float   UWFog_BaseDensityMult;        // multiplier on base fog (Transp-based)
 GLOBAL   float   UWFog_CameraDepthMult;        // Beer-Lambert camera depth multiplier
 
+// Underwater debug menu tab state (0=fog, 1=waves)
+GLOBAL   int     UnderwaterDebugTab;
+
+// Water wave parameters (tweakable via F10 debug menu, tab 2)
+GLOBAL   float   WWave1Amp;                    // primary swell amplitude
+GLOBAL   float   WWave2Amp;                    // secondary cross-wave amplitude
+GLOBAL   float   WWave3Amp;                    // fine detail amplitude
+GLOBAL   float   WWaveSpeed;                   // time multiplier (1.0 = normal)
+
 GLOBAL   float   PlayerX, PlayerY, PlayerZ, PlayerAlpha, PlayerBeta,
             HeadY, HeadBackR, HeadBSpeed, HeadAlpha, HeadBeta,
             SSpeed,VSpeed,RSpeed,YSpeed;
