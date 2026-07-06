@@ -88,62 +88,37 @@ float CalcFogLevel(Vector3d v)
 
   fl *= (d+(fptr->Transp/2)) / fptr->Transp;
 
-  // Underwater: amplify fog density with camera depth below the water
-  // surface.  Uses Beer-Lambert exponential curve instead of linear:
-  // near-surface water stays clear, then density increases rapidly at
-  // depth — matching how light extinction actually works in water.
-  // CameraWaterDepthFactor is computed once per frame in ProcessControls().
+  // Underwater: add depth-based fog increase.  Keep the existing
+  // horizontal-distance fog as the base, then layer on a gentle
+  // vertical gradient so deeper terrain gets foggier.
   if (IsUnderwater())
   {
-    // Beer-Lambert exponential fog density
-    // Tuned for C2: ~2× current strength, retains clarity at shallow depth
-    float extinction = 1.0f - std::exp(-CameraWaterDepthFactor * 3.5f);
-    fl *= 1.0f + extinction * 0.5f;
+    // Base density multiplier — scales the horizontal-distance fog.
+    fl *= UWFog_BaseDensityMult;
+
+    // Beer-Lambert camera depth multiplier — fog increases as camera
+    // goes deeper (exponential curve).
+    if (UWFog_CameraDepthMult > 0.01f) {
+      float extinction = 1.0f - std::exp(-CameraWaterDepthFactor * 3.5f);
+      fl *= 1.0f + extinction * UWFog_CameraDepthMult;
+    }
 
     // Vertical fog gradient: deeper terrain vertices get more fog,
-    // independent of horizontal distance from camera.  This models the
-    // natural density gradient in water — the deeper portion of a
-    // terrain feature is more occluded than the shallower portion at
-    // the same horizontal distance.
+    // independent of horizontal distance from camera.
     //
     // v.y is already in world space (CameraY added above).
     float vertDepth = (std::max)(0.0f, fptr->YBegin * ctHScale - v.y);
 
-    // Threshold: fog gradient only starts after this depth (units)
-    // Below this depth, terrain is clear; above it, fog increases gradually
-    float fogStartDepth = 500.0f;
-    float adjustedDepth = (std::max)(0.0f, vertDepth - fogStartDepth);
-    float maxDepth = (std::max)(1.0f, 512.0f - fogStartDepth);
-    float normalizedDepth = std::clamp(adjustedDepth / maxDepth, 0.0f, 1.0f);
+    // Gradient range and curve from debug parameters.
+    float vertFactor = std::clamp(vertDepth / UWFog_VertRange, 0.0f, 1.0f);
+    vertFactor = (float)pow(vertFactor, UWFog_CurveExp);
 
-    // Use a quadratic curve for more gradual increase
-    // Starts very slow, then increases as depth grows
-    // This creates a smooth, natural-looking gradient
-    float vertFactor = normalizedDepth * normalizedDepth;
+    // Additive fog based on depth only.
+    fl += vertFactor * UWFog_VertStrength;
 
-    // Multiplicative: amplify existing fog (subtle)
-    fl *= 1.0f + vertFactor * 0.1f;
-
-    // Additive: add fog DIRECTLY based on depth, independent of base fog
-    // This ensures deep terrain always has fog even when camera is near surface
-    // and base fog (fla+flb) is zero.
-    fl += vertFactor * 1.0f;
-
-    // Fog cap: when underwater, use a soft cap that allows the fog to keep
-    // increasing gradually with depth instead of hitting a hard wall.
-    //
-    // Base boost from camera depth (exponential, like before)
-    float cameraBoost = (1.0f - std::exp(-CameraWaterDepthFactor * 2.0f)) * 50.0f;
-    //
-    // Soft cap: instead of a hard MIN, use a logistic curve that:
-    // - Starts at FLimit
-    // - Increases with depth (vertFactor)
-    // - Never quite stops increasing (always some gradient)
-    // - Naturally levels off at very high depths
-    //
-    // The curve: FLimit + (maxBoost * vertFactor / (1 + vertFactor))
-    // This gives a smooth, gradual increase that never plateaus completely
-    float softCap = fptr->FLimit + cameraBoost + (100.0f * vertFactor / (1.0f + vertFactor));
+    // Soft cap from debug parameters.
+    float cameraBoost = (1.0f - std::exp(-CameraWaterDepthFactor * 2.0f)) * UWFog_CapCameraBoost;
+    float softCap = fptr->FLimit + UWFog_CapBase + cameraBoost;
     return (std::min)(fl, softCap);
   }
 
@@ -885,11 +860,83 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       SetFullScreen();
       return 0;
     }
+    // F10 is a system key — handle it here, not in WM_KEYDOWN
+    if (static_cast<int>(wParam) == VK_F10) {
+      UnderwaterDebugMenu = !UnderwaterDebugMenu;
+      if (UnderwaterDebugMenu)
+        AddMessage("Underwater Fog Debug: ON (Arrows=select, +/-=adjust, D=dump)");
+      else
+        AddMessage("Underwater Fog Debug: OFF");
+      return 0;
+    }
     break;
 
 
   case WM_KEYDOWN:
   {
+    // ── Underwater fog debug menu input ──────────────────────────
+    if (UnderwaterDebugMenu)
+    {
+      char buf[128];
+      float step;
+      switch (static_cast<int>(wParam))
+      {
+      case VK_UP:
+        UnderwaterDebugSelected = (UnderwaterDebugSelected + 6) % 7;
+        break;
+      case VK_DOWN:
+        UnderwaterDebugSelected = (UnderwaterDebugSelected + 1) % 7;
+        break;
+      case VK_LEFT:
+      case VK_RIGHT:
+      {
+        // Adjust selected parameter: Left = -10%, Right = +10%
+        float* params[] = { &UWFog_BaseDensityMult, &UWFog_CameraDepthMult, &UWFog_VertRange, &UWFog_VertStrength, &UWFog_CurveExp, &UWFog_CapBase, &UWFog_CapCameraBoost };
+        float* p = params[UnderwaterDebugSelected];
+        // Use addition for parameters that can be 0 (multiplying 0 gives 0)
+        if (UnderwaterDebugSelected == 1 || UnderwaterDebugSelected == 3 ||
+            UnderwaterDebugSelected == 5 || UnderwaterDebugSelected == 6) {
+            float addStep = (static_cast<int>(wParam) == VK_RIGHT) ? 5.0f : -5.0f;
+            if (UnderwaterDebugSelected == 1) addStep = (static_cast<int>(wParam) == VK_RIGHT) ? 0.05f : -0.05f; // smaller for multiplier
+            *p += addStep;
+        } else {
+            step = (static_cast<int>(wParam) == VK_RIGHT) ? 1.1f : 0.9f;
+            if (UnderwaterDebugSelected == 4) step = (static_cast<int>(wParam) == VK_RIGHT) ? 1.05f : 0.95f; // curve exp
+            *p *= step;
+        }
+        // Clamp to reasonable ranges
+        if (UnderwaterDebugSelected == 0) *p = std::clamp(*p, 0.1f, 3.0f);    // BaseDensityMult
+        if (UnderwaterDebugSelected == 1) *p = std::clamp(*p, 0.0f, 2.0f);    // CameraDepthMult
+        if (UnderwaterDebugSelected == 2) *p = std::clamp(*p, 50.0f, 4000.0f); // VertRange
+        if (UnderwaterDebugSelected == 3) *p = std::clamp(*p, 0.0f, 300.0f);  // VertStrength
+        if (UnderwaterDebugSelected == 4) *p = std::clamp(*p, 0.5f, 10.0f);   // CurveExp
+        if (UnderwaterDebugSelected == 5) *p = std::clamp(*p, 0.0f, 500.0f);  // CapBase
+        if (UnderwaterDebugSelected == 6) *p = std::clamp(*p, 0.0f, 200.0f);  // CapCameraBoost
+        // Show current value
+        const char* names[] = { "BaseDensity", "CamDepthMult", "VertRange", "VertStrength", "CurveExp", "CapBase", "CapCamBoost" };
+        sprintf_s(buf, sizeof(buf), "%s = %.2f", names[UnderwaterDebugSelected], *p);
+        AddMessage(buf);
+        return 0;
+      }
+      case 'D':
+      case 'd':
+        // Dump all values to log
+        PrintLog("=== UNDERWATER FOG DEBUG VALUES ===\n");
+        sprintf_s(buf, sizeof(buf), "UWFog_BaseDensityMult = %.2f", UWFog_BaseDensityMult); PrintLog(buf); PrintLog("\n");
+        sprintf_s(buf, sizeof(buf), "UWFog_CameraDepthMult = %.2f", UWFog_CameraDepthMult); PrintLog(buf); PrintLog("\n");
+        sprintf_s(buf, sizeof(buf), "UWFog_VertRange = %.1f", UWFog_VertRange); PrintLog(buf); PrintLog("\n");
+        sprintf_s(buf, sizeof(buf), "UWFog_VertStrength = %.1f", UWFog_VertStrength); PrintLog(buf); PrintLog("\n");
+        sprintf_s(buf, sizeof(buf), "UWFog_CurveExp = %.2f", UWFog_CurveExp); PrintLog(buf); PrintLog("\n");
+        sprintf_s(buf, sizeof(buf), "UWFog_CapBase = %.1f", UWFog_CapBase); PrintLog(buf); PrintLog("\n");
+        sprintf_s(buf, sizeof(buf), "UWFog_CapCameraBoost = %.1f", UWFog_CapCameraBoost); PrintLog(buf); PrintLog("\n");
+        sprintf_s(buf, sizeof(buf), "CameraWaterDepthFactor = %.3f", CameraWaterDepthFactor); PrintLog(buf); PrintLog("\n");
+        PrintLog("=== END DEBUG VALUES ===\n");
+        AddMessage("Values dumped to log!");
+        return 0;
+      }
+      // Let other keys pass through when debug menu is open
+    }
+
     BOOL CTRL = (GetKeyState(VK_SHIFT) & 0x8000);
     switch( static_cast<int>(wParam) )
     {

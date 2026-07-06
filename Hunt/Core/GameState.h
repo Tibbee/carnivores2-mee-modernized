@@ -406,6 +406,17 @@ GLOBAL   float   DeltaT;
 GLOBAL   float   CameraX, CameraY, CameraZ, CameraAlpha, CameraBeta;
 GLOBAL   float   CameraWaterDepthFactor;
 
+// Underwater fog debug parameters (tweakable via F10 debug menu)
+GLOBAL   int     UnderwaterDebugMenu;          // 0=off, 1=menu visible
+GLOBAL   int     UnderwaterDebugSelected;       // which param is selected (0..N)
+GLOBAL   float   UWFog_VertRange;               // vertical gradient range (units)
+GLOBAL   float   UWFog_VertStrength;            // additive fog strength at max depth
+GLOBAL   float   UWFog_CurveExp;               // curve exponent (higher = gentler start)
+GLOBAL   float   UWFog_CapBase;                // soft cap base (added to FLimit)
+GLOBAL   float   UWFog_CapCameraBoost;         // soft cap camera depth boost
+GLOBAL   float   UWFog_BaseDensityMult;        // multiplier on base fog (Transp-based)
+GLOBAL   float   UWFog_CameraDepthMult;        // Beer-Lambert camera depth multiplier
+
 GLOBAL   float   PlayerX, PlayerY, PlayerZ, PlayerAlpha, PlayerBeta,
             HeadY, HeadBackR, HeadBSpeed, HeadAlpha, HeadBeta,
             SSpeed,VSpeed,RSpeed,YSpeed;

@@ -190,6 +190,19 @@ void refillWeapons(bool init) {
 void ReInitGame()
 {
   PrintLog("ReInitGame();\n");
+
+  // Initialize underwater fog debug parameters with default values.
+  // These can be tweaked at runtime via the F10 debug menu.
+  UnderwaterDebugMenu = 0;
+  UnderwaterDebugSelected = 0;
+  UWFog_VertRange = 400.0f;        // vertical gradient range (units)
+  UWFog_VertStrength = 80.0f;      // additive fog at max depth
+  UWFog_CurveExp = 3.0f;           // curve exponent (3=cubic)
+  UWFog_CapBase = 100.0f;          // soft cap added to FLimit
+  UWFog_CapCameraBoost = 50.0f;    // camera depth boost for cap
+  UWFog_BaseDensityMult = 1.0f;    // base fog density multiplier (1.0 = unchanged)
+  UWFog_CameraDepthMult = 0.0f;    // Beer-Lambert camera depth multiplier (0=off)
+
   PlaceHunter();
   Muzz = false;
   MuzzFTime = 0;

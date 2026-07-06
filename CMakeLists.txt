@@ -269,11 +269,14 @@ if(MSVC)
     target_link_libraries(Carnivores2Tests PRIVATE gtest_main)
     add_test(NAME Carnivores2Tests COMMAND Carnivores2Tests)
 
-    add_test(NAME SmokeTest
-        COMMAND powershell -ExecutionPolicy Bypass -File
-            ${CMAKE_SOURCE_DIR}/tests/smoke_test.ps1
-            -ExePath $<TARGET_FILE:Carnivores1>
-            -Duration 5
-            -WorkingDir ${CMAKE_SOURCE_DIR}/release/Carnivores2_Modernized
-    )
+    # SmokeTest only runs when a game executable is built (not menu-only)
+    if(TARGET Carnivores1)
+        add_test(NAME SmokeTest
+            COMMAND powershell -ExecutionPolicy Bypass -File
+                ${CMAKE_SOURCE_DIR}/tests/smoke_test.ps1
+                -ExePath $<TARGET_FILE:Carnivores1>
+                -Duration 5
+                -WorkingDir ${CMAKE_SOURCE_DIR}/release/Carnivores2_Modernized
+        )
+    endif()
 endif()

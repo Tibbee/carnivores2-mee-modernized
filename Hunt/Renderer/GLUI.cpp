@@ -789,6 +789,45 @@ void ShowControlElements()
         if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(8, 8, 500, 20);
     }
 
+    // ── Underwater fog debug menu ─────────────────────────────────
+    if (UnderwaterDebugMenu && IsUnderwater())
+    {
+        int dx = 10;
+        int dy = 40;
+        int lineH = 16;
+        int selected = UnderwaterDebugSelected;
+
+        // Background hint
+        textOut(dx, dy, "=== UNDERWATER FOG DEBUG (F10=close, D=dump) ===", 0x00FFFFFF);
+        dy += lineH + 4;
+
+        // Parameter list
+        const char* names[] = { "BaseDensity", "CamDepthMult", "VertRange", "VertStrength", "CurveExp", "CapBase", "CapCamBoost" };
+        float values[] = { UWFog_BaseDensityMult, UWFog_CameraDepthMult, UWFog_VertRange, UWFog_VertStrength, UWFog_CurveExp, UWFog_CapBase, UWFog_CapCameraBoost };
+        const char* descs[] = { "(1.0=normal)", "(Beer-Lambert)", "(units)", "(fog units)", "(exponent)", "(added to FLimit)", "(camera boost)" };
+
+        for (int i = 0; i < 7; i++)
+        {
+            char line[128];
+            sprintf_s(line, sizeof(line), "%s = %.2f  %s", names[i], values[i], descs[i]);
+            int color = (i == selected) ? 0x0000FFFF : 0x00C0C0C0;  // yellow if selected
+            if (i == selected) {
+                // Draw selection indicator
+                char selLine[132];
+                sprintf_s(selLine, sizeof(selLine), "> %s", line);
+                textOut(dx, dy, selLine, color);
+            } else {
+                textOut(dx + 10, dy, line, color);
+            }
+            dy += lineH;
+        }
+
+        dy += 4;
+        textOut(dx, dy, "Arrows: select +/-: adjust", 0x00808080);
+
+        if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(dx - 2, 38, 400, 120);
+    }
+
     if (ExitTime)
     {
         int yline = WinH / 3;
