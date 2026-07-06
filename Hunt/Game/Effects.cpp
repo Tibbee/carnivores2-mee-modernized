@@ -28,7 +28,7 @@ void PreCashGroundModel()
   static bool waveCacheReady = false;
 
   // §3.6: Multi-component wave cache for water surface displacement
-  struct WaveCacheEntry { float wx[3], wz[3]; };
+  struct WaveCacheEntry { float wx[3], wy[3], wz[3]; };
   static WaveCacheEntry waveCacheSurface[32][32];
   static int waveCacheSurfaceTime = 0;
   static bool waveCacheSurfaceReady = false;
@@ -63,16 +63,18 @@ void PreCashGroundModel()
         int r2 = RandomMap[(wy + 11) & 31][(wx + 7) & 31];
         float px = static_cast<float>(wx) * 0.5f;
         float py = static_cast<float>(wy) * 0.5f;
-        // Wave 1: primary swell (original frequency, reduced amplitude)
-        waveCacheSurface[wy][wx].wx[0] = static_cast<float>(sin(px + py + t)) * 12.f;
-        // Wave 2: secondary, different direction
-        waveCacheSurface[wy][wx].wx[1] = static_cast<float>(sin(px * 1.5f - py * 0.7f + t * 1.3f + r1 * 0.01f)) * 6.f;
-        // Wave 3: fine detail, faster frequency
-        waveCacheSurface[wy][wx].wx[2] = static_cast<float>(sin(px * 2.3f + py * 1.2f + t * 2.1f + r2 * 0.01f)) * 3.f;
-        // Same for z-axis with phase offsets
-        waveCacheSurface[wy][wx].wz[0] = static_cast<float>(sin(pi/2.f + px + py + t)) * 12.f;
-        waveCacheSurface[wy][wx].wz[1] = static_cast<float>(sin(pi/3.f + px * 1.5f - py * 0.7f + t * 1.3f + r2 * 0.01f)) * 6.f;
-        waveCacheSurface[wy][wx].wz[2] = static_cast<float>(sin(pi/4.f + px * 2.3f + py * 1.2f + t * 2.1f + r1 * 0.01f)) * 3.f;
+        // Wave 1: primary swell — large slow heave
+        waveCacheSurface[wy][wx].wx[0] = static_cast<float>(sin(px + py + t)) * 18.f;
+        waveCacheSurface[wy][wx].wy[0] = static_cast<float>(sin(px * 0.8f + py * 0.6f + t * 0.9f)) * 14.f;
+        waveCacheSurface[wy][wx].wz[0] = static_cast<float>(sin(pi/2.f + px + py + t)) * 18.f;
+        // Wave 2: secondary cross-wave — medium amplitude, different direction
+        waveCacheSurface[wy][wx].wx[1] = static_cast<float>(sin(px * 1.5f - py * 0.7f + t * 1.3f + r1 * 0.01f)) * 10.f;
+        waveCacheSurface[wy][wx].wy[1] = static_cast<float>(sin(px * 1.2f - py * 0.9f + t * 1.1f + r1 * 0.01f)) * 8.f;
+        waveCacheSurface[wy][wx].wz[1] = static_cast<float>(sin(pi/3.f + px * 1.5f - py * 0.7f + t * 1.3f + r2 * 0.01f)) * 10.f;
+        // Wave 3: fine detail — small fast ripples
+        waveCacheSurface[wy][wx].wx[2] = static_cast<float>(sin(px * 2.3f + py * 1.2f + t * 2.1f + r2 * 0.01f)) * 5.f;
+        waveCacheSurface[wy][wx].wy[2] = static_cast<float>(sin(px * 2.0f + py * 1.5f + t * 1.8f + r2 * 0.01f)) * 4.f;
+        waveCacheSurface[wy][wx].wz[2] = static_cast<float>(sin(pi/4.f + px * 2.3f + py * 1.2f + t * 2.1f + r1 * 0.01f)) * 5.f;
       }
     }
     waveCacheSurfaceReady = true;
@@ -116,6 +118,7 @@ void PreCashGroundModel()
           // §3.6: Multi-component wave displacement from cache
           const WaveCacheEntry& wc = waveCacheSurface[yy & 31][xx & 31];
           rv.x += wc.wx[0] + wc.wx[1] + wc.wx[2];
+          rv.y += wc.wy[0] + wc.wy[1] + wc.wy[2];
           rv.z += wc.wz[0] + wc.wz[1] + wc.wz[2];
         }
 
