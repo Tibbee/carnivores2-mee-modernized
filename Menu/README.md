@@ -21,7 +21,7 @@ Standalone launcher / menu executable for **Carnivores 2 Modder's Engine**, repl
 
 ## Current feature state
 
-The menu now matches or exceeds the `carnivores_menu_mee` reference in every tracked feature. See `CarnivoresPort/docs/issues/menu-feature-gaps.md` for the full tracker.
+The menu now matches or exceeds the `carnivores_menu_mee` reference in every tracked feature. See `../CarnivoresDoc/architecture/menu-system.md` for the full tracker.
 
 | Feature | Status | Since |
 |---------|--------|-------|
@@ -55,10 +55,9 @@ The menu now matches or exceeds the `carnivores_menu_mee` reference in every tra
 
 ## See also
 
-- **CarnivoresPort/docs/design/menu-system-analysis.md** — current architecture and parser behavior
-- **CarnivoresPort/docs/issues/menu-feature-gaps.md** — full feature tracker
-- **CarnivoresPort/docs/issues/resolved.md** — historically fixed menu bugs (stub DLLs, EFX detection, parser compatibility, renderer persistence)
-- **../../AGENTS.md** § "Menu System" — fuller menu documentation
-- **../../CarnivoresPort/CURRENT_STATUS.md** — overall C2 ME state, including this menu's status
+- **../CarnivoresDoc/architecture/menu-system.md** — current architecture and parser behavior
+- **../CarnivoresDoc/reference/status.md** — overall C2 ME state, including this menu's status
+- **../CarnivoresDoc/reference/changelog.md** — commit history
+- **../AGENTS.md** § "Menu System" — fuller menu documentation
 
 The menu was originally adapted from `C2MenuAttempt/` (a community effort, gitignored and not part of the tracked source). The current `Menu/` directory is the live implementation.

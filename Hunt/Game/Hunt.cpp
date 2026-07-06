@@ -97,6 +97,18 @@ float CalcFogLevel(Vector3d v)
   if (IsUnderwater())
   {
     fl *= 1.0f + CameraWaterDepthFactor * 0.15f;
+
+    // Vertical fog gradient: deeper terrain vertices get more fog,
+    // independent of horizontal distance from camera.  This models the
+    // natural density gradient in water — the deeper portion of a
+    // terrain feature is more occluded than the shallower portion at
+    // the same horizontal distance.  Adds up to +40% fog at 512 units
+    // below the water surface.
+    // v.y is already in world space (CameraY added above).
+    float vertDepth = (std::max)(0.0f, fptr->YBegin * ctHScale - v.y);
+    float vertFactor = std::clamp(vertDepth / 512.0f, 0.0f, 1.0f);
+    fl *= 1.0f + vertFactor * 0.4f;
+
     return MIN(fl, fptr->FLimit + CameraWaterDepthFactor * 25.0f);
   }
 
