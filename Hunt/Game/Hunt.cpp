@@ -863,10 +863,13 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     // F10 is a system key — handle it here, not in WM_KEYDOWN
     if (static_cast<int>(wParam) == VK_F10) {
       UnderwaterDebugMenu = !UnderwaterDebugMenu;
-      if (UnderwaterDebugMenu)
+      if (UnderwaterDebugMenu) {
         AddMessage("Underwater Fog Debug: ON (Arrows=select, +/-=adjust, D=dump)");
-      else
+      } else {
         AddMessage("Underwater Fog Debug: OFF");
+        // Mark the menu region dirty so the renderer clears the old text
+        if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(8, 38, 450, 200);
+      }
       return 0;
     }
     break;

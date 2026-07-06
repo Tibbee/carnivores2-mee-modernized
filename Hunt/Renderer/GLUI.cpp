@@ -825,7 +825,7 @@ void ShowControlElements()
         dy += 4;
         textOut(dx, dy, "Arrows: select +/-: adjust", 0x00808080);
 
-        if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(dx - 2, 38, 400, 120);
+        if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(dx - 2, 38, 450, 200);
     }
 
     if (ExitTime)
