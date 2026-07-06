@@ -323,7 +323,20 @@ FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog)
             fl = (d + fog.Transp * 0.5f) / fog.Transp;
         }
 
-        const float amount = std::clamp(fl / 255.0f, 0.0f, fog.FLimit / 255.0f);
+        // Beer-Lambert exponential fog density (same as CalcFogLevel)
+        float extinction = 1.0f - std::exp(-CameraWaterDepthFactor * 3.5f);
+        fl *= 1.0f + extinction * 0.5f;
+
+        // Vertical fog gradient: deeper vertices get more fog
+        float vertDepth = (std::max)(0.0f, fog.YBegin * ctHScale - (point.y + CameraY));
+        float vertFactor = std::clamp(vertDepth / 512.0f, 0.0f, 1.0f);
+        fl *= 1.0f + vertFactor * 2.5f;
+
+        // Exponential cap boost
+        float capBoost = (1.0f - std::exp(-CameraWaterDepthFactor * 2.0f)) * 50.0f;
+        fl = (std::min)(fl, fog.FLimit + capBoost);
+
+        const float amount = std::clamp(fl / 255.0f, 0.0f, (fog.FLimit + capBoost) / 255.0f);
         return {amount, DecodeFogColorBGR(fog.fogRGB)};
     }
 

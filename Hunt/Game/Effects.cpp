@@ -3,6 +3,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include <cmath>
 
 void PreCashGroundModel()
 {
@@ -122,7 +123,16 @@ void PreCashGroundModel()
           else Alpha = 255.f;
 
           VMap2[kViewGridCenter + y][kViewGridCenter + x].ALPHA=static_cast<int>(Alpha);
-          VMap2[kViewGridCenter + y][kViewGridCenter + x].Fog = 0;
+
+          // Water surface fog: apply depth-based fog when underwater
+          // so the surface fades out at depth (matching terrain fog behavior).
+          if (IsUnderwater()) {
+              float extinction = 1.0f - std::exp(-CameraWaterDepthFactor * 3.5f);
+              float fogAmount = extinction * 200.0f;
+              VMap2[kViewGridCenter + y][kViewGridCenter + x].Fog = static_cast<int>(fogAmount);
+          } else {
+              VMap2[kViewGridCenter + y][kViewGridCenter + x].Fog = 0;
+          }
 
 #if !defined(_gl)
           if (rv.z>-256.0) VMap2[kViewGridCenter + y][kViewGridCenter + x].DFlags=128;

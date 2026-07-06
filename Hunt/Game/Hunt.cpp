@@ -1,5 +1,6 @@
 #include "Hunt.h"
 #include "stdio.h"
+#include <cmath>
 #include <timeapi.h>
 
 #ifndef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
@@ -88,28 +89,33 @@ float CalcFogLevel(Vector3d v)
   fl *= (d+(fptr->Transp/2)) / fptr->Transp;
 
   // Underwater: amplify fog density with camera depth below the water
-  // surface.  The base fla+flb term already gives a linear depth
-  // dependence.  The multiplicative boost and cap increase are kept
-  // modest (0.15× / +25 cap) so the water stays relatively clear near
-  // the surface and fogs up gradually — objects remain visible longer.
-  // The sky/sun use a separate, faster fade (see GLSky.cpp shader).
+  // surface.  Uses Beer-Lambert exponential curve instead of linear:
+  // near-surface water stays clear, then density increases rapidly at
+  // depth — matching how light extinction actually works in water.
   // CameraWaterDepthFactor is computed once per frame in ProcessControls().
   if (IsUnderwater())
   {
-    fl *= 1.0f + CameraWaterDepthFactor * 0.15f;
+    // Beer-Lambert exponential fog density
+    // Tuned for C2: ~2× current strength, retains clarity at shallow depth
+    float extinction = 1.0f - std::exp(-CameraWaterDepthFactor * 3.5f);
+    fl *= 1.0f + extinction * 0.5f;
 
     // Vertical fog gradient: deeper terrain vertices get more fog,
     // independent of horizontal distance from camera.  This models the
     // natural density gradient in water — the deeper portion of a
     // terrain feature is more occluded than the shallower portion at
-    // the same horizontal distance.  Adds up to +40% fog at 512 units
-    // below the water surface.
+    // the same horizontal distance.  Adds up to +250% fog at 512 units
+    // below the water surface, so the sea floor is always fogged even
+    // when the camera is near the surface.
     // v.y is already in world space (CameraY added above).
     float vertDepth = (std::max)(0.0f, fptr->YBegin * ctHScale - v.y);
     float vertFactor = std::clamp(vertDepth / 512.0f, 0.0f, 1.0f);
-    fl *= 1.0f + vertFactor * 0.4f;
+    fl *= 1.0f + vertFactor * 2.5f;
 
-    return MIN(fl, fptr->FLimit + CameraWaterDepthFactor * 25.0f);
+    // Exponential cap boost — prevents full blackout at depth
+    // but still gives a natural extinction feel
+    float capBoost = (1.0f - std::exp(-CameraWaterDepthFactor * 2.0f)) * 50.0f;
+    return MIN(fl, fptr->FLimit + capBoost);
   }
 
   return MIN(fl, fptr->FLimit);
