@@ -82,14 +82,15 @@ void MakeCaptureFilename(char* out, size_t outSize, const char* timestamp) {
 // ---------------------------------------------------------------------------
 
 struct PassTimings {
+    static constexpr int kQueryRingSize = 4;
     const char* name       = nullptr;
-    GLuint      query      = 0;
+    GLuint      queries[kQueryRingSize] = {};
+    int         currentQuerySlot = -1;   // most recently begun slot; -1 = none
+    bool        slotInFlight[kQueryRingSize] = {};
     double      cpuMsSum   = 0.0;
     double      gpuMsSum   = 0.0;
     uint32_t    cpuSamples = 0;
     uint32_t    gpuSamples = 0;
-    bool        queryInFlight = false;
-    bool        queryResolved = false;
     bool        queryAvailable = false;
 };
 
@@ -117,14 +118,19 @@ struct GLPerfState {
     uint64_t rollingTextureBinds   = 0;
     uint64_t rollingDistinctTex    = 0;
 
+    // Scope stack (for proper nesting instead of the old "close prev" hack)
+    static constexpr int kMaxNestDepth = 8;
+    struct ScopeFrame {
+        int passIndex = -1;
+        std::chrono::steady_clock::time_point cpuStart;
+    };
+    ScopeFrame scopeStack[kMaxNestDepth] = {};
+    int scopeStackDepth = 0;
+
     // CPU frame timing
     std::chrono::steady_clock::time_point frameStart;
-    std::chrono::steady_clock::time_point cpuScopeStart;
     double   frameCpuMs                 = 0.0;
     double   frameGpuMs                 = 0.0;
-    bool     cpuScopeActive             = false;
-    int      currentPassIndex           = -1;
-    const char* currentPassName         = nullptr;
 
     // Pass table (populated lazily as scopes are entered)
     std::array<PassTimings, kMaxPasses> passes{};
@@ -161,7 +167,7 @@ PassTimings* findOrCreatePass(const char* name) {
     PassTimings* p = &g_state.passes[g_state.passCount++];
     p->name = name;
     if (g_state.gpuTimersOk) {
-        glGenQueries(1, &p->query);
+        glGenQueries(PassTimings::kQueryRingSize, p->queries);
     }
     return p;
 }
@@ -312,19 +318,20 @@ void resolveGpuQueries() {
     if (!g_state.gpuTimersOk) return;
     for (int i = 0; i < g_state.passCount; ++i) {
         PassTimings& p = g_state.passes[i];
-        if (!p.queryInFlight) continue;
-        GLuint ready = 0;
-        glGetQueryObjectuiv(p.query, GL_QUERY_RESULT_AVAILABLE, &ready);
-        if (!ready) continue;
-        GLuint64 nanos = 0;
-        glGetQueryObjectui64v(p.query, GL_QUERY_RESULT, &nanos);
-        const double ms = static_cast<double>(nanos) / 1.0e6;
-        p.gpuMsSum   += ms;
-        p.gpuSamples += 1;
-        p.queryInFlight = false;
-        p.queryResolved = true;
-        p.queryAvailable = true;
-        g_state.rollingGpuMsSum += ms;
+        for (int slot = 0; slot < PassTimings::kQueryRingSize; ++slot) {
+            if (!p.slotInFlight[slot]) continue;
+            GLuint ready = 0;
+            glGetQueryObjectuiv(p.queries[slot], GL_QUERY_RESULT_AVAILABLE, &ready);
+            if (!ready) continue;
+            GLuint64 nanos = 0;
+            glGetQueryObjectui64v(p.queries[slot], GL_QUERY_RESULT, &nanos);
+            const double ms = static_cast<double>(nanos) / 1.0e6;
+            p.gpuMsSum   += ms;
+            p.gpuSamples += 1;
+            p.slotInFlight[slot] = false;
+            p.queryAvailable = true;
+            g_state.rollingGpuMsSum += ms;
+        }
     }
 }
 
@@ -355,23 +362,23 @@ extern "C" void glperf_frame_begin() {
     g_state.frameDistinctTextures = 0;
     g_state.frameHasLastTexture   = false;
     g_state.frameLastTexture      = 0;
-    g_state.currentPassIndex  = -1;
-    g_state.currentPassName   = nullptr;
-    g_state.cpuScopeActive    = false;
+    g_state.scopeStackDepth   = 0;
 }
 
 extern "C" void glperf_frame_end() {
     if (!g_state.initialized) return;
 
-    // Close any scope still open (defensive — should not happen).
-    if (g_state.cpuScopeActive && g_state.currentPassIndex >= 0) {
-        PassTimings* p = &g_state.passes[g_state.currentPassIndex];
+    // Close any scopes still open (defensive — should not happen).
+    while (g_state.scopeStackDepth > 0) {
+        const int idx = g_state.scopeStackDepth - 1;
+        const auto& frame = g_state.scopeStack[idx];
+        PassTimings* p = &g_state.passes[frame.passIndex];
         const auto now = std::chrono::steady_clock::now();
-        const double ms = std::chrono::duration<double, std::milli>(now - g_state.cpuScopeStart).count();
+        const double ms = std::chrono::duration<double, std::milli>(now - frame.cpuStart).count();
         p->cpuMsSum   += ms;
         p->cpuSamples += 1;
         g_state.rollingCpuMsSum += ms;
-        g_state.cpuScopeActive = false;
+        --g_state.scopeStackDepth;
     }
 
     // Frame CPU time
@@ -381,12 +388,9 @@ extern "C" void glperf_frame_end() {
     // Resolve any GPU queries that completed (best-effort, non-blocking).
     resolveGpuQueries();
 
-    // Frame GPU time is the sum of resolved per-scope GPU times for this
-    // frame (resets each frame because we don't track per-frame deltas
-    // inside resolveGpuQueries). Approximation: latest resolved sum.
+    // Frame GPU time is the sum of average per-scope GPU times since last flush.
     double gpuSum = 0.0;
     for (int i = 0; i < g_state.passCount; ++i) {
-        // Average since last flush: use latest sample if available.
         const PassTimings& p = g_state.passes[i];
         if (p.gpuSamples > 0 && p.queryAvailable) {
             gpuSum += p.gpuMsSum / p.gpuSamples;
@@ -425,55 +429,116 @@ extern "C" void glperf_frame_end() {
 extern "C" void glperf_scope_enter(const char* name) {
     if (!g_state.initialized || !name) return;
 
-    // Close any previously open scope (defensive — scopes should be nested only rarely).
-    if (g_state.cpuScopeActive && g_state.currentPassIndex >= 0) {
-        PassTimings* prev = &g_state.passes[g_state.currentPassIndex];
-        const auto now = std::chrono::steady_clock::now();
-        const double ms = std::chrono::duration<double, std::milli>(now - g_state.cpuScopeStart).count();
-        prev->cpuMsSum   += ms;
-        prev->cpuSamples += 1;
-        g_state.rollingCpuMsSum += ms;
+    if (g_state.scopeStackDepth >= GLPerfState::kMaxNestDepth) {
+        return;  // stack full; drop this scope
     }
 
     PassTimings* p = findOrCreatePass(name);
     if (!p) {
-        g_state.currentPassIndex  = -1;
-        g_state.currentPassName   = name;
-        g_state.cpuScopeActive    = false;
         return;
     }
 
-    g_state.currentPassIndex = static_cast<int>(p - g_state.passes.data());
-    g_state.currentPassName  = name;
-    g_state.cpuScopeStart    = std::chrono::steady_clock::now();
-    g_state.cpuScopeActive   = true;
+    // If there's already a scope active, end its GPU query before starting
+    // the new one (GL_TIME_ELAPSED does not support nesting).
+    if (g_state.scopeStackDepth > 0) {
+        const auto& prevFrame = g_state.scopeStack[g_state.scopeStackDepth - 1];
+        PassTimings* prevP = &g_state.passes[prevFrame.passIndex];
+        if (g_state.gpuTimersOk && prevP->currentQuerySlot >= 0 && prevP->slotInFlight[prevP->currentQuerySlot]) {
+            glEndQuery(GL_TIME_ELAPSED);
+            // The query is now in flight; resolveGpuQueries will pick it up.
+            // prevP's slot remains in-flight — we'll resume it on scope_exit.
+        }
+    }
 
-    if (g_state.gpuTimersOk && !p->queryInFlight) {
-        glBeginQuery(GL_TIME_ELAPSED, p->query);
-        p->queryInFlight = true;
-        p->queryResolved = false;
+    // --- CPU: push new scope onto the stack ---
+    auto& frame = g_state.scopeStack[g_state.scopeStackDepth];
+    frame.passIndex = static_cast<int>(p - g_state.passes.data());
+    frame.cpuStart  = std::chrono::steady_clock::now();
+    ++g_state.scopeStackDepth;
+
+    // --- GPU: begin query on the next ring slot ---
+    if (g_state.gpuTimersOk) {
+        // Advance to next slot in the ring.
+        p->currentQuerySlot = (p->currentQuerySlot + 1) % PassTimings::kQueryRingSize;
+
+        // If the slot still has an in-flight query from a prior cycle,
+        // try to resolve it (should be ready by now; if not, discard).
+        if (p->slotInFlight[p->currentQuerySlot]) {
+            GLuint ready = 0;
+            glGetQueryObjectuiv(p->queries[p->currentQuerySlot], GL_QUERY_RESULT_AVAILABLE, &ready);
+            if (ready) {
+                GLuint64 nanos = 0;
+                glGetQueryObjectui64v(p->queries[p->currentQuerySlot], GL_QUERY_RESULT, &nanos);
+                const double ms = static_cast<double>(nanos) / 1.0e6;
+                p->gpuMsSum   += ms;
+                p->gpuSamples += 1;
+                p->queryAvailable = true;
+                g_state.rollingGpuMsSum += ms;
+            }
+            p->slotInFlight[p->currentQuerySlot] = false;
+        }
+
+        glBeginQuery(GL_TIME_ELAPSED, p->queries[p->currentQuerySlot]);
+        p->slotInFlight[p->currentQuerySlot] = true;
     }
 }
 
 extern "C" void glperf_scope_exit(const char* name) {
     if (!g_state.initialized || !name) return;
-    (void)name;  // name match already implied by caller pattern; not strictly verified
+    (void)name;
 
-    if (!g_state.cpuScopeActive) {
-        return;
-    }
+    if (g_state.scopeStackDepth <= 0) return;
 
-    PassTimings* p = &g_state.passes[g_state.currentPassIndex];
+    // Pop the current scope from the stack.
+    const auto& frame = g_state.scopeStack[g_state.scopeStackDepth - 1];
+    PassTimings* p = &g_state.passes[frame.passIndex];
+
+    // --- CPU: accumulate time for this scope ---
     const auto now = std::chrono::steady_clock::now();
-    const double ms = std::chrono::duration<double, std::milli>(now - g_state.cpuScopeStart).count();
+    const double ms = std::chrono::duration<double, std::milli>(now - frame.cpuStart).count();
     p->cpuMsSum   += ms;
     p->cpuSamples += 1;
     g_state.rollingCpuMsSum += ms;
-    g_state.cpuScopeActive  = false;
 
-    if (g_state.gpuTimersOk && p->queryInFlight) {
+    // --- GPU: end the query ---
+    if (g_state.gpuTimersOk && p->currentQuerySlot >= 0 && p->slotInFlight[p->currentQuerySlot]) {
         glEndQuery(GL_TIME_ELAPSED);
-        // The query is now in flight; we resolve it at frame end.
+        // Slot stays in-flight; resolveGpuQueries will collect the result
+        // once the GPU is done.
+    }
+
+    --g_state.scopeStackDepth;
+
+    // Resume the parent scope if there is one.
+    if (g_state.scopeStackDepth > 0) {
+        auto& parentFrame = g_state.scopeStack[g_state.scopeStackDepth - 1];
+        PassTimings* parentP = &g_state.passes[parentFrame.passIndex];
+
+        // The parent's CPU timer was paused when the child started.
+        // Resetting cpuStart to 'now' means the interval from child-exit
+        // to parent-exit will be attributed to the parent.
+        parentFrame.cpuStart = now;
+
+        // Resume the parent's GPU query on a new ring slot.
+        if (g_state.gpuTimersOk) {
+            parentP->currentQuerySlot = (parentP->currentQuerySlot + 1) % PassTimings::kQueryRingSize;
+            if (parentP->slotInFlight[parentP->currentQuerySlot]) {
+                GLuint ready = 0;
+                glGetQueryObjectuiv(parentP->queries[parentP->currentQuerySlot], GL_QUERY_RESULT_AVAILABLE, &ready);
+                if (ready) {
+                    GLuint64 nanos = 0;
+                    glGetQueryObjectui64v(parentP->queries[parentP->currentQuerySlot], GL_QUERY_RESULT, &nanos);
+                    const double pms = static_cast<double>(nanos) / 1.0e6;
+                    parentP->gpuMsSum   += pms;
+                    parentP->gpuSamples += 1;
+                    parentP->queryAvailable = true;
+                    g_state.rollingGpuMsSum += pms;
+                }
+                parentP->slotInFlight[parentP->currentQuerySlot] = false;
+            }
+            glBeginQuery(GL_TIME_ELAPSED, parentP->queries[parentP->currentQuerySlot]);
+            parentP->slotInFlight[parentP->currentQuerySlot] = true;
+        }
     }
 }
 
@@ -558,9 +623,20 @@ extern "C" void glperf_shutdown() {
         stopCapture();
     }
     for (int i = 0; i < g_state.passCount; ++i) {
-        if (g_state.passes[i].query) {
-            glDeleteQueries(1, &g_state.passes[i].query);
-            g_state.passes[i].query = 0;
+        PassTimings& p = g_state.passes[i];
+        bool hasAny = false;
+        for (int slot = 0; slot < PassTimings::kQueryRingSize; ++slot) {
+            if (p.queries[slot]) {
+                hasAny = true;
+            } else {
+                break;
+            }
+        }
+        if (hasAny) {
+            glDeleteQueries(PassTimings::kQueryRingSize, p.queries);
+            for (int slot = 0; slot < PassTimings::kQueryRingSize; ++slot) {
+                p.queries[slot] = 0;
+            }
         }
     }
     if (g_state.logFile) {
