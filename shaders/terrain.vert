@@ -12,6 +12,7 @@ uniform PerFrame {
    vec3 uFogColor;
    mat4 uView;
    vec4 uWaterAlphaFade;    // x=start, y=end, z=enabled, w=fade step
+   float uWaterDepthFactor; // 0 at surface, 1 at max depth (§3.4)
 };
 out vec2 vTexCoord;
 flat out int vLayer;

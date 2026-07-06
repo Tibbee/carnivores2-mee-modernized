@@ -402,7 +402,7 @@ void GLRenderer::EnsurePerFrameUBO()
     if (m_perFrameUBOInitialized) {
         return;
     }
-    constexpr GLsizeiptr kUBOBytes = 192;  // Phase 2.4: +64 bytes for uView, +16 bytes for uWaterAlphaFade
+    constexpr GLsizeiptr kUBOBytes = 240;  // Phase 2.4: +64 for uView, +16 for uWaterAlphaFade, +48 for §3.4+
     glGenBuffers(1, &m_perFrameUBO);
     glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
     glBufferData(GL_UNIFORM_BUFFER, kUBOBytes, nullptr, GL_DYNAMIC_DRAW);
@@ -462,7 +462,7 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection,
     // PerFrame UBO declarations are updated in lockstep.
     m_cachedForceFog = 0.0f;
 
-    // Phase 2.4: pack into a 48-float (192-byte) buffer.
+    // Phase 2.4: pack into a 60-float (240-byte) buffer.
     //   offset 0   : mat4 uProjection           (16 floats)
     //   offset 64  : vec2 uFogRange             ( 2 floats)
     //   offset 72  :        (pad to vec3 align) ( 2 floats)
@@ -472,7 +472,8 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection,
     //   offset 108 :        (pad to mat4 align) ( 1 float)   -- Phase 2.4
     //   offset 112 : mat4 uView                 (16 floats)   -- Phase 2.4
     //   offset 176 : vec4 uWaterAlphaFade       ( 4 floats)   -- x=start, y=end, z=enabled, w=fade step
-    std::array<float, 48> data{};
+    //   offset 192 : float uWaterDepthFactor    ( 1 float)    -- §3.4
+    std::array<float, 60> data{};
     std::memcpy(&data[0],  m_cachedProjection.data(), 16 * sizeof(float));
     data[16] = m_cachedFogStart;     // uFogRange.x
     data[17] = m_cachedFogDistance;  // uFogRange.y
@@ -495,6 +496,8 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection,
     data[45] = waterAlphaFadeEnd;     // uWaterAlphaFade.y
     data[46] = waterAlphaEnabled;     // uWaterAlphaFade.z
     data[47] = waterAlphaFadeStep;    // uWaterAlphaFade.w
+    // §3.4: wavelength attenuation on terrain
+    data[48] = m_isUnderwater ? CameraWaterDepthFactor : 0.0f;  // uWaterDepthFactor
 
     glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, data.size() * sizeof(float), data.data());
