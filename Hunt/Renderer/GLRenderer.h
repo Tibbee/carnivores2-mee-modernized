@@ -578,6 +578,9 @@ public:
     void RenderSceneDesaturated();   // desaturate 3D scene only (before HUD)
     void RenderNightDarkness();      // dark overlay only (after HUD)
 
+    // §3.1: Underwater full-screen colour overlay (dynamic per water body)
+    void DrawUnderwaterOverlay();
+
 private:
     // Night overlay resources
     GLShader m_nightDesatProgram;

@@ -758,6 +758,49 @@ void GLRenderer::Render3DHardwarePosts()
     RenderWorldModels();
 }
 
+// §3.1: Underwater full-screen overlay — restores the missing colour wash
+// that both legacy C2 renderers (D3D and 3DFX) applied when submerged.
+// The overlay uses CurFogColor (already set to WaterList[w].fogRGB by
+// Controls.cpp) for dynamic per-water-body colouring, and darkens with
+// CameraWaterDepthFactor.  Called from ShowVideo() (GLUI.cpp) like the
+// legacy renderers.
+void GLRenderer::DrawUnderwaterOverlay()
+{
+    if (!m_isUnderwater) return;
+
+    float depth = CameraWaterDepthFactor;          // 0 at surface, 1 at ~1024u
+
+    // Base colour from current water body's fog (CurFogColor is already set
+    // to WaterList[w].fogRGB by Controls.cpp per-frame update).
+    // C2 stores BGR in CurFogColor for legacy compatibility; decode correctly.
+    int baseR = CurFogColor & 0xFF;
+    int baseG = (CurFogColor >> 8) & 0xFF;
+    int baseB = (CurFogColor >> 16) & 0xFF;
+
+    // Base alpha matches original C2 D3D: ~44%, deeper at depth
+    float alpha = 0.44f + depth * 0.30f;           // up to ~0.74 at max depth
+    // Channel attenuation with depth (blue holds longest, red fades fastest).
+    // When the depth-dependent fog colour (§3.2) is active, soften the
+    // overlay's own chromatic shift so the two effects don't double-saturate
+    // toward blue/indigo at depth.
+    float chromaAtten = (depth > 0.5f) ? 0.7f : 1.0f;  // 30% reduction past mid-depth
+    float rLoss = depth * 0.5f * chromaAtten;
+    float gLoss = depth * 0.3f * chromaAtten;
+    float bLoss = depth * 0.1f * chromaAtten;
+    float r = (baseR / 255.0f) * (1.0f - rLoss);
+    float g = (baseG / 255.0f) * (1.0f - gLoss);
+    float b = (baseB / 255.0f) * (1.0f - bLoss);
+
+    uint32_t packed =
+        (std::clamp(static_cast<int>(r * 255.0f), 0, 255)) |
+        (std::clamp(static_cast<int>(g * 255.0f), 0, 255) << 8) |
+        (std::clamp(static_cast<int>(b * 255.0f), 0, 255) << 16) |
+        (std::clamp(static_cast<int>(alpha * 255.0f), 0, 255) << 24);
+
+    // Standard blend (not additive) — overlay recolours and dims toward fog colour
+    RenderFSRect(packed, false);
+}
+
 void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGBA, uint32_t RGBA2)
 {
     // The game stores colors in ABGR format (R in bits 0-7, B in bits 16-23).
