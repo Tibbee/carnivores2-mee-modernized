@@ -254,15 +254,52 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
 
     const float fadeEnabled = (!m_isUnderwater && centerDistanceSq > fadeStartSq) ? 1.0f : 0.0f;
 
-    const float a00 = Clamp01(v00.ALPHA / 255.0f);
-    const float a10 = Clamp01(v10.ALPHA / 255.0f);
-    const float a01 = Clamp01(v01.ALPHA / 255.0f);
-    const float a11 = Clamp01(v11.ALPHA / 255.0f);
+    float a00 = Clamp01(v00.ALPHA / 255.0f);
+    float a10 = Clamp01(v10.ALPHA / 255.0f);
+    float a01 = Clamp01(v01.ALPHA / 255.0f);
+    float a11 = Clamp01(v11.ALPHA / 255.0f);
 
     // §5.1: Early-out if all water vertex alphas are zero — skip the
     // fog lookup and triangle validation for fully transparent water.
     if (a00 <= 0.0f && a10 <= 0.0f && a01 <= 0.0f && a11 <= 0.0f) {
         return;
+    }
+
+    // Fresnel water-surface alpha from below: when underwater, the water
+    // surface is more transparent directly overhead (where you can see
+    // the sky) and more opaque near the horizon (where light is
+    // internally reflected).  Uses Schlick's Fresnel approximation.
+    // For a flat water surface, the Fresnel effect depends on the camera's
+    // pitch angle (how much you're looking up/down), not per-tile position.
+    if (m_isUnderwater) {
+        // Calculate the camera's view direction relative to water surface normal
+        // Water surface normal is (0, 1, 0) in world space
+        // Camera forward direction in world space:
+        //   x = sin(CameraAlpha) * cos(CameraBeta)
+        //   y = -sin(CameraBeta)  (negative because positive beta = looking down)
+        //   z = cos(CameraAlpha) * cos(CameraBeta)
+        //
+        // ndotv = dot(viewDir, surfaceNormal) = -sin(CameraBeta)
+        // When looking straight up (CameraBeta = -PI/2): ndotv = 1.0 (transparent)
+        // When looking horizontal (CameraBeta = 0): ndotv = 0.0 (opaque)
+        // When looking down (CameraBeta = PI/2): ndotv = -1.0 (behind surface)
+
+        // Clamp ndotv to [0, 1]:
+        // - When looking up: ndotv > 0, Fresnel applies normally
+        // - When looking horizontal: ndotv = 0, Fresnel = 1.0 (opaque)
+        // - When looking down: ndotv < 0, clamps to 0, stays opaque
+        // This creates a smooth transition with no discontinuity
+        float ndotv = (std::max)(0.0f, -std::sin(CameraBeta));
+
+        // Schlick Fresnel: ndotv=1 (zenith) -> fresnel≈0 (transparent)
+        //                  ndotv=0 (horizon/down) -> fresnel≈1 (opaque)
+        float fresnel = 0.03f + 0.97f * std::pow(1.0f - ndotv, 4.0f);
+
+        // Blend base alpha toward 1.0 based on Fresnel
+        a00 = Clamp01(a00 + (1.0f - a00) * fresnel);
+        a10 = Clamp01(a10 + (1.0f - a10) * fresnel);
+        a01 = Clamp01(a01 + (1.0f - a01) * fresnel);
+        a11 = Clamp01(a11 + (1.0f - a11) * fresnel);
     }
 
     // Single FogsMap lookup for the tile center (water is flat; per-corner
