@@ -4,7 +4,10 @@
 extern float PointToVectorDSq(Vector3d A, Vector3d AB, Vector3d C);
 extern float FindVectorAlpha(float vx, float vy);
 
-
+// LUT for cos(angle*pi/2), sin(angle*pi/2) with integer angle 0..3
+namespace { constexpr float kRotCos[4] = { 1.0f, 0.0f, -1.0f, 0.0f }; constexpr float kRotSin[4] = { 0.0f, 1.0f, 0.0f, -1.0f }; }
+// Octant LUT for cos(q*pi/4), sin(q*pi/4) with q=0..7
+namespace { constexpr float kOctCos[8] = { 1.0f, 0.70710678f, 0.0f, -0.70710678f, -1.0f, -0.70710678f, 0.0f, 0.70710678f }; constexpr float kOctSin[8] = { 0.0f, 0.70710678f, 1.0f, 0.70710678f, 0.0f, -0.70710678f, -1.0f, -0.70710678f }; }
 
 Vector3d TraceA, TraceNv;
 
@@ -78,9 +81,8 @@ void CheckBoundCollision(float &px, float &py, float cx, float cy, float oy, TBo
 
 
 
-  float ca = static_cast<float>(cos(angle*pi / 2.f));
-
-  float sa = static_cast<float>(sin(angle*pi / 2.f));
+  float ca = kRotCos[angle & 3];
+  float sa = kRotSin[angle & 3];
 
   float w,h;
 
@@ -458,13 +460,9 @@ void TraceModel(int xx, int zz, int o)
 
 
 
-  float malp = static_cast<float>(((FMap[zz][xx] >> 2) & 7)) * 2.f*pi / 8.f;
-
-
-
-  float ca = static_cast<float>(cos(malp));
-
-  float sa = static_cast<float>(sin(malp));
+  const int q = ((FMap[zz][xx] >> 2) & 7);
+  const float ca = kOctCos[q];
+  const float sa = kOctSin[q];
 
 
 
@@ -1344,9 +1342,8 @@ void CalcLights(TModel* mptr)
 
   {
 
-    float ca = static_cast<float>(cos (VT * pi / 2));
-
-    float sa = static_cast<float>(sin (VT * pi / 2));
+    float ca = kRotCos[VT & 3];
+    float sa = kRotSin[VT & 3];
 
     for (int v=0; v<VCount; v++)
 
