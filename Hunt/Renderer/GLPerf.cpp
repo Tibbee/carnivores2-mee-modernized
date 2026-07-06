@@ -438,15 +438,26 @@ extern "C" void glperf_scope_enter(const char* name) {
         return;
     }
 
-    // If there's already a scope active, end its GPU query before starting
-    // the new one (GL_TIME_ELAPSED does not support nesting).
+    // If there's already a scope active, accumulate its CPU prefix time
+    // and end its GPU query before starting the new one.
+    // (GL_TIME_ELAPSED does not support nesting, so we end the GPU query
+    //  and resume it on scope_exit using a new ring slot.)
     if (g_state.scopeStackDepth > 0) {
-        const auto& prevFrame = g_state.scopeStack[g_state.scopeStackDepth - 1];
+        const auto nestedNow = std::chrono::steady_clock::now();
+        auto& prevFrame = g_state.scopeStack[g_state.scopeStackDepth - 1];
         PassTimings* prevP = &g_state.passes[prevFrame.passIndex];
+
+        // Accumulate the parent's CPU time up to this point (prefix).
+        // We do NOT increment cpuSamples here — that only happens in
+        // scope_exit so each logical scope traversal counts as one sample.
+        const double parentMs = std::chrono::duration<double, std::milli>(
+            nestedNow - prevFrame.cpuStart).count();
+        prevP->cpuMsSum   += parentMs;
+        g_state.rollingCpuMsSum += parentMs;
+
+        // End the parent's GPU query (it will resume on scope_exit).
         if (g_state.gpuTimersOk && prevP->currentQuerySlot >= 0 && prevP->slotInFlight[prevP->currentQuerySlot]) {
             glEndQuery(GL_TIME_ELAPSED);
-            // The query is now in flight; resolveGpuQueries will pick it up.
-            // prevP's slot remains in-flight — we'll resume it on scope_exit.
         }
     }
 
