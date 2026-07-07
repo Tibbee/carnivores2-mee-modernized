@@ -388,16 +388,44 @@ static void DrawBoxMysteryBuf(int x, int y, WORD color)
     PutPixelBuf(x + 2, y + 5, color);
 }
 
+// Scaled nearest-neighbour copy of a picture into lpVideoBuf (defined below,
+// after Conv565to555). Kept separate from DrawScaledPicture (which routes to
+// the GPU texture directly) so the map background lands in the same HUD buffer
+// as the dots/circles drawn below, composited together by the HUD overlay.
+static void DrawScaledPictureToBuf(int x, int y, int w, int h, TPicture& pic);
+
 void DrawHMap()
 {
     if (g_GameMode == GameMode::SurvivalMode) return;
     if (!lpVideoBuf || !MapPic.lpImage) return;
 
-    // Draw map background
-    DrawPicture(VideoCX - MapPic.W / 2, VideoCY - MapPic.H / 2 - 6, MapPic);
+    // Uniform map scale driven by the display (geometric mean of W×H) so the
+    // map grows on larger / widescreen monitors yet always stays square.
+    // Reference is 720p (scale 1.0); clamped so it can't get tiny or huge.
+    // Tune kRefDiag to change the baseline size (smaller = larger map).
+    const float kRefDiag = std::sqrt(1280.0f * 720.0f);
+    float mapScale = std::sqrt(static_cast<float>(WinW) * WinH) / kRefDiag;
+    if (mapScale < 1.0f) mapScale = 1.0f;
+    if (mapScale > 3.0f) mapScale = 3.0f;
 
-    int xx = VideoCX - 128 + (CCX >> 2);
-    int yy = VideoCY - 128 + (CCY >> 2);
+    const int mapW = static_cast<int>(MapPic.W * mapScale + 0.5f);
+    const int mapH = static_cast<int>(MapPic.H * mapScale + 0.5f);
+    const int mapLeft = VideoCX - mapW / 2;
+    const int mapTop  = VideoCY - mapH / 2 - 6;
+    // Image->screen scale for the (non-square) frame. The player/blip formulas
+    // were authored against a 256px reference (hardcoded 128), so their fixed
+    // image-space offset from the frame origin is derived from MapPic's real
+    // size, not from 256.
+    const float drawScale = static_cast<float>(mapW) / static_cast<float>(MapPic.W);
+    const int mapOffX = MapPic.W / 2 - 128;
+    const int mapOffY = MapPic.H / 2 - 128 + 6;
+
+    // Draw map background (scaled into the HUD buffer, consistent with the
+    // dots/circles below which are also drawn there)
+    DrawScaledPictureToBuf(mapLeft, mapTop, mapW, mapH, MapPic);
+
+    int xx = mapLeft + static_cast<int>(static_cast<float>((CCX >> 2) + mapOffX) * drawScale);
+    int yy = mapTop + static_cast<int>(static_cast<float>((CCY >> 2) + mapOffY) * drawScale);
     const int playerX = xx;
     const int playerY = yy;
 
@@ -412,18 +440,20 @@ void DrawHMap()
         previousSonarPos = sonarPos;
         sonarPos += TimeDt * 0.02f * static_cast<float>(std::cos((pi / 2.0f) * (sonarPos / 41.0f)));
         if (sonarPos > 38.0f) sonarPos = 1.0f;
-        DrawCircleBuf(xx, yy, static_cast<int>(sonarPos), static_cast<WORD>(18 << 5));
+        DrawCircleBuf(xx, yy, static_cast<int>(sonarPos * drawScale), static_cast<WORD>(18 << 5));
     }
 
-    DrawCircleBuf(xx + 1, yy + 1, ctViewR / 4, static_cast<WORD>(4 << 5));
-    DrawCircleBuf(xx, yy, ctViewR / 4, static_cast<WORD>(18 << 5));
+    DrawCircleBuf(xx + 1, yy + 1, static_cast<int>(ctViewR / 4 * drawScale), static_cast<WORD>(4 << 5));
+    DrawCircleBuf(xx, yy, static_cast<int>(ctViewR / 4 * drawScale), static_cast<WORD>(18 << 5));
 
     for (int b = 0; b < bulletCh; b++)
     {
         if (!bullet[b].RTime) continue;
 
-        xx = VideoCX - 128 + static_cast<int>(bullet[b].a.x) / 1024;
-        yy = VideoCY - 128 + static_cast<int>(bullet[b].a.z) / 1024;
+        const int bImgX = static_cast<int>(bullet[b].a.x) / 1024 + mapOffX;
+        const int bImgY = static_cast<int>(bullet[b].a.z) / 1024 + mapOffY;
+        xx = mapLeft + static_cast<int>(static_cast<float>(bImgX) * drawScale);
+        yy = mapTop + static_cast<int>(static_cast<float>(bImgY) * drawScale);
         if (yy > 0 && yy < WinH && xx > 0 && xx < WinW)
         {
             DrawBoxBuf(xx, yy, 2, WeapInfo[bullet[b].parent].radarColour555);
@@ -435,8 +465,10 @@ void DrawHMap()
         if (!DinoInfo[Characters[c].CType].onRadar && !Characters[c].RTime) continue;
         if (!Characters[c].Health && !Characters[c].RTime) continue;
 
-        xx = VideoCX - 128 + static_cast<int>(Characters[c].pos.x) / 1024;
-        yy = VideoCY - 128 + static_cast<int>(Characters[c].pos.z) / 1024;
+        const int dImgX = static_cast<int>(Characters[c].pos.x) / 1024 + mapOffX;
+        const int dImgY = static_cast<int>(Characters[c].pos.z) / 1024 + mapOffY;
+        xx = mapLeft + static_cast<int>(static_cast<float>(dImgX) * drawScale);
+        yy = mapTop + static_cast<int>(static_cast<float>(dImgY) * drawScale);
         if (yy <= 0 || yy >= WinH || xx <= 0 || xx >= WinW) continue;
 
         if (Characters[c].Clone == AI_HUNTDOG)
@@ -462,9 +494,9 @@ void DrawHMap()
             const int dz = playerY - yy;
             const int distance = static_cast<int>(std::sqrt(static_cast<float>(dx * dx + dz * dz)));
 
-            if (distance < 38)
+            if (distance < static_cast<int>(38.0f * drawScale))
             {
-                if (distance >= static_cast<int>(previousSonarPos) && distance <= static_cast<int>(sonarPos))
+                if (distance >= static_cast<int>(previousSonarPos * drawScale) && distance <= static_cast<int>(sonarPos * drawScale))
                 {
                     Characters[c].showSonar = true;
                     Characters[c].sonar.x = xx;
@@ -552,6 +584,30 @@ static inline WORD Conv565to555(WORD c) {
     int b = c & 0x1F;
     // Pack as 555 (drop lowest G bit)
     return (r << 10) | ((g >> 1) << 5) | b;
+}
+
+// Scaled nearest-neighbour copy of a picture into lpVideoBuf. Kept separate
+// from DrawScaledPicture (which routes to the GPU texture directly) so the map
+// background lands in the same HUD buffer as the dots/circles drawn below,
+// which are then composited together by the HUD overlay. Marks the scaled
+// region dirty.
+static void DrawScaledPictureToBuf(int x, int y, int w, int h, TPicture& pic)
+{
+    if (!lpVideoBuf || !pic.lpImage || pic.W <= 0 || pic.H <= 0 || w <= 0 || h <= 0) return;
+    for (int yy = 0; yy < h; yy++)
+    {
+        int dstY = y + yy;
+        if (dstY < 0 || dstY >= WinH) continue;
+        int sy = yy * pic.H / h;
+        for (int xx = 0; xx < w; xx++)
+        {
+            int dstX = x + xx;
+            if (dstX < 0 || dstX >= WinW) continue;
+            int sx = xx * pic.W / w;
+            (static_cast<WORD*>(lpVideoBuf))[dstY * VideoPitch + dstX] = Conv565to555(pic.lpImage[sy * pic.W + sx]);
+        }
+    }
+    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x, y, w, h);
 }
 
 void DrawPicture(int x, int y, TPicture& pic)
