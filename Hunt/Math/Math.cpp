@@ -1162,54 +1162,70 @@ void InitClips()
 
   // 0.01 radian widen.
 
-  float h_angle = static_cast<float>(atan2(static_cast<float>(VideoCX), CameraW)) + 0.01f;
-  float v_angle = static_cast<float>(atan2(static_cast<float>(VideoCY), CameraH)) + 0.01f;
+  static bool clipAnglesValid = false;
+  static int cachedVideoCX = 0;
+  static int cachedVideoCY = 0;
+  static float cachedCameraW = 0.0f;
+  static float cachedCameraH = 0.0f;
 
-  // Compute sin/cos once per angle (8 trig calls -> 4)
-  float sh = sinf(h_angle);
-  float ch = cosf(h_angle);
-  float sv = sinf(v_angle);
-  float cv = cosf(v_angle);
+  if (!clipAnglesValid || cachedVideoCX != VideoCX || cachedVideoCY != VideoCY ||
+      cachedCameraW != CameraW || cachedCameraH != CameraH)
+  {
+    cachedVideoCX = VideoCX;
+    cachedVideoCY = VideoCY;
+    cachedCameraW = CameraW;
+    cachedCameraH = CameraH;
+    clipAnglesValid = true;
 
-  ClipA.v1.x = -sh;
-  ClipA.v1.y = 0;
-  ClipA.v1.z =  ch;
-  ClipA.v2.x = 0;
-  ClipA.v2.y = 1;
-  ClipA.v2.z = 0;
-  MulVectorsVect(ClipA.v1, ClipA.v2, ClipA.nv);
+    const float h_angle = static_cast<float>(atan2(static_cast<float>(VideoCX), CameraW)) + 0.01f;
+    const float v_angle = static_cast<float>(atan2(static_cast<float>(VideoCY), CameraH)) + 0.01f;
 
-  ClipC.v1.x = +sh;
-  ClipC.v1.y = 0;
-  ClipC.v1.z =  ch;
-  ClipC.v2.x = 0;
-  ClipC.v2.y =-1;
-  ClipC.v2.z = 0;
-  MulVectorsVect(ClipC.v1, ClipC.v2, ClipC.nv);
+    // Compute sin/cos once per angle when the projection changes.
+    const float sh = sinf(h_angle);
+    const float ch = cosf(h_angle);
+    const float sv = sinf(v_angle);
+    const float cv = cosf(v_angle);
 
-  ClipB.v1.x = 0;
-  ClipB.v1.y =  sv;
-  ClipB.v1.z =  cv;
-  ClipB.v2.x = 1;
-  ClipB.v2.y = 0;
-  ClipB.v2.z = 0;
-  MulVectorsVect(ClipB.v1, ClipB.v2, ClipB.nv);
+    ClipA.v1.x = -sh;
+    ClipA.v1.y = 0;
+    ClipA.v1.z =  ch;
+    ClipA.v2.x = 0;
+    ClipA.v2.y = 1;
+    ClipA.v2.z = 0;
+    MulVectorsVect(ClipA.v1, ClipA.v2, ClipA.nv);
 
-  ClipD.v1.x = 0;
-  ClipD.v1.y = -sv;
-  ClipD.v1.z =  cv;
-  ClipD.v2.x =-1;
-  ClipD.v2.y = 0;
-  ClipD.v2.z = 0;
-  MulVectorsVect(ClipD.v1, ClipD.v2, ClipD.nv);
+    ClipC.v1.x = +sh;
+    ClipC.v1.y = 0;
+    ClipC.v1.z =  ch;
+    ClipC.v2.x = 0;
+    ClipC.v2.y =-1;
+    ClipC.v2.z = 0;
+    MulVectorsVect(ClipC.v1, ClipC.v2, ClipC.nv);
 
-  ClipZ.v1.x = 0;
-  ClipZ.v1.y = 1;
-  ClipZ.v1.z = 0;
-  ClipZ.v2.x = 1;
-  ClipZ.v2.y = 0;
-  ClipZ.v2.z = 0;
-  MulVectorsVect(ClipZ.v1, ClipZ.v2, ClipZ.nv);
+    ClipB.v1.x = 0;
+    ClipB.v1.y =  sv;
+    ClipB.v1.z =  cv;
+    ClipB.v2.x = 1;
+    ClipB.v2.y = 0;
+    ClipB.v2.z = 0;
+    MulVectorsVect(ClipB.v1, ClipB.v2, ClipB.nv);
+
+    ClipD.v1.x = 0;
+    ClipD.v1.y = -sv;
+    ClipD.v1.z =  cv;
+    ClipD.v2.x =-1;
+    ClipD.v2.y = 0;
+    ClipD.v2.z = 0;
+    MulVectorsVect(ClipD.v1, ClipD.v2, ClipD.nv);
+
+    ClipZ.v1.x = 0;
+    ClipZ.v1.y = 1;
+    ClipZ.v1.z = 0;
+    ClipZ.v2.x = 1;
+    ClipZ.v2.y = 0;
+    ClipZ.v2.z = 0;
+    MulVectorsVect(ClipZ.v1, ClipZ.v2, ClipZ.nv);
+  }
 
   ClipW.nv.x =  0;
   ClipW.nv.y = cb;
