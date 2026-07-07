@@ -508,20 +508,106 @@ void GLRenderer::RenderGround()
     const float tFadeStartSq = tFadeStart * tFadeStart;
     const float tFadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
 
-    // Phase 1: Row-major tile sweep (replaces the outer-to-inner ring walk).
-    // Iterates every cell in the view disk once, row by row, which is
-    // simpler and more cache-friendly than the 4-sided perimeter walk.
-    // Per-tile culling is unchanged.
+    // Phase 1: Frustum-bounded row sweep (replaces the full-disk ring walk).
+    //
+    // Camera space (per RotateVector in Vector.cpp; this engine's sign
+    // convention is FORWARD = cz < 0, BEHIND = cz > 0, confirmed by the
+    // coarse test `cz<0 && |cx|>-cz+...` and the projection `v.x/v.z`):
+    //   cx  = wx*ca + wz*sa           (lateral)
+    //   cz1 = wz*ca - wx*sa           (forward, pre-pitch)
+    //   cz  = cz1*cb + wy*sb          (forward, post-pitch)
+    // For a cell at offset (dx,dy) from (CCX,CCY), ignoring the sub-cell
+    // camera residual (< 1 cell, absorbed by kMargin below):
+    //   cx  = 256*(dx*ca + dy*sa)
+    //   cz1 = 256*(dy*ca - dx*sa)
+    // The precise per-corner frustum test in CollectTerrainTile keeps a
+    // corner when |cx|*FOVK <= -cz + backR.  Substituting cz = cz1*cb + wy*sb
+    // and using the most permissive terrain height wyEff (a safe superset
+    // over the global height range, so the bound never misses a visible
+    // tile regardless of pitch) yields two half-planes in (dx,dy):
+    //   right:  Ar*dx + Br*dy <= Cr
+    //   left:   Al*dx + Bl*dy >= Cl
+    //   Ar = ca*FOVK - sa*cb,  Br = sa*FOVK + ca*cb
+    //   Al = ca*FOVK + sa*cb,  Bl = sa*FOVK - ca*cb
+    //   Cr = (backR - wyEff*sb)/256,  Cl = -Cr
+    // For each row dy the sign of Ar/Al decides whether the edge gives a
+    // lower or upper dx bound; a zero coefficient means the edge is
+    // parallel to the row and the whole row is either in that half-plane
+    // or outside it (skip).  The dx range is intersected with the
+    // view-distance disk dx^2+dy^2 <= ctViewR^2 (a superset of the per-tile
+    // 3D distance cull, since 3D distance >= 2D distance), expanded by
+    // kMargin for the tile-corner span + camera residual + rounding, then
+    // clamped to the map.  The unchanged per-tile coarse/precise/distance
+    // culls inside CollectTerrainTile still run and remove any slack, so
+    // the emitted geometry is identical to the full-disk walk.
     {
 #ifdef GL_PERF_HOOKS
         GLPerfScope scope_walk("RenderGround_Walk");
 #endif
+        // Per-frame frustum coefficients.
+        const float fovk = FOVK;
+        const float ca_  = ca, sa_ = sa, cb_ = cb, sb_ = sb;
+        // Safe terrain-height bounds relative to the camera (global map
+        // range 0..255; conservative superset so pitch never misses a tile).
+        const float wyMin = 0.0f - CameraY;
+        const float wyMax = 255.0f * static_cast<float>(ctHScale) - CameraY;
+        // wyEff maximizes (-wy*sb): lowest terrain when looking down,
+        // highest terrain when looking up, so the bound is a superset of
+        // the true pitched frustum for every possible corner height.
+        const float wyEff = (sb_ > 0.0f) ? wyMin : (sb_ < 0.0f ? wyMax : 0.0f);
+        const float P  = BackViewR - wyEff * sb_;   // effective near offset (world units)
+        const float Cr = P / 256.0f;                // in cells
+        const float Cl = -Cr;
+        const float Ar = ca_ * fovk - sa_ * cb_;
+        const float Br = sa_ * fovk + ca_ * cb_;
+        const float Al = ca_ * fovk + sa_ * cb_;
+        const float Bl = sa_ * fovk - ca_ * cb_;
+
+        const float ctViewRf = static_cast<float>(ctViewR);
+        const float ctViewR2 = ctViewRf * ctViewRf;
+        // Margin: tile corners span +/-0.5 cell from the center, the
+        // sub-cell camera residual is < 1 cell, and floor/ceil rounding
+        // can eat ~1 cell.  3 cells comfortably covers all of it.
+        constexpr float kMargin = 3.0f;
+
         const int yLo = (std::max)(0, CCY - ctViewR);
         const int yHi = (std::min)(ctMapSize - 1, CCY + ctViewR);
         for (int y = yLo; y <= yHi; ++y) {
-            int xLeft  = (std::max)(CCX - ctViewR, 0);
-            int xRight = (std::min)(CCX + ctViewR, ctMapSize - 1);
+            const float dy = static_cast<float>(y - CCY);
+            // View-distance disk dx-extent for this row.  This is a safe
+            // superset of the per-tile 3D distance cull because adding the
+            // height term only increases the distance.
+            const float d2 = ctViewR2 - dy * dy;
+            if (d2 <= 0.0f) continue;
+            const float D = std::sqrt(d2);
+            float lo = -D, hi = D;
+            bool skip = false;
+
+            // Right half-plane: Ar*dx + Br*dy <= Cr
+            const float rhsR = Cr - Br * dy;
+            if      (Ar >  1e-12f) hi = (std::min)(hi, rhsR / Ar);
+            else if (Ar < -1e-12f) lo = (std::max)(lo, rhsR / Ar);
+            else if (Br * dy > Cr)  skip = true;   // edge parallel to row: row outside
+
+            // Left half-plane: Al*dx + Bl*dy >= Cl
+            if (!skip) {
+                const float rhsL = Cl - Bl * dy;   // Al*dx >= rhsL
+                if      (Al >  1e-12f) lo = (std::max)(lo, rhsL / Al);
+                else if (Al < -1e-12f) hi = (std::min)(hi, rhsL / Al);
+                else if (Bl * dy < Cl)  skip = true;
+            }
+            if (skip) continue;
+
+            lo -= kMargin;
+            hi += kMargin;
+            if (lo < -ctViewRf) lo = -ctViewRf;
+            if (hi >  ctViewRf) hi =  ctViewRf;
+            if (lo > hi) continue;
+
+            int xLeft  = (std::max)(0,             CCX + static_cast<int>(std::floor(lo)));
+            int xRight = (std::min)(ctMapSize - 1, CCX + static_cast<int>(std::ceil(hi)));
             if (xLeft > xRight) continue;
+
             for (int x = xLeft; x <= xRight; ++x) {
                 CollectTerrainTile(x, y, 0, tFadeStart, tFadeStartSq, tFadeEnd);
                 if (NeedWater && BlockHasWater(x, y)) {
