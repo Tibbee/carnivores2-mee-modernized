@@ -1275,17 +1275,40 @@ float GetTerrainFogAmountForMapPoint(int mapX, int mapY, int legacyFog)
 
 
 
-void GLRenderer::DrawVertexBatch(const TerrainVertex* vertices, size_t count) const
+void GLRenderer::DrawVertexBatch(const TerrainVertex* vertices, size_t count)
 {
     if (count == 0 || !m_terrainVBO) {
         return;
     }
 
     const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(count * sizeof(TerrainVertex));
-    glBindBuffer(GL_ARRAY_BUFFER, m_terrainVBO);
-    glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices);
-    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(count));
+    const bool persistentReady = m_usePersistentTerrainVBO && EnsureTerrainStreamCapacity(count) && m_terrainMappedPtr;
+    glBindVertexArray(m_terrainVAO);
+    if (persistentReady) {
+        const size_t slice = m_terrainStreamNextSlice;
+        m_terrainStreamNextSlice = (m_terrainStreamNextSlice + 1) % kTerrainStreamSlices;
+
+        GLsync& fence = m_terrainStreamFences[slice];
+        if (fence) {
+            GLenum wait = glClientWaitSync(fence, 0, 0);
+            if (wait == GL_TIMEOUT_EXPIRED) {
+                wait = glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
+            }
+            (void)wait;
+            glDeleteSync(fence);
+            fence = nullptr;
+        }
+
+        const size_t byteOffset = slice * m_terrainStreamSliceBytes;
+        std::memcpy(static_cast<unsigned char*>(m_terrainMappedPtr) + byteOffset, vertices, static_cast<size_t>(vertexSize));
+        glDrawArrays(GL_TRIANGLES, static_cast<GLint>(slice * m_terrainStreamSliceVertices), static_cast<GLsizei>(count));
+        fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    } else {
+        glBindBuffer(GL_ARRAY_BUFFER, m_terrainVBO);
+        glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices);
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(count));
+    }
 #ifdef GL_PERF_HOOKS
     GL_PERF_DRAW(static_cast<uint32_t>(count) / 3);
 #endif

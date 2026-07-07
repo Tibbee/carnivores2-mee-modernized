@@ -239,7 +239,7 @@ private:
     void RenderWaterSurface();
     void RenderWorldModels();
     void RenderProjectedCharacterShadow(const TCharacter& character, float alpha);
-    void DrawVertexBatch(const TerrainVertex* vertices, size_t count) const;
+    void DrawVertexBatch(const TerrainVertex* vertices, size_t count);
     GLuint UploadModelTexture(TModel* mptr);
     GLuint UploadBMPModelTexture(TBMPModel* mptr);
     GLuint UploadPictureTexture(const TPicture& pic);
@@ -347,6 +347,20 @@ private:
     unsigned int m_terrainVAO = 0;
     unsigned int m_terrainVBO = 0;
     unsigned int m_terrainTextureArray = 0;
+
+    // P-G1.4: optional persistent-mapped stream buffer for terrain/water.
+    // Falls back to orphan + subdata when GL 4.4/ARB_buffer_storage is absent.
+    bool m_usePersistentTerrainVBO = false;
+    void* m_terrainMappedPtr = nullptr;
+    size_t m_terrainStreamSliceVertices = 0;
+    size_t m_terrainStreamSliceBytes = 0;
+    static constexpr size_t kTerrainStreamSlices = 6; // terrain+water over a 3-frame ring
+    std::array<GLsync, kTerrainStreamSlices> m_terrainStreamFences{};
+    size_t m_terrainStreamNextSlice = 0;
+    bool InitializeTerrainPersistentMapping(size_t sliceVertices);
+    void ShutdownTerrainPersistentMapping();
+    bool EnsureTerrainStreamCapacity(size_t neededVertices);
+    void ConfigureTerrainVertexAttributes();
 
     GLShader m_modelShader;
     unsigned int m_modelVAO = 0;

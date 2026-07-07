@@ -9,11 +9,48 @@
 #ifdef _gl
 
 #include "glad/glad.h"
+#include <algorithm>
 #include <cmath>
+#include <cstring>
+
+#ifndef GL_MAP_PERSISTENT_BIT
+#define GL_MAP_PERSISTENT_BIT 0x0040
+#endif
+#ifndef GL_MAP_COHERENT_BIT
+#define GL_MAP_COHERENT_BIT 0x0080
+#endif
+#ifndef GL_DYNAMIC_STORAGE_BIT
+#define GL_DYNAMIC_STORAGE_BIT 0x0100
+#endif
 
 // Phase 2: shared alpha-cull threshold for the terrain collect paths.
 namespace {
 constexpr float kAlphaCullThreshold = 0.02f;
+using PFNGLBUFFERSTORAGEPROC_LOCAL = void (APIENTRYP)(GLenum target, GLsizeiptr size, const void* data, GLbitfield flags);
+PFNGLBUFFERSTORAGEPROC_LOCAL g_glBufferStorage = nullptr;
+
+bool HasExtension(const char* name)
+{
+    if (!name || !glGetStringi) {
+        return false;
+    }
+
+    GLint extensionCount = 0;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &extensionCount);
+    for (GLint i = 0; i < extensionCount; ++i) {
+        const char* extension = reinterpret_cast<const char*>(glGetStringi(GL_EXTENSIONS, static_cast<GLuint>(i)));
+        if (extension && std::strcmp(extension, name) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool SupportsBufferStorage()
+{
+    const bool core44 = (GLVersion.major > 4) || (GLVersion.major == 4 && GLVersion.minor >= 4);
+    return (core44 || HasExtension("GL_ARB_buffer_storage")) && glad_get_proc("glBufferStorage") != nullptr;
+}
 }
 
 bool GLRenderer::InitializeTerrainPipeline()
@@ -23,8 +60,27 @@ bool GLRenderer::InitializeTerrainPipeline()
 
     glBindVertexArray(m_terrainVAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_terrainVBO);
-    glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
+    ConfigureTerrainVertexAttributes();
 
+    m_usePersistentTerrainVBO = SupportsBufferStorage();
+    if (m_usePersistentTerrainVBO) {
+        g_glBufferStorage = reinterpret_cast<PFNGLBUFFERSTORAGEPROC_LOCAL>(glad_get_proc("glBufferStorage"));
+        if (!g_glBufferStorage) {
+            m_usePersistentTerrainVBO = false;
+        }
+    }
+
+    if (!m_usePersistentTerrainVBO) {
+        glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
+    }
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    return true;
+}
+
+void GLRenderer::ConfigureTerrainVertexAttributes()
+{
     // Phase 1.5: packed TerrainVertex layout (32 bytes).
     //   attribute 0: vec3  aPos                (12 bytes, float)
     //   attribute 1: vec2  aTexCoord            ( 8 bytes, float)
@@ -41,10 +97,6 @@ bool GLRenderer::InitializeTerrainPipeline()
     glVertexAttribPointer(3, 4, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof(TerrainVertex), reinterpret_cast<void*>(offsetof(TerrainVertex, light)));
     glEnableVertexAttribArray(4);
     glVertexAttribPointer(4, 3, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof(TerrainVertex), reinterpret_cast<void*>(offsetof(TerrainVertex, fogR)));
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    return true;
 }
 
 void GLRenderer::ShutdownTerrainPipeline()
@@ -53,6 +105,7 @@ void GLRenderer::ShutdownTerrainPipeline()
         glDeleteTextures(1, &m_terrainTextureArray);
         m_terrainTextureArray = 0;
     }
+    ShutdownTerrainPersistentMapping();
     if (m_terrainVBO) {
         glDeleteBuffers(1, &m_terrainVBO);
         m_terrainVBO = 0;
@@ -87,6 +140,91 @@ void GLRenderer::EnsureWaterVertexCapacity(size_t needed)
     auto newBuf = std::make_unique<TerrainVertex[]>(needed);
     m_waterVertices = std::move(newBuf);
     m_waterVertexCapacity = needed;
+}
+
+void GLRenderer::ShutdownTerrainPersistentMapping()
+{
+    for (GLsync& fence : m_terrainStreamFences) {
+        if (fence) {
+            glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
+            glDeleteSync(fence);
+            fence = nullptr;
+        }
+    }
+
+    if (m_terrainMappedPtr && m_terrainVBO) {
+        glBindBuffer(GL_ARRAY_BUFFER, m_terrainVBO);
+        glUnmapBuffer(GL_ARRAY_BUFFER);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+
+    m_terrainMappedPtr = nullptr;
+    m_terrainStreamSliceVertices = 0;
+    m_terrainStreamSliceBytes = 0;
+    m_terrainStreamNextSlice = 0;
+}
+
+bool GLRenderer::InitializeTerrainPersistentMapping(size_t sliceVertices)
+{
+    if (!m_usePersistentTerrainVBO || !g_glBufferStorage || sliceVertices == 0) {
+        return false;
+    }
+
+    ShutdownTerrainPersistentMapping();
+    if (m_terrainVBO) {
+        glDeleteBuffers(1, &m_terrainVBO);
+        m_terrainVBO = 0;
+    }
+
+    glGenBuffers(1, &m_terrainVBO);
+    glBindVertexArray(m_terrainVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_terrainVBO);
+    ConfigureTerrainVertexAttributes();
+
+    m_terrainStreamSliceVertices = sliceVertices;
+    m_terrainStreamSliceBytes = sliceVertices * sizeof(TerrainVertex);
+    const GLsizeiptr totalBytes = static_cast<GLsizeiptr>(m_terrainStreamSliceBytes * kTerrainStreamSlices);
+    const GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+
+    g_glBufferStorage(GL_ARRAY_BUFFER, totalBytes, nullptr, flags);
+    m_terrainMappedPtr = glMapBufferRange(GL_ARRAY_BUFFER, 0, totalBytes, flags);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    if (!m_terrainMappedPtr) {
+        PrintLog("GL: persistent terrain VBO map failed; falling back to stream upload.\n");
+        m_usePersistentTerrainVBO = false;
+        m_terrainStreamSliceVertices = 0;
+        m_terrainStreamSliceBytes = 0;
+        glDeleteBuffers(1, &m_terrainVBO);
+        glGenBuffers(1, &m_terrainVBO);
+        glBindVertexArray(m_terrainVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, m_terrainVBO);
+        ConfigureTerrainVertexAttributes();
+        glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
+        glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        return false;
+    }
+
+    return true;
+}
+
+bool GLRenderer::EnsureTerrainStreamCapacity(size_t neededVertices)
+{
+    if (!m_usePersistentTerrainVBO) {
+        return false;
+    }
+    if (neededVertices <= m_terrainStreamSliceVertices && m_terrainMappedPtr) {
+        return true;
+    }
+
+    // Grow only. Use a small floor so the first tiny frame does not cause churn.
+    const size_t floorVertices = 4096;
+    const size_t doubledVertices = m_terrainStreamSliceVertices * 2;
+    size_t newSliceVertices = neededVertices > floorVertices ? neededVertices : floorVertices;
+    newSliceVertices = newSliceVertices > doubledVertices ? newSliceVertices : doubledVertices;
+    return InitializeTerrainPersistentMapping(newSliceVertices);
 }
 
 void GLRenderer::BeginTerrainFrame()
