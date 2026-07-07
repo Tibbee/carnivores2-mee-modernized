@@ -168,6 +168,16 @@ void DrawScene()
 
   RenderGround();
 
+#ifndef _soft
+  // GL/D3D render the water surface as a post-pass; their hardware Z-buffer
+  // sorts it correctly against world geometry. The software renderer has no
+  // Z-buffer and instead draws the surface from inside RenderGround's ring
+  // loop (ProcessMap -> ProcessMapW/ProcessMapW2), interleaved with models by
+  // distance. That is the only way to get correct painter's-order sorting, so
+  // it must NOT be drawn again here (a post-pass would cover ring-loop models).
+  if (NeedWater) RenderWater();
+#endif
+
   RenderModelsList();
 
   Render3DHardwarePosts();
@@ -175,8 +185,6 @@ void DrawScene()
 #ifdef _gl
   RenderProjectedShadows();
 #endif
-
-  if (NeedWater) RenderWater();
 
   RenderElements();
 }

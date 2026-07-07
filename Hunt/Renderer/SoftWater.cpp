@@ -11,6 +11,23 @@
 
 void RenderWater()
 {
+  // Drive the shared ProcessMapW over every grid cell in view. ProcessMapW
+  // renders the water surface and already handles the underwater case
+  // internally (glass blending via IsUnderwater()), so this is what makes
+  // the surface visible from below. Mirrors the D3D/3DFX RenderWater loop.
+  for (int r=ctViewR; r>0; r--)
+  {
+    for (int x=-r; x<=r; x++)
+    {
+      ProcessMapW(CCX+x, CCY+r, r);
+      ProcessMapW(CCX+x, CCY-r, r);
+    }
+    for (int y=-r+1; y<r; y++)
+    {
+      ProcessMapW(CCX+r, CCY+y, r);
+      ProcessMapW(CCX-r, CCY+y, r);
+    }
+  }
 }
 
 void ProcessWaterMap(int x, int y, int r)
@@ -71,6 +88,17 @@ void ProcessMapW(int x, int y, int r)
 
   if (x>=ctMapSize-1 || y>=ctMapSize-1 || x<0 || y<0) return;
 
+  // Only draw cells whose four corners are all water. VMap2 (the water-plane
+  // vertices) is populated in Effects.cpp exclusively for fmWaterA cells, so
+  // for any other cell its entries are stale and yield garbage/spike
+  // triangles. The terrain path already enforces this via its "wpr" check;
+  // mirror it here so RenderWater() (which walks every grid cell in the ring)
+  // never reads stale VMap2.
+  if (!((FMap[y][x]   & fmWaterA) &&
+        (FMap[y][x+1] & fmWaterA) &&
+        (FMap[y+1][x] & fmWaterA) &&
+        (FMap[y+1][x+1] & fmWaterA))) return;
+
   int t1 = WaterList[ WMap[y][x] ].tindex;
   int hw = WaterList[ WMap[y][x] ].wlevel;
 
@@ -129,12 +157,6 @@ void ProcessMapW(int x, int y, int r)
     HLineT = (void*) HLineTxC;
   }
 
-  if (IsUnderwater())
-  {
-    lpTextureAddr = &(Textures[t1]->DataB[0]);
-    HLineT = (void*) HLineTBGlass25;
-  }
-
   WATERREVERSE = IsUnderwater();
 
   if (ReverseOn)
@@ -146,8 +168,7 @@ void ProcessMapW(int x, int y, int r)
     if ( (HMap[_y][_x]>hw) || (HMap[_y][_x+1]>hw) || (HMap[_y+1][_x+1]>hw) )   goto S1;
   }
 
-  if (r>6) DrawTPlane(false);
-  else DrawTPlaneClip(false);
+  DrawTPlaneClip(false);
 S1:
   if (ReverseOn)
   {
@@ -169,8 +190,7 @@ S1:
     if ( (HMap[_y][_x]>hw) || (HMap[_y+1][_x+1]>hw) || (HMap[_y+1][_x]>hw) )   goto S2;
   }
 
-  if (r>6) DrawTPlane(true);
-  else DrawTPlaneClip(true);
+  DrawTPlaneClip(true);
 S2:
   WATERREVERSE = false;
 }
@@ -227,17 +247,8 @@ void ProcessMapW2(int x, int y, int r)
   else ts = 128;
 
 
-  if (IsUnderwater())
-  {
-    lpTextureAddr = &(Textures[t1]->DataB[0]);
-    HLineT = (void*) HLineTBGlass25;
-  }
-  else
-  {
-    lpTextureAddr = &(Textures[t1]->DataC[0]);
-    HLineT = (void*) HLineTxC;
-  }
-
+  lpTextureAddr = &(Textures[t1]->DataC[0]);
+  HLineT = (void*) HLineTxC;
 
   WATERREVERSE = IsUnderwater();
 
@@ -250,8 +261,7 @@ void ProcessMapW2(int x, int y, int r)
     if ( (HMap[_y][_x]>hw) && (HMap[_y][_x+2]>hw) && (HMap[_y+2][_x+2]>hw) )   goto S1;
   }
 
-  if (r>6) DrawTPlane(false);
-  else DrawTPlaneClip(false);
+  DrawTPlaneClip(false);
 S1:
   if (ReverseOn)
   {
@@ -273,8 +283,7 @@ S1:
     if ( (HMap[_y][_x]>hw) && (HMap[_y+2][_x+2]>hw) && (HMap[_y+2][_x]>hw) )   goto S2;
   }
 
-  if (r>6) DrawTPlane(true);
-  else DrawTPlaneClip(true);
+  DrawTPlaneClip(true);
 S2:
   WATERREVERSE = false;
 }
