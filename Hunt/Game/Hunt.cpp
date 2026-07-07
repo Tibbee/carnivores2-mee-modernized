@@ -1,6 +1,7 @@
 #include "Hunt.h"
 #include "stdio.h"
 #include <cmath>
+#include <algorithm>
 #include <timeapi.h>
 
 #ifndef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
@@ -868,7 +869,9 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       } else {
         AddMessage("Underwater Fog Debug: OFF");
         // Mark the menu region dirty so the renderer clears the old text
+#ifdef _gl
         if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(8, 38, 450, 200);
+#endif
       }
       return 0;
     }
