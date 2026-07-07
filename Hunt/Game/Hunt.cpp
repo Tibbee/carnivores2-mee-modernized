@@ -168,22 +168,26 @@ void DrawScene()
 
   RenderGround();
 
-#ifndef _soft
-  // GL/D3D render the water surface as a post-pass; their hardware Z-buffer
-  // sorts it correctly against world geometry. The software renderer has no
-  // Z-buffer and instead draws the surface from inside RenderGround's ring
-  // loop (ProcessMap -> ProcessMapW/ProcessMapW2), interleaved with models by
-  // distance. That is the only way to get correct painter's-order sorting, so
-  // it must NOT be drawn again here (a post-pass would cover ring-loop models).
-  if (NeedWater) RenderWater();
-#endif
-
   RenderModelsList();
 
   Render3DHardwarePosts();
 
 #ifdef _gl
   RenderProjectedShadows();
+#endif
+
+#ifndef _soft
+  // GL/D3D render the water surface as a POST-PASS, AFTER all world geometry
+  // (terrain, models, shadows). The water surface uses glDepthMask(GL_FALSE)
+  // (GLWater.cpp), so it does NOT write depth. If it were drawn before the
+  // models, subsequently-drawn underwater creatures -- which are in front of
+  // the terrain in the depth buffer -- would pass the depth test and paint
+  // over the water, making them visible "through" the surface. As a post-pass
+  // the water blends correctly on top of the already-drawn models.
+  // The software renderer has no Z-buffer and instead draws the surface from
+  // inside RenderGround's ring loop (ProcessMap -> ProcessMapW/ProcessMapW2),
+  // interleaved with models by distance, so it must NOT be drawn here.
+  if (NeedWater) RenderWater();
 #endif
 
   RenderElements();
