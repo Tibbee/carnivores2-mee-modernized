@@ -11,6 +11,11 @@
 #include "glad/glad.h"
 #include <cmath>
 
+// Phase 2: shared alpha-cull threshold for the terrain collect paths.
+namespace {
+constexpr float kAlphaCullThreshold = 0.02f;
+}
+
 bool GLRenderer::InitializeTerrainPipeline()
 {
     glGenVertexArrays(1, &m_terrainVAO);
@@ -377,46 +382,8 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     EPoint v01 = VMap[localY + 1][localX];
     EPoint v11 = VMap[localY + 1][localX + 1];
 
-    // Only reject if ALL corners are behind the back plane.
-    if (v00.v.z > backR && v10.v.z > backR && v01.v.z > backR && v11.v.z > backR) {
-        return;
-    }
-
-    // Precise frustum cull — conservative 4-corner check.
-    // When looking up a slope, the tile center can be at shallower depth
-    // than the elevated corners, causing the single-center test to cull
-    // tiles that are still partially visible.  Only reject if ALL 4
-    // corners are outside the same frustum side.
-    const float xx = (v00.v.x + v11.v.x) * 0.5f;
-    const float yy = (v00.v.y + v11.v.y) * 0.5f;
-    const float zz = (v00.v.z + v11.v.z) * 0.5f;
-    {
-        bool v00OutR = ( v00.v.x * FOVK > -v00.v.z + backR);
-        bool v10OutR = ( v10.v.x * FOVK > -v10.v.z + backR);
-        bool v01OutR = ( v01.v.x * FOVK > -v01.v.z + backR);
-        bool v11OutR = ( v11.v.x * FOVK > -v11.v.z + backR);
-        bool allOutR = v00OutR && v10OutR && v01OutR && v11OutR;
-
-        bool v00OutL = (-v00.v.x * FOVK > -v00.v.z + backR);
-        bool v10OutL = (-v10.v.x * FOVK > -v10.v.z + backR);
-        bool v01OutL = (-v01.v.x * FOVK > -v01.v.z + backR);
-        bool v11OutL = (-v11.v.x * FOVK > -v11.v.z + backR);
-        bool allOutL = v00OutL && v10OutL && v01OutL && v11OutL;
-
-        if (allOutR || allOutL) {
-            return;
-        }
-    }
-
-    // Distance cull
-    const float viewDistance = static_cast<float>(ctViewR * 256);
-    const float viewDistanceSq = viewDistance * viewDistance;
-    const float distanceSq = xx * xx + yy * yy + zz * zz;
-    if (distanceSq > viewDistanceSq) {
-        return;
-    }
-
-    // Tile survived culling — compute fog + alpha using hoisted constants
+    // Compute per-corner fog + alpha (shared with the 2x2 chunk path),
+    // then run the shared cull + emit.
     const int fogIdx00 = GetFogIndexForMapPoint(x, y);
     const int fogIdx10 = GetFogIndexForMapPoint(x + 1, y);
     const int fogIdx01 = GetFogIndexForMapPoint(x, y + 1);
@@ -438,8 +405,64 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     const float alpha01 = CalcTerrainAlpha(VertexDistanceSq(v01.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
     const float alpha11 = CalcTerrainAlpha(VertexDistanceSq(v11.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
 
+    EmitTerrainTile(x, y, backR, v00, v10, v01, v11,
+                    fog00, fog10, fog01, fog11,
+                    alpha00, alpha10, alpha01, alpha11);
+}
+
+// Phase 2: shared per-tile cull + emit.  See GLRenderer.h for the contract.
+// This is the single source of truth for the back-plane / 4-corner frustum
+// / distance / alpha-cull / texture-emit / RenderObject decisions, so the
+// 1x1 (CollectTerrainTile) and 2x2 (CollectTerrainChunk2x2) paths produce
+// byte-identical geometry and object queues for the same tile.
+void GLRenderer::EmitTerrainTile(int x, int y, float backR,
+                                 const EPoint& v00, const EPoint& v10,
+                                 const EPoint& v01, const EPoint& v11,
+                                 const Vector3d& fog00, const Vector3d& fog10,
+                                 const Vector3d& fog01, const Vector3d& fog11,
+                                 float alpha00, float alpha10,
+                                 float alpha01, float alpha11)
+{
+    // Only reject if ALL corners are behind the back plane.
+    if (v00.v.z > backR && v10.v.z > backR && v01.v.z > backR && v11.v.z > backR) {
+        return;
+    }
+
+    // Precise frustum cull — conservative 4-corner check.
+    // When looking up a slope, the tile center can be at shallower depth
+    // than the elevated corners, causing the single-center test to cull
+    // tiles that are still partially visible.  Only reject if ALL 4
+    // corners are outside the same frustum side.
+    {
+        bool v00OutR = ( v00.v.x * FOVK > -v00.v.z + backR);
+        bool v10OutR = ( v10.v.x * FOVK > -v10.v.z + backR);
+        bool v01OutR = ( v01.v.x * FOVK > -v01.v.z + backR);
+        bool v11OutR = ( v11.v.x * FOVK > -v11.v.z + backR);
+        bool allOutR = v00OutR && v10OutR && v01OutR && v11OutR;
+
+        bool v00OutL = (-v00.v.x * FOVK > -v00.v.z + backR);
+        bool v10OutL = (-v10.v.x * FOVK > -v10.v.z + backR);
+        bool v01OutL = (-v01.v.x * FOVK > -v01.v.z + backR);
+        bool v11OutL = (-v11.v.x * FOVK > -v11.v.z + backR);
+        bool allOutL = v00OutL && v10OutL && v01OutL && v11OutL;
+
+        if (allOutR || allOutL) {
+            return;
+        }
+    }
+
+    // Distance cull
+    const float xx = (v00.v.x + v11.v.x) * 0.5f;
+    const float yy = (v00.v.y + v11.v.y) * 0.5f;
+    const float zz = (v00.v.z + v11.v.z) * 0.5f;
+    const float viewDistance = static_cast<float>(ctViewR * 256);
+    const float viewDistanceSq = viewDistance * viewDistance;
+    const float distanceSq = xx * xx + yy * yy + zz * zz;
+    if (distanceSq > viewDistanceSq) {
+        return;
+    }
+
     // Alpha cull — skip tiles whose 4 vertex alphas are all below threshold
-    constexpr float kAlphaCullThreshold = 0.02f;
     if (alpha00 < kAlphaCullThreshold && alpha10 < kAlphaCullThreshold &&
         alpha01 < kAlphaCullThreshold && alpha11 < kAlphaCullThreshold) {
         RenderObject(x, y);
@@ -461,6 +484,94 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     }
 
     RenderObject(x, y);
+}
+
+// Phase 2: 2x2 chunked collection.  See GLRenderer.h for the contract.
+void GLRenderer::CollectTerrainChunk2x2(int x, int y,
+                                         float fadeStart, float fadeStartSq, float fadeEnd)
+{
+    // The block covers tiles (x,y),(x+1,y),(x,y+1),(x+1,y+1).  Each tile
+    // needs 0 <= c <= ctMapSize-2 (CollectTerrainTile's [A] bound) and a
+    // 2x2 VMap footprint inside the view grid ([C] bound).  The 3x3 shared
+    // corner grid needs localX+2 <= kViewGridSize-1, i.e. localX <=
+    // kViewGridSize-3 — the same as the rightmost tile's [C] bound.  So the
+    // block is valid iff all four tiles are valid.  Fall back otherwise.
+    const bool mapOk = (x >= 0 && y >= 0 &&
+                       x <= ctMapSize - 3 && y <= ctMapSize - 3);
+    const int localX = x - CCX + kViewGridCenter;
+    const int localY = y - CCY + kViewGridCenter;
+    const bool gridOk = (localX >= 0 && localY >= 0 &&
+                        localX <= kViewGridSize - 3 && localY <= kViewGridSize - 3);
+    if (!mapOk || !gridOk) {
+        CollectTerrainTile(x,     y,     0, fadeStart, fadeStartSq, fadeEnd);
+        CollectTerrainTile(x + 1, y,     0, fadeStart, fadeStartSq, fadeEnd);
+        CollectTerrainTile(x,     y + 1, 0, fadeStart, fadeStartSq, fadeEnd);
+        CollectTerrainTile(x + 1, y + 1, 0, fadeStart, fadeStartSq, fadeEnd);
+        return;
+    }
+
+    // Per-tile back radius + coarse (HMapO) frustum pre-test.  These use
+    // only OMap/HMapO — no VMap corners — so run them first: if every tile
+    // fails the coarse test the block is entirely behind the camera and we
+    // skip the shared 3x3 VMap read entirely (matches the 1x1 path, which
+    // culls behind tiles before any VMap read).
+    float backR[2][2];
+    bool  coarsePass[2][2];
+    bool  anyCoarse = false;
+    for (int dj = 0; dj < 2; ++dj) {
+        for (int di = 0; di < 2; ++di) {
+            const int cx = x + di;
+            const int cy = y + dj;
+            float br = BackViewR;
+            if (OMap[cy][cx] != 255) br += MObjects[OMap[cy][cx]].info.BoundR;
+            backR[dj][di] = br;
+            const float wx  = static_cast<float>(cx * 256 + 128) - CameraX;
+            const float wz  = static_cast<float>(cy * 256 + 128) - CameraZ;
+            const float wy  = static_cast<float>(HMapO[cy][cx]) * ctHScale - CameraY;
+            const float cxc = wx * ca + wz * sa;
+            const float cz1 = wz * ca - wx * sa;
+            const float cz  = cz1 * cb + wy * sb;
+            const bool pass = !(cz < 0.0f && std::fabs(cxc) > -cz + br * 2.0f + 2048.0f);
+            coarsePass[dj][di] = pass;
+            if (pass) anyCoarse = true;
+        }
+    }
+    if (!anyCoarse) {
+        return;  // all 4 behind; no reads, no RenderObject (matches 1x1 [D])
+    }
+
+    // Read the shared 3x3 grid of VMap corners (9 reads for 4 tiles vs 16).
+    EPoint v[3][3];
+    for (int j = 0; j < 3; ++j)
+        for (int i = 0; i < 3; ++i)
+            v[j][i] = VMap[localY + j][localX + i];
+
+    // Per-corner fog index / fog amount / fog colour / alpha — each corner
+    // is shared by up to 4 tiles, so compute once.
+    int      fogIdx[3][3];
+    Vector3d fogCol[3][3];
+    float    alpha[3][3];
+    for (int j = 0; j < 3; ++j) {
+        for (int i = 0; i < 3; ++i) {
+            fogIdx[j][i] = GetFogIndexForMapPoint(x + i, y + j);
+            v[j][i].Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx[j][i], v[j][i].Fog, m_isUnderwater));
+            fogCol[j][i] = GetFogColorForMapPoint(fogIdx[j][i]);
+            alpha[j][i] = CalcTerrainAlpha(VertexDistanceSq(v[j][i].v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+        }
+    }
+
+    // Emit each of the 4 child tiles.  Tiles that failed the coarse
+    // pre-test above are skipped (no RenderObject), matching the 1x1 path's
+    // [D] reject.  The remaining culls run in EmitTerrainTile.
+    for (int dj = 0; dj < 2; ++dj) {
+        for (int di = 0; di < 2; ++di) {
+            if (!coarsePass[dj][di]) continue;
+            EmitTerrainTile(x + di, y + dj, backR[dj][di],
+                            v[dj][di], v[dj][di + 1], v[dj + 1][di], v[dj + 1][di + 1],
+                            fogCol[dj][di], fogCol[dj][di + 1], fogCol[dj + 1][di], fogCol[dj + 1][di + 1],
+                            alpha[dj][di], alpha[dj][di + 1], alpha[dj + 1][di], alpha[dj + 1][di + 1]);
+        }
+    }
 }
 
 void GLRenderer::RenderGround()
@@ -572,46 +683,86 @@ void GLRenderer::RenderGround()
 
         const int yLo = (std::max)(0, CCY - ctViewR);
         const int yHi = (std::min)(ctMapSize - 1, CCY + ctViewR);
-        for (int y = yLo; y <= yHi; ++y) {
-            const float dy = static_cast<float>(y - CCY);
-            // View-distance disk dx-extent for this row.  This is a safe
-            // superset of the per-tile 3D distance cull because adding the
-            // height term only increases the distance.
+
+        // Compute one row's frustum dx-range [lo,hi] (cells relative to
+        // CCX): view disk  ∩  right half-plane  ∩  left half-plane, expanded
+        // by kMargin and clamped to the view disk.  Returns false when the row
+        // has no visible span (so the caller can skip / union it away).
+        auto rowRange = [&](float dy, float& lo, float& hi) -> bool {
             const float d2 = ctViewR2 - dy * dy;
-            if (d2 <= 0.0f) continue;
+            if (d2 <= 0.0f) return false;
             const float D = std::sqrt(d2);
-            float lo = -D, hi = D;
-            bool skip = false;
+            lo = -D; hi = D;
 
             // Right half-plane: Ar*dx + Br*dy <= Cr
             const float rhsR = Cr - Br * dy;
             if      (Ar >  1e-12f) hi = (std::min)(hi, rhsR / Ar);
             else if (Ar < -1e-12f) lo = (std::max)(lo, rhsR / Ar);
-            else if (Br * dy > Cr)  skip = true;   // edge parallel to row: row outside
+            else if (Br * dy > Cr)  return false;   // edge parallel to row
 
             // Left half-plane: Al*dx + Bl*dy >= Cl
-            if (!skip) {
-                const float rhsL = Cl - Bl * dy;   // Al*dx >= rhsL
-                if      (Al >  1e-12f) lo = (std::max)(lo, rhsL / Al);
-                else if (Al < -1e-12f) hi = (std::min)(hi, rhsL / Al);
-                else if (Bl * dy < Cl)  skip = true;
-            }
-            if (skip) continue;
+            const float rhsL = Cl - Bl * dy;   // Al*dx >= rhsL
+            if      (Al >  1e-12f) lo = (std::max)(lo, rhsL / Al);
+            else if (Al < -1e-12f) hi = (std::min)(hi, rhsL / Al);
+            else if (Bl * dy < Cl)  return false;
 
             lo -= kMargin;
             hi += kMargin;
             if (lo < -ctViewRf) lo = -ctViewRf;
             if (hi >  ctViewRf) hi =  ctViewRf;
-            if (lo > hi) continue;
+            return lo <= hi;
+        };
 
+        // Phase 2: process rows two at a time so the 2x2 chunk can share
+        // VMap corners vertically as well as horizontally (9 reads for 4
+        // tiles vs 16).  The block spans the UNION of the two rows' dx-ranges
+        // (each row's range is a superset of its visible tiles, and the union
+        // is a superset of both — so no row's visible tile is missed; the
+        // per-tile culls in CollectTerrainChunk2x2 remove the slack).
+        int y = yLo;
+        for (; y + 1 <= yHi; y += 2) {
+            const float dy0 = static_cast<float>(y - CCY);
+            const float dy1 = static_cast<float>(y + 1 - CCY);
+            float lo0, hi0, lo1, hi1;
+            const bool ok0 = rowRange(dy0, lo0, hi0);
+            const bool ok1 = rowRange(dy1, lo1, hi1);
+            if (!ok0 && !ok1) continue;
+            float lo = ok0 ? lo0 : lo1;
+            float hi = ok0 ? hi0 : hi1;
+            if (ok0 && ok1) {
+                lo = (std::min)(lo, lo1);
+                hi = (std::max)(hi, hi1);
+            }
             int xLeft  = (std::max)(0,             CCX + static_cast<int>(std::floor(lo)));
             int xRight = (std::min)(ctMapSize - 1, CCX + static_cast<int>(std::ceil(hi)));
             if (xLeft > xRight) continue;
 
-            for (int x = xLeft; x <= xRight; ++x) {
-                CollectTerrainTile(x, y, 0, tFadeStart, tFadeStartSq, tFadeEnd);
-                if (NeedWater && BlockHasWater(x, y)) {
-                    CollectWaterTileFast(x, y, 0, wViewDistSq, wFadeStart, wFadeStartSq, wFadeEnd, wFadeEndSq);
+            for (int x = xLeft; x <= xRight; x += 2) {
+                CollectTerrainChunk2x2(x, y, tFadeStart, tFadeStartSq, tFadeEnd);
+                if (NeedWater) {
+                    for (int dj = 0; dj < 2; ++dj) {
+                        for (int di = 0; di < 2; ++di) {
+                            const int wx = x + di;
+                            const int wy = y + dj;
+                            if (BlockHasWater(wx, wy)) {
+                                CollectWaterTileFast(wx, wy, 0, wViewDistSq, wFadeStart, wFadeStartSq, wFadeEnd, wFadeEndSq);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Leftover odd row — 1x1 (a 2x2 chunk would need a row beyond yHi).
+        if (y <= yHi) {
+            float lo, hi;
+            if (rowRange(static_cast<float>(y - CCY), lo, hi)) {
+                int xLeft  = (std::max)(0,             CCX + static_cast<int>(std::floor(lo)));
+                int xRight = (std::min)(ctMapSize - 1, CCX + static_cast<int>(std::ceil(hi)));
+                for (int x = xLeft; x <= xRight; ++x) {
+                    CollectTerrainTile(x, y, 0, tFadeStart, tFadeStartSq, tFadeEnd);
+                    if (NeedWater && BlockHasWater(x, y)) {
+                        CollectWaterTileFast(x, y, 0, wViewDistSq, wFadeStart, wFadeStartSq, wFadeEnd, wFadeEndSq);
+                    }
                 }
             }
         }

@@ -276,6 +276,24 @@ private:
     void UploadTerrainLayer(int layer, const TEXTURE& texture);
     void CollectTerrainTile(int x, int y, int r,
                             float fadeStart, float fadeStartSq, float fadeEnd);
+    // Phase 2: 2x2 chunked collection.  Reads a shared 3x3 grid of VMap
+    // corners (9 reads for 4 tiles vs 16) and shared per-corner fog/alpha,
+    // then emits each child tile via EmitTerrainTile.  Falls back to four
+    // CollectTerrainTile calls when the block crosses a map/view-grid edge.
+    void CollectTerrainChunk2x2(int x, int y,
+                                float fadeStart, float fadeStartSq, float fadeEnd);
+    // Phase 2: shared per-tile cull + emit (back-plane / 4-corner frustum /
+    // distance / alpha-cull / texture emit / RenderObject).  The 4 EPoint
+    // corners must already have .Fog finalised; fog colours and alphas must
+    // already be computed by the caller.  Used by both the 1x1 and 2x2
+    // paths so their cull decisions stay byte-identical.
+    void EmitTerrainTile(int x, int y, float backR,
+                         const EPoint& v00, const EPoint& v10,
+                         const EPoint& v01, const EPoint& v11,
+                         const Vector3d& fog00, const Vector3d& fog10,
+                         const Vector3d& fog01, const Vector3d& fog11,
+                         float alpha00, float alpha10,
+                         float alpha01, float alpha11);
     // Fast water tile collection: precomputed constants + squared-distance
     // alpha ramp + single FogsMap lookup per tile (~1ms saved at max dist).
     void CollectWaterTileFast(int x, int y, int r,
