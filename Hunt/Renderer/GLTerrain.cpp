@@ -521,11 +521,21 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     EPoint v11 = VMap[localY + 1][localX + 1];
 
     // Compute per-corner fog + alpha (shared with the 2x2 chunk path),
-    // then run the shared cull + emit.
-    const int fogIdx00 = GetFogIndexForMapPoint(x, y);
-    const int fogIdx10 = GetFogIndexForMapPoint(x + 1, y);
-    const int fogIdx01 = GetFogIndexForMapPoint(x, y + 1);
-    const int fogIdx11 = GetFogIndexForMapPoint(x + 1, y + 1);
+    // then run the shared cull + emit. Fog cells cover 2x2 map points, so
+    // adjacent corners often share the same FogsMap entry; cache by fog cell.
+    const int fogCellX[2] = { ((x) & (ctMapSize - 1)) >> 1, ((x + 1) & (ctMapSize - 1)) >> 1 };
+    const int fogCellY[2] = { ((y) & (ctMapSize - 1)) >> 1, ((y + 1) & (ctMapSize - 1)) >> 1 };
+    int fogIdxGrid[2][2];
+    fogIdxGrid[0][0] = FogsMap[fogCellY[0]][fogCellX[0]];
+    fogIdxGrid[0][1] = (fogCellX[1] == fogCellX[0]) ? fogIdxGrid[0][0] : FogsMap[fogCellY[0]][fogCellX[1]];
+    fogIdxGrid[1][0] = (fogCellY[1] == fogCellY[0]) ? fogIdxGrid[0][0] : FogsMap[fogCellY[1]][fogCellX[0]];
+    fogIdxGrid[1][1] = (fogCellY[1] == fogCellY[0]) ? fogIdxGrid[0][1]
+                      : (fogCellX[1] == fogCellX[0]) ? fogIdxGrid[1][0]
+                      : FogsMap[fogCellY[1]][fogCellX[1]];
+    const int fogIdx00 = fogIdxGrid[0][0];
+    const int fogIdx10 = fogIdxGrid[0][1];
+    const int fogIdx01 = fogIdxGrid[1][0];
+    const int fogIdx11 = fogIdxGrid[1][1];
 
     v00.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx00, v00.Fog, m_isUnderwater));
     v10.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx10, v10.Fog, m_isUnderwater));
@@ -689,9 +699,22 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
     int      fogIdx[3][3];
     Vector3d fogCol[3][3];
     float    alpha[3][3];
+    const int fogCellX[3] = { ((x) & (ctMapSize - 1)) >> 1,
+                              ((x + 1) & (ctMapSize - 1)) >> 1,
+                              ((x + 2) & (ctMapSize - 1)) >> 1 };
+    const int fogCellY[3] = { ((y) & (ctMapSize - 1)) >> 1,
+                              ((y + 1) & (ctMapSize - 1)) >> 1,
+                              ((y + 2) & (ctMapSize - 1)) >> 1 };
     for (int j = 0; j < 3; ++j) {
+        const bool sameFogRow = (j > 0 && fogCellY[j] == fogCellY[j - 1]);
         for (int i = 0; i < 3; ++i) {
-            fogIdx[j][i] = GetFogIndexForMapPoint(x + i, y + j);
+            if (sameFogRow) {
+                fogIdx[j][i] = fogIdx[j - 1][i];
+            } else if (i > 0 && fogCellX[i] == fogCellX[i - 1]) {
+                fogIdx[j][i] = fogIdx[j][i - 1];
+            } else {
+                fogIdx[j][i] = FogsMap[fogCellY[j]][fogCellX[i]];
+            }
             v[j][i].Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx[j][i], v[j][i].Fog, m_isUnderwater));
             fogCol[j][i] = GetFogColorForMapPoint(fogIdx[j][i]);
             alpha[j][i] = CalcTerrainAlpha(VertexDistanceSq(v[j][i].v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
