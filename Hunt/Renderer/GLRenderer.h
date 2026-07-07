@@ -135,6 +135,13 @@ private:
     };
     static_assert(sizeof(ModelVertex) == 32, "ModelVertex must stay 32 bytes (Phase 1.4)");
 
+    // 2.17: draws a batched set of element octagons in one call (see GLRenderer.cpp).
+    void DrawElementBatch(const std::vector<ModelVertex>& batch);
+    // 2.17: appends one element octagon to `out` using the same geometry/colour/depth
+    // math as RenderCircle(); shared by DrawElementBatch and the per-element fallback.
+    static void BuildElementOctagon(std::vector<ModelVertex>& out, float cx, float cy, float z,
+                                    float R, uint32_t RGBA, uint32_t RGBA2);
+
     // Phase 1.4 conversion helpers: float [0,1] / float [0,255] -> uint8.
     // Drivers normalize the uint8 attribute back to [0,1] in the vertex
     // shader, so the shader sees the same values as the old float layout.

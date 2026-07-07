@@ -472,6 +472,27 @@ GLOBAL int  NightVisionKey;
 
 GLOBAL int  OptFov;
 
+// ── GPU performance-optimization feature flags (global runtime kill-switch) ──
+// Single bitmask read by each new GPU optimization. Set the mask to 0 in
+// config.cfg ("gpufeatures 0") to disable ALL new GPU optimizations at once;
+// individual bits toggle features granularly. This is a runtime switch only —
+// no per-feature build tasks / presets.
+enum GpuFeature : uint32_t {
+    GPUF_ELEMENTS_INSTANCING   = 1u << 0,  // 2.17 elements batching
+    GPUF_SHADOWS_INSTANCING    = 1u << 1,  // 2.19 shadows instancing
+    GPUF_CHARACTERS_INSTANCING = 1u << 2,  // 2.16 characters instancing
+    GPUF_WATER_CLIP_GPU        = 1u << 3,  // 2.10 water-plane clip on GPU
+    GPUF_NEAR_CLIP_GPU         = 1u << 4,  // 2.11 near-plane clip on GPU
+    GPUF_BACKFACE_CULL         = 1u << 5,  // 2.8  GPU back-face cull
+};
+GLOBAL uint32_t g_gpuFeatures;
+inline bool GpuFeatureEnabled(GpuFeature f) {
+    return (g_gpuFeatures & static_cast<uint32_t>(f)) != 0;
+}
+constexpr uint32_t kGpuFeaturesDefault =
+    GPUF_ELEMENTS_INSTANCING | GPUF_SHADOWS_INSTANCING | GPUF_CHARACTERS_INSTANCING |
+    GPUF_WATER_CLIP_GPU | GPUF_NEAR_CLIP_GPU | GPUF_BACKFACE_CULL;
+
 GLOBAL int  OptFpsLimit;
 
 

@@ -557,6 +557,8 @@ void InitEngine()
   // overwrites this default with the persisted value (or keeps this
   // default if the saved value is missing/out-of-range).
   OptFov = kFovDefault;
+  g_gpuFeatures = kGpuFeaturesDefault;  // GPU-optimization kill-switch (see GameState.h)
+
   OptViewR = kViewOptDefault;
   OptObjectDetail = kObjectDetailDefault;
 OptFpsLimit = 0;  // 0 = unlimited
@@ -822,7 +824,13 @@ static void LoadConfig()
       else if (_stricmp(key, "nightvision_key") == 0) {
         NightVisionKey = value;
       }
+      else if (_stricmp(key, "gpufeatures") == 0) {
+        // Runtime GPU-optimization kill-switch bitmask (see GpuFeature in GameState.h).
+        // 0 disables all new GPU optimizations; bits toggle features individually.
+        g_gpuFeatures = static_cast<uint32_t>(value);
+      }
       // Future settings: add else-if branches here
+
     }
 
     line = strtok_s(nullptr, "\r\n", &ctx);

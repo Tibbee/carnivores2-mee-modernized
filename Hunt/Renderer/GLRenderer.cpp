@@ -804,6 +804,99 @@ void GLRenderer::DrawUnderwaterOverlay()
     RenderFSRect(packed, false);
 }
 
+// ── 2.17 Elements batching ──────────────────────────────────────────────
+// Builds one element "circle" (octagon, matching D3D/3DFX) into `out` using the
+// exact geometry/colour/depth math of RenderCircle(). Shared by the batched
+// instanced path (RenderElements) so the optimised and fallback paths cannot
+// diverge. RenderCircle() itself is left untouched as the per-element fallback.
+void GLRenderer::BuildElementOctagon(std::vector<ModelVertex>& out,
+                                float cx, float cy, float z,
+                                float R, uint32_t RGBA, uint32_t RGBA2)
+{
+    auto unpackABGR = [](uint32_t c, uint8_t& r, uint8_t& g, uint8_t& b, uint8_t& a) {
+        a = static_cast<uint8_t>((c >> 24) & 0xFF);
+        b = static_cast<uint8_t>((c >> 16) & 0xFF);
+        g = static_cast<uint8_t>((c >> 8) & 0xFF);
+        r = static_cast<uint8_t>(c & 0xFF);
+    };
+    uint8_t cr, cg, cb, ca;
+    uint8_t er, eg, eb, ea;
+    unpackABGR(RGBA, cr, cg, cb, ca);
+    unpackABGR(RGBA2, er, eg, eb, ea);
+
+    float r  = floorf(R * 16.0f) / 16.0f;
+    float r2 = floorf(0.65f * R * 16.0f) / 16.0f;
+
+    float ndcX = (cx - VideoCX) / VideoCX;
+    float ndcY = (VideoCY - cy) / VideoCY;
+
+    const float nearPlane = 16.0f;
+    const float farPlane  = static_cast<float>(ctViewR) * 256.0f + 4096.0f;
+    const float fpn = farPlane + nearPlane;
+    const float fmn = farPlane - nearPlane;
+    float ndcZ_depth = 1.0f;
+    if (z < 0.0f) {
+        ndcZ_depth = fpn / fmn + (2.0f * farPlane * nearPlane) / (fmn * z);
+        if (ndcZ_depth < -1.0f) ndcZ_depth = -1.0f;
+        if (ndcZ_depth >  1.0f) ndcZ_depth =  1.0f;
+    }
+
+    const uint8_t lightByte  = 255;
+    const uint8_t fogByte    = 255;
+    const uint8_t cutoutByte = 0;
+
+    auto makeCircleVertex = [&](float x, float y, uint8_t vr, uint8_t vg,
+                                uint8_t vb, uint8_t va) -> ModelVertex {
+        return {x, y, ndcZ_depth, 0.0f, 0.0f,
+                lightByte, fogByte, va, cutoutByte,
+                vr, vg, vb, {0,0,0,0,0}};
+    };
+
+    const float dx[8] = { 0.0f,  r2,  r,  r2,  0.0f, -r2, -r, -r2 };
+    const float dy[8] = { -r,   -r2, 0.0f, r2,   r,    r2,  0.0f, -r2 };
+
+    for (int i = 0; i < 8; i++) {
+        int next = (i + 1) % 8;
+        out.push_back(makeCircleVertex(ndcX, ndcY, cr, cg, cb, ca));
+        float ex1 = ndcX + dx[i] / VideoCX;
+        float ey1 = ndcY - dy[i] / VideoCY;
+        out.push_back(makeCircleVertex(ex1, ey1, er, eg, eb, ea));
+        float ex2 = ndcX + dx[next] / VideoCX;
+        float ey2 = ndcY - dy[next] / VideoCY;
+        out.push_back(makeCircleVertex(ex2, ey2, er, eg, eb, ea));
+    }
+}
+
+// Draws a whole batch of element octagons in ONE call (2.17). Replicates
+// RenderCircle()'s exact GL state setup/teardown so behaviour is identical to
+// the per-element path, just with a single draw + buffer orphan.
+void GLRenderer::DrawElementBatch(const std::vector<ModelVertex>& batch)
+{
+    if (batch.empty()) return;
+
+    const std::array<float, 16> identity = {
+        1.0f,0.0f,0.0f,0.0f, 0.0f,1.0f,0.0f,0.0f, 0.0f,0.0f,1.0f,0.0f, 0.0f,0.0f,0.0f,1.0f
+    };
+    UpdatePerFrameUBO(identity);
+    m_modelShader.Use();
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_FALSE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_whiteTexture);
+    glBindVertexArray(m_modelVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
+    const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(batch.size() * sizeof(ModelVertex));
+    glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, batch.data());
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(batch.size()));
+    glBindVertexArray(0);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+}
+
 void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGBA, uint32_t RGBA2)
 {
     // The game stores colors in ABGR format (R in bits 0-7, B in bits 16-23).
@@ -980,6 +1073,15 @@ void GLRenderer::RenderElements()
     GL_PERF_SCOPE("RenderElements");
 #endif
 
+    // 2.17: when GPUF_ELEMENTS_INSTANCING is on, accumulate all element
+    // octagons into one vertex buffer and draw them in a single call
+    // (DrawElementBatch) instead of one draw per element. The original
+    // per-element RenderCircle() path is kept as the fallback and is used
+    // when the feature is off (disable via config.cfg "gpufeatures 0").
+    const bool elementsInstanced = GpuFeatureEnabled(GPUF_ELEMENTS_INSTANCING);
+    std::vector<ModelVertex> elementBatch;
+    elementBatch.reserve(1024);
+
     // ── Regular elements (muzzle flashes, impact sparks, etc.) ─────
     for (int eg = 0; eg < ElCount; eg++) {
         for (int e = 0; e < Elements[eg].ECount; e++) {
@@ -1002,8 +1104,11 @@ void GLRenderer::RenderElements()
 
             float sx = VideoCX - static_cast<int>((CameraW * rpos.x / rpos.z * 16)) / 16.0f;
             float sy = VideoCY + static_cast<int>((CameraH * rpos.y / rpos.z * 16)) / 16.0f;
-            RenderCircle(sx, sy, rpos.z, -r * CameraW * 0.64f / rpos.z,
-                         fogRGBA, fogRGBA2);
+            if (elementsInstanced)
+                BuildElementOctagon(elementBatch, sx, sy, rpos.z, -r * CameraW * 0.64f / rpos.z, fogRGBA, fogRGBA2);
+            else
+                RenderCircle(sx, sy, rpos.z, -r * CameraW * 0.64f / rpos.z,
+                             fogRGBA, fogRGBA2);
         }
     }
 
@@ -1040,8 +1145,11 @@ void GLRenderer::RenderElements()
         float sx = VideoCX - static_cast<int>((CameraW * rpos.x / rpos.z * 16)) / 16.0f;
         float sy = VideoCY + static_cast<int>((CameraH * rpos.y / rpos.z * 16)) / 16.0f;
 
-        RenderCircle(sx, sy, rpos.z, -12.0f * CameraW * 0.64f / rpos.z,
-                     fogCenter, fogEdge);
+        if (elementsInstanced)
+            BuildElementOctagon(elementBatch, sx, sy, rpos.z, -12.0f * CameraW * 0.64f / rpos.z, fogCenter, fogEdge);
+        else
+            RenderCircle(sx, sy, rpos.z, -12.0f * CameraW * 0.64f / rpos.z,
+                         fogCenter, fogEdge);
     }
 
     // ── Snow particles ────────────────────────────────────────────
@@ -1080,10 +1188,19 @@ void GLRenderer::RenderElements()
             float sx = VideoCX - static_cast<int>((CameraW * rpos.x / rpos.z * 16)) / 16.0f;
             float sy = VideoCY + static_cast<int>((CameraH * rpos.y / rpos.z * 16)) / 16.0f;
 
-            RenderCircle(sx, sy, rpos.z,
-                         -8.0f * CameraW * 0.64f / rpos.z * SnowInfo[st].snow_rad,
-                         fogCenter, fogEdge);
+            if (elementsInstanced)
+                BuildElementOctagon(elementBatch, sx, sy, rpos.z,
+                                   -8.0f * CameraW * 0.64f / rpos.z * SnowInfo[st].snow_rad,
+                                   fogCenter, fogEdge);
+            else
+                RenderCircle(sx, sy, rpos.z,
+                             -8.0f * CameraW * 0.64f / rpos.z * SnowInfo[st].snow_rad,
+                             fogCenter, fogEdge);
         }
+    }
+
+    if (elementsInstanced && !elementBatch.empty()) {
+        DrawElementBatch(elementBatch);
     }
 }
 
