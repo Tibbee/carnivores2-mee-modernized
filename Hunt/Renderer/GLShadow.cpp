@@ -11,7 +11,8 @@
 #include "glad/glad.h"
 #include <cmath>
 
-void GLRenderer::RenderProjectedCharacterShadow(const TCharacter& character, float alpha)
+void GLRenderer::BuildCharacterShadowVertices(const TCharacter& character, float alpha,
+                                              std::vector<ModelVertex>& outVerts)
 {
     if (!character.pinfo || !character.pinfo->mptr || alpha <= 0.0f) {
         return;
@@ -58,8 +59,7 @@ void GLRenderer::RenderProjectedCharacterShadow(const TCharacter& character, flo
         return;
     }
 
-    std::vector<ModelVertex> shadowVertices;
-    shadowVertices.reserve(static_cast<size_t>(mptr->FCount) * 3);
+    outVerts.reserve(static_cast<size_t>(mptr->FCount) * 3);
 
     for (int f = 0; f < mptr->FCount; ++f) {
         const TFace& face = mptr->gFace[f];
@@ -77,11 +77,16 @@ void GLRenderer::RenderProjectedCharacterShadow(const TCharacter& character, flo
         const uint8_t fogByte    = 0;
         const uint8_t alphaByte  = Float01ToByte(alpha);
         const uint8_t cutoutByte = 0;
-        shadowVertices.push_back({p0.x, p0.y, p0.z, 0.0f, 0.0f, lightByte, fogByte, alphaByte, cutoutByte, 0, 0, 0, {0,0,0,0,0}});
-        shadowVertices.push_back({p1.x, p1.y, p1.z, 0.0f, 0.0f, lightByte, fogByte, alphaByte, cutoutByte, 0, 0, 0, {0,0,0,0,0}});
-        shadowVertices.push_back({p2.x, p2.y, p2.z, 0.0f, 0.0f, lightByte, fogByte, alphaByte, cutoutByte, 0, 0, 0, {0,0,0,0,0}});
+        outVerts.push_back({p0.x, p0.y, p0.z, 0.0f, 0.0f, lightByte, fogByte, alphaByte, cutoutByte, 0, 0, 0, {0,0,0,0,0}});
+        outVerts.push_back({p1.x, p1.y, p1.z, 0.0f, 0.0f, lightByte, fogByte, alphaByte, cutoutByte, 0, 0, 0, {0,0,0,0,0}});
+        outVerts.push_back({p2.x, p2.y, p2.z, 0.0f, 0.0f, lightByte, fogByte, alphaByte, cutoutByte, 0, 0, 0, {0,0,0,0,0}});
     }
+}
 
+void GLRenderer::RenderProjectedCharacterShadow(const TCharacter& character, float alpha)
+{
+    std::vector<ModelVertex> shadowVertices;
+    BuildCharacterShadowVertices(character, alpha, shadowVertices);
     if (shadowVertices.empty()) {
         return;
     }
@@ -150,16 +155,35 @@ void GLRenderer::RenderProjectedShadows()
                   return a.first > b.first;
               });
 
-    for (const auto& entry : sortedCharacters) {
-        const TCharacter& character = *entry.second;
-        float alpha = 0x60 / 255.0f;
-        if (character.Health == 0) {
-            const int aniTime = character.pinfo->Animation[character.Phase].AniTime;
-            if (aniTime > 0) {
-                alpha *= static_cast<float>(aniTime - character.FTime) / static_cast<float>(aniTime);
+    if (GpuFeatureEnabled(GPUF_SHADOWS_INSTANCING)) {
+        std::vector<ModelVertex> shadowBatch;
+        shadowBatch.reserve(sortedCharacters.size() * static_cast<size_t>(384));
+        for (const auto& entry : sortedCharacters) {
+            const TCharacter& character = *entry.second;
+            float alpha = 0x60 / 255.0f;
+            if (character.Health == 0) {
+                const int aniTime = character.pinfo->Animation[character.Phase].AniTime;
+                if (aniTime > 0) {
+                    alpha *= static_cast<float>(aniTime - character.FTime) / static_cast<float>(aniTime);
+                }
             }
+            BuildCharacterShadowVertices(character, alpha, shadowBatch);
         }
-        RenderProjectedCharacterShadow(character, alpha);
+        if (!shadowBatch.empty()) {
+            DrawModelVertices(m_whiteTexture, shadowBatch, BuildLegacyProjection(), true, true, false);
+        }
+    } else {
+        for (const auto& entry : sortedCharacters) {
+            const TCharacter& character = *entry.second;
+            float alpha = 0x60 / 255.0f;
+            if (character.Health == 0) {
+                const int aniTime = character.pinfo->Animation[character.Phase].AniTime;
+                if (aniTime > 0) {
+                    alpha *= static_cast<float>(aniTime - character.FTime) / static_cast<float>(aniTime);
+                }
+            }
+            RenderProjectedCharacterShadow(character, alpha);
+        }
     }
 }
 

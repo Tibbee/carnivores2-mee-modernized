@@ -245,6 +245,11 @@ private:
     void RenderTerrain();
     void RenderWaterSurface();
     void RenderWorldModels();
+    // 2.19: builds a character's projected shadow triangles into `outVerts`
+    // (no draw); shared by RenderProjectedCharacterShadow (fallback) and the
+    // batched path in RenderProjectedShadows.
+    static void BuildCharacterShadowVertices(const TCharacter& character, float alpha,
+                                            std::vector<ModelVertex>& outVerts);
     void RenderProjectedCharacterShadow(const TCharacter& character, float alpha);
     void DrawVertexBatch(const TerrainVertex* vertices, size_t count);
     GLuint UploadModelTexture(TModel* mptr);
