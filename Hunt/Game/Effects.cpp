@@ -97,6 +97,23 @@ void PreCashGroundModel()
   MapMinY = 10241024;
   Vector3d rv;
 
+  // Cache the camera basis used by RotateVector for the entire ground precache
+  // sweep. The globals are fixed for this call; keeping them local removes
+  // thousands of function calls/global loads from the terrain+water grid pass.
+  const float localCa = ca;
+  const float localSa = sa;
+  const float localCb = cb;
+  const float localSb = sb;
+  auto rotateCached = [localCa, localSa, localCb, localSb](const Vector3d& in) {
+    Vector3d out;
+    const float vx = in.x * localCa + in.z * localSa;
+    const float vz = in.z * localCa - in.x * localSa;
+    out.x = vx;
+    out.y = in.y * localCb - vz * localSb;
+    out.z = vz * localCb + in.y * localSb;
+    return out;
+  };
+
 
   for (y=-(ctViewR+3); y<(ctViewR+3); y++)
     for (x=-(ctViewR+3); x<(ctViewR+3); x++)
@@ -136,7 +153,7 @@ void PreCashGroundModel()
           rv.z += wc.wz[0] + wc.wz[1] + wc.wz[2];
         }
 
-        rv = RotateVector(rv);
+        rv = rotateCached(rv);
         VMap2[kViewGridCenter + y][kViewGridCenter + x].v = rv;
 
         if (fabs(rv.x) > -rv.z + 1524)
@@ -220,7 +237,7 @@ void PreCashGroundModel()
 #else
 #endif
 
-      rv = RotateVector(v[0]);
+      rv = rotateCached(v[0]);
 
 
       if (fabs(rv.x * FOVK) > -rv.z + 1600)
