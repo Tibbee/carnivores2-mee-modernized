@@ -524,9 +524,20 @@ void TraceHitBox()
 
 	CreateMorphedModel(HitBoxModel.mptr.get(), &HitBoxModel.Animation[HitBox.phase], 0, 1.0);
 
-	float ca = static_cast<float>(cos(-cptr->alpha + pi / 2.f));
-
-	float sa = static_cast<float>(sin(-cptr->alpha + pi / 2.f));
+	static float cachedAlpha = 0.0f;
+	static float cachedCa = 0.0f;
+	static float cachedSa = 1.0f;
+	static bool cacheValid = false;
+	if (!cacheValid || cachedAlpha != cptr->alpha)
+	{
+		cachedAlpha = cptr->alpha;
+		// cos(-alpha + pi/2) == sin(alpha), sin(-alpha + pi/2) == cos(alpha)
+		cachedCa = static_cast<float>(sin(cptr->alpha));
+		cachedSa = static_cast<float>(cos(cptr->alpha));
+		cacheValid = true;
+	}
+	const float ca = cachedCa;
+	const float sa = cachedSa;
 
 	for (int vv = 0; vv < mptr->VCount; vv++)
 
@@ -592,9 +603,10 @@ void TraceCharacter(int c)
 
   CreateChMorphedModel(cptr);
 
-  float ca = static_cast<float>(cos(-cptr->alpha + pi / 2.f));
-
-  float sa = static_cast<float>(sin(-cptr->alpha + pi / 2.f));
+  // Character animation maintains lookz=sin(alpha), lookx=cos(alpha).
+  // Reuse those cached basis terms instead of doing two trig calls per traced character.
+  const float ca = cptr->lookz;
+  const float sa = cptr->lookx;
 
   for (int vv=0; vv<mptr->VCount; vv++)
 
