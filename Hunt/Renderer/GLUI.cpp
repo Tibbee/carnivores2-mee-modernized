@@ -336,6 +336,13 @@ static void Put8PixelBuf(int x, int y, WORD color)
 
 static void DrawCircleBuf(int cx, int cy, int radius, WORD color)
 {
+    // Mark the circle's bounding box dirty so the HUD dirty-rect system
+    // can erase it after the map closes. The view-distance circle
+    // (ctViewR/4) can spill outside the map background's own dirty rect
+    // when the player is near the map edge; without this its outer
+    // pixels linger on the HUD texture after the map is dismissed.
+    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(cx - radius, cy - radius, radius * 2, radius * 2);
+
     int d = 3 - (2 * radius);
     int x = 0;
     int y = radius;
@@ -362,6 +369,7 @@ static void DrawCircleBuf(int cx, int cy, int radius, WORD color)
 
 static void DrawBoxBuf(int x, int y, int size, WORD color)
 {
+    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x, y, size, size);
     for (int dy = 0; dy < size; dy++)
         for (int dx = 0; dx < size; dx++)
             PutPixelBuf(x + dx, y + dy, color);
@@ -369,6 +377,7 @@ static void DrawBoxBuf(int x, int y, int size, WORD color)
 
 static void DrawBoxMysteryBuf(int x, int y, WORD color)
 {
+    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x, y, 4, 6);
     PutPixelBuf(x + 1, y, color);
     PutPixelBuf(x + 2, y, color);
     PutPixelBuf(x + 1, y + 1, color);
