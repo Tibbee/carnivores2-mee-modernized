@@ -31,7 +31,18 @@ struct TPoint3d
 struct TFace
 {
   int v1, v2, v3;
+#ifdef _soft
+  // The x86 software rasterizer (DrawModelFace / DrawCorrectedTexturedFace in
+  // renderasm.cpp) expects per-face UVs in 16.16 fixed-point int. ModelLoader's
+  // _soft path (CorrectModel) bit-copies that fixed-point value into these
+  // fields; the consumer does `mscrp.tx = fptr->tax` (int = int). Making these
+  // float (as the Phase 1.4 TFace unification did) turns that read into an
+  // int<-float VALUE conversion of garbage bits -> UVs collapse to 0 -> black
+  // model textures. Keep int under _soft, float otherwise.
+  int   tax, tbx, tcx, tay, tby, tcy;
+#else
   float tax, tbx, tcx, tay, tby, tcy;
+#endif
   unsigned short Flags, DMask;
   int Distant, Next, group;
   char reserv[12];
