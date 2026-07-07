@@ -5,10 +5,10 @@ project(Carnivores1)
 cmake_policy(SET CMP0091 NEW)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-# Renderer selection: D3D, SOFT, 3DFX, or GL.
+# Renderer selection: SOFT or GL.
 # Leave empty (unset) to build only the standalone menu executable.
-set(RENDERER "" CACHE STRING "Select the renderer: D3D, SOFT, 3DFX, or GL. Leave empty to build the menu only.")
-set_property(CACHE RENDERER PROPERTY STRINGS D3D SOFT 3DFX GL "")
+set(RENDERER "" CACHE STRING "Select the renderer: SOFT or GL. Leave empty to build the menu only.")
+set_property(CACHE RENDERER PROPERTY STRINGS SOFT GL "")
 
 # Phase 0.1 in-engine GL perf harness. Defaults OFF. The ogl-release
 # preset turns this ON because perf measurements must run on the
@@ -16,7 +16,7 @@ set_property(CACHE RENDERER PROPERTY STRINGS D3D SOFT 3DFX GL "")
 # MEM_DEBUG overhead, so the numbers are useless). To produce a
 # shippable build without the harness, reconfigure with
 # -DGL_PERF_HOOKS=OFF or build a different preset. Has no effect on
-# D3D/SOFT/3DFX builds.
+# SOFT/GL builds.
 option(GL_PERF_HOOKS "Enable in-engine GL performance harness (Phase 0.1)" OFF)
 
 # Ensure we are targeting 32-bit if using MSVC
@@ -50,16 +50,9 @@ endif()
 # Renderer-specific source and library configuration. Skipped entirely when
 # RENDERER is empty (menu-only builds).
 set(RENDER_SRC "")
-set(GLIDE_LIBS "")
 
 if(RENDERER)
-    if(RENDERER STREQUAL "D3D")
-        add_definitions(-D_d3d)
-        set(RENDER_SRC
-            Hunt/Renderer/RendererD3D.cpp
-        )
-        message(STATUS "Building with Direct3D Renderer")
-    elseif(RENDERER STREQUAL "SOFT")
+    if(RENDERER STREQUAL "SOFT")
         add_definitions(-D_soft)
         set(RENDER_SRC
             Hunt/Renderer/RenderSoft.cpp
@@ -76,18 +69,6 @@ if(RENDERER)
             Hunt/Renderer/SoftRenderer.h
         )
         message(STATUS "Building with Software Renderer")
-    elseif(RENDERER STREQUAL "3DFX")
-        add_definitions(-D_3dfx)
-        set(RENDER_SRC
-            Hunt/Renderer/Render3DFX.cpp
-        )
-
-        # Glide 2.x support
-        include_directories(${CMAKE_CURRENT_SOURCE_DIR}/deps/Glide2/include)
-        link_directories(${CMAKE_CURRENT_SOURCE_DIR}/deps/Glide2/lib)
-        set(GLIDE_LIBS glide2x)
-
-        message(STATUS "Building with 3DFX Glide Renderer (using Glide2 folder)")
     elseif(RENDERER STREQUAL "GL")
         add_definitions(-D_gl)
         if(GL_PERF_HOOKS)
@@ -118,7 +99,7 @@ if(RENDERER)
             message(STATUS "Building with OpenGL Renderer")
         endif()
     else()
-        message(FATAL_ERROR "Unknown RENDERER='${RENDERER}'. Expected D3D, SOFT, 3DFX, GL, or empty for menu-only builds.")
+        message(FATAL_ERROR "Unknown RENDERER='${RENDERER}'. Expected SOFT, GL, or empty for menu-only builds.")
     endif()
 else()
     message(STATUS "RENDERER is empty - building menu only (no game executable)")
@@ -233,7 +214,6 @@ if(RENDERER)
         winmm
         ddraw
         opengl32
-        ${GLIDE_LIBS}
     )
 
     # Output directory for the executable
