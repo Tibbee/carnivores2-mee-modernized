@@ -6,6 +6,7 @@
 
 #include "Hunt.h"
 #include "SoftInternal.h"
+#include "Renderer/SoftRenderer.h"
 
 #ifdef _soft
 void STTextOut(int x, int y, LPSTR t, int color)
@@ -466,10 +467,29 @@ void Render_Cross(int sx, int sy)
   }
 }
 
-//======== software has no implementation for 3DHard ===========/
 void Init3DHardware()
 {
   PrintLog("\n");
+
+  // Create the SoftRenderer instance so the IRenderer dispatch in
+  // the game loop actually calls SoftRenderer::DrawFrame (which
+  // delegates to ::DrawScene). Without this, g_SoftRenderer stays
+  // nullptr and nothing 3D renders.
+  if (g_SoftRenderer)
+  {
+    g_SoftRenderer->Shutdown();
+    delete g_SoftRenderer;
+    g_SoftRenderer = nullptr;
+  }
+
+  g_SoftRenderer = new SoftRenderer();
+  if (!g_SoftRenderer->Initialize())
+  {
+    delete g_SoftRenderer;
+    g_SoftRenderer = nullptr;
+    DoHalt("Software renderer initialization failed.");
+  }
+
   PrintLog("==Init Direct Draw==\n");
   HRESULT hres;
 
@@ -525,6 +545,15 @@ void ShutDown3DHardware()
     lpDD->RestoreDisplayMode();
   if (lpDD)
     lpDD->SetCooperativeLevel( hwndMain, DDSCL_NORMAL);
+
+  // Destroy the SoftRenderer instance so the game can be re-initialised
+  // (e.g. mid-game restart) without leaking the previous object.
+  if (g_SoftRenderer)
+  {
+    g_SoftRenderer->Shutdown();
+    delete g_SoftRenderer;
+    g_SoftRenderer = nullptr;
+  }
 }
 
 #endif // _soft
