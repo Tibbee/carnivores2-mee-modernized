@@ -1,5 +1,26 @@
 #ifdef _soft
 
+// P-C6 renderasm.cpp x86 audit (inventory only; do not port/modernize):
+// renderasm.cpp contains the Software renderer's rasterizer inner loops in
+// MSVC inline x86 assembly. The OpenGL renderer does not call this file, and
+// x64 is out of scope for the current project. Leave the asm blocks intact;
+// if a Software profile points here, document the specific loop before any
+// redesign.
+//
+// Inventory summary (all rows: used by GL = No):
+// - HLineTDGlass25/50/75, HLineTBGlass25: translucent terrain/water scanlines;
+//   hot in Software alpha-blended terrain and water spans.
+// - HLineTxGOURAUD, HLineTxB, HLineTxC: opaque textured terrain scanlines;
+//   hot in Software terrain rendering.
+// - HLineTxModel*, HLineTxModelBMP: model scanlines and distance-fade variants;
+//   hot when Software renders many models.
+// - DrawTexturedFace, DrawCorrectedTexturedFace: Software terrain face setup and
+//   span walkers; hot in terrain-heavy Software scenes.
+// - DrawModelFace, DrawModelFaces: Software model face setup and span walkers;
+//   hot in model-heavy Software scenes.
+// - RenderSkyLine* variants: Software sky scanlines; lower cost but still
+//   Software-only frame work.
+
 #include "Hunt.h"
 
 extern int xa;
