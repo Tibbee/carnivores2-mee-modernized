@@ -576,7 +576,7 @@ private:
 
     // Dirty-rectangle HUD upload tracking — avoids uploading the entire
     // lpVideoBuf every frame when only small regions changed.
-    static constexpr int kMaxDirtyRects = 24;
+    static constexpr int kMaxDirtyRects = 64;
     struct DirtyRect { int x, y, w, h; };
     DirtyRect m_dirtyRects[kMaxDirtyRects];       // rects drawn this frame
     DirtyRect m_prevDirtyRects[kMaxDirtyRects];   // rects from previous frame

@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLHUD.cpp � HUD overlay and UI element rendering
+// GLHUD.cpp � HUD overlay and UI element rendering
 // ==========================================================================
 
 #include "Hunt.h"
@@ -181,15 +181,16 @@ void GLRenderer::DrawHUDOverlay()
     } else {
         int totalRects = m_prevDirtyRectCount + m_dirtyRectCount;
         if (totalRects > kMaxDirtyRects) {
-            // Overflow — fall back to full upload this frame
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, VideoPitch);
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WinW, WinH,
-                            GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, lpVideoBuf);
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-        } else {
-            // Upload previous frame's rects that are NOT fully covered by
-            // a current rect (those covered rects will be uploaded anyway
-            // by the current-rect pass below with fresh content).
+            // Too many rects to upload individually — request a full
+            // clear+upload for next frame instead of uploading the (possibly
+            // stale) buffer now. This frame we still upload the tracked
+            // prev/current rects below (fresh content); any older stale pixels
+            // are skipped here and wiped by next frame's full clear.
+            m_hudNeedsFullClear = true;
+        }
+        // Upload previous frame's rects that are NOT fully covered by
+        // a current rect (those covered rects will be uploaded anyway
+        // by the current-rect pass below with fresh content).
             for (int i = 0; i < m_prevDirtyRectCount; i++) {
                 const DirtyRect& r = m_prevDirtyRects[i];
                 bool covered = false;
@@ -209,8 +210,8 @@ void GLRenderer::DrawHUDOverlay()
                 glTexSubImage2D(GL_TEXTURE_2D, 0, r.x, r.y, r.w, r.h,
                                 GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, src);
                 glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-            }
-            // Then upload current frame's rects (newly drawn content)
+        }
+        // Then upload current frame's rects (newly drawn content)
             for (int i = 0; i < m_dirtyRectCount; i++) {
                 const DirtyRect& r = m_dirtyRects[i];
                 const WORD* src = static_cast<const WORD*>(lpVideoBuf)
@@ -220,7 +221,6 @@ void GLRenderer::DrawHUDOverlay()
                                 GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, src);
                 glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
             }
-        }
     }
 
     glDisable(GL_DEPTH_TEST);
@@ -328,9 +328,14 @@ void GLRenderer::MarkDirtyRect(int x, int y, int w, int h)
             return;  // fully contained
     }
 
-    // Overflow guard: fall back to full upload next frame
+    // Overflow guard: too many rects to track individually. Request a full
+    // buffer clear+upload for the NEXT frame instead of uploading the
+    // (possibly stale) buffer now. Simply dropping rects here would leave
+    // their pixels in lpVideoBuf unmarked — and therefore un-erased — which
+    // is exactly what causes HUD text/ghosting to persist. The next frame's
+    // ClearStaleHUDRegions memsets the whole buffer, wiping those pixels.
     if (m_dirtyRectCount >= kMaxDirtyRects) {
-        m_hudNeedsFullUpload = true;
+        m_hudNeedsFullClear = true;
         m_dirtyRectCount = 0;
         return;
     }
