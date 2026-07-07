@@ -24,7 +24,17 @@ struct Vector2df
 
 struct ScrPoint
 {
+#ifdef _soft
+  // The x86 software rasterizer (DrawTexturedFace / DrawCorrectedTexturedFace
+  // in renderasm.cpp) reads scrp as raw 32-bit integers and shifts x by 16 to
+  // build 16.16 fixed-point span extents. These MUST stay int under _soft;
+  // a float field would have its integer value converted on store, so the
+  // asm would reinterpret the float bit-pattern as a coordinate -> garbage
+  // geometry (terrain culled to nothing, near-model/weapon writes OOB -> AV).
+  int   x, y, tx, ty;
+#else
   float x, y, tx, ty;
+#endif
   int Light, z, r2, r3;
 };
 
