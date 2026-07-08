@@ -9,6 +9,7 @@
 #ifdef _gl
 
 #include "glad/glad.h"
+#include <algorithm>
 #include <cmath>
 
 void GLRenderer::RenderSkyPlane()
@@ -29,8 +30,16 @@ void GLRenderer::RenderSkyPlane()
 
     SKYDTime = RealTime & ((1 << 16) - 1);
 
-    const float skyPitchCos = std::cos(CameraBeta - 0.15f);
-    const float skyPitchSin = std::sin(CameraBeta - 0.15f);
+    // §3.8: Dynamic sky pitch offset.  Replace C2's fixed -0.15 rad offset
+    // with one that follows camera altitude: in deep valleys the sky sits
+    // "higher" (larger offset), on mountain peaks it sits lower (smaller
+    // offset).  Range 0.10..0.20 rad, centred on the original 0.15 default.
+    float heightAboveTerrain = (std::max)(0.0f, -CameraY);
+    float altitudeFactor = (std::clamp)(heightAboveTerrain / (200.0f * ctHScale), 0.0f, 1.0f);
+    float pitchOffset = 0.20f - altitudeFactor * 0.10f;
+
+    const float skyPitchCos = std::cos(CameraBeta - pitchOffset);
+    const float skyPitchSin = std::sin(CameraBeta - pitchOffset);
 
     Vector3d tx = {0.004f, 0.0f, 0.0f};
     Vector3d ty = {0.0f, 0.0f, 0.004f};
@@ -378,7 +387,13 @@ void GLRenderer::UpdateSunVisibility()
     float visibility = traceK * skyK;
 
     // Smooth transition
-    float delta = (0.07f + std::fabs(visibility - m_skyTraceK)) * (static_cast<float>(TimeDt) / 512.0f);
+    // §3.4: Asymmetric transition — the eye adapts slowly when the sun
+    // emerges (brighten) but reacts fast when a cloud covers it (darken).
+    float brightenSpeed = 0.04f;
+    float darkenSpeed = 0.12f;
+    float speed = (visibility > m_skyTraceK) ? brightenSpeed : darkenSpeed;
+    float delta = (speed + std::fabs(visibility - m_skyTraceK) * 0.5f)
+                * (static_cast<float>(TimeDt) / 512.0f);
     if (visibility > m_skyTraceK) {
         m_skyTraceK = (std::min)(visibility, m_skyTraceK + delta);
     } else {
@@ -518,6 +533,22 @@ void GLRenderer::RenderSun(float x, float y, float z)
     d += (1.0f - m_skyTraceK) / 2.0f;
     if (OptDayNight == 2) d = 1.5f;
 
+    // §3.3: Sun-size modulation with haze/elevation.  The disc appears
+    // larger through haze and at low sun, smaller on a clear high sun.
+    // NOTE: x/y/z are already the rotated sun direction (the caller rotates
+    // {-2048,4048,-2048} before calling RenderSun), so use them directly —
+    // do NOT re-rotate here (that would double-rotate).
+    float horizonFog = (m_skyTraceK < 0.8f) ? (1.0f - m_skyTraceK) * 0.6f : 0.0f;
+    float altitude = (std::max)(0.0f, -CameraY / ctHScale);
+    float altFactor = (std::clamp)(1.0f - altitude / 200.0f, 0.85f, 1.0f);
+    float sunLen = std::sqrt(x * x + y * y + z * z);
+    float sunElev = (sunLen > 1e-3f) ? y / sunLen : 0.0f;   // up-component of rotated dir
+    float elevFactor = 1.0f + (1.0f - (std::max)(0.0f, sunElev)) * 0.15f;
+    float sizeBoost = 1.0f + horizonFog + (1.0f - altFactor) * 0.1f + (elevFactor - 1.0f);
+    float baseD = d;
+    d *= sizeBoost;
+    d = (std::min)(d, baseD * 1.5f);   // cap at +50% of the base scale
+
     // Underwater depth fade: the sun's corona should dim the deeper the
     // camera is below the water surface, matching the per-vertex fog
     // behaviour on terrain and models.  CameraWaterDepthFactor is computed
@@ -530,7 +561,16 @@ void GLRenderer::RenderSun(float x, float y, float z)
         depthAtten = 1.0f - CameraWaterDepthFactor * 0.7f;
     }
 
-    const int sunAlpha = static_cast<int>(200.0f * m_skyTraceK * depthAtten);
+    // §3.4: Perceptual (non-linear) brightness curve on the *visibility*
+    // signal only.  NOTE: m_sunLight is intentionally left linear — it also
+    // drives the underwater/pocket fog-scatter paths, which are tuned
+    // against the raw linear value.
+    const int sunAlpha = static_cast<int>(200.0f * std::pow(m_skyTraceK, 0.6f) * depthAtten);
+
+    // The moon uses the same sunAlpha as the day sun, so it is already
+    // dimmed by clouds (m_skyTraceK).  RenderModelSun switches to normal
+    // alpha blending at night (no additive glare), and the night-darkness
+    // overlay provides the tonal dimming — so full brightness here is fine.
     RenderModelSun(SunModel.get(), x * d, y * d, z * d, sunAlpha);
 }
 
