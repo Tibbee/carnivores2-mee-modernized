@@ -5,6 +5,7 @@
 #include "Hunt.h"
 #include <algorithm>
 #include <cmath>
+#include "Core/WaterColor.h"  // §3.2: water-colour-aware depth modulation
 
 void CaptureMouse(BOOL capture)
 {
@@ -580,38 +581,21 @@ SKIPYMOVE:
     const float maxDepth = (std::max)(1024.0f, waterLevel - terrainFloor);
     CameraWaterDepthFactor = std::clamp((waterLevel - CameraY) / maxDepth, 0.0f, 1.0f);
 
-    // §3.2: Depth-dependent fog colour — different wavelengths of light
-    // are absorbed at different rates in water (red fastest, blue slowest).
-    // Shift FogsList[127].fogRGB from the surface water colour toward deep
-    // navy as the camera descends.  The mutation is self-correcting: the
-    // per-water-body update above resets fogRGB from WaterList[w].fogRGB
-    // every frame, so the attenuated colour never persists.
+    // §3.2: Depth-dependent fog colour.  Different wavelengths of light are
+    // absorbed at different rates, but the *rates* are no longer fixed to a
+    // blue ocean: they are derived from the water body's own surface colour
+    // (see ModulateWaterColorByDepth in Core/WaterColor.h).  The dominant
+    // channel(s) of the surface colour are transmitted (survive with depth)
+    // while the weaker channels are absorbed, so blue ocean deepens to dark
+    // blue and brown swamp water deepens to dark brown — a darker shade of
+    // the water's OWN hue, instead of always shifting toward navy.
     //
-    // DecodeFogColorBGR (GLUtils.cpp) reads fogRGB as BGR:
-    //   bits  0-7  = Blue,  bits 8-15 = Green,  bits 16-23 = Red
-    {
-      int baseColor = FogsList[127].fogRGB;
-      int baseB = baseColor & 0xFF;           // bits  0-7
-      int baseG = (baseColor >> 8) & 0xFF;    // bits  8-15
-      int baseR = (baseColor >> 16) & 0xFF;   // bits 16-23
-
-      float d = CameraWaterDepthFactor;
-
-      // Per-channel absorption (exponential): red fastest, green medium, blue slowest.
-      // Beer-Lambert curve: exp(-d * k) where k is chosen so the endpoint at d=1
-      // matches the intended loss (red 85%, green 60%, blue 30%).
-      // Exponential gives smaller integer steps near the surface (smoother
-      // transitions) and steeper changes at depth where it's already dark.
-      float rFactor = std::exp(-d * 1.9f);   // exp(-1.9) ≈ 0.15 → 85% loss
-      float gFactor = std::exp(-d * 0.92f);  // exp(-0.92) ≈ 0.40 → 60% loss
-      float bFactor = std::exp(-d * 0.36f);  // exp(-0.36) ≈ 0.70 → 30% loss
-
-      int newR = (std::max)(std::clamp(static_cast<int>(baseR * rFactor), 0, 255), 2);
-      int newG = (std::max)(std::clamp(static_cast<int>(baseG * gFactor), 0, 255), 6);
-      int newB = (std::max)(std::clamp(static_cast<int>(baseB * bFactor), 0, 255), 18);
-
-      FogsList[127].fogRGB = newB | (newG << 8) | (newR << 16);
-    }
+    // The mutation is self-correcting: the per-water-body update above resets
+    // fogRGB from WaterList[w].fogRGB every frame, so the attenuated colour
+    // never persists.  fogRGB is packed BGR (DecodeFogColorBGR reads bits
+    // 0-7 = Blue, 8-15 = Green, 16-23 = Red), which the helper understands.
+    FogsList[127].fogRGB = ModulateWaterColorByDepthBGR(FogsList[127].fogRGB,
+                                                         CameraWaterDepthFactor);
   } else {
     CameraWaterDepthFactor = 0.0f;
   }

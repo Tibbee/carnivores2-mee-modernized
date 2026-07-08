@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "Renderer/GLUtils.h"
+#include "Core/WaterColor.h"  // §3.1: water-colour-aware depth modulation
 
 #define WGL_CONTEXT_MAJOR_VERSION_ARB     0x2091
 #define WGL_CONTEXT_MINOR_VERSION_ARB     0x2092
@@ -773,34 +774,34 @@ void GLRenderer::DrawUnderwaterOverlay()
 
     float depth = CameraWaterDepthFactor;          // 0 at surface, 1 at ~1024u
 
-    // Base colour from current water body's fog (CurFogColor is already set
-    // to WaterList[w].fogRGB by Controls.cpp per-frame update).
-    // C2 stores BGR in CurFogColor for legacy compatibility; decode correctly.
-    int baseR = CurFogColor & 0xFF;
+    // CurFogColor is the depth-modulated water fog colour, refreshed every
+    // frame by Controls.cpp §3.2 (via FogsList[127].fogRGB).  It is packed
+    // BGR: bits 0-7 = Blue, 8-15 = Green, 16-23 = Red (DecodeFogColorBGR).
+    int baseB = CurFogColor & 0xFF;
     int baseG = (CurFogColor >> 8) & 0xFF;
-    int baseB = (CurFogColor >> 16) & 0xFF;
+    int baseR = (CurFogColor >> 16) & 0xFF;
 
-    // Base alpha matches original C2 D3D: ~44%, deeper at depth
+    // Base alpha matches original C2 D3D: ~44%, deeper at depth.
     float alpha = 0.44f + depth * 0.30f;           // up to ~0.74 at max depth
-    // Channel attenuation with depth (blue holds longest, red fades fastest).
-    // When the depth-dependent fog colour (§3.2) is active, soften the
-    // overlay's own chromatic shift so the two effects don't double-saturate
-    // toward blue/indigo at depth.
-    float chromaAtten = (depth > 0.5f) ? 0.7f : 1.0f;  // 30% reduction past mid-depth
-    float rLoss = depth * 0.5f * chromaAtten;
-    float gLoss = depth * 0.3f * chromaAtten;
-    float bLoss = depth * 0.1f * chromaAtten;
-    float r = (baseR / 255.0f) * (1.0f - rLoss);
-    float g = (baseG / 255.0f) * (1.0f - gLoss);
-    float b = (baseB / 255.0f) * (1.0f - bLoss);
 
+    // The per-water-body depth tint is already baked into CurFogColor by §3.2,
+    // so the overlay simply washes that (correctly hued) colour over the
+    // scene.  No extra blue-biased channel attenuation here — the old code
+    // forced brown swamp water toward blue at depth even after §3.2 had
+    // already tinted it correctly.
+    // RenderFSRect decodes the packed colour as r = bits 16-23, g = bits 8-15,
+    // b = bits 0-7 (i.e. red in the HIGH byte, blue in the LOW byte), so the
+    // physical channels must be placed accordingly.  CurFogColor is BGR
+    // (low byte = Blue, high byte = Red), hence baseR is the high byte and
+    // baseB is the low byte below.
     uint32_t packed =
-        (std::clamp(static_cast<int>(r * 255.0f), 0, 255)) |
-        (std::clamp(static_cast<int>(g * 255.0f), 0, 255) << 8) |
-        (std::clamp(static_cast<int>(b * 255.0f), 0, 255) << 16) |
+        (std::clamp(baseR, 0, 255) << 16) |
+        (std::clamp(baseG, 0, 255) <<  8) |
+        (std::clamp(baseB, 0, 255))       |
         (std::clamp(static_cast<int>(alpha * 255.0f), 0, 255) << 24);
 
-    // Standard blend (not additive) — overlay recolours and dims toward fog colour
+    // Standard blend (not additive) — overlay recolours and dims toward the
+    // water body's own depth colour.
     RenderFSRect(packed, false);
 }
 

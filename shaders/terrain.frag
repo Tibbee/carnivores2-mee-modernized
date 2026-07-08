@@ -25,17 +25,31 @@ void main() {
    if (texColor.a < 0.05) discard;
    vec3 litColor = texColor.rgb * vLight;
 
-   // §3.4: Wavelength attenuation — only on terrain vertices underwater.
+   // §3.4: Water-colour-aware wavelength attenuation on terrain underwater.
    // vWaterAlphaFade > 0.5 identifies water surface vertices (which go
    // through the water fade path); terrain vertices have vWaterAlphaFade < 0.5.
    if (uWaterDepthFactor > 0.01 && vWaterAlphaFade < 0.5) {
        float depth = uWaterDepthFactor;
-       // Red absorbed fastest, green medium, blue barely attenuated
-       float redLoss   = clamp(depth * 0.7, 0.0, 0.95);
-       float greenLoss = clamp(depth * 0.4, 0.0, 0.70);
-       litColor *= vec3(1.0 - redLoss, 1.0 - greenLoss, 1.0);
-       // Avoid full black — retain trace channels
-       litColor = max(litColor, vec3(0.01, 0.01, 0.02));
+
+       // The water body's own colour tells us which wavelengths it transmits:
+       // uDistanceFogColor is the (depth-modulated) water fog colour, whose
+       // dominant channel(s) reveal the water's hue.  We attenuate the
+       // NON-dominant channels more, letting the water's own tint survive —
+       // so blue ocean keeps blue while brown swamp water keeps its brown.
+       // The old fixed "red/green lost, blue kept" curve wrongly turned swamp
+       // water blue at depth.  Mirrors ModulateWaterColorByDepth() in C++.
+       vec3 waterTint = uDistanceFogColor;
+       float maxc  = max(waterTint.r, max(waterTint.g, waterTint.b));
+       const float kFloor = 0.40;
+       const float kScale = 2.20;
+       float invMax = 1.0 / max(maxc, 0.001);
+       float kR = kFloor + kScale * (1.0 - waterTint.r * invMax);
+       float kG = kFloor + kScale * (1.0 - waterTint.g * invMax);
+       float kB = kFloor + kScale * (1.0 - waterTint.b * invMax);
+       litColor *= vec3(exp(-depth * kR), exp(-depth * kG), exp(-depth * kB));
+
+       // Avoid full black — retain a trace of every channel.
+       litColor = max(litColor, vec3(0.01));
    }
 
    // Per-vertex volumetric fog (volume-specific color and amount).
