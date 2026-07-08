@@ -187,7 +187,10 @@ void ShowVideo()
         // use 1.25x with linear skyTraceK, giving peak alpha ~175/255 ≈ 0.69.
         const float kGlareBoost = 1.25f;
         sunLight = (std::min)(255.0f, sunLight * kGlareBoost);
-        if (!IsUnderwater() && sunLight > 1.0f) {
+        // Night (moon): skip the sun glare — a moon shouldn't produce a
+        // blinding yellow flash.  The moon's model is already drawn as a
+        // dim, non-additive disc in RenderModelSun.
+        if (!IsUnderwater() && OptDayNight != 2 && sunLight > 1.0f) {
             uint32_t glareColor = 0xFFFFC0 | (static_cast<uint32_t>(sunLight) << 24);
             g_GLRenderer->RenderFSRect(glareColor);
         }

@@ -461,7 +461,12 @@ void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int 
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);  // additive blending for sun
+    // Day sun: additive blending for the bright corona.  Night moon:
+    // normal alpha blend so it composites as a dim disc (no glare/bloom).
+    if (OptDayNight == 2)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    else
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
