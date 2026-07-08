@@ -46,5 +46,22 @@ void main() {
    }
    vec2 uv = vec2((skyU + uSkyTime) / 256.0, (skyV - uSkyTime) / 256.0);
    vec3 skyColor = texture(uSkyTexture, uv).rgb;
+
+   // §3.1: Horizon-zenith gradient.  Real skies are not flat: the zenith
+   // is darker and more saturated, while the horizon is lighter and warmer.
+   // vNdc.y is -1 at the bottom and +1 at the top; treat y = 0 as the
+   // horizon.  No new uniforms — derived from vNdc and the existing fog.
+   float vert = max(0.0, vNdc.y);                 // 0 at horizon, 1 at zenith
+
+   // Zenith darkening: 1.0 at the horizon, 0.92 at the zenith.
+   float zenithDark = 0.92 + 0.08 * (1.0 - vert);
+   skyColor *= zenithDark;
+
+   // Warm horizon glow, Gaussian falloff upward; fog hides it.
+   float horizonGlow = exp(-vert * vert * 20.0);
+   vec3 glowColor = vec3(1.0, 0.85, 0.6);        // warm golden
+   float glowStrength = 0.15 * (1.0 - fogFactor);
+   skyColor += glowColor * horizonGlow * glowStrength;
+
    FragColor = vec4(mix(skyColor, uFogColor, fogFactor), 1.0);
 }
