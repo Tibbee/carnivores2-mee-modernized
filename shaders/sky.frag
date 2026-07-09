@@ -1,5 +1,6 @@
 #version 330 core
 in vec2 vNdc;
+in vec3 vWorldDir;     // world-space view-ray dir (y = elevation factor)
 out vec4 FragColor;
 uniform PerFrame {
    mat4 uProjection;
@@ -53,11 +54,17 @@ void main() {
    vec2 uv = vec2((skyU + uSkyTime) / 256.0, (skyV - uSkyTime) / 256.0);
    vec3 skyColor = texture(uSkyTexture, uv).rgb;
 
+   // World-space view ray (camera basis passed from C++).  Its .y is the
+   // elevation factor: 0 at the true horizon, +1 straight up — independent
+   // of camera pitch, so the gradient stays anchored to the world horizon.
+   vec3 wdir = normalize(vWorldDir);
+
    // §3.1: Horizon-zenith gradient.  Real skies are not flat: the zenith
    // is darker and more saturated, while the horizon is lighter and warmer.
-   // vNdc.y is -1 at the bottom and +1 at the top; treat y = 0 as the
-   // horizon.  No new uniforms — derived from vNdc and the existing fog.
-   float vert = max(0.0, vNdc.y);                 // 0 at horizon, 1 at zenith
+   // Derived from the world-space elevation (wdir.y), not the screen, so it
+   // does not swim when the camera pitches up/down.  (The debug-tab gradient
+   // uniforms operate on this same world-anchored vert.)
+   float vert = max(0.0, wdir.y);                 // 0 at horizon, 1 at zenith
 
    // Zenith darkening: 1.0 at the horizon, 0.92 at the zenith.
    float zenithDark = 0.92 + 0.08 * (1.0 - vert);
@@ -108,7 +115,7 @@ void main() {
    // the zenith stays clear so the gradient/glow still read.  Applied after
    // the water-line fade that is already folded into fogFactor.
    vec3 color = mix(skyColor, uFogColor, fogFactor);
-   float vertFade = clamp(vNdc.y * 0.5 + 0.5, 0.0, 1.0);
+   float vertFade = clamp(wdir.y * 0.5 + 0.5, 0.0, 1.0);
    vertFade = pow(vertFade, 3.0);                 // 0 at horizon, 1 at zenith
    float pocketFade = uPocketFog * (1.0 - vertFade);
    color = mix(color, uPocketFogColor, pocketFade);

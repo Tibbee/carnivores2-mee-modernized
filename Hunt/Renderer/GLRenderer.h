@@ -453,6 +453,9 @@ private:
     int m_locSkyBodyIsMoon = -1;     // sky shader: uBodyIsMoon (§3.6)
     int m_locSkyPocketFog = -1;        // sky shader: uPocketFog (§3.5)
     int m_locSkyPocketFogColor = -1;   // sky shader: uPocketFogColor (§3.5)
+    int m_locSkyCamRight = -1;        // sky shader: uCamRight (world-space gradient)
+    int m_locSkyCamUp = -1;           // sky shader: uCamUp (world-space gradient)
+    int m_locSkyCamForward = -1;      // sky shader: uCamForward (world-space gradient)
 
     // PerFrame UBO (Phase 1.1): binding 0, shared by terrain and model shaders.
     // std140 layout: mat4 uProjection + vec2 uFogRange + vec3 uDistanceFogColor

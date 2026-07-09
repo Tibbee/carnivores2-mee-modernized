@@ -134,6 +134,25 @@ void GLRenderer::RenderSkyPlane()
     glUniform1f(m_locSkySunGlow, (OptDayNight == 2) ? 0.10f : 0.18f);
     glUniform1f(m_locSkyBodyIsMoon, (OptDayNight == 2) ? 1.0f : 0.0f);
 
+    // §3.1 (world-space gradient): pass the camera basis so the sky shader
+    // can derive the view ray's world elevation (pitch-invariant horizon).
+    // Follows the engine's RotateVector convention: CameraAlpha rotates about
+    // Y, CameraBeta about X; the look direction is world -Z at zero angles.
+    {
+        const float camCa = std::cos(CameraAlpha);
+        const float camSa = std::sin(CameraAlpha);
+        const float camCb = std::cos(CameraBeta);
+        const float camSb = std::sin(CameraBeta);
+        const Vector3d camRight   = { camCa, 0.0f, camSa };
+        const Vector3d camUp      = { camSb * camSa, camCb, -camSb * camCa };
+        const Vector3d camForward = { camCb * camSa, -camSb, -camCb * camCa };
+        const float tanX = (CameraW > 1e-3f) ? VideoCX / CameraW : 1.0f;
+        const float tanY = (CameraH > 1e-3f) ? VideoCY / CameraH : 1.0f;
+        glUniform3f(m_locSkyCamRight,   camRight.x * tanX,   camRight.y * tanX,   camRight.z * tanX);
+        glUniform3f(m_locSkyCamUp,      camUp.x * tanY,      camUp.y * tanY,      camUp.z * tanY);
+        glUniform3f(m_locSkyCamForward, camForward.x,        camForward.y,        camForward.z);
+    }
+
     // §3.5: Per-pixel pocket fog on the sky.  Sample CalcFogLevel at the
     // camera (origin in view space) and, when a pocket fog volume is active,
     // pass its density/colour to the shader so the horizon blends into it.

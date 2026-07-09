@@ -312,6 +312,9 @@ bool GLRenderer::Initialize()
     m_locSkyBodyIsMoon     = glGetUniformLocation(m_skyShader.GetProgramID(), "uBodyIsMoon");
     m_locSkyPocketFog      = glGetUniformLocation(m_skyShader.GetProgramID(), "uPocketFog");
     m_locSkyPocketFogColor = glGetUniformLocation(m_skyShader.GetProgramID(), "uPocketFogColor");
+    m_locSkyCamRight       = glGetUniformLocation(m_skyShader.GetProgramID(), "uCamRight");
+    m_locSkyCamUp          = glGetUniformLocation(m_skyShader.GetProgramID(), "uCamUp");
+    m_locSkyCamForward     = glGetUniformLocation(m_skyShader.GetProgramID(), "uCamForward");
 
     m_Initialized = true;
     PrintLog("GL: Initialize() completed successfully.\n");
