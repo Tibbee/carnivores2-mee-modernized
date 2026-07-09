@@ -447,6 +447,12 @@ private:
     int m_locSkyFogBase = -1;          // sky shader: uFogBase
     int m_locSkyUnderwaterDepth = -1;  // sky shader: uUnderwaterDepth
     int m_locSkyWaterLineY = -1;       // sky shader: uWaterLineY (screen Y from top)
+    int m_locSkySunScreenPos = -1;     // sky shader: uSunScreenPos (§3.6)
+    int m_locSkySunVisibility = -1;    // sky shader: uSunVisibility (§3.6)
+    int m_locSkySunGlow = -1;          // sky shader: uSunGlow (§3.6)
+    int m_locSkyBodyIsMoon = -1;     // sky shader: uBodyIsMoon (§3.6)
+    int m_locSkyPocketFog = -1;        // sky shader: uPocketFog (§3.5)
+    int m_locSkyPocketFogColor = -1;   // sky shader: uPocketFogColor (§3.5)
 
     // PerFrame UBO (Phase 1.1): binding 0, shared by terrain and model shaders.
     // std140 layout: mat4 uProjection + vec2 uFogRange + vec3 uDistanceFogColor
@@ -566,6 +572,14 @@ private:
     int m_lastSunTraceScrY = -1;
     unsigned int m_lastSunTraceFrame = 0;
     float m_lastSunTraceK = 1.0f;
+    // Double-buffered PBO for the cloud-occlusion readback (GetSkyK): the GPU
+    // copies the sky block into a PBO in the background and we process the
+    // previous frame's PBO, eliminating the synchronous GPU->CPU stall.
+    GLuint m_skyReadPBO[2] = { 0, 0 };
+    int m_skyReadPBOIdx = 0;
+    bool m_skyReadPBOReady = false;
+    int m_skyReadPBOX[2] = { 0, 0 };   // sun X captured into each PBO
+    int m_skyReadPBOY[2] = { 0, 0 };   // sun Y captured into each PBO
     std::vector<ModelVertex> m_sunModelVertices;
 
     void RenderSun(float x, float y, float z);

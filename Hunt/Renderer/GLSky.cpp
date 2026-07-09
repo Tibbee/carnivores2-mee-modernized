@@ -11,6 +11,7 @@
 #include "glad/glad.h"
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 void GLRenderer::RenderSkyPlane()
 {
@@ -117,7 +118,39 @@ void GLRenderer::RenderSkyPlane()
     glUniform3f(m_locSkyQ, qx, qy, qz);
     glUniform3f(m_locSkyP, px, py, pz);
     glUniform3f(m_locSkyR, rx, ry, rz);
+    // §3.2 reverted: original (non-wind) sky scroll.  The §3.1 gradient,
+    // §3.6 sun glow and §3.5 pocket fog below are unchanged.
     glUniform1f(m_locSkyTime, static_cast<float>(SKYDTime) / 256.0f);
+
+    // §3.6: Sun glow on sky texture.  The sun's screen position (m_sunScrX/Y)
+    // and visibility (m_skyTraceK) are members updated by RenderSun(), which
+    // runs later in this same function — so these values are at most one
+    // frame stale.  That lag is imperceptible for a slowly-moving sun.
+    glUniform2f(m_locSkySunScreenPos, static_cast<float>(m_sunScrX), static_cast<float>(m_sunScrY));
+    glUniform1f(m_locSkySunVisibility, m_skyTraceK);
+    // §3.6: sun vs moon get different glow character.  The sun is bright and
+    // warm; the moon is dim and cool, so it gets a smaller master strength
+    // (handled in the shader via uBodyIsMoon).  OptDayNight==2 is night/moon.
+    glUniform1f(m_locSkySunGlow, (OptDayNight == 2) ? 0.10f : 0.18f);
+    glUniform1f(m_locSkyBodyIsMoon, (OptDayNight == 2) ? 1.0f : 0.0f);
+
+    // §3.5: Per-pixel pocket fog on the sky.  Sample CalcFogLevel at the
+    // camera (origin in view space) and, when a pocket fog volume is active,
+    // pass its density/colour to the shader so the horizon blends into it.
+    // Gated so it only activates with a real pocket fog (CameraFogI in
+    // 1..126) and never underwater.  Reuses GetFogColor() (engine-canonical
+    // decoder) so the sky fog colour matches the rest of the scene.
+    float pocketFogAmount = 0.0f;
+    Vector3d pocketFogColor = {0.0f, 0.0f, 0.0f};
+    if (FOGON && !IsUnderwater() && CAMERAINFOG && CameraFogI > 0 && CameraFogI < 127) {
+        const Vector3d cameraFogProbe = {0.0f, 0.0f, 0.0f};
+        const float cameraFog = CalcFogLevel(cameraFogProbe);
+        pocketFogColor = GetFogColor();
+        pocketFogAmount = (std::max)(0.0f, (std::min)(1.0f,
+            cameraFog / (std::max)(1.0f, FogsList[CameraFogI].FLimit)));
+    }
+    glUniform1f(m_locSkyPocketFog, pocketFogAmount);
+    glUniform3f(m_locSkyPocketFogColor, pocketFogColor.x, pocketFogColor.y, pocketFogColor.z);
 
     // Sample CalcFogLevel directly above the camera (X=0, Z=0 in
     // camera-relative space) at sky height to get the base fog amount
@@ -581,44 +614,105 @@ void GLRenderer::RenderSun(float x, float y, float z)
 
 float GLRenderer::GetSkyK(int x, int y)
 {
-    if (x < 10 || y < 10 || x > WinW - 10 || y > WinH - 10) return 0.5f;
+    // Cloud-occlusion readback for the sun/moon glow.
+    // Average the sky colour in a ring at R (outside the <=120px glow halo,
+    // §3.6) and compare it to a SYMMETRIC reference ring at Rref around the
+    // body. A symmetric reference (not a single off-centre point) removes the
+    // directional offset, and averaging over a DENSE ring treats the cloud as
+    // a FORMATION (overall coverage) instead of flickering with individual
+    // cloud pixels, so the glow dims smoothly as the sun enters or leaves a
+    // cloud. The sun/moon model is drawn after this read, so it is never
+    // sampled. Near a screen edge keep the current value.
+    //
+    // PERF: the readback uses a double-buffered PBO. We kick the copy into the
+    // current PBO (GPU -> GPU memory, no CPU stall) and process the PREVIOUS
+    // frame's PBO, which was filled ~one readback earlier and is therefore
+    // already complete when we map it. This removes the synchronous GPU->CPU
+    // stall that a plain glReadPixels into a CPU buffer would cause.
+    const int R = 140;       // detection ring (outside glow halo)
+    const int Rref = 170;    // reference ring (local sky around the body)
+    if (x < Rref || y < Rref || x > WinW - Rref || y > WinH - Rref) return m_skyTraceK;
 
-    // Batch-read a 13x13 block (covers all offsets from -6..+6) in one
-    // glReadPixels call instead of 9 separate 1x1 reads.  Each separate
-    // read forces a CPU-GPU pipeline stall; one larger read has nearly
-    // the same cost as a 1x1 read on most drivers.
-    unsigned char block[13 * 13 * 4];
-    glReadPixels(x - 6, WinH - (y + 6), 13, 13, GL_RGBA, GL_UNSIGNED_BYTE, block);
+    const int half = Rref;
+    const int bx = x - half;
+    const int ey = y + half;
+    const int bw = 2 * half + 1;
+    const int bh = 2 * half + 1;
+    const size_t need = static_cast<size_t>(bw) * static_cast<size_t>(bh) * 4u;
 
-    float skySumR = 0.0f, skySumG = 0.0f, skySumB = 0.0f;
-
-    // Index into the block for each sample offset.
-    // block[(oy+6)*13*4 + (ox+6)*4 + 0..2]  where oy,ox are the offset from center.
-    const int offsets[][2] = {
-        {0, 0}, {6, 0}, {-6, 0}, {0, 6}, {0, -6},
-        {4, 4}, {4, -4}, {-4, 4}, {-4, -4}
-    };
-    for (const auto& off : offsets) {
-        const int idx = (off[1] + 6) * 13 * 4 + (off[0] + 6) * 4;
-        // GL returns BGR in byte order for glReadPixels
-        skySumR += block[idx + 0];
-        skySumG += block[idx + 1];
-        skySumB += block[idx + 2];
+    // Lazily allocate the double-buffered PBOs (block size is fixed by Rref).
+    if (m_skyReadPBO[0] == 0) {
+        glGenBuffers(2, m_skyReadPBO);
+        for (int i = 0; i < 2; ++i) {
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, m_skyReadPBO[i]);
+            glBufferData(GL_PIXEL_PACK_BUFFER, need, nullptr, GL_STREAM_READ);
+        }
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
     }
 
-    // Subtract the expected sky color (target)
-    skySumR -= SkyTR * 9.0f;
-    skySumG -= SkyTG * 9.0f;
-    skySumB -= SkyTB * 9.0f;
+    // Process the previous frame's block (already GPU-complete when mapped).
+    // Sample it at the sun position it was CAPTURED at (not the current one),
+    // so a moving sun does not skew the ring samples.
+    const int cur = m_skyReadPBOIdx;
+    const int prev = 1 - m_skyReadPBOIdx;
+    if (m_skyReadPBOReady) {
+        const int capX = m_skyReadPBOX[prev];
+        const int capY = m_skyReadPBOY[prev];
+        const int cbx = capX - half;
+        const int cey = capY + half;
+        auto pidxOf = [&](int sx, int sy) { return (cey - sy) * bw * 4 + (sx - cbx) * 4; };
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, m_skyReadPBO[prev]);
+        const unsigned char* ptr = static_cast<const unsigned char*>(glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY));
+        if (ptr) {
+            // Average the sky colour over a dense detection ring and reference ring.
+            const int N = 32;
+            long detR = 0, detG = 0, detB = 0;
+            long refR = 0, refG = 0, refB = 0;
+            for (int i = 0; i < N; ++i) {
+                const float a = static_cast<float>(i) * (6.2831853f / static_cast<float>(N));
+                const int cx = static_cast<int>(std::cos(a) * R + 0.5f);
+                const int cy = static_cast<int>(std::sin(a) * R + 0.5f);
+                const int di = pidxOf(capX + cx, capY + cy);
+                detR += ptr[di + 0]; detG += ptr[di + 1]; detB += ptr[di + 2];
 
-    float k = std::sqrt(skySumR * skySumR + skySumG * skySumG + skySumB * skySumB) / 9.0f;
-    if (k > 80.0f) k = 80.0f;
-    if (k < 0.0f) k = 0.0f;
-    k = 1.0f - k / 80.0f;
-    if (k < 0.2f) k = 0.2f;
-    if (OptDayNight == 2) k = 0.12f + k / 5.0f;
+                const int rx = static_cast<int>(std::cos(a) * Rref + 0.5f);
+                const int ry = static_cast<int>(std::sin(a) * Rref + 0.5f);
+                const int ri = pidxOf(capX + rx, capY + ry);
+                refR += ptr[ri + 0]; refG += ptr[ri + 1]; refB += ptr[ri + 2];
+            }
+            detR /= N; detG /= N; detB /= N;
+            refR /= N; refG /= N; refB /= N;
 
-    DeltaFunc(m_skyTraceK, k, (0.07f + std::fabs(k - m_skyTraceK)) * (TimeDt / 512.0f));
+            // Deviation between the averaged formation colours (cancels §3.1 gradient).
+            const long dr = detR - refR, dg = detG - refG, db = detB - refB;
+            const float dev = std::sqrt(static_cast<float>(dr * dr + dg * dg + db * db));
+            // Cloud response is intentionally aggressive: ~2x the earlier sensitivity
+            // (divisor 80 -> 40) and a much lower floor (0.2 -> 0.05) so an overcast
+            // sun nearly loses its glow, while a clear sky (dev ~2-9) stays bright.
+            float k = 1.0f - dev / 40.0f;
+            if (k < 0.05f) k = 0.05f;
+            if (k > 1.0f) k = 1.0f;
+            if (OptDayNight == 2) k = 0.12f + k / 5.0f;
+
+            // Faster response so the glow tracks the cloud's actual position
+            // (less lag), while the dense ring average keeps it smooth.
+            DeltaFunc(m_skyTraceK, k, (0.12f + std::fabs(k - m_skyTraceK)) * (TimeDt / 128.0f));
+
+            glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+        }
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    }
+
+    // Kick the async copy for THIS frame (GPU -> PBO, no CPU stall), recording
+    // the position it was captured at so the next call samples it correctly.
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_skyReadPBO[cur]);
+    glReadPixels(bx, WinH - ey, bw, bh, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    m_skyReadPBOX[cur] = x;
+    m_skyReadPBOY[cur] = y;
+    m_skyReadPBOIdx = prev;
+    m_skyReadPBOReady = true;
+
     return m_skyTraceK;
 }
 
@@ -666,6 +760,16 @@ void GLRenderer::UploadSkyTexture()
 
 void GLRenderer::ShutdownSkyPipeline()
 {
+    for (int i = 0; i < 2; ++i) {
+        if (m_skyReadPBO[i]) {
+            glDeleteBuffers(1, &m_skyReadPBO[i]);
+            m_skyReadPBO[i] = 0;
+        }
+    }
+    m_skyReadPBOIdx = 0;
+    m_skyReadPBOReady = false;
+    m_skyReadPBOX[0] = m_skyReadPBOX[1] = 0;
+    m_skyReadPBOY[0] = m_skyReadPBOY[1] = 0;
     if (m_skyTexture) {
         glDeleteTextures(1, &m_skyTexture);
         m_skyTexture = 0;

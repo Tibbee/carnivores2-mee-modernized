@@ -15,6 +15,12 @@ uniform vec3 uQ;
 uniform vec3 uP;
 uniform vec3 uR;
 uniform float uSkyTime;
+uniform vec2 uSunScreenPos;   // §3.6: sun/moon screen pos (top-origin)
+uniform float uSunVisibility; // §3.6: = m_skyTraceK
+uniform float uSunGlow;       // §3.6: master glow strength (sun 0.12, moon 0.07)
+uniform float uBodyIsMoon;    // §3.6: 1.0 = moon (night), 0.0 = sun (day)
+uniform float uPocketFog;     // §3.5: camera pocket-fog density (0..1)
+uniform vec3  uPocketFogColor;// §3.5: camera pocket-fog colour
 uniform float uFogBase;
 uniform float uUnderwaterDepth;
 uniform float uWaterLineY;
@@ -63,5 +69,49 @@ void main() {
    float glowStrength = 0.15 * (1.0 - fogFactor);
    skyColor += glowColor * horizonGlow * glowStrength;
 
-   FragColor = vec4(mix(skyColor, uFogColor, fogFactor), 1.0);
+   // §3.6: Sun/moon glow on the sky texture — a soft halo around the body's
+   // screen position.  `pixel` is top-origin, matching uSunScreenPos.  The sun
+   // and moon are handled separately because they have very different
+   // character: the sun is a bright, warm body with a warm-core / cool-outer
+   // scattering halo, while the moon is dim and cool, so it gets a softer,
+   // bluer, much fainter moonlight halo suited to the dark night sky.  When
+   // the body is off-screen the distance is huge and the Gaussian falls to ~0.
+   bool isMoon = uBodyIsMoon > 0.5;
+   vec2 sunDelta = pixel - uSunScreenPos;
+   float sunDist = length(sunDelta);
+   float glowRadius = isMoon ? 110.0 : 80.0 + (1.0 - uSunVisibility) * 40.0;
+   float sunGlow = exp(-sunDist * sunDist / (glowRadius * glowRadius));
+   vec3 sunGlowColor;
+   if (isMoon) {
+       // Cool moonlight: soft white-blue core fading to faint blue at the rim.
+       sunGlowColor = mix(vec3(0.85, 0.90, 1.0),
+                         vec3(0.72, 0.80, 1.0),
+                         clamp(sunDist / glowRadius, 0.0, 1.0));
+   } else {
+       // Sun: warm-white core fading to cool blue-white outer.
+       sunGlowColor = mix(vec3(1.0, 0.95, 0.8),
+                         vec3(0.9, 0.85, 1.0),
+                         clamp(sunDist / glowRadius, 0.0, 1.0));
+   }
+   // Cloud occlusion: the sun's glow is dominated by direct-light scattering,
+   // so it falls off sharply with cloud cover (squared) — heavy cloud all but
+   // kills it.  The moon's glow is diffuse moonlight, so it uses a gentler
+   // (linear) dependence; at night m_skyTraceK is a dimness proxy rather than
+   // cloud cover, so we don't want to crush the moon glow.
+   float occ = isMoon ? uSunVisibility : uSunVisibility * uSunVisibility;
+   float sunGlowStrength = uSunGlow * occ * (1.0 - fogFactor * 0.5);
+   skyColor += sunGlowColor * sunGlow * sunGlowStrength;
+   skyColor = min(skyColor, vec3(1.0));            // clamp to prevent burn-out
+
+   // §3.5: Per-pixel pocket fog on the sky.  Blend the (already globally
+   // fogged) sky toward the pocket fog colour, but only near the horizon —
+   // the zenith stays clear so the gradient/glow still read.  Applied after
+   // the water-line fade that is already folded into fogFactor.
+   vec3 color = mix(skyColor, uFogColor, fogFactor);
+   float vertFade = clamp(vNdc.y * 0.5 + 0.5, 0.0, 1.0);
+   vertFade = pow(vertFade, 3.0);                 // 0 at horizon, 1 at zenith
+   float pocketFade = uPocketFog * (1.0 - vertFade);
+   color = mix(color, uPocketFogColor, pocketFade);
+
+   FragColor = vec4(color, 1.0);
 }

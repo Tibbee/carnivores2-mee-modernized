@@ -306,6 +306,12 @@ bool GLRenderer::Initialize()
     m_locSkyFogBase      = glGetUniformLocation(m_skyShader.GetProgramID(), "uFogBase");
     m_locSkyUnderwaterDepth = glGetUniformLocation(m_skyShader.GetProgramID(), "uUnderwaterDepth");
     m_locSkyWaterLineY     = glGetUniformLocation(m_skyShader.GetProgramID(), "uWaterLineY");
+    m_locSkySunScreenPos   = glGetUniformLocation(m_skyShader.GetProgramID(), "uSunScreenPos");
+    m_locSkySunVisibility  = glGetUniformLocation(m_skyShader.GetProgramID(), "uSunVisibility");
+    m_locSkySunGlow        = glGetUniformLocation(m_skyShader.GetProgramID(), "uSunGlow");
+    m_locSkyBodyIsMoon     = glGetUniformLocation(m_skyShader.GetProgramID(), "uBodyIsMoon");
+    m_locSkyPocketFog      = glGetUniformLocation(m_skyShader.GetProgramID(), "uPocketFog");
+    m_locSkyPocketFogColor = glGetUniformLocation(m_skyShader.GetProgramID(), "uPocketFogColor");
 
     m_Initialized = true;
     PrintLog("GL: Initialize() completed successfully.\n");
