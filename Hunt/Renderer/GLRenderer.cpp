@@ -480,6 +480,7 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection,
     //   offset 112 : mat4 uView                 (16 floats)   -- Phase 2.4
     //   offset 176 : vec4 uWaterAlphaFade       ( 4 floats)   -- x=start, y=end, z=enabled, w=fade step
     //   offset 192 : float uWaterDepthFactor    ( 1 float)    -- §3.4
+    //   offset 196 : float uCloudCover           ( 1 float)    -- §3.7
     std::array<float, 60> data{};
     std::memcpy(&data[0],  m_cachedProjection.data(), 16 * sizeof(float));
     data[16] = m_cachedFogStart;     // uFogRange.x
@@ -505,6 +506,10 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection,
     data[47] = waterAlphaFadeStep;    // uWaterAlphaFade.w
     // §3.4: wavelength attenuation on terrain
     data[48] = m_isUnderwater ? CameraWaterDepthFactor : 0.0f;  // uWaterDepthFactor
+    // §3.7: cloud colour temperature — overcast (low sun visibility) shifts
+    // terrain light cool/blue.  clamp(1 - traceK*1.2, 0, 1): fully clear at
+    // traceK≈0.83+, fully overcast at traceK=0.
+    data[49] = (std::max)(0.0f, (std::min)(1.0f, 1.0f - m_skyTraceK * 1.2f));  // uCloudCover
 
     glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, data.size() * sizeof(float), data.data());

@@ -13,6 +13,7 @@ uniform PerFrame {
    mat4 uView;
    vec4 uWaterAlphaFade;    // x=start, y=end, z=enabled, w=fade step
    float uWaterDepthFactor; // 0 at surface, 1 at max depth (§3.4)
+   float uCloudCover;       // §3.7: 0=clear sun, 1=overcast (cloud colour temp)
 };
 out vec2 vTexCoord;
 flat out int vLayer;

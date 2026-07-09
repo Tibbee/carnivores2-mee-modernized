@@ -18,12 +18,20 @@ uniform PerFrame {
    mat4 uView;
    vec4 uWaterAlphaFade;    // x=start, y=end, z=enabled, w=fade step
    float uWaterDepthFactor; // 0 at surface, 1 at max depth (§3.4)
+   float uCloudCover;       // §3.7: 0=clear sun, 1=overcast (cloud colour temp)
 };
 uniform sampler2DArray uTerrainArray;
 void main() {
    vec4 texColor = texture(uTerrainArray, vec3(vTexCoord, float(vLayer)));
    if (texColor.a < 0.05) discard;
    vec3 litColor = texColor.rgb * vLight;
+
+   // §3.7: Cloud colour temperature.  When the sun is obscured (overcast),
+   // the remaining light is cooler/bluer skylight, so shift the terrain tint
+   // toward blue in cloud shadow.  uCloudCover (0=clear sun, 1=overcast) is
+   // derived from sun visibility in UpdatePerFrameUBO().
+   vec3 cloudTint = mix(vec3(1.0), vec3(0.92, 0.95, 1.05), uCloudCover * 0.3);
+   litColor *= cloudTint;
 
    // §3.4: Water-colour-aware wavelength attenuation on terrain underwater.
    // vWaterAlphaFade > 0.5 identifies water surface vertices (which go
