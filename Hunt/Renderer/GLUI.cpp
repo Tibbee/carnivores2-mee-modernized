@@ -183,9 +183,10 @@ void ShowVideo()
     // Apply sun glare/blinding effect (matching D3D/3DFX ShowVideo)
     if (g_GLRenderer) {
         float sunLight = g_GLRenderer->GetSunLight();
-        // Midway boost between C1 (1.5x + double skyTraceK) and C2 (1.0x):
-        // use 1.25x with linear skyTraceK, giving peak alpha ~175/255 ≈ 0.69.
-        const float kGlareBoost = 1.25f;
+        // Midway boost between C1 (1.5x + double skyTraceK) and C2 (1.0x),
+        // softened to 0.9x so the fullscreen wash stays gentle: peak alpha
+        // ~126/255 ≈ 0.49 (sunLight is clamped to 140 before the boost).
+        const float kGlareBoost = 0.9f;
         sunLight = (std::min)(255.0f, sunLight * kGlareBoost);
         // Night (moon): skip the sun glare — a moon shouldn't produce a
         // blinding yellow flash.  The moon's model is already drawn as a
