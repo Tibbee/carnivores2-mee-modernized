@@ -129,6 +129,16 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
     // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
     UploadStaticMesh(mptr);
 
+    // Viewmodels (weapon/wind/compass/binocular) are anchored to the camera
+    // and must never be distance-faded.  m_modelDistanceAlpha is set per
+    // world-model during the scene render and is NOT reset afterward, so
+    // without this the weapon would inherit the LAST world model's fade
+    // alpha: a far last model makes forceDistanceBlend true and routes every
+    // weapon face into the transparent (blended, no-depth-write) pass, leaving
+    // the weapon half-transparent or invisible while its Phong/EnvMap overlays
+    // (drawn separately) stay visible.
+    m_modelDistanceAlpha = 1.0f;
+
     ModelDrawItem item;
     if (!BuildModelDrawItem(item, mptr, x0, y0, z0, light, vt, al, bt, false, true, true, false)) {
         return;
