@@ -394,19 +394,37 @@ float CalcTerrainAlpha(float distanceSq, float fadeStart, float fadeStartSq, flo
         return 1.0f;
     }
 
+    // Phase 1: distanceSq in [0, fadeStartSq] → alpha = 1.0 (no fade)
     if (distanceSq <= fadeStartSq) {
         return 1.0f;
     }
 
-    // Tiles between fadeStart and fadeEnd all return 1.0 — avoid the
-    // std::sqrt for this common range by comparing squared distances.
-    if (distanceSq <= fadeEnd * fadeEnd) {
-        return 1.0f;
+    // Phase 2: distanceSq in (fadeStartSq, maxDistSq] → smooth fade
+    // 765 = 255 * 3 (preserves original total fade zone length)
+    const float maxDist = fadeEnd + 765.0f;
+    const float maxDistSq = maxDist * maxDist;
+
+    if (distanceSq >= maxDistSq) {
+        return 0.0f;
     }
 
+    // Normalised position within the fade zone: 0 at fadeEnd, 1 at maxDist
     const float distance = std::sqrt(distanceSq);
-    const float zz = distance - fadeEnd;
-    return std::clamp((255.0f - zz / 3.0f) / 255.0f, 0.0f, 1.0f);
+    float fadeZone = maxDist - fadeEnd;
+    float t = std::clamp((distance - fadeEnd) / fadeZone, 0.0f, 1.0f);
+
+    // Edge case — short fade distance: fall back to linear to prevent stretching
+    if (fadeZone < 256.0f) {
+        return 1.0f - t;
+    }
+
+    // Smoothstep (Hermite) ease-in-out curve:
+    // t=0.0 → alpha=1.0
+    // t=0.1 → alpha≈0.972  (subtle start)
+    // t=0.5 → alpha=0.5
+    // t=0.9 → alpha≈0.028  (gentle end)
+    // t=1.0 → alpha=0.0
+    return 1.0f - (t * t * (3.0f - 2.0f * t));
 }
 
 float GetTerrainFogAmountForMapPoint(int fogIndex, int legacyFog)
