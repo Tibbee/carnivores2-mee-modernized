@@ -155,6 +155,10 @@ void GLRenderer::RenderProjectedShadows()
                   return a.first > b.first;
               });
 
+    // Step 6: Shadow fade with distance
+    const float shadowFadeStart = static_cast<float>((ctViewR - 8) << 8);
+    const float shadowFadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
+
     if (GpuFeatureEnabled(GPUF_SHADOWS_INSTANCING)) {
         std::vector<ModelVertex> shadowBatch;
         shadowBatch.reserve(sortedCharacters.size() * static_cast<size_t>(384));
@@ -167,6 +171,18 @@ void GLRenderer::RenderProjectedShadows()
                     alpha *= static_cast<float>(aniTime - character.FTime) / static_cast<float>(aniTime);
                 }
             }
+
+            // Apply distance-based fade to shadow alpha
+            const float distanceSq = VectorLengthSq(character.rpos);
+            if (distanceSq > shadowFadeStart * shadowFadeStart) {
+                float shadowFade = CalcTerrainAlpha(distanceSq, shadowFadeStart,
+                                                    shadowFadeStart * shadowFadeStart,
+                                                    shadowFadeEnd, IsUnderwater());
+                alpha *= shadowFade;
+            }
+
+            if (alpha <= 0.005f) continue;
+
             BuildCharacterShadowVertices(character, alpha, shadowBatch);
         }
         if (!shadowBatch.empty()) {
@@ -182,6 +198,18 @@ void GLRenderer::RenderProjectedShadows()
                     alpha *= static_cast<float>(aniTime - character.FTime) / static_cast<float>(aniTime);
                 }
             }
+
+            // Apply distance-based fade to shadow alpha
+            const float distanceSq = VectorLengthSq(character.rpos);
+            if (distanceSq > shadowFadeStart * shadowFadeStart) {
+                float shadowFade = CalcTerrainAlpha(distanceSq, shadowFadeStart,
+                                                    shadowFadeStart * shadowFadeStart,
+                                                    shadowFadeEnd, IsUnderwater());
+                alpha *= shadowFade;
+            }
+
+            if (alpha <= 0.005f) continue;
+
             RenderProjectedCharacterShadow(character, alpha);
         }
     }
