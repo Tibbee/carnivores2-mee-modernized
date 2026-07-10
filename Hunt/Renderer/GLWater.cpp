@@ -387,6 +387,13 @@ void GLRenderer::RenderWCircles()
         // i.e. the alpha is exactly the same expression the shader reads from GlassL.
         GlassL = 255 - (2000 - wptr->FTime) / 38;
 
+        // §fix: the GL model path derives the per-item alpha from
+        // m_modelDistanceAlpha, NOT GlassL, so feed the ripple's intended
+        // fade (baseAlpha = (255 - GlassL) / 255, i.e. ~0.21 -> 0) into it.
+        // Without this the ripple rendered at the stale distance alpha (~1.0),
+        // producing a harsh solid white disc instead of a soft fading ring.
+        m_modelDistanceAlpha = std::max(0.0f, (255.0f - static_cast<float>(GlassL)) / 255.0f);
+
         CreateMorphedModel(WCircleModel.mptr.get(), &WCircleModel.Animation[0],
                            static_cast<int>(wptr->FTime), wptr->scale);
 
