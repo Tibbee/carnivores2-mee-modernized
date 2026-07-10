@@ -1006,7 +1006,7 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
         const FogSample fogC = SampleFogAtPoint(uC, disableFog);
         const float alpha = transparent ? baseAlpha * transparentScale : baseAlpha;
         const float cutoutValue = cutout ? 1.0f : 0.0f;
-        const bool blended = transparent || forceDistanceBlend;
+        const bool blended = transparent || forceDistanceBlend || additive;
         std::vector<ModelVertex>& target = blended ? outItem.transparentVertices : (cutout ? outItem.cutoutVertices : outItem.opaqueVertices);
         // Phase 1.4: pack light/fog/alpha/cutout as uint8 (driver normalizes
         // them back to [0,1] in the vertex shader) and the per-vertex fog
