@@ -1470,12 +1470,12 @@ void DrawMenuHunt()
 	InterfaceSetFont(fnt_Big);
 
 	// Draw the profile credits within range of 0 - 9999
-	ss << (min(9999, max(0, g_UserProfile.Score)));
+	ss << (std::min(9999, std::max(0, g_UserProfile.Score)));
 	DrawTextShadow(328 + 8, 38, ss.str(), c, DTA_LEFT);
 	ss.str(""); ss.clear();
 
 	// Draw the debited credits for the current hunt options, in range of -999 - 9999
-	ss << (min(9999, max(-999, (g_UserProfile.Score - g_ScoreDebit))));
+	ss << (std::min(9999, std::max(-999, (g_UserProfile.Score - g_ScoreDebit))));
 	DrawTextShadow(472 - 8, 38, ss.str(), c, DTA_RIGHT);
 	ss.str(""); ss.clear();
 
@@ -1502,9 +1502,9 @@ void DrawMenuHunt()
 			DrawTextShadow(424, 210 + (1 * 16), "Hearing:", c);
 			DrawTextShadow(424, 210 + (2 * 16), "Scents:", c);
 
-			DrawProgressBar(424 + 80, 210 + (0 * 16), min(1.0f, max(0.0f, g_DinoInfo[d].m_LookK)) * 2.f);
-			DrawProgressBar(424 + 80, 210 + (1 * 16), min(1.0f, max(0.0f, g_DinoInfo[d].m_HearK)) * 2.f);
-			DrawProgressBar(424 + 80, 210 + (2 * 16), min(1.0f, max(0.0f, g_DinoInfo[d].m_SmellK)) * 2.f);
+			DrawProgressBar(424 + 80, 210 + (0 * 16), std::min(1.0f, std::max(0.0f, g_DinoInfo[d].m_LookK)) * 2.f);
+			DrawProgressBar(424 + 80, 210 + (1 * 16), std::min(1.0f, std::max(0.0f, g_DinoInfo[d].m_HearK)) * 2.f);
+			DrawProgressBar(424 + 80, 210 + (2 * 16), std::min(1.0f, std::max(0.0f, g_DinoInfo[d].m_SmellK)) * 2.f);
 		}
 	}
 	else if (g_HuntInfo.first == 2 && !g_WeapInfo.empty()) // Weapons
@@ -1518,9 +1518,9 @@ void DrawMenuHunt()
 		DrawTextShadow(424, 210 + (1 * 16), "Accuracy:", c);
 		DrawTextShadow(424, 210 + (2 * 16), "Volume:", c);
 
-		DrawProgressBar(424 + 80, 210 + (0 * 16), min(2.0f, max(0.0f, g_WeapInfo[g_HuntInfo.second].m_Power)));
-		DrawProgressBar(424 + 80, 210 + (1 * 16), min(2.0f, max(0.0f, g_WeapInfo[g_HuntInfo.second].m_Prec)));
-		DrawProgressBar(424 + 80, 210 + (2 * 16), min(2.0f, max(0.0f, g_WeapInfo[g_HuntInfo.second].m_Loud)));
+		DrawProgressBar(424 + 80, 210 + (0 * 16), std::min(2.0f, std::max(0.0f, g_WeapInfo[g_HuntInfo.second].m_Power)));
+		DrawProgressBar(424 + 80, 210 + (1 * 16), std::min(2.0f, std::max(0.0f, g_WeapInfo[g_HuntInfo.second].m_Prec)));
+		DrawProgressBar(424 + 80, 210 + (2 * 16), std::min(2.0f, std::max(0.0f, g_WeapInfo[g_HuntInfo.second].m_Loud)));
 	}
 	else if (g_HuntInfo.first == 3 && !g_UtilInfo.empty()) // Accessories
 	{
@@ -1549,7 +1549,7 @@ void DrawMenuHunt()
 
 	int32_t score = g_UserProfile.Score - g_ScoreDebit;
 
-	unsigned list_max = min(g_AreaInfo.size(), 10);
+	unsigned list_max = std::min(g_AreaInfo.size(), static_cast<size_t>(10));
 
 	for (unsigned ii = MenuHunt[0].Offset; ii < MenuHunt[0].Offset + list_max; ii++) {
 		int i = ii - MenuHunt[0].Offset;

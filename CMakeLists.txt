@@ -30,6 +30,7 @@ if(MSVC)
     add_definitions(-D_CRT_NONSTDC_NO_DEPRECATE)
     add_definitions(-D_WINSOCK_DEPRECATED_NO_WARNINGS)
     add_definitions(-DWIN32)
+    add_definitions(-DNOMINMAX)
 
     # Fix for some legacy headers and scoping
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /permissive")
