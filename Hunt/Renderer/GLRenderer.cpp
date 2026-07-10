@@ -1362,7 +1362,8 @@ Vector3d GLRenderer::GetFogColorForMapPoint(int mapX, int mapY)
 
     const int fogIndex = GetFogIndexForMapPoint(mapX, mapY);
     if (FOGON && fogIndex > 0) {
-        return DecodeFogColor(FogsList[fogIndex].fogRGB);
+        const float sunLight = g_GLRenderer ? g_GLRenderer->GetSunLight() : 0.0f;
+        return DecodeFogColor(ApplySunFogColourShift(FogsList[fogIndex].fogRGB, sunLight));
     }
 
     return GetDistanceFogColor();
@@ -1378,7 +1379,8 @@ Vector3d GLRenderer::GetFogColorForMapPoint(int fogIndex)
     }
 
     if (FOGON && fogIndex > 0) {
-        return DecodeFogColor(FogsList[fogIndex].fogRGB);
+        const float sunLight = g_GLRenderer ? g_GLRenderer->GetSunLight() : 0.0f;
+        return DecodeFogColor(ApplySunFogColourShift(FogsList[fogIndex].fogRGB, sunLight));
     }
 
     return GetDistanceFogColor();

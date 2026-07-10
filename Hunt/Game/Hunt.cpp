@@ -1,5 +1,6 @@
 #include "Hunt.h"
 #include "stdio.h"
+#include "Renderer/GLUtils.h"
 #include <cmath>
 #include <algorithm>
 #include <timeapi.h>
@@ -61,6 +62,18 @@ float CalcFogLevel(Vector3d v)
   TFogEntity *fptr;
   fptr = &FogsList[cf];
   CurFogColor = fptr->fogRGB;
+
+  // §3.6: Sun-fog colour shift — modulate fog colour by sun elevation
+  // and cloud visibility.  Delegated to ApplySunFogColourShift() so the
+  // SAME shift reaches BOTH the terrain fog colour (via
+  // GetFogColorForMapPoint, which now calls it) and the model/water
+  // fog colour (via CurFogColor here).  Applied once per fog volume
+  // (uniform across all vertices in this volume), NOT per-vertex, so it
+  // doesn't create per-vertex colour variation.  Do NOT write back
+  // to fptr->fogRGB.
+  if (!IsUnderwater() && cf > 0 && cf < 127 && g_GLRenderer) {
+      CurFogColor = ApplySunFogColourShift(fptr->fogRGB, g_GLRenderer->GetSunLight());
+  }
 
   float d = VectorLength(v);
 

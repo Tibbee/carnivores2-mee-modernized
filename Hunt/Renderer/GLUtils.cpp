@@ -10,6 +10,7 @@
 
 #include "glad/glad.h"
 #include <array>
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 
@@ -83,6 +84,38 @@ Vector3d DecodeFogColorBGR(int rgb)
         static_cast<float>((rgb >> 8) & 0xFF) / 255.0f,
         static_cast<float>(rgb & 0xFF) / 255.0f
     };
+}
+
+// §3.6: Sun-angle fog colour shift — warm by sun elevation (warmth)
+// and dimmed by low sun visibility (shadowDim).  Factored out of the
+// inline CalcFogLevel block so the SAME shift is applied to BOTH the
+// terrain fog colour (via GetFogColorForMapPoint) and the model/water
+// fog colour (via CurFogColor in CalcFogLevel).  Called per fog volume
+// (per corner at most), so the result is uniform across a volume's
+// vertices — not per-vertex.  sunLight is GLRenderer::GetSunLight();
+// pass 0.0f to skip the shift entirely.
+int ApplySunFogColourShift(int fogRGB, float sunLight)
+{
+    if (sunLight <= 0.1f) {
+        return fogRGB;
+    }
+    // Sun elevation is constant for the fixed sun position; hoist the sqrt
+    // out of the (per-volume) call path — it is a compile-time constant.
+    static const float kSunElevation =
+        4048.0f / std::sqrt(2048.0f * 2048.0f + 4048.0f * 4048.0f + 2048.0f * 2048.0f);
+    const float warmth       = std::clamp(1.0f - kSunElevation, 0.0f, 0.5f);
+    const float rBoost       = 1.0f + warmth * 0.15f;
+    const float gBoost       = 1.0f + warmth * 0.05f;
+    const float bBoost       = 1.0f - warmth * 0.10f;
+    const float sunVisibility = std::clamp(sunLight / kMaxSunLight, 0.0f, 1.0f);
+    const float shadowDim    = 0.6f + 0.4f * sunVisibility;
+    const float r = static_cast<float>(fogRGB & 0xFF) / 255.0f;
+    const float g = static_cast<float>((fogRGB >> 8) & 0xFF) / 255.0f;
+    const float b = static_cast<float>((fogRGB >> 16) & 0xFF) / 255.0f;
+    const int sr = static_cast<int>(std::min(1.0f, r * rBoost * shadowDim) * 255.0f) & 0xFF;
+    const int sg = static_cast<int>(std::min(1.0f, g * gBoost * shadowDim * 0.9f) * 255.0f) & 0xFF;
+    const int sb = static_cast<int>(std::max(0.0f, b * bBoost * shadowDim * 0.8f) * 255.0f) & 0xFF;
+    return sr | (sg << 8) | (sb << 16);
 }
 
 Vector3d GetFogColor()

@@ -40,6 +40,13 @@ GLuint LinkProgram(GLuint vertexShader, GLuint fragmentShader);
 
 Vector3d DecodeFogColor(int rgb);
 Vector3d DecodeFogColorBGR(int rgb);
+// §3.6: sun-angle fog colour shift (warm/dim by sun elevation + visibility).
+// Shared by the terrain fog colour (GetFogColorForMapPoint) and the
+// model/water fog colour (CalcFogLevel -> CurFogColor) so the SAME
+// shift reaches all three paths.  Pass sunLight <= 0.1f (or 0.0f)
+// to skip the shift.  Deterministic in (fogRGB, sunLight), so calling
+// it per vertex/per corner still yields a per-volume-uniform result.
+int ApplySunFogColourShift(int fogRGB, float sunLight);
 Vector3d GetFogColor();
 Vector3d GetDistanceFogColor();
 int GetFogIndexForMapPoint(int mapX, int mapY);

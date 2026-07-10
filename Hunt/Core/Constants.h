@@ -27,6 +27,12 @@ inline constexpr int ctMapSize = 1024;
 inline constexpr int kViewGridCenter = 256;
 inline constexpr int kViewGridSize = kViewGridCenter * 2;
 
+// ===================== Renderer =====================
+
+// Maximum value returned by GLRenderer::GetSunLight(), as per the cap in
+// GLSky.cpp.  Keep in sync if that cap ever changes.
+inline constexpr float kMaxSunLight = 140.0f;
+
 // ===================== View Distance =====================
 
 inline constexpr int kViewOptMin = 0;
