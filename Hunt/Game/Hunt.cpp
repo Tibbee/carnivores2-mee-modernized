@@ -145,7 +145,49 @@ float CalcFogLevel(Vector3d v)
 
   float fl = (fla + flb);
 
-  fl *= (d+(fptr->Transp/2)) / fptr->Transp;
+  // §3.2: Fog density breathes over time — modulate effective Transp by
+  // a slow sine seeded by the fog volume index.  The breathe factor
+  // depends only on (cf, RealTime); RealTime is constant within a
+  // frame, so precompute the 256-entry table once per frame and
+  // look it up per vertex instead of calling sinf() per vertex.
+  float effectiveTransp = fptr->Transp;
+  if (!IsUnderwater() && cf > 0 && cf < 127)
+  {
+    static float s_breatheCache[256];
+    static int   s_breatheTime = -1;
+    static bool  s_breatheFilled = false;
+    if (!s_breatheFilled || RealTime != s_breatheTime) {
+        for (int i = 0; i < 256; ++i) {
+            if (i == 0 || i >= 127) { s_breatheCache[i] = 1.0f; continue; }
+            const float period = 8.0f + (i & 7) * 1.0f;
+            const float phase  = i * 137.5f;
+            s_breatheCache[i] = 1.0f + 0.08f * std::sin(static_cast<float>(RealTime) / (period * 60.0f) + phase);
+        }
+        s_breatheTime = RealTime;
+        s_breatheFilled = true;
+    }
+    effectiveTransp = fptr->Transp / s_breatheCache[cf];
+  }
+
+  // §3.7: distance-density term.  Kept LINEAR to match the original
+  // 3dfx/D3D CalcFogLevel strength.  The earlier pow(distTerm, 1.1/1.2)
+  // curve reduced near-volume density and made the fog look weaker than the
+  // baseline.  (A subtle S-curve can be re-added later as a separate,
+  // density-neutral tweak, e.g. applied symmetrically.)
+  float distTerm = (d + effectiveTransp * 0.5f) / effectiveTransp;
+  fl *= distTerm;
+
+  // §3.9b: Inside-fog envelope.  §3.9 boosted the from-above viewpoint so a
+  // valley reads as a thick bank; when the camera is *inside* the same volume
+  // the base formula leaves near/mid fog comparatively thin, so the layer
+  // feels less enveloping than the bank seen from a ridge.  Lift the thin
+  // (near/mid) fog up to 1.6x and taper to 1.0x as it approaches FLimit, so
+  // the volume feels surrounding without white-ing out the already-opaque
+  // far fog.  Pocket fog only, like §3.9.
+  if (flb > 0 && fla > 0 && !IsUnderwater() && cf > 0 && cf < 127) {
+      const float opacity = std::clamp(fl / fptr->FLimit, 0.0f, 1.0f);
+      fl *= 1.0f + 0.6f * (1.0f - opacity);
+  }
 
   // Underwater: add depth-based fog increase.  Keep the existing
   // horizontal-distance fog as the base, then layer on a gentle
