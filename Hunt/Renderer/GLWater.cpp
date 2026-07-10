@@ -64,10 +64,11 @@ void GLRenderer::RenderWaterSurface()
     const auto projection = BuildLegacyProjection();
     // Bake water alpha fade into the UBO update — saves a separate
     // glBufferSubData call vs. UpdatePerFrameUBO() + SetWaterAlphaFade().
+    // Step 3: fadeStep = 3.0 to match terrain fade range (765 units total)
     UpdatePerFrameUBO(projection, 1.0f,
                       static_cast<float>((ctViewR - 8) << 8),
                       256.0f * static_cast<float>(ctViewR - 4),
-                      765.0f);
+                      3.0f);
     m_terrainShader.Use();
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
@@ -86,7 +87,7 @@ void GLRenderer::RenderWaterSurface()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
     DrawVertexBatch(m_waterVertices.get(), m_waterVertexCount);
-    SetWaterAlphaFade(0.0f, static_cast<float>((ctViewR - 8) << 8), 256.0f * static_cast<float>(ctViewR - 4), 765.0f);
+    SetWaterAlphaFade(0.0f, static_cast<float>((ctViewR - 8) << 8), 256.0f * static_cast<float>(ctViewR - 4), 3.0f);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
 
