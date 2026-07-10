@@ -79,10 +79,37 @@ float CalcFogLevel(Vector3d v)
 
   v.y+=CameraY;
 
-  float fla= -(v.y     - fptr->YBegin*ctHScale) / ctHScale;
+  // Pocket fog improvements (§3.2 breathing, §3.3 undulating floor):
+  // Apply to pocket fog volumes only (cf 1..126, not underwater).
+  float fogFloorY = fptr->YBegin * ctHScale;
+  // §3.3: Undulating fog floor — let the fog follow the terrain relief
+  // instead of sitting on a flat horizontal plane.  IMPORTANT: only the
+  // SMOOTH terrain-following term is used.  The original used RandomMap
+  // for a "fine-scale noise" offset, but RandomMap is white (per-2-cell)
+  // noise, not smooth value-noise.  Feeding it into the fog floor height
+  // injected per-vertex density noise, which the per-vertex fog blend
+  // (mix(litColor, vFogColor, vFog)) turned into visible splotches of
+  // fog colour.  Real low-frequency undulation should come from a proper
+  // value/simplex noise field, not from RandomMap.
+  // Gated to pocket fog volumes (cf 1..126) like the rest of §3.x.
+  if (!IsUnderwater() && cf > 0 && cf < 127)
+  {
+  float mx = v.x + CameraX;
+  float mz = v.z + CameraZ;
+  int tx = (static_cast<int>(mx / 256.0f)) & (ctMapSize - 1);
+  int tz = (static_cast<int>(mz / 256.0f)) & (ctMapSize - 1);
+  float terrainH = static_cast<float>(HMap[tz][tx]) * ctHScale;
+  float heightDelta = (terrainH - fogFloorY) / ctHScale;
+  // Smooth: terrainH is sampled from the (already smooth) heightmap at
+  // the vertex's own map cell, so terrainFollow varies continuously.
+  float terrainFollow = std::clamp(heightDelta * 0.15f, -2.0f, 2.0f);
+  fogFloorY += terrainFollow * ctHScale;
+  }
+
+  float fla= -(v.y     - fogFloorY) / ctHScale;
   if (!vinfog) if (fla>0) fla=0;
 
-  float flb = -(CameraY - fptr->YBegin*ctHScale) / ctHScale;
+  float flb = -(CameraY - fogFloorY) / ctHScale;
   if (!CAMERAINFOG) if (flb>0) flb=0;
 
   if (fla<0 && flb<0) return 0;
