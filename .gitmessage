@@ -1,21 +1,26 @@
 # <type>(<scope>): <subject>
-# |<----  Max 72 Characters  ---->|
+# |<----  Max 50 Characters  ---->|
 #
-# Body: flat bulleted list, no indented sub-bullets
+# Body: flat bulleted list, no indented sub-bullets (hard-wrap at 72 cols)
 # - Explain why this change is needed
 # - What was done (not how)
 # - Any side effects to be aware of
 #
-# Files: list of changed files (optional, omit if too long)
+# Footer (optional):
+#   Fixes #issue
+#   Closes #issue
+#   BREAKING CHANGE: description
 #
 # --- COMMIT END ---
+# Breaking change? Add ! after type/scope:  feat!: | fix(scope)!:
+#
 # Types:
-#   feat     (new feature)
-#   fix      (bug fix)
+#   feat     (new feature — MINOR bump)
+#   fix      (bug fix — PATCH bump)
 #   docs     (documentation only)
 #   style    (formatting, no logic change)
 #   refactor (code restructuring)
-#   perf     (performance improvement)
+#   perf     (performance improvement — PATCH bump)
 #   test     (adding/updating tests)
 #   build    (build system / dependencies)
 #   ci       (CI configuration)
