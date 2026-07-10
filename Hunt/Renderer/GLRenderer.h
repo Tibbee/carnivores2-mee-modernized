@@ -575,6 +575,14 @@ private:
     int m_lastSunTraceScrY = -1;
     unsigned int m_lastSunTraceFrame = 0;
     float m_lastSunTraceK = 1.0f;
+    // Hysteresis latch for uniform-overcast detection (§2.2 workaround).
+    // When a large cloud covers both detection and reference rings, the
+    // ring-vs-ring detector reports "clear" (dev ≈ 0).  The latch prevents
+    // the glow from re-brightening inside such a cloud: once k drops below
+    // the threshold, it stays clamped until the sky is confirmed clear for
+    // several consecutive frames.
+    bool m_cloudLatched = false;
+    int m_cloudLatchFrames = 0;
     // Double-buffered PBO for the cloud-occlusion readback (GetSkyK): the GPU
     // copies the sky block into a PBO in the background and we process the
     // previous frame's PBO, eliminating the synchronous GPU->CPU stall.
@@ -589,7 +597,6 @@ private:
     void RenderModelSun(TModel* mptr, float x0, float y0, float z0, int alpha);
     float GetSkyK(int x, int y);
     float GetTraceK(int x, int y);
-    void UpdateSunVisibility();
 
     // HUD/UI overlay pipeline — uploads lpVideoBuf as a fullscreen quad on top of the 3D scene
     GLShader m_uiShader;

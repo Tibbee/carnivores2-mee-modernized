@@ -18,7 +18,7 @@ uniform vec3 uR;
 uniform float uSkyTime;
 uniform vec2 uSunScreenPos;   // §3.6: sun/moon screen pos (top-origin)
 uniform float uSunVisibility; // §3.6: = m_skyTraceK
-uniform float uSunGlow;       // §3.6: master glow strength (sun 0.12, moon 0.07)
+uniform float uSunGlow;       // §3.6: master glow strength (sun 0.18, moon 0.10)
 uniform float uBodyIsMoon;    // §3.6: 1.0 = moon (night), 0.0 = sun (day)
 uniform float uPocketFog;     // §3.5: camera pocket-fog density (0..1)
 uniform vec3  uPocketFogColor;// §3.5: camera pocket-fog colour

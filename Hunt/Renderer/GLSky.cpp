@@ -136,16 +136,26 @@ void GLRenderer::RenderSkyPlane()
 
     // §3.1 (world-space gradient): pass the camera basis so the sky shader
     // can derive the view ray's world elevation (pitch-invariant horizon).
-    // Follows the engine's RotateVector convention: CameraAlpha rotates about
-    // Y, CameraBeta about X; the look direction is world -Z at zero angles.
+    // The shader builds a WORLD-space view ray:
+    //     vWorldDir = pos.x*uCamRight + pos.y*uCamUp - uCamForward
+    // so these must be the camera's right/up/forward AXES in WORLD space, i.e.
+    // R^(-1) * unit_axis, where R = R_x(beta)*R_y(alpha) is the engine's
+    // world->view rotation (RotateVector).  NOTE: RotateVector computes R*v
+    // (world->view), which is the WRONG direction here — the gradient needs
+    // the inverse.  R^(-1) = R_y(-alpha)*R_x(-beta); the closed forms below are
+    // exactly that inverse applied to (1,0,0), (0,1,0) and (0,0,-1).  camRight.y
+    // = 0 is correct: with no camera roll the right axis is always horizontal.
+    // (This basis was briefly swapped for a RotateVector-based one following a
+    // review that misread RotateVector as view->world; that broke the gradient
+    // under combined yaw+pitch and was reverted.)
     {
         const float camCa = std::cos(CameraAlpha);
         const float camSa = std::sin(CameraAlpha);
         const float camCb = std::cos(CameraBeta);
         const float camSb = std::sin(CameraBeta);
-        const Vector3d camRight   = { camCa, 0.0f, camSa };
-        const Vector3d camUp      = { camSb * camSa, camCb, -camSb * camCa };
-        const Vector3d camForward = { camCb * camSa, -camSb, -camCb * camCa };
+        const Vector3d camRight   = { camCa, 0.0f, camSa };                 // R^(-1)*(1,0,0)
+        const Vector3d camUp      = { camSb * camSa, camCb, -camSb * camCa }; // R^(-1)*(0,1,0)
+        const Vector3d camForward = { camCb * camSa, -camSb, -camCb * camCa }; // R^(-1)*(0,0,-1)
         const float tanX = (CameraW > 1e-3f) ? VideoCX / CameraW : 1.0f;
         const float tanY = (CameraH > 1e-3f) ? VideoCY / CameraH : 1.0f;
         glUniform3f(m_locSkyCamRight,   camRight.x * tanX,   camRight.y * tanX,   camRight.z * tanX);
@@ -390,8 +400,9 @@ void GLRenderer::ApplySunDepthOcclusion()
     // Called from ShowVideo() after the full scene is rendered.
     // Samples the depth buffer at the sun's screen position to check
     // if terrain/models are occluding the sun.
-    // Depth-based occlusion sample is cached for the current frame so
-    // ApplySunDepthOcclusion() can reuse the value computed by UpdateSunVisibility().
+    // Depth-based occlusion sample is cached for the current frame in
+    // m_lastSunTraceK / m_lastSunTraceScrX / m_lastSunTraceFrame so
+    // ApplySunDepthOcclusion() can reuse it without a second readback.
     float traceK = 0.0f;
     if (m_sunScrX == m_lastSunTraceScrX &&
         m_sunScrY == m_lastSunTraceScrY &&
@@ -407,51 +418,12 @@ void GLRenderer::ApplySunDepthOcclusion()
     m_sunLight *= traceK;
 }
 
-void GLRenderer::UpdateSunVisibility()
-{
-    if (m_sunScrX < 10 || m_sunScrY < 10 || m_sunScrX > WinW - 10 || m_sunScrY > WinH - 10) {
-        m_skyTraceK = 0.5f;
-        return;
-    }
-
-    // Rate-limit to ~15 Hz (66ms) to avoid GPU stalls from glReadPixels
-    if (m_sunScrX == m_lastSunVisibilityScrX &&
-        m_sunScrY == m_lastSunVisibilityScrY &&
-        RealTime - m_lastSunVisibilityUpdate < 66) {
-        return;
-    }
-
-    m_lastSunVisibilityUpdate = RealTime;
-    m_lastSunVisibilityScrX = m_sunScrX;
-    m_lastSunVisibilityScrY = m_sunScrY;
-
-    // Depth-based occlusion (GetTraceK): is terrain/models blocking the sun?
-    float traceK = GetTraceK(m_sunScrX, m_sunScrY);
-    m_lastSunTraceK = traceK;
-    m_lastSunTraceScrX = m_sunScrX;
-    m_lastSunTraceScrY = m_sunScrY;
-    m_lastSunTraceFrame = RealTime;
-
-    // Color-based cloud occlusion (GetSkyK): are clouds dimming the sky?
-    float skyK = GetSkyK(m_sunScrX, m_sunScrY);
-
-    // Final visibility is the product
-    float visibility = traceK * skyK;
-
-    // Smooth transition
-    // §3.4: Asymmetric transition — the eye adapts slowly when the sun
-    // emerges (brighten) but reacts fast when a cloud covers it (darken).
-    float brightenSpeed = 0.04f;
-    float darkenSpeed = 0.12f;
-    float speed = (visibility > m_skyTraceK) ? brightenSpeed : darkenSpeed;
-    float delta = (speed + std::fabs(visibility - m_skyTraceK) * 0.5f)
-                * (static_cast<float>(TimeDt) / 512.0f);
-    if (visibility > m_skyTraceK) {
-        m_skyTraceK = (std::min)(visibility, m_skyTraceK + delta);
-    } else {
-        m_skyTraceK = (std::max)(visibility, m_skyTraceK - delta);
-    }
-}
+// UpdateSunVisibility() was removed: it had no call site (dead since its
+// introduction) and combined cloud + depth occlusion into m_skyTraceK, which
+// the architecture deliberately splits (cloud occlusion is live in GetSkyK
+// during the sky pass; depth occlusion is applied to m_sunLight later in
+// ApplySunDepthOcclusion()).  The §3.4 asymmetric transition now lives in
+// GetSkyK's DeltaFunc.
 
 void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int alpha)
 {
@@ -597,11 +569,15 @@ void GLRenderer::RenderSun(float x, float y, float z)
     // do NOT re-rotate here (that would double-rotate).
     float horizonFog = (m_skyTraceK < 0.8f) ? (1.0f - m_skyTraceK) * 0.6f : 0.0f;
     float altitude = (std::max)(0.0f, -CameraY / ctHScale);
-    float altFactor = (std::clamp)(1.0f - altitude / 200.0f, 0.85f, 1.0f);
     float sunLen = std::sqrt(x * x + y * y + z * z);
     float sunElev = (sunLen > 1e-3f) ? y / sunLen : 0.0f;   // up-component of rotated dir
     float elevFactor = 1.0f + (1.0f - (std::max)(0.0f, sunElev)) * 0.15f;
-    float sizeBoost = 1.0f + horizonFog + (1.0f - altFactor) * 0.1f + (elevFactor - 1.0f);
+    // §3.3 review fix: the original altitude term was sign-inverted — it made
+    // the disc grow at HIGH altitude.  Lower camera = more atmosphere = larger
+    // sun, so use altitude directly (clamped) with no 0.85 floor.
+    float sizeBoost = 1.0f + horizonFog
+                    + (std::clamp)(1.0f - altitude / 200.0f, 0.0f, 1.0f) * 0.10f   // low altitude = bigger disc
+                    + (elevFactor - 1.0f);
     float baseD = d;
     d *= sizeBoost;
     d = (std::min)(d, baseD * 1.5f);   // cap at +50% of the base scale
@@ -711,11 +687,48 @@ float GLRenderer::GetSkyK(int x, int y)
             float k = 1.0f - dev / 40.0f;
             if (k < 0.05f) k = 0.05f;
             if (k > 1.0f) k = 1.0f;
+
+            // §2.2 workaround: hysteresis latch (INTERIM).  The ring-vs-ring
+            // detector is blind when a large cloud covers both rings (dev ≈ 0 →
+            // k ≈ 1 → "clear").  Once the detector sees a cloud EDGE (k drops),
+            // this latch clamps k to prevent the false re-brighten while the sun
+            // is still inside the cloud, and only clears after the sky has been
+            // confirmed clear (k > 0.9) for several frames.  NOTE: this suppresses
+            // the transit flicker but does NOT detect TRUE uniform overcast — a
+            // cloud with no edge in the annulus never drops k below 0.5, so the
+            // latch never arms and the glow stays bright.  A proper fix needs an
+            // absolute clear-sky reference (the full sky.frag pipeline replicated
+            // in C++); that is deferred to a separate, in-game-validated commit.
+            // Applied BEFORE the night remap so it operates on the raw detector
+            // value — at night k is remapped to 0.12–0.32, which would always
+            // trigger the latch if applied after.
+            const float kLatchThreshold = 0.5f;      // stronger dimming under cloud
+            const int   kLatchClearFrames = 15;        // hold longer before allowing brighten
+            if (k < kLatchThreshold) {
+                m_cloudLatched = true;
+                m_cloudLatchFrames = 0;
+            } else if (k > 0.9f && m_cloudLatched) {
+                m_cloudLatchFrames++;
+                if (m_cloudLatchFrames >= kLatchClearFrames)
+                    m_cloudLatched = false;
+            }
+            if (m_cloudLatched)
+                k = (std::min)(k, kLatchThreshold);
+
+            // Night remap: moon glow is dimmer and uses linear (not squared)
+            // cloud dependence, so remap k to a lower range.
             if (OptDayNight == 2) k = 0.12f + k / 5.0f;
 
-            // Faster response so the glow tracks the cloud's actual position
-            // (less lag), while the dense ring average keeps it smooth.
-            DeltaFunc(m_skyTraceK, k, (0.12f + std::fabs(k - m_skyTraceK)) * (TimeDt / 128.0f));
+            // §2.1 (review fix): apply the §3.4 asymmetric transition HERE (where it
+            // is actually live).  A cloud covering the sun (k < m_skyTraceK) darkens
+            // fast; the sun emerging (k > m_skyTraceK) brightens slowly as the eye
+            // readapts.  (The asymmetry was originally added to the now-deleted
+            // UpdateSunVisibility().)
+            const float speed = (k > m_skyTraceK) ? 0.04f : 0.08f;   // slow brighten, moderate darken
+            // Smoother response so the glow tracks cloud coverage without
+            // unrealistic flicker.  The dense ring average already provides
+            // spatial smoothing; this adds temporal smoothing.
+            DeltaFunc(m_skyTraceK, k, (speed + std::fabs(k - m_skyTraceK)) * (TimeDt / 192.0f));
 
             glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
         }
