@@ -1,4 +1,4 @@
-// AnimateClassicAmbient.cpp — auto-extracted from CharacterAnimation.cpp
+// AnimateClassicAmbient.cpp ï¿½ auto-extracted from CharacterAnimation.cpp
 // ==========================================================================
 // Auto-generated from CharacterAnimation.cpp
 // ==========================================================================
@@ -110,7 +110,9 @@ TBEGIN:
 		cptr->tgtime = 0;
 	}
 
-	if (pdistSq[0] > ((charViewR + 20) * 256) * ((charViewR + 20) * 256) && cptr->CType)
+	// Step 4: Extend culling distance by 4 units (~1024 world units)
+	// to allow smoothstep fade-out to complete
+	if (pdistSq[0] > ((charViewR + 20 + 4) * 256) * ((charViewR + 20 + 4) * 256) && cptr->CType)
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 

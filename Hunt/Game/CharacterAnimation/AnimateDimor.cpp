@@ -1,4 +1,4 @@
-// AnimateDimor.cpp — auto-extracted from CharacterAnimation.cpp
+// AnimateDimor.cpp ï¿½ auto-extracted from CharacterAnimation.cpp
 // ==========================================================================
 // Auto-generated from CharacterAnimation.cpp
 // ==========================================================================
@@ -33,7 +33,9 @@ TBEGIN:
 
 	//=========== run away =================//
 
-	if (pdist > (charViewR + 20) * 256)
+	// Step 4: Extend culling distance by 4 units (~1024 world units)
+	// to allow smoothstep fade-out to complete
+	if (pdist > (charViewR + 20 + 4) * 256)
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 

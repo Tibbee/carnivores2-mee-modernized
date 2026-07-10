@@ -1,4 +1,4 @@
-// AnimateTRex.cpp — auto-extracted from CharacterAnimation.cpp
+// AnimateTRex.cpp ï¿½ auto-extracted from CharacterAnimation.cpp
 // ==========================================================================
 // Auto-generated from CharacterAnimation.cpp
 // ==========================================================================
@@ -142,7 +142,9 @@ TBEGIN:
 
 	}
 
-	if (pdistSq > ((charViewR + 20) * 256) * ((charViewR + 20) * 256))
+	// Step 4: Extend culling distance by 4 units (~1024 world units)
+	// to allow smoothstep fade-out to complete
+	if (pdistSq > ((charViewR + 20 + 4) * 256) * ((charViewR + 20 + 4) * 256))
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 	if (!cptr->State) {

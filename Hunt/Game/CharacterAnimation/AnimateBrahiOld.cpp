@@ -1,4 +1,4 @@
-// AnimateBrahiOld.cpp — auto-extracted from CharacterAnimation.cpp
+// AnimateBrahiOld.cpp ï¿½ auto-extracted from CharacterAnimation.cpp
 // ==========================================================================
 // Auto-generated from CharacterAnimation.cpp
 // ==========================================================================
@@ -29,7 +29,9 @@ TBEGIN:
 	float playerdx = PlayerX - cptr->pos.x - cptr->lookx * 108;
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
 	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
-	if (pdist > (charViewR + 20) * 256)
+	// Step 4: Extend culling distance by 4 units (~1024 world units)
+	// to allow smoothstep fade-out to complete
+	if (pdist > (charViewR + 20 + 4) * 256)
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 	if (cptr->packId >= 0) {
