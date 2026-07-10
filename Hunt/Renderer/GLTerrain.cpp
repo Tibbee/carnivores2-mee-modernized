@@ -386,6 +386,35 @@ void GLRenderer::RenderTerrain()
     SetWaterAlphaFade(0.0f, 0.0f, 0.0f, 765.0f);
     m_terrainShader.Use();
 
+    // §3.5: per-pixel sun-fog forward-scatter.  Replaces the old per-tile
+    // CPU glow (one value per tile, interpolated across its 4 vertices, which
+    // looked blocky).  We only pass the sun direction in view space plus the
+    // sun visibility here; terrain.frag evaluates dot(viewDir, sunDir)^8 per
+    // fragment and scales by vFog, so the warm glow appears only inside fog
+    // and only when looking toward the sun.
+    {
+        static const GLint uSunDir  = glGetUniformLocation(m_terrainShader.GetProgramID(), "uSunDirection");
+        static const GLint uSunVis  = glGetUniformLocation(m_terrainShader.GetProgramID(), "uSunVisibility");
+        static const GLint uScatter = glGetUniformLocation(m_terrainShader.GetProgramID(), "uFogScatter");
+        if (uScatter >= 0) {
+            if (m_isUnderwater || GetSunLight() < 0.1f) {
+                glUniform1f(uScatter, 0.0f);
+            } else {
+                Vector3d sunDir = {-2048.0f, 4048.0f, -2048.0f};
+                sunDir = RotateVector(sunDir);
+                const float len = std::sqrt(sunDir.x * sunDir.x + sunDir.y * sunDir.y + sunDir.z * sunDir.z);
+                if (len > 1e-3f && uSunDir >= 0 && uSunVis >= 0) {
+                    glUniform3f(uSunDir, sunDir.x / len, sunDir.y / len, sunDir.z / len);
+                    const float vis = std::clamp(GetSunLight() / kMaxSunLight, 0.0f, 1.0f);
+                    glUniform1f(uSunVis, vis);
+                    glUniform1f(uScatter, 0.25f);  // master scatter strength (was 0.25 in §3.5)
+                } else {
+                    glUniform1f(uScatter, 0.0f);
+                }
+            }
+        }
+    }
+
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);
 #ifdef GL_PERF_HOOKS

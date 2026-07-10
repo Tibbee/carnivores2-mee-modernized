@@ -24,6 +24,7 @@ out float vAlpha;
 out float vViewZ;
 out float vViewDistance;
 out float vWaterAlphaFade;
+out vec3 vViewPos;          // view-space vertex position (camera at origin)
 void main() {
    gl_Position = uProjection * vec4(aPos, 1.0);
    vTexCoord = aTexCoord;
@@ -39,4 +40,5 @@ void main() {
    // water pixels (the minority).
    vViewDistance = dot(aPos, aPos);
    vWaterAlphaFade = aLightFogAlpha.w;
+   vViewPos = aPos;          // already in view space (uProjection * aPos)
 }

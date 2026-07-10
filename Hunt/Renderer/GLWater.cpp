@@ -70,6 +70,17 @@ void GLRenderer::RenderWaterSurface()
                       256.0f * static_cast<float>(ctViewR - 4),
                       3.0f);
     m_terrainShader.Use();
+
+    // §3.5: the terrain program's sun forward-scatter uniforms are
+    // set for terrain in RenderTerrain(); the water surface reuses the
+    // same program, so zero the scatter here to stop water fog from
+    // inheriting the terrain glow.
+    {
+        static const GLint uScatter = glGetUniformLocation(m_terrainShader.GetProgramID(), "uFogScatter");
+        if (uScatter >= 0) {
+            glUniform1f(uScatter, 0.0f);
+        }
+    }
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif

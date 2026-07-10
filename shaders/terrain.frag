@@ -9,6 +9,10 @@ in float vAlpha;
 in float vViewZ;
 in float vViewDistance;
 in float vWaterAlphaFade;
+in vec3 vViewPos;            // view-space position (camera at origin)
+uniform vec3 uSunDirection;     // sun direction in view space (§3.5)
+uniform float uSunVisibility;    // 0..1 sun visibility (§3.5)
+uniform float uFogScatter;       // master scatter strength (§3.5)
 uniform PerFrame {
    mat4 uProjection;
    vec2 uFogRange;          // (fadeStart, distance)
@@ -62,6 +66,16 @@ void main() {
 
    // Per-vertex volumetric fog (volume-specific color and amount).
    vec3 volumetricFogColor = mix(litColor, vFogColor, vFog);
+   // §3.5: per-pixel sun-fog forward-scatter glow.  The warm glow only
+   // appears where there is fog (vFog) and only when looking toward the
+   // sun (view ray aligned with the view-space sun direction).  Evaluating
+   // per fragment avoids the blocky per-tile approximation used before.
+   if (uFogScatter > 0.0 && vFog > 0.01) {
+       vec3 viewDir = vViewPos / max(length(vViewPos), 1e-3f);  // camera at origin in view space; guard zero-length
+       float scatter = pow(max(0.0, dot(viewDir, uSunDirection)), 8.0);
+       vec3 warmGlow = vec3(1.0, 0.85, 0.5) * scatter * uSunVisibility * uFogScatter * vFog;
+       volumetricFogColor += warmGlow;
+   }
    // Per-pixel distance fog: smooth ramp from uFogRange.x to
    // uFogRange.y. Uses the global horizon color instead of the
    // per-vertex vFogColor, which prevents local fog volumes from
