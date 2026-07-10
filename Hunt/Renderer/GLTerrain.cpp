@@ -519,6 +519,34 @@ void GLRenderer::RebuildWaterBlockBits()
 // The original 3-arg version delegates to these for backward compat.
 // ---------------------------------------------------------------------------
 
+// §3.1: Smooth fog-volume transitions.  Blend the four per-corner fog
+// colours 30% toward their tile average to soften hard fog boundaries.
+// This is the "simpler alternative" from pocket-fog-improvements-c2.md —
+// no additional FogsMap lookups, just averaging already-fetched colours.
+static void SmoothFogColors(Vector3d& fog00, Vector3d& fog10,
+                            Vector3d& fog01, Vector3d& fog11)
+{
+    constexpr float kBlend = 0.3f;
+    constexpr float kInvBlend = 1.0f - kBlend;
+    const float avgX = (fog00.x + fog10.x + fog01.x + fog11.x) * 0.25f;
+    const float avgY = (fog00.y + fog10.y + fog01.y + fog11.y) * 0.25f;
+    const float avgZ = (fog00.z + fog10.z + fog01.z + fog11.z) * 0.25f;
+    fog00.x = fog00.x * kInvBlend + avgX * kBlend;
+    fog00.y = fog00.y * kInvBlend + avgY * kBlend;
+    fog00.z = fog00.z * kInvBlend + avgZ * kBlend;
+    fog10.x = fog10.x * kInvBlend + avgX * kBlend;
+    fog10.y = fog10.y * kInvBlend + avgY * kBlend;
+    fog10.z = fog10.z * kInvBlend + avgZ * kBlend;
+    fog01.x = fog01.x * kInvBlend + avgX * kBlend;
+    fog01.y = fog01.y * kInvBlend + avgY * kBlend;
+    fog01.z = fog01.z * kInvBlend + avgZ * kBlend;
+    fog11.x = fog11.x * kInvBlend + avgX * kBlend;
+    fog11.y = fog11.y * kInvBlend + avgY * kBlend;
+    fog11.z = fog11.z * kInvBlend + avgZ * kBlend;
+}
+
+// §3.5+§3.6: Sun-fog forward-scatter glow and colour shift.
+// §3.5: Sun-fog forward-scatter glow.
 void GLRenderer::CollectTerrainTile(int x, int y, int r,
                                     float fadeStart, float fadeStartSq, float fadeEnd)
 {
@@ -582,10 +610,13 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     v01.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx01, v01.Fog, m_isUnderwater));
     v11.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx11, v11.Fog, m_isUnderwater));
 
-    const Vector3d fog00 = GetFogColorForMapPoint(fogIdx00);
-    const Vector3d fog10 = GetFogColorForMapPoint(fogIdx10);
-    const Vector3d fog01 = GetFogColorForMapPoint(fogIdx01);
-    const Vector3d fog11 = GetFogColorForMapPoint(fogIdx11);
+    Vector3d fog00 = GetFogColorForMapPoint(fogIdx00);
+    Vector3d fog10 = GetFogColorForMapPoint(fogIdx10);
+    Vector3d fog01 = GetFogColorForMapPoint(fogIdx01);
+    Vector3d fog11 = GetFogColorForMapPoint(fogIdx11);
+
+    // §3.1: Smooth fog-volume transitions — blend corners toward tile average
+    SmoothFogColors(fog00, fog10, fog01, fog11);
 
     // Phase 5: use cached m_isUnderwater to skip the global load
     float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
@@ -793,6 +824,9 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
     for (int dj = 0; dj < 2; ++dj) {
         for (int di = 0; di < 2; ++di) {
             if (!coarsePass[dj][di]) continue;
+            // §3.1: Smooth fog-volume transitions per tile
+            SmoothFogColors(fogCol[dj][di], fogCol[dj][di + 1],
+                            fogCol[dj + 1][di], fogCol[dj + 1][di + 1]);
             EmitTerrainTile(x + di, y + dj, backR[dj][di],
                             v[dj][di], v[dj][di + 1], v[dj + 1][di], v[dj + 1][di + 1],
                             fogCol[dj][di], fogCol[dj][di + 1], fogCol[dj + 1][di], fogCol[dj + 1][di + 1],
