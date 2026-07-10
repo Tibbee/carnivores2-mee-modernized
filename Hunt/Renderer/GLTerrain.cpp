@@ -261,6 +261,17 @@ void GLRenderer::EnsureTerrainTextureArray()
     // renderers.
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 1);
 
+    // Step 7: Enable anisotropic filtering for smoother texture LOD
+    // transitions at oblique angles (one-time setup, zero per-frame cost)
+    // GL_EXT_texture_filter_anisotropic constants (not in GLAD headers)
+    constexpr GLint GL_TEXTURE_MAX_ANISOTROPY_EXT = 0x84FE;
+    constexpr GLint GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT = 0x84FF;
+    GLint maxAniso = 0;
+    glGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAniso);
+    if (maxAniso >= 4) {
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY_EXT, 4);
+    }
+
     int size = 128;
     for (int level = 0; level < kTerrainMipLevels; ++level) {
         glTexImage3D(GL_TEXTURE_2D_ARRAY, level, GL_RGBA8, size, size, kMaxTerrainTextureLayers, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
@@ -548,10 +559,29 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     const Vector3d fog11 = GetFogColorForMapPoint(fogIdx11);
 
     // Phase 5: use cached m_isUnderwater to skip the global load
-    const float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
-    const float alpha10 = CalcTerrainAlpha(VertexDistanceSq(v10.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
-    const float alpha01 = CalcTerrainAlpha(VertexDistanceSq(v01.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
-    const float alpha11 = CalcTerrainAlpha(VertexDistanceSq(v11.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+    float alpha00 = CalcTerrainAlpha(VertexDistanceSq(v00.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+    float alpha10 = CalcTerrainAlpha(VertexDistanceSq(v10.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+    float alpha01 = CalcTerrainAlpha(VertexDistanceSq(v01.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+    float alpha11 = CalcTerrainAlpha(VertexDistanceSq(v11.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+
+    // Step 5: Fog-aware distance fade
+    // When fog is dense, distance fade has less effect — fog already obscures the view
+    if (!m_isUnderwater) {
+        const float fog00f = static_cast<float>(v00.Fog) / 200.0f;
+        const float fog10f = static_cast<float>(v10.Fog) / 200.0f;
+        const float fog01f = static_cast<float>(v01.Fog) / 200.0f;
+        const float fog11f = static_cast<float>(v11.Fog) / 200.0f;
+
+        const float fogAdjust00 = 1.0f - fog00f * 0.7f;
+        const float fogAdjust10 = 1.0f - fog10f * 0.7f;
+        const float fogAdjust01 = 1.0f - fog01f * 0.7f;
+        const float fogAdjust11 = 1.0f - fog11f * 0.7f;
+
+        alpha00 = std::clamp(alpha00 * fogAdjust00 + fog00f * 0.7f, 0.0f, 1.0f);
+        alpha10 = std::clamp(alpha10 * fogAdjust10 + fog10f * 0.7f, 0.0f, 1.0f);
+        alpha01 = std::clamp(alpha01 * fogAdjust01 + fog01f * 0.7f, 0.0f, 1.0f);
+        alpha11 = std::clamp(alpha11 * fogAdjust11 + fog11f * 0.7f, 0.0f, 1.0f);
+    }
 
     EmitTerrainTile(x, y, backR, v00, v10, v01, v11,
                     fog00, fog10, fog01, fog11,
@@ -718,6 +748,13 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
             v[j][i].Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx[j][i], v[j][i].Fog, m_isUnderwater));
             fogCol[j][i] = GetFogColorForMapPoint(fogIdx[j][i]);
             alpha[j][i] = CalcTerrainAlpha(VertexDistanceSq(v[j][i].v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
+
+            // Step 5: Fog-aware distance fade
+            if (!m_isUnderwater) {
+                const float fogf = static_cast<float>(v[j][i].Fog) / 200.0f;
+                const float fogAdjust = 1.0f - fogf * 0.7f;
+                alpha[j][i] = std::clamp(alpha[j][i] * fogAdjust + fogf * 0.7f, 0.0f, 1.0f);
+            }
         }
     }
 
