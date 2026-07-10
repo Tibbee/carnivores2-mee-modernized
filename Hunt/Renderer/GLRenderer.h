@@ -245,6 +245,9 @@ private:
     void RenderTerrain();
     void RenderWaterSurface();
     void RenderWorldModels();
+    // Step 2: Apply model distance fade using CalcTerrainAlpha (smoothstep).
+    // Sets m_modelDistanceAlpha and clears GlassL for legacy compatibility.
+    void ApplyModelDistanceFade(const Vector3d& rpos);
     // 2.19: builds a character's projected shadow triangles into `outVerts`
     // (no draw); shared by RenderProjectedCharacterShadow (fallback) and the
     // batched path in RenderProjectedShadows.
@@ -532,6 +535,11 @@ private:
     // Phase 5: Cache IsUnderwater() once per frame to avoid ~500K
     // redundant global loads during the terrain walk.
     bool m_isUnderwater = false;
+
+    // Step 2: Model distance fade alpha (smoothstep curve).
+    // Set before each model render call; used by BuildModelDrawItem
+    // instead of the legacy GlassL global.
+    float m_modelDistanceAlpha = 1.0f;
 
     // Phase 3: Coarse water bitmask. Built once at level load.
     // Each bit represents an 8x8 cell block; set if any cell in the

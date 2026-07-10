@@ -536,17 +536,18 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection,
 
 
 
-static void ApplyGLModelDistanceFade(const Vector3d& rpos)
+void GLRenderer::ApplyModelDistanceFade(const Vector3d& rpos)
 {
     const float distanceSq = VectorLengthSq(rpos);
-    const float fadeStart = 256.0f * (ctViewR - 4);
-    const float fadeStartSq = fadeStart * fadeStart;
+    // Use the same fade range as terrain (smoothstep curve)
+    const float modelFadeStart = static_cast<float>((ctViewR - 8) << 8);
+    const float modelFadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
 
+    m_modelDistanceAlpha = CalcTerrainAlpha(distanceSq, modelFadeStart,
+                                            modelFadeStart * modelFadeStart,
+                                            modelFadeEnd, m_isUnderwater);
+    // Keep GlassL = 0 for the GL path (legacy renderers still use it)
     GlassL = 0;
-    if (distanceSq > fadeStartSq) {
-        const float distance = std::sqrt(distanceSq);
-        GlassL = (std::min)(255, static_cast<int>((distance - fadeStart) / 4.0f));
-    }
 }
 
 
@@ -581,11 +582,20 @@ void GLRenderer::Render3DHardwarePosts()
         float zs = sqrtf(cptr->rpos.x * cptr->rpos.x +
                          cptr->rpos.y * cptr->rpos.y +
                          cptr->rpos.z * cptr->rpos.z);
-        if (zs > ctViewR * 256.0f) continue;
+        // Step 4: Extend culling distance to allow fade-out to complete
+        const float extendedViewR = ctViewR * 256.0f + 765.0f;
+        if (zs > extendedViewR) continue;
 
-        GlassL = 0;
-        if (zs > 256.0f * (ctViewR - 4))
-            GlassL = (std::min)(255, static_cast<int>(zs / 4.0f - 64.0f * (ctViewR - 4)));
+        // Use CalcTerrainAlpha for smoothstep model fade
+        const float modelFadeStart = static_cast<float>((ctViewR - 8) << 8);
+        const float modelFadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
+        m_modelDistanceAlpha = CalcTerrainAlpha(zs * zs, modelFadeStart,
+                                                modelFadeStart * modelFadeStart,
+                                                modelFadeEnd, m_isUnderwater);
+        GlassL = 0;  // Legacy compatibility
+
+        // Cull fully transparent models
+        if (m_modelDistanceAlpha <= 0.005f) continue;
 
         waterclip = false;
 
@@ -626,11 +636,20 @@ void GLRenderer::Render3DHardwarePosts()
             float zs = sqrtf(cptr->rpos.x * cptr->rpos.x +
                              cptr->rpos.y * cptr->rpos.y +
                              cptr->rpos.z * cptr->rpos.z);
-            if (zs > ctViewR * 256.0f) continue;
+            // Step 4: Extend culling distance to allow fade-out to complete
+            const float extendedViewR = ctViewR * 256.0f + 765.0f;
+            if (zs > extendedViewR) continue;
 
-            GlassL = 0;
-            if (zs > 256.0f * (ctViewR - 4))
-                GlassL = (std::min)(255, static_cast<int>(zs / 4.0f - 64.0f * (ctViewR - 4)));
+            // Use CalcTerrainAlpha for smoothstep model fade
+            const float modelFadeStart = static_cast<float>((ctViewR - 8) << 8);
+            const float modelFadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
+            m_modelDistanceAlpha = CalcTerrainAlpha(zs * zs, modelFadeStart,
+                                                    modelFadeStart * modelFadeStart,
+                                                    modelFadeEnd, m_isUnderwater);
+            GlassL = 0;  // Legacy compatibility
+
+            // Cull fully transparent models
+            if (m_modelDistanceAlpha <= 0.005f) continue;
 
             waterclip = false;
 
@@ -660,7 +679,7 @@ void GLRenderer::Render3DHardwarePosts()
             if (Ship.rpos.z <= BackViewR &&
                 fabs(Ship.rpos.x) <= -Ship.rpos.z + BackViewR) {
                 if (Ship.State != -1) {
-                    ApplyGLModelDistanceFade(Ship.rpos);
+                    ApplyModelDistanceFade(Ship.rpos);
 
                     CreateMorphedModel(ShipModel.mptr.get(), &ShipModel.Animation[0], Ship.FTime, 1.0);
 
@@ -690,7 +709,7 @@ void GLRenderer::Render3DHardwarePosts()
             if (SShip.rpos.z <= BackViewR &&
                 fabs(SShip.rpos.x) <= -SShip.rpos.z + BackViewR) {
                 if (SShip.State >= 1) {
-                    ApplyGLModelDistanceFade(SShip.rpos);
+                    ApplyModelDistanceFade(SShip.rpos);
 
                     CreateMorphedModelBetaGamma(SShipModel.mptr.get(), &SShipModel.Animation[0],
                                                 SShip.FTime, 1.0, SShip.beta, SShip.gamma);
@@ -721,7 +740,7 @@ void GLRenderer::Render3DHardwarePosts()
             if (AmmoBag.rpos.z <= BackViewR &&
                 fabs(AmmoBag.rpos.x) <= -AmmoBag.rpos.z + BackViewR) {
                 if (AmmoBag.State >= 1) {
-                    ApplyGLModelDistanceFade(AmmoBag.rpos);
+                    ApplyModelDistanceFade(AmmoBag.rpos);
 
                     CreateMorphedModel(BagModel.mptr.get(), &BagModel.Animation[0], AmmoBag.FTime, 1.0);
 
@@ -752,7 +771,7 @@ void GLRenderer::Render3DHardwarePosts()
             bullet[b].rpos = RotateVector(bullet[b].rpos);
             if (bullet[b].rpos.z <= BackViewR &&
                 fabs(bullet[b].rpos.x) <= -bullet[b].rpos.z + BackViewR) {
-                ApplyGLModelDistanceFade(bullet[b].rpos);
+                ApplyModelDistanceFade(bullet[b].rpos);
 
                 CreateMorphedModelBetaGamma(Weapon.Bullet[bullet[b].parent].mptr.get(),
                                             &Weapon.Bullet[bullet[b].parent].Animation[0],

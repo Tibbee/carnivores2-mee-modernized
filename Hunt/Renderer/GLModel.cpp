@@ -245,7 +245,7 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
     item.additive = false;
 
     const float baseLight = std::clamp(static_cast<float>(light), 0.0f, 255.0f);
-    const float alpha = std::clamp((255.0f - static_cast<float>(GlassL)) / 255.0f, 0.0f, 1.0f);
+    const float alpha = m_modelDistanceAlpha;
 
     // Unrotate view-space (x0,y0,z0) back to world-relative
     // coordinates for fog sampling. RotateVector was applied in
@@ -559,16 +559,21 @@ void GLRenderer::RenderMappedObject(int x, int y)
 
     pos = RotateVector(pos);
     float zs = 0.0f;
-    const float fadeStart = 256.0f * (ctViewR - 4);
-    const float fadeStartSq = fadeStart * fadeStart;
-    if (distanceSq > fadeStartSq) {
-        zs = static_cast<float>(std::sqrt(distanceSq));
-        GlassL = (std::min)(255, static_cast<int>((zs - fadeStart) / 4.0f));
-    } else {
-        GlassL = 0;
-    }
-    if (GlassL == 255) {
+    // Use CalcTerrainAlpha for smoothstep model fade (same range as terrain)
+    const float modelFadeStart = static_cast<float>((ctViewR - 8) << 8);
+    const float modelFadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
+    m_modelDistanceAlpha = CalcTerrainAlpha(distanceSq, modelFadeStart,
+                                            modelFadeStart * modelFadeStart,
+                                            modelFadeEnd, m_isUnderwater);
+    GlassL = 0;  // Legacy compatibility
+
+    if (m_modelDistanceAlpha <= 0.005f) {
         return;
+    }
+
+    // Keep zs for BMP distance check below
+    if (distanceSq > modelFadeStart * modelFadeStart) {
+        zs = static_cast<float>(std::sqrt(distanceSq));
     }
 
     if ((MObjects[ob].info.flags & ofANIMATED) && MObjects[ob].info.LastAniTime != RealTime) {
@@ -581,7 +586,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
         const float bmpDistanceLimit = ctViewRM * 256.0f;
         const float bmpDistanceLimitSq = bmpDistanceLimit * bmpDistanceLimit;
         if (distanceSq > bmpDistanceLimitSq) {
-            if (GlassL > 0) {
+            if (m_modelDistanceAlpha < 1.0f) {
                 renderAsBMP = zs > bmpDistanceLimit;
             } else {
                 const float distance = static_cast<float>(std::sqrt(distanceSq));
@@ -659,7 +664,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
         // nearest filtering.
         // Phase 2.x: .y = fogGrad (Y-gradient, was tintByFog=0).
         //            .z = fogBase (pocket-fog amount at object centre).
-        const float alpha = std::clamp((255.0f - static_cast<float>(GlassL)) / 255.0f, 0.0f, 1.0f);
+        const float alpha = m_modelDistanceAlpha;
         instance.instanceFlags[0] = meshEntry.hasCutout ? 1.0f : 0.0f; // cutout
         instance.instanceFlags[1] = (fogGrad / 255.0f) * kFogDensity; // Phase 2.x: fog Y-gradient
         instance.instanceFlags[2] = (fogBase / 255.0f) * kFogDensity; // Phase 2.x: fog base amount
@@ -958,7 +963,7 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
 
     const int lightIndex = std::clamp(vt, 0, 3);
     const float baseLight = static_cast<float>(light);
-    const float baseAlpha = std::clamp((255.0f - static_cast<float>(GlassL)) / 255.0f, 0.0f, 1.0f);
+    const float baseAlpha = m_modelDistanceAlpha;
     const float transparentScale = clippedVariant ? (0x70 / 255.0f) : (0x80 / 255.0f);
     const bool forceDistanceBlend = baseAlpha < 0.999f;
 
