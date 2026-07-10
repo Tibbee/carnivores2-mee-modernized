@@ -121,8 +121,26 @@ float CalcFogLevel(Vector3d v)
   }
   if (flb<0)
   {
-    d*= fla / (fla-flb);
-    flb = 0;
+    if (fla > 0 && !IsUnderwater() && cf > 0 && cf < 127)
+    {
+      // §3.9: From-above visibility.  Camera is above the fog layer but the
+      // vertex is inside it.  The legacy d *= fla/(fla-flb) left the bank
+      // nearly invisible: fl collapsed to just the vertex's thin vertical
+      // depth (fla) while the distance term was shrunk to the in-fog slice.
+      // Boost the fog column by how far the camera sits above the fog top, so
+      // the layer reads as a real volumetric bank when viewed from a ridge.
+      // Bounded (columnBoost <= 2.0) so it can't over-fog distant terrain.
+      const float viewRatio   = std::fabs(flb) / std::max(fla, 1.0f);
+      const float columnBoost = std::min(viewRatio * 0.3f, 2.0f);
+      fla *= (1.0f + columnBoost);
+      d *= fla / (fla - flb);
+      flb = 0;
+    }
+    else
+    {
+      d *= fla / (fla - flb);
+      flb = 0;
+    }
   }
 
   float fl = (fla + flb);
