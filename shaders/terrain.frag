@@ -13,6 +13,8 @@ in vec3 vViewPos;            // view-space position (camera at origin)
 uniform vec3 uSunDirection;     // sun direction in view space (§3.5)
 uniform float uSunVisibility;    // 0..1 sun visibility (§3.5)
 uniform float uFogScatter;       // master scatter strength (§3.5)
+uniform vec3 uCamFogColor;       // §3.10 camera-in-fog envelope colour
+uniform float uCamFogAmount;     // §3.10 camera-in-fog envelope strength (0 = off)
 uniform PerFrame {
    mat4 uProjection;
    vec2 uFogRange;          // (fadeStart, distance)
@@ -82,6 +84,19 @@ void main() {
    // bleeding into the horizon fade.
    float distanceFog = clamp((vViewZ - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);
    vec3 finalColor = mix(volumetricFogColor, uDistanceFogColor, distanceFog);
+
+   // §3.10: camera-in-fog global envelope.  When the camera is submerged in a
+   // tall pocket-fog volume, fog the whole scene by distance so the world
+   // reads as enveloped (not just geometry that sits inside the volume).  The
+   // sky horizon is fogged separately (§3.8).  uCamFogAmount is 0 when the
+   // camera is in a shallow foot-level puddle, so it self-disables there.
+   if (uCamFogAmount > 0.001f) {
+       // Near baseline so close objects are also hazed (sells "inside fog");
+       // far objects still reach the full envelope amount.
+       const float kNearFog = 0.25f;
+       float camEnvDist = kNearFog + (1.0f - kNearFog) * (1.0f - exp(-2.5f * vViewZ / max(uFogRange.y, 1.0f)));
+       finalColor = mix(finalColor, uCamFogColor, uCamFogAmount * camEnvDist);
+   }
    float waterAlphaFade = 1.0;
    if (vWaterAlphaFade > 0.5 && uWaterAlphaFade.z > 0.5) {
       // vViewDistance is now squared distance; compute sqrt

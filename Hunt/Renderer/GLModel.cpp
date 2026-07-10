@@ -407,6 +407,17 @@ void GLRenderer::RenderInstancedModels()
     m_instancedModelShader.Use();
     glBindVertexArray(m_instanceVAO);
 
+    // §3.10: camera-in-fog global envelope (see GLRenderer::UpdateCameraFogEnvelope).
+    {
+        static const GLint uCamFogCol = glGetUniformLocation(m_instancedModelShader.GetProgramID(), "uCamFogColor");
+        static const GLint uCamFogAmt = glGetUniformLocation(m_instancedModelShader.GetProgramID(), "uCamFogAmount");
+        if (uCamFogCol >= 0 && uCamFogAmt >= 0 && g_GLRenderer) {
+            const Vector3d c = g_GLRenderer->GetCamEnvelopeColor();
+            glUniform3f(uCamFogCol, c.x, c.y, c.z);
+            glUniform1f(uCamFogAmt, g_GLRenderer->GetCamEnvelopeAmount());
+        }
+    }
+
     // Phase 2.9: orphan the instance VBO once (glBufferData with
     // nullptr) to avoid per-group stalls.  Size to the largest group
     // in bytes.  The per-group loop then uses glBufferSubData without
@@ -798,6 +809,17 @@ void GLRenderer::DrawModelVertices(GLuint texture,
     // uProjection is now in the PerFrame UBO (Phase 1.1). uTintByFogColor
     // stays a per-draw uniform; location cached at Initialize() (1.6).
     glUniform1f(m_locModelTint, tintByFogColor ? 1.0f : 0.0f);
+
+    // §3.10: camera-in-fog global envelope (see GLRenderer::UpdateCameraFogEnvelope).
+    {
+        static const GLint uCamFogCol = glGetUniformLocation(m_modelShader.GetProgramID(), "uCamFogColor");
+        static const GLint uCamFogAmt = glGetUniformLocation(m_modelShader.GetProgramID(), "uCamFogAmount");
+        if (uCamFogCol >= 0 && uCamFogAmt >= 0 && g_GLRenderer) {
+            const Vector3d c = g_GLRenderer->GetCamEnvelopeColor();
+            glUniform3f(uCamFogCol, c.x, c.y, c.z);
+            glUniform1f(uCamFogAmt, g_GLRenderer->GetCamEnvelopeAmount());
+        }
+    }
 
     if (depthTest) {
         glEnable(GL_DEPTH_TEST);

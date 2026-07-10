@@ -415,6 +415,20 @@ void GLRenderer::RenderTerrain()
         }
     }
 
+    // §3.10: camera-in-fog global envelope.  When the camera is submerged in
+    // a tall pocket-fog volume, fog the whole scene by distance (not just
+    // in-volume geometry).  Colour/amount are computed once per frame in
+    // GLRenderer::UpdateCameraFogEnvelope() and consumed here + in the model
+    // shaders.  (The sky horizon is handled separately by §3.8.)
+    {
+        static const GLint uCamFogCol = glGetUniformLocation(m_terrainShader.GetProgramID(), "uCamFogColor");
+        static const GLint uCamFogAmt = glGetUniformLocation(m_terrainShader.GetProgramID(), "uCamFogAmount");
+        if (uCamFogCol >= 0 && uCamFogAmt >= 0) {
+            glUniform3f(uCamFogCol, m_camEnvelopeColor.x, m_camEnvelopeColor.y, m_camEnvelopeColor.z);
+            glUniform1f(uCamFogAmt, m_camEnvelopeAmount);
+        }
+    }
+
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);
 #ifdef GL_PERF_HOOKS

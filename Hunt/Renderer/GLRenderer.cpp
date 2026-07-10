@@ -1386,6 +1386,48 @@ Vector3d GLRenderer::GetFogColorForMapPoint(int fogIndex)
     return GetDistanceFogColor();
 }
 
+void GLRenderer::UpdateCameraFogEnvelope()
+{
+    // §3.10: compute the *target* envelope for this frame, then smooth the
+    // actual values toward it so entering/leaving a fog volume fades the
+    // global envelope in/out instead of snapping.  flb is low-passed
+    // (m_camEnvFlbSmooth) so head-bob — which oscillates CameraY and thus flb
+    // — does not flip the check on/off every bob.
+    float targetAmount = 0.0f;
+    Vector3d targetColor = {0.0f, 0.0f, 0.0f};
+
+    if (FOGON && !IsUnderwater() && CAMERAINFOG && CameraFogI > 0 && CameraFogI < 127) {
+        const TFogEntity& fog = FogsList[CameraFogI];
+
+        // CAMERAINFOG is set from the camera's map cell (Controls.cpp), so it
+        // is true whenever the camera is horizontally inside a fog volume
+        // regardless of eye height.  flb is the fog top relative to the eye:
+        // >0 = top above the eye (tall fog), <0 = a shorter ground/body-level
+        // layer the player still stands in.  Only a truly foot-level puddle
+        // (flb far below the feet) is excluded (see kFootCut).
+        const float flb = (fog.YBegin * ctHScale - CameraY) / ctHScale;
+        constexpr float kFlbSmooth = 0.05f;   // low-pass on flb (kills head-bob)
+        m_camEnvFlbSmooth += (flb - m_camEnvFlbSmooth) * kFlbSmooth;
+
+        constexpr float kNormEnvelope = 0.3f;   // flb == 0.3*FLimit -> full strength
+        constexpr float kFootCut       = -1.0f; // raw below this = foot-level puddle
+        constexpr float kFloor         = 0.5f;  // min envelope while "in" a volume
+        const float raw = m_camEnvFlbSmooth / (fog.FLimit * kNormEnvelope);
+        if (raw > kFootCut) {
+            targetAmount = std::max(std::clamp(raw, 0.0f, 1.0f), kFloor);
+            targetColor  = GetFogColorForMapPoint(CameraFogI);
+        }
+    }
+
+    // Temporal smoothing (per-frame lerp).  §3.10: gentle fade in/out.
+    // Tunable: higher = snappier, lower = slower.
+    constexpr float kSmooth = 0.05f;
+    m_camEnvelopeAmount += (targetAmount - m_camEnvelopeAmount) * kSmooth;
+    m_camEnvelopeColor.x += (targetColor.x - m_camEnvelopeColor.x) * kSmooth;
+    m_camEnvelopeColor.y += (targetColor.y - m_camEnvelopeColor.y) * kSmooth;
+    m_camEnvelopeColor.z += (targetColor.z - m_camEnvelopeColor.z) * kSmooth;
+}
+
 float GLRenderer::Clamp01(float value)
 {
     if (value < 0.0f) return 0.0f;

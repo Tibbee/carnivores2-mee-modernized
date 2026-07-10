@@ -566,6 +566,15 @@ private:
     Vector3d m_smoothedSkyFogColor = {0.0f, 0.0f, 0.0f};
     bool m_smoothedSkyFogColorInit = false;
 
+    // §3.10: camera-in-fog global envelope parameters.  When the camera is
+    // submerged in a tall pocket-fog volume, the fog it is embedded in
+    // attenuates the whole scene (terrain, models, sky) by view distance —
+    // not just geometry that sits inside the volume.  Computed once per frame
+    // in UpdateCameraFogEnvelope() and consumed by the terrain/model shaders.
+    float    m_camEnvelopeAmount = 0.0f;
+    Vector3d m_camEnvelopeColor  = {0.0f, 0.0f, 0.0f};
+    float    m_camEnvFlbSmooth   = 0.0f;   // §3.10 low-passed flb (kills head-bob flicker)
+
     void InitializeSkyPipeline();
     void ShutdownSkyPipeline();
     void UploadSkyTexture();
@@ -631,6 +640,11 @@ private:
 
 public:
     float GetSunLight() const { return m_sunLight; }
+
+    // §3.10: camera-in-fog global envelope accessors (see members above).
+    float    GetCamEnvelopeAmount() const { return m_camEnvelopeAmount; }
+    Vector3d GetCamEnvelopeColor()  const { return m_camEnvelopeColor; }
+    void     UpdateCameraFogEnvelope();
     void RenderFSRect(uint32_t color, bool additive = true);
     void ApplySunDepthOcclusion();
     void DrawHUDOverlay();

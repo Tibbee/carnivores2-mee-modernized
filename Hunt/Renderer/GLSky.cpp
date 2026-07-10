@@ -181,6 +181,17 @@ void GLRenderer::RenderSkyPlane()
     glUniform1f(m_locSkyPocketFog, pocketFogAmount);
     glUniform3f(m_locSkyPocketFogColor, pocketFogColor.x, pocketFogColor.y, pocketFogColor.z);
 
+    // §3.10: camera-in-fog global envelope also fogs the sky (see sky.frag).
+    {
+        static const GLint uCamFogCol = glGetUniformLocation(m_skyShader.GetProgramID(), "uCamFogColor");
+        static const GLint uCamFogAmt = glGetUniformLocation(m_skyShader.GetProgramID(), "uCamFogAmount");
+        if (uCamFogCol >= 0 && uCamFogAmt >= 0 && g_GLRenderer) {
+            const Vector3d c = g_GLRenderer->GetCamEnvelopeColor();
+            glUniform3f(uCamFogCol, c.x, c.y, c.z);
+            glUniform1f(uCamFogAmt, g_GLRenderer->GetCamEnvelopeAmount());
+        }
+    }
+
     // Sample CalcFogLevel directly above the camera (X=0, Z=0 in
     // camera-relative space) at sky height to get the base fog amount
     // for the per-pixel sky gradient. Using (0, ...) instead of

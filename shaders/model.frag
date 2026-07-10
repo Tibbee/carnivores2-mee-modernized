@@ -16,6 +16,8 @@ uniform PerFrame {
 };
 uniform sampler2D uModelTexture;
 uniform float uTintByFogColor;
+uniform vec3 uCamFogColor;       // §3.10 camera-in-fog envelope colour
+uniform float uCamFogAmount;     // §3.10 camera-in-fog envelope strength (0 = off)
 void main() {
    vec4 texColor = texture(uModelTexture, vTexCoord);
    if (vCutout > 0.5 && texColor.a <= 0.5) discard;
@@ -28,5 +30,15 @@ void main() {
    // model-path objects (BMP billboards and water-clipped meshes).
    float distanceFog = clamp((vViewZ - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);
    finalColor = mix(finalColor, uDistanceFogColor, distanceFog);
+
+   // §3.10: camera-in-fog global envelope — see terrain.frag.  Fogs the whole
+   // scene by distance when the camera is submerged in a tall pocket-fog volume.
+   if (uCamFogAmount > 0.001f) {
+       // Near baseline so close objects are also hazed (sells "inside fog");
+       // far objects still reach the full envelope amount.
+       const float kNearFog = 0.25f;
+       float camEnvDist = kNearFog + (1.0f - kNearFog) * (1.0f - exp(-2.5f * vViewZ / max(uFogRange.y, 1.0f)));
+       finalColor = mix(finalColor, uCamFogColor, uCamFogAmount * camEnvDist);
+   }
    FragColor = vec4(finalColor, texColor.a * vAlpha);
 }

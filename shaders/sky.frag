@@ -22,6 +22,8 @@ uniform float uSunGlow;       // §3.6: master glow strength (sun 0.18, moon 0.1
 uniform float uBodyIsMoon;    // §3.6: 1.0 = moon (night), 0.0 = sun (day)
 uniform float uPocketFog;     // §3.5: camera pocket-fog density (0..1)
 uniform vec3  uPocketFogColor;// §3.5: camera pocket-fog colour
+uniform vec3  uCamFogColor;     // §3.10 camera-in-fog envelope colour
+uniform float uCamFogAmount;    // §3.10 camera-in-fog envelope strength (0 = off)
 uniform float uFogBase;
 uniform float uUnderwaterDepth;
 uniform float uWaterLineY;
@@ -119,6 +121,15 @@ void main() {
    vertFade = pow(vertFade, 3.0);                 // 0 at horizon, 1 at zenith
    float pocketFade = uPocketFog * (1.0 - vertFade);
    color = mix(color, uPocketFogColor, pocketFade);
+
+   // §3.10: camera-in-fog global envelope also fogs the sky, so a tall volume
+   // the player is inside obscures the sky above (not just the horizon).  Uses
+   // a gentler vertical fade than §3.5 so the upper sky fogs too — there is a
+   // fog layer above the camera.
+   if (uCamFogAmount > 0.001f) {
+       float skyEnvFade = 1.0f - 0.6f * vertFade;   // 1.0 horizon, 0.4 zenith
+       color = mix(color, uCamFogColor, uCamFogAmount * skyEnvFade);
+   }
 
    FragColor = vec4(color, 1.0);
 }

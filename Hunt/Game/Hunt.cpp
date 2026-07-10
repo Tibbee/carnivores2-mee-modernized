@@ -256,6 +256,11 @@ void DrawScene()
 
   PreCashGroundModel();
 
+  // §3.10: compute the camera-in-fog global envelope once per frame so the
+  // terrain and model shaders can fog the whole scene (not just in-volume
+  // geometry) when the player is submerged in a tall pocket-fog volume.
+  if (g_GLRenderer) g_GLRenderer->UpdateCameraFogEnvelope();
+
 #ifdef _soft
   CreateChRenderList();
 #endif
