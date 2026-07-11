@@ -68,6 +68,16 @@ void main() {
    // uniforms operate on this same world-anchored vert.)
    float vert = max(0.0, wdir.y);                 // 0 at horizon, 1 at zenith
 
+   // §3.10 (computed early): how strongly the global envelope fogs THIS sky
+   // pixel.  Used both to fade the glows below WITH the fog (so the sun halo
+   // does not punch through as a separated disc) and, later, to mix the sky to
+   // the volume colour.  Gentler vertical fade than §3.5 so the upper sky
+   // fogs too (a fog layer sits above the camera).
+   float vertFade = pow(clamp(wdir.y * 0.5 + 0.5, 0.0, 1.0), 3.0);
+   float envSky = (uCamFogAmount > 0.001f)
+       ? uCamFogAmount * (1.0f - 0.6f * vertFade)
+       : 0.0f;
+
    // Zenith darkening: 1.0 at the horizon, 0.92 at the zenith.
    float zenithDark = 0.92 + 0.08 * (1.0 - vert);
    skyColor *= zenithDark;
@@ -75,7 +85,7 @@ void main() {
    // Warm horizon glow, Gaussian falloff upward; fog hides it.
    float horizonGlow = exp(-vert * vert * 20.0);
    vec3 glowColor = vec3(1.0, 0.85, 0.6);        // warm golden
-   float glowStrength = 0.15 * (1.0 - fogFactor);
+   float glowStrength = 0.15 * (1.0 - fogFactor) * (1.0f - envSky);
    skyColor += glowColor * horizonGlow * glowStrength;
 
    // §3.6: Sun/moon glow on the sky texture — a soft halo around the body's
@@ -108,7 +118,7 @@ void main() {
    // (linear) dependence; at night m_skyTraceK is a dimness proxy rather than
    // cloud cover, so we don't want to crush the moon glow.
    float occ = isMoon ? uSunVisibility : uSunVisibility * uSunVisibility;
-   float sunGlowStrength = uSunGlow * occ * (1.0 - fogFactor * 0.5);
+   float sunGlowStrength = uSunGlow * occ * (1.0 - fogFactor * 0.5) * (1.0f - envSky);
    skyColor += sunGlowColor * sunGlow * sunGlowStrength;
    skyColor = min(skyColor, vec3(1.0));            // clamp to prevent burn-out
 
@@ -117,18 +127,15 @@ void main() {
    // the zenith stays clear so the gradient/glow still read.  Applied after
    // the water-line fade that is already folded into fogFactor.
    vec3 color = mix(skyColor, uFogColor, fogFactor);
-   float vertFade = clamp(wdir.y * 0.5 + 0.5, 0.0, 1.0);
-   vertFade = pow(vertFade, 3.0);                 // 0 at horizon, 1 at zenith
    float pocketFade = uPocketFog * (1.0 - vertFade);
    color = mix(color, uPocketFogColor, pocketFade);
 
-   // §3.10: camera-in-fog global envelope also fogs the sky, so a tall volume
-   // the player is inside obscures the sky above (not just the horizon).  Uses
-   // a gentler vertical fade than §3.5 so the upper sky fogs too — there is a
-   // fog layer above the camera.
+   // §3.10: fog the whole sky toward the volume colour.  envSky (computed
+   // above, near wdir) already fades the sun/moon halo WITH this fog, so the
+   // glow dissolves smoothly into the haze instead of sitting as a harsh,
+   // separated disc on a flat fogged sky.
    if (uCamFogAmount > 0.001f) {
-       float skyEnvFade = 1.0f - 0.6f * vertFade;   // 1.0 horizon, 0.4 zenith
-       color = mix(color, uCamFogColor, uCamFogAmount * skyEnvFade);
+       color = mix(color, uCamFogColor, envSky);
    }
 
    FragColor = vec4(color, 1.0);

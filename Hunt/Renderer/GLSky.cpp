@@ -492,6 +492,18 @@ void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int 
     // here so the sun renders normally.
     glUniform1f(m_locModelTint, 0.0f);
 
+    // §3.10: the sun is a sky/light element drawn additively on top of the
+    // already-fogged sky. It must NOT inherit the model shader's global
+    // envelope — that would colour-replace the bright corona into a harsh,
+    // out-of-place fog-coloured additive blob when looking up inside a fog
+    // volume. The sky shader fogs the sky around it and attenuates the halo
+    // instead, so disable the envelope for this draw. (DrawModelVertices
+    // re-pushes the real value for every subsequent world-model draw.)
+    {
+        static const GLint uCamFogAmt = glGetUniformLocation(m_modelShader.GetProgramID(), "uCamFogAmount");
+        if (uCamFogAmt >= 0) glUniform1f(uCamFogAmt, 0.0f);
+    }
+
     glEnable(GL_BLEND);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
@@ -609,7 +621,12 @@ void GLRenderer::RenderSun(float x, float y, float z)
     // signal only.  NOTE: m_sunLight is intentionally left linear — it also
     // drives the underwater/pocket fog-scatter paths, which are tuned
     // against the raw linear value.
-    const int sunAlpha = static_cast<int>(200.0f * std::pow(m_skyTraceK, 0.6f) * depthAtten);
+    // §3.10: inside a fog volume the sun should recede into the haze rather
+    // than stay a crisp disc. Dim it with the global envelope (gentle, so a
+    // light fog barely touches it and even a dense fog only pulls it toward
+    // ~30%), complementing the sky shader's halo attenuation.
+    const float sunEnvDim = 1.0f - m_camEnvelopeAmount * 0.7f;
+    const int sunAlpha = static_cast<int>(200.0f * std::pow(m_skyTraceK, 0.6f) * depthAtten * sunEnvDim);
 
     // The moon uses the same sunAlpha as the day sun, so it is already
     // dimmed by clouds (m_skyTraceK).  RenderModelSun switches to normal
