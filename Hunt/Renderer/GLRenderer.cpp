@@ -1405,16 +1405,33 @@ void GLRenderer::UpdateCameraFogEnvelope()
         // >0 = top above the eye (tall fog), <0 = a shorter ground/body-level
         // layer the player still stands in.  Only a truly foot-level puddle
         // (flb far below the feet) is excluded (see kFootCut).
+        // flb = how far the eye sits below the fog top (fog units).  Low-passed
+        // into m_camEnvFlbSmooth so head-bob — which oscillates CameraY and
+        // thus flb — cannot flip the submersion gate on/off every bob.
         const float flb = (fog.YBegin * ctHScale - CameraY) / ctHScale;
         constexpr float kFlbSmooth = 0.05f;   // low-pass on flb (kills head-bob)
         m_camEnvFlbSmooth += (flb - m_camEnvFlbSmooth) * kFlbSmooth;
 
-        constexpr float kNormEnvelope = 0.3f;   // flb == 0.3*FLimit -> full strength
-        constexpr float kFootCut       = -1.0f; // raw below this = foot-level puddle
-        constexpr float kFloor         = 0.5f;  // min envelope while "in" a volume
-        const float raw = m_camEnvFlbSmooth / (fog.FLimit * kNormEnvelope);
-        if (raw > kFootCut) {
-            targetAmount = std::max(std::clamp(raw, 0.0f, 1.0f), kFloor);
+        // §3.10 strength now tracks the volume's REAL density.  fog.FLimit is
+        // the max opacity the engine assigns the volume (0..255), so a light /
+        // low-FLimit pocket only ever produces a light global envelope instead
+        // of the old fixed 0.5 floor that over-fogged thin volumes.  flb is
+        // used purely as the submersion GATE: the envelope engages only while
+        // the eye is actually below the fog top, so a foot-level puddle (or any
+        // volume the eye sits above) stays clear.
+        if (m_camEnvFlbSmooth > 0.0f) {
+            // FLimit is the ceiling; Transp is the OTHER half of "how dense
+            // the fog is" — the distance-ramp speed (smaller = builds up
+            // faster = reads denser).  Fold Transp in as a gentle, bounded
+            // strength nudge so a fast-building volume fogs harder globally and
+            // a soft one fogs lighter, matching how the in-scene fog already
+            // uses Transp.  Bounded by the clamp so a light volume still
+            // stays light (no return of the over-fogging bug).  kRefTransp is a
+            // typical Transp; tune it against the map's actual fog values.
+            constexpr float kRefTransp = 160.0f;   // typical Transp (tune)
+            const float transpFactor = std::clamp(
+                kRefTransp / std::max(fog.Transp, 1.0f), 0.5f, 1.5f);
+            targetAmount = (fog.FLimit / 255.0f) * transpFactor;
             targetColor  = GetFogColorForMapPoint(CameraFogI);
         }
     }
