@@ -63,28 +63,42 @@ void ShowControlElements()
 
 
 
+static void BlitPicture(int x, int y, int w, int h, const TPicture& pic)
+{
+  if (!lpVideoBuf || VideoPitch <= 0 || WinW <= 0 || WinH <= 0 ||
+      !pic.lpImage || pic.W <= 0 || pic.H <= 0 || w <= 0 || h <= 0)
+    return;
+
+  WORD* dst = static_cast<WORD*>(lpVideoBuf);
+  for (int yy = 0; yy < h; yy++)
+  {
+    const int dstY = y + yy;
+    if (dstY < 0 || dstY >= WinH) continue;
+    const int srcY = yy * pic.H / h;
+
+    for (int xx = 0; xx < w; xx++)
+    {
+      const int dstX = x + xx;
+      if (dstX < 0 || dstX >= WinW) continue;
+      const int srcX = xx * pic.W / w;
+      dst[dstY * VideoPitch + dstX] = pic.lpImage[srcY * pic.W + srcX];
+    }
+  }
+}
+
 void DrawPicture(int x, int y, TPicture &pic)
 {
-  for (int yy=0; yy<pic.H; yy++)
-    if ( (yy+y>=0) && (yy+y < WinH) )
-      memcpy( static_cast<WORD*>(lpVideoBuf) + ((yy+y)*VideoPitch) + x,
-              pic.lpImage.get() + yy*pic.W,
-              pic.W<<1);
+  BlitPicture(x, y, pic.W, pic.H, pic);
 }
 
 void DrawScaledPicture(int x, int y, int w, int h, TPicture &pic)
 {
-  // Phase 2.2: unified UIScale — fall back to unscaled draw for software
-  DrawPicture(x, y, pic);
+  BlitPicture(x, y, w, h, pic);
 }
 
 void DrawFlash(int x, int y, int w, int h, TPicture &pic)
 {
-	for (int yy = 0; yy < h; yy++)
-		if ((yy + y >= 0) && (yy + y < WinH))
-			memcpy(static_cast<WORD*>(lpVideoBuf) + ((yy + y) *VideoPitch) + x,
-				pic.lpImage.get() + yy * pic.W,
-				w << 1);
+  BlitPicture(x, y, w, h, pic);
 }
 
 
@@ -92,7 +106,7 @@ int CircleCX, CircleCY;
 
 void PutPixel(int x, int y)
 {
-  if (y<0 || y>=WinH) return;
+  if (!lpVideoBuf || VideoPitch <= 0 || x < 0 || x >= WinW || y < 0 || y >= WinH) return;
   *(static_cast<WORD*>(lpVideoBuf) + (y*VideoPitch) + x) = 18<<5;
 }
 
@@ -132,6 +146,8 @@ void DrawCircle(int cx, int cy, int R)
 
 void DrawBoxMystery(WORD *lfbPtr, int xx, int yy, WORD c)
 {
+	if (!lpVideoBuf || VideoPitch <= 0 || xx < 0 || xx + 3 >= WinW ||
+		yy - 3 < 0 || yy + 3 >= WinH) return;
 	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx + 1) = c;
 	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx + 2) = c;
 	yy++;
@@ -152,6 +168,8 @@ void DrawBoxMystery(WORD *lfbPtr, int xx, int yy, WORD c)
 
 void DrawBox(WORD *lfbPtr, int xx, int yy, WORD c)
 {
+	if (!lpVideoBuf || VideoPitch <= 0 || xx < 0 || xx + 1 >= WinW ||
+		yy < 0 || yy + 1 >= WinH) return;
 	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx) = c;
 	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx + 1) = c;
 	yy++;
@@ -173,10 +191,10 @@ void DrawHMap()
   int px = xx;
   int py = yy;
 
-  if (yy>0 || yy<WinH)
+  if (yy > 0 && yy < WinH && xx > 0 && xx < WinW)
   {
     DrawCircle(xx, yy, 17);
-	DrawBox(static_cast<WORD*>(lpVideoBuf), xx, yy, 31 *VideoPitch);
+	DrawBox(static_cast<WORD*>(lpVideoBuf), xx, yy, 31 * VideoPitch);
   }
 
   float _sonarPos;
@@ -432,8 +450,8 @@ void RenderHealthBar()
   int L = WinW / 4;
   int x0 = WinW - (WinW / 20) - L;
   int y0 = WinH / 40;
-  int G = min( (MyHealth * 30 / 100000), 20);
-  int R = min( ( (100000 - MyHealth) * 30 / 100000), 20);
+  int G = (std::min)((MyHealth * 30 / 100000), 20);
+  int R = (std::min)(((100000 - MyHealth) * 30 / 100000), 20);
   int HCOLOR = (G<<5) | (R<<10); // 555: G at bits 5-9, R at bits 10-14
 
   int L0 = (L * MyHealth) / 100000;

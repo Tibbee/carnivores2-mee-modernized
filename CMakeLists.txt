@@ -16,8 +16,14 @@ set_property(CACHE RENDERER PROPERTY STRINGS SOFT GL "")
 # MEM_DEBUG overhead, so the numbers are useless). To produce a
 # shippable build without the harness, reconfigure with
 # -DGL_PERF_HOOKS=OFF or build a different preset. Has no effect on
-# SOFT/GL builds.
+# SOFT builds.
 option(GL_PERF_HOOKS "Enable in-engine GL performance harness (Phase 0.1)" OFF)
+
+# Renderer and game-only definitions are applied to the game target below;
+# keeping them target-scoped prevents the standalone menu from inheriting
+# _soft/_gl, GL_PERF_HOOKS, or MEM_DEBUG.
+set(RENDER_DEFINES "")
+set(GAME_DEBUG_DEFINES "")
 
 # Ensure we are targeting 32-bit if using MSVC
 if(MSVC)
@@ -35,16 +41,11 @@ if(MSVC)
     # Fix for some legacy headers and scoping
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /permissive")
 
-    # Enable memory debugging for Debug builds. Wired to the main
-    # game executable only; the menu target lives in Menu/CMakeLists.txt
-    # which doesn't include this block, so the menu never gets
-    # MEM_DEBUG (it has its own Resources.cpp with no leak detector,
-    # and it doesn't allocate textures, so the report would always be
-    # empty noise). Defense-in-depth: if a future change ever moves
-    # the menu under this CMakeLists, wrap the add_definitions in
-    # 'if(NOT TARGET Carnivores2Menu)' to keep the menu excluded.
+    # Enable memory debugging for the game executable in Debug builds.
+    # This is stored and applied target-scoped after Carnivores1 is created;
+    # the standalone menu intentionally remains outside MEM_DEBUG.
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        add_definitions(-DMEM_DEBUG)
+        list(APPEND GAME_DEBUG_DEFINES MEM_DEBUG)
     endif()
 endif()
 
@@ -54,7 +55,7 @@ set(RENDER_SRC "")
 
 if(RENDERER)
     if(RENDERER STREQUAL "SOFT")
-        add_definitions(-D_soft)
+        list(APPEND RENDER_DEFINES _soft)
         set(RENDER_SRC
             Hunt/Renderer/RenderSoft.cpp
             Hunt/Renderer/SoftInternal.h
@@ -71,9 +72,9 @@ if(RENDERER)
         )
         message(STATUS "Building with Software Renderer")
     elseif(RENDERER STREQUAL "GL")
-        add_definitions(-D_gl)
+        list(APPEND RENDER_DEFINES _gl)
         if(GL_PERF_HOOKS)
-            add_definitions(-DGL_PERF_HOOKS)
+            list(APPEND RENDER_DEFINES GL_PERF_HOOKS)
         endif()
         set(RENDER_SRC
             Hunt/Renderer/IRenderer.h
@@ -200,6 +201,11 @@ add_subdirectory(Menu)
 # Game executable (only when a renderer is selected)
 if(RENDERER)
     add_executable(Carnivores1 WIN32 ${CORE_FILES} ${RENDER_SRC})
+
+    target_compile_definitions(Carnivores1 PRIVATE
+        ${RENDER_DEFINES}
+        ${GAME_DEBUG_DEFINES}
+    )
 
     # Include directories
     target_include_directories(Carnivores1 PRIVATE

@@ -13,8 +13,10 @@
 #include "glad/glad.h"
 #endif
 
+#ifdef _gl
 // Shared GL module handle
 extern HMODULE libGL;
+#endif
 
 // ---------- constants ----------
 constexpr float kModelNearClip = -16.0f;
@@ -34,9 +36,11 @@ struct ModelClipVertex
 };
 
 // ---------- function declarations ----------
+#ifdef _gl
 void* glad_get_proc(const char* name);
 GLuint CompileShader(GLenum type, const char* source);
 GLuint LinkProgram(GLuint vertexShader, GLuint fragmentShader);
+#endif
 
 Vector3d DecodeFogColor(int rgb);
 Vector3d DecodeFogColorBGR(int rgb);
@@ -61,7 +65,9 @@ void ClipTriangleAgainstWater(const ModelClipVertex& a,
     std::vector<ModelClipVertex>& output);
 
 // Ensure the scene-copy texture exists and matches window size
+#ifdef _gl
 void EnsureNightSceneTex(GLuint& tex, int& texW, int& texH, int winW, int winH);
+#endif
 WORD Conv565to555(WORD c);
 
 // Clipping / fog helpers

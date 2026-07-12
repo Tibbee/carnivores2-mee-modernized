@@ -32,6 +32,8 @@ void RenderWater()
 
 void ProcessWaterMap(int x, int y, int r)
 {
+  if (x < 0 || y < 0 || x >= ctMapSize - 1 || y >= ctMapSize - 1) return;
+
   //WATERREVERSE = true;
   ReverseOn = (FMap[y][x] & fmReverse);
   TDirection = (FMap[y][x] & 3);
@@ -199,12 +201,12 @@ S2:
 void ProcessMapW2(int x, int y, int r)
 {
   //if (RunMode) return;
+  if (x >= ctMapSize - 2 || y >= ctMapSize - 2 || x < 0 || y < 0) return;
+
   if (!( (FMap[y  ][x  ] & fmWaterA) &&
          (FMap[y  ][x+2] & fmWaterA) &&
          (FMap[y+2][x  ] & fmWaterA) &&
          (FMap[y+2][x+2] & fmWaterA) )) return;
-
-  if (x>=ctMapSize-1 || y>=ctMapSize-1 || x<0 || y<0) return;
 
   int t1 = WaterList[ WMap[y][x] ].tindex;
   int hw = WaterList[ WMap[y][x] ].wlevel;

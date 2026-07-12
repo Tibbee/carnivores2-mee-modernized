@@ -67,7 +67,7 @@ void _RenderObject(int x, int y)
   GlassL = 0;
 
   if (zs > 256 * (ctViewR-4))
-    GlassL = min(255, (zs/4 - 64*(ctViewR-4)));
+    GlassL = static_cast<int>((std::min)(255.0f, zs / 4.0f - 64.0f * (ctViewR - 4)));
 
   if (GlassL==255) return;
 
@@ -164,7 +164,7 @@ void RenderObject(int x, int y)
 void ProcessMap2(int x, int y, int r)
 {
   //WATERREVERSE = false;
-  if (x>=ctMapSize-1 || y>=ctMapSize-1 ||
+  if (x>=ctMapSize-2 || y>=ctMapSize-2 ||
       x<0 || y<0) return;
 
   float BackR = BackViewR;
@@ -223,7 +223,7 @@ void ProcessMap2(int x, int y, int r)
 
   if (zs > 256 * (ctViewR-4))
   {
-    GlassL = min(255, (zs/4 - 64*(ctViewR-4)));
+    GlassL = static_cast<int>((std::min)(255.0f, zs / 4.0f - 64.0f * (ctViewR - 4)));
 
     if (GlassL) lpTextureAddr = &(Textures[t1]->SDataC[1]);
     if (GlassL)

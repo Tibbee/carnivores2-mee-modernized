@@ -1,6 +1,8 @@
 #include "Hunt.h"
 #include "stdio.h"
+#ifdef _gl
 #include "Renderer/GLUtils.h"
+#endif
 #include <cmath>
 #include <algorithm>
 #include <timeapi.h>
@@ -65,6 +67,7 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
   fptr = &FogsList[cf];
   CurFogColor = fptr->fogRGB;
 
+#ifdef _gl
   // §3.6: Sun-fog colour shift — modulate fog colour by sun elevation
   // and cloud visibility.  Delegated to ApplySunFogColourShift() so the
   // SAME shift reaches BOTH the terrain fog colour (via
@@ -76,6 +79,7 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
   if (!IsUnderwater() && cf > 0 && cf < 127 && g_GLRenderer) {
       CurFogColor = ApplySunFogColourShift(fptr->fogRGB, g_GLRenderer->GetSunLight());
   }
+#endif
 
   float d = VectorLength(v);
 
@@ -264,7 +268,9 @@ void DrawScene()
   // §3.10: compute the camera-in-fog global envelope once per frame so the
   // terrain and model shaders can fog the whole scene (not just in-volume
   // geometry) when the player is submerged in a tall pocket-fog volume.
+#ifdef _gl
   if (g_GLRenderer) g_GLRenderer->UpdateCameraFogEnvelope();
+#endif
 
 #ifdef _soft
   CreateChRenderList();

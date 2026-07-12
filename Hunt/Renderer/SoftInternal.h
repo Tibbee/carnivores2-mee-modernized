@@ -12,6 +12,7 @@
 #pragma once
 
 #include "Hunt.h"
+#include <algorithm>
 
 #ifdef _soft
 
