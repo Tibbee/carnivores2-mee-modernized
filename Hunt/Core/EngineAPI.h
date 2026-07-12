@@ -182,11 +182,10 @@ void SaveScreenShot();
 // harness is not compiled in.
 void PerfTriggerCapture();
 
-// Frame boundary hooks for the GL perf harness. PerfFrameBegin() is
-// called at the start of Hunt.cpp::DrawScene(); PerfFrameEnd() at the
-// end of Hunt.cpp::DrawPostObjects(). Bracket the per-frame GL work so
-// glperf.log can report a clean "frame total" alongside the per-pass
-// scopes. No-op when the harness is not compiled in.
+// Frame boundary hooks for the GL perf harness. PerfFrameBegin() is called at
+// the start of Hunt.cpp::DrawScene(); PerfFrameEnd() runs in ShowVideo() after
+// post-processing and before SwapBuffers. This brackets one rendered frame
+// without measuring presentation/vsync wait. No-op when disabled.
 void PerfFrameBegin();
 void PerfFrameEnd();
 

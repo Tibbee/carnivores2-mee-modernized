@@ -92,6 +92,9 @@ void GLRenderer::RenderWaterSurface()
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_TEXTURE_BIND(m_terrainTextureArray);
+#endif
     glBindVertexArray(m_terrainVAO);
 
     glEnable(GL_BLEND);

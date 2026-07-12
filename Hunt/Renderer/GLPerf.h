@@ -1,24 +1,27 @@
 // ==========================================================================
-// GLPerf.h — OpenGL renderer performance harness (Phase 0.1)
+// GLPerf.h — OpenGL renderer performance harness
 //
 // Lightweight in-engine profiling hooks for the OpenGL renderer only. All
-// hooks compile to no-ops when GL_PERF_HOOKS is not defined, so release
-// builds pay zero cost.
+// hooks compile to no-ops when GL_PERF_HOOKS is not defined, so non-GL
+// renderer builds and normal builds pay zero cost.
 //
-// Usage:
-//   #define GL_PERF_HOOKS at the top of one TU (or via /D in the build) to
-//   enable the harness. Recommended: define in a dedicated CMake
-//   "ogl-perf-debug" preset so the release presets stay clean.
+// Frame contract:
+//   GL_PERF_FRAME_BEGIN()  -- once at the start of DrawScene, before
+//                             PreCashGroundModel
+//   GL_PERF_FRAME_END()    -- once in ShowVideo, after scene/post-processing
+//                             and immediately before SwapBuffers
 //
-//   GL_PERF_FRAME_BEGIN()  -- call once at the start of a frame
-//   GL_PERF_FRAME_END()    -- call once at the end of a frame
-//   GL_PERF_SCOPE("name")  -- RAII timer scope (CPU + GPU)
-//   GL_PERF_DRAW(n)        -- n = triangle count from glDrawArrays
-//   GL_PERF_TEXTURE_BIND(h)-- log a texture bind (deduped on handle)
-//   GL_PERF_STATE_CHANGE() -- log a state change (program/blend/depth)
+// Scope/counter contract:
+//   GL_PERF_SCOPE("name")      -- CPU scope plus an asynchronous GPU pair
+//   GL_PERF_CPU_SCOPE("name")  -- CPU-only scope (use for collection work)
+//   GL_PERF_DRAW(n)             -- n = triangles submitted by one draw call
+//   GL_PERF_TEXTURE_BIND(h)     -- an instrumented render-time texture bind
+//   GL_PERF_STATE_CHANGE()      -- an instrumented render-state change
 //
-// All output is written to glperf.log in the working directory. F11 starts
-// a 1-second per-frame CSV capture to glperf-frame.csv.
+// GPU queries are resolved only with GL_QUERY_RESULT_AVAILABLE polling. The
+// rolling log reports resolved GPU samples; the F11 CSV deliberately writes
+// -1 for GPU fields because a result is not attributed to an arbitrary CPU
+// frame when it becomes available. The CSV CPU/counter fields are per frame.
 // ==========================================================================
 
 #ifndef GLPERF_H
@@ -39,12 +42,10 @@ extern "C" {
 // True if the harness is compiled in and runtime-initialized.
 bool glperf_is_active();
 
-// F11 capture trigger. Starts a ~1s per-frame dump to glperf-frame.csv.
+// F11 capture trigger. Starts a fixed per-frame CPU/counter CSV capture.
 void glperf_trigger_capture();
 
-// Init / shutdown. Called from the GL renderer (LoadGLExtensions / Shutdown).
-// Init probes GPU timer query support. Shutdown releases GL query objects
-// and closes the log file.
+// Init / shutdown. Called from the GL renderer after a current context exists.
 void glperf_init();
 void glperf_shutdown();
 
@@ -63,14 +64,15 @@ void glperf_shutdown();
 extern "C" {
 #endif
 
-// Frame boundary. Begin at the start of a frame, end at the end.
+// Frame boundary. Duplicate begins/ends are ignored defensively so one bad
+// call site cannot double-count a rendered frame.
 void glperf_frame_begin();
 void glperf_frame_end();
 
-
-// CPU+GPU scope enter/exit. The name must be a string literal with static
-// lifetime (typically a string literal at the call site).
-void glperf_scope_enter(const char* name);
+// Return true when a scope was pushed. The RAII wrapper uses this to avoid a
+// destructor closing an unrelated scope when the profiling stack is full.
+bool glperf_scope_enter(const char* name);
+bool glperf_scope_enter_cpu(const char* name);
 void glperf_scope_exit(const char* name);
 
 // Counter hooks.
@@ -84,17 +86,27 @@ void glperf_note_state_change();
 
 class GLPerfScope {
 public:
-    explicit GLPerfScope(const char* name) : m_name(name) { glperf_scope_enter(name); }
-    ~GLPerfScope()                                          { glperf_scope_exit(m_name); }
+    explicit GLPerfScope(const char* name, bool timeGpu = true)
+        : m_name(name),
+          m_active(timeGpu ? glperf_scope_enter(name)
+                           : glperf_scope_enter_cpu(name)) {}
+
+    ~GLPerfScope() {
+        if (m_active) glperf_scope_exit(m_name);
+    }
+
     GLPerfScope(const GLPerfScope&) = delete;
     GLPerfScope& operator=(const GLPerfScope&) = delete;
+
 private:
     const char* m_name;
+    bool m_active;
 };
 
 #define GL_PERF_FRAME_BEGIN()       ::glperf_frame_begin()
 #define GL_PERF_FRAME_END()         ::glperf_frame_end()
 #define GL_PERF_SCOPE(name)         ::GLPerfScope glperf_scope_obj_(name)
+#define GL_PERF_CPU_SCOPE(name)     ::GLPerfScope glperf_scope_obj_(name, false)
 #define GL_PERF_DRAW(n)             ::glperf_add_draw(static_cast<uint32_t>(n))
 #define GL_PERF_TEXTURE_BIND(h)     ::glperf_note_texture_bind(static_cast<uint32_t>(h))
 #define GL_PERF_STATE_CHANGE()      ::glperf_note_state_change()
@@ -104,6 +116,7 @@ private:
 #define GL_PERF_FRAME_BEGIN()       ((void)0)
 #define GL_PERF_FRAME_END()         ((void)0)
 #define GL_PERF_SCOPE(name)         ((void)0)
+#define GL_PERF_CPU_SCOPE(name)     ((void)0)
 #define GL_PERF_DRAW(n)             ((void)0)
 #define GL_PERF_TEXTURE_BIND(h)     ((void)0)
 #define GL_PERF_STATE_CHANGE()      ((void)0)

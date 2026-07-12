@@ -368,8 +368,54 @@ void GLRenderer::RenderInstancedModels()
     // RenderMappedObject calls above.
 
     if (m_instanceData.empty() || m_instanceInfo.empty() ||
+        m_instanceData.size() != m_instanceInfo.size() ||
         !m_instancedModelShader.IsValid() || !m_instanceVAO) {
         return;
+    }
+
+    // Phase 2.11: bucket the opaque/cutout records globally before building
+    // draw groups. RenderMappedObject routes transparent, BMP, and
+    // water-clipped geometry to the legacy queues before it reaches these
+    // arrays, so this does not reorder transparent geometry. Cutout records
+    // remain depth-tested in the same instanced shader; sorting them with
+    // their opaque peers is order-independent and preserves the cutout flag.
+    const auto instanceKeyLess = [](const InstanceInfo& lhs,
+                                    const InstanceInfo& rhs) {
+        const std::uintptr_t lhsModel =
+            reinterpret_cast<std::uintptr_t>(lhs.model);
+        const std::uintptr_t rhsModel =
+            reinterpret_cast<std::uintptr_t>(rhs.model);
+        if (lhsModel != rhsModel) {
+            return lhsModel < rhsModel;
+        }
+        return lhs.texture < rhs.texture;
+    };
+
+    bool alreadyBucketed = true;
+    for (size_t i = 1; i < m_instanceInfo.size(); ++i) {
+        if (instanceKeyLess(m_instanceInfo[i], m_instanceInfo[i - 1])) {
+            alreadyBucketed = false;
+            break;
+        }
+    }
+
+    if (!alreadyBucketed) {
+        m_instanceSortScratch.resize(m_instanceData.size());
+        for (size_t i = 0; i < m_instanceData.size(); ++i) {
+            m_instanceSortScratch[i].data = m_instanceData[i];
+            m_instanceSortScratch[i].info = m_instanceInfo[i];
+        }
+
+        std::sort(m_instanceSortScratch.begin(), m_instanceSortScratch.end(),
+                  [&instanceKeyLess](const InstanceSortRecord& lhs,
+                                      const InstanceSortRecord& rhs) {
+                      return instanceKeyLess(lhs.info, rhs.info);
+                  });
+
+        for (size_t i = 0; i < m_instanceData.size(); ++i) {
+            m_instanceData[i] = m_instanceSortScratch[i].data;
+            m_instanceInfo[i] = m_instanceSortScratch[i].info;
+        }
     }
 
     // Phase 2.9: removed wasteful full-array upload.  The per-group
@@ -493,7 +539,7 @@ void GLRenderer::RenderInstancedModels()
             static_cast<GLsizei>(group.instanceCount));
 
 #ifdef GL_PERF_HOOKS
-        GL_PERF_DRAW(static_cast<uint32_t>(group.instanceCount));
+        GL_PERF_DRAW((meshEntry->indexCount / 3u) * group.instanceCount);
 #endif
         totalDrawCalls++;
         totalInstances += group.instanceCount;
@@ -1552,6 +1598,8 @@ void GLRenderer::ShutdownInstancingPipeline()
     m_instanceData.shrink_to_fit();
     m_instanceInfo.clear();
     m_instanceInfo.shrink_to_fit();
+    m_instanceSortScratch.clear();
+    m_instanceSortScratch.shrink_to_fit();
 }
 
 bool GLRenderer::InitializeInstancingPipeline()
@@ -1617,6 +1665,7 @@ bool GLRenderer::InitializeInstancingPipeline()
     m_instanceData.clear();
     m_instanceData.reserve(kInitialInstanceCapacity);
     m_instanceInfo.clear();
+    m_instanceSortScratch.clear();
 
     return true;
 }

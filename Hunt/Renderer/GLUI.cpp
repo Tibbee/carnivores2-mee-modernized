@@ -34,9 +34,8 @@ void PerfTriggerCapture()
 }
 
 // Frame boundary hooks — called from Hunt.cpp::DrawScene (begin) and
-// Hunt.cpp::DrawPostObjects (end). Bracket the per-frame GL work so
-// glperf.log reports a clean "frame total" alongside the per-pass
-// scopes. No-op when GL_PERF_HOOKS is not defined.
+// ShowVideo() (end). They bracket one rendered frame without including
+// SwapBuffers/presentation wait. No-op when GL_PERF_HOOKS is not defined.
 void PerfFrameBegin()
 {
     glperf_frame_begin();
@@ -167,7 +166,8 @@ void ClearVideoBuf()
 void ShowVideo()
 {
 #ifdef GL_PERF_HOOKS
-    GL_PERF_FRAME_END();
+    {
+        GLPerfScope scope_post("ShowVideo_PostProcess");
 #endif
     // Apply depth-based sun occlusion after the full scene is rendered
     if (g_GLRenderer) {
@@ -206,6 +206,13 @@ void ShowVideo()
     if (NightVisionOn) {
         g_GLRenderer->RenderFSRect(0x6000FF00);
     }
+
+#ifdef GL_PERF_HOOKS
+    }
+    // End after all scene and post-processing work, but before SwapBuffers so
+    // driver/compositor or vsync waits are not included in renderer CPU time.
+    PerfFrameEnd();
+#endif
 
     // Swap buffers
     if (g_GLRenderer && hwndMain) {
@@ -260,9 +267,6 @@ void CopyHARDToDIB()
 
 void RenderSkyPlane()
 {
-#ifdef GL_PERF_HOOKS
-    GL_PERF_FRAME_BEGIN();
-#endif
     if (g_GLRenderer) {
         g_GLRenderer->ClearVideoBuf();
         // Clear only previous frame's dirty HUD regions (not the whole buffer).
@@ -830,6 +834,10 @@ void RenderHealthBar()
 void ShowControlElements()
 {
     if (!hdcMain || !hbmpVideoBuf || !lpVideoBuf) return;
+
+#ifdef GL_PERF_HOOKS
+    GLPerfScope scope_control("ShowControlElements", false);
+#endif
 
     char buf[128];
 

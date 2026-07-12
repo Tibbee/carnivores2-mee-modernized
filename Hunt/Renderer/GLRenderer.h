@@ -399,6 +399,14 @@ private:
     };
     std::vector<InstanceInfo> m_instanceInfo;
 
+    // Scratch records used to reorder opaque/cutout instances without ever
+    // separating the per-instance data from its (model, texture) key.
+    struct InstanceSortRecord {
+        ModelInstance data;
+        InstanceInfo info;
+    };
+    std::vector<InstanceSortRecord> m_instanceSortScratch;
+
     // Phase 2.3: instanced model rendering function.
     void RenderInstancedModels();
 

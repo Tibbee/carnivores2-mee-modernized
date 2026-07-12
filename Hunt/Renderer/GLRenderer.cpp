@@ -920,12 +920,18 @@ void GLRenderer::DrawElementBatch(const std::vector<ModelVertex>& batch)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_whiteTexture);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_TEXTURE_BIND(m_whiteTexture);
+#endif
     glBindVertexArray(m_modelVAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
     const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(batch.size() * sizeof(ModelVertex));
     glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
     glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, batch.data());
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(batch.size()));
+#ifdef GL_PERF_HOOKS
+    GL_PERF_DRAW(static_cast<uint32_t>(batch.size()) / 3);
+#endif
     glBindVertexArray(0);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);

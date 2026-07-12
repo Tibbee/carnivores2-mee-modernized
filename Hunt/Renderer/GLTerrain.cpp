@@ -928,7 +928,7 @@ void GLRenderer::RenderGround()
     // the emitted geometry is identical to the full-disk walk.
     {
 #ifdef GL_PERF_HOOKS
-        GLPerfScope scope_walk("RenderGround_Walk");
+        GLPerfScope scope_walk("RenderGround_Walk", false);
 #endif
         // Per-frame frustum coefficients.
         const float fovk = FOVK;

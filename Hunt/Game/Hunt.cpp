@@ -254,6 +254,9 @@ void DrawScene()
   CCX = (static_cast<int>(CameraX) / 512) * 2;
   CCY = (static_cast<int>(CameraZ) / 512) * 2;
 
+#ifdef GL_PERF_HOOKS
+  GL_PERF_CPU_SCOPE("PreCashGroundModel");
+#endif
   PreCashGroundModel();
 
   // §3.10: compute the camera-in-fog global envelope once per frame so the
@@ -890,9 +893,6 @@ SKIPWEAPON:
 		  }
   }
 
-#ifdef GL_PERF_HOOKS
-  PerfFrameEnd();
-#endif
 }
 
 

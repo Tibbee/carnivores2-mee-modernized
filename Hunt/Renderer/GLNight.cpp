@@ -11,6 +11,10 @@
 #include "glad/glad.h"
 #include <cmath>
 
+#ifdef GL_PERF_HOOKS
+#include "Renderer/GLPerf.h"
+#endif
+
 void GLRenderer::RenderNightDarkness()
 {
     // Just the dark overlay — applied AFTER the HUD is composited
@@ -25,6 +29,9 @@ void GLRenderer::RenderSceneDesaturated()
 
     // 1. Copy the current framebuffer (3D scene) to the texture
     glBindTexture(GL_TEXTURE_2D, m_nightSceneTex);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_TEXTURE_BIND(m_nightSceneTex);
+#endif
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, WinW, WinH);
 
     // 2. Render opaque fullscreen quad with desaturation shader
@@ -37,8 +44,14 @@ void GLRenderer::RenderSceneDesaturated()
     m_nightDesatProgram.Use();
     glUniform1i(m_locNightDesatTexture, 0);
     glBindTexture(GL_TEXTURE_2D, m_nightSceneTex);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_TEXTURE_BIND(m_nightSceneTex);
+#endif
     glBindVertexArray(m_uiVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+#ifdef GL_PERF_HOOKS
+    GL_PERF_DRAW(2);
+#endif
     glBindVertexArray(0);
 
     glDepthMask(GL_TRUE);
