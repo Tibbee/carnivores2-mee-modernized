@@ -318,8 +318,9 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
     }
 
     // Single FogsMap lookup for the tile center (water is flat; per-corner
-    // fog precision is invisible — saves 3 FogsMap lookups per tile).
-    const Vector3d fogTile = GetFogColorForMapPoint(x, y);
+    // fog precision is invisible — saves 3 FogsMap lookups per tile). The
+    // resolved colour is shared with terrain collection for this frame.
+    const Vector3d fogTile = GetCachedTerrainFogColor(GetFogIndexForMapPoint(x, y));
 
     if (a00 > 0.0f || a10 > 0.0f || a11 > 0.0f) {
         if (IsWaterTriangleValid(v00, v10, v11, BackViewR)) {

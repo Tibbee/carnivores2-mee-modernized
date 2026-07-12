@@ -1392,6 +1392,27 @@ Vector3d GLRenderer::GetFogColorForMapPoint(int fogIndex)
     return GetDistanceFogColor();
 }
 
+Vector3d GLRenderer::GetCachedTerrainFogColor(int fogIndex)
+{
+    // FogsMap is an unsigned byte, but keep the fallback defensive because
+    // this helper is also used by the water path and should never index the
+    // cache out of bounds if a malformed map value reaches it.
+    if (fogIndex < 0 || fogIndex >= static_cast<int>(m_terrainFogColorCache.size())) {
+        fogIndex = 0;
+    }
+
+    const size_t index = static_cast<size_t>(fogIndex);
+    if (!m_terrainFogColorValid[index]) {
+        // All inputs used by GetFogColorForMapPoint are stable between the
+        // terrain and water passes in one rendered frame: underwater state,
+        // FOGON, sky colour, fog records, and sun visibility. Resolve each
+        // fog index once instead of decoding it for every terrain corner.
+        m_terrainFogColorCache[index] = GetFogColorForMapPoint(fogIndex);
+        m_terrainFogColorValid[index] = 1;
+    }
+    return m_terrainFogColorCache[index];
+}
+
 void GLRenderer::UpdateCameraFogEnvelope()
 {
     // §3.10: compute the *target* envelope for this frame, then smooth the

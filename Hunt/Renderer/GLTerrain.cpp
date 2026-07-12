@@ -230,6 +230,7 @@ bool GLRenderer::EnsureTerrainStreamCapacity(size_t neededVertices)
 void GLRenderer::BeginTerrainFrame()
 {
     m_terrainVertexCount = 0;
+    m_terrainFogColorValid.fill(0);
     // §5.4: Ensure worst-case capacity for the current view distance.
     // Worst case: every cell in the visible disk produces 2 triangles = 6 vertices.
     // The 2x safety margin absorbs per-frame variance without reallocation.
@@ -624,10 +625,10 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     v01.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx01, v01.Fog, m_isUnderwater));
     v11.Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx11, v11.Fog, m_isUnderwater));
 
-    Vector3d fog00 = GetFogColorForMapPoint(fogIdx00);
-    Vector3d fog10 = GetFogColorForMapPoint(fogIdx10);
-    Vector3d fog01 = GetFogColorForMapPoint(fogIdx01);
-    Vector3d fog11 = GetFogColorForMapPoint(fogIdx11);
+    Vector3d fog00 = GetCachedTerrainFogColor(fogIdx00);
+    Vector3d fog10 = GetCachedTerrainFogColor(fogIdx10);
+    Vector3d fog01 = GetCachedTerrainFogColor(fogIdx01);
+    Vector3d fog11 = GetCachedTerrainFogColor(fogIdx11);
 
     // §3.1: Smooth fog-volume transitions — blend corners toward tile average
     SmoothFogColors(fog00, fog10, fog01, fog11);
@@ -820,7 +821,7 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
                 fogIdx[j][i] = FogsMap[fogCellY[j]][fogCellX[i]];
             }
             v[j][i].Fog = static_cast<int>(GetTerrainFogAmountForMapPoint(fogIdx[j][i], v[j][i].Fog, m_isUnderwater));
-            fogCol[j][i] = GetFogColorForMapPoint(fogIdx[j][i]);
+            fogCol[j][i] = GetCachedTerrainFogColor(fogIdx[j][i]);
             alpha[j][i] = CalcTerrainAlpha(VertexDistanceSq(v[j][i].v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
 
             // Step 5: Fog-aware distance fade

@@ -347,6 +347,10 @@ private:
     static Vector3d GetCurrentFogColor();
     static Vector3d GetFogColorForMapPoint(int mapX, int mapY);
     static Vector3d GetFogColorForMapPoint(int fogIndex);  // Phase 2.x: fogIndex overload avoids duplicate FogsMap lookup
+    // Terrain and water collection repeatedly request the same small set of
+    // fog-volume colours during one frame. Cache the resolved colour by fog
+    // index after the first lookup; the cache is reset in BeginTerrainFrame.
+    Vector3d GetCachedTerrainFogColor(int fogIndex);
     static Vector3d DecodeFogColor(int rgb);
     static bool IsWaterTriangleValid(const EPoint& v0, const EPoint& v1, const EPoint& v2, float backR);
     static float CalcWaterAlpha(const EPoint& vertex, float centerDistanceSq, float fadeStart, float fadeStartSq, float fadeEnd);
@@ -517,6 +521,8 @@ private:
     // reallocations.  The capacity is sized to the worst-case vertex
     // count for the current ctViewR and only grows (never shrinks
     // within a session).  The count resets to 0 each frame.
+    std::array<Vector3d, 256> m_terrainFogColorCache{};
+    std::array<uint8_t, 256> m_terrainFogColorValid{};
     std::unique_ptr<TerrainVertex[]> m_terrainVertices;
     size_t m_terrainVertexCapacity = 0;
     size_t m_terrainVertexCount    = 0;
