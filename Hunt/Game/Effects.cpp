@@ -114,6 +114,21 @@ void PreCashGroundModel()
     return out;
   };
 
+  // CalcFogLevel normally derives the FogsMap cell from a world-space point.
+  // This loop already has the exact map coordinates, and each 512-unit fog
+  // cell covers a 2x2 block of these 256-unit samples. Keep the last value
+  // for each map-column so the four samples in a fog cell share one lookup.
+  int fogCacheRow[512];
+  unsigned char fogCacheValue[512];
+  for (int i = 0; i < 512; ++i) fogCacheRow[i] = -1;
+  auto getCachedFogIndex = [&](int fogCellX, int fogCellY) -> int {
+    if (fogCacheRow[fogCellX] != fogCellY) {
+      fogCacheRow[fogCellX] = fogCellY;
+      fogCacheValue[fogCellX] = FogsMap[fogCellY][fogCellX];
+    }
+    return fogCacheValue[fogCellX];
+  };
+
 
   for (y=-(ctViewR+3); y<(ctViewR+3); y++)
     for (x=-(ctViewR+3); x<(ctViewR+3); x++)
@@ -252,7 +267,14 @@ void PreCashGroundModel()
 
       if (HARD3D)
         if (  ((FMap[yy][xx] & fmWater)==0) || IsUnderwater())
-          VMap[kViewGridCenter + y][kViewGridCenter + x].Fog = CalcFogLevel(v[0]);
+        {
+          const int fogIndex = (FOGON && !IsUnderwater())
+            ? getCachedFogIndex(
+                (static_cast<int>((v[0].x + CameraX))) >> 9,
+                (static_cast<int>((v[0].z + CameraZ))) >> 9)
+            : -1;
+          VMap[kViewGridCenter + y][kViewGridCenter + x].Fog = CalcFogLevel(v[0], fogIndex);
+        }
         else
           VMap[kViewGridCenter + y][kViewGridCenter + x].Fog = 0;
 

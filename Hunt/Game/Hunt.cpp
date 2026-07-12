@@ -41,14 +41,16 @@ void HideWeapon();
 
 
 
-float CalcFogLevel(Vector3d v)
+float CalcFogLevel(Vector3d v, int cachedFogIndex)
 {
   if (!FOGON) return 0;
   BOOL vinfog = true;
   int cf;
   if (!IsUnderwater())
   {
-    cf = FogsMap[ (static_cast<int>((v.z + CameraZ)))>>9 ][ (static_cast<int>((v.x + CameraX)))>>9 ];
+    cf = cachedFogIndex >= 0
+      ? cachedFogIndex
+      : FogsMap[ (static_cast<int>((v.z + CameraZ)))>>9 ][ (static_cast<int>((v.x + CameraX)))>>9 ];
     if ((!cf) && CAMERAINFOG)
     {
       cf = CameraFogI;

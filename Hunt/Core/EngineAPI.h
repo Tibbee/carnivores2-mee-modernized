@@ -145,7 +145,9 @@ int   TraceLook(float ax, float ay, float az,
 
 
 void CheckCollision(float&, float&);
-float CalcFogLevel(Vector3d v);
+// cachedFogIndex >= 0 reuses the map-cell lookup made by a caller that is
+// already walking the terrain grid; -1 preserves the general-purpose path.
+float CalcFogLevel(Vector3d v, int cachedFogIndex = -1);
 void AddMessage(LPSTR mt);
 void CreateTMap();
 
