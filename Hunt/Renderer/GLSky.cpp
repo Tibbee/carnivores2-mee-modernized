@@ -844,10 +844,10 @@ void GLRenderer::ShutdownSkyPipeline()
 void GLRenderer::InitializeSkyPipeline()
 {
     if (!m_skyShader.LoadFromFile("shaders/sky.vert", "shaders/sky.frag")) {
-        PrintLog("GLRenderer: Sky shader compilation... FAILED!\n");
+        LOG_ERROR("Sky shader compilation failed");
         return;
     }
-    PrintLog("GLRenderer: Sky shader compilation... OK\n");
+    LOG_INFO("Sky shader compilation succeeded");
 
     glGenVertexArrays(1, &m_skyVAO);
     glGenTextures(1, &m_skyTexture);

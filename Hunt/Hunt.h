@@ -34,6 +34,7 @@
 
 #include "Renderer/RenderContext.h"
 #include "Core/EngineAPI.h"
+#include "Debug/Log.h"
 
 #ifdef _gl
 #include "Renderer/GLRenderer.h"

@@ -43,18 +43,17 @@ GLRenderer::~GLRenderer()
 
 bool GLRenderer::CreateContext()
 {
-    PrintLog("\n");
-    PrintLog("==Init OpenGL==\n");
+    LOG_INFO("OpenGL initialization started");
 
     m_hwnd = hwndMain;
     if (!m_hwnd) {
-        PrintLog("GL: ERROR - hwndMain is nullptr!\n");
+        LOG_ERROR("hwndMain is null");
         return false;
     }
 
     m_hdc = GetDC(m_hwnd);
     if (!m_hdc) {
-        PrintLog("GL: ERROR - GetDC failed!\n");
+        LOG_ERROR("GetDC failed");
         return false;
     }
 
@@ -79,23 +78,23 @@ bool GLRenderer::CreateContext()
 
     int pixelFormat = ChoosePixelFormat(m_hdc, &pfd);
     if (!pixelFormat) {
-        PrintLog("GL: ERROR - Failed to choose pixel format.\n");
+        LOG_ERROR("Failed to choose pixel format");
         return false;
     }
 
     if (!SetPixelFormat(m_hdc, pixelFormat, &pfd)) {
-        PrintLog("GL: ERROR - Failed to set pixel format.\n");
+        LOG_ERROR("Failed to set pixel format");
         return false;
     }
 
     HGLRC tempContext = wglCreateContext(m_hdc);
     if (!tempContext) {
-        PrintLog("GL: ERROR - Failed to create temporary context.\n");
+        LOG_ERROR("Failed to create temporary context");
         return false;
     }
 
     if (!wglMakeCurrent(m_hdc, tempContext)) {
-        PrintLog("GL: ERROR - Failed to make temporary context current.\n");
+        LOG_ERROR("Failed to make temporary context current");
         wglDeleteContext(tempContext);
         return false;
     }
@@ -116,64 +115,57 @@ bool GLRenderer::CreateContext()
             wglMakeCurrent(nullptr, nullptr);
             wglDeleteContext(tempContext);
             wglMakeCurrent(m_hdc, m_hrc);
-            PrintLog("GL: OpenGL 3.3 Core Profile context created.\n");
+            LOG_INFO("OpenGL 3.3 Core Profile context created");
         } else {
-            PrintLog("GL: WARNING - Failed to create 3.3 context, falling back to legacy.\n");
+            LOG_WARN("Failed to create 3.3 context; falling back to legacy");
             m_hrc = tempContext;
         }
     } else {
-        PrintLog("GL: WARNING - wglCreateContextAttribsARB not found, using legacy context.\n");
+        LOG_WARN("wglCreateContextAttribsARB not found; using legacy context");
         m_hrc = tempContext;
     }
 
     if (!m_hrc) {
-        PrintLog("GL: ERROR - Failed to create any context.\n");
+        LOG_ERROR("Failed to create any OpenGL context");
         return false;
     }
 
     libGL = LoadLibraryA("opengl32.dll");
     if (!libGL) {
-        PrintLog("GL: ERROR - Failed to load opengl32.dll!\n");
+        LOG_ERROR("Failed to load opengl32.dll");
         return false;
     }
 
     if (!gladLoadGLLoader((GLADloadproc)glad_get_proc)) {
-        PrintLog("GL: ERROR - Failed to initialize GLAD.\n");
+        LOG_ERROR("Failed to initialize GLAD");
         return false;
     }
 
-    char logMsg[512];
     const char* version = (const char*)glGetString(GL_VERSION);
     if (version) {
-        sprintf(logMsg, "GL: Version: %s\n", version);
-        PrintLog(logMsg);
+        LOG_INFO("OpenGL version: %s", version);
     }
 
     const char* vendor = (const char*)glGetString(GL_VENDOR);
     if (vendor) {
-        sprintf(logMsg, "GL: Vendor: %s\n", vendor);
-        PrintLog(logMsg);
+        LOG_INFO("OpenGL vendor: %s", vendor);
     }
 
     const char* rendererStr = (const char*)glGetString(GL_RENDERER);
     if (rendererStr) {
-        sprintf(logMsg, "GL: Renderer: %s\n", rendererStr);
-        PrintLog(logMsg);
+        LOG_INFO("OpenGL renderer: %s", rendererStr);
     }
 
     const char* glslVersion = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
     if (glslVersion) {
-        sprintf(logMsg, "GL: GLSL Version: %s\n", glslVersion);
-        PrintLog(logMsg);
+        LOG_INFO("GLSL version: %s", glslVersion);
     }
 
     GLint numExtensions = 0;
     glGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
-    sprintf(logMsg, "GL: Extensions: %d\n", numExtensions);
-    PrintLog(logMsg);
+    LOG_INFO("OpenGL extensions: %d", numExtensions);
 
-    PrintLog("==OpenGL Initialized==\n");
-    PrintLog("\n");
+    LOG_INFO("OpenGL initialization completed");
 
     return true;
 }
@@ -198,15 +190,15 @@ void GLRenderer::LoadGLExtensions()
 
 bool GLRenderer::Initialize()
 {
-    PrintLog("GL: Initialize() called.\n");
+    LOG_INFO("GLRenderer::Initialize called");
 
     if (!CreateContext()) {
-        PrintLog("GL: Initialize() failed at CreateContext().\n");
+        LOG_ERROR("GLRenderer initialization failed in CreateContext");
         return false;
     }
 
     if (!InitGLState()) {
-        PrintLog("GL: Initialize() failed at InitGLState().\n");
+        LOG_ERROR("GLRenderer initialization failed in InitGLState");
         return false;
     }
 
@@ -317,7 +309,7 @@ bool GLRenderer::Initialize()
     m_locSkyCamForward     = glGetUniformLocation(m_skyShader.GetProgramID(), "uCamForward");
 
     m_Initialized = true;
-    PrintLog("GL: Initialize() completed successfully.\n");
+    LOG_INFO("GLRenderer initialization completed successfully");
     return true;
 }
 

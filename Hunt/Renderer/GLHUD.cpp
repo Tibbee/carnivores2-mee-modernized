@@ -502,10 +502,10 @@ void GLRenderer::InitializeHudPipeline()
     // This eliminates the UpdateUIPixels CPU loop (480K pixel conversions)
     // and the m_uiPixels RGBA8 buffer (1.92 MB).
     if (!m_uiShader.LoadFromFile("shaders/ui.vert", "shaders/ui.frag")) {
-        PrintLog("GLRenderer: UI shader compilation... FAILED!\n");
+        LOG_ERROR("UI shader compilation failed");
         return;
     }
-    PrintLog("GLRenderer: UI shader compilation... OK\n");
+    LOG_INFO("UI shader compilation succeeded");
 
     // Static fullscreen quad in NDC: (x, y, u, v) per vertex
     // Texture is flipped vertically in UpdateUIPixels, so:

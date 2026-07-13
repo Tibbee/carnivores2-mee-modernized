@@ -51,11 +51,10 @@ void PerfFrameEnd()
 
 void Init3DHardware()
 {
-    PrintLog("\n");
-    PrintLog("==Init3DHardware (OpenGL)==\n");
+    LOG_INFO("Init3DHardware (OpenGL) started");
 
     if (g_GLRenderer) {
-        PrintLog("GL: WARNING - GLRenderer already exists, shutting down first.\n");
+        LOG_WARN("GLRenderer already exists; shutting down first");
         g_GLRenderer->Shutdown();
         delete g_GLRenderer;
         g_GLRenderer = nullptr;
@@ -63,21 +62,20 @@ void Init3DHardware()
 
     g_GLRenderer = new GLRenderer();
     if (!g_GLRenderer->Initialize()) {
-        PrintLog("GL: ERROR - GLRenderer::Initialize() failed!\n");
+        LOG_ERROR("GLRenderer::Initialize failed");
         delete g_GLRenderer;
         g_GLRenderer = nullptr;
-        DoHalt("OpenGL initialization failed. Check render.log for details.");
+        DoHalt("OpenGL initialization failed. Check carnivor.log for details.");
     }
 
     DirectActive = true;
     HARD3D = true;
-    PrintLog("==Init3DHardware (OpenGL) Complete==\n");
-    PrintLog("\n");
+    LOG_INFO("Init3DHardware (OpenGL) completed");
 }
 
 void Activate3DHardware()
 {
-    PrintLog("GL: Activate3DHardware()\n");
+    LOG_INFO("Activate3DHardware");
 
     // Set video mode (this sets window size and position)
     SetVideoMode(WinW, WinH);
@@ -106,7 +104,7 @@ void Activate3DHardware()
 
 void ShutDown3DHardware()
 {
-    PrintLog("GL: ShutDown3DHardware()\n");
+    LOG_INFO("ShutDown3DHardware");
 
     if (g_GLRenderer) {
         g_GLRenderer->Shutdown();

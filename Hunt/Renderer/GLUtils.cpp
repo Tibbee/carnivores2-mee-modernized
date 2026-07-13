@@ -36,8 +36,8 @@ GLuint CompileShader(GLenum type, const char* source)
     if (!success) {
         char infoLog[1024];
         glGetShaderInfoLog(shader, sizeof(infoLog), nullptr, infoLog);
-        PrintLog("GL: Shader compilation failed:\n");
-        PrintLog(infoLog);
+        infoLog[sizeof(infoLog) - 1] = '\0';
+        LOG_ERROR("Shader compilation failed: %s", infoLog);
         glDeleteShader(shader);
         return 0;
     }
@@ -57,8 +57,8 @@ GLuint LinkProgram(GLuint vertexShader, GLuint fragmentShader)
     if (!success) {
         char infoLog[1024];
         glGetProgramInfoLog(program, sizeof(infoLog), nullptr, infoLog);
-        PrintLog("GL: Program linking failed:\n");
-        PrintLog(infoLog);
+        infoLog[sizeof(infoLog) - 1] = '\0';
+        LOG_ERROR("Program linking failed: %s", infoLog);
         glDeleteProgram(program);
         return 0;
     }

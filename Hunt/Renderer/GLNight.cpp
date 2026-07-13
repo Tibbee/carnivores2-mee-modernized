@@ -72,10 +72,10 @@ void GLRenderer::ShutdownNightDesaturation()
 void GLRenderer::InitializeNightDesaturation()
 {
     if (!m_nightDesatProgram.LoadFromFile("shaders/night_desat.vert", "shaders/night_desat.frag")) {
-        PrintLog("GLRenderer: night desaturation shader compilation FAILED!\n");
+        LOG_ERROR("Night desaturation shader compilation failed");
         return;
     }
-    PrintLog("GLRenderer: night desaturation shader compilation OK\n");
+    LOG_INFO("Night desaturation shader compilation succeeded");
 
     m_nightDesatProgram.Use();
     m_locNightDesatTexture = glGetUniformLocation(m_nightDesatProgram.GetProgramID(), "uSceneTexture");

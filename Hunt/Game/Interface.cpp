@@ -75,6 +75,7 @@ void PrintText(LPSTR s, int x, int y, int rgb)
 void DoHalt(LPSTR Mess)
 {
 
+	LOG_ERROR("ABNORMAL_HALT: %s", Mess ? Mess : "");
 	if (strlen(Mess))
 	{
 		PrintLog("ABNORMAL_HALT: ");
@@ -99,12 +100,14 @@ void DoHalt(LPSTR Mess)
   EnableWindow(hwndMain, false);
 
   CloseLog();
+  LogClose();
   TerminateProcess(GetCurrentProcess(), 0);
 }
 
 //For stopping the program before audio/3d hardware startup
 void DoHalt2(LPSTR Mess)
 {
+	LOG_ERROR("ABNORMAL_HALT: %s", Mess ? Mess : "");
 //	AudioStop();
 //	Audio_Shutdown();
 
@@ -119,6 +122,7 @@ void DoHalt2(LPSTR Mess)
 	}
 
 	CloseLog();
+	LogClose();
 	TerminateProcess(GetCurrentProcess(), 0);
 }
 

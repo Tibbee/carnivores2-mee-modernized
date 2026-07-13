@@ -1629,6 +1629,8 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   hInst = hInstance;
   EnablePerMonitorV2DpiAwareness();
 
+  // Keep structured diagnostics separate from the legacy render.log stream.
+  LogInit("carnivor.log");
   CreateLog();
 
   CreateMainWindow();
@@ -1770,7 +1772,9 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
   ShowCursor(true);
   PrintLog("Game normal shutdown.\n");
+  LOG_INFO("Game normal shutdown");
 
   CloseLog();
+  LogClose();
   return msg.wParam;
 }

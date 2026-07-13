@@ -192,7 +192,7 @@ bool GLRenderer::InitializeTerrainPersistentMapping(size_t sliceVertices)
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     if (!m_terrainMappedPtr) {
-        PrintLog("GL: persistent terrain VBO map failed; falling back to stream upload.\n");
+        LOG_WARN("Persistent terrain VBO map failed; falling back to stream upload");
         m_usePersistentTerrainVBO = false;
         m_terrainStreamSliceVertices = 0;
         m_terrainStreamSliceBytes = 0;

@@ -21,7 +21,7 @@ static std::string ReadTextFile(const char* path)
 {
     FILE* fp = std::fopen(path, "rb");
     if (!fp) {
-        char buf[256]; sprintf_s(buf, sizeof(buf), "GLShader: failed to open '%s'\n", path); PrintLog(buf);
+        LOG_ERROR("GLShader: failed to open '%s'", path);
         return {};
     }
 
@@ -31,7 +31,7 @@ static std::string ReadTextFile(const char* path)
     std::fseek(fp, 0, SEEK_SET);
 
     if (size <= 0) {
-        char buf[256]; sprintf_s(buf, sizeof(buf), "GLShader: '%s' is empty\n", path); PrintLog(buf);
+        LOG_ERROR("GLShader: '%s' is empty", path);
         std::fclose(fp);
         return {};
     }
@@ -42,7 +42,7 @@ static std::string ReadTextFile(const char* path)
     std::fclose(fp);
 
     if (bytesRead != static_cast<size_t>(size)) {
-        char buf[256]; sprintf_s(buf, sizeof(buf), "GLShader: short read on '%s' (%zu of %ld)\n", path, bytesRead, size); PrintLog(buf);
+        LOG_ERROR("GLShader: short read on '%s' (%zu of %ld)", path, bytesRead, size);
         return {};
     }
 
@@ -94,13 +94,13 @@ bool GLShader::LoadFromFile(const char* vertPath, const char* fragPath)
 
     std::string vertSrc = ReadTextFile(vertPath);
     if (vertSrc.empty()) {
-        char buf[256]; sprintf_s(buf, sizeof(buf), "GLShader: failed to read vertex shader '%s'\n", vertPath); PrintLog(buf);
+        LOG_ERROR("GLShader: failed to read vertex shader '%s'", vertPath);
         return false;
     }
 
     std::string fragSrc = ReadTextFile(fragPath);
     if (fragSrc.empty()) {
-        char buf[256]; sprintf_s(buf, sizeof(buf), "GLShader: failed to read fragment shader '%s'\n", fragPath); PrintLog(buf);
+        LOG_ERROR("GLShader: failed to read fragment shader '%s'", fragPath);
         return false;
     }
 
@@ -144,7 +144,7 @@ GLuint GLShader::CompileShader(GLenum type, const char* source)
 {
     GLuint shader = glCreateShader(type);
     if (!shader) {
-        PrintLog("GLShader: glCreateShader failed");
+        LOG_ERROR("GLShader: glCreateShader failed");
         return 0;
     }
 
@@ -166,7 +166,7 @@ GLuint GLShader::LinkProgram(GLuint vertexShader, GLuint fragmentShader)
 {
     GLuint program = glCreateProgram();
     if (!program) {
-        PrintLog("GLShader: glCreateProgram failed");
+        LOG_ERROR("GLShader: glCreateProgram failed");
         return 0;
     }
 
@@ -201,7 +201,7 @@ bool GLShader::CheckCompileErrors(GLuint shader, const char* typeStr)
         GLsizei logLength = 0;
         glGetShaderInfoLog(shader, sizeof(infoLog), &logLength, infoLog);
         infoLog[sizeof(infoLog) - 1] = '\0';
-        char buf[4096]; sprintf_s(buf, sizeof(buf), "GLShader: %s shader compilation failed:\n%s\n", typeStr, infoLog); PrintLog(buf);
+        LOG_ERROR("GLShader: %s shader compilation failed: %s", typeStr, infoLog);
     }
 
     return success != GL_FALSE;
@@ -220,7 +220,7 @@ bool GLShader::CheckLinkErrors(GLuint program)
         GLsizei logLength = 0;
         glGetProgramInfoLog(program, sizeof(infoLog), &logLength, infoLog);
         infoLog[sizeof(infoLog) - 1] = '\0';
-        char buf[4096]; sprintf_s(buf, sizeof(buf), "GLShader: program linking failed:\n%s\n", infoLog); PrintLog(buf);
+        LOG_ERROR("GLShader: program linking failed: %s", infoLog);
     }
 
     return success != GL_FALSE;

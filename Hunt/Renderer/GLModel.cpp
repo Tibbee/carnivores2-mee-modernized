@@ -765,10 +765,8 @@ void GLRenderer::RenderObject(int x, int y)
         static int hitCount = 0;
         ++hitCount;
         if (hitCount <= 20 || hitCount % 100 == 0) {
-            char buf[128];
-            sprintf(buf, "WARNING: m_objectList hit 32768 cap (%zu entries); objects dropped (hit #%d)\n",
-                    m_objectList.size(), hitCount);
-            PrintLogVerbose(buf);
+            LOG_WARN("m_objectList hit 32768 cap (%zu entries); objects dropped (hit #%d)",
+                     m_objectList.size(), hitCount);
         }
         return;
     }
