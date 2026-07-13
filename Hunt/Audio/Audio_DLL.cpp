@@ -10,19 +10,19 @@
 // ---------------------------------------------------------------------------
 // OpenAL state
 // ---------------------------------------------------------------------------
-ALCdevice*  alDevice = nullptr;
-ALCcontext* alContext = nullptr;
-std::unordered_map<short*, ALuint> bufferCache;
-HANDLE      hAudioThread = nullptr;
-DWORD       AudioTId;
-CRITICAL_SECTION AudioCS;
+static ALCdevice*  alDevice = nullptr;
+static ALCcontext* alContext = nullptr;
+static std::unordered_map<short*, ALuint> bufferCache;
+static HANDLE      hAudioThread = nullptr;
+static DWORD       AudioTId;
+static CRITICAL_SECTION AudioCS;
 static volatile BOOL g_AudioShutdown = false;
 
-int iSoundActive = 0;
-CHANNEL channel[MAX_CHANNEL]{};
-AMBIENT ambient{};
-AMBIENT ambient2{};
-MAMBIENT mambient{};
+static int iSoundActive = 0;
+static CHANNEL channel[MAX_CHANNEL]{};
+static AMBIENT ambient{};
+static AMBIENT ambient2{};
+static MAMBIENT mambient{};
 
 enum class AudioBackend {
     OpenALSoft,
@@ -53,9 +53,6 @@ static LegacyAudioVoiceFn g_LegacyAddVoice3dv = nullptr;
 static LegacyAudioVersionFn g_LegacyAudioGetVersion = nullptr;
 static LegacyAudioEnvFn g_LegacyAudioSetEnvironment = nullptr;
 static LegacyAudioGeomFn g_LegacyAudioUploadGeometry = nullptr;
-
-int   xCamera, yCamera, zCamera;
-float alphaCamera, betaCamera;
 
 // For EAX → EFX reverb
 static ALuint g_effect = 0;
@@ -450,12 +447,6 @@ void AudioSetCameraPos(float cx, float cy, float cz, float ca, float cb)
     }
 
     if (!iSoundActive) return;
-
-    xCamera = static_cast<int>(cx);
-    yCamera = static_cast<int>(cy);
-    zCamera = static_cast<int>(cz);
-    alphaCamera = ca;
-    betaCamera  = cb;
 
     ALfloat pos[] = { cx, cy, cz };
     ALfloat orient[] = {

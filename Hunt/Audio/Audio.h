@@ -31,14 +31,6 @@ struct MAMBIENT {
     float x, y, z;
 };
 
-// Internal OpenAL state — not used by the game engine directly
-extern int iSoundActive;
-extern CHANNEL channel[MAX_CHANNEL];
-extern AMBIENT ambient;
-extern AMBIENT ambient2;
-extern MAMBIENT mambient;
-
-extern int xCamera, yCamera, zCamera;
-extern float alphaCamera, betaCamera;
+// All OpenAL runtime state is private to Audio_DLL.cpp.
 
 #endif
