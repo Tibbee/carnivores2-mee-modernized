@@ -1,4 +1,4 @@
-// EngineInit.cpp � auto-extracted from Game.cpp
+// EngineInit.cpp � auto-extracted from Game.cpp
 // ==========================================================================
 // Auto-extracted from Game.cpp
 // ==========================================================================
@@ -9,832 +9,924 @@
 // Imported from Game.cpp
 extern bool ShowFaces;
 
-void UploadGeometry()
-{
-  int x,y,xx,yy;
-  byte temp;
-
-  AudioFCount = 0;
-
-  int MaxView = 18;
-  int HalfView = static_cast<int>((MaxView/2))+1;
-
-  for (x = 0; x < MaxView; x++)
-    for (y = 0; y < MaxView; y++)
-    {
-      xx = (x - HalfView)*2;
-      yy = (y - HalfView)*2;
-      data[AudioFCount].x1 = (CCX+xx) * 256 - CameraX;
-      data[AudioFCount].y1 = HMap[CCY+yy][CCX+xx] * ctHScale - CameraY;
-      data[AudioFCount].z1 = (CCY+yy) * 256 - CameraZ;
-
-      xx = ((x+1) - HalfView)*2;
-      yy = (y - HalfView)*2;
-      data[AudioFCount].x2 = (CCX+xx) * 256 - CameraX;
-      data[AudioFCount].y2 = HMap[CCY+yy][CCX+xx] * ctHScale - CameraY;
-      data[AudioFCount].z2 = (CCY+yy) * 256 - CameraZ;
-
-      xx = ((x+1) - HalfView)*2;
-      yy = ((y+1) - HalfView)*2;
-      data[AudioFCount].x3 = (CCX+xx) * 256 - CameraX;
-      data[AudioFCount].y3 = HMap[CCY+yy][CCX+xx] * ctHScale - CameraY;
-      data[AudioFCount].z3 = (CCY+yy) * 256 - CameraZ;
-
-      xx = (x - HalfView)*2;
-      yy = ((y+1) - HalfView)*2;
-      data[AudioFCount].x4 = (CCX+xx) * 256 - CameraX;
-      data[AudioFCount].y4 = HMap[CCY+yy][CCX+xx] * ctHScale - CameraY;
-      data[AudioFCount].z4 = (CCY+yy) * 256 - CameraZ;
-
-      AudioFCount++;
-    }
-
-//     MessageBeep(-1);
-
-  if (ShowFaces)
-  {
-    sprintf_s(logt, sizeof(logt),"Audio_UpdateGeometry: %i faces uploaded\n", AudioFCount);
-    PrintLog(logt);
-
-    ShowFaces = false;
-  }
-}
-void SetupRes()
-{
-  // OptRes is an index into ResolutionList[]. Fall back to the first
-  // 800x600 entry (or 0) if the saved index is out of range.
-  if (ResCount <= 0) {
-    WinW = 800;
-    WinH = 600;
-    return;
-  }
-  if (OptRes < 0 || OptRes >= ResCount) {
-    OptRes = 0;
-    for (int r = 0; r < ResCount; r++) {
-      if (ResolutionList[r].w == 800 && ResolutionList[r].h == 600) {
-        OptRes = r;
-        break;
-      }
-    }
-  }
-  WinW = ResolutionList[OptRes].w;
-  WinH = ResolutionList[OptRes].h;
-}
-static void AddResolution(int w, int h)
-{
-  // Append (w, h) to ResolutionList[] if not already present.
-  for (int r = 0; r < ResCount; r++) {
-    if (ResolutionList[r].w == w && ResolutionList[r].h == h)
-      return;
-  }
-  if (ResCount >= 128) return;
-  ResolutionList[ResCount].w = w;
-  ResolutionList[ResCount].h = h;
-  ResCount++;
-}
-void EnumerateResolutions()
-{
-  // Populate ResolutionList[] from the display's available modes.
-  // Replaces the old hardcoded 8-entry table in SetupRes(). The list
-  // is built at startup, deduplicated, and capped at 128 entries.
-  // 16-bit minimum (matches the DIB depth in CreateVideoDIB).
-  //
-  // Top cap: the current desktop mode (ENUM_CURRENT_SETTINGS). This is
-  // the monitor's active resolution. We always include it explicitly
-  // even if the driver doesn't report it through the enumeration loop,
-  // so a 2560x1440 native panel always has its native mode selectable.
-  // We never offer modes wider/taller than the desktop because
-  // SetVideoMode() can't actually display them.
-  ResCount = 0;
-
-  int desktopW = GetSystemMetrics(SM_CXSCREEN);
-  int desktopH = GetSystemMetrics(SM_CYSCREEN);
-
-  DEVMODE current;
-  ZeroMemory(&current, sizeof(current));
-  current.dmSize = sizeof(current);
-  if (EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &current)) {
-    // Prefer the DEVMODE values — they can be slightly different from
-    // GetSystemMetrics in multi-monitor / DPI-scaled setups.
-    desktopW = current.dmPelsWidth;
-    desktopH = current.dmPelsHeight;
-  }
-
-  DEVMODE dm;
-  ZeroMemory(&dm, sizeof(dm));
-  dm.dmSize = sizeof(dm);
-  for (int i = 0; EnumDisplaySettings(nullptr, i, &dm); i++) {
-    if (dm.dmBitsPerPel < 16) continue;
-    if (dm.dmPelsWidth  > desktopW ||
-        dm.dmPelsHeight > desktopH)
-      continue;
-    AddResolution(dm.dmPelsWidth, dm.dmPelsHeight);
-  }
-
-  // Always include the current desktop resolution itself. Some drivers
-  // don't enumerate the native panel mode, so without this the list
-  // would silently cap below the monitor's actual capability.
-  AddResolution(desktopW, desktopH);
-
-  // Guarantee at least one entry: 800x600 (the historical default).
-  if (ResCount == 0) {
-    ResolutionList[0].w = 800;
-    ResolutionList[0].h = 600;
-    ResCount = 1;
-  }
-}
-void SubmitDinoScore (int cindex) {
-	float score = DinoInfo[Characters[cindex].CType].BaseScore;
-
-	if (TrophyRoom.Last.success > 1)
-		score *= (1.f + TrophyRoom.Last.success / 10.f);
-
-	//if (!(TargetDino & (1<<DinoInfo[Characters[cindex].CType].menuDino)) ) score/=2.f;
-
-	SYSTEMTIME st;
-	GetLocalTime(&st);
-	// Score multipliers are now driven by the Menu (see smod= in
-	// ProcessCommandLine) so modders can tune them via _RES.TXT.
-	// Defaults match the original hardcoded values when no smod= is
-	// supplied (see InitEngine).
-	if (Tranq) score *= ScoreMod_Tranq;
-	if (RadarMode) score *= ScoreMod_Radar;
-	if (ScentMode) score *= ScoreMod_Scent;
-	if (CamoMode) score *= ScoreMod_Camo;
-	TrophyRoom.Score += static_cast<int>(score);
-	Characters[cindex].tempScore = static_cast<int>(score);
-	Characters[cindex].tempDate = (st.wYear << 20) + (st.wMonth << 10) + st.wDay;
-	Characters[cindex].tempTime = (st.wHour << 10) + st.wMinute;
-	Characters[cindex].tempRange = VectorLength(SubVectors(Characters[cindex].pos, PlayerPos)) / 64.f;
-
-	ScoreDispTime = 2500;
-	ScoreDisp = static_cast<int>(score);
-
-}
-void HideWeapon()
-{
-  TWeapon *wptr = &Weapon;
-  if (IsUnderwater() && !wptr->state && !WeapInfo[CurrentWeapon].harpoon) return;
-  if (ObservMode || g_GameMode == GameMode::TrophyMode) return;
-  if (g_GameMode == GameMode::SurvivalMode) return;
-
-  if (wptr->state == 0)
-  {  
-	//if (!ShotsLeft[CurrentWeapon]) return;
-    if (WeapInfo[CurrentWeapon].Optic) g_GameMode = GameMode::OpticScope;
-    
-	if (IsUnderwater()) {
-		if (WeapInfo[CurrentWeapon].getAqSnd >= 0)
-			AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].getAqSnd].length,
-				wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].getAqSnd].lpData.data(), 256);
-	} else {
-		int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].getAnim];
-		if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
-			wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
-	}
-    wptr->FTime = 0;
-    wptr->state = 1;
-    g_GameMode = GameMode::Normal;
-    g_GameMode = GameMode::Normal;
-    wptr->shakel = WeapInfo[CurrentWeapon].shake * 4.f;
-	wptr->breath = 0.f;
-	wptr->breathPressed = 0;
-	wptr->HoldBreath = false;
-    return;
-  }
-
-  if (wptr->state!=2 || wptr->FTime!=0) return;
-  if (IsUnderwater()) {
-	  if (WeapInfo[CurrentWeapon].putAqSnd >= 0)
-		  AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].putAqSnd].length,
-			  wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].putAqSnd].lpData.data(), 256);
-  } else {
-	  int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].putAnim];
-	  if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
-		  wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
-  }
-  wptr->state = 3;
-  wptr->FTime = 0;
-  g_GameMode = GameMode::Normal;
-  return ;
-}
-void InitGameInfo()
-{
-  for (int c=0; c< DINOINFO_MAX; c++)
-  {
-    DinoInfo[c].Scale0 = 800;
-    DinoInfo[c].ScaleA = 600;
-    DinoInfo[c].ShDelta = 0;
-  }
-  /*
-      WeapInfo[0].Name = "Shotgun";
-  	WeapInfo[0].Power = 1.5f;
-  	WeapInfo[0].Prec  = 1.1f;
-  	WeapInfo[0].Loud  = 0.3f;
-  	WeapInfo[0].Rate  = 1.6f;
-  	WeapInfo[0].Shots = 6;
-
-  	WeapInfo[1].Name = "X-Bow";
-  	WeapInfo[1].Power = 1.1f;
-  	WeapInfo[1].Prec  = 0.7f;
-  	WeapInfo[1].Loud  = 1.9f;
-  	WeapInfo[1].Rate  = 1.2f;
-  	WeapInfo[1].Shots = 8;
-
-      WeapInfo[2].Name = "Sniper Rifle";
-  	WeapInfo[2].Power = 1.0f;
-  	WeapInfo[2].Prec  = 1.8f;
-  	WeapInfo[2].Loud  = 0.6f;
-  	WeapInfo[2].Rate  = 1.0f;
-  	WeapInfo[2].Shots = 6;
-
-
-
-
-  	DinoInfo[ 0].Name = "Moschops";
-  	DinoInfo[ 0].Health0 = 2;
-  	DinoInfo[ 0].Mass = 0.15f;
-
-      DinoInfo[ 1].Name = "Galimimus";
-  	DinoInfo[ 1].Health0 = 2;
-  	DinoInfo[ 1].Mass = 0.1f;
-
-  	DinoInfo[ 2].Name = "Dimorphodon";
-      DinoInfo[ 2].Health0 = 1;
-  	DinoInfo[ 2].Mass = 0.05f;
-
-  	DinoInfo[ 3].Name = "Dimetrodon";
-      DinoInfo[ 3].Health0 = 2;
-  	DinoInfo[ 3].Mass = 0.22f;
-
-
-  	DinoInfo[ 5].Name = "Parasaurolophus";
-  	DinoInfo[ 5].Mass = 1.5f;
-  	DinoInfo[ 5].Length = 5.8f;
-  	DinoInfo[ 5].Radius = 320.f;
-  	DinoInfo[ 5].Health0 = 5;
-  	DinoInfo[ 5].BaseScore = 6;
-  	DinoInfo[ 5].SmellK = 0.8f; DinoInfo[ 4].HearK = 1.f; DinoInfo[ 4].LookK = 0.4f;
-  	DinoInfo[ 5].ShDelta = 48;
-
-  	DinoInfo[ 6].Name = "Pachycephalosaurus";
-  	DinoInfo[ 6].Mass = 0.8f;
-  	DinoInfo[ 6].Length = 4.5f;
-  	DinoInfo[ 6].Radius = 280.f;
-  	DinoInfo[ 6].Health0 = 4;
-  	DinoInfo[ 6].BaseScore = 8;
-  	DinoInfo[ 6].SmellK = 0.4f; DinoInfo[ 5].HearK = 0.8f; DinoInfo[ 5].LookK = 0.6f;
-  	DinoInfo[ 6].ShDelta = 36;
-
-  	DinoInfo[ 7].Name = "Stegosaurus";
-      DinoInfo[ 7].Mass = 7.f;
-  	DinoInfo[ 7].Length = 7.f;
-  	DinoInfo[ 7].Radius = 480.f;
-  	DinoInfo[ 7].Health0 = 5;
-  	DinoInfo[ 7].BaseScore = 7;
-  	DinoInfo[ 7].SmellK = 0.4f; DinoInfo[ 6].HearK = 0.8f; DinoInfo[ 6].LookK = 0.6f;
-  	DinoInfo[ 7].ShDelta = 128;
-
-  	DinoInfo[ 8].Name = "Allosaurus";
-  	DinoInfo[ 8].Mass = 0.5;
-  	DinoInfo[ 8].Length = 4.2f;
-  	DinoInfo[ 8].Radius = 256.f;
-  	DinoInfo[ 8].Health0 = 3;
-  	DinoInfo[ 8].BaseScore = 12;
-  	DinoInfo[ 8].Scale0 = 1000;
-  	DinoInfo[ 8].ScaleA = 600;
-  	DinoInfo[ 8].SmellK = 1.0f; DinoInfo[ 7].HearK = 0.3f; DinoInfo[ 7].LookK = 0.5f;
-  	DinoInfo[ 8].ShDelta = 32;
-	DinoInfo[ 8].DangerCall = true;
-
-  	DinoInfo[ 9].Name = "Chasmosaurus";
-  	DinoInfo[ 9].Mass = 3.f;
-  	DinoInfo[ 9].Length = 5.0f;
-  	DinoInfo[ 9].Radius = 400.f;
-  	DinoInfo[ 9].Health0 = 8;
-  	DinoInfo[ 9].BaseScore = 9;
-  	DinoInfo[ 9].SmellK = 0.6f; DinoInfo[ 8].HearK = 0.5f; DinoInfo[ 8].LookK = 0.4f;
-  	//DinoInfo[ 8].ShDelta = 148;
-  	DinoInfo[ 9].ShDelta = 108;
-
-  	DinoInfo[10].Name = "Velociraptor";
-  	DinoInfo[10].Mass = 0.3f;
-  	DinoInfo[10].Length = 4.0f;
-  	DinoInfo[10].Radius = 256.f;
-  	DinoInfo[10].Health0 = 3;
-  	DinoInfo[10].BaseScore = 16;
-  	DinoInfo[10].ScaleA = 400;
-  	DinoInfo[10].SmellK = 1.0f; DinoInfo[ 9].HearK = 0.5f; DinoInfo[ 9].LookK = 0.4f;
-  	DinoInfo[10].ShDelta =-24;
-	DinoInfo[10].DangerCall = true;
-
-  	DinoInfo[11].Name = "T-Rex";
-      DinoInfo[11].Mass = 6.f;
-  	DinoInfo[11].Length = 12.f;
-  	DinoInfo[11].Radius = 400.f;
-  	DinoInfo[11].Health0 = 1024;
-  	DinoInfo[11].BaseScore = 20;
-  	DinoInfo[11].SmellK = 0.85f; DinoInfo[10].HearK = 0.8f; DinoInfo[10].LookK = 0.8f;
-  	DinoInfo[11].ShDelta = 168;
-	DinoInfo[11].DangerCall = true;
-
-  	DinoInfo[ 4].Name = "Brahiosaurus";
-      DinoInfo[ 4].Mass = 9.f;
-  	DinoInfo[ 4].Length = 12.f;
-  	DinoInfo[ 4].Radius = 400.f;
-  	DinoInfo[ 4].Health0 = 1024;
-  	DinoInfo[ 4].BaseScore = 0;
-  	DinoInfo[ 4].SmellK = 0.85f; DinoInfo[16].HearK = 0.8f; DinoInfo[16].LookK = 0.8f;
-  	DinoInfo[ 4].ShDelta = 168;
-	DinoInfo[ 4].DangerCall = false;
-  */
-  LoadResourcesScript();
-}
-
-
-// MULTIPLAYER ===================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-static void LoadConfig();
-void InitEngine()
-{
-  FULLSCREEN   = true;
-  BORDERLESS   = false;
-  DEBUG        = false;
-
-  WATERANI     = true;
-  NODARKBACK   = true;
-  LoDetailSky  = true;
-  CORRECTION   = true;
-  FOGON        = true;
-  FOGENABLE    = true;
-  UIScale      = 1.0f;
-  Clouds       = true;
-  SKY          = true;
-  GOURAUD      = true;
-  MODELS       = true;
-  TIMER        = DEBUG;
-  BITMAPP      = false;
-  MIPMAP       = true;
-  NOCLIP       = false;
-  CLIP3D       = true;
-
-
-  SLOW         = false;
-  LOWRESTX     = false;
-  MORPHP       = true;
-  MORPHA       = true;
-
-  _GameState = 0;
-  _MultiplayerState = 0;
-
-  RadarMode    = false;
-  NightVisionMode = false;
-  NightVisionOn   = false;
-  NightVisionKey  = 0x4E; // Default: 'N' key
-
-  // Accessory score multipliers. Defaults match the legacy hardcoded
-  // values that used to live in SubmitDinoScore() so legacy hunts
-  // (launched without a 'smod=' argument) keep the same final score.
-  ScoreMod_Camo     = 0.85f;
-  ScoreMod_Radar    = 0.70f;
-  ScoreMod_Scent    = 0.80f;
-  ScoreMod_Double   = 1.0f;
-  ScoreMod_Tranq    = 1.25f;
-  ScoreMod_Observer = 1.0f;
-
-  //multiplayer
-  Multiplayer = false;
-  Host = false;
-  result = nullptr;
-
-  fnt_BIG = CreateFont(
-              static_cast<int>((23 * UIScale)), static_cast<int>((10 * UIScale)), 0, 0,
-              600, 0,0,0,
-#ifdef __rus
-              RUSSIAN_CHARSET,
-#else
-              ANSI_CHARSET,
-#endif
-              OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
-
-
-
-
-  fnt_Small = CreateFont(
-                static_cast<int>((16 * UIScale)), static_cast<int>((7 * UIScale)), 0, 0,
-				100, 0,0,0,
-	  
-	  //14, 5, 0, 0,
-	  //100, 0, 0, 0,
-#ifdef __rus
-                RUSSIAN_CHARSET,
-#else
-                ANSI_CHARSET,
-#endif
-                OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
-
-
-  fnt_Midd  = CreateFont(
-			    static_cast<int>((16 * UIScale)), static_cast<int>((7 * UIScale)), 0, 0,
-	            550, 0, 0, 0,
-#ifdef __rus
-                RUSSIAN_CHARSET,
-#else
-                ANSI_CHARSET,
-#endif
-                OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
-
-
-  Heap = HeapCreate( 0, 60000000, 0 );
-  if( Heap == nullptr )
-  {
-    MessageBox(hwndMain,"Error creating heap.","Error",IDOK);
-    return;
-  }
-
-  // Phase 5C.2: Construct the per-level MemoryArena. C1 does this at
-  // Carnivores1/Hunt/Game.cpp:506 with 128 MiB; we use LEVEL_ARENA_SIZE
-  // (256 MiB) because C2 ME has more resident state (8 weapons, 128
-  // dino types, multiplayer, snow, etc.). The arena must be created
-  // AFTER HeapCreate (the Heap variable is referenced by all the
-  // _HeapAlloc dispatch) and BEFORE LoadResources (which tags most
-  // per-level allocations as MemoryTag::Level, causing them to land
-  // here instead of in Heap).
-  //
-  // Defensive: verify the smart pointer layout assumption that all of
-  // Phase 5 depends on -- if sizeof(unique_heap_ptr<T>) ever drifts
-  // away from a raw pointer, every struct field we migrated will
-  // silently change size and break the save-game / multiplayer
-  // protocols. C1 has the same static_assert in its InitEngine.
-  static_assert(sizeof(unique_heap_ptr<WORD[]>) == sizeof(void*),
-                "unique_heap_ptr<T[]> must be the same size as a raw pointer (x86 EBO)");
-  static_assert(sizeof(unique_obj_ptr<TModel>) == sizeof(void*),
-                "unique_obj_ptr<TModel> must be the same size as a raw pointer (x86 EBO)");
-  LevelArena = new MemoryArena(LEVEL_ARENA_SIZE, "LevelArena");
-
-  // Phase 5E: tag as MemoryTag::Global. This is a one-time
-  // allocation in InitEngine that lives for the whole session --
-  // it backs the "null" texture at index 255 (used as a fallback
-  // when a model references a missing texture). It's released by
-  // ReleaseGlobalResources at shutdown. Goes to the heap, not the
-  // arena, because it must survive all LevelArena->Reset() calls.
-  Textures[255].reset((TEXTURE*) _HeapAlloc(Heap, 0, sizeof(TEXTURE), MemoryTag::Global));
-
-  WaterR = 10;
-  WaterG = 38;
-  WaterB = 46;
-  WaterA = 10;
-  TargetDino = 1<<10;
-  TargetCall = 10;
-  WeaponPres = 1;
-  MessageList.timeleft = 0;
-
-  InitGameInfo();
-
-  CreateFadeTab();
-  CreateDivTable();
-  InitClips();
-
-  TrophyRoom.RegNumber=0;
-  PlayerZ = (ctMapSize / 3) * 256;
-
-  ProcessCommandLine();
-
-  switch (OptDayNight)
-  {
-  case 0:
-    SunShadowK = 0.7;
-    Sun3dPos.x = - 4048;
-    Sun3dPos.y = + 2048;
-    Sun3dPos.z = - 4048;
-    break;
-  case 1:
-    SunShadowK = 0.5;
-    Sun3dPos.x = - 2048;
-    Sun3dPos.y = + 4048;
-    Sun3dPos.z = - 2048;
-    break;
-  case 2:
-    SunShadowK = -0.7;
-    Sun3dPos.x = + 3048;
-    Sun3dPos.y = + 3048;
-    Sun3dPos.z = + 3048;
-    break;
-  }
-
-  // EnumerateResolutions() must come before LoadTrophy() so SetupRes()
-  // (called inside LoadTrophy via ReadFile -> SetupRes) can use
-  // ResolutionList[] to translate the saved OptRes index into a real
-  // WinW/WinH. If we enumerated after, LoadTrophy would have no
-  // resolution table to apply.
-  EnumerateResolutions();
-
-  // OptFov is the vertical field-of-view in degrees, range [kFovMin,
-  // kFovMax]. It drives CameraH = VideoCY * FovScaleFromDegrees(OptFov)
-  // in SetVideoMode() and the per-frame camera setup in Hunt.cpp. The
-  // default is set unconditionally here as a safety net for first
-  // launch (no save file) and for old saves written before the
-  // FOV-slider port that don't include the OptFov field. LoadTrophy()
-  // overwrites this default with the persisted value (or keeps this
-  // default if the saved value is missing/out-of-range).
-  OptFov = kFovDefault;
-  g_gpuFeatures = kGpuFeaturesDefault;  // GPU-optimization kill-switch (see GameState.h)
-
-  OptViewR = kViewOptDefault;
-  OptObjectDetail = kObjectDetailDefault;
-OptFpsLimit = 0;  // 0 = unlimited
-
-  LoadTrophy();
-  OptViewR = ClampViewOpt(OptViewR);
-
-  // Override settings from config.cfg (written by Carnivores2Menu).
-  // This file is the single source of truth for settings that are not
-  // part of the legacy binary trophy format (e.g. OptFov).
-  LoadConfig();
-
-  // CreateVideoDIB() must come after ProcessCommandLine() so WinW/WinH reflect
-  // any /res command-line override.
-  ProcessCommandLine();
-  CreateVideoDIB();
-
-  if (g_GameMode == GameMode::SurvivalMode) OptViewR = kViewOptMax;
-
-  ctViewR = ViewOptToCtViewR(OptViewR);
-  // Cap the character-processing view radius independently of the
-  // rendering radius.  At ctViewR=230 the game processes characters
-  // within a ~4B sq-unit area, causing multi-second frame freezes.
-  // A cap of 120 keeps character LOD ~2.2x default while preventing
-  // the worst scalability cliff.
-  charViewR = (std::min)(ctViewR, 120);
-  ctViewRM = ClampObjectDetail(OptObjectDetail);
-
-  Soft_Persp_K = 1.5f;
-  HeadY = 220;
-
-  FogsList[0].fogRGB = 0x000000;
-  FogsList[0].YBegin = 0;
-  FogsList[0].Transp = 000;
-  FogsList[0].FLimit = 000;
-
-  FogsList[127].fogRGB = 0x00504000;
-  FogsList[127].Mortal = false;
-  // Underwater fog density.  Transp=220, FLimit=200: builds up moderately
-  // fast, ~78% max opacity.  Was Transp=460 which gave a sparse, dark
-  // underwater look.  The depth-based multiplier in CalcFogLevel() ramps
-  // density up further as the camera goes deeper, so close-range vertices
-  // already look heavily tinted at depth and far vertices saturate at
-  // FLimit+60 (260) which the per-vertex shader clamps to 1.0.
-  FogsList[127].Transp = 220;
-  FogsList[127].FLimit = 200;
-
-  FillMemory( FogsMap, sizeof(FogsMap), 0);
-  PrintLog("Init Engine: Ok.\n");
-}
-void ShutDownEngine()
-{
-  // Phase 5C.1: Release per-level and global resources before tearing
-  // down the heap and the window DC. C1's ShutDownEngine has these calls
-  // (Carnivores1/Hunt/Game.cpp:660-670); C2 ME was missing them, so every
-  // Quit leaked the level resources, the weapon character info, the
-  // Sun/Compass/Binocular models, and the menu pictures. The LevelArena
-  // construction is still pending in Phase 5C.2; once it's in, the
-  // ReleaseResources() call will also trigger LevelArena->Reset().
-  ReleaseResources();
-  ReleaseGlobalResources();
-  ReleaseDC(hwndMain,hdcMain);
-
-  // Phase 5F.2: Print the leak report to carnivor.log before tearing
-  // down the arena. Must run AFTER Release* (so the per-level
-  // allocations and global allocations have been released) and BEFORE
-  // delete LevelArena (so the pointer values in the report are still
-  // valid -- the report is informational only, but the doc explicitly
-  // notes that printing after the arena is freed is wasteful). In
-  // non-MEM_DEBUG builds the call is a no-op (the function expands to
-  // a single branch and returns immediately).
-#ifdef MEM_DEBUG
-  PrintMemoryLeaks();
-#endif
-
-  // Phase 5C.2: Tear down the LevelArena after all _HeapFree calls have
-  // run. C1 has the same order (Carnivores1/Hunt/Game.cpp:669-670).
-  // LevelArena->Reset() in ReleaseResources() expects LevelArena to be
-  // alive; delete must come AFTER that. The VirtualFree on the arena's
-  // base pointer is the only thing the destructor does.
-  if (LevelArena) {
-    delete LevelArena;
-    LevelArena = nullptr;
-  }
-}
-void ProcessSyncro()
-{
-  RealTime = timeGetTime();
-  srand( (unsigned) RealTime );
-  if (SLOW) RealTime/=4;
-  TimeDt = RealTime - PrevTime;
-  if (TimeDt<0) TimeDt = 10;
-  if (TimeDt>10000) TimeDt = 10;
-  if (TimeDt>1000) TimeDt = 1000;
-  PrevTime = RealTime;
-  Takt++;
-  if (!IsPaused())
-    if (MyHealth) MyHealth+=TimeDt*4;
-  if (MyHealth>MAX_HEALTH) MyHealth = MAX_HEALTH;
-}
-void MakeCall()
-{
-  if (!TargetDino) return;
-  if (IsUnderwater()) return;
-  if (ObservMode || g_GameMode == GameMode::TrophyMode) return;
-  if (CallLockTime) return;
-
-  CallLockTime=1024*3;
-
-  NextCall+=(RealTime % 2)+1;
-  NextCall%=3;
-
-  AddVoicev(fxCall[TargetCall-10][NextCall].length,
-            fxCall[TargetCall-10][NextCall].lpData.data(), 256);
-
-  //multiplayer
-  sendHunterCall = TargetCall - 10;
-  sendHunterCallType = NextCall;
-
-  float dminSq = (512 * 256) * (512 * 256);
-  int ai = -1;
-
-  for (int c=0; c<ChCount; c++)
-  {
-    TCharacter *cptr = &Characters[c];
-
-	float dx = PlayerX - cptr->pos.x;
-	float dy = PlayerY - cptr->pos.y;
-	float dz = PlayerZ - cptr->pos.z;
-	float dSq = dx * dx + dy * dy + dz * dz;
-	float hearRange = (ctViewR * 400) * (DinoInfo[cptr->CType].HearK * 2);
-	bool canHear = dSq < hearRange * hearRange;
-
-	if (DinoInfo[cptr->CType].fearCall[TargetCall-10] && canHear
-		&& DinoInfo[cptr->CType].Clone != AI_DIMOR && DinoInfo[cptr->CType].Clone != AI_PTERA
-		&& DinoInfo[cptr->CType].Clone != AI_BRACH
-		) { //ai that cannot flee, state always 0
-		cptr->State = 2;
-		cptr->AfraidTime = (10 + rRand(5)) * 1024;
-	}
-
-	/*
-    if (DinoInfo[AI_to_CIndex[TargetCall] ].DangerCall)
-      if (cptr->AI<10)
-      {
-        cptr->State=2;
-        cptr->AfraidTime = (10 + rRand(5)) * 1024;
-      }
-	  */
-
-	if (DinoInfo[cptr->CType].menuDino != TargetCall-10) continue;
-	if (cptr->AfraidTime) continue;
-    if (cptr->State) continue;
-
-    
-    if (canHear)
-    {
-      if (rRand(128) > 32)
-        if (dSq<dminSq)
-        {
-          dminSq = dSq;
-          ai = c;
-        }
-      cptr->tgx = PlayerX + siRand(1800);
-      cptr->tgz = PlayerZ + siRand(1800);
-    }
-  }
-
-  if (ai!=-1)
-  {
-    answpos = SubVectors(Characters[ai].pos, PlayerPos);
-    answpos.x/=-3.f;
-    answpos.y/=-3.f;
-    answpos.z/=-3.f;
-    answpos = SubVectors(PlayerPos, answpos);
-    answtime = 2000 + rRand(2000);
-    answcall = TargetCall;
-  }
-
-}
-static void GetConfigPath(char* buf, size_t bufsz)
-{
-  // Try EXE directory first
-  char mod[MAX_PATH];
-  DWORD len = GetModuleFileNameA(nullptr, mod, sizeof(mod));
-  if (len > 0 && len < sizeof(mod)) {
-    char* sep = strrchr(mod, '\\');
-    if (sep) {
-      *(sep + 1) = '\0';
-      strcat_s(mod, sizeof(mod), "config.cfg");
-      if (GetFileAttributesA(mod) != INVALID_FILE_ATTRIBUTES) {
-        strcpy_s(buf, bufsz, mod);
-        return;
-      }
-    }
-  }
-  // Fall back to CWD
-  strcpy_s(buf, bufsz, "config.cfg");
-}
-static void LoadConfig()
-{
-  char configPath[MAX_PATH];
-  GetConfigPath(configPath, sizeof(configPath));
-
-  HANDLE hfile = CreateFileA(configPath, GENERIC_READ, FILE_SHARE_READ,
-                           nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (hfile == INVALID_HANDLE_VALUE) {
-    PrintLog("Config: config.cfg not found, using defaults.\n");
-    return;
-  }
-
-  char buf[4096];
-  DWORD bytesRead = 0;
-  if (!ReadFile(hfile, buf, sizeof(buf) - 1, &bytesRead, nullptr) || bytesRead == 0) {
-    CloseHandle(hfile);
-    return;
-  }
-  buf[bytesRead] = '\0';
-  CloseHandle(hfile);
-
-  // Simple line-by-line parser: "key value"
-  char* ctx = nullptr;
-  char* line = strtok_s(buf, "\r\n", &ctx);
-  while (line) {
-    // Skip comments and empty lines
-    if (line[0] == '#' || line[0] == '\0') {
-      line = strtok_s(nullptr, "\r\n", &ctx);
-      continue;
-    }
-
-    char key[64];
-    int value = 0;
-    if (sscanf_s(line, "%63s %d", key, (unsigned)sizeof(key), &value) == 2) {
-      if (_stricmp(key, "fov") == 0) {
-        if (value >= kFovMin && value <= kFovMax) {
-          OptFov = value;
-        } else {
-          char msg[128];
-          sprintf_s(msg, sizeof(msg), "Config: fov %d out of range [%d..%d], ignoring.\n",
-                    value, kFovMin, kFovMax);
-          PrintLog(msg);
-        }
-      }
-      else if (_stricmp(key, "object_detail") == 0) {
-        if (value >= kObjectDetailMin && value <= kObjectDetailMax) {
-          OptObjectDetail = value;
-        } else {
-          char msg[128];
-          sprintf_s(msg, sizeof(msg), "Config: object_detail %d out of range [%d..%d], ignoring.\n",
-                    value, kObjectDetailMin, kObjectDetailMax);
-          PrintLog(msg);
-        }
-      }
-      else if (_stricmp(key, "fps_limit") == 0) {
-        // 0=unlimited, 1=60, 2=120, 3=240
-        if (value >= 0 && value <= 3) {
-          OptFpsLimit = value;
-        }
-      }
-      else if (_stricmp(key, "verbose_logging") == 0) {
-        g_VerboseLogging = (value != 0);
-      }
-      else if (_stricmp(key, "nightvision_key") == 0) {
-        NightVisionKey = value;
-      }
-      else if (_stricmp(key, "gpufeatures") == 0) {
-        // Runtime GPU-optimization kill-switch bitmask (see GpuFeature in GameState.h).
-        // 0 disables all new GPU optimizations; bits toggle features individually.
-        g_gpuFeatures = static_cast<uint32_t>(value);
-      }
-      // Future settings: add else-if branches here
-
-    }
-
-    line = strtok_s(nullptr, "\r\n", &ctx);
-  }
-
-  PrintLog("Config Loaded (config.cfg).\n");
-}
+void UploadGeometry()
+{
+  int x,y,xx,yy;
+  byte temp;
+
+  AudioFCount = 0;
+
+  int MaxView = 18;
+  int HalfView = static_cast<int>((MaxView/2))+1;
+
+  for (x = 0; x < MaxView; x++)
+    for (y = 0; y < MaxView; y++)
+    {
+      xx = (x - HalfView)*2;
+      yy = (y - HalfView)*2;
+      data[AudioFCount].x1 = (CCX+xx) * 256 - CameraX;
+      data[AudioFCount].y1 = HMap[CCY+yy][CCX+xx] * ctHScale - CameraY;
+      data[AudioFCount].z1 = (CCY+yy) * 256 - CameraZ;
+
+      xx = ((x+1) - HalfView)*2;
+      yy = (y - HalfView)*2;
+      data[AudioFCount].x2 = (CCX+xx) * 256 - CameraX;
+      data[AudioFCount].y2 = HMap[CCY+yy][CCX+xx] * ctHScale - CameraY;
+      data[AudioFCount].z2 = (CCY+yy) * 256 - CameraZ;
+
+      xx = ((x+1) - HalfView)*2;
+      yy = ((y+1) - HalfView)*2;
+      data[AudioFCount].x3 = (CCX+xx) * 256 - CameraX;
+      data[AudioFCount].y3 = HMap[CCY+yy][CCX+xx] * ctHScale - CameraY;
+      data[AudioFCount].z3 = (CCY+yy) * 256 - CameraZ;
+
+      xx = (x - HalfView)*2;
+      yy = ((y+1) - HalfView)*2;
+      data[AudioFCount].x4 = (CCX+xx) * 256 - CameraX;
+      data[AudioFCount].y4 = HMap[CCY+yy][CCX+xx] * ctHScale - CameraY;
+      data[AudioFCount].z4 = (CCY+yy) * 256 - CameraZ;
+
+      AudioFCount++;
+    }
+
+//     MessageBeep(-1);
+
+  if (ShowFaces)
+  {
+    sprintf_s(logt, sizeof(logt),"Audio_UpdateGeometry: %i faces uploaded\n", AudioFCount);
+    PrintLog(logt);
+
+    ShowFaces = false;
+  }
+}
+void SetupRes()
+{
+  // OptRes is an index into ResolutionList[]. Fall back to the first
+  // 800x600 entry (or 0) if the saved index is out of range.
+  if (ResCount <= 0) {
+    WinW = 800;
+    WinH = 600;
+    return;
+  }
+  if (OptRes < 0 || OptRes >= ResCount) {
+    OptRes = 0;
+    for (int r = 0; r < ResCount; r++) {
+      if (ResolutionList[r].w == 800 && ResolutionList[r].h == 600) {
+        OptRes = r;
+        break;
+      }
+    }
+  }
+  WinW = ResolutionList[OptRes].w;
+  WinH = ResolutionList[OptRes].h;
+}
+static void AddResolution(int w, int h)
+{
+  // Append (w, h) to ResolutionList[] if not already present.
+  for (int r = 0; r < ResCount; r++) {
+    if (ResolutionList[r].w == w && ResolutionList[r].h == h)
+      return;
+  }
+  if (ResCount >= 128) return;
+  ResolutionList[ResCount].w = w;
+  ResolutionList[ResCount].h = h;
+  ResCount++;
+}
+void EnumerateResolutions()
+{
+  // Populate ResolutionList[] from the display's available modes.
+  // Replaces the old hardcoded 8-entry table in SetupRes(). The list
+  // is built at startup, deduplicated, and capped at 128 entries.
+  // 16-bit minimum (matches the DIB depth in CreateVideoDIB).
+  //
+  // Top cap: the current desktop mode (ENUM_CURRENT_SETTINGS). This is
+  // the monitor's active resolution. We always include it explicitly
+  // even if the driver doesn't report it through the enumeration loop,
+  // so a 2560x1440 native panel always has its native mode selectable.
+  // We never offer modes wider/taller than the desktop because
+  // SetVideoMode() can't actually display them.
+  ResCount = 0;
+
+  int desktopW = GetSystemMetrics(SM_CXSCREEN);
+  int desktopH = GetSystemMetrics(SM_CYSCREEN);
+
+  DEVMODE current;
+  ZeroMemory(&current, sizeof(current));
+  current.dmSize = sizeof(current);
+  if (EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &current)) {
+    // Prefer the DEVMODE values — they can be slightly different from
+    // GetSystemMetrics in multi-monitor / DPI-scaled setups.
+    desktopW = current.dmPelsWidth;
+    desktopH = current.dmPelsHeight;
+  }
+
+  DEVMODE dm;
+  ZeroMemory(&dm, sizeof(dm));
+  dm.dmSize = sizeof(dm);
+  for (int i = 0; EnumDisplaySettings(nullptr, i, &dm); i++) {
+    if (dm.dmBitsPerPel < 16) continue;
+    if (dm.dmPelsWidth  > desktopW ||
+        dm.dmPelsHeight > desktopH)
+      continue;
+    AddResolution(dm.dmPelsWidth, dm.dmPelsHeight);
+  }
+
+  // Always include the current desktop resolution itself. Some drivers
+  // don't enumerate the native panel mode, so without this the list
+  // would silently cap below the monitor's actual capability.
+  AddResolution(desktopW, desktopH);
+
+  // Guarantee at least one entry: 800x600 (the historical default).
+  if (ResCount == 0) {
+    ResolutionList[0].w = 800;
+    ResolutionList[0].h = 600;
+    ResCount = 1;
+  }
+}
+void SubmitDinoScore (int cindex) {
+	float score = DinoInfo[Characters[cindex].CType].BaseScore;
+
+	if (TrophyRoom.Last.success > 1)
+		score *= (1.f + TrophyRoom.Last.success / 10.f);
+
+	//if (!(TargetDino & (1<<DinoInfo[Characters[cindex].CType].menuDino)) ) score/=2.f;
+
+	SYSTEMTIME st;
+	GetLocalTime(&st);
+	// Score multipliers are now driven by the Menu (see smod= in
+	// ProcessCommandLine) so modders can tune them via _RES.TXT.
+	// Defaults match the original hardcoded values when no smod= is
+	// supplied (see InitEngine).
+	if (Tranq) score *= ScoreMod_Tranq;
+	if (RadarMode) score *= ScoreMod_Radar;
+	if (ScentMode) score *= ScoreMod_Scent;
+	if (CamoMode) score *= ScoreMod_Camo;
+	TrophyRoom.Score += static_cast<int>(score);
+	Characters[cindex].tempScore = static_cast<int>(score);
+	Characters[cindex].tempDate = (st.wYear << 20) + (st.wMonth << 10) + st.wDay;
+	Characters[cindex].tempTime = (st.wHour << 10) + st.wMinute;
+	Characters[cindex].tempRange = VectorLength(SubVectors(Characters[cindex].pos, PlayerPos)) / 64.f;
+
+	ScoreDispTime = 2500;
+	ScoreDisp = static_cast<int>(score);
+
+}
+void HideWeapon()
+{
+  TWeapon *wptr = &Weapon;
+  if (IsUnderwater() && !wptr->state && !WeapInfo[CurrentWeapon].harpoon) return;
+  if (ObservMode || g_GameMode == GameMode::TrophyMode) return;
+  if (g_GameMode == GameMode::SurvivalMode) return;
+
+  if (wptr->state == 0)
+  {  
+	//if (!ShotsLeft[CurrentWeapon]) return;
+    if (WeapInfo[CurrentWeapon].Optic) g_GameMode = GameMode::OpticScope;
+    
+	if (IsUnderwater()) {
+		if (WeapInfo[CurrentWeapon].getAqSnd >= 0)
+			AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].getAqSnd].length,
+				wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].getAqSnd].lpData.data(), 256);
+	} else {
+		int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].getAnim];
+		if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
+			wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
+	}
+    wptr->FTime = 0;
+    wptr->state = 1;
+    g_GameMode = GameMode::Normal;
+    g_GameMode = GameMode::Normal;
+    wptr->shakel = WeapInfo[CurrentWeapon].shake * 4.f;
+	wptr->breath = 0.f;
+	wptr->breathPressed = 0;
+	wptr->HoldBreath = false;
+    return;
+  }
+
+  if (wptr->state!=2 || wptr->FTime!=0) return;
+  if (IsUnderwater()) {
+	  if (WeapInfo[CurrentWeapon].putAqSnd >= 0)
+		  AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].putAqSnd].length,
+			  wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].putAqSnd].lpData.data(), 256);
+  } else {
+	  int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].putAnim];
+	  if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
+		  wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
+  }
+  wptr->state = 3;
+  wptr->FTime = 0;
+  g_GameMode = GameMode::Normal;
+  return ;
+}
+void InitGameInfo()
+{
+  for (int c=0; c< DINOINFO_MAX; c++)
+  {
+    DinoInfo[c].Scale0 = 800;
+    DinoInfo[c].ScaleA = 600;
+    DinoInfo[c].ShDelta = 0;
+  }
+  /*
+      WeapInfo[0].Name = "Shotgun";
+  	WeapInfo[0].Power = 1.5f;
+  	WeapInfo[0].Prec  = 1.1f;
+  	WeapInfo[0].Loud  = 0.3f;
+  	WeapInfo[0].Rate  = 1.6f;
+  	WeapInfo[0].Shots = 6;
+
+  	WeapInfo[1].Name = "X-Bow";
+  	WeapInfo[1].Power = 1.1f;
+  	WeapInfo[1].Prec  = 0.7f;
+  	WeapInfo[1].Loud  = 1.9f;
+  	WeapInfo[1].Rate  = 1.2f;
+  	WeapInfo[1].Shots = 8;
+
+      WeapInfo[2].Name = "Sniper Rifle";
+  	WeapInfo[2].Power = 1.0f;
+  	WeapInfo[2].Prec  = 1.8f;
+  	WeapInfo[2].Loud  = 0.6f;
+  	WeapInfo[2].Rate  = 1.0f;
+  	WeapInfo[2].Shots = 6;
+
+
+
+
+  	DinoInfo[ 0].Name = "Moschops";
+  	DinoInfo[ 0].Health0 = 2;
+  	DinoInfo[ 0].Mass = 0.15f;
+
+      DinoInfo[ 1].Name = "Galimimus";
+  	DinoInfo[ 1].Health0 = 2;
+  	DinoInfo[ 1].Mass = 0.1f;
+
+  	DinoInfo[ 2].Name = "Dimorphodon";
+      DinoInfo[ 2].Health0 = 1;
+  	DinoInfo[ 2].Mass = 0.05f;
+
+  	DinoInfo[ 3].Name = "Dimetrodon";
+      DinoInfo[ 3].Health0 = 2;
+  	DinoInfo[ 3].Mass = 0.22f;
+
+
+  	DinoInfo[ 5].Name = "Parasaurolophus";
+  	DinoInfo[ 5].Mass = 1.5f;
+  	DinoInfo[ 5].Length = 5.8f;
+  	DinoInfo[ 5].Radius = 320.f;
+  	DinoInfo[ 5].Health0 = 5;
+  	DinoInfo[ 5].BaseScore = 6;
+  	DinoInfo[ 5].SmellK = 0.8f; DinoInfo[ 4].HearK = 1.f; DinoInfo[ 4].LookK = 0.4f;
+  	DinoInfo[ 5].ShDelta = 48;
+
+  	DinoInfo[ 6].Name = "Pachycephalosaurus";
+  	DinoInfo[ 6].Mass = 0.8f;
+  	DinoInfo[ 6].Length = 4.5f;
+  	DinoInfo[ 6].Radius = 280.f;
+  	DinoInfo[ 6].Health0 = 4;
+  	DinoInfo[ 6].BaseScore = 8;
+  	DinoInfo[ 6].SmellK = 0.4f; DinoInfo[ 5].HearK = 0.8f; DinoInfo[ 5].LookK = 0.6f;
+  	DinoInfo[ 6].ShDelta = 36;
+
+  	DinoInfo[ 7].Name = "Stegosaurus";
+      DinoInfo[ 7].Mass = 7.f;
+  	DinoInfo[ 7].Length = 7.f;
+  	DinoInfo[ 7].Radius = 480.f;
+  	DinoInfo[ 7].Health0 = 5;
+  	DinoInfo[ 7].BaseScore = 7;
+  	DinoInfo[ 7].SmellK = 0.4f; DinoInfo[ 6].HearK = 0.8f; DinoInfo[ 6].LookK = 0.6f;
+  	DinoInfo[ 7].ShDelta = 128;
+
+  	DinoInfo[ 8].Name = "Allosaurus";
+  	DinoInfo[ 8].Mass = 0.5;
+  	DinoInfo[ 8].Length = 4.2f;
+  	DinoInfo[ 8].Radius = 256.f;
+  	DinoInfo[ 8].Health0 = 3;
+  	DinoInfo[ 8].BaseScore = 12;
+  	DinoInfo[ 8].Scale0 = 1000;
+  	DinoInfo[ 8].ScaleA = 600;
+  	DinoInfo[ 8].SmellK = 1.0f; DinoInfo[ 7].HearK = 0.3f; DinoInfo[ 7].LookK = 0.5f;
+  	DinoInfo[ 8].ShDelta = 32;
+	DinoInfo[ 8].DangerCall = true;
+
+  	DinoInfo[ 9].Name = "Chasmosaurus";
+  	DinoInfo[ 9].Mass = 3.f;
+  	DinoInfo[ 9].Length = 5.0f;
+  	DinoInfo[ 9].Radius = 400.f;
+  	DinoInfo[ 9].Health0 = 8;
+  	DinoInfo[ 9].BaseScore = 9;
+  	DinoInfo[ 9].SmellK = 0.6f; DinoInfo[ 8].HearK = 0.5f; DinoInfo[ 8].LookK = 0.4f;
+  	//DinoInfo[ 8].ShDelta = 148;
+  	DinoInfo[ 9].ShDelta = 108;
+
+  	DinoInfo[10].Name = "Velociraptor";
+  	DinoInfo[10].Mass = 0.3f;
+  	DinoInfo[10].Length = 4.0f;
+  	DinoInfo[10].Radius = 256.f;
+  	DinoInfo[10].Health0 = 3;
+  	DinoInfo[10].BaseScore = 16;
+  	DinoInfo[10].ScaleA = 400;
+  	DinoInfo[10].SmellK = 1.0f; DinoInfo[ 9].HearK = 0.5f; DinoInfo[ 9].LookK = 0.4f;
+  	DinoInfo[10].ShDelta =-24;
+	DinoInfo[10].DangerCall = true;
+
+  	DinoInfo[11].Name = "T-Rex";
+      DinoInfo[11].Mass = 6.f;
+  	DinoInfo[11].Length = 12.f;
+  	DinoInfo[11].Radius = 400.f;
+  	DinoInfo[11].Health0 = 1024;
+  	DinoInfo[11].BaseScore = 20;
+  	DinoInfo[11].SmellK = 0.85f; DinoInfo[10].HearK = 0.8f; DinoInfo[10].LookK = 0.8f;
+  	DinoInfo[11].ShDelta = 168;
+	DinoInfo[11].DangerCall = true;
+
+  	DinoInfo[ 4].Name = "Brahiosaurus";
+      DinoInfo[ 4].Mass = 9.f;
+  	DinoInfo[ 4].Length = 12.f;
+  	DinoInfo[ 4].Radius = 400.f;
+  	DinoInfo[ 4].Health0 = 1024;
+  	DinoInfo[ 4].BaseScore = 0;
+  	DinoInfo[ 4].SmellK = 0.85f; DinoInfo[16].HearK = 0.8f; DinoInfo[16].LookK = 0.8f;
+  	DinoInfo[ 4].ShDelta = 168;
+	DinoInfo[ 4].DangerCall = false;
+  */
+  LoadResourcesScript();
+}
+
+
+// MULTIPLAYER ===================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static void CreateDefaultConfig();
+static void LoadConfig();
+void InitEngine()
+{
+  FULLSCREEN   = true;
+  BORDERLESS   = false;
+  DEBUG        = false;
+
+  WATERANI     = true;
+  NODARKBACK   = true;
+  LoDetailSky  = true;
+  CORRECTION   = true;
+  FOGON        = true;
+  FOGENABLE    = true;
+  UIScale      = 1.0f;
+  Clouds       = true;
+  SKY          = true;
+  GOURAUD      = true;
+  MODELS       = true;
+  TIMER        = DEBUG;
+  BITMAPP      = false;
+  MIPMAP       = true;
+  NOCLIP       = false;
+  CLIP3D       = true;
+
+
+  SLOW         = false;
+  LOWRESTX     = false;
+  MORPHP       = true;
+  MORPHA       = true;
+
+  _GameState = 0;
+  _MultiplayerState = 0;
+
+  RadarMode    = false;
+  NightVisionMode = false;
+  NightVisionOn   = false;
+  NightVisionKey  = 0x4E; // Default: 'N' key
+
+  // Accessory score multipliers. Defaults match the legacy hardcoded
+  // values that used to live in SubmitDinoScore() so legacy hunts
+  // (launched without a 'smod=' argument) keep the same final score.
+  ScoreMod_Camo     = 0.85f;
+  ScoreMod_Radar    = 0.70f;
+  ScoreMod_Scent    = 0.80f;
+  ScoreMod_Double   = 1.0f;
+  ScoreMod_Tranq    = 1.25f;
+  ScoreMod_Observer = 1.0f;
+
+  //multiplayer
+  Multiplayer = false;
+  Host = false;
+  result = nullptr;
+
+  fnt_BIG = CreateFont(
+              static_cast<int>((23 * UIScale)), static_cast<int>((10 * UIScale)), 0, 0,
+              600, 0,0,0,
+#ifdef __rus
+              RUSSIAN_CHARSET,
+#else
+              ANSI_CHARSET,
+#endif
+              OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
+
+
+
+
+  fnt_Small = CreateFont(
+                static_cast<int>((16 * UIScale)), static_cast<int>((7 * UIScale)), 0, 0,
+				100, 0,0,0,
+	  
+	  //14, 5, 0, 0,
+	  //100, 0, 0, 0,
+#ifdef __rus
+                RUSSIAN_CHARSET,
+#else
+                ANSI_CHARSET,
+#endif
+                OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
+
+
+  fnt_Midd  = CreateFont(
+			    static_cast<int>((16 * UIScale)), static_cast<int>((7 * UIScale)), 0, 0,
+	            550, 0, 0, 0,
+#ifdef __rus
+                RUSSIAN_CHARSET,
+#else
+                ANSI_CHARSET,
+#endif
+                OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
+
+
+  Heap = HeapCreate( 0, 60000000, 0 );
+  if( Heap == nullptr )
+  {
+    MessageBox(hwndMain,"Error creating heap.","Error",IDOK);
+    return;
+  }
+
+  // Phase 5C.2: Construct the per-level MemoryArena. C1 does this at
+  // Carnivores1/Hunt/Game.cpp:506 with 128 MiB; we use LEVEL_ARENA_SIZE
+  // (256 MiB) because C2 ME has more resident state (8 weapons, 128
+  // dino types, multiplayer, snow, etc.). The arena must be created
+  // AFTER HeapCreate (the Heap variable is referenced by all the
+  // _HeapAlloc dispatch) and BEFORE LoadResources (which tags most
+  // per-level allocations as MemoryTag::Level, causing them to land
+  // here instead of in Heap).
+  //
+  // Defensive: verify the smart pointer layout assumption that all of
+  // Phase 5 depends on -- if sizeof(unique_heap_ptr<T>) ever drifts
+  // away from a raw pointer, every struct field we migrated will
+  // silently change size and break the save-game / multiplayer
+  // protocols. C1 has the same static_assert in its InitEngine.
+  static_assert(sizeof(unique_heap_ptr<WORD[]>) == sizeof(void*),
+                "unique_heap_ptr<T[]> must be the same size as a raw pointer (x86 EBO)");
+  static_assert(sizeof(unique_obj_ptr<TModel>) == sizeof(void*),
+                "unique_obj_ptr<TModel> must be the same size as a raw pointer (x86 EBO)");
+  LevelArena = new MemoryArena(LEVEL_ARENA_SIZE, "LevelArena");
+
+  // Phase 5E: tag as MemoryTag::Global. This is a one-time
+  // allocation in InitEngine that lives for the whole session --
+  // it backs the "null" texture at index 255 (used as a fallback
+  // when a model references a missing texture). It's released by
+  // ReleaseGlobalResources at shutdown. Goes to the heap, not the
+  // arena, because it must survive all LevelArena->Reset() calls.
+  Textures[255].reset((TEXTURE*) _HeapAlloc(Heap, 0, sizeof(TEXTURE), MemoryTag::Global));
+
+  WaterR = 10;
+  WaterG = 38;
+  WaterB = 46;
+  WaterA = 10;
+  TargetDino = 1<<10;
+  TargetCall = 10;
+  WeaponPres = 1;
+  MessageList.timeleft = 0;
+
+  InitGameInfo();
+
+  CreateFadeTab();
+  CreateDivTable();
+  InitClips();
+
+  TrophyRoom.RegNumber=0;
+  PlayerZ = (ctMapSize / 3) * 256;
+
+  ProcessCommandLine();
+
+  switch (OptDayNight)
+  {
+  case 0:
+    SunShadowK = 0.7;
+    Sun3dPos.x = - 4048;
+    Sun3dPos.y = + 2048;
+    Sun3dPos.z = - 4048;
+    break;
+  case 1:
+    SunShadowK = 0.5;
+    Sun3dPos.x = - 2048;
+    Sun3dPos.y = + 4048;
+    Sun3dPos.z = - 2048;
+    break;
+  case 2:
+    SunShadowK = -0.7;
+    Sun3dPos.x = + 3048;
+    Sun3dPos.y = + 3048;
+    Sun3dPos.z = + 3048;
+    break;
+  }
+
+  // EnumerateResolutions() must come before LoadTrophy() so SetupRes()
+  // (called inside LoadTrophy via ReadFile -> SetupRes) can use
+  // ResolutionList[] to translate the saved OptRes index into a real
+  // WinW/WinH. If we enumerated after, LoadTrophy would have no
+  // resolution table to apply.
+  EnumerateResolutions();
+
+  // OptFov is the vertical field-of-view in degrees, range [kFovMin,
+  // kFovMax]. It drives CameraH = VideoCY * FovScaleFromDegrees(OptFov)
+  // in SetVideoMode() and the per-frame camera setup in Hunt.cpp. The
+  // default is set unconditionally here as a safety net for first
+  // launch (no save file) and for old saves written before the
+  // FOV-slider port that don't include the OptFov field. LoadTrophy()
+  // overwrites this default with the persisted value (or keeps this
+  // default if the saved value is missing/out-of-range).
+  OptFov = kFovDefault;
+  g_gpuFeatures = kGpuFeaturesDefault;  // GPU-optimization kill-switch (see GameState.h)
+
+  OptViewR = kViewOptDefault;
+  OptObjectDetail = kObjectDetailDefault;
+OptFpsLimit = 0;  // 0 = unlimited
+
+  LoadTrophy();
+  OptViewR = ClampViewOpt(OptViewR);
+
+  // Create default config.cfg if it doesn't exist (first launch).
+  CreateDefaultConfig();
+
+  // Override settings from config.cfg (written by Carnivores2Menu).
+  // This file is the single source of truth for settings that are not
+  // part of the legacy binary trophy format (e.g. OptFov).
+  LoadConfig();
+
+  // CreateVideoDIB() must come after ProcessCommandLine() so WinW/WinH reflect
+  // any /res command-line override.
+  ProcessCommandLine();
+  CreateVideoDIB();
+
+  if (g_GameMode == GameMode::SurvivalMode) OptViewR = kViewOptMax;
+
+  ctViewR = ViewOptToCtViewR(OptViewR);
+  // Cap the character-processing view radius independently of the
+  // rendering radius.  At ctViewR=230 the game processes characters
+  // within a ~4B sq-unit area, causing multi-second frame freezes.
+  // A cap of 120 keeps character LOD ~2.2x default while preventing
+  // the worst scalability cliff.
+  charViewR = (std::min)(ctViewR, 120);
+  ctViewRM = ClampObjectDetail(OptObjectDetail);
+
+  Soft_Persp_K = 1.5f;
+  HeadY = 220;
+
+  FogsList[0].fogRGB = 0x000000;
+  FogsList[0].YBegin = 0;
+  FogsList[0].Transp = 000;
+  FogsList[0].FLimit = 000;
+
+  FogsList[127].fogRGB = 0x00504000;
+  FogsList[127].Mortal = false;
+  // Underwater fog density.  Transp=220, FLimit=200: builds up moderately
+  // fast, ~78% max opacity.  Was Transp=460 which gave a sparse, dark
+  // underwater look.  The depth-based multiplier in CalcFogLevel() ramps
+  // density up further as the camera goes deeper, so close-range vertices
+  // already look heavily tinted at depth and far vertices saturate at
+  // FLimit+60 (260) which the per-vertex shader clamps to 1.0.
+  FogsList[127].Transp = 220;
+  FogsList[127].FLimit = 200;
+
+  FillMemory( FogsMap, sizeof(FogsMap), 0);
+  PrintLog("Init Engine: Ok.\n");
+}
+void ShutDownEngine()
+{
+  // Phase 5C.1: Release per-level and global resources before tearing
+  // down the heap and the window DC. C1's ShutDownEngine has these calls
+  // (Carnivores1/Hunt/Game.cpp:660-670); C2 ME was missing them, so every
+  // Quit leaked the level resources, the weapon character info, the
+  // Sun/Compass/Binocular models, and the menu pictures. The LevelArena
+  // construction is still pending in Phase 5C.2; once it's in, the
+  // ReleaseResources() call will also trigger LevelArena->Reset().
+  ReleaseResources();
+  ReleaseGlobalResources();
+  ReleaseDC(hwndMain,hdcMain);
+
+  // Phase 5F.2: Print the leak report to carnivor.log before tearing
+  // down the arena. Must run AFTER Release* (so the per-level
+  // allocations and global allocations have been released) and BEFORE
+  // delete LevelArena (so the pointer values in the report are still
+  // valid -- the report is informational only, but the doc explicitly
+  // notes that printing after the arena is freed is wasteful). In
+  // non-MEM_DEBUG builds the call is a no-op (the function expands to
+  // a single branch and returns immediately).
+#ifdef MEM_DEBUG
+  PrintMemoryLeaks();
+#endif
+
+  // Phase 5C.2: Tear down the LevelArena after all _HeapFree calls have
+  // run. C1 has the same order (Carnivores1/Hunt/Game.cpp:669-670).
+  // LevelArena->Reset() in ReleaseResources() expects LevelArena to be
+  // alive; delete must come AFTER that. The VirtualFree on the arena's
+  // base pointer is the only thing the destructor does.
+  if (LevelArena) {
+    delete LevelArena;
+    LevelArena = nullptr;
+  }
+}
+void ProcessSyncro()
+{
+  RealTime = timeGetTime();
+  srand( (unsigned) RealTime );
+  if (SLOW) RealTime/=4;
+  TimeDt = RealTime - PrevTime;
+  if (TimeDt<0) TimeDt = 10;
+  if (TimeDt>10000) TimeDt = 10;
+  if (TimeDt>1000) TimeDt = 1000;
+  PrevTime = RealTime;
+  Takt++;
+  if (!IsPaused())
+    if (MyHealth) MyHealth+=TimeDt*4;
+  if (MyHealth>MAX_HEALTH) MyHealth = MAX_HEALTH;
+}
+void MakeCall()
+{
+  if (!TargetDino) return;
+  if (IsUnderwater()) return;
+  if (ObservMode || g_GameMode == GameMode::TrophyMode) return;
+  if (CallLockTime) return;
+
+  CallLockTime=1024*3;
+
+  NextCall+=(RealTime % 2)+1;
+  NextCall%=3;
+
+  AddVoicev(fxCall[TargetCall-10][NextCall].length,
+            fxCall[TargetCall-10][NextCall].lpData.data(), 256);
+
+  //multiplayer
+  sendHunterCall = TargetCall - 10;
+  sendHunterCallType = NextCall;
+
+  float dminSq = (512 * 256) * (512 * 256);
+  int ai = -1;
+
+  for (int c=0; c<ChCount; c++)
+  {
+    TCharacter *cptr = &Characters[c];
+
+	float dx = PlayerX - cptr->pos.x;
+	float dy = PlayerY - cptr->pos.y;
+	float dz = PlayerZ - cptr->pos.z;
+	float dSq = dx * dx + dy * dy + dz * dz;
+	float hearRange = (ctViewR * 400) * (DinoInfo[cptr->CType].HearK * 2);
+	bool canHear = dSq < hearRange * hearRange;
+
+	if (DinoInfo[cptr->CType].fearCall[TargetCall-10] && canHear
+		&& DinoInfo[cptr->CType].Clone != AI_DIMOR && DinoInfo[cptr->CType].Clone != AI_PTERA
+		&& DinoInfo[cptr->CType].Clone != AI_BRACH
+		) { //ai that cannot flee, state always 0
+		cptr->State = 2;
+		cptr->AfraidTime = (10 + rRand(5)) * 1024;
+	}
+
+	/*
+    if (DinoInfo[AI_to_CIndex[TargetCall] ].DangerCall)
+      if (cptr->AI<10)
+      {
+        cptr->State=2;
+        cptr->AfraidTime = (10 + rRand(5)) * 1024;
+      }
+	  */
+
+	if (DinoInfo[cptr->CType].menuDino != TargetCall-10) continue;
+	if (cptr->AfraidTime) continue;
+    if (cptr->State) continue;
+
+    
+    if (canHear)
+    {
+      if (rRand(128) > 32)
+        if (dSq<dminSq)
+        {
+          dminSq = dSq;
+          ai = c;
+        }
+      cptr->tgx = PlayerX + siRand(1800);
+      cptr->tgz = PlayerZ + siRand(1800);
+    }
+  }
+
+  if (ai!=-1)
+  {
+    answpos = SubVectors(Characters[ai].pos, PlayerPos);
+    answpos.x/=-3.f;
+    answpos.y/=-3.f;
+    answpos.z/=-3.f;
+    answpos = SubVectors(PlayerPos, answpos);
+    answtime = 2000 + rRand(2000);
+    answcall = TargetCall;
+  }
+
+}
+static void GetConfigPath(char* buf, size_t bufsz)
+{
+  // Try EXE directory first
+  char mod[MAX_PATH];
+  DWORD len = GetModuleFileNameA(nullptr, mod, sizeof(mod));
+  if (len > 0 && len < sizeof(mod)) {
+    char* sep = strrchr(mod, '\\');
+    if (sep) {
+      *(sep + 1) = '\0';
+      strcat_s(mod, sizeof(mod), "config.cfg");
+      if (GetFileAttributesA(mod) != INVALID_FILE_ATTRIBUTES) {
+        strcpy_s(buf, bufsz, mod);
+        return;
+      }
+    }
+  }
+  // Fall back to CWD
+  strcpy_s(buf, bufsz, "config.cfg");
+}
+
+// Create a default config.cfg with all available settings documented.
+// Called when no config file exists (first launch or manual deletion).
+static void CreateDefaultConfig()
+{
+  char configPath[MAX_PATH];
+
+  // Prefer EXE directory (shared with Carnivores2Menu), fall back to CWD
+  char mod[MAX_PATH];
+  DWORD len = GetModuleFileNameA(nullptr, mod, sizeof(mod));
+  char* writePath = configPath;
+  if (len > 0 && len < sizeof(mod)) {
+    char* sep = strrchr(mod, '\\');
+    if (sep) {
+      *(sep + 1) = '\0';
+      strcat_s(mod, sizeof(mod), "config.cfg");
+      writePath = mod;
+    }
+  }
+  if (writePath == configPath) {
+    strcpy_s(configPath, sizeof(configPath), "config.cfg");
+  }
+
+  // Don't overwrite if file already exists (e.g. created by menu)
+  if (GetFileAttributesA(writePath) != INVALID_FILE_ATTRIBUTES) {
+    return;
+  }
+
+  HANDLE hfile = CreateFileA(writePath, GENERIC_WRITE, 0, nullptr,
+                             CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (hfile == INVALID_HANDLE_VALUE) {
+    return;
+  }
+
+  // Build the default config content
+  char buf[2048];
+  int len2 = snprintf(buf, sizeof(buf),
+    "# Carnivores 2 Modder's Engine - Configuration\r\n"
+    "# This file is auto-generated on first launch.\r\n"
+    "# Edit values as needed — they are validated on load.\r\n"
+    "#\r\n"
+    "# The menu (Carnivores2Menu) also writes this file when you\r\n"
+    "# change settings, so manual edits may be overwritten.\r\n"
+    "\r\n"
+    "# Renderer: 0=Software, 1=OpenGL (default: 1)\r\n"
+    "renderer 1\r\n"
+    "\r\n"
+    "# Field of view in degrees (default: 62, range: 35-90)\r\n"
+    "fov %d\r\n"
+    "\r\n"
+    "# Object detail / view distance (default: 48, range: 24-96)\r\n"
+    "object_detail %d\r\n"
+    "\r\n"
+    "# FPS limit: 0=Unlimited, 1=60, 2=120, 3=240 (default: 0)\r\n"
+    "fps_limit 0\r\n"
+    "\r\n"
+    "# Verbose logging: 0=off, 1=on (default: 0)\r\n"
+    "verbose_logging 0\r\n"
+    "\r\n"
+    "# Nightvision key VK code (default: 78 = 'N')\r\n"
+    "nightvision_key 78\r\n"
+    "\r\n"
+    "# GPU features bitmask (default: all optimizations enabled)\r\n"
+    "# Set to 0 to disable all GPU optimizations.\r\n"
+    "gpufeatures %u\r\n"
+    "\r\n"
+    "# GL performance logging: 0=off, 1=on (default: 0)\r\n"
+    "# Requires GL_PERF_HOOKS build. Writes glperf-*.log files.\r\n"
+    "glperf_logging 0\r\n",
+    kFovDefault,
+    kObjectDetailDefault,
+    kGpuFeaturesDefault
+  );
+
+  DWORD written = 0;
+  WriteFile(hfile, buf, (DWORD)len2, &written, nullptr);
+  CloseHandle(hfile);
+
+  PrintLog("Config: Created default config.cfg at %s\n", writePath);
+}
+
+static void LoadConfig()
+{
+  char configPath[MAX_PATH];
+  GetConfigPath(configPath, sizeof(configPath));
+
+  HANDLE hfile = CreateFileA(configPath, GENERIC_READ, FILE_SHARE_READ,
+                           nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (hfile == INVALID_HANDLE_VALUE) {
+    PrintLog("Config: config.cfg not found, using defaults.\n");
+    return;
+  }
+
+  char buf[4096];
+  DWORD bytesRead = 0;
+  if (!ReadFile(hfile, buf, sizeof(buf) - 1, &bytesRead, nullptr) || bytesRead == 0) {
+    CloseHandle(hfile);
+    return;
+  }
+  buf[bytesRead] = '\0';
+  CloseHandle(hfile);
+
+  // Simple line-by-line parser: "key value"
+  char* ctx = nullptr;
+  char* line = strtok_s(buf, "\r\n", &ctx);
+  while (line) {
+    // Skip comments and empty lines
+    if (line[0] == '#' || line[0] == '\0') {
+      line = strtok_s(nullptr, "\r\n", &ctx);
+      continue;
+    }
+
+    char key[64];
+    int value = 0;
+    if (sscanf_s(line, "%63s %d", key, (unsigned)sizeof(key), &value) == 2) {
+      if (_stricmp(key, "fov") == 0) {
+        if (value >= kFovMin && value <= kFovMax) {
+          OptFov = value;
+        } else {
+          char msg[128];
+          sprintf_s(msg, sizeof(msg), "Config: fov %d out of range [%d..%d], ignoring.\n",
+                    value, kFovMin, kFovMax);
+          PrintLog(msg);
+        }
+      }
+      else if (_stricmp(key, "object_detail") == 0) {
+        if (value >= kObjectDetailMin && value <= kObjectDetailMax) {
+          OptObjectDetail = value;
+        } else {
+          char msg[128];
+          sprintf_s(msg, sizeof(msg), "Config: object_detail %d out of range [%d..%d], ignoring.\n",
+                    value, kObjectDetailMin, kObjectDetailMax);
+          PrintLog(msg);
+        }
+      }
+      else if (_stricmp(key, "fps_limit") == 0) {
+        // 0=unlimited, 1=60, 2=120, 3=240
+        if (value >= 0 && value <= 3) {
+          OptFpsLimit = value;
+        }
+      }
+      else if (_stricmp(key, "verbose_logging") == 0) {
+        g_VerboseLogging = (value != 0);
+      }
+      else if (_stricmp(key, "nightvision_key") == 0) {
+        NightVisionKey = value;
+      }
+      else if (_stricmp(key, "gpufeatures") == 0) {
+        // Runtime GPU-optimization kill-switch bitmask (see GpuFeature in GameState.h).
+        // 0 disables all new GPU optimizations; bits toggle features individually.
+        g_gpuFeatures = static_cast<uint32_t>(value);
+      }
+      else if (_stricmp(key, "glperf_logging") == 0) {
+        // Runtime toggle for GL performance harness logging.
+        // Only effective when GL_PERF_HOOKS is compiled in.
+        // 0=disabled (default), 1=enabled
+        g_glperfLoggingEnabled = (value != 0);
+        PrintLog("Config: glperf_logging = %d\n", g_glperfLoggingEnabled ? 1 : 0);
+      }
+      // Future settings: add else-if branches here
+
+    }
+
+    line = strtok_s(nullptr, "\r\n", &ctx);
+  }
+
+  PrintLog("Config Loaded (config.cfg).\n");
+}

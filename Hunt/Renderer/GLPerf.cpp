@@ -19,6 +19,7 @@ extern "C" bool glperf_is_active()     { return false; }
 extern "C" void glperf_trigger_capture() {}
 extern "C" void glperf_init()          {}
 extern "C" void glperf_shutdown()      {}
+extern "C" void glperf_set_logging(bool) {}
 
 #else  // GL_PERF_HOOKS
 
@@ -100,6 +101,7 @@ struct GLPerfState {
     bool initialized = false;
     bool gpuTimersOk = false;
     bool frameActive = false;
+    bool loggingEnabled = false;  // Runtime toggle from config.cfg (glperf_logging)
 
     // Counters for the currently active rendered frame.
     uint32_t frameDrawCalls = 0;
@@ -162,6 +164,11 @@ struct GLPerfState {
     char captureTimestamp[kTimestampLen] = {};
     std::vector<std::string> captureScopeOrder;
 };
+
+// Pending logging state, set before init or via glperf_set_logging().
+// Initialized from g_glperfLoggingEnabled (GameState.h) during glperf_init().
+extern bool g_glperfLoggingEnabled;  // Set by LoadConfig() in EngineInit.cpp
+static bool g_pendingLoggingEnabled = false;
 
 GLPerfState g_state;
 
@@ -361,7 +368,7 @@ void AppendCaptureHeader() {
 }
 
 void StartCapture() {
-    if (g_state.captureActive) return;
+    if (g_state.captureActive || !g_state.loggingEnabled) return;
 
     g_state.captureActive = true;
     g_state.captureFramesRemaining = kMaxCaptureFrames;
@@ -431,7 +438,7 @@ void WriteCaptureFrame() {
 }
 
 void FlushRollingLog() {
-    if (!g_state.initialized || g_state.rollingFrames == 0) return;
+    if (!g_state.initialized || !g_state.loggingEnabled || g_state.rollingFrames == 0) return;
 
     if (!g_state.logFile) {
         g_state.logFile = std::fopen(g_state.logFilename, "a");
@@ -624,6 +631,13 @@ extern "C" void glperf_trigger_capture() {
     StartCapture();
 }
 
+extern "C" void glperf_set_logging(bool enabled) {
+    g_pendingLoggingEnabled = enabled;
+    if (g_state.initialized) {
+        g_state.loggingEnabled = enabled;
+    }
+}
+
 extern "C" void glperf_frame_begin() {
     if (!g_state.initialized || g_state.frameActive) return;
 
@@ -796,6 +810,8 @@ extern "C" void glperf_init() {
     }
 
     g_state.lastFlush = Clock::now();
+    // Merge: explicit set_logging() calls take precedence, otherwise use config value
+    g_state.loggingEnabled = g_pendingLoggingEnabled || g_glperfLoggingEnabled;
     g_state.initialized = true;
 
     MakeTimestamp(g_state.logTimestamp, sizeof(g_state.logTimestamp),

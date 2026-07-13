@@ -49,6 +49,12 @@ void glperf_trigger_capture();
 void glperf_init();
 void glperf_shutdown();
 
+// Runtime control of log output. When disabled, the harness still collects
+// data internally but does not write to log files or CSV captures.
+// Can be called before or after glperf_init(); if called before init,
+// the value is stored and applied during initialization.
+void glperf_set_logging(bool enabled);
+
 #ifdef __cplusplus
 }
 #endif

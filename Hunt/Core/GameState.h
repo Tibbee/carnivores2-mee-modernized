@@ -521,6 +521,10 @@ extern char cheatcode[16];
 
 GLOBAL bool g_VerboseLogging;
 
+// Runtime toggle for GL perf logging (set via config.cfg "glperf_logging 1").
+// Only effective when GL_PERF_HOOKS is compiled in.
+GLOBAL bool g_glperfLoggingEnabled;
+
 GLOBAL HANDLE hlog;
 
 GLOBAL int AudioFCount;
