@@ -36,6 +36,10 @@ extern "C" void glperf_set_logging(bool) {}
 #include <unordered_set>
 #include <vector>
 
+// External config variable set by LoadConfig() in EngineInit.cpp.
+// Declared here (outside anonymous namespace) for proper external linkage.
+extern bool g_glperfLoggingEnabled;
+
 namespace {
 
 using Clock = std::chrono::steady_clock;
@@ -167,7 +171,6 @@ struct GLPerfState {
 
 // Pending logging state, set before init or via glperf_set_logging().
 // Initialized from g_glperfLoggingEnabled (GameState.h) during glperf_init().
-extern bool g_glperfLoggingEnabled;  // Set by LoadConfig() in EngineInit.cpp
 static bool g_pendingLoggingEnabled = false;
 
 GLPerfState g_state;

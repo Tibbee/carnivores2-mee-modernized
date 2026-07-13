@@ -840,7 +840,9 @@ static void CreateDefaultConfig()
   WriteFile(hfile, buf, (DWORD)len2, &written, nullptr);
   CloseHandle(hfile);
 
-  PrintLog("Config: Created default config.cfg at %s\n", writePath);
+  char msg[MAX_PATH + 64];
+  sprintf_s(msg, sizeof(msg), "Config: Created default config.cfg at %s\n", writePath);
+  PrintLog(msg);
 }
 
 static void LoadConfig()
@@ -919,7 +921,11 @@ static void LoadConfig()
         // Only effective when GL_PERF_HOOKS is compiled in.
         // 0=disabled (default), 1=enabled
         g_glperfLoggingEnabled = (value != 0);
-        PrintLog("Config: glperf_logging = %d\n", g_glperfLoggingEnabled ? 1 : 0);
+        {
+          char msg[64];
+          sprintf_s(msg, sizeof(msg), "Config: glperf_logging = %d\n", g_glperfLoggingEnabled ? 1 : 0);
+          PrintLog(msg);
+        }
       }
       // Future settings: add else-if branches here
 
