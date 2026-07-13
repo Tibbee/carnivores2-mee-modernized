@@ -55,9 +55,74 @@ void GLRenderer::Render_LifeInfo(int index)
 
 void GLRenderer::Render_Cross(int x, int y)
 {
-    (void)x; (void)y;
-    // Crosshair is drawn by DrawOpticCross in Hunt.cpp via model rendering.
-    // No additional GL code needed here.
+    if (!m_modelShader.IsValid() || !m_modelVAO || !m_modelVBO || !m_whiteTexture ||
+        WinW <= 0 || WinH <= 0) {
+        return;
+    }
+
+    float radius = static_cast<float>(WinW) / 12.0f * UIScale;
+    radius = (std::max)(1.0f, radius);
+    const float halfThicknessX = 1.5f / static_cast<float>(WinW);
+    const float halfThicknessY = 1.5f / static_cast<float>(WinH);
+    const float centerX = static_cast<float>(x) / static_cast<float>(WinW) * 2.0f - 1.0f;
+    const float centerY = 1.0f - static_cast<float>(y) / static_cast<float>(WinH) * 2.0f;
+    const float radiusX = radius / static_cast<float>(WinW) * 2.0f;
+    const float radiusY = radius / static_cast<float>(WinH) * 2.0f;
+
+    auto makeVertex = [](float px, float py) -> ModelVertex {
+        return {
+            px, py, 0.0f, 0.0f, 0.0f,
+            255, 255, 128, 0, // light, fog-to-black, alpha, cutout
+            0, 0, 0,          // fog colour
+            {0, 0, 0, 0, 0}
+        };
+    };
+
+    std::vector<ModelVertex> vertices;
+    vertices.reserve(12);
+    auto appendQuad = [&](float left, float top, float right, float bottom) {
+        vertices.push_back(makeVertex(left,  top));
+        vertices.push_back(makeVertex(right, top));
+        vertices.push_back(makeVertex(right, bottom));
+        vertices.push_back(makeVertex(left,  top));
+        vertices.push_back(makeVertex(right, bottom));
+        vertices.push_back(makeVertex(left,  bottom));
+    };
+    appendQuad(centerX - radiusX, centerY + halfThicknessY,
+               centerX + radiusX, centerY - halfThicknessY);
+    appendQuad(centerX - halfThicknessX, centerY + radiusY,
+               centerX + halfThicknessX, centerY - radiusY);
+
+    const std::array<float, 16> identity = {
+        1.0f,0.0f,0.0f,0.0f, 0.0f,1.0f,0.0f,0.0f,
+        0.0f,0.0f,1.0f,0.0f, 0.0f,0.0f,0.0f,1.0f
+    };
+    UpdatePerFrameUBO(identity);
+    m_modelShader.Use();
+
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_whiteTexture);
+    glBindVertexArray(m_modelVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
+    const GLsizeiptr bytes = static_cast<GLsizeiptr>(vertices.size() * sizeof(ModelVertex));
+    glBufferData(GL_ARRAY_BUFFER, bytes, nullptr, GL_STREAM_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, bytes, vertices.data());
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+#ifdef GL_PERF_HOOKS
+    GL_PERF_DRAW(4);
+#endif
+    glBindVertexArray(0);
+    glDisable(GL_BLEND);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
+
+    // NDC drawing temporarily replaces the shared projection UBO. Restore the
+    // active world/optic projection for any model effects drawn afterward.
+    UpdatePerFrameUBO(BuildLegacyProjection());
 }
 
 void GLRenderer::RenderHealthBar()

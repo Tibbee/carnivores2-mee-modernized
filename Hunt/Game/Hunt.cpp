@@ -11,6 +11,15 @@
 #define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 ((DPI_AWARENESS_CONTEXT)-4)
 #endif
 
+// Near-model overlays were authored for a 4:3 viewport. Scale them far
+// enough to cover wider viewports without changing their vertical framing.
+static float GetScopeAspectFillScale()
+{
+  constexpr float kReferenceAspect = 4.0f / 3.0f;
+  if (WinH <= 0) return 1.0f;
+  return (std::max)(1.0f, (static_cast<float>(WinW) / static_cast<float>(WinH)) / kReferenceAspect);
+}
+
 static void EnablePerMonitorV2DpiAwareness()
 {
   using SetProcessDpiAwarenessContextProc = BOOL(WINAPI*)(DPI_AWARENESS_CONTEXT);
@@ -381,9 +390,7 @@ void DrawPostObjects()
   {
     float oldCW = CameraW;
     float oldCH = CameraH;
-    float scale = nearModelScale;
-    float aspectScale = static_cast<float>(WinW) / (static_cast<float>(WinH) * 1.3333333f);
-    if (aspectScale > 1.0f) scale *= aspectScale;
+    float scale = nearModelScale * GetScopeAspectFillScale();
     CameraW *= scale;
     CameraH *= scale;
     RenderNearModel(Binocular.get(), 0, 0, 2*(216-72 * BinocularPower), 192,  0,0);
@@ -684,6 +691,26 @@ SKIPWIND:
   if (HARD3D) wpnlight = 96 + GetLandLt(PlayerX, PlayerZ) / 4;
   else wpnlight = 200;
 
+  float weaponOverlayScale = nearModelScale;
+  const bool opticZoomActive =
+      g_GameMode == GameMode::OpticScope &&
+      (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2);
+  const bool embeddedScopeActive =
+      WeapInfo[CurrentWeapon].Optic > 0.0f &&
+      !WeapInfo[CurrentWeapon].cross && Weapon.state == 2;
+
+  if (opticZoomActive || embeddedScopeActive) {
+    // The sniper mask is embedded in the weapon's firing animation rather
+    // than drawn as a separate HUD texture.  Some game-state paths can leave
+    // that animation visible after OpticScope mode has been cleared; in that
+    // case CameraW/H no longer contain the weapon's optic magnification and
+    // the legacy 800x600 mask appears as a small rectangle.  Supply the
+    // missing magnification here, then aspect-fill the 4:3-authored mask.
+    if (!opticZoomActive)
+      weaponOverlayScale *= WeapInfo[CurrentWeapon].Optic;
+    weaponOverlayScale *= GetScopeAspectFillScale();
+  }
+
   {
     // Keep the near-model (weapon viewmodel, muzzle flash) projection
     // anchored to the classic 4:3 FOV so viewmodels do not shrink or
@@ -692,13 +719,8 @@ SKIPWIND:
     // C1 has the same logic in InsertModelList.
     float savedCW = CameraW;
     float savedCH = CameraH;
-    float opticScale = nearModelScale;
-    if (g_GameMode == GameMode::OpticScope) {
-      float arScale = static_cast<float>(WinW) / (static_cast<float>(WinH) * 1.3333333f);
-      if (arScale > 1.0f) opticScale *= arScale;
-    }
-    CameraW *= opticScale;
-    CameraH *= opticScale;
+    CameraW *= weaponOverlayScale;
+    CameraH *= weaponOverlayScale;
 
     if (Muzz && !IsUnderwater()) {
     CreateMorphedModelBetaGamma(MuzzModel.mptr.get(),
@@ -735,8 +757,17 @@ SKIPWIND:
 
   //Render_Cross(VideoCX, VideoCY);
   if ((!WeapInfo[CurrentWeapon].Optic || g_GameMode == GameMode::OpticScope) && WeapInfo[CurrentWeapon].cross
-	  && (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2))
-	  DrawOpticCross(wptr->chinfo[CurrentWeapon].mptr->VCount-1);
+      && (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2)) {
+    // rVertex was generated with the near-model projection. Reapply that
+    // projection while converting its reticle anchor to screen coordinates.
+    const float savedCW = CameraW;
+    const float savedCH = CameraH;
+    CameraW *= weaponOverlayScale;
+    CameraH *= weaponOverlayScale;
+    DrawOpticCross(wptr->chinfo[CurrentWeapon].mptr->VCount - 1);
+    CameraW = savedCW;
+    CameraH = savedCH;
+  }
 
 SKIPWEAPON:
 

@@ -990,35 +990,27 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
     transformed.reserve(mptr->VCount);
     unrotated.reserve(mptr->VCount);
 
-    // C1 technique for model fog. The view rotation in
-    // RenderMappedObject is RotateVector = R_x(CameraBeta) * R_y(CameraAlpha)
-    // (Math.cpp:52, applied at GLRenderer.cpp:1227). The model center
-    // (x0, y0, z0) is in view space, so its world-relative position is
-    //     unrotatedCenter = R_view^-1 * viewCenter = R_y^-1 * R_x^-1 * viewCenter
-    // Then for each model vertex, the "unrotated" position used for the
-    // fog calculation is unrotatedCenter + gVertex[i] -- the world-
-    // relative position of the model center plus the model vertex's raw
-    // offset in model space. The model's own rotation (al, bt) is
-    // intentionally NOT applied here, matching Carnivores 1 exactly
-    // (see Carnivores1/Hunt/GLRenderer.cpp:1138, 1148). For small
-    // objects this is a good approximation, and CalcFogLevel is smooth
-    // enough that the small error is invisible in practice.
-    const float ucY = ::cb * y0 + ::sb * z0;
-    const float ucZ = ::cb * z0 - ::sb * y0;
-    const Vector3d unrotatedCenter = {
-        ::ca * x0 - ::sa * ucZ,
-        ucY,
-        ::sa * x0 + ::ca * ucZ
+    // Fog volumes are defined in world space, while model vertices are now in
+    // view space. Undo the camera pitch and yaw on each final rendered vertex
+    // so fog sampling includes the model's rotation and current morphed pose.
+    // The old centre+raw-vertex approximation could sample a large dinosaur
+    // outside a fog cell even while its rendered geometry was inside it.
+    auto unrotateCamera = [](const Vector3d& viewPosition) -> Vector3d {
+        const float worldY = ::cb * viewPosition.y + ::sb * viewPosition.z;
+        const float yawZ = ::cb * viewPosition.z - ::sb * viewPosition.y;
+        return {
+            ::ca * viewPosition.x - ::sa * yawZ,
+            worldY,
+            ::sa * viewPosition.x + ::ca * yawZ
+        };
     };
 
     bool anyVisible = false;
     for (int i = 0; i < mptr->VCount; ++i) {
-        // View-space position of the vertex (with model rotation applied).
+        // View-space position of the vertex, including model rotation and the
+        // current animated/morphed vertex position.
         transformed.push_back(TransformModelVertex(mptr->gVertex[i], x0, y0, z0, ca, sa, cb, sb));
-        // Unrotated position: unrotatedCenter + gVertex[i] (identity
-        // model rotation). The fog for this vertex is computed from
-        // this position in the triangle loop via SampleFogAtPoint.
-        unrotated.push_back(TransformModelVertex(mptr->gVertex[i], unrotatedCenter.x, unrotatedCenter.y, unrotatedCenter.z, 1.0f, 0.0f, 1.0f, 0.0f));
+        unrotated.push_back(unrotateCamera(transformed.back()));
 
         if (transformed.back().z < kModelNearClip) {
             anyVisible = true;
