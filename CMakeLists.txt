@@ -10,6 +10,9 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(RENDERER "" CACHE STRING "Select the renderer: SOFT or GL. Leave empty to build the menu only.")
 set_property(CACHE RENDERER PROPERTY STRINGS SOFT GL "")
 
+# Enable LTO for Release builds (cross-module inlining, ~5-15% CPU gain)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+
 # Phase 0.1 in-engine GL perf harness. Defaults OFF. The ogl-release
 # preset turns this ON because perf measurements must run on the
 # optimized shipping build (debug builds are dominated by _DEBUG and
@@ -188,10 +191,13 @@ set(CORE_FILES
 
 
 # ============================================================
-# Performance: LTO for Release builds (Phase 4)
+# Performance: Optimization flags for Release builds
 # ============================================================
 if(MSVC AND CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL")
+    # /GL + /LTCG = Link-Time Optimization
+    # /O2 = Maximize Speed, /Oi = Intrinsics, /Ot = Favor Fast Code, /Ob2 = Aggressive Inlining
+    # /Gw = Optimize Globals, /GS- = No Buffer Checks, /fp:fast = Fast Float, /arch:SSE2 = SSE2
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL /O2 /Oi /Ot /Ob2 /Gw /GS- /fp:fast /arch:SSE2 /Zc:inline")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG")
 endif()
 
