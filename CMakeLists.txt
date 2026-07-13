@@ -267,9 +267,8 @@ if(MSVC)
         add_test(NAME SmokeTest
             COMMAND powershell -ExecutionPolicy Bypass -File
                 ${CMAKE_SOURCE_DIR}/tests/smoke_test.ps1
-                -ExePath $<TARGET_FILE:Carnivores1>
+                -Renderer ${RENDERER}
                 -Duration 5
-                -WorkingDir ${CMAKE_SOURCE_DIR}/release/Carnivores2_Modernized
         )
     endif()
 endif()
