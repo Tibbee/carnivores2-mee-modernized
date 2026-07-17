@@ -55,6 +55,7 @@ void main() {
    }
    vec2 uv = vec2((skyU + uSkyTime) / 256.0, (skyV - uSkyTime) / 256.0);
    vec3 skyColor = texture(uSkyTexture, uv).rgb;
+   bool isMoon = uBodyIsMoon > 0.5;
 
    // World-space view ray (camera basis passed from C++).  Its .y is the
    // elevation factor: 0 at the true horizon, +1 straight up — independent
@@ -82,12 +83,6 @@ void main() {
    float zenithDark = 0.92 + 0.08 * (1.0 - vert);
    skyColor *= zenithDark;
 
-   // Warm horizon glow, Gaussian falloff upward; fog hides it.
-   float horizonGlow = exp(-vert * vert * 20.0);
-   vec3 glowColor = vec3(1.0, 0.85, 0.6);        // warm golden
-   float glowStrength = 0.15 * (1.0 - fogFactor) * (1.0f - envSky);
-   skyColor += glowColor * horizonGlow * glowStrength;
-
    // §3.6: Sun/moon glow on the sky texture — a soft halo around the body's
    // screen position.  `pixel` is top-origin, matching uSunScreenPos.  The sun
    // and moon are handled separately because they have very different
@@ -95,7 +90,17 @@ void main() {
    // scattering halo, while the moon is dim and cool, so it gets a softer,
    // bluer, much fainter moonlight halo suited to the dark night sky.  When
    // the body is off-screen the distance is huge and the Gaussian falls to ~0.
-   bool isMoon = uBodyIsMoon > 0.5;
+
+   // Keep the warm atmospheric horizon glow for daytime only. Applying that
+   // golden term to the night sky created an artificial orange city-glow band
+   // that expanded across the screen as the camera pitched upward.
+   if (!isMoon) {
+       float horizonGlow = exp(-vert * vert * 20.0);
+       vec3 glowColor = vec3(1.0, 0.85, 0.6);
+       float glowStrength = 0.15 * (1.0 - fogFactor) * (1.0f - envSky);
+       skyColor += glowColor * horizonGlow * glowStrength;
+   }
+
    vec2 sunDelta = pixel - uSunScreenPos;
    float sunDist = length(sunDelta);
    float glowRadius = isMoon ? 110.0 : 80.0 + (1.0 - uSunVisibility) * 40.0;
@@ -122,20 +127,41 @@ void main() {
    skyColor += sunGlowColor * sunGlow * sunGlowStrength;
    skyColor = min(skyColor, vec3(1.0));            // clamp to prevent burn-out
 
+   // Night fog still affects the sky, but its volume colour is desaturated so
+   // bright green/brown fog does not become an artificial saturated night sky.
+   vec3 skyFogColor = uFogColor;
+   vec3 skyPocketFogColor = uPocketFogColor;
+   vec3 skyCamFogColor = uCamFogColor;
+   if (isMoon) {
+       const float kNightFogDesaturation = 0.75;
+       float fogLuma = dot(uFogColor, vec3(0.299, 0.587, 0.114));
+       float pocketLuma = dot(uPocketFogColor, vec3(0.299, 0.587, 0.114));
+       float camLuma = dot(uCamFogColor, vec3(0.299, 0.587, 0.114));
+       skyFogColor = mix(uFogColor, vec3(fogLuma), kNightFogDesaturation);
+       skyPocketFogColor = mix(uPocketFogColor, vec3(pocketLuma), kNightFogDesaturation);
+       skyCamFogColor = mix(uCamFogColor, vec3(camLuma), kNightFogDesaturation);
+   }
+
    // §3.5: Per-pixel pocket fog on the sky.  Blend the (already globally
-   // fogged) sky toward the pocket fog colour, but only near the horizon —
+   // fogged) sky toward the volume colour, but only near the horizon —
    // the zenith stays clear so the gradient/glow still read.  Applied after
    // the water-line fade that is already folded into fogFactor.
-   vec3 color = mix(skyColor, uFogColor, fogFactor);
+   // Night fog remains visible, but uses a lower sky blend so bright dynamic
+   // volume colours cannot turn the entire night sky into a glowing billboard.
+   const float kNightSkyFogBlend = 0.35;
+   float skyFogBlend = isMoon ? fogFactor * kNightSkyFogBlend : fogFactor;
+   vec3 color = mix(skyColor, skyFogColor, skyFogBlend);
    float pocketFade = uPocketFog * (1.0 - vertFade);
-   color = mix(color, uPocketFogColor, pocketFade);
+   if (isMoon) pocketFade *= kNightSkyFogBlend;
+   color = mix(color, skyPocketFogColor, pocketFade);
 
    // §3.10: fog the whole sky toward the volume colour.  envSky (computed
    // above, near wdir) already fades the sun/moon halo WITH this fog, so the
    // glow dissolves smoothly into the haze instead of sitting as a harsh,
    // separated disc on a flat fogged sky.
    if (uCamFogAmount > 0.001f) {
-       color = mix(color, uCamFogColor, envSky);
+       float skyEnvelopeBlend = isMoon ? envSky * kNightSkyFogBlend : envSky;
+       color = mix(color, skyCamFogColor, skyEnvelopeBlend);
    }
 
    FragColor = vec4(color, 1.0);

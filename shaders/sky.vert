@@ -13,8 +13,9 @@ void main() {
    vec2 pos = kPositions[gl_VertexID];
    vNdc = pos;
    // Build the (unnormalized) world-space view ray for this NDC point.
-   // dir = ndc.x*(right*tanX) + ndc.y*(up*tanY) - forward, so the ray's .y
-   // is the world elevation used by the gradient / pocket-fog fade.
-   vWorldDir = pos.x * uCamRight + pos.y * uCamUp - uCamForward;
+   // uCamForward is already the camera look axis (R^(-1)*(0,0,-1)), so it
+   // must be added here. Its .y is the world elevation used by the
+   // gradient / pocket-fog fade.
+   vWorldDir = pos.x * uCamRight + pos.y * uCamUp + uCamForward;
    gl_Position = vec4(pos, 0.0, 1.0);
 }

@@ -137,7 +137,7 @@ void GLRenderer::RenderSkyPlane()
     // §3.1 (world-space gradient): pass the camera basis so the sky shader
     // can derive the view ray's world elevation (pitch-invariant horizon).
     // The shader builds a WORLD-space view ray:
-    //     vWorldDir = pos.x*uCamRight + pos.y*uCamUp - uCamForward
+    //     vWorldDir = pos.x*uCamRight + pos.y*uCamUp + uCamForward
     // so these must be the camera's right/up/forward AXES in WORLD space, i.e.
     // R^(-1) * unit_axis, where R = R_x(beta)*R_y(alpha) is the engine's
     // world->view rotation (RotateVector).  NOTE: RotateVector computes R*v
