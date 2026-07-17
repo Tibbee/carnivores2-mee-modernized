@@ -71,6 +71,15 @@ void GLRenderer::RenderWaterSurface()
                       3.0f);
     m_terrainShader.Use();
 
+    // Water uses the terrain shader, so apply the same world-only night
+    // lighting explicitly rather than relying on the previous terrain pass.
+    {
+        static const GLint uNight = glGetUniformLocation(m_terrainShader.GetProgramID(), "uNightStrength");
+        if (uNight >= 0) {
+            glUniform1f(uNight, (OptDayNight == 2 && !NightVisionOn) ? 1.0f : 0.0f);
+        }
+    }
+
     // §3.5: the terrain program's sun forward-scatter uniforms are
     // set for terrain in RenderTerrain(); the water surface reuses the
     // same program, so zero the scatter here to stop water fog from

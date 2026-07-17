@@ -16,6 +16,7 @@ uniform PerFrame {
 };
 uniform sampler2D uModelTexture;
 uniform float uTintByFogColor;
+uniform float uNightStrength;    // world-only night lighting (0=day, 1=night)
 uniform vec3 uCamFogColor;       // §3.10 camera-in-fog envelope colour
 uniform float uCamFogAmount;     // §3.10 camera-in-fog envelope strength (0 = off)
 void main() {
@@ -39,6 +40,14 @@ void main() {
        const float kNearFog = 0.25f;
        float camEnvDist = kNearFog + (1.0f - kNearFog) * (1.0f - exp(-2.5f * vViewZ / max(uFogRange.y, 1.0f)));
        finalColor = mix(finalColor, uCamFogColor, uCamFogAmount * camEnvDist);
+   }
+
+   // Apply night lighting to world models only. Sky and moon use their own
+   // night textures/shading and never pass through this multiplier.
+   if (uNightStrength > 0.001f) {
+       float gray = dot(finalColor, vec3(0.299, 0.587, 0.114));
+       finalColor = mix(finalColor, vec3(gray), 0.6 * uNightStrength);
+       finalColor *= mix(1.0, 0.5, uNightStrength);
    }
    FragColor = vec4(finalColor, texColor.a * vAlpha);
 }

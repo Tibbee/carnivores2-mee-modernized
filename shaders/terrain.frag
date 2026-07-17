@@ -13,6 +13,7 @@ in vec3 vViewPos;            // view-space position (camera at origin)
 uniform vec3 uSunDirection;     // sun direction in view space (§3.5)
 uniform float uSunVisibility;    // 0..1 sun visibility (§3.5)
 uniform float uFogScatter;       // master scatter strength (§3.5)
+uniform float uNightStrength;     // world-only night lighting (0=day, 1=night)
 uniform vec3 uCamFogColor;       // §3.10 camera-in-fog envelope colour
 uniform float uCamFogAmount;     // §3.10 camera-in-fog envelope strength (0 = off)
 uniform PerFrame {
@@ -96,6 +97,14 @@ void main() {
        const float kNearFog = 0.25f;
        float camEnvDist = kNearFog + (1.0f - kNearFog) * (1.0f - exp(-2.5f * vViewZ / max(uFogRange.y, 1.0f)));
        finalColor = mix(finalColor, uCamFogColor, uCamFogAmount * camEnvDist);
+   }
+
+   // Apply night lighting to terrain and water only. The sky/moon are not
+   // part of this shader, so they stay naturally bright and crisp at night.
+   if (uNightStrength > 0.001f) {
+       float gray = dot(finalColor, vec3(0.299, 0.587, 0.114));
+       finalColor = mix(finalColor, vec3(gray), 0.6 * uNightStrength);
+       finalColor *= mix(1.0, 0.5, uNightStrength);
    }
    float waterAlphaFade = 1.0;
    if (vWaterAlphaFade > 0.5 && uWaterAlphaFade.z > 0.5) {

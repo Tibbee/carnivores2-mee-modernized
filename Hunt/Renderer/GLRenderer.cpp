@@ -238,7 +238,6 @@ bool GLRenderer::Initialize()
 
     InitializeSkyPipeline();
     InitializeHudPipeline();
-    InitializeNightDesaturation();
 
     m_modelShader.Use();
     glUniform1i(glGetUniformLocation(m_modelShader.GetProgramID(), "uModelTexture"), 0);
@@ -327,7 +326,6 @@ void GLRenderer::Shutdown()
     ShutdownStaticMeshPipeline();
     ShutdownSkyPipeline();
     ShutdownHudPipeline();
-    ShutdownNightDesaturation();
 
     if (m_hrc) {
         if (wglGetCurrentContext() == m_hrc) {

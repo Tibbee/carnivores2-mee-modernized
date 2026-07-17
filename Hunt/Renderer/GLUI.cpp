@@ -195,11 +195,6 @@ void ShowVideo()
         }
     }
 
-    // Apply night darkness overlay (desaturation was done before HUD in ShowControlElements)
-    if (OptDayNight == 2 && !NightVisionOn) {
-        g_GLRenderer->RenderNightDarkness();
-    }
-
     // Apply night vision green overlay (toggleable via equipment + keybind)
     if (NightVisionOn) {
         g_GLRenderer->RenderFSRect(0x6000FF00);
@@ -960,13 +955,10 @@ void ShowControlElements()
     // sits on top in the overlay upload.
     RenderHealthBar();
 
-    // Apply desaturation to the 3D scene BEFORE the HUD overlay,
-    // so the HUD (health bar, text) stays at full color.
-    if (OptDayNight == 2 && !NightVisionOn && g_GLRenderer) {
-        g_GLRenderer->RenderSceneDesaturated();
-    }
+    // Night lighting is applied by the world shaders. The sky and moon are
+    // therefore not processed by a fullscreen desaturation/darkness pass.
 
-    // Upload lpVideoBuf overlay to GL (composited on top of the desaturated scene)
+    // Upload lpVideoBuf overlay to GL.
     if (g_GLRenderer) g_GLRenderer->DrawHUDOverlay();
 }
 

@@ -461,6 +461,12 @@ void GLRenderer::RenderInstancedModels()
     UpdatePerFrameUBO(projection);
 
     m_instancedModelShader.Use();
+    {
+        static const GLint uNight = glGetUniformLocation(m_instancedModelShader.GetProgramID(), "uNightStrength");
+        if (uNight >= 0) {
+            glUniform1f(uNight, (OptDayNight == 2 && !NightVisionOn) ? 1.0f : 0.0f);
+        }
+    }
     glBindVertexArray(m_instanceVAO);
 
     // §3.10: camera-in-fog global envelope (see GLRenderer::UpdateCameraFogEnvelope).
@@ -860,6 +866,14 @@ void GLRenderer::DrawModelVertices(GLuint texture,
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
+    // Night lighting is applied to world-model fragments here. The sun/moon
+    // draw sets this uniform back to zero, so it is never darkened by night.
+    {
+        static const GLint uNight = glGetUniformLocation(m_modelShader.GetProgramID(), "uNightStrength");
+        if (uNight >= 0) {
+            glUniform1f(uNight, (OptDayNight == 2 && !NightVisionOn) ? 1.0f : 0.0f);
+        }
+    }
     // uProjection is now in the PerFrame UBO (Phase 1.1). uTintByFogColor
     // stays a per-draw uniform; location cached at Initialize() (1.6).
     glUniform1f(m_locModelTint, tintByFogColor ? 1.0f : 0.0f);

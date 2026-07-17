@@ -387,6 +387,15 @@ void GLRenderer::RenderTerrain()
     SetWaterAlphaFade(0.0f, 0.0f, 0.0f, 765.0f);
     m_terrainShader.Use();
 
+    // Night lighting belongs on world geometry, not in a fullscreen pass;
+    // this leaves the separately-rendered sky and moon untouched.
+    {
+        static const GLint uNight = glGetUniformLocation(m_terrainShader.GetProgramID(), "uNightStrength");
+        if (uNight >= 0) {
+            glUniform1f(uNight, (OptDayNight == 2 && !NightVisionOn) ? 1.0f : 0.0f);
+        }
+    }
+
     // §3.5: per-pixel sun-fog forward-scatter.  Replaces the old per-tile
     // CPU glow (one value per tile, interpolated across its 4 vertices, which
     // looked blocky).  We only pass the sun direction in view space plus the

@@ -484,6 +484,12 @@ void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int 
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
+    // The moon/sun is a sky element, not world geometry. Keep it outside
+    // the world-only night lighting applied by DrawModelVertices().
+    {
+        static const GLint uNight = glGetUniformLocation(m_modelShader.GetProgramID(), "uNightStrength");
+        if (uNight >= 0) glUniform1f(uNight, 0.0f);
+    }
     // uProjection in PerFrame UBO (Phase 1.1)
 
     // The weapon's phong/env-map draw passes set uTintByFogColor=1.0 on this
