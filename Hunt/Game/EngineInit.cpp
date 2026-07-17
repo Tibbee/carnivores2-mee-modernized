@@ -6,6 +6,10 @@
 #include "Hunt.h"
 #include <mmsystem.h>
 
+#ifdef _gl
+#include "Renderer/GLPerf.h"
+#endif
+
 // Imported from Game.cpp
 extern bool ShowFaces;
 
@@ -562,7 +566,7 @@ void InitEngine()
 
   OptViewR = kViewOptDefault;
   OptObjectDetail = kObjectDetailDefault;
-OptFpsLimit = 0;  // 0 = unlimited
+OptFpsLimit = 1;  // 1 = 60 FPS (0 remains available for unlimited)
 
   LoadTrophy();
   OptViewR = ClampViewOpt(OptViewR);
@@ -574,6 +578,13 @@ OptFpsLimit = 0;  // 0 = unlimited
   // This file is the single source of truth for settings that are not
   // part of the legacy binary trophy format (e.g. OptFov).
   LoadConfig();
+
+#ifdef _gl
+  // Init3DHardware runs before InitEngine, so apply the config value now
+  // that glperf_logging has been loaded. Disabled profiling must remain out
+  // of the per-frame render path even when GL_PERF_HOOKS is compiled in.
+  glperf_set_logging(g_glperfLoggingEnabled);
+#endif
 
   // CreateVideoDIB() must come after ProcessCommandLine() so WinW/WinH reflect
   // any /res command-line override.
@@ -815,8 +826,8 @@ static void CreateDefaultConfig()
     "# Object detail / view distance (default: 48, range: 24-96)\r\n"
     "object_detail %d\r\n"
     "\r\n"
-    "# FPS limit: 0=Unlimited, 1=60, 2=120, 3=240 (default: 0)\r\n"
-    "fps_limit 0\r\n"
+    "# FPS limit: 0=Unlimited, 1=60, 2=120, 3=240 (default: 1)\r\n"
+    "fps_limit 1\r\n"
     "\r\n"
     "# Verbose logging: 0=off, 1=on (default: 0)\r\n"
     "verbose_logging 0\r\n"

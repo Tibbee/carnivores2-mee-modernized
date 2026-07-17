@@ -37,7 +37,7 @@
 #define kFpsLimit120      2
 #define kFpsLimit240      3
 #define kFpsLimitCount    4
-#define kFpsLimitDefault  kFpsLimitOff
+#define kFpsLimitDefault  kFpsLimit60
 
 // View distance option stored as OptViewR in trophy0N.sav.
 // Kept in sync with Hunt/Hunt.h's view distance constants.

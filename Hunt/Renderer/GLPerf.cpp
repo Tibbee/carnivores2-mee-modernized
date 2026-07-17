@@ -103,6 +103,7 @@ struct PassTimings {
 
 struct GLPerfState {
     bool initialized = false;
+    bool outputInitialized = false;
     bool gpuTimersOk = false;
     bool frameActive = false;
     bool loggingEnabled = false;  // Runtime toggle from config.cfg (glperf_logging)
@@ -578,8 +579,52 @@ bool ProbeTimestampQueries() {
     return error == GL_NO_ERROR;
 }
 
+void InitializePerfOutput() {
+    if (g_state.outputInitialized) return;
+    g_state.outputInitialized = true;
+
+    const bool gpuOk = ProbeTimestampQueries();
+    g_state.gpuTimersOk = gpuOk;
+
+    if (gpuOk) {
+        std::array<GLuint, kFrameQueryRingSize * 2> ids {};
+        glGenQueries(static_cast<GLsizei>(ids.size()), ids.data());
+        for (int i = 0; i < kFrameQueryRingSize; ++i) {
+            g_state.frameQueries[i].begin = ids[static_cast<size_t>(i) * 2];
+            g_state.frameQueries[i].end = ids[static_cast<size_t>(i) * 2 + 1];
+        }
+    }
+
+    g_state.lastFlush = Clock::now();
+
+    MakeTimestamp(g_state.logTimestamp, sizeof(g_state.logTimestamp),
+                  std::time(nullptr));
+    MakeLogFilename(g_state.logFilename, sizeof(g_state.logFilename),
+                    g_state.logTimestamp);
+
+    if (FILE* file = std::fopen(g_state.logFilename, "w")) {
+        std::fprintf(file, "GLPerf harness v2 -- started\n");
+        std::fprintf(file, "  gpu_timers=%s\n", gpuOk ? "timestamp" : "n/a");
+        char cwd[MAX_PATH] = {};
+        if (GetCurrentDirectoryA(MAX_PATH, cwd) > 0) {
+            std::fprintf(file, "  log_path=%s\\%s\n", cwd, g_state.logFilename);
+        }
+        std::fprintf(file,
+            "  one matched frame begin/end per rendered frame; counters are "
+            "rolling totals over frames\n");
+        std::fprintf(file,
+            "  frame CPU: DrawScene before PreCashGroundModel through "
+            "ShowVideo before SwapBuffers\n");
+        std::fprintf(file,
+            "  GPU log values use resolved samples (gpu_n); CSV GPU fields "
+            "are -1 by design\n\n");
+        std::fclose(file);
+    }
+}
+
 bool BeginScope(const char* name, bool timeGpu) {
-    if (!g_state.initialized || !g_state.frameActive || !name) {
+    if (!g_state.initialized || !g_state.loggingEnabled ||
+        !g_state.frameActive || !name) {
         return false;
     }
     if (g_state.scopeStackDepth >= kMaxNestDepth) {
@@ -626,11 +671,11 @@ namespace glperf_internal {
 // ---------------------------------------------------------------------------
 
 extern "C" bool glperf_is_active() {
-    return g_state.initialized;
+    return g_state.initialized && g_state.loggingEnabled;
 }
 
 extern "C" void glperf_trigger_capture() {
-    if (!g_state.initialized) return;
+    if (!g_state.initialized || !g_state.loggingEnabled) return;
     StartCapture();
 }
 
@@ -638,11 +683,20 @@ extern "C" void glperf_set_logging(bool enabled) {
     g_pendingLoggingEnabled = enabled;
     if (g_state.initialized) {
         g_state.loggingEnabled = enabled;
+        if (enabled) {
+            InitializePerfOutput();
+        } else {
+            StopCapture();
+            if (g_state.logFile) {
+                std::fclose(g_state.logFile);
+                g_state.logFile = nullptr;
+            }
+        }
     }
 }
 
 extern "C" void glperf_frame_begin() {
-    if (!g_state.initialized || g_state.frameActive) return;
+    if (!g_state.initialized || !g_state.loggingEnabled || g_state.frameActive) return;
 
     // Resolve old queries before the new frame's CPU interval starts. This
     // polling is non-blocking and is not part of scene CPU time.
@@ -686,7 +740,7 @@ extern "C" void glperf_frame_begin() {
 }
 
 extern "C" void glperf_frame_end() {
-    if (!g_state.initialized || !g_state.frameActive) return;
+    if (!g_state.initialized || !g_state.loggingEnabled || !g_state.frameActive) return;
 
     // A balanced call path leaves this empty. Close defensively without
     // touching SwapBuffers or blocking for a GPU result.
@@ -749,7 +803,8 @@ extern "C" bool glperf_scope_enter_cpu(const char* name) {
 }
 
 extern "C" void glperf_scope_exit(const char* name) {
-    if (!g_state.initialized || !g_state.frameActive || !name ||
+    if (!g_state.initialized || !g_state.loggingEnabled ||
+        !g_state.frameActive || !name ||
         g_state.scopeStackDepth <= 0) {
         return;
     }
@@ -764,13 +819,13 @@ extern "C" void glperf_scope_exit(const char* name) {
 }
 
 extern "C" void glperf_add_draw(uint32_t triangles) {
-    if (!g_state.initialized || !g_state.frameActive) return;
+    if (!g_state.initialized || !g_state.loggingEnabled || !g_state.frameActive) return;
     ++g_state.frameDrawCalls;
     g_state.frameTriangles += triangles;
 }
 
 extern "C" void glperf_note_texture_bind(uint32_t handle) {
-    if (!g_state.initialized || !g_state.frameActive) return;
+    if (!g_state.initialized || !g_state.loggingEnabled || !g_state.frameActive) return;
 
     ++g_state.frameTextureBinds;
     if (!g_state.frameHasLastTexture || g_state.frameLastTexture != handle) {
@@ -787,7 +842,7 @@ extern "C" void glperf_note_texture_bind(uint32_t handle) {
 }
 
 extern "C" void glperf_note_state_change() {
-    if (!g_state.initialized || !g_state.frameActive) return;
+    if (!g_state.initialized || !g_state.loggingEnabled || !g_state.frameActive) return;
     ++g_state.frameStateChanges;
 }
 
@@ -806,47 +861,11 @@ extern "C" void glperf_init() {
     g_state.loggingEnabled = g_pendingLoggingEnabled || g_glperfLoggingEnabled;
     g_state.initialized = true;
 
-    // With glperf_logging 0 (default), skip GPU probe, GL query allocation,
-    // and log file creation.  Collectors and capture still work if logging
-    // is enabled later via glperf_set_logging(true) before the first frame.
-    if (!g_state.loggingEnabled) return;
-
-    const bool gpuOk = ProbeTimestampQueries();
-    g_state.gpuTimersOk = gpuOk;
-
-    if (gpuOk) {
-        std::array<GLuint, kFrameQueryRingSize * 2> ids {};
-        glGenQueries(static_cast<GLsizei>(ids.size()), ids.data());
-        for (int i = 0; i < kFrameQueryRingSize; ++i) {
-            g_state.frameQueries[i].begin = ids[static_cast<size_t>(i) * 2];
-            g_state.frameQueries[i].end = ids[static_cast<size_t>(i) * 2 + 1];
-        }
-    }
-
-    g_state.lastFlush = Clock::now();
-
-    MakeTimestamp(g_state.logTimestamp, sizeof(g_state.logTimestamp),
-                  std::time(nullptr));
-    MakeLogFilename(g_state.logFilename, sizeof(g_state.logFilename),
-                    g_state.logTimestamp);
-
-    if (FILE* file = std::fopen(g_state.logFilename, "w")) {
-        std::fprintf(file, "GLPerf harness v2 -- started\n");
-        std::fprintf(file, "  gpu_timers=%s\n", gpuOk ? "timestamp" : "n/a");
-        char cwd[MAX_PATH] = {};
-        if (GetCurrentDirectoryA(MAX_PATH, cwd) > 0) {
-            std::fprintf(file, "  log_path=%s\\%s\n", cwd, g_state.logFilename);
-        }
-        std::fprintf(file,
-            "  one matched frame begin/end per rendered frame; counters are "
-            "rolling totals over frames\n");
-        std::fprintf(file,
-            "  frame CPU: DrawScene before PreCashGroundModel through "
-            "ShowVideo before SwapBuffers\n");
-        std::fprintf(file,
-            "  GPU log values use resolved samples (gpu_n); CSV GPU fields "
-            "are -1 by design\n\n");
-        std::fclose(file);
+    // Keep the harness completely out of the per-frame path when disabled.
+    // This matters because GL_PERF_HOOKS may be compiled into the release
+    // binary even though glperf_logging defaults to 0.
+    if (g_state.loggingEnabled) {
+        InitializePerfOutput();
     }
 }
 
