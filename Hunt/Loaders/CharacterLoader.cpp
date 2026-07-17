@@ -193,22 +193,25 @@ void ReInitGame()
 
   // Initialize underwater fog debug parameters with default values.
   // These can be tweaked at runtime via the F10 debug menu.
+  // CameraWaterDepthFactor is recomputed from the camera position each frame;
+  // this is only its initial fallback value.
+  CameraWaterDepthFactor = 0.099f;
   UnderwaterDebugMenu = 0;
   UnderwaterDebugSelected = 0;
-  UWFog_VertRange = 400.0f;        // vertical gradient range (units)
-  UWFog_VertStrength = 80.0f;      // additive fog at max depth
-  UWFog_CurveExp = 3.0f;           // curve exponent (3=cubic)
-  UWFog_CapBase = 100.0f;          // soft cap added to FLimit
-  UWFog_CapCameraBoost = 50.0f;    // camera depth boost for cap
-  UWFog_BaseDensityMult = 1.0f;    // base fog density multiplier (1.0 = unchanged)
-  UWFog_CameraDepthMult = 0.0f;    // Beer-Lambert camera depth multiplier (0=off)
+  UWFog_VertRange = 1488.6f;       // vertical gradient range (units)
+  UWFog_VertStrength = 85.0f;      // additive fog at max depth
+  UWFog_CurveExp = 1.94f;          // curve exponent
+  UWFog_CapBase = 85.0f;           // soft cap added to FLimit
+  UWFog_CapCameraBoost = 100.0f;   // camera depth boost for cap
+  UWFog_BaseDensityMult = 0.23f;   // base fog density multiplier
+  UWFog_CameraDepthMult = 0.10f;   // Beer-Lambert camera depth multiplier
 
   // Water wave debug parameters
   UnderwaterDebugTab = 0;
-  WWave1Amp = 18.0f;               // primary swell amplitude
-  WWave2Amp = 10.0f;               // secondary cross-wave amplitude
-  WWave3Amp = 5.0f;                // fine detail amplitude
-  WWaveSpeed = 1.0f;               // time multiplier
+  WWave1Amp = 14.58f;              // primary swell amplitude
+  WWave2Amp = 8.10f;               // secondary cross-wave amplitude
+  WWave3Amp = 5.00f;               // fine detail amplitude
+  WWaveSpeed = 0.50f;              // time multiplier
 
   PlaceHunter();
   Muzz = false;
