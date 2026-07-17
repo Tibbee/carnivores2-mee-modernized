@@ -800,6 +800,17 @@ extern "C" void glperf_init() {
     glperf_internal::g_perfInitCalled = true;
 
     g_state = GLPerfState{};
+
+    // Resolve logging state first: explicit set_logging() calls take
+    // precedence, otherwise use the config.cfg value (glperf_logging).
+    g_state.loggingEnabled = g_pendingLoggingEnabled || g_glperfLoggingEnabled;
+    g_state.initialized = true;
+
+    // With glperf_logging 0 (default), skip GPU probe, GL query allocation,
+    // and log file creation.  Collectors and capture still work if logging
+    // is enabled later via glperf_set_logging(true) before the first frame.
+    if (!g_state.loggingEnabled) return;
+
     const bool gpuOk = ProbeTimestampQueries();
     g_state.gpuTimersOk = gpuOk;
 
@@ -813,9 +824,6 @@ extern "C" void glperf_init() {
     }
 
     g_state.lastFlush = Clock::now();
-    // Merge: explicit set_logging() calls take precedence, otherwise use config value
-    g_state.loggingEnabled = g_pendingLoggingEnabled || g_glperfLoggingEnabled;
-    g_state.initialized = true;
 
     MakeTimestamp(g_state.logTimestamp, sizeof(g_state.logTimestamp),
                   std::time(nullptr));
