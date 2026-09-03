@@ -2,6 +2,7 @@
 // Hand written resource script.
 //
 #include "resource.h"
+#include "Version.h"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -55,24 +56,24 @@ BLOCK "StringFileInfo"
 BEGIN
 BLOCK "040904b0"
 BEGIN
-VALUE "CompanyName", "Carnivores-CPE"
-VALUE "FileDescription", "Launcher application emulating the Carnivores 2/IA menu."
+VALUE "CompanyName", VERSION_COMPANY_NAME
+VALUE "FileDescription", VERSION_PRODUCT_NAME
 VALUE "FileVersion", VERSION_STRING
-VALUE "InternalName", "Menu2.exe"
-VALUE "LegalCopyright", "Copyright (C) 2020"
-VALUE "OriginalFilename", "Menu2.exe"
-VALUE "ProductName", "Carnivores 2/IA Launcher"
+VALUE "InternalName", "Carnivores2Menu.exe"
+VALUE "LegalCopyright", VERSION_COPYRIGHT
+VALUE "OriginalFilename", "Carnivores2Menu.exe"
+VALUE "ProductName", VERSION_PRODUCT_NAME
 VALUE "ProductVersion", VERSION_STRING
 END
 BLOCK "0c0904b0"
 BEGIN
-VALUE "CompanyName", "Carnivores-CPE"
-VALUE "FileDescription", "Launcher application emulating the Carnivores 2/IA menu."
+VALUE "CompanyName", VERSION_COMPANY_NAME
+VALUE "FileDescription", VERSION_PRODUCT_NAME
 VALUE "FileVersion", VERSION_STRING
-VALUE "InternalName", "Menu2.exe"
-VALUE "LegalCopyright", "Copyright (C) 2020"
-VALUE "OriginalFilename", "Menu2.exe"
-VALUE "ProductName", "Carnivores 2/IA Launcher"
+VALUE "InternalName", "Carnivores2Menu.exe"
+VALUE "LegalCopyright", VERSION_COPYRIGHT
+VALUE "OriginalFilename", "Carnivores2Menu.exe"
+VALUE "ProductName", VERSION_PRODUCT_NAME
 VALUE "ProductVersion", VERSION_STRING
 END
 END
@@ -86,6 +87,7 @@ END
 // Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
+#include "Version.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -223,24 +225,24 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "Carnivores-CPE"
-            VALUE "FileDescription", "Launcher application emulating the Carnivores 2/IA menu."
+            VALUE "CompanyName", VERSION_COMPANY_NAME
+            VALUE "FileDescription", VERSION_PRODUCT_NAME
             VALUE "FileVersion", VERSION_STRING
-            VALUE "InternalName", "Menu2.exe"
-            VALUE "LegalCopyright", "Copyright (C) 2020"
-            VALUE "OriginalFilename", "Menu2.exe"
-            VALUE "ProductName", "Carnivores 2/IA Launcher"
+            VALUE "InternalName", "Carnivores2Menu.exe"
+            VALUE "LegalCopyright", VERSION_COPYRIGHT
+            VALUE "OriginalFilename", "Carnivores2Menu.exe"
+            VALUE "ProductName", VERSION_PRODUCT_NAME
             VALUE "ProductVersion", VERSION_STRING
         END
         BLOCK "0c0904b0"
         BEGIN
-            VALUE "CompanyName", "Carnivores-CPE"
-            VALUE "FileDescription", "Launcher application emulating the Carnivores 2/IA menu."
+            VALUE "CompanyName", VERSION_COMPANY_NAME
+            VALUE "FileDescription", VERSION_PRODUCT_NAME
             VALUE "FileVersion", VERSION_STRING
-            VALUE "InternalName", "Menu2.exe"
-            VALUE "LegalCopyright", "Copyright (C) 2020"
-            VALUE "OriginalFilename", "Menu2.exe"
-            VALUE "ProductName", "Carnivores 2/IA Launcher"
+            VALUE "InternalName", "Carnivores2Menu.exe"
+            VALUE "LegalCopyright", VERSION_COPYRIGHT
+            VALUE "OriginalFilename", "Carnivores2Menu.exe"
+            VALUE "ProductName", VERSION_PRODUCT_NAME
             VALUE "ProductVersion", VERSION_STRING
         END
     END

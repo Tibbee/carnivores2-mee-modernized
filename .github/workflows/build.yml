@@ -7,7 +7,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        preset: [ogl-debug, ogl-release, soft-release, d3d-release]
+        preset: [ogl-debug, ogl-release, soft-release, menu-release]
 
     steps:
     - uses: actions/checkout@v4

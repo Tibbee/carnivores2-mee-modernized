@@ -2,6 +2,7 @@
 
 > **Original release:** 2000 (Action Forms)
 > **Base:** Carnivores 2 Modder's Engine v1.11 (community revival)
+> **This build:** v1.1.4 Modernized (stays version-aligned with upstream MEE)
 > **Modernization:** OpenGL 3.3, OpenAL audio, memory arena, full codebase restructuring
 
 ## Overview
@@ -28,15 +29,23 @@ This is a comprehensive modernization of Carnivores 2 Modder's Engine, featuring
 cmake -S . -B build/ogl-release --preset ogl-release
 cmake --build build/ogl-release --config Release
 
-# Other presets: d3d-release, soft-release, glide-release, menu-release
+# Other presets: soft-release, ogl-debug, soft-debug, menu-release, ogl-release-shipping, ogl-pgo-instr/opt
 ```
 
 The executables will be at:
-- `build/ogl-release/bin/Carnivores1_GL.exe` (game)
+- `build/ogl-release/bin/Carnivores1_GL.exe` (game engine)
 - `build/ogl-release/bin/Carnivores2Menu.exe` (standalone menu)
+- `build/ogl-release/bin/shaders/` (GLSL shaders, copied automatically)
+
+> **Release packaging note:** the standalone menu launches the renderer engines
+> by their classic MEE names. For a playable release, ship the menu exe as
+> `Carnivores2Menu.exe` and copy the built game engine to `v_gl.ren`
+> (OpenGL) or `v_soft.ren` (software) in the same folder — the menu resolves
+> them from the exe directory or PATH. The `.ren` files are the actual game
+> executables under a legacy extension.
 
 ### Data Files
-Place your Carnivores 2 `HUNTDAT` directory next to the executable, or configure the path in `config.cfg`.
+Place your Carnivores 2 `HUNTDAT` directory next to the executable, or configure the path in `config.cfg`. The game reads all assets via relative paths at runtime; no original game data is bundled with or distributed by this project.
 
 ## Project Structure
 
@@ -82,7 +91,7 @@ Hunt/                         ← headers + subdirectories
     ├── GLUtils.cpp/h         ← GL utilities
     ├── GLWater.cpp           ← Water surface rendering
     ├── GLUI.cpp              ← Legacy-to-GL bridge
-    └── Render3DFX.cpp, RenderSoft.cpp, RendererD3D.cpp, renderasm.cpp
+    └── renderasm.cpp         ← x86 assembly helpers
 
 shaders/                      ← External GLSL shader files
 ├── terrain.vert/frag         ← Terrain shaders
@@ -121,4 +130,7 @@ Full documentation is in the [`CarnivoresDoc/`](../CarnivoresDoc/) directory:
 
 ## License
 
-Carnivores 2 © 2000 Action Forms. Modder's Engine v1.11 © community maintainers.
+Carnivores 2 © 2000 Action Forms. Modder's Engine v1.11 © community maintainers
+(see `NOTICE.md`). The modernization source in this repository is © 2026
+Tibor Harsányi (StriderTibe), licensed under the MIT License (see `LICENSE`).
+No original game assets are included.

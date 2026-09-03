@@ -59,6 +59,14 @@
       }
     },
     {
+      "name": "ogl-release-shipping",
+      "displayName": "OpenGL (Release, Shipping)",
+      "inherits": "ogl-release",
+      "cacheVariables": {
+        "GL_PERF_HOOKS": "OFF"
+      }
+    },
+    {
       "name": "menu-release",
       "displayName": "Menu (Release)",
       "inherits": "base",
@@ -99,6 +107,10 @@
     {
       "name": "ogl-release",
       "configurePreset": "ogl-release"
+    },
+    {
+      "name": "ogl-release-shipping",
+      "configurePreset": "ogl-release-shipping"
     },
     {
       "name": "menu-release",

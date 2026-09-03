@@ -55,7 +55,7 @@ void CreateLog()
 #ifdef _iceage
 	std::cout << "Carnivores: Ice Age - Menu\n";
 #else // _iceage
-	std::cout << "Carnivores 2 - Menu\n";
+	std::cout << VERSION_LABEL << "\n";
 #endif // !_iceage
 
 	std::cout << " Version: " << VERSION_MAJOR << "." << VERSION_MINOR;
