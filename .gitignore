@@ -11,3 +11,9 @@ carnivores_menu_mee/
 CarnivoresPort/
 Carnivores1/
 stubs/
+pkg/
+tools/
+!tools/
+tools/*
+!tools/release/
+!tools/release/make-c2-package.ps1
