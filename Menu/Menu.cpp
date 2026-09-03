@@ -1629,10 +1629,16 @@ void DrawMenuHunt()
 		DrawTextShadow(MenuHunt[2].Rect.right - 4, MenuHunt[2].Rect.top + (16 * i), sc.str(), c, DTA_RIGHT);
 	}
 
+	// Accessories whose data (icon/description) is missing from HUNTDAT are
+	// hidden: draw the available entries compacted (no blank row), matching
+	// the hit-test in MenuEventInput which maps rows over available entries.
+	int visRow = 0;
 	for (unsigned ii = MenuHunt[3].Offset; ii < MenuHunt[3].Offset + MenuHunt[3].Item.size(); ii++)
 	{
+		if (ii >= g_UtilInfo.size() || !g_UtilInfo[ii].m_Available)
+			continue;
+
 		uint32_t c = 0xB0B070;
-		int i = ii - MenuHunt[3].Offset;
 
 		if (MenuHunt[3].Item[ii].second)
 		{
@@ -1640,7 +1646,8 @@ void DrawMenuHunt()
 		}
 
 		//DrawTextShadow(MenuHunt[3].Rect.left + 4, MenuHunt[3].Rect.top + (16 * i), MenuHunt[3].Item[ii].first, c);
-		DrawTextShadow(MenuHunt[3].Rect.left + 4, MenuHunt[3].Rect.top + (16 * i), g_UtilInfo[ii].m_Name, c);
+		DrawTextShadow(MenuHunt[3].Rect.left + 4, MenuHunt[3].Rect.top + (16 * visRow), g_UtilInfo[ii].m_Name, c);
+		++visRow;
 	}
 }
 
@@ -2172,21 +2179,31 @@ void MenuEventInput(int32_t menu)
 		{
 			//int32_t score = g_UserProfile.Score - g_ScoreDebit;
 			int yd = g_CursorPos.y - MenuHunt[3].Rect.top;
-			unsigned index = yd / 16;
+			int row = yd / 16;
 
-			if (index < MenuHunt[3].Item.size())
+			// Hidden (unavailable) accessories take no visual row, so walk
+			// the available entries to map the cursor row to the array index.
+			int visRow = 0;
+			for (unsigned index = 0; index < g_UtilInfo.size(); ++index)
 			{
-				g_HuntSelectPic = &g_UtilInfo[index].m_Thumbnail;
-				g_HuntInfo.first = 3; // Accessories
-				g_HuntInfo.second = index;
-
-				if ((g_KeyboardState[VK_LBUTTON] & 128))
+				if (!g_UtilInfo[index].m_Available)
+					continue;
+				if (visRow == row)
 				{
-					WaitForMouseRelease();
-					MenuAudioPlayClick();
+					g_HuntSelectPic = &g_UtilInfo[index].m_Thumbnail;
+					g_HuntInfo.first = 3; // Accessories
+					g_HuntInfo.second = index;
 
-					MenuHunt[3].Item[index].second = !MenuHunt[3].Item[index].second;
+					if ((g_KeyboardState[VK_LBUTTON] & 128))
+					{
+						WaitForMouseRelease();
+						MenuAudioPlayClick();
+
+						MenuHunt[3].Item[index].second = !MenuHunt[3].Item[index].second;
+					}
+					break;
 				}
+				++visRow;
 			}
 		}
 		else if (id == 6) {

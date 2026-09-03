@@ -897,7 +897,23 @@ void LoadResources()
 		ui.m_ScoreMod = LookupAccessoryScoreMod(scoreKey, scoreDefault);
 		ui.m_Price = (accIdx < g_AccessoryPrices.size()) ? g_AccessoryPrices[accIdx] : defaultPrice;
 		accIdx++;
-		LoadPicture(ui.m_Thumbnail, pic);
+		// An accessory is offered when its description text exists in the
+		// game's HUNTDAT. The shop icon is optional decoration: some datasets
+		// (e.g. stock Carnivores 2) have no per-accessory image for every
+		// entry, and those rows show with an empty icon box just like the
+		// original game. Mods that do not ship the .nfo (e.g. Triassic has no
+		// nightvis.nfo) get a clean shop without a broken entry.
+		ui.m_Available = !ui.m_Description.empty();
+		if (ui.m_Available) {
+			// The shop icon is optional: some accessories (e.g. tranquilizers
+			// in both stock C2 and Triassic) have no dedicated image, and the
+			// original game shows them with an empty icon box. Never guess a
+			// different EQUIPn image - a wrong icon is worse than none.
+			LoadPicture(ui.m_Thumbnail, pic);
+		} else {
+			std::cout << "Accessory hidden (missing description): " << name
+			          << " desc=" << descFile << std::endl;
+		}
 		g_UtilInfo.push_back(ui);
 		ui.m_Description.clear();
 	};
@@ -1163,7 +1179,14 @@ bool LoadPicture(Picture& pic, const std::string& fpath)
 			delete[] pic.m_Data;
 
 		pic.m_Data = new uint16_t[pic.m_Width * pic.m_Height];
-		memcpy(pic.m_Data, tga.m_Data, pic.m_Width * pic.m_Height * sizeof(uint16_t));
+		// Menu pictures are 16-bit 5551 (alpha = bit 15). Some source TGAs
+		// (e.g. equip_nv.tga) store pixels with bit 15 clear, which the menu
+		// treats as fully transparent -> invisible icon. Force the alpha bit
+		// so any loaded picture renders opaque like the stock equipment icons.
+		const uint16_t* src = reinterpret_cast<const uint16_t*>(tga.m_Data);
+		for (unsigned i = 0; i < pic.m_Width * pic.m_Height; ++i) {
+			pic.m_Data[i] = static_cast<uint16_t>(src[i] | 0x8000u);
+		}
 
 		return true;
 	}

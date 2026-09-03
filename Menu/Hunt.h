@@ -495,6 +495,7 @@ public:
 	Picture m_Thumbnail; // Preview icon/image associated with this area
 	int32_t m_Price; // Credits cost for this accessory (0 = free)
 	float m_ScoreMod; // Score multiplier when this accessory is selected (1.0 = neutral, 0.85 = -15%)
+	bool m_Available; // False when required data (icon/description) is missing; entry is hidden
 
 //public:
 
@@ -504,7 +505,8 @@ public:
 		m_Command(""),
 		m_Thumbnail(),
 		m_Price(0),
-		m_ScoreMod(1.0f)
+		m_ScoreMod(1.0f),
+		m_Available(true)
 	{
 	}
 
@@ -514,7 +516,8 @@ public:
 		m_Command(command),
 		m_Thumbnail(),
 		m_Price(0),
-		m_ScoreMod(1.0f)
+		m_ScoreMod(1.0f),
+		m_Available(true)
 	{
 		//if (!thumbnail.empty())
 			//LoadPicture(this->m_Thumbnail, thumbnail);
@@ -526,7 +529,8 @@ public:
 		m_Command(ui.m_Command),
 		m_Thumbnail(ui.m_Thumbnail),
 		m_Price(ui.m_Price),
-		m_ScoreMod(ui.m_ScoreMod)
+		m_ScoreMod(ui.m_ScoreMod),
+		m_Available(ui.m_Available)
 	{
 	}
 };
