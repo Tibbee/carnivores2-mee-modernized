@@ -276,7 +276,10 @@ void ReInitGame()
   if (g_GameMode == GameMode::SurvivalMode) {
 	  PlayerAlpha = pi * 2 * SurvivalSpawnA / 360.f;
 	  Weapon.state = 2;
-	  if (WeapInfo[CurrentWeapon].Optic) g_GameMode = GameMode::OpticScope;
+	  if (WeapInfo[CurrentWeapon].Optic) {
+		  g_GameMode = GameMode::OpticScope;
+		  ScopePower = WeapInfo[CurrentWeapon].Optic;
+	  }
   }
 
   Ship.pos.x = PlayerX;

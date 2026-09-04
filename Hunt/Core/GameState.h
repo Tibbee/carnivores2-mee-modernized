@@ -512,6 +512,7 @@ GLOBAL DWORD l;
 GLOBAL float rav;
 GLOBAL float rbv;
 GLOBAL float BinocularPower;
+GLOBAL float ScopePower;
 GLOBAL float wpshy;
 GLOBAL float wpshz;
 GLOBAL float wpnb;

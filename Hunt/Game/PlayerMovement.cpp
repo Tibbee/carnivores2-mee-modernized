@@ -521,6 +521,19 @@ void ProcessPlayerMovement()
     if (BinocularPower > 3.0f) BinocularPower = 3.0f;
   }
 
+  if (g_GameMode == GameMode::OpticScope)
+  {
+    // Adjustable scope magnification. Numpad +/- works like the
+    // binoculars. The floor is the weapon's own optic value: the scope
+    // mask is authored to fill the screen at that magnification, so
+    // zooming below it would shrink the mask and reveal its border.
+    if (KeyboardState[VK_ADD     ] & 128) ScopePower += ScopePower * TimeDt / 4000.f;
+    if (KeyboardState[VK_SUBTRACT] & 128) ScopePower -= ScopePower * TimeDt / 4000.f;
+    const float opticFloor = (WeapInfo[CurrentWeapon].Optic > 1.0f) ? WeapInfo[CurrentWeapon].Optic : 1.0f;
+    if (ScopePower < opticFloor) ScopePower = opticFloor;
+    if (ScopePower > 10.0f) ScopePower = 10.0f;
+  }
+
   if (KeyFlags & kfCall) MakeCall();
 
   if (DEBUG)

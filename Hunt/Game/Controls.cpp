@@ -607,8 +607,8 @@ SKIPYMOVE:
   }
   else if (g_GameMode == GameMode::OpticScope && (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2))
   {
-	  CameraW *= WeapInfo[CurrentWeapon].Optic;
-	  CameraH *= WeapInfo[CurrentWeapon].Optic;
+	  CameraW *= ScopePower;
+	  CameraH *= ScopePower;
   }
 
   // FOVK is a frustum-cull coefficient used by the renderer (e.g.

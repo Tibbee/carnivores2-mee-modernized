@@ -707,7 +707,7 @@ SKIPWIND:
     // the legacy 800x600 mask appears as a small rectangle.  Supply the
     // missing magnification here, then aspect-fill the 4:3-authored mask.
     if (!opticZoomActive)
-      weaponOverlayScale *= WeapInfo[CurrentWeapon].Optic;
+      weaponOverlayScale *= ScopePower;
     weaponOverlayScale *= GetScopeAspectFillScale();
   }
 
