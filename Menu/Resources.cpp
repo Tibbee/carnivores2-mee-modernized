@@ -1495,6 +1495,14 @@ void SaveConfig()
 	fs << "verbose_logging " << (g_Options.VerboseLogging ? 1 : 0) << "\n";
 	fs << "nightvision_key " << g_Options.NightVisionKey << "\n";
 
+	// Persist the selected resolution as WxH so the render exe honours it
+	// even though the legacy per-profile index (trophy0N.sav) is fragile
+	// across differently-ordered mode lists.
+	if (g_Options.Resolution >= 0 && g_Options.Resolution < g_ResCount) {
+		fs << "resolution " << g_ResolutionList[g_Options.Resolution].w
+		   << "x" << g_ResolutionList[g_Options.Resolution].h << "\n";
+	}
+
 	std::cout << "Config Saved (" << configPath << ")." << std::endl;
 }
 
@@ -1557,6 +1565,21 @@ static bool ParseConfigLine(const std::string& line)
 		int v;
 		if (iss >> v) {
 			g_Options.NightVisionKey = v;
+		}
+		return true;
+	}
+
+	if (key == "resolution") {
+		int w = 0, h = 0;
+		char x = 0;
+		if (iss >> w >> x >> h && (x == 'x' || x == 'X') && w > 0 && h > 0) {
+			// Translate WxH back to an index in the current mode list.
+			for (int r = 0; r < g_ResCount; r++) {
+				if (g_ResolutionList[r].w == w && g_ResolutionList[r].h == h) {
+					g_Options.Resolution = r;
+					break;
+				}
+			}
 		}
 		return true;
 	}

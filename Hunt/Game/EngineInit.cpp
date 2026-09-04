@@ -185,7 +185,12 @@ void HideWeapon()
   if (wptr->state == 0)
   {  
 	//if (!ShotsLeft[CurrentWeapon]) return;
-    if (WeapInfo[CurrentWeapon].Optic) g_GameMode = GameMode::OpticScope;
+    if (WeapInfo[CurrentWeapon].Optic) {
+      g_GameMode = GameMode::OpticScope;
+      ScopePower = WeapInfo[CurrentWeapon].Optic;
+    } else {
+      ScopePower = 1.0f;
+    }
     
 	if (IsUnderwater()) {
 		if (WeapInfo[CurrentWeapon].getAqSnd >= 0)
@@ -198,8 +203,11 @@ void HideWeapon()
 	}
     wptr->FTime = 0;
     wptr->state = 1;
-    g_GameMode = GameMode::Normal;
-    g_GameMode = GameMode::Normal;
+    // Clear only binoculars here; the optic scope (if any) must stay active
+    // through the raise animation. The previous code reset the whole game
+    // mode, which stomped the OpticScope just set above and silently
+    // disabled every scoped weapon outside Survival mode.
+    if (g_GameMode == GameMode::Binocular) g_GameMode = GameMode::Normal;
     wptr->shakel = WeapInfo[CurrentWeapon].shake * 4.f;
 	wptr->breath = 0.f;
 	wptr->breathPressed = 0;
@@ -835,6 +843,11 @@ static void CreateDefaultConfig()
     "# Nightvision key VK code (default: 78 = 'N')\r\n"
     "nightvision_key 78\r\n"
     "\r\n"
+    "# Window resolution, e.g. 1920x1080. Overrides the per-profile\r\n"
+    "# resolution saved in trophy0N.sav. Omit to use the profile value.\r\n"
+    "# The menu writes this automatically when you change Resolution.\r\n"
+    "#resolution 1920x1080\r\n"
+    "\r\n"
     "# GPU features bitmask (default: all optimizations enabled)\r\n"
     "# Set to 0 to disable all GPU optimizations.\r\n"
     "gpufeatures %u\r\n"
@@ -888,8 +901,10 @@ static void LoadConfig()
     }
 
     char key[64];
+    char keyval[64] = "";
     int value = 0;
-    if (sscanf_s(line, "%63s %d", key, (unsigned)sizeof(key), &value) == 2) {
+    if (sscanf_s(line, "%63s %63s", key, (unsigned)sizeof(key), keyval, (unsigned)sizeof(keyval)) >= 1) {
+      value = atoi(keyval);
       if (_stricmp(key, "fov") == 0) {
         if (value >= kFovMin && value <= kFovMax) {
           OptFov = value;
@@ -936,6 +951,24 @@ static void LoadConfig()
           char msg[64];
           sprintf_s(msg, sizeof(msg), "Config: glperf_logging = %d\n", g_glperfLoggingEnabled ? 1 : 0);
           PrintLog(msg);
+        }
+      }
+      else if (_stricmp(key, "resolution") == 0) {
+        // Override the saved profile resolution. Format: WxH, e.g. "1920x1080".
+        // Applies after SetupRes() (trophy file) so config.cfg wins over the
+        // per-profile legacy setting; a command-line -res= still overrides this.
+        int w = 0, h = 0;
+        if (sscanf_s(keyval, "%dx%d", &w, &h) == 2 ||
+            sscanf_s(keyval, "%dX%d", &w, &h) == 2) {
+          if (w > 0 && h > 0) {
+            OptRes = -1; // mark "not a profile index"; resolved to WinW/H below
+            WinW = w;
+            WinH = h;
+          } else {
+            PrintLog("Config: resolution values must be positive, ignoring.\n");
+          }
+        } else {
+          PrintLog("Config: resolution expects WxH (e.g. 1920x1080), ignoring.\n");
         }
       }
       // Future settings: add else-if branches here

@@ -151,6 +151,13 @@ void SetFullScreen()
     FULLSCREEN = true;
   }
 
+  // Leaving exclusive fullscreen restores the desktop display mode.
+  // (ChangeDisplaySettings is per-process, so exit also restores it, but
+  // toggling back to windowed in-game needs the explicit restore.)
+  if (!FULLSCREEN) {
+    ChangeDisplaySettings(nullptr, 0);
+  }
+
 #ifndef _gl
   if (lpDD) {
     if (FULLSCREEN)
@@ -187,20 +194,6 @@ void Wait(int time)
 {
   unsigned int t = timeGetTime() + time;
   while (t>timeGetTime()) ;
-}
-
-
-static void GetBorderlessWindowRect(RECT& rc)
-{
-  if (SystemParametersInfo(SPI_GETWORKAREA, 0, &rc, 0) &&
-      (rc.right - rc.left) > 0 && (rc.bottom - rc.top) > 0) {
-    return;
-  }
-
-  rc.left = 0;
-  rc.top = 0;
-  rc.right = GetSystemMetrics(SM_CXSCREEN);
-  rc.bottom = GetSystemMetrics(SM_CYSCREEN);
 }
 
 
@@ -285,24 +278,62 @@ void SetVideoMode(int W, int H)
 
   if (FULLSCREEN) {
     SetWindowLong(hwndMain, GWL_STYLE, WS_VISIBLE | WS_POPUP);
+
+    // Honour the configured resolution by switching the display mode,
+    // like the original game's exclusive fullscreen. Fall back to a
+    // desktop-sized popup if the mode is not available (e.g. a
+    // resolution the monitor cannot display). ChangeDisplaySettings is
+    // per-process: the desktop is restored automatically on exit.
+    bool modeSet = false;
+    DEVMODE dm;
+    ZeroMemory(&dm, sizeof(dm));
+    dm.dmSize = sizeof(dm);
+    dm.dmPelsWidth  = W;
+    dm.dmPelsHeight = H;
+    dm.dmBitsPerPel = 32;
+    dm.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_BITSPERPEL;
+    if (ChangeDisplaySettings(&dm, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL)
+      modeSet = true;
+    else {
+      dm.dmBitsPerPel = 16;
+      if (ChangeDisplaySettings(&dm, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL)
+        modeSet = true;
+    }
+
+    int dispW = GetSystemMetrics(SM_CXSCREEN);
+    int dispH = GetSystemMetrics(SM_CYSCREEN);
+    if (modeSet) {
+      // The display is now W x H, so the window must cover exactly that.
+      dispW = W;
+      dispH = H;
+    }
+
     // SWP_FRAMECHANGED: required after SetWindowLong changes the style, otherwise
     // the frame (title bar/borders) is not recalculated and the client area
     // ends up at the wrong size. This caused HUD elements (ammo counter etc.)
     // to be hidden behind the title bar in windowed mode, especially at
     // resolutions where the window extends off-screen (e.g. 2560x1440 windowed
     // on a 2560x1440 desktop).
-    SetWindowPos(hwndMain, HWND_TOP, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+    SetWindowPos(hwndMain, HWND_TOP, 0, 0, dispW, dispH, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 
     POINT center = { VideoCX, VideoCY };
     SetCursorPos(center.x, center.y);
   } else if (BORDERLESS) {
-    RECT desktopRect;
-    GetBorderlessWindowRect(desktopRect);
+    // DWM-composed borderless window. Honour the configured resolution as
+    // the window size (centered on the desktop); when the configured
+    // resolution equals the desktop this covers the screen exactly, which
+    // is the classic "borderless fullscreen" behaviour. A smaller pick
+    // yields a true borderless window at that resolution instead of
+    // silently rendering at the desktop size.
+    int desktopW = GetSystemMetrics(SM_CXSCREEN);
+    int desktopH = GetSystemMetrics(SM_CYSCREEN);
+    int winW = (W > 0 && W <= desktopW) ? W : desktopW;
+    int winH = (H > 0 && H <= desktopH) ? H : desktopH;
 
     SetWindowLong(hwndMain, GWL_STYLE, WS_VISIBLE | WS_OVERLAPPED);
-    SetWindowPos(hwndMain, HWND_TOP, desktopRect.left, desktopRect.top,
-                desktopRect.right - desktopRect.left,
-                desktopRect.bottom - desktopRect.top,
+    SetWindowPos(hwndMain, HWND_TOP,
+                (desktopW - winW) / 2, (desktopH - winH) / 2,
+                winW, winH,
                 SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 
     POINT center = { VideoCX, VideoCY };
