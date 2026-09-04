@@ -579,6 +579,27 @@ void InitEngine()
   OptObjectDetail = kObjectDetailDefault;
 OptFpsLimit = 1;  // 1 = 60 FPS (0 remains available for unlimited)
 
+  // Default key bindings (mirror Menu Options::Default). LoadTrophy()
+  // overwrites these from the save; without defaults a missing/short save
+  // (first launch, pre-modernization file) leaves KeyMap zeroed and every
+  // bound action — notably sprint — dead until the user rebinds in the menu.
+  KeyMap.fkForward = 'W';
+  KeyMap.fkBackward = 'S';
+  KeyMap.fkSLeft = 'A';
+  KeyMap.fkSRight = 'D';
+  KeyMap.fkFire = VK_LBUTTON;
+  KeyMap.fkShow = VK_RBUTTON;
+  KeyMap.fkJump = VK_SPACE;
+  KeyMap.fkCall = VK_MENU;
+  KeyMap.fkBinoc = 'B';
+  KeyMap.fkCrouch = 'C';
+  KeyMap.fkRun = VK_LSHIFT;
+  KeyMap.fkReload = 'R';
+  KeyMap.fkResupply = 'T';
+  KeyMap.fkHoldBreath = VK_LCONTROL;
+  KeyMap.fkFiringMode = 'V';
+  KeyMap.fkStrafe = 'G';
+
   LoadTrophy();
   OptViewR = ClampViewOpt(OptViewR);
 

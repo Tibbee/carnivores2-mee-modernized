@@ -386,7 +386,31 @@ void LoadTrophy()
   ReadFile(hfile, &OptBrightness, 4, &l, nullptr);
 
 
-  ReadFile(hfile, &KeyMap, sizeof(KeyMap), &l, nullptr);
+  {
+    // Saves can predate the modernization or come from other mods with a
+    // different layout. A short read here used to leave KeyMap half-filled
+    // with garbage, so every key felt broken until rebound in the menu
+    // (sprint was the visible one: fkRun read as 0). Keep the InitEngine
+    // defaults unless the file actually holds a full KeyMap.
+    struct _t savedKeys;
+    DWORD kl = 0;
+    ReadFile(hfile, &savedKeys, sizeof(savedKeys), &kl, nullptr);
+    if (kl == sizeof(savedKeys)) {
+      KeyMap = savedKeys;
+    } else {
+      char msg[128];
+      sprintf_s(msg, sizeof(msg), "Trophy: short KeyMap read (%u of %u), keeping defaults.\n",
+                (unsigned)kl, (unsigned)sizeof(savedKeys));
+      PrintLog(msg);
+      CloseHandle(hfile);
+      TrophyRoom.RegNumber = rn;
+      SetupRes();
+      PrintLog("Trophy Loaded (legacy/short save, defaults kept).\n");
+      if (TrophyRoom.Body[0].ctype) LoadTrophy2(TrophyRoom.RegNumber);
+      else TrophyRoom.Body[0].ctype = 1;
+      return;
+    }
+  }
   ReadFile(hfile, &REVERSEMS, 4, &l, nullptr);
   //  Ignore savefile settings for equipment — skip 4 DWORDs
   SetFilePointer(hfile, 16, nullptr, FILE_CURRENT);
