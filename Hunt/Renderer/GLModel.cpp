@@ -683,6 +683,17 @@ void GLRenderer::RenderMappedObject(int x, int y)
     } else {
         // Phase 2.3: instanced path for non-BMP, non-water-clip objects.
         // Compute world matrix from position and rotation.
+        // Animated (.vtl) objects must NOT use the instanced static cache:
+        // UploadStaticMesh snapshots gVertex into the VBO once, so the
+        // per-frame CreateMorphedObject update above would never reach the
+        // screen and the object would freeze in its first-frame pose (this
+        // is why swaying vegetation etc. went static on GL while characters
+        // — which always take the legacy CPU path — kept animating).
+        // Route them through the legacy path like transparent faces below.
+        if (MObjects[ob].info.flags & ofANIMATED) {
+            RenderModelClip(MObjects[ob].model.get(), pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+            return;
+        }
         const StaticMeshEntry meshEntry = UploadStaticMesh(MObjects[ob].model.get());
 
         // Phase 2.3: route models with sfTransparent faces through the
