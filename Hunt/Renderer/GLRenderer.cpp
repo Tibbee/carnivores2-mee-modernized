@@ -767,16 +767,23 @@ void GLRenderer::Render3DHardwarePosts()
                                             &Weapon.Bullet[bullet[b].parent].Animation[0],
                                             bullet[b].FTime, 1.0, bullet[b].beta, 0.0f);
 
+                // Same formula as ships (which are authored long-axis-in-Z just
+                // like these projectiles — verified from the .car extents) and
+                // as the untouched vanilla software path below: the morph above
+                // already baked the trajectory pitch into the vertices, so the
+                // render adds only yaw + camera pitch. The -beta - pi/2 that
+                // was here tilted bolts off-axis (double pitch + quarter turn),
+                // so stuck bolts visibly swung with the camera.
                 if (fabs(bullet[b].rpos.z) < 4000.0f)
                     RenderModelClip(Weapon.Bullet[bullet[b].parent].mptr.get(),
                                     bullet[b].rpos.x, bullet[b].rpos.y, bullet[b].rpos.z, 210, 0,
                                     -bullet[b].alpha - pi / 2.0f + CameraAlpha,
-                                    -bullet[b].beta - pi / 2.0f + CameraBeta);
+                                    CameraBeta);
                 else
                     RenderModel(Weapon.Bullet[bullet[b].parent].mptr.get(),
                                 bullet[b].rpos.x, bullet[b].rpos.y, bullet[b].rpos.z, 210, 0,
                                 -bullet[b].alpha - pi / 2.0f + CameraAlpha,
-                                -bullet[b].beta - pi / 2.0f + CameraBeta);
+                                CameraBeta);
             }
         }
     }
