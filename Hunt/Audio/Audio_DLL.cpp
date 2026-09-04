@@ -564,6 +564,33 @@ void SetAmbient3d(int length, short int* lpdata, float cx, float cy, float cz)
 }
 
 // ---------------------------------------------------------------------------
+// Moving-ambient channel queries. The trophy ship and the resupply ship
+// SHARE the single looping mambient channel, so callers must coordinate:
+// take it only when free or already yours, and stop it on dismissal only
+// when you still own it. Otherwise the idle ship's per-frame stop makes
+// the active ship replay from frame 0 at 60 Hz (the "engine buzz").
+// ---------------------------------------------------------------------------
+bool IsAmbient3dOwner(short int* lpdata)
+{
+    if (g_AudioBackend == AudioBackend::LegacyDLL) return true; // unknowable: keep legacy behaviour
+    if (!iSoundActive) return false;
+    EnterCriticalSection(&AudioCS);
+    bool owned = (lpdata != nullptr && mambient.lpData == lpdata);
+    LeaveCriticalSection(&AudioCS);
+    return owned;
+}
+
+bool IsAmbient3dFree()
+{
+    if (g_AudioBackend == AudioBackend::LegacyDLL) return true; // unknowable: keep legacy behaviour
+    if (!iSoundActive) return false;
+    EnterCriticalSection(&AudioCS);
+    bool idle = (mambient.lpData == nullptr);
+    LeaveCriticalSection(&AudioCS);
+    return idle;
+}
+
+// ---------------------------------------------------------------------------
 // 3D voice (one‑shot sounds)
 // ---------------------------------------------------------------------------
 void AddVoice3dv(int length, short int* lpdata, float cx, float cy, float cz, int vol)

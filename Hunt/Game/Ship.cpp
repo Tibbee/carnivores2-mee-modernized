@@ -103,10 +103,15 @@ void AddShipSupply(float tx, float tz) {
 
 	SShip.DeltaY = 7048.f;
 
-	SShip.pos.x = PlayerX - 90 * 256;
-	if (Ship.pos.x < 256) SShip.pos.x = PlayerX + 90 * 256;
-	SShip.pos.z = PlayerZ - 90 * 256;
-	if (Ship.pos.z < 256) SShip.pos.z = PlayerZ + 90 * 256;
+	// Spawn beyond visibility: the old fixed 90-cell offset predates the
+	// increased view distance, so the ship visibly popped in mid-air.
+	// (Also fixes a copy/paste slip that tested Ship.pos for SShip.pos.)
+	int spawnCells = ctViewR + 30;
+	if (spawnCells < 90) spawnCells = 90;
+	SShip.pos.x = PlayerX - spawnCells * 256;
+	if (SShip.pos.x < 256) SShip.pos.x = PlayerX + spawnCells * 256;
+	SShip.pos.z = PlayerZ - spawnCells * 256;
+	if (SShip.pos.z < 256) SShip.pos.z = PlayerZ + spawnCells * 256;
 	SShip.pos.y = GetLandUpH(SShip.pos.x, SShip.pos.z) + SShip.DeltaY + 1024;
 
 	SShip.tgpos.x = tx;
@@ -124,10 +129,13 @@ void InitShip(int cindex){
 
   Ship.DeltaY = 2048.f + DinoInfo[cptr->CType].ShDelta * cptr->scale;
 
-  Ship.pos.x = PlayerX - 90*256;
-  if (Ship.pos.x < 256) Ship.pos.x = PlayerX + 90*256;
-  Ship.pos.z = PlayerZ - 90*256;
-  if (Ship.pos.z < 256) Ship.pos.z = PlayerZ + 90*256;
+  // Same beyond-visibility rule as the resupply ship (see AddShipSupply).
+  int spawnCells = ctViewR + 30;
+  if (spawnCells < 90) spawnCells = 90;
+  Ship.pos.x = PlayerX - spawnCells*256;
+  if (Ship.pos.x < 256) Ship.pos.x = PlayerX + spawnCells*256;
+  Ship.pos.z = PlayerZ - spawnCells*256;
+  if (Ship.pos.z < 256) Ship.pos.z = PlayerZ + spawnCells*256;
   Ship.pos.y = GetLandUpH(Ship.pos.x, Ship.pos.z)  + Ship.DeltaY + 1024;
 
   Ship.tgpos.x = cptr->pos.x;

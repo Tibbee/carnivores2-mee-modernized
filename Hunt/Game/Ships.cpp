@@ -34,12 +34,23 @@ void AnimateBag() {
 	}
 
 }
-void AnimateSShip() {
-	if (SShip.State < 1) return;
+void AnimateSShip() {
+	// Stale-channel sweep: our hum orphaned by a level change/trophy-room
+	// entry (ships reset, channel not released) with no run active.
+	if (SShip.State < 1) {
+		if (IsAmbient3dOwner(SShipModel.SoundFX[0].lpData.data()))
+			SetAmbient3d(0,0, 0,0,0);
+		return;
+	}
 
-	SetAmbient3d(SShipModel.SoundFX[0].length,
-		SShipModel.SoundFX[0].lpData.data(),
-		SShip.pos.x, SShip.pos.y, SShip.pos.z);
+	// Take the shared engine-hum channel only when free or already ours:
+	// stealing it swaps the other ship's loop mid-flight (audible stutter).
+	if (IsAmbient3dFree() || IsAmbient3dOwner(SShipModel.SoundFX[0].lpData.data()))
+	{
+		SetAmbient3d(SShipModel.SoundFX[0].length,
+			SShipModel.SoundFX[0].lpData.data(),
+			SShip.pos.x, SShip.pos.y, SShip.pos.z);
+	}
 	
 	int _TimeDt = TimeDt;
 
@@ -57,6 +68,10 @@ void AnimateSShip() {
 		goto TBEGIN;
 	}
 	if (SShip.State == 2 && VectorLength(SubVectors(PlayerPos, SShip.pos)) > (ctViewR + 2) * 256){
+		// End of the run: release our shared-channel loop (guarded: the
+		// trophy ship may legitimately own it right now).
+		if (IsAmbient3dOwner(SShipModel.SoundFX[0].lpData.data()))
+			SetAmbient3d(0,0, 0,0,0);
 		SShip.State = -1;
 		return;
 	}
@@ -164,7 +179,11 @@ void AnimateShip()
 {
   if (Ship.State==-1)
   {
-    SetAmbient3d(0,0, 0,0,0);
+    // Stop the shared engine-hum channel only if this ship still owns it.
+    // The resupply ship shares the channel: a blind stop here replayed its
+    // loop from frame 0 every frame (60 Hz stutter = the reported buzz).
+    if (IsAmbient3dOwner(ShipModel.SoundFX[0].lpData.data()))
+      SetAmbient3d(0,0, 0,0,0);
     if (!ShipTask.tcount) return;
     InitShip(ShipTask.clist[0]);
     memcpy(&ShipTask.clist[0], &ShipTask.clist[1], 250*4);
@@ -172,9 +191,13 @@ void AnimateShip()
     return;
   }
 
-  SetAmbient3d(ShipModel.SoundFX[0].length,
-               ShipModel.SoundFX[0].lpData.data(),
-               Ship.pos.x, Ship.pos.y, Ship.pos.z);
+  // Same shared-channel rule as the resupply ship (see AnimateSShip).
+  if (IsAmbient3dFree() || IsAmbient3dOwner(ShipModel.SoundFX[0].lpData.data()))
+  {
+    SetAmbient3d(ShipModel.SoundFX[0].length,
+                 ShipModel.SoundFX[0].lpData.data(),
+                 Ship.pos.x, Ship.pos.y, Ship.pos.z);
+  }
 
   int _TimeDt = TimeDt;
 

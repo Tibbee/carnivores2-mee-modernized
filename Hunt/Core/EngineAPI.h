@@ -451,6 +451,8 @@ void  AddVoice3d (int, short int*, float, float, float);
 
 void SetAmbient3d(int, short int*, float, float, float);
 void SetAmbient(int, short int*, int);
+bool IsAmbient3dOwner(short int* lpdata); // true if the shared looping channel currently plays this sample
+bool IsAmbient3dFree();                   // true if the shared looping channel is idle
 void AudioSetCameraPos(float, float, float, float, float);
 void InitAudioSystem(HWND, HANDLE, int);
 void Audio_Restore();
