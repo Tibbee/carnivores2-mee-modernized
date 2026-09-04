@@ -10,6 +10,9 @@
 
 // Define the game mode global (declared extern in GameMode.h)
 GameMode g_GameMode = GameMode::Normal;
+// NOTE: ScopePower/BinocularPower storage comes from GameState.h (GLOBAL
+// tentatively defines them as zero). They are assigned sane defaults in
+// InitEngine() so the first scoped frame never multiplies CameraW/H by 0.
 
 // Hunt.cpp globals
 char cheatcode[16] = "DEBUGUP";

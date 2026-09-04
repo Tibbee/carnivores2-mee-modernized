@@ -268,12 +268,14 @@ void ReInitGame()
   WCCount = 0;
   ElCount = 0;
   BloodTrail.Count = 0;
-  g_GameMode = GameMode::Normal;
-  g_GameMode = GameMode::Normal;
-  g_GameMode = GameMode::Normal;
+  // Capture survival before clearing: the mode is sticky across levels
+  // (set via -survival), and the scope needs ScopePower at init because
+  // HideWeapon() early-returns in SurvivalMode and would never set it.
+  bool wasSurvival = (g_GameMode == GameMode::SurvivalMode);
   g_GameMode = GameMode::Normal;
 
-  if (g_GameMode == GameMode::SurvivalMode) {
+  if (wasSurvival) {
+	  g_GameMode = GameMode::SurvivalMode;
 	  PlayerAlpha = pi * 2 * SurvivalSpawnA / 360.f;
 	  Weapon.state = 2;
 	  if (WeapInfo[CurrentWeapon].Optic) {

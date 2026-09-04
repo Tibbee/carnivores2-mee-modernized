@@ -396,6 +396,12 @@ void InitEngine()
   BORDERLESS   = false;
   DEBUG        = false;
 
+  // Explicit zoom defaults: zero-init would collapse CameraW/H (which are
+  // multiplied by these in OpticScope/Binocular) to a degenerate frustum
+  // on any frame that runs before HideWeapon()/the per-frame clamp.
+  ScopePower = 1.0f;
+  BinocularPower = 2.0f;
+
   WATERANI     = true;
   NODARKBACK   = true;
   LoDetailSky  = true;

@@ -529,15 +529,25 @@ void ProcessPlayerMovement()
 
   if (g_GameMode == GameMode::OpticScope)
   {
-    // Adjustable scope magnification. Numpad +/- works like the
-    // binoculars. The floor is the weapon's own optic value: the scope
-    // mask is authored to fill the screen at that magnification, so
-    // zooming below it would shrink the mask and reveal its border.
-    if (KeyboardState[VK_ADD     ] & 128) ScopePower += ScopePower * TimeDt / 4000.f;
-    if (KeyboardState[VK_SUBTRACT] & 128) ScopePower -= ScopePower * TimeDt / 4000.f;
+    // Breath-driven focus zoom. Base magnification is always the weapon's
+    // own optic value (the scope mask is authored to fill the screen at
+    // that magnification, so going below it would reveal the mask border).
+    // Holding breath eases toward a per-weapon ceiling of 1.5x base optic
+    // (stock: 1.6x rifle -> 2.4x, 3.0x sniper -> 4.5x); releasing eases back.
+    // The hold is self-limiting: Hunt.cpp caps Weapon.BTime at ~4s and then
+    // forces an exhale, so max zoom can never be parked. No free Numpad
+    // zoom on purpose — one mechanic (focus), one sensible cap per weapon.
     const float opticFloor = (WeapInfo[CurrentWeapon].Optic > 1.0f) ? WeapInfo[CurrentWeapon].Optic : 1.0f;
+    const float focusCeil = opticFloor * 1.5f;
+    const float target = (Weapon.HoldBreath ? focusCeil : opticFloor);
+    // Slow exponential approach (~900ms time constant): a deliberate focus
+    // pull, not a snap. Frame-rate independent via TimeDt.
+    const float k = 1.f - expf(-static_cast<float>(TimeDt) / 900.f);
+    ScopePower += (target - ScopePower) * k;
+    // Hard clamp: also repairs any stale wide zoom (e.g. 10x from older
+    // Numpad-zoom builds) the first scoped frame after loading.
     if (ScopePower < opticFloor) ScopePower = opticFloor;
-    if (ScopePower > 10.0f) ScopePower = 10.0f;
+    if (ScopePower > focusCeil) ScopePower = focusCeil;
   }
 
   if (KeyFlags & kfCall) MakeCall();
