@@ -119,14 +119,12 @@ The codebase was originally a single `Hunt/` directory with 13 monolithic files.
 
 ## Documentation
 
-Full documentation is in the [`CarnivoresDoc/`](../CarnivoresDoc/) directory:
+- [Changelog](CHANGELOG.md) — user-facing release history
+- [`NOTICE.md`](NOTICE.md) — copyrights, upstream MEE heritage, third-party notices
 
-- [Build Guide](../CarnivoresDoc/reference/build-guide.md)
-- [OpenGL Renderer Architecture](../CarnivoresDoc/architecture/opengl-renderer.md)
-- [Codebase Improvement Plan](../CarnivoresDoc/reference/codebase-improvement-plan-c2.md)
-- [Code Conventions](../CarnivoresDoc/contributing/code-conventions.md)
-- [Project Status](../CarnivoresDoc/reference/status.md)
-- [Changelog](../CarnivoresDoc/reference/changelog.md)
+The full architecture and development documentation corpus lives in a
+separate (private) workspace repository and is not part of this public
+source release.
 
 ## License
 
