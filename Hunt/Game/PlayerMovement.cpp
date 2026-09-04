@@ -177,6 +177,12 @@ void ProcessPump() {
 void ProcessShoot()
 {
   //if (HeadBackR) return;
+  // No firing in the trophy room: entering it never lowers a raised
+  // weapon (HideWeapon early-returns in TrophyMode), so without this the
+  // previously-raised gun stays live while walking the exhibits.
+  // InTrophyRoomMap() backs the mode check: the mode has many writers,
+  // the map name is set once from the command line.
+  if (g_GameMode == GameMode::TrophyMode || InTrophyRoomMap()) return;
 	
   TWeapon *wptr = &Weapon;
   if (IsUnderwater() && !WeapInfo[CurrentWeapon].harpoon)

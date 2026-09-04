@@ -2,6 +2,8 @@
 // Phase 1.1: replaces 30+ independent BOOL flags with a single state machine.
 #pragma once
 
+#include <cstring>
+
 enum class GameMode : unsigned int {
     Normal          = 0,
     Swimming        = 1,
@@ -66,4 +68,11 @@ inline bool IsOpticScope()    { return g_GameMode == GameMode::OpticScope; }
 inline bool IsMapMode()       { return g_GameMode == GameMode::MapMode; }
 inline bool IsExitCountdown() { return g_GameMode == GameMode::ExitCountdown; }
 inline bool IsTrophyMode()    { return g_GameMode == GameMode::TrophyMode; }
+
+extern char ProjectName[128]; // set once from the prj= command line (GameState.h)
+// Trophy-room test that does NOT depend on g_GameMode (a dozen writers can
+// flip the mode mid-session, e.g. water/swim transitions). ProjectName is
+// stable for the whole session. Same substring LoadResources() uses to set
+// TrophyMode, so the two can never disagree about which map is the room.
+inline bool InTrophyRoomMap() { return strstr(ProjectName, "trophy") != nullptr; }
 inline bool IsSurvivalMode()  { return g_GameMode == GameMode::SurvivalMode; }

@@ -1156,7 +1156,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     case '8':
     case '9':
     {
-		if (g_GameMode == GameMode::SurvivalMode) break;
+		if (g_GameMode == GameMode::SurvivalMode || g_GameMode == GameMode::TrophyMode || InTrophyRoomMap()) break;
       if (Weapon.FTime) break;
       int w;
       if (wParam == '0')

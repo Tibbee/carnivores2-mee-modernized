@@ -666,6 +666,14 @@ void LoadResources()
     ctViewR = 60;
     charViewR = ctViewR;
   }
+  {
+    // Permanent breadcrumb: which map booted and whether the room was
+    // recognised (weapon gating keys off this in HideWeapon/ProcessShoot).
+    char msg[192];
+    sprintf_s(msg, sizeof(msg), "Area: %s (trophy room: %s).\n",
+              ProjectName, InTrophyRoomMap() ? "yes" : "no");
+    PrintLog(msg);
+  }
   sprintf_s(MapName, sizeof(MapName),"%s%s", ProjectName, ".map");
   sprintf_s(RscName, sizeof(RscName),"%s%s", ProjectName, ".rsc");
 

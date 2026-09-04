@@ -179,17 +179,20 @@ void HideWeapon()
 {
   TWeapon *wptr = &Weapon;
   if (IsUnderwater() && !wptr->state && !WeapInfo[CurrentWeapon].harpoon) return;
-  if (ObservMode || g_GameMode == GameMode::TrophyMode) return;
+  // Belt and braces: the mode check plus the stable map-name check (the mode
+  // value has many writers and can be flipped mid-session; ProjectName cannot).
+  if (ObservMode || g_GameMode == GameMode::TrophyMode || InTrophyRoomMap()) return;
   if (g_GameMode == GameMode::SurvivalMode) return;
 
   if (wptr->state == 0)
   {  
 	//if (!ShotsLeft[CurrentWeapon]) return;
+    // ScopePower is only meaningful for optic weapons; non-optic raises
+    // leave it untouched (it is unused while not in OpticScope). An
+    // explicit init lives in StateDefs.cpp so the first scoped frame is sane.
     if (WeapInfo[CurrentWeapon].Optic) {
       g_GameMode = GameMode::OpticScope;
       ScopePower = WeapInfo[CurrentWeapon].Optic;
-    } else {
-      ScopePower = 1.0f;
     }
     
 	if (IsUnderwater()) {
@@ -686,7 +689,7 @@ void MakeCall()
 {
   if (!TargetDino) return;
   if (IsUnderwater()) return;
-  if (ObservMode || g_GameMode == GameMode::TrophyMode) return;
+  if (ObservMode || g_GameMode == GameMode::TrophyMode || InTrophyRoomMap()) return;
   if (CallLockTime) return;
 
   CallLockTime=1024*3;
