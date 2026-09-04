@@ -1,4 +1,4 @@
-# Carnivores 2 — Modder's Engine v1.11 (Modernized)
+# Carnivores 2 - Modder's Engine v1.11 (Modernized)
 
 > **Original release:** 2000 (Action Forms)
 > **Base:** Carnivores 2 Modder's Engine v1.11 (community revival)
@@ -8,13 +8,13 @@
 ## Overview
 
 This is a comprehensive modernization of Carnivores 2 Modder's Engine, featuring:
-- **Native OpenGL 3.3 renderer** — no Glide/D3D wrappers needed
-- **External shader files** — `shaders/*.vert/.frag` editable at runtime
-- **Modern audio** — OpenAL with EFX reverb via DLL loader
-- **Memory safety** — arena allocators, smart pointers, leak detection
-- **Clean architecture** — restructured from monolithic files into modular directories
-- **Standalone menu** — dedicated `Carnivores2Menu.exe` for settings
-- **Expanded gameplay** — new creatures, survival mode, night vision, fog system
+- **Native OpenGL 3.3 renderer** - no Glide/D3D wrappers needed
+- **External shader files** - `shaders/*.vert/.frag` editable at runtime
+- **Modern audio** - OpenAL with EFX reverb via DLL loader
+- **Memory safety** - arena allocators, smart pointers, leak detection
+- **Clean architecture** - restructured from monolithic files into modular directories
+- **Standalone menu** - dedicated `Carnivores2Menu.exe` for settings
+- **Expanded gameplay** - new creatures, survival mode, night vision, fog system
 
 ## Quick Start
 
@@ -40,7 +40,7 @@ The executables will be at:
 > **Release packaging note:** the standalone menu launches the renderer engines
 > by their classic MEE names. For a playable release, ship the menu exe as
 > `Carnivores2Menu.exe` and copy the built game engine to `v_gl.ren`
-> (OpenGL) or `v_soft.ren` (software) in the same folder — the menu resolves
+> (OpenGL) or `v_soft.ren` (software) in the same folder - the menu resolves
 > them from the exe directory or PATH. The `.ren` files are the actual game
 > executables under a legacy extension.
 
@@ -119,8 +119,8 @@ The codebase was originally a single `Hunt/` directory with 13 monolithic files.
 
 ## Documentation
 
-- [Changelog](CHANGELOG.md) — user-facing release history
-- [`NOTICE.md`](NOTICE.md) — copyrights, upstream MEE heritage, third-party notices
+- [Changelog](CHANGELOG.md) - user-facing release history
+- [`NOTICE.md`](NOTICE.md) - copyrights, upstream MEE heritage, third-party notices
 
 The full architecture and development documentation corpus lives in a
 separate (private) workspace repository and is not part of this public

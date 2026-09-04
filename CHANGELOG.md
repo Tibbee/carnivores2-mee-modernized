@@ -9,12 +9,12 @@ and this project aims at [Semantic Versioning](https://semver.org/).
 ## [v1.1.4-modernized] - 2026-09-04
 
 Initial public release of the modernization. Built on the community
-Carnivores 2 Modder's Engine v1.11 — huge credit to Ornithomimid1. This is a modernization of the engine source; it does **not**
+Carnivores 2 Modder's Engine v1.11 - huge credit to Ornithomimid1. This is a modernization of the engine source; it does **not**
 include any original game assets.
 
 ### Added
 - Native OpenGL 3.3 renderer (hardware terrain, models, sky, HUD/minimap, projected character shadows)
-- Standalone settings menu (`Carnivores2Menu.exe`) — FOV, view distance, object detail, FPS limiter, keybindings
+- Standalone settings menu (`Carnivores2Menu.exe`) - FOV, view distance, object detail, FPS limiter, keybindings
 - Night vision equipment with bindable key and night desaturation
 - Realistic water: waves, depth fog, underwater gradient and overlay
 - OpenAL audio backend with EFX reverb (dynamic OpenAL Soft loader)

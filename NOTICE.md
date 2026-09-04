@@ -24,7 +24,7 @@ redistributed here.
 
 The modernization source code is © 2026 Tibor Harsányi (StriderTibe) and
 licensed under the
-MIT License — see `LICENSE`. The upstream MEE engine code retains its original
+MIT License - see `LICENSE`. The upstream MEE engine code retains its original
 authorship and license; the original game remains © Action Forms.
 
 ## Third-party components

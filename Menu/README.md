@@ -55,6 +55,6 @@ The menu now matches or exceeds the `carnivores_menu_mee` reference in every tra
 
 ## See also
 
-- **../CHANGELOG.md** — user-facing release history
+- **../CHANGELOG.md** - user-facing release history
 
 The menu was originally adapted from `C2MenuAttempt/` (a community effort, gitignored and not part of the tracked source). The current `Menu/` directory is the live implementation.
