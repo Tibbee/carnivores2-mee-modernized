@@ -12,8 +12,10 @@ CarnivoresPort/
 Carnivores1/
 stubs/
 pkg/
-tools/
-!tools/
+# Local-only dev tooling: ignore everything under tools/ except the
+# release packaging script (true allowlist — tools/release/* re-ignores
+# any future helper files so only the script stays tracked).
 tools/*
 !tools/release/
+tools/release/*
 !tools/release/make-c2-package.ps1

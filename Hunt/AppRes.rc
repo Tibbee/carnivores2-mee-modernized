@@ -85,6 +85,8 @@ BEGIN
             VALUE "CompanyName", VERSION_COMPANY_NAME
             VALUE "FileDescription", VERSION_FILE_DESCRIPTION
             VALUE "FileVersion", VERSION_STRING
+            // Classic MEE names: the build produces Carnivores1_GL.exe and the
+            // package script ships it as v_gl.ren, which is what the menu launches.
             VALUE "InternalName", "v_gl.ren"
             VALUE "LegalCopyright", VERSION_COPYRIGHT
             VALUE "OriginalFilename", "v_gl.ren"

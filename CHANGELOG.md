@@ -4,7 +4,8 @@ All notable changes to the Carnivores 2 MEE v1.1.4 (Modernized) source are
 listed here. This project follows a version-aligned scheme with upstream MEE.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
-and this project aims at [Semantic Versioning](https://semver.org/).
+The version stays aligned with upstream MEE (see `Hunt/Core/Version.h`);
+`v1.1.4-modernized` is a fork label, not a semver major bump.
 
 ## [v1.1.4-modernized] - 2026-09-04
 

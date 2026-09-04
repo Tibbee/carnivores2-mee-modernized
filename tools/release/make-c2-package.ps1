@@ -129,6 +129,16 @@ verbose_logging 0
 # Nightvision key VK code (default: 78 = 'N')
 nightvision_key 78
 
+# Window resolution, e.g. 1920x1080. Overrides the per-profile
+# resolution saved in trophy0N.sav. Omit to use the profile value.
+# The menu writes this automatically when you change Resolution.
+#resolution 1920x1080
+
+# Display mode: 0=windowed, 1=exclusive fullscreen, 2=borderless
+# fullscreen (default: 2). The menu writes this when you change the
+# Display Mode video option.
+display_mode 2
+
 # GPU features bitmask (default: all optimizations enabled)
 # Set to 0 to disable all GPU optimizations.
 gpufeatures 4294967295
