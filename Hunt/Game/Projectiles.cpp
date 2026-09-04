@@ -245,6 +245,11 @@ void AddBullet(float ax, float ay, float az,
 	float Dlx, float Dly, float Dlz,
 	int parent, bool enemy)
 {
+	// bullet[] is fixed at 256. Stuck bolts (retrieve) linger, so sustained
+	// fire without this guard walks past the array into neighbouring globals
+	// -> corruption/freeze. Dropping the newest shot when full is harmless
+	// (256 live projectiles never happens in play).
+	if (bulletCh < 0 || bulletCh >= 256) return;
 	bullet[bulletCh].a.x = ax;
 	bullet[bulletCh].a.y = ay;
 	bullet[bulletCh].a.z = az;
@@ -296,7 +301,7 @@ void AnimateBullets() {
 						(WeapInfo[bullet[b].parent].rldAnim < 0 && WeapInfo[bullet[b].parent].Reload)))
 						Chambered[bullet[b].parent]++;
 					else ShotsLeft[bullet[b].parent]++;
-					memcpy(&bullet[b], &bullet[b + 1], (bulletCh + 1 - b) * sizeof(TBullet));
+					memcpy(&bullet[b], &bullet[b + 1], (bulletCh - 1 - b) * sizeof(TBullet));
 					b--;
 					bulletCh--;
 				}
@@ -357,7 +362,7 @@ void AnimateBullets() {
 					bullet[b].state = 1;
 					bullet[b].a = TraceB;
 				} else {
-					memcpy(&bullet[b], &bullet[b + 1], (bulletCh + 1 - b) * sizeof(TBullet));
+					memcpy(&bullet[b], &bullet[b + 1], (bulletCh - 1 - b) * sizeof(TBullet));
 					b--;
 					bulletCh--;
 				}
