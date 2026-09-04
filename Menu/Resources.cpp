@@ -928,16 +928,18 @@ void LoadResources()
 	ui.m_Command = "-nightvision";
 	ui.m_ScoreMod = LookupAccessoryScoreMod("nightvision", 1.0f); // neutral
 	// Price rule: consume a positional acces= line ONLY when the mod priced 6
-	// accessories (stock C2's prices block has an explicit NV line). Mods with
+	// accessories (stock C2: camo/radar/scent/double/NV/tranq). Mods with
 	// the original 5 lines (camo/radar/scent/double/tranq) keep all of them
 	// for those accessories and NV falls back to its fixed default - otherwise
-	// NV would steal the tranquilizer's price.
+	// NV would steal the tranquilizer's price and tranq would lose its custom
+	// price (it would fall back to 60 instead of prices[4]).
 	if (g_AccessoryPrices.size() > 5) {
-		ui.m_Price = g_AccessoryPrices[4]; // 6th-accessory price line
+		ui.m_Price = g_AccessoryPrices[4]; // 5th line = NV price on 6-line mods
+		accIdx++; // NV consumed a slot, so tranq reads prices[5]
 	} else {
 		ui.m_Price = 50; // fixed default (original feature commit)
+		// Do NOT advance accIdx: tranq still reads prices[4] on 5-line mods.
 	}
-	accIdx++; // keep the positional index in step for the trailing accessories
 	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip_nv.tga");
 	g_UtilInfo.push_back(ui);
 	ui.m_Description.clear(); // the shared buffer must not leak into the next accessory
@@ -1190,6 +1192,13 @@ bool LoadPicture(Picture& pic, const std::string& fpath)
 
 	if (ReadTGAFile(fpath, tga))
 	{
+		// Menu art is 16-bit 5551. Reject anything else rather than
+		// reinterpreting the bytes (a 24/32-bit mod icon would decode
+		// to garbage and the w*h uint16 loop below would overrun).
+		if (tga.m_Header.tgaBits != 16) {
+			std::cout << "LoadPicture: expected 16-bit TGA: " << fpath << std::endl;
+			return false;
+		}
 
 		pic.m_Width = tga.m_Header.tgaWidth;
 		pic.m_Height = tga.m_Header.tgaHeight;
@@ -1312,6 +1321,7 @@ void Options::Default()
 	this->Density = 128;
 	this->Sensitivity = 128;
 	this->Resolution = 5;
+	this->DisplayMode = 2; // Borderless fullscreen (legacy menu launch default)
 	this->Fog = true;
 	this->Textures = 1;
 	this->ViewRange = kViewOptDefault;
@@ -1503,6 +1513,12 @@ void SaveConfig()
 		   << "x" << g_ResolutionList[g_Options.Resolution].h << "\n";
 	}
 
+	// Persist the display mode (0=windowed, 1=exclusive fullscreen,
+	// 2=borderless fullscreen). The render exe applies it on launch.
+	int dm = g_Options.DisplayMode;
+	if (dm < 0 || dm > 2) dm = 2;
+	fs << "display_mode " << dm << "\n";
+
 	std::cout << "Config Saved (" << configPath << ")." << std::endl;
 }
 
@@ -1580,6 +1596,15 @@ static bool ParseConfigLine(const std::string& line)
 					break;
 				}
 			}
+		}
+		return true;
+	}
+
+	if (key == "display_mode") {
+		int v;
+		if (iss >> v) {
+			if (v >= 0 && v <= 2)
+				g_Options.DisplayMode = v;
 		}
 		return true;
 	}

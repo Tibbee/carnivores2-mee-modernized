@@ -20,12 +20,12 @@ void ProcessCommandLine()
   auto parse_resolution = [&](const char* value, int& width, int& height) -> bool {
     width = 0;
     height = 0;
-
-    if (sscanf(value, "%dx%d", &width, &height) != 2 &&
-        sscanf(value, "%dX%d", &width, &height) != 2) {
+    char sep = 0;
+    // Single case-insensitive WxH parse (matches EngineInit LoadConfig).
+    if (sscanf(value, "%d%c%d", &width, &sep, &height) != 3 ||
+        (sep != 'x' && sep != 'X')) {
       return false;
     }
-
     return width > 0 && height > 0;
   };
 

@@ -7,6 +7,7 @@
 */
 
 #include "Hunt.h"
+#include <cassert>
 #include <cmath>
 
 #include <iostream>
@@ -234,10 +235,22 @@ const char g_RendererFile[kRenderAPI_Count][8] = { "v_soft", "v_gl" };
 const char st_AudText[2][16] = { "DirectSound", "OpenAL Soft" };
 const char st_FpsText[kFpsLimitCount][12] = { "Unlimited", "60", "120", "240" };
 
-static bool IsOpenGLRendererIndex(int api)
-{
-	return NormalizeMenuRenderAPI(api) == kRenderAPI_OpenGL;
-}
+// Display mode video option. Matches the engine's display_mode config key:
+// 0=windowed, 1=exclusive fullscreen, 2=borderless fullscreen.
+const int kDisplayModeCount = 3;
+const char st_DisplayModeText[kDisplayModeCount][16] = { "Windowed", "Fullscreen", "Borderless" };
+
+// Accessory indices. MenuHunt[3].Item and g_UtilInfo stay parallel and fully
+// populated (see UtilInfo note in Hunt.h), so launch/smod code can index
+// both arrays with these. NOTE: _iceage inserts "Supply drop" at slot 4
+// and shifts NV/tranq — these constants are C2-only.
+constexpr int kAccCamo = 0;
+constexpr int kAccRadar = 1;
+constexpr int kAccScent = 2;
+constexpr int kAccDouble = 3;
+constexpr int kAccNV = 4;
+constexpr int kAccTranq = 5;
+constexpr int kAccCount = 6;
 
 static void NormalizeRendererOption()
 {
@@ -248,16 +261,28 @@ static void NormalizeRendererOption()
 	}
 }
 
-static void AppendOpenGLLaunchFlags(std::stringstream& params)
+// Append the display-mode launch flag matching the menu's Display Mode
+// option (0=windowed, 1=exclusive fullscreen, 2=borderless fullscreen).
+// The same key is written to config.cfg (display_mode), so the engine
+// applies it even when launched without these flags; the flag here just
+// makes the intent explicit and covers any config-less launch.
+// Borderless is the GL default because DWM-composed fullscreen keeps
+// Windows 11 color management active on wide-gamut displays. The
+// software renderer has no borderless presentation, so its "borderless"
+// pick maps to exclusive fullscreen (its classic behaviour).
+static void AppendDisplayModeLaunchFlag(std::stringstream& params)
 {
-	if (!IsOpenGLRendererIndex(g_Options.RenderAPI))
-		return;
-
-	// DWM-composed borderless mode keeps Windows 11 color management active
-	// for wide-gamut displays while still covering the desktop like fullscreen.
-	// The renderer resolves the borderless work area itself so menu DPI
-	// virtualization cannot pass scaled desktop metrics into the game.
-	params << " -borderless";
+	switch (g_Options.DisplayMode) {
+	case 0: params << " -windowed"; break;
+	case 1: params << " -fullscreen"; break;
+	case 2:
+	default:
+		if (NormalizeMenuRenderAPI(g_Options.RenderAPI) == kRenderAPI_OpenGL)
+			params << " -borderless";
+		else
+			params << " -fullscreen";
+		break;
+	}
 }
 
 
@@ -672,6 +697,7 @@ void InitInterface()
 	MenuOptions[m].Count = 0;
 	MenuOptions[m].AddItem("Video Driver");
 	MenuOptions[m].AddItem("Resolution");
+	MenuOptions[m].AddItem("Display Mode");
 	MenuOptions[m].AddItem("3D Shadows");
 	MenuOptions[m].AddItem("Fog");
 	MenuOptions[m].AddItem("Textures");
@@ -738,6 +764,10 @@ void InitInterface()
 #endif //_iceage
 	MenuHunt[m].AddItem("Night vision");
 	MenuHunt[m].AddItem("Tranquilizers");
+#ifndef _iceage
+	// Keep parallel with g_UtilInfo (camo/radar/scent/double/NV/tranq).
+	assert(MenuHunt[m].Item.size() == (size_t)kAccCount);
+#endif
 	MenuHunt[m].Rect = { 610, 382, 790, 542 };
 
 	std::cout << "Interface: Initialisation Ok!" << std::endl;
@@ -1629,16 +1659,13 @@ void DrawMenuHunt()
 		DrawTextShadow(MenuHunt[2].Rect.right - 4, MenuHunt[2].Rect.top + (16 * i), sc.str(), c, DTA_RIGHT);
 	}
 
-	// All accessories are always shown (m_Available defaults true); the
-	// visRow compaction keeps draw and hit-test in sync if any are ever
-	// hidden in the future.
-	int visRow = 0;
 	for (unsigned ii = MenuHunt[3].Offset; ii < MenuHunt[3].Offset + MenuHunt[3].Item.size(); ii++)
 	{
-		if (ii >= g_UtilInfo.size() || !g_UtilInfo[ii].m_Available)
-			continue;
+		if (ii >= g_UtilInfo.size())
+			break;
 
 		uint32_t c = 0xB0B070;
+		int i = (int)(ii - MenuHunt[3].Offset);
 
 		if (MenuHunt[3].Item[ii].second)
 		{
@@ -1646,8 +1673,7 @@ void DrawMenuHunt()
 		}
 
 		//DrawTextShadow(MenuHunt[3].Rect.left + 4, MenuHunt[3].Rect.top + (16 * i), MenuHunt[3].Item[ii].first, c);
-		DrawTextShadow(MenuHunt[3].Rect.left + 4, MenuHunt[3].Rect.top + (16 * visRow), g_UtilInfo[ii].m_Name, c);
-		++visRow;
+		DrawTextShadow(MenuHunt[3].Rect.left + 4, MenuHunt[3].Rect.top + (16 * i), g_UtilInfo[ii].m_Name, c);
 	}
 }
 
@@ -2007,34 +2033,42 @@ void MenuEventInput(int32_t menu)
 								if (g_Options.Resolution >= g_ResCount)
 									g_Options.Resolution = 0;
 							}
-							else if (mo.Hilite == 2) // Shadows
+							else if (mo.Hilite == 2) // Display Mode
+							{
+								WaitForMouseRelease();
+								g_Options.DisplayMode++;
+								if (g_Options.DisplayMode >= kDisplayModeCount)
+									g_Options.DisplayMode = 0;
+								SaveConfig();
+							}
+							else if (mo.Hilite == 3) // Shadows
 							{
 								WaitForMouseRelease();
 								g_Options.Shadows = !g_Options.Shadows;
 							}
-							else if (mo.Hilite == 3) // Fog
+							else if (mo.Hilite == 4) // Fog
 							{
 								WaitForMouseRelease();
 								g_Options.Fog = !g_Options.Fog;
 							}
-							else if (mo.Hilite == 4) // Textures
+							else if (mo.Hilite == 5) // Textures
 							{
 								WaitForMouseRelease();
 								g_Options.Textures++;
 								if (g_Options.Textures == 3)
 									g_Options.Textures = 0;
 							}
-							else if (mo.Hilite == 5) // Colorkey
+							else if (mo.Hilite == 6) // Colorkey
 							{
 								WaitForMouseRelease();
 								g_Options.AlphaColorKey = !g_Options.AlphaColorKey;
 							}
-							else if (mo.Hilite == 6) // Brightness
+							else if (mo.Hilite == 7) // Brightness
 							{
 								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw)
 									g_Options.Brightness = static_cast<int>((v * 255.f));
 							}
-							else if (mo.Hilite == 7) // Field of View
+							else if (mo.Hilite == 8) // Field of View
 							{
 								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw)
 								{
@@ -2179,31 +2213,23 @@ void MenuEventInput(int32_t menu)
 		{
 			//int32_t score = g_UserProfile.Score - g_ScoreDebit;
 			int yd = g_CursorPos.y - MenuHunt[3].Rect.top;
-			int row = yd / 16;
+			unsigned accIndex = (unsigned)(yd / 16) + MenuHunt[3].Offset;
 
-			// Hidden (unavailable) accessories take no visual row, so walk
-			// the available entries to map the cursor row to the array index.
-			int visRow = 0;
-			for (unsigned index = 0; index < g_UtilInfo.size(); ++index)
+			// MenuHunt[3].Item and g_UtilInfo are parallel and fully listed,
+			// so the cursor row maps directly to the accessory index.
+			if (accIndex < MenuHunt[3].Item.size() && accIndex < g_UtilInfo.size())
 			{
-				if (!g_UtilInfo[index].m_Available)
-					continue;
-				if (visRow == row)
+				g_HuntSelectPic = &g_UtilInfo[accIndex].m_Thumbnail;
+				g_HuntInfo.first = 3; // Accessories
+				g_HuntInfo.second = accIndex;
+
+				if ((g_KeyboardState[VK_LBUTTON] & 128))
 				{
-					g_HuntSelectPic = &g_UtilInfo[index].m_Thumbnail;
-					g_HuntInfo.first = 3; // Accessories
-					g_HuntInfo.second = index;
+					WaitForMouseRelease();
+					MenuAudioPlayClick();
 
-					if ((g_KeyboardState[VK_LBUTTON] & 128))
-					{
-						WaitForMouseRelease();
-						MenuAudioPlayClick();
-
-						MenuHunt[3].Item[index].second = !MenuHunt[3].Item[index].second;
-					}
-					break;
+					MenuHunt[3].Item[accIndex].second = !MenuHunt[3].Item[accIndex].second;
 				}
-				++visRow;
 			}
 		}
 		else if (id == 6) {
@@ -2288,17 +2314,16 @@ void MenuEventInput(int32_t menu)
 					params << " " << g_UtilInfo[4].m_Command;
 #endif //_iceage
 
-				if (MenuHunt[3].Item[3].second)
-					params << " " << g_UtilInfo[3].m_Command;
+				if (MenuHunt[3].Item[kAccDouble].second)
+					params << " " << g_UtilInfo[kAccDouble].m_Command;
 
-				// Night vision goggles (index 4 in g_UtilInfo)
+				// Night vision goggles
 				{
-					const int nvIdx = 4;
-					if (nvIdx < static_cast<int>(MenuHunt[3].Item.size()) && MenuHunt[3].Item[nvIdx].second)
-						params << " " << g_UtilInfo[nvIdx].m_Command;
+					if (kAccNV < static_cast<int>(MenuHunt[3].Item.size()) && MenuHunt[3].Item[kAccNV].second)
+						params << " " << g_UtilInfo[kAccNV].m_Command;
 				}
 
-				if (MenuHunt[3].Item[0].second) {
+				if (MenuHunt[3].Item[kAccCamo].second) {
 					g_Options.CamoMode = true;
 					params << " -camo";
 				}
@@ -2306,7 +2331,7 @@ void MenuEventInput(int32_t menu)
 					g_Options.CamoMode = true;
 				}
 
-				if (MenuHunt[3].Item[1].second) {
+				if (MenuHunt[3].Item[kAccRadar].second) {
 					g_Options.RadarMode = true;
 					params << " -radar";
 				}
@@ -2314,7 +2339,7 @@ void MenuEventInput(int32_t menu)
 					g_Options.RadarMode = true;
 				}
 
-				if (MenuHunt[3].Item[2].second) {
+				if (MenuHunt[3].Item[kAccScent].second) {
 					g_Options.ScentMode = true;
 					params << " -scent";
 				}
@@ -2322,11 +2347,10 @@ void MenuEventInput(int32_t menu)
 					g_Options.ScentMode = true;
 				}
 
-				// Tranquilizers (index 5 in g_UtilInfo)
+				// Tranquilizers
 				{
-					const int tranqIdx = 5;
-					if (tranqIdx < static_cast<int>(MenuHunt[3].Item.size()) && MenuHunt[3].Item[tranqIdx].second)
-						params << " " << g_UtilInfo[tranqIdx].m_Command;
+					if (kAccTranq < static_cast<int>(MenuHunt[3].Item.size()) && MenuHunt[3].Item[kAccTranq].second)
+						params << " " << g_UtilInfo[kAccTranq].m_Command;
 				}
 
 				if (g_ObserverMode)
@@ -2337,16 +2361,15 @@ void MenuEventInput(int32_t menu)
 				// ProcessCommandLine(): camo, radar, scent, double, tranq, observer.
 				// Values come from UtilInfo.m_ScoreMod (populated from _RES.TXT's
 				// 'accessories {}' block, falling back to legacy defaults).
-				params << " smod=" << g_UtilInfo[0].m_ScoreMod  // camo
-				       << ","  << g_UtilInfo[1].m_ScoreMod    // radar
-				       << ","  << g_UtilInfo[2].m_ScoreMod    // scent
-				       << ","  << g_UtilInfo[3].m_ScoreMod    // double
-				       << ","  << g_UtilInfo[5].m_ScoreMod    // tranq
+				params << " smod=" << g_UtilInfo[kAccCamo].m_ScoreMod  // camo
+				       << ","  << g_UtilInfo[kAccRadar].m_ScoreMod    // radar
+				       << ","  << g_UtilInfo[kAccScent].m_ScoreMod    // scent
+				       << ","  << g_UtilInfo[kAccDouble].m_ScoreMod    // double
+				       << ","  << g_UtilInfo[kAccTranq].m_ScoreMod    // tranq
 				       << ","  << g_ObserverInfo.m_ScoreMod;  // observer
 
 #ifdef _DEBUG
 				params << " -debug";
-				params << " -window"; // Optional
 #endif //_DEBUG
 
 				std::stringstream renderer("");
@@ -2355,7 +2378,7 @@ void MenuEventInput(int32_t menu)
 				if (wep && din)
 				{
 					TrophySave(g_UserProfile); // Save all the settings
-					AppendOpenGLLaunchFlags(params);
+					AppendDisplayModeLaunchFlag(params);
 					std::cout << "Launching...  `> " << renderer.str() << " " << params.str() << "`" << std::endl;
 					LaunchProcess(renderer.str(), params.str());
 					TrophyLoad(g_UserProfile, g_UserProfile.RegNumber); // Load the changes
@@ -2392,7 +2415,7 @@ void MenuEventInput(int32_t menu)
 					std::stringstream renderer("");
 					renderer << g_RendererFile[g_Options.RenderAPI] << ".ren";
 
-					AppendOpenGLLaunchFlags(params);
+					AppendDisplayModeLaunchFlag(params);
 					std::cout << "Execute: [" << renderer.str() << " " << params.str() << "]" << std::endl;
 					TrophySave(g_UserProfile); // Save the changes
 					LaunchProcess(renderer.str(), params.str());
@@ -2512,12 +2535,17 @@ void DrawMenuOptions()
 			sprintf(resStr, "%d x %d", g_ResolutionList[idx].w, g_ResolutionList[idx].h);
 			DrawTextShadow(g_VideoValues.x0, y0, resStr, value_c);
 		}
-		else if (i == 2) DrawTextShadow(g_VideoValues.x0, y0, st_BoolText[g_Options.Shadows], value_c);
-		else if (i == 3) DrawTextShadow(g_VideoValues.x0, y0, st_BoolText[g_Options.Fog], value_c);
-		else if (i == 4) DrawTextShadow(g_VideoValues.x0, y0, st_TextureText[g_Options.Textures], value_c);
-		else if (i == 5) DrawTextShadow(g_VideoValues.x0, y0, st_AlphaKeyText[g_Options.AlphaColorKey], value_c);
-		else if (i == 6) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>(g_Options.Brightness) / 255.0f, label_c);
-		else if (i == 7) {
+		else if (i == 2) {
+			int dm = g_Options.DisplayMode;
+			if (dm < 0 || dm >= kDisplayModeCount) dm = 0;
+			DrawTextShadow(g_VideoValues.x0, y0, st_DisplayModeText[dm], value_c);
+		}
+		else if (i == 3) DrawTextShadow(g_VideoValues.x0, y0, st_BoolText[g_Options.Shadows], value_c);
+		else if (i == 4) DrawTextShadow(g_VideoValues.x0, y0, st_BoolText[g_Options.Fog], value_c);
+		else if (i == 5) DrawTextShadow(g_VideoValues.x0, y0, st_TextureText[g_Options.Textures], value_c);
+		else if (i == 6) DrawTextShadow(g_VideoValues.x0, y0, st_AlphaKeyText[g_Options.AlphaColorKey], value_c);
+		else if (i == 7) DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, static_cast<float>(g_Options.Brightness) / 255.0f, label_c);
+		else if (i == 8) {
 			float t = static_cast<float>((g_Options.FOV - kFovMin)) / static_cast<float>((kFovMax - kFovMin));
 			DrawSliderBar(OptionsLayout::OPTION_SLIDER_X, y0 + 12, OptionsLayout::OPTION_SLIDER_W, t, label_c);
 		}

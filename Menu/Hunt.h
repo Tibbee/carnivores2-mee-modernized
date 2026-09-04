@@ -495,7 +495,10 @@ public:
 	Picture m_Thumbnail; // Preview icon/image associated with this area
 	int32_t m_Price; // Credits cost for this accessory (0 = free)
 	float m_ScoreMod; // Score multiplier when this accessory is selected (1.0 = neutral, 0.85 = -15%)
-	bool m_Available; // False when required data (icon/description) is missing; entry is hidden
+	// NOTE: all accessories are always listed (night vision uses a built-in
+	// description/icon fallback on mods that predate it), so there is no
+	// availability filter. MenuHunt[3].Item and g_UtilInfo stay parallel;
+	// indices below use kAcc* constants in Menu.cpp.
 
 //public:
 
@@ -505,8 +508,7 @@ public:
 		m_Command(""),
 		m_Thumbnail(),
 		m_Price(0),
-		m_ScoreMod(1.0f),
-		m_Available(true)
+		m_ScoreMod(1.0f)
 	{
 	}
 
@@ -516,8 +518,7 @@ public:
 		m_Command(command),
 		m_Thumbnail(),
 		m_Price(0),
-		m_ScoreMod(1.0f),
-		m_Available(true)
+		m_ScoreMod(1.0f)
 	{
 		//if (!thumbnail.empty())
 			//LoadPicture(this->m_Thumbnail, thumbnail);
@@ -529,8 +530,7 @@ public:
 		m_Command(ui.m_Command),
 		m_Thumbnail(ui.m_Thumbnail),
 		m_Price(ui.m_Price),
-		m_ScoreMod(ui.m_ScoreMod),
-		m_Available(ui.m_Available)
+		m_ScoreMod(ui.m_ScoreMod)
 	{
 	}
 };
@@ -590,6 +590,7 @@ public:
 	/* Graphics */
 
 	int32_t	Resolution; // ResolutionsEnum
+	int32_t DisplayMode; // 0=windowed, 1=exclusive fullscreen, 2=borderless fullscreen
 	int32_t Textures;
 	int32_t ViewRange; // OptViewR, 0..255; mapped to ctViewR by the engine
 	int32_t ObjectDetail; // ctViewRM, bitmap sprite LOD distance in map cells

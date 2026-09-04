@@ -878,6 +878,11 @@ static void CreateDefaultConfig()
     "# The menu writes this automatically when you change Resolution.\r\n"
     "#resolution 1920x1080\r\n"
     "\r\n"
+    "# Display mode: 0=windowed, 1=exclusive fullscreen, 2=borderless\r\n"
+    "# fullscreen (default: 2). The menu writes this when you change the\r\n"
+    "# Display Mode video option.\r\n"
+    "display_mode 2\r\n"
+    "\r\n"
     "# GPU features bitmask (default: all optimizations enabled)\r\n"
     "# Set to 0 to disable all GPU optimizations.\r\n"
     "gpufeatures %u\r\n"
@@ -932,9 +937,14 @@ static void LoadConfig()
 
     char key[64];
     char keyval[64] = "";
-    int value = 0;
-    if (sscanf_s(line, "%63s %63s", key, (unsigned)sizeof(key), keyval, (unsigned)sizeof(keyval)) >= 1) {
-      value = atoi(keyval);
+    int tokens = sscanf_s(line, "%63s %63s", key, (unsigned)sizeof(key), keyval, (unsigned)sizeof(keyval));
+    if (tokens >= 1) {
+      if (tokens < 2) {
+        char msg[96];
+        sprintf_s(msg, sizeof(msg), "Config: '%s' missing value, ignoring.\n", key);
+        PrintLog(msg);
+      } else {
+      int value = (int)strtol(keyval, nullptr, 10);
       if (_stricmp(key, "fov") == 0) {
         if (value >= kFovMin && value <= kFovMax) {
           OptFov = value;
@@ -970,7 +980,11 @@ static void LoadConfig()
       else if (_stricmp(key, "gpufeatures") == 0) {
         // Runtime GPU-optimization kill-switch bitmask (see GpuFeature in GameState.h).
         // 0 disables all new GPU optimizations; bits toggle features individually.
-        g_gpuFeatures = static_cast<uint32_t>(value);
+        // Parse as unsigned: the default (all bits set) exceeds INT_MAX, so
+        // atoi/strtol would clamp and could never restore the default.
+        char *end = nullptr;
+        unsigned long v = strtoul(keyval, &end, 10);
+        if (end != keyval) g_gpuFeatures = static_cast<uint32_t>(v);
       }
       else if (_stricmp(key, "glperf_logging") == 0) {
         // Runtime toggle for GL performance harness logging.
@@ -988,10 +1002,17 @@ static void LoadConfig()
         // Applies after SetupRes() (trophy file) so config.cfg wins over the
         // per-profile legacy setting; a command-line -res= still overrides this.
         int w = 0, h = 0;
-        if (sscanf_s(keyval, "%dx%d", &w, &h) == 2 ||
-            sscanf_s(keyval, "%dX%d", &w, &h) == 2) {
+        char sep = 0;
+        if (sscanf_s(keyval, "%d%c%d", &w, &sep, (unsigned)sizeof(sep), &h) == 3 &&
+            (sep == 'x' || sep == 'X')) {
           if (w > 0 && h > 0) {
-            OptRes = -1; // mark "not a profile index"; resolved to WinW/H below
+            // Sync OptRes when the size exists in the enumerated list so the
+            // legacy index stays meaningful; WinW/H always win regardless.
+            // Reset first: an exotic size must not leave a stale profile index.
+            OptRes = -1;
+            for (int r = 0; r < ResCount; r++) {
+              if (ResolutionList[r].w == w && ResolutionList[r].h == h) { OptRes = r; break; }
+            }
             WinW = w;
             WinH = h;
           } else {
@@ -1001,8 +1022,25 @@ static void LoadConfig()
           PrintLog("Config: resolution expects WxH (e.g. 1920x1080), ignoring.\n");
         }
       }
+      else if (_stricmp(key, "display_mode") == 0) {
+        // Display mode: 0=windowed, 1=exclusive fullscreen, 2=borderless.
+        // Written by the menu's Display Mode video option. Command-line
+        // flags (-windowed/-fullscreen/-borderless) override this later
+        // in ProcessCommandLine().
+        if (value >= 0 && value <= 2) {
+#ifdef _soft
+          // The software renderer has no borderless presentation; map its
+          // "borderless" pick to exclusive fullscreen (classic behaviour).
+          if (value == 2) value = 1;
+#endif
+          FULLSCREEN = (value == 1);
+          BORDERLESS = (value == 2);
+        } else {
+          PrintLog("Config: display_mode must be 0 (windowed), 1 (fullscreen) or 2 (borderless), ignoring.\n");
+        }
+      }
       // Future settings: add else-if branches here
-
+      } // tokens == 2
     }
 
     line = strtok_s(nullptr, "\r\n", &ctx);
