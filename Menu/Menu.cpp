@@ -1629,9 +1629,9 @@ void DrawMenuHunt()
 		DrawTextShadow(MenuHunt[2].Rect.right - 4, MenuHunt[2].Rect.top + (16 * i), sc.str(), c, DTA_RIGHT);
 	}
 
-	// Accessories whose data (icon/description) is missing from HUNTDAT are
-	// hidden: draw the available entries compacted (no blank row), matching
-	// the hit-test in MenuEventInput which maps rows over available entries.
+	// All accessories are always shown (m_Available defaults true); the
+	// visRow compaction keeps draw and hit-test in sync if any are ever
+	// hidden in the future.
 	int visRow = 0;
 	for (unsigned ii = MenuHunt[3].Offset; ii < MenuHunt[3].Offset + MenuHunt[3].Item.size(); ii++)
 	{

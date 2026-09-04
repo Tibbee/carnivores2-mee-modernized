@@ -897,23 +897,11 @@ void LoadResources()
 		ui.m_ScoreMod = LookupAccessoryScoreMod(scoreKey, scoreDefault);
 		ui.m_Price = (accIdx < g_AccessoryPrices.size()) ? g_AccessoryPrices[accIdx] : defaultPrice;
 		accIdx++;
-		// An accessory is offered when its description text exists in the
-		// game's HUNTDAT. The shop icon is optional decoration: some datasets
-		// (e.g. stock Carnivores 2) have no per-accessory image for every
-		// entry, and those rows show with an empty icon box just like the
-		// original game. Mods that do not ship the .nfo (e.g. Triassic has no
-		// nightvis.nfo) get a clean shop without a broken entry.
-		ui.m_Available = !ui.m_Description.empty();
-		if (ui.m_Available) {
-			// The shop icon is optional: some accessories (e.g. tranquilizers
-			// in both stock C2 and Triassic) have no dedicated image, and the
-			// original game shows them with an empty icon box. Never guess a
-			// different EQUIPn image - a wrong icon is worse than none.
-			LoadPicture(ui.m_Thumbnail, pic);
-		} else {
-			std::cout << "Accessory hidden (missing description): " << name
-			          << " desc=" << descFile << std::endl;
-		}
+		// The shop icon is optional: some accessories (e.g. tranquilizers in
+		// both stock C2 and Triassic) have no dedicated image, and the
+		// original game shows them with an empty icon box. Never guess a
+		// different EQUIPn image - a wrong icon is worse than none.
+		LoadPicture(ui.m_Thumbnail, pic);
 		g_UtilInfo.push_back(ui);
 		ui.m_Description.clear();
 	};
@@ -922,7 +910,38 @@ void LoadResources()
 	addUtil("Radar",       "huntdat/menu/txt/radar.nfo",    "-radar", "radar", 0.70f, 40,  "huntdat/menu/pics/equip2.tga");
 	addUtil("Cover scent", "huntdat/menu/txt/scent.nfo",    "",       "scent", 0.80f, 20,  "huntdat/menu/pics/equip3.tga");
 	addUtil("Double ammo", "huntdat/menu/txt/double.nfo",   "-double","double",1.0f,  50,  "huntdat/menu/pics/equip4.tga");
-	addUtil("Night vision","huntdat/menu/txt/nightvis.nfo", "-nightvision", "nightvision", 1.0f, 50, "huntdat/menu/pics/equip_nv.tga");
+
+	// Night vision is a modernization feature and is always available, even
+	// when a mod ships no nightvis.nfo or equip_nv.tga (the icon is optional;
+	// the row shows with an empty icon box like other icon-less accessories).
+	// A built-in description covers mods without the .nfo.
+	ui.m_Name = "Night vision";
+	ui.m_Description.clear();
+	if (!LoadText(ui.m_Description, "huntdat/menu/txt/nightvis.nfo")) {
+		ui.m_Description.push_back("Accessory : Night Vision Goggles");
+		ui.m_Description.push_back("");
+		ui.m_Description.push_back("Toggle a green-tinted night vision view during");
+		ui.m_Description.push_back("night hunts. Press the configured key (default: N)");
+		ui.m_Description.push_back("to switch it on and off. Night vision does not");
+		ui.m_Description.push_back("affect your score.");
+	}
+	ui.m_Command = "-nightvision";
+	ui.m_ScoreMod = LookupAccessoryScoreMod("nightvision", 1.0f); // neutral
+	// Price rule: consume a positional acces= line ONLY when the mod priced 6
+	// accessories (stock C2's prices block has an explicit NV line). Mods with
+	// the original 5 lines (camo/radar/scent/double/tranq) keep all of them
+	// for those accessories and NV falls back to its fixed default - otherwise
+	// NV would steal the tranquilizer's price.
+	if (g_AccessoryPrices.size() > 5) {
+		ui.m_Price = g_AccessoryPrices[4]; // 6th-accessory price line
+	} else {
+		ui.m_Price = 50; // fixed default (original feature commit)
+	}
+	accIdx++; // keep the positional index in step for the trailing accessories
+	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip_nv.tga");
+	g_UtilInfo.push_back(ui);
+	ui.m_Description.clear(); // the shared buffer must not leak into the next accessory
+
 	addUtil("Tranquilizers","huntdat/menu/txt/tranq.nfo",  "-tranq -tranquilizer", "tranq", 1.25f, 60, "huntdat/menu/pics/equip6.tga");
 
 	// Observer info (used for info panel display, not in equipment list)
