@@ -1025,8 +1025,10 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     if (static_cast<int>(wParam) == KeyMap.fkRun  && g_GameMode != GameMode::SurvivalMode) ToggleRunMode();
 	if (static_cast<int>(wParam) == KeyMap.fkCrouch && g_GameMode != GameMode::SurvivalMode) ToggleCrouchMode();
     if (static_cast<int>(wParam) == NightVisionKey && NightVisionMode) {
+      // Night vision is a pure orthogonal flag (all renderers read
+      // NightVisionOn); it must not touch g_GameMode, or toggling it
+      // while scoped would clobber OpticScope and kill the zoom.
       NightVisionOn = !NightVisionOn;
-      g_GameMode = NightVisionOn ? GameMode::NightVision : GameMode::Normal;
       if (NightVisionOn)
         AddMessage("Night vision ON");
       else
