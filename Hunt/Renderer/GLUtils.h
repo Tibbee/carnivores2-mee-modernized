@@ -71,11 +71,6 @@ void EnsureNightSceneTex(GLuint& tex, int& texW, int& texH, int winW, int winH);
 WORD Conv565to555(WORD c);
 
 // Clipping / fog helpers
-float DistanceToNearClipPlane(const Vector3d& position);
-void ClipTriangleAgainstNearPlane(const ModelClipVertex& a,
-    const ModelClipVertex& b,
-    const ModelClipVertex& c,
-    std::vector<ModelClipVertex>& output);
 // point is camera-relative WORLD space (before camera rotation).
 // Shadows skip the legacy CPU horizon fallback: model.frag already applies
 // distance fog, and their fog must match the terrain receiver, not double it.

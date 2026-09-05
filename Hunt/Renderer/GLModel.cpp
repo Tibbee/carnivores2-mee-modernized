@@ -1246,9 +1246,18 @@ bool GLRenderer::BuildModelEffectVertices(std::vector<ModelVertex>& outVertices,
             255
         };
 
-        // Phase 1.13: local vector (was static thread_local).
+        // The overlay must feed the GPU bit-identical triangles to the base
+        // pass (which relies on GPU clipping for near models): the overlay
+        // used to CPU-clip here while the base did not, so the two paths
+        // rounded to ~ulp-different depths and fought per-pixel at grazing
+        // view angles (striped shimmer on barrels when sighting down them).
+        // The anyVisible gate above still skips fully-hidden models; the GPU
+        // clips both passes at the same projection near.
         std::vector<ModelClipVertex> clipped;
-        ClipTriangleAgainstNearPlane(v0, v1, v2, clipped);
+        clipped.reserve(3);
+        clipped.push_back(v0);
+        clipped.push_back(v1);
+        clipped.push_back(v2);
         for (size_t j = 1; j + 1 < clipped.size(); ++j) {
             // Phase 1.4: pack the float fields (light, fog, alpha, cutout)
             // and the fog color vec3 to uint8. The water surface always

@@ -287,40 +287,6 @@ WORD Conv565to555(WORD c)
     return (r << 10) | ((g >> 1) << 5) | b;
 }
 
-float DistanceToNearClipPlane(const Vector3d& position)
-{
-    return position.z - kModelNearClip;
-}
-
-void ClipTriangleAgainstNearPlane(const ModelClipVertex& a,
-                                         const ModelClipVertex& b,
-                                         const ModelClipVertex& c,
-                                         std::vector<ModelClipVertex>& output)
-{
-    output.clear();
-    output.reserve(4);
-
-    const std::array<ModelClipVertex, 3> input = {a, b, c};
-    for (size_t i = 0; i < input.size(); ++i) {
-        const ModelClipVertex& current = input[i];
-        const ModelClipVertex& previous = input[(i + input.size() - 1) % input.size()];
-        const float currentDistance = DistanceToNearClipPlane(current.position);
-        const float previousDistance = DistanceToNearClipPlane(previous.position);
-        const bool currentInside = currentDistance <= 0.0f;
-        const bool previousInside = previousDistance <= 0.0f;
-
-        if (currentInside != previousInside) {
-            const float denom = previousDistance - currentDistance;
-            const float t = std::fabs(denom) < 0.0001f ? 0.0f : previousDistance / denom;
-            output.push_back(InterpolateClipVertex(previous, current, t));
-        }
-
-        if (currentInside) {
-            output.push_back(current);
-        }
-    }
-}
-
 float VertexDistanceSq(const Vector3d& v)
 {
     return v.x * v.x + v.y * v.y + v.z * v.z;
