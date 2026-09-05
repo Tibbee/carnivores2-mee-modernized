@@ -1519,6 +1519,18 @@ void SaveConfig()
 	if (dm < 0 || dm > 2) dm = 2;
 	fs << "display_mode " << dm << "\n";
 
+	// Remember the last hunt setup (captured by Menu.cpp from the MenuHunt
+	// lists). Guarded: the lists only exist after the first hunt-screen
+	// visit, so a fresh boot or options-only session never clobbers the file
+	// with empty defaults.
+	if (g_HasSavedHunt) {
+		fs << "hunt_area " << g_SavedHuntArea << "\n";
+		fs << "hunt_dinos " << g_SavedHuntDinos << "\n";
+		fs << "hunt_weapons " << g_SavedHuntWeapons << "\n";
+		fs << "hunt_utils " << g_SavedHuntUtils << "\n";
+		fs << "hunt_time " << g_SavedHuntTime << "\n";
+	}
+
 	std::cout << "Config Saved (" << configPath << ")." << std::endl;
 }
 
@@ -1605,6 +1617,36 @@ static bool ParseConfigLine(const std::string& line)
 		if (iss >> v) {
 			if (v >= 0 && v <= 2)
 				g_Options.DisplayMode = v;
+		}
+		return true;
+	}
+
+	// Last hunt setup (see SaveConfig). Everything is validated again
+	// against the live lists on restore, so stale/modded values can only
+	// fall back to defaults, never select out of range.
+	if (key == "hunt_area") {
+		std::string v;
+		if (iss >> v && v.size() < 128) {
+			g_SavedHuntArea = v;
+			g_HasSavedHunt = true;
+		}
+		return true;
+	}
+	if (key == "hunt_dinos" || key == "hunt_weapons" || key == "hunt_utils") {
+		unsigned long long v;
+		if (iss >> v) {
+			if (key == "hunt_dinos") g_SavedHuntDinos = v;
+			else if (key == "hunt_weapons") g_SavedHuntWeapons = v;
+			else g_SavedHuntUtils = v;
+			g_HasSavedHunt = true;
+		}
+		return true;
+	}
+	if (key == "hunt_time") {
+		int v;
+		if (iss >> v && v >= HUNT_DAWN && v <= HUNT_NIGHT) {
+			g_SavedHuntTime = v;
+			g_HasSavedHunt = true;
 		}
 		return true;
 	}

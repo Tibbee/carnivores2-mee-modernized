@@ -1090,6 +1090,51 @@ Menu screen initialization event
 NOTE: This only gets called on the first tick that the menu exists, it can be used to
 initialize variables and reset various things.
 */
+// Capture the current hunt setup for config.cfg so the next visit to the
+// hunt screen reselects it instead of resetting to defaults. Guarded: the
+// MenuHunt lists only exist after the first MENU_HUNT entry.
+static void SaveHuntSelections()
+{
+	if (MenuHunt[0].Item.empty()) return;
+	g_SavedHuntArea.clear();
+	if (MenuHunt[0].Selected >= 0 && MenuHunt[0].Selected < (int)g_AreaInfo.size())
+		g_SavedHuntArea = g_AreaInfo[MenuHunt[0].Selected].m_ProjectName;
+	auto mask = [](const MenuSet& set) {
+		unsigned long long m = 0;
+		for (size_t i = 0; i < set.Item.size() && i < 64; i++)
+			if (set.Item[i].second) m |= 1ULL << i;
+		return m;
+	};
+	g_SavedHuntDinos = mask(MenuHunt[1]);
+	g_SavedHuntWeapons = mask(MenuHunt[2]);
+	g_SavedHuntUtils = mask(MenuHunt[3]);
+	g_SavedHuntTime = g_TimeOfDay;
+	g_HasSavedHunt = true;
+}
+// Reapply the persisted setup after the entry defaults. Everything is
+// validated against the current data, so mod list changes can only fall
+// back to defaults, never select out of range. Saved at launch, so a
+// restored setup always corresponds to a launchable one.
+static void RestoreHuntSelections()
+{
+	if (!g_HasSavedHunt) return;
+	if (!g_SavedHuntArea.empty()) {
+		for (size_t i = 0; i < g_AreaInfo.size(); i++)
+			if (g_AreaInfo[i].m_ProjectName == g_SavedHuntArea) { MenuHunt[0].Selected = (int)i; break; }
+	}
+	auto apply = [](MenuSet& set, unsigned long long m) {
+		for (size_t i = 0; i < set.Item.size() && i < 64; i++)
+			set.Item[i].second = ((m >> i) & 1ULL) != 0;
+	};
+	apply(MenuHunt[1], g_SavedHuntDinos);
+	apply(MenuHunt[2], g_SavedHuntWeapons);
+	apply(MenuHunt[3], g_SavedHuntUtils);
+	if (g_SavedHuntTime >= HUNT_DAWN && g_SavedHuntTime <= HUNT_NIGHT && g_SavedHuntTime != g_TimeOfDay) {
+		g_MenuItem.SetIsElementSet(g_TimeOfDay + 1, false);
+		g_TimeOfDay = g_SavedHuntTime;
+		g_MenuItem.SetIsElementSet(g_TimeOfDay + 1, true);
+	}
+}
 void MenuEventStart(int32_t menu_state)
 {
 	g_MenuItem.ResetElementSet();
@@ -1229,6 +1274,7 @@ void MenuEventStart(int32_t menu_state)
 			}
 		}
 
+		RestoreHuntSelections();
 		g_ScoreDebit = CalculateDebit();
 	} break;
 	}
@@ -2383,6 +2429,8 @@ void MenuEventInput(int32_t menu)
 					TrophySave(g_UserProfile); // Save all the settings
 					AppendDisplayModeLaunchFlag(params);
 					std::cout << "Launching...  `> " << renderer.str() << " " << params.str() << "`" << std::endl;
+					SaveHuntSelections();
+					SaveConfig();
 					LaunchProcess(renderer.str(), params.str());
 					TrophyLoad(g_UserProfile, g_UserProfile.RegNumber); // Load the changes
 				LoadConfig();

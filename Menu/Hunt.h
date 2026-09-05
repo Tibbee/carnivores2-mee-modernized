@@ -729,6 +729,15 @@ EXTERNAL Picture*				g_HuntSelectPic;
 EXTERNAL int32_t				g_TimeOfDay;
 EXTERNAL bool					g_ObserverMode;
 EXTERNAL int32_t				g_ScoreDebit;
+// Last hunt setup, persisted in config.cfg so the hunt screen reselects it
+// on entry instead of resetting to defaults. Menu.cpp owns capture/restore
+// (MenuHunt lists are file-local there); Resources.cpp owns the file format.
+EXTERNAL std::string			g_SavedHuntArea;
+EXTERNAL unsigned long long		g_SavedHuntDinos;
+EXTERNAL unsigned long long		g_SavedHuntWeapons;
+EXTERNAL unsigned long long		g_SavedHuntUtils;
+EXTERNAL int32_t				g_SavedHuntTime;
+EXTERNAL bool					g_HasSavedHunt;
 
 EXTERNAL uint8_t                g_KeyboardState[256];
 
