@@ -1061,6 +1061,14 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
         return false;
     }
 
+    // Cache the shared pocket calculation once per unique morphed vertex,
+    // rather than repeating it for every face that references that vertex.
+    std::vector<FogSample> fogSamples;
+    fogSamples.reserve(unrotated.size());
+    for (const Vector3d& point : unrotated) {
+        fogSamples.push_back(SampleFogAtPoint(point, disableFog));
+    }
+
     outItem = ModelDrawItem();
     outItem.texture = 0;
     outItem.additive = additive;
@@ -1080,18 +1088,13 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
     auto appendTriangle = [&](const ModelClipVertex& a,
                               const ModelClipVertex& b,
                               const ModelClipVertex& c,
-                              const Vector3d& uA,
-                              const Vector3d& uB,
-                              const Vector3d& uC,
+                              const FogSample& fogA,
+                              const FogSample& fogB,
+                              const FogSample& fogC,
                               bool transparent,
                               bool cutout) {
-        // Per-triangle-vertex fog, exactly like Carnivores 1. The fog
-        // is computed from the *original* face unrotated positions
-        // (not interpolated during clipping -- matches C1 and is fine
-        // because fog is a smooth function of position).
-        const FogSample fogA = SampleFogAtPoint(uA, disableFog);
-        const FogSample fogB = SampleFogAtPoint(uB, disableFog);
-        const FogSample fogC = SampleFogAtPoint(uC, disableFog);
+        // Reuse the original face vertices' fog samples, preserving the
+        // existing clipping behaviour (fog is not re-sampled at clip cuts).
         const float alpha = transparent ? baseAlpha * transparentScale : baseAlpha;
         const float cutoutValue = cutout ? 1.0f : 0.0f;
         const bool blended = transparent || forceDistanceBlend || additive;
@@ -1145,11 +1148,8 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
 
         const int texHeight = (mptr->TextureHeight > 1) ? mptr->TextureHeight : 1;
         // fp_conv() in CorrectModel already converted int UVs to float pixel coords.
-        // C1's ModelClipVertex carries only position/uv/light: the per-vertex
-        // fog is recomputed in appendTriangle from the original face's
-        // unrotated positions (unrotated[face.v1/2/3]) rather than
-        // interpolated through the water clipper. Match that here so the
-        // build compiles and the model fog behavior is identical to C1.
+        // ModelClipVertex carries only position/uv/light. Fog is sampled
+        // at the original face positions, not interpolated by the clipper.
         ModelClipVertex v0{p0, DecodeLegacyFaceUV(face.tax, face.tay, texHeight), l0};
         ModelClipVertex v1{p1, DecodeLegacyFaceUV(face.tbx, face.tby, texHeight), l1};
         ModelClipVertex v2{p2, DecodeLegacyFaceUV(face.tcx, face.tcy, texHeight), l2};
@@ -1171,11 +1171,8 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
         const bool isFaceAlphaTest = (face.Flags & sfOpacity) != 0;
         const bool cutout = isFaceAlphaTest;
         for (size_t i = 1; i + 1 < polygon.size(); ++i) {
-            // Pass the original face unrotated positions to
-            // appendTriangle so the fog is computed from the
-            // un-clipped vertices (matches C1 behavior).
             appendTriangle(polygon[0], polygon[i], polygon[i + 1],
-                           unrotated[face.v1], unrotated[face.v2], unrotated[face.v3],
+                           fogSamples[face.v1], fogSamples[face.v2], fogSamples[face.v3],
                            isFaceTransparent, cutout);
         }
     }

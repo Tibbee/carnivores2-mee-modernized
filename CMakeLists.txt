@@ -84,6 +84,7 @@ if(RENDERER)
             Hunt/Renderer/GLRenderer.h
             Hunt/Renderer/GLRenderer.cpp
             Hunt/Renderer/GLUtils.cpp
+            Hunt/Renderer/GLFog.cpp
             Hunt/Renderer/GLNight.cpp
             Hunt/Renderer/GLShadow.cpp
             Hunt/Renderer/GLSky.cpp
@@ -268,6 +269,16 @@ if(MSVC)
     )
     target_link_libraries(Carnivores2Tests PRIVATE gtest_main)
     add_test(NAME Carnivores2Tests COMMAND Carnivores2Tests)
+
+    # Exercise the production world-model sampler without a GL context.
+    # Engine globals / CalcFogLevel are controlled test doubles in this target.
+    add_executable(Carnivores2FogTests
+        tests/test_fog_sampling.cpp
+        Hunt/Renderer/GLFog.cpp
+    )
+    target_include_directories(Carnivores2FogTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Hunt)
+    target_link_libraries(Carnivores2FogTests PRIVATE gtest_main)
+    add_test(NAME Carnivores2Tests.FogSampling COMMAND Carnivores2FogTests)
 
     # SmokeTest only runs when a game executable is built (not menu-only)
     if(TARGET Carnivores1)

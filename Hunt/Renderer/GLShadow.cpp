@@ -32,6 +32,7 @@ void GLRenderer::BuildCharacterShadowVertices(const TCharacter& character, float
     const float sbCam = std::sin(CameraBeta);
 
     std::vector<Vector3d> projected(mptr->VCount);
+    std::vector<FogSample> projectedFog(mptr->VCount);
     bool anyVisible = false;
 
     for (int s = 0; s < mptr->VCount; ++s) {
@@ -42,6 +43,16 @@ void GLRenderer::BuildCharacterShadowVertices(const TCharacter& character, float
         const float shx = mrx + source.y * SunShadowK;
         const float shz = mrz + source.y * SunShadowK;
         const float shy = GetLandH(shx + character.pos.x, shz + character.pos.z) - character.pos.y;
+
+        // Sample at the ground receiver, NOT the character's elevated vertex
+        // or its view-space/depth-biased projection. One sample per unique
+        // vertex is shared by all faces, in both batched and fallback draws.
+        const Vector3d groundPoint = {
+            shx + character.pos.x - CameraX,
+            shy + character.pos.y - CameraY,
+            shz + character.pos.z - CameraZ
+        };
+        projectedFog[s] = SampleFogAtPoint(groundPoint, false, false);
 
         Vector3d out;
         out.x = (shx * caCam + shz * saCam) + character.rpos.x;
@@ -61,6 +72,19 @@ void GLRenderer::BuildCharacterShadowVertices(const TCharacter& character, float
 
     outVerts.reserve(static_cast<size_t>(mptr->FCount) * 3);
 
+    const uint8_t alphaByte = Float01ToByte(alpha);
+    auto appendVertex = [&](int index) {
+        const Vector3d& p = projected[index];
+        const FogSample& fog = projectedFog[index];
+        // Fog the black shadow colour, retaining its authored alpha. Blending
+        // fogged black over fogged terrain leaves the fog veil intact; merely
+        // fading a black shadow's alpha would still darken that veil.
+        outVerts.push_back({p.x, p.y, p.z, 0.0f, 0.0f,
+            0, Float01ToByte(fog.amount), alphaByte, 0,
+            Float01ToByte(fog.color.x), Float01ToByte(fog.color.y), Float01ToByte(fog.color.z),
+            {0,0,0,0,0}});
+    };
+
     for (int f = 0; f < mptr->FCount; ++f) {
         const TFace& face = mptr->gFace[f];
         const Vector3d& p0 = projected[face.v1];
@@ -71,15 +95,9 @@ void GLRenderer::BuildCharacterShadowVertices(const TCharacter& character, float
             continue;
         }
 
-        // Phase 1.4: pack shadow vertices with zero light, zero fog,
-        // per-character alpha, no cutout, zero fog color.
-        const uint8_t lightByte  = 0;
-        const uint8_t fogByte    = 0;
-        const uint8_t alphaByte  = Float01ToByte(alpha);
-        const uint8_t cutoutByte = 0;
-        outVerts.push_back({p0.x, p0.y, p0.z, 0.0f, 0.0f, lightByte, fogByte, alphaByte, cutoutByte, 0, 0, 0, {0,0,0,0,0}});
-        outVerts.push_back({p1.x, p1.y, p1.z, 0.0f, 0.0f, lightByte, fogByte, alphaByte, cutoutByte, 0, 0, 0, {0,0,0,0,0}});
-        outVerts.push_back({p2.x, p2.y, p2.z, 0.0f, 0.0f, lightByte, fogByte, alphaByte, cutoutByte, 0, 0, 0, {0,0,0,0,0}});
+        appendVertex(face.v1);
+        appendVertex(face.v2);
+        appendVertex(face.v3);
     }
 }
 

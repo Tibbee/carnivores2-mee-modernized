@@ -76,7 +76,10 @@ void ClipTriangleAgainstNearPlane(const ModelClipVertex& a,
     const ModelClipVertex& b,
     const ModelClipVertex& c,
     std::vector<ModelClipVertex>& output);
-FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog);
+// point is camera-relative WORLD space (before camera rotation).
+// Shadows skip the legacy CPU horizon fallback: model.frag already applies
+// distance fog, and their fog must match the terrain receiver, not double it.
+FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog, bool distanceFallback = true);
 
 // Terrain / water helpers
 float VertexDistanceSq(const Vector3d& v);
