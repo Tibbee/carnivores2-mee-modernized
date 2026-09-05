@@ -93,6 +93,10 @@ void PrintLogSeparater()
 
 int LaunchProcess(const std::string& exe_name, std::string cmd_line)
 {
+	// The minimized launcher keeps its OpenAL context alive while the game
+	// runs, so silence its ambient track before either hunts or trophy rooms.
+	MenuAudioStopAmbient();
+
 	PROCESS_INFORMATION processInformation = { 0 };
 	STARTUPINFO startupInfo = { 0 };
 	startupInfo.cb = sizeof(startupInfo);
@@ -135,8 +139,11 @@ int LaunchProcess(const std::string& exe_name, std::string cmd_line)
 	// Resize the window appropriately
 	HuntWindowResize();
 
-	// Reset to the main menu like the original game does
+	// Reset to the main menu like the original game does. Trophy-room launches
+	// begin on MENU_MAIN, so their same-state transition cannot trigger the
+	// normal MenuEventStart callback; resume the ambient track explicitly.
 	ChangeMenuState(MENU_MAIN);
+	MenuAudioStartAmbient();
 
 	return exitCode;
 }

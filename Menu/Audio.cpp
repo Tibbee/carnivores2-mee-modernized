@@ -207,7 +207,12 @@ void MenuAudioStartAmbient()
 	if (!g_MenuAudio.active || !g_MenuAudio.ambientSource)
 		return;
 
-	PlaySource(g_MenuAudio.ambientSource);
+	// Returning from a hunt explicitly resumes this source, then the normal
+	// main-menu start event may call us again. Do not restart the loop at zero.
+	ALint state = AL_STOPPED;
+	alGetSourcei(g_MenuAudio.ambientSource, AL_SOURCE_STATE, &state);
+	if (state != AL_PLAYING)
+		alSourcePlay(g_MenuAudio.ambientSource);
 }
 
 void MenuAudioStopAmbient()
