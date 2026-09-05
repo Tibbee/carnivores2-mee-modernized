@@ -2379,7 +2379,9 @@ void MenuEventInput(int32_t menu)
 				std::stringstream renderer("");
 				renderer << g_RendererFile[g_Options.RenderAPI] << ".ren";
 
-				if (wep && din)
+				// Observer mode is an exploration session and deliberately permits an
+				// empty creature/weapon loadout, matching the original launcher.
+				if (g_ObserverMode || (wep && din))
 				{
 					TrophySave(g_UserProfile); // Save all the settings
 					AppendDisplayModeLaunchFlag(params);
