@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-  Builds the Carnivores 2 MEE v1.1.4 (Modernized) release zip.
+  Builds the Carnivores 2 MEE v1.1.5 (Modernized) release zip.
 
 .DESCRIPTION
-  Assembles the package folder (pkg/Carnivores2_MEE_v1.1.4_Modernized)
+  Assembles the package folder (pkg/Carnivores2_MEE_v1.1.5_Modernized)
   from the shipping build outputs, the runtime OpenAL Soft files, a
   generated clean default config.cfg, the MIT/LGPL license texts, the
   end-user README.txt and CHANGELOG, and produces the versioned zip.
@@ -32,9 +32,9 @@ $ErrorActionPreference = 'Stop'
 if (-not $RepoRoot) { $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path }
 if (-not $PkgRoot)  { $PkgRoot  = Join-Path $RepoRoot 'pkg' }
 if (-not $ShaOut)   { $ShaOut   = Join-Path $PkgRoot 'SHA256.txt' }
-$Version   = '1.1.4'
+$Version   = '1.1.5'
 $ZipName   = "Carnivores2_MEE_v${Version}_Modernized.zip"
-$PkgName   = 'Carnivores2_MEE_v1.1.4_Modernized'
+$PkgName   = 'Carnivores2_MEE_v1.1.5_Modernized'
 $PkgDir    = Join-Path $PkgRoot $PkgName
 
 # Resolve external tools without hardcoding a developer's machine paths:
@@ -151,7 +151,7 @@ glperf_logging 0
 # --- end-user README.txt ------------------------------------------------
 @"
 ================================================================
-  Carnivores 2 MEE v1.1.4 - Modernized
+  Carnivores 2 MEE v1.1.5 - Modernized
 ================================================================
 
 WHAT'S INCLUDED
@@ -195,7 +195,7 @@ LEGAL
   https://openal-soft.org/
 
 CHANGELOG / CONTACT
-  v1.1.4 Modernized - initial public release
+  v1.1.5 Modernized - breath-aim rifle zoom, crouch/scope coexistence, scope HUD fixes
 "@ | Set-Content -Path (Join-Path $PkgDir 'README.txt') -Encoding Ascii
 
 # --- zip ----------------------------------------------------------------
