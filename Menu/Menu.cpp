@@ -7,6 +7,7 @@
 */
 
 #include "Hunt.h"
+#include "SliderMath.h"
 #include <cassert>
 #include <cmath>
 
@@ -909,11 +910,7 @@ int MenuViewOptFromSlider(float v)
 
 int MenuObjectDetailFromSlider(float v)
 {
-	int value = kObjectDetailMin + static_cast<int>((v * static_cast<float>(kObjectDetailMax - kObjectDetailMin)));
-	value = kObjectDetailMin + ((value - kObjectDetailMin) / kObjectDetailStep) * kObjectDetailStep;
-	if (value < kObjectDetailMin) value = kObjectDetailMin;
-	if (value > kObjectDetailMax) value = kObjectDetailMax;
-	return value;
+	return DiscreteSliderValue(v, kObjectDetailMin, kObjectDetailMax, kObjectDetailStep);
 }
 
 

@@ -256,10 +256,12 @@ if(MSVC)
     add_executable(Carnivores2Tests
         tests/test_math.cpp
         tests/test_map_scaling.cpp
+        tests/test_menu_slider.cpp
         tests/test_projectile_math.cpp
     )
     target_include_directories(Carnivores2Tests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Core
+        ${CMAKE_CURRENT_SOURCE_DIR}/Menu
     )
     target_link_libraries(Carnivores2Tests PRIVATE gtest_main)
     add_test(NAME Carnivores2Tests COMMAND Carnivores2Tests)
