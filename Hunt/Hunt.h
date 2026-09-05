@@ -104,7 +104,7 @@ static_assert(sizeof(TCharacterInfo) >= 3000 && sizeof(TCharacterInfo) <= 8000,
 // pixel-stable while the world magnifies behind them.
 inline float ActiveWorldZoom()
 {
-  if (g_GameMode == GameMode::OpticScope &&
+  if (IsScopeView() &&
       (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2))
     return ScopePower;
   return 1.0f;

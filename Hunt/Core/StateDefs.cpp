@@ -10,6 +10,9 @@
 
 // Define the game mode global (declared extern in GameMode.h)
 GameMode g_GameMode = GameMode::Normal;
+// Overlay stash for menu round-trips (see GameMode.h); zero-init is Normal,
+// which DismissMenuRestore() treats as "nothing to restore".
+GameMode g_SavedOverlayMode = GameMode::Normal;
 // NOTE: ScopePower/BinocularPower storage comes from GameState.h (GLOBAL
 // tentatively defines them as zero). They are assigned sane defaults in
 // InitEngine() so the first scoped frame never multiplies CameraW/H by 0.

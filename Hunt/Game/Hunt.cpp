@@ -391,7 +391,7 @@ void DrawPostObjects()
   // A breath-aim weapon never raises a mask: plain viewmodel at every
   // magnification, HUD untouched (see the aspect-fill pop note below).
   const bool opticZoomActive =
-      g_GameMode == GameMode::OpticScope &&
+      IsScopeView() &&
       (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2) &&
       ScopePower > 1.01f && !WeapInfo[CurrentWeapon].breathaim;
   const bool embeddedScopeActive =
@@ -780,7 +780,7 @@ SKIPWIND:
 
 
   //Render_Cross(VideoCX, VideoCY);
-  if ((!WeapInfo[CurrentWeapon].Optic || g_GameMode == GameMode::OpticScope) && WeapInfo[CurrentWeapon].cross
+  if ((!WeapInfo[CurrentWeapon].Optic || IsScopeView()) && WeapInfo[CurrentWeapon].cross
       && (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2)) {
     // rVertex was generated with the near-model projection. Reapply that
     // projection while converting its reticle anchor to screen coordinates.
@@ -976,6 +976,20 @@ SKIPWEAPON:
 
 
 
+
+// Restore the overlay (scope, binoculars, map) stashed when the menu took
+// over the mode slot; anything else returns to Normal. Single-use (cleared
+// here). Also used by the Y/Enter confirm paths so the scoped view survives
+// the evacuation countdown, matching the original engine (which kept
+// OPTICMODE through it); the death flow is unaffected because it clears the
+// stash when entering ExitCountdown outside the menu.
+static GameMode DismissMenuRestore()
+{
+  const GameMode saved = g_SavedOverlayMode;
+  g_SavedOverlayMode = GameMode::Normal;
+  if (IsOverlayMode(saved)) return saved;
+  return GameMode::Normal;
+}
 
 LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 {
@@ -1277,9 +1291,10 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     case VK_PAUSE:
 		if (g_GameMode != GameMode::SurvivalMode) {
       if (IsPaused()) {
-        g_GameMode = GameMode::Normal;
+        g_GameMode = DismissMenuRestore();
         CaptureMouse(true);
       } else {
+        g_SavedOverlayMode = g_GameMode;
         g_GameMode = GameMode::Paused;
         CaptureMouse(false);
       }
@@ -1288,7 +1303,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 		}
 
     case 'N':
-      if (g_GameMode == GameMode::ExitCountdown) g_GameMode = GameMode::Normal;
+      if (g_GameMode == GameMode::ExitCountdown) g_GameMode = DismissMenuRestore();
       break;
 
     case VK_ESCAPE:
@@ -1299,9 +1314,12 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       }
       else
       {
-        if (IsPaused()) { g_GameMode = GameMode::Normal; CaptureMouse(true); }
-        else { g_GameMode = (g_GameMode == GameMode::ExitCountdown) ? GameMode::Normal : GameMode::ExitCountdown; CaptureMouse(true); }
-        if (ExitTime) g_GameMode = GameMode::Normal;
+        if (IsPaused()) { g_GameMode = DismissMenuRestore(); CaptureMouse(true); }
+        else if (g_GameMode == GameMode::ExitCountdown) { g_GameMode = DismissMenuRestore(); CaptureMouse(true); }
+        else if (!ExitTime) { g_SavedOverlayMode = g_GameMode; g_GameMode = GameMode::ExitCountdown; CaptureMouse(true); }
+        // else: the hunt is ending (evacuation countdown running) — do not
+        // open a new prompt onto it and leave the view alone, so a scoped
+        // weapon stays scoped through the evacuation like the original.
         ResetMousePos();
       }
       break;
@@ -1311,7 +1329,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 		{
 			if (MyHealth) ExitTime = 4000;
 			else ExitTime = 1;
-			g_GameMode = GameMode::Normal;
+			g_GameMode = DismissMenuRestore();
 		}
 		break;
 
@@ -1320,7 +1338,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       {
 		if (MyHealth && g_GameMode != GameMode::SurvivalMode) ExitTime = 4000;
         else ExitTime = 1;
-        g_GameMode = GameMode::Normal;
+        g_GameMode = DismissMenuRestore();
       }
       break;
 

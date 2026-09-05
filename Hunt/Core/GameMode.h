@@ -26,6 +26,36 @@ enum class GameMode : unsigned int {
 };
 
 extern GameMode g_GameMode;
+// Overlay stashed when the Escape menu or Pause takes over the single-enum
+// mode slot, so dismissing the menu can return to the scope, binocular, or
+// map view that was up (the original engine kept EXITMODE/PAUSE as
+// independent flags and never lost it). Only meaningful while the menu is
+// up; cleared on dismiss and wherever ExitCountdown is entered outside the
+// menu (death flow). See DismissMenuRestore() in Hunt/Game/Hunt.cpp.
+extern GameMode g_SavedOverlayMode;
+// Full-screen aiming views that survive a menu round-trip via the stash above.
+inline bool IsOverlayMode(GameMode m) {
+  return m == GameMode::OpticScope || m == GameMode::Binocular || m == GameMode::MapMode;
+}
+// Rendering view: the exit menu (ExitCountdown) and Pause borrow the mode
+// slot but must not change what the player SEES of an underlying magnifier.
+// The original engine kept EXITMODE/PAUSE as independent flags, so the scope
+// stayed zoomed under the menu; without this, ActiveWorldZoom() collapses to
+// 1x the moment the menu opens (mask up, world wide). Logic gates that drive
+// input/animation (breath ease, toggles) keep using the raw mode — only
+// rendering predicates use these.
+inline bool IsScopeView() {
+  if (g_GameMode == GameMode::OpticScope) return true;
+  if ((g_GameMode == GameMode::ExitCountdown || g_GameMode == GameMode::Paused) &&
+      g_SavedOverlayMode == GameMode::OpticScope) return true;
+  return false;
+}
+inline bool IsBinocularView() {
+  if (g_GameMode == GameMode::Binocular) return true;
+  if ((g_GameMode == GameMode::ExitCountdown || g_GameMode == GameMode::Paused) &&
+      g_SavedOverlayMode == GameMode::Binocular) return true;
+  return false;
+}
 extern int CrouchMode; // stance flag: independent of g_GameMode so crouch
                        // coexists with overlays (OpticScope, Binocular, ...)
 
