@@ -3,6 +3,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "Core/BillboardMath.h"
 #include "Core/WaterObjectVisibility.h"
 #include "GLRenderer.h"
 #include "Renderer/GLUtils.h"
@@ -293,17 +294,27 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
 
     const bool hasFade = alpha < 0.999f;
 
-    // Visibility check: all 4 billboard corners share the same z.
-    if (z0 >= -256.0f) return;
+    // Match the original D3D/3dfx cylindrical billboard: the horizontal
+    // axis faces the camera, while the vertical axis remains fixed in world
+    // space and is transformed by camera pitch. This prevents distant scenery
+    // from tilting with the screen when the player looks up or down.
+    BillboardViewOffset offsets[4];
+    for (int index = 0; index < 4; ++index) {
+        offsets[index] = CalculateCylindricalBillboardViewOffset(
+            mptr->gVertex[index].x, mptr->gVertex[index].y, ::cb, ::sb);
+        if (z0 + offsets[index].z >= -256.0f) {
+            return;
+        }
+    }
 
     // Build two triangles (0-1-2, 0-2-3) for the billboard quad.
     auto makeVertex = [&](int index, float u, float v) -> ModelVertex {
         const float vertexFog = fogBase + mptr->gVertex[index].y * fogGrad;
         const float fogAmount = std::clamp((vertexFog / 255.0f) * kFogDensity, 0.0f, 1.0f);
         return {
-            mptr->gVertex[index].x + x0,
-            mptr->gVertex[index].y + y0,
-            z0,
+            offsets[index].x + x0,
+            offsets[index].y + y0,
+            offsets[index].z + z0,
             u, v,
             Light255ToByte(baseLight),
             Float01ToByte(fogAmount),

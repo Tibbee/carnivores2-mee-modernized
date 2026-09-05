@@ -254,6 +254,7 @@ if(MSVC)
     FetchContent_MakeAvailable(googletest)
 
     add_executable(Carnivores2Tests
+        tests/test_billboard_math.cpp
         tests/test_math.cpp
         tests/test_map_scaling.cpp
         tests/test_menu_slider.cpp
