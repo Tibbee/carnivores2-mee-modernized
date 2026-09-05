@@ -3,6 +3,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "Core/WaterObjectVisibility.h"
 #include "GLRenderer.h"
 #include "Renderer/GLUtils.h"
 
@@ -600,15 +601,20 @@ void GLRenderer::RenderMappedObject(int x, int y)
     }
 
     waterclip = false;
-    if (!IsUnderwater() && (FMap[y][x] & fmWaterA) && HMapO[y][x] < WaterList[WMap[y][x]].wlevel) {
-        if (WaterList[WMap[y][x]].wlevel * ctHScale > HMapO[y][x] * ctHScale + MObjects[ob].info.YHi) {
-            return;
-        }
+    if (!IsUnderwater() && (FMap[y][x] & fmWaterA)) {
+        const float objectBaseY = static_cast<float>(HMapO[y][x]) * ctHScale;
+        const float objectTopY = objectBaseY + MObjects[ob].info.YHi;
+        const float waterSurfaceY = static_cast<float>(WaterList[WMap[y][x]].wlevel) * ctHScale;
 
-        waterclipbase = pos;
-        waterclipbase.y = WaterList[WMap[y][x]].wlevel * ctHScale - CameraY;
-        waterclipbase = RotateVector(waterclipbase);
-        waterclip = true;
+        // Fully submerged scenery must remain renderable through the translucent
+        // water post-pass. Only objects crossing the plane need the legacy
+        // water-intersection path; submerged static objects retain instancing.
+        if (ObjectIntersectsWaterSurface(objectBaseY, objectTopY, waterSurfaceY)) {
+            waterclipbase = pos;
+            waterclipbase.y = waterSurfaceY - CameraY;
+            waterclipbase = RotateVector(waterclipbase);
+            waterclip = true;
+        }
     }
 
     // Phase 2.x: 3DFX-style height-graded pocket fog for instanced models.
