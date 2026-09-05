@@ -259,6 +259,7 @@ if(MSVC)
         tests/test_map_scaling.cpp
         tests/test_menu_slider.cpp
         tests/test_projectile_math.cpp
+        tests/test_terrain_fog.cpp
         tests/test_water_object_visibility.cpp
     )
     target_include_directories(Carnivores2Tests PRIVATE

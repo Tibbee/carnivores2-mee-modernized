@@ -5,6 +5,7 @@
 #include "Hunt.h"
 #include "GLRenderer.h"
 #include "Renderer/GLUtils.h"
+#include "Core/TerrainFog.h"
 
 #ifdef _gl
 
@@ -469,14 +470,7 @@ float GetTerrainFogAmountForMapPoint(int fogIndex, int legacyFog)
 // global IsUnderwater() load.
 float GetTerrainFogAmountForMapPoint(int fogIndex, int legacyFog, bool isUnderwater)
 {
-    if (isUnderwater) {
-        return static_cast<float>(legacyFog);
-    }
-
-    if (!FOGON || fogIndex <= 0) {
-        return 0.0f;
-    }
-
-    return static_cast<float>(std::clamp(legacyFog, 0, 255));
+    return ResolveTerrainFogAmount(fogIndex, legacyFog, FOGON != 0,
+        isUnderwater, CAMERAINFOG != 0, CameraFogI);
 }
 #endif // _gl

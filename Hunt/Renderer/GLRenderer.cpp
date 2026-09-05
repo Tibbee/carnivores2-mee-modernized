@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "Renderer/GLUtils.h"
+#include "Core/TerrainFog.h"
 #include "Core/WaterColor.h"  // §3.1: water-colour-aware depth modulation
 
 #define WGL_CONTEXT_MAJOR_VERSION_ARB     0x2091
@@ -1359,17 +1360,7 @@ Vector3d GLRenderer::GetCurrentFogColor()
 
 Vector3d GLRenderer::GetFogColorForMapPoint(int mapX, int mapY)
 {
-    if (IsUnderwater()) {
-        return GetDistanceFogColor();
-    }
-
-    const int fogIndex = GetFogIndexForMapPoint(mapX, mapY);
-    if (FOGON && fogIndex > 0) {
-        const float sunLight = g_GLRenderer ? g_GLRenderer->GetSunLight() : 0.0f;
-        return DecodeFogColor(ApplySunFogColourShift(FogsList[fogIndex].fogRGB, sunLight));
-    }
-
-    return GetDistanceFogColor();
+    return GetFogColorForMapPoint(GetFogIndexForMapPoint(mapX, mapY));
 }
 
 // Phase 2.x: fogIndex overload — caller already computed GetFogIndexForMapPoint.
@@ -1381,6 +1372,9 @@ Vector3d GLRenderer::GetFogColorForMapPoint(int fogIndex)
         return GetDistanceFogColor();
     }
 
+    // Clear terrain inherits the camera pocket's calculated fog amount, so
+    // its colour must inherit the same volume rather than use the sky colour.
+    fogIndex = ResolveTerrainFogIndex(fogIndex, CAMERAINFOG != 0, CameraFogI);
     if (FOGON && fogIndex > 0) {
         const float sunLight = g_GLRenderer ? g_GLRenderer->GetSunLight() : 0.0f;
         return DecodeFogColor(ApplySunFogColourShift(FogsList[fogIndex].fogRGB, sunLight));
@@ -1402,8 +1396,9 @@ Vector3d GLRenderer::GetCachedTerrainFogColor(int fogIndex)
     if (!m_terrainFogColorValid[index]) {
         // All inputs used by GetFogColorForMapPoint are stable between the
         // terrain and water passes in one rendered frame: underwater state,
-        // FOGON, sky colour, fog records, and sun visibility. Resolve each
-        // fog index once instead of decoding it for every terrain corner.
+        // FOGON, camera pocket state, sky colour, fog records, and sun visibility.
+        // Index 0 now caches the camera-pocket colour while inside fog. Resolve
+        // each index once instead of decoding it for every terrain corner.
         m_terrainFogColorCache[index] = GetFogColorForMapPoint(fogIndex);
         m_terrainFogColorValid[index] = 1;
     }
@@ -1485,15 +1480,7 @@ float GLRenderer::Clamp01(float value)
 
 float GetTerrainFogAmountForMapPoint(int mapX, int mapY, int legacyFog)
 {
-    if (IsUnderwater()) {
-        return static_cast<float>(legacyFog);
-    }
-
-    if (!FOGON || GetFogIndexForMapPoint(mapX, mapY) <= 0) {
-        return 0.0f;
-    }
-
-    return static_cast<float>(std::clamp(legacyFog, 0, 255));
+    return GetTerrainFogAmountForMapPoint(GetFogIndexForMapPoint(mapX, mapY), legacyFog);
 }
 
 // Phase 2.x: fogIndex overload — caller already computed GetFogIndexForMapPoint.
