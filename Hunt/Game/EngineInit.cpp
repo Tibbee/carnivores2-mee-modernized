@@ -733,7 +733,10 @@ void MakeCall()
   sendHunterCall = TargetCall - 10;
   sendHunterCallType = NextCall;
 
-  float dminSq = (512 * 256) * (512 * 256);
+  // NOTE: float-first arithmetic is load-bearing here. (512*256)^2 overflows
+  // int32 (it is exactly 4*2^32 and wraps to 0), which made dSq<dminSq false
+  // for every dino and silently disabled all call answers (issue #1).
+  float dminSq = 512.f * 256.f * 512.f * 256.f;
   int ai = -1;
 
   for (int c=0; c<ChCount; c++)
