@@ -991,6 +991,42 @@ static GameMode DismissMenuRestore()
   return GameMode::Normal;
 }
 
+// Centralized menu/mode transitions. Every mode-slot takeover that touches
+// the overlay stash goes through these, so the invariant holds by structure
+// instead of convention: entering the menu/Pause stashes the current
+// overlay, every exit path restores-or-Normal via DismissMenuRestore(), and
+// non-menu entries (death demo, GameMode.h inline) clear the stash first.
+// Q (survival quit), R (restart) and Trophy/Survival Escape never stash, so
+// they keep their direct assignments and are unaffected.
+static void EnterMenuMode() // Escape from gameplay
+{
+  if (!ExitTime) {
+    g_SavedOverlayMode = g_GameMode;
+    g_GameMode = GameMode::ExitCountdown;
+    CaptureMouse(true);
+  }
+  // else: the hunt is ending (evacuation countdown running) — do not open
+  // a new prompt onto it and leave the view alone, so a scoped weapon stays
+  // scoped through the evacuation like the original.
+}
+static void DismissMenuMode() // Escape from menu, unpause from Pause
+{
+  g_GameMode = DismissMenuRestore();
+  CaptureMouse(true);
+}
+static void EnterPauseMode() // VK_PAUSE from gameplay
+{
+  g_SavedOverlayMode = g_GameMode;
+  g_GameMode = GameMode::Paused;
+  CaptureMouse(false);
+}
+static void ConfirmExitMenu() // Y/Enter: start evacuation, restore the view
+{
+  if (MyHealth && g_GameMode != GameMode::SurvivalMode) ExitTime = 4000;
+  else ExitTime = 1;
+  g_GameMode = DismissMenuRestore();
+}
+
 LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 {
   BOOL A = (GetActiveWindow() == hWnd);
@@ -1293,12 +1329,9 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     case VK_PAUSE:
 		if (g_GameMode != GameMode::SurvivalMode) {
       if (IsPaused()) {
-        g_GameMode = DismissMenuRestore();
-        CaptureMouse(true);
+        DismissMenuMode();
       } else {
-        g_SavedOverlayMode = g_GameMode;
-        g_GameMode = GameMode::Paused;
-        CaptureMouse(false);
+        EnterPauseMode();
       }
       ResetMousePos();
       break;
@@ -1316,12 +1349,9 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       }
       else
       {
-        if (IsPaused()) { g_GameMode = DismissMenuRestore(); CaptureMouse(true); }
-        else if (g_GameMode == GameMode::ExitCountdown) { g_GameMode = DismissMenuRestore(); CaptureMouse(true); }
-        else if (!ExitTime) { g_SavedOverlayMode = g_GameMode; g_GameMode = GameMode::ExitCountdown; CaptureMouse(true); }
-        // else: the hunt is ending (evacuation countdown running) — do not
-        // open a new prompt onto it and leave the view alone, so a scoped
-        // weapon stays scoped through the evacuation like the original.
+        if (IsPaused()) { DismissMenuMode(); }
+        else if (g_GameMode == GameMode::ExitCountdown) { DismissMenuMode(); }
+        else { EnterMenuMode(); }
         ResetMousePos();
       }
       break;
@@ -1329,18 +1359,14 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     case 'Y':
 		if (g_GameMode == GameMode::ExitCountdown && g_GameMode != GameMode::SurvivalMode)
 		{
-			if (MyHealth) ExitTime = 4000;
-			else ExitTime = 1;
-			g_GameMode = DismissMenuRestore();
+			ConfirmExitMenu();
 		}
 		break;
 
     case VK_RETURN:
       if (g_GameMode == GameMode::ExitCountdown )
       {
-		if (MyHealth && g_GameMode != GameMode::SurvivalMode) ExitTime = 4000;
-        else ExitTime = 1;
-        g_GameMode = DismissMenuRestore();
+        ConfirmExitMenu();
       }
       break;
 

@@ -156,10 +156,7 @@ void ProcessDemoMovement()
   if (DemoPoint.DemoTime>6*1000)
     if (!IsPaused())
     {
-      // Entered outside the menu: clear any stashed overlay so a later
-      // Escape-dismiss here restores Normal instead of resurrecting it.
-      g_SavedOverlayMode = GameMode::Normal;
-      g_GameMode = GameMode::ExitCountdown;
+      EnterExitCountdownNoStash();
       ResetMousePos();
     }
 

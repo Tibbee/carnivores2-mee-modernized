@@ -33,6 +33,14 @@ extern GameMode g_GameMode;
 // up; cleared on dismiss and wherever ExitCountdown is entered outside the
 // menu (death flow). See DismissMenuRestore() in Hunt/Game/Hunt.cpp.
 extern GameMode g_SavedOverlayMode;
+// Non-menu entry into ExitCountdown (death demo): clears the stash first so
+// a later dismiss restores Normal instead of resurrecting a stale overlay.
+// Lives here so every translation unit enters ExitCountdown outside the menu
+// through the same choke point (see EnterMenuMode() in Hunt/Game/Hunt.cpp).
+inline void EnterExitCountdownNoStash() {
+  g_SavedOverlayMode = GameMode::Normal;
+  g_GameMode = GameMode::ExitCountdown;
+}
 // Full-screen aiming views that survive a menu round-trip via the stash above.
 inline bool IsOverlayMode(GameMode m) {
   return m == GameMode::OpticScope || m == GameMode::Binocular || m == GameMode::MapMode;
