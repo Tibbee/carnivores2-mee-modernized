@@ -474,6 +474,12 @@ SKIPWIND:
 	  goto SKIPWEAPON;
   }
 
+  // Drawing or holding a raised weapon closes the area map (original MEE
+  // behaviour: the old engine wrote MapMode = FALSE here every frame the
+  // weapon was active; the GameMode-enum refactor dropped it, leaving the
+  // map stuck open over a drawn weapon until the player lowered it).
+  if (g_GameMode == GameMode::MapMode) g_GameMode = GameMode::Normal;
+
   if (g_GameMode != GameMode::SurvivalMode) {
 	  float tempT = static_cast<float>(TimeDt) / 10000.f;
 	  wptr->shakel += tempT;

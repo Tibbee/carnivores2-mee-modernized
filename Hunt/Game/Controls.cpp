@@ -91,6 +91,11 @@ void ToggleBinocular()
   if (IsUnderwater()) return;
   if (!MyHealth) return;
   g_GameMode = (g_GameMode == GameMode::Binocular) ? GameMode::Normal : GameMode::Binocular;
+  // Note: unlike the original engine's separate MapMode flag, g_GameMode is a
+  // single enum, so raising binoculars over an open map already replaces the
+  // map with the binocular view (the map closes) — no extra handling needed.
+  // The weapon case is different (HideWeapon does not touch g_GameMode) and is
+  // handled by the per-frame close in Hunt.cpp's weapon block.
   if (g_GameMode == GameMode::Binocular) AddMessage("Binocular view");
 }
 
