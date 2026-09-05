@@ -4,6 +4,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "Core/ProjectileMath.h"
 
 DWORD ColorSum(DWORD C1, DWORD C2)
 {
@@ -357,7 +358,7 @@ void AnimateBullets() {
 			float pd = pdx * pdx + pdz * pdz;
 
 			if ((sres > 0 && (!WeapInfo[bullet[b].parent].harpoon || sres!=tresWater)) || 
-				pd > (256 * ctViewR) * (256 * ctViewR)) {
+				pd > ProjectileViewRangeSquared(ctViewR)) {
 				if (WeapInfo[bullet[b].parent].retrieve && (sres == 1 || sres == 3)) {
 					bullet[b].state = 1;
 					bullet[b].a = TraceB;
