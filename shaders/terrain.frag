@@ -8,6 +8,7 @@ in vec3 vFogColor;
 in float vAlpha;
 in float vViewZ;
 in float vViewDistance;
+in float vRadialDist;      // radial camera distance (see terrain.vert)
 in float vWaterAlphaFade;
 in vec3 vViewPos;            // view-space position (camera at origin)
 uniform vec3 uSunDirection;     // sun direction in view space (§3.5)
@@ -82,8 +83,15 @@ void main() {
    // Per-pixel distance fog: smooth ramp from uFogRange.x to
    // uFogRange.y. Uses the global horizon color instead of the
    // per-vertex vFogColor, which prevents local fog volumes from
-   // bleeding into the horizon fade.
-   float distanceFog = clamp((vViewZ - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);
+   // bleeding into the horizon fade. Uses the RADIAL camera distance
+   // (not forward-only vViewZ) so the colour ramp stays aligned with
+   // the CPU alpha fade (CalcTerrainAlpha), which is also radial.
+   // With forward-Z here, wide-FOV screen edges (large off-axis angle,
+   // forward depth << radial distance) stayed unfogged until the radial
+   // alpha cull cut them, exposing the view-distance boundary as a hard
+   // terrain edge (visible at max FOV). Radial fog paints the boundary
+   // sky-coloured before the alpha cull removes it, hiding the edge.
+   float distanceFog = clamp((vRadialDist - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);
    vec3 finalColor = mix(volumetricFogColor, uDistanceFogColor, distanceFog);
 
    // §3.10: camera-in-fog global envelope.  When the camera is submerged in a

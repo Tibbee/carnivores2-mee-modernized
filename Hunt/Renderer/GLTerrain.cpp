@@ -591,9 +591,14 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
         return;
     }
 
-    // Coarse frustum pre-test — SAFEGUARD: only reject when cz < 0
-    // NOTE: no FOVK here — matches the software renderer's ProcessMap
-    // formula.  The precise 4-corner check below still uses FOVK.
+    // Coarse frustum pre-test — SAFEGUARD: only reject when cz < 0.
+    // The lateral MUST be scaled by FOVK so this cone matches the precise
+    // 4-corner check below (and the GPU projection).  Without FOVK the
+    // bound assumes a ~90-degree frustum: at wide FOV (FOVK < 1) it is far
+    // narrower than the true frustum and visibly clips the left/right of
+    // the view.  The backR*2+2048 margin keeps it a safe superset of the
+    // per-corner test at every FOV (it only absorbs tile-center-vs-corner
+    // and HMapO-vs-VMap height slop, never real rejections).
     {
         const float wx = static_cast<float>(x * 256 + 128) - CameraX;
         const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
@@ -601,7 +606,7 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
         const float cx  = wx * ca + wz * sa;
         const float cz1 = wz * ca - wx * sa;
         const float cz  = cz1 * cb + wy * sb;
-        if (cz < 0.0f && std::fabs(cx) > -cz + backR * 2.0f + 2048.0f) {
+        if (cz < 0.0f && std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
             return;
         }
     }
@@ -793,7 +798,8 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
             const float cxc = wx * ca + wz * sa;
             const float cz1 = wz * ca - wx * sa;
             const float cz  = cz1 * cb + wy * sb;
-            const bool pass = !(cz < 0.0f && std::fabs(cxc) > -cz + br * 2.0f + 2048.0f);
+            // FOVK-scaled like the 1x1 path: without it wide FOV clips the view sides.
+            const bool pass = !(cz < 0.0f && std::fabs(cxc * FOVK) > -cz + br * 2.0f + 2048.0f);
             coarsePass[dj][di] = pass;
             if (pass) anyCoarse = true;
         }

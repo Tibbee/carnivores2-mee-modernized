@@ -3,6 +3,7 @@ out vec4 FragColor;
 in vec2 vTexCoord;
 in float vLight;
 in float vViewZ;
+in float vRadialDist;
 in vec3 vWorldNormal;
 in float vAlpha;
 in float vCutout;
@@ -29,9 +30,10 @@ void main() {
    vec3 tinted = litColor * uDistanceFogColor;
    litColor = mix(litColor, tinted, vTintByFog);
    // Phase 2.5: per-pixel distance fog matching the terrain shader.
-   // Ramp from uFogRange.x to uFogRange.y, uses view-space Z
-   // (not Euclidean distance) for parity with the terrain.
-   float distanceFog = clamp((vViewZ - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);
+   // Ramp from uFogRange.x to uFogRange.y, uses radial camera distance
+   // (not forward-only view-space Z) for parity with the terrain and
+   // with the radial CPU alpha fade — see terrain.frag.
+   float distanceFog = clamp((vRadialDist - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);
    // Phase 2.6: volumetric (pocket) fog placeholder — zero for now.
    vec3 afterVolumetric = mix(litColor, vVolumetricFogColor, vVolumetricFog);
    // Final: fade to distance fog colour over the ramp.

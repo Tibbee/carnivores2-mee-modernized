@@ -7,6 +7,7 @@ in vec3 vFogColor;
 in float vAlpha;
 in float vCutout;
 in float vViewZ;
+in float vRadialDist;
 uniform PerFrame {
    mat4 uProjection;
    vec2 uFogRange;
@@ -29,7 +30,9 @@ void main() {
    vec3 finalColor = mix(litColor, vFogColor, vFog);
    // Match the terrain/instanced-model horizon fade for legacy
    // model-path objects (BMP billboards and water-clipped meshes).
-   float distanceFog = clamp((vViewZ - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);
+   // Radial distance (not forward-Z) so wide-FOV screen edges fog in
+   // step with the radial CPU alpha fade — see terrain.frag.
+   float distanceFog = clamp((vRadialDist - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);
    finalColor = mix(finalColor, uDistanceFogColor, distanceFog);
 
    // §3.10: camera-in-fog global envelope — see terrain.frag.  Fogs the whole

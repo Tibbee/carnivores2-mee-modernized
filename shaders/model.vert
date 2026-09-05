@@ -17,6 +17,7 @@ out vec3 vFogColor;
 out float vAlpha;
 out float vCutout;
 out float vViewZ;
+out float vRadialDist;   // radial camera distance; drives distance fog (see terrain.vert)
 void main() {
    gl_Position = uProjection * vec4(aPos, 1.0);
    vTexCoord = aTexCoord;
@@ -27,4 +28,5 @@ void main() {
    vCutout = aLightFogAlphaCutout.w;
    vFogColor = aFogColor;
    vViewZ = max(-aPos.z, 0.0);
+   vRadialDist = length(aPos);
 }

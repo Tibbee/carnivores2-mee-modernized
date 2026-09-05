@@ -194,7 +194,10 @@ void ProcessMap2(int x, int y, int r)
   float zz = (ev[0].v.z + VMap[y+2][x+2].v.z) / 2;
   int zs;
 
-  if ( fabs(xx) > -zz + BackR) return;
+  // FOVK-scaled: without it wide FOV (FOVK < 1) culls visible side tiles.
+  // DrawTPlaneClip's ClipA-D planes are FOV-correct, so this only widens
+  // acceptance toward the true frustum (strictly fewer false culls).
+  if ( fabs(xx*FOVK) > -zz + BackR) return;
 
   const float distanceSq = xx*xx + zz*zz + yy*yy;
   const float viewDistance = ctViewR * 256.0f;
@@ -334,7 +337,8 @@ void ProcessMap(int x, int y, int r)
   zz = (ev[0].v.z + VMap[y+1][x+1].v.z) / 2;
 
 
-  if ( fabs(xx) > -zz + BackR) return;
+  // FOVK-scaled (see ProcessMap2): without it wide FOV culls visible sides.
+  if ( fabs(xx*FOVK) > -zz + BackR) return;
 
   const float distanceSq = xx*xx + zz*zz + yy*yy;
   const float viewDistance = ctViewR * 256.0f;

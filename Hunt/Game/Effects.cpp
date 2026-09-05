@@ -171,7 +171,11 @@ void PreCashGroundModel()
         rv = rotateCached(rv);
         VMap2[kViewGridCenter + y][kViewGridCenter + x].v = rv;
 
-        if (fabs(rv.x) > -rv.z + 1524)
+        // FOVK-scaled like the terrain VMap test below: without it wide FOV
+        // (FOVK < 1) drops visible side water vertices, leaving stale
+        // Light/ALPHA/Fog (or zero ALPHA, which skips the tile) and possibly
+        // a false NeedWater=false for the whole frame.
+        if (fabs(rv.x * FOVK) > -rv.z + 1524)
         {
 #if !defined(_gl)
           VMap2[kViewGridCenter + y][kViewGridCenter + x].DFlags = 128;

@@ -25,6 +25,9 @@ out float vViewZ;
 out float vViewDistance;
 out float vWaterAlphaFade;
 out vec3 vViewPos;          // view-space vertex position (camera at origin)
+out float vRadialDist;       // radial (Euclidean) camera distance; drives the
+                            // horizon distance-fog ramp so it matches the CPU
+                            // alpha fade (CalcTerrainAlpha), which is radial.
 void main() {
    gl_Position = uProjection * vec4(aPos, 1.0);
    vTexCoord = aTexCoord;
@@ -35,6 +38,7 @@ void main() {
    vAlpha = aLightFogAlpha.z;
    vFogColor = aFogColor;
    vViewZ = max(-aPos.z, 0.0);
+   vRadialDist = length(aPos);
    // Use dot(aPos,aPos) instead of length(aPos) to avoid
    // sqrt per vertex. The fragment shader computes sqrt only for
    // water pixels (the minority).
