@@ -386,6 +386,18 @@ void DrawPostObjects()
   // and scope overlays fill the widescreen width (C1 has the same
   // logic in InsertModelList).
   float nearModelScale = FovScaleFromDegrees(kFovDefault) / FovScaleFromDegrees(OptFov);
+  // Scope-overlay predicates live here so both the wind/compass skip below
+  // and the viewmodel scaling later share one definition of "mask up".
+  // A breath-aim weapon never raises a mask: plain viewmodel at every
+  // magnification, HUD untouched (see the aspect-fill pop note below).
+  const bool opticZoomActive =
+      g_GameMode == GameMode::OpticScope &&
+      (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2) &&
+      ScopePower > 1.01f && !WeapInfo[CurrentWeapon].breathaim;
+  const bool embeddedScopeActive =
+      WeapInfo[CurrentWeapon].Optic > 0.0f &&
+      !WeapInfo[CurrentWeapon].cross && !WeapInfo[CurrentWeapon].breathaim &&
+      Weapon.state == 2;
   if (g_GameMode == GameMode::Binocular)
   {
     float oldCW = CameraW;
@@ -400,7 +412,11 @@ void DrawPostObjects()
   }
 
   //goto SKIPWIND;
-  if (g_GameMode == GameMode::Binocular || (g_GameMode == GameMode::OpticScope && (!WeapInfo[CurrentWeapon].unzoom || Weapon.state==2))) goto SKIPWIND;
+  // The wind indicator and compass sit where the sniper's scope mask covers
+  // the screen, so they hide only while the mask is actually up (or under
+  // the binocular overlay). A breath-aim weapon keeps both at every
+  // magnification — including mid breath-zoom.
+  if (g_GameMode == GameMode::Binocular || embeddedScopeActive) goto SKIPWIND;
 
   if (g_GameMode != GameMode::TrophyMode && g_GameMode != GameMode::SurvivalMode)
     if (!KeyboardState[VK_CAPITAL] & 1)
@@ -413,14 +429,18 @@ void DrawPostObjects()
       const int hudBottomInset = static_cast<int>((static_cast<float>(WinH) * 0.012f));
       const int hudY = WinH - (WinH * 10 / 23) - hudBottomInset;
 
+      // Counter-scale the active world zoom: these near-model HUD pieces
+      // share the (possibly magnified) CameraW/H projection, so without
+      // this they drift half out of frame as the frustum narrows.
+      const float hudUnzoom = nearModelScale / ActiveWorldZoom();
       VideoCX = hudCenter - hudSpread;
       VideoCY = hudY;
       CreateMorphedModel(WindModel.mptr.get(), &WindModel.Animation[0], static_cast<int>((Wind.speed*50.f)), 1.0);
       {
         const float savedCW = CameraW;
         const float savedCH = CameraH;
-        CameraW *= nearModelScale;
-        CameraH *= nearModelScale;
+        CameraW *= hudUnzoom;
+        CameraH *= hudUnzoom;
         RenderNearModel(WindModel.mptr.get(), -10, -37, -96, 192,  CameraAlpha-Wind.alpha,0);
         CameraW = savedCW;
         CameraH = savedCH;
@@ -431,8 +451,8 @@ void DrawPostObjects()
       {
         const float savedCW = CameraW;
         const float savedCH = CameraH;
-        CameraW *= nearModelScale;
-        CameraH *= nearModelScale;
+        CameraW *= hudUnzoom;
+        CameraH *= hudUnzoom;
         RenderNearModel(CompasModel.get(), +8, -38, -96, 192,  CameraAlpha,0);
         CameraW = savedCW;
         CameraH = savedCH;
@@ -692,13 +712,11 @@ SKIPWIND:
   else wpnlight = 200;
 
   float weaponOverlayScale = nearModelScale;
-  const bool opticZoomActive =
-      g_GameMode == GameMode::OpticScope &&
-      (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2);
-  const bool embeddedScopeActive =
-      WeapInfo[CurrentWeapon].Optic > 0.0f &&
-      !WeapInfo[CurrentWeapon].cross && Weapon.state == 2;
-
+  // A breath-aim weapon keeps a normal viewmodel at every magnification:
+  // only the world zooms, so the gun never pops when the breath ease
+  // crosses 1x (the aspect-fill below would snap it ~33% bigger at 16:9
+  // while the world still sits near 1x). Scoped weapons keep the mask
+  // aspect-fill; their magnification never crosses the 1x boundary.
   if (opticZoomActive || embeddedScopeActive) {
     // The sniper mask is embedded in the weapon's firing animation rather
     // than drawn as a separate HUD texture.  Some game-state paths can leave

@@ -26,6 +26,8 @@ enum class GameMode : unsigned int {
 };
 
 extern GameMode g_GameMode;
+extern int CrouchMode; // stance flag: independent of g_GameMode so crouch
+                       // coexists with overlays (OpticScope, Binocular, ...)
 
 // --- Accessor helpers (inline, defined after g_GameMode is visible) ---
 
@@ -50,7 +52,10 @@ extern int UNDERWATER;          // 1 iff camera is submerged this frame
 inline bool IsUnderwater()  { return UNDERWATER != 0; }
 inline bool IsScopeActive() { return g_GameMode == GameMode::OpticScope || g_GameMode == GameMode::Binocular; }
 inline bool IsPaused()      { return g_GameMode == GameMode::Paused; }
-inline bool IsCrouching()   { return g_GameMode == GameMode::Crouching; }
+// Crouch used to BE GameMode::Crouching, which made stance and overlay
+// mutually exclusive: drawing a scoped weapon stood the player up and
+// crouching killed an active scope. Stance now lives in CrouchMode.
+inline bool IsCrouching()   { return CrouchMode != 0; }
 
 // --- Per-state accessors (1:1 with g_GameMode == GameMode::X) ---
 //

@@ -907,6 +907,7 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	//if (strstr(line, "price")) WeapInfo[TotalW].Price =        atoi(value);
 
 	if (strstr(line, "unzoom")) readBool(value, WeapInfo[TotalW].unzoom);
+	if (strstr(line, "breathaim")) readBool(value, WeapInfo[TotalW].breathaim);
 
 	if (strstr(line, "harpoon")) readBool(value, WeapInfo[TotalW].harpoon);
 

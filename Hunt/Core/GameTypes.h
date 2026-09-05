@@ -591,6 +591,9 @@ struct TWeapInfo
   int modAqSnd = -1;
   float shake, Optic;
   bool unzoom, harpoon;
+  // Rest unzoomed; reach Optic only while holding breath (stock rifle).
+  // Default false (zero-init): scoped weapons rest at Optic instead.
+  bool breathaim = false;
 
   bool canRun;
   bool cannotMortal;

@@ -190,9 +190,11 @@ void HideWeapon()
     // ScopePower is only meaningful for optic weapons; non-optic raises
     // leave it untouched (it is unused while not in OpticScope). An
     // explicit init lives in StateDefs.cpp so the first scoped frame is sane.
+    // Breath-aim weapons rest unzoomed and magnify only while holding
+    // breath, so they raise at 1x; scoped weapons rest at their optic.
     if (WeapInfo[CurrentWeapon].Optic) {
       g_GameMode = GameMode::OpticScope;
-      ScopePower = WeapInfo[CurrentWeapon].Optic;
+      ScopePower = WeapInfo[CurrentWeapon].breathaim ? 1.0f : WeapInfo[CurrentWeapon].Optic;
     }
     
 	if (IsUnderwater()) {

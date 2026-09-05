@@ -264,6 +264,8 @@ void ReInitGame()
   Weapon.BTime = 0;
   Weapon.HoldBreath = false;
   Weapon.breathPressed = 0;
+  CrouchMode = 0;
+  HitBox.phase = 0;
 
   WCCount = 0;
   ElCount = 0;
@@ -280,7 +282,7 @@ void ReInitGame()
 	  Weapon.state = 2;
 	  if (WeapInfo[CurrentWeapon].Optic) {
 		  g_GameMode = GameMode::OpticScope;
-		  ScopePower = WeapInfo[CurrentWeapon].Optic;
+		  ScopePower = WeapInfo[CurrentWeapon].breathaim ? 1.0f : WeapInfo[CurrentWeapon].Optic;
 	  }
   }
 

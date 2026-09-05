@@ -529,24 +529,27 @@ void ProcessPlayerMovement()
 
   if (g_GameMode == GameMode::OpticScope)
   {
-    // Breath-driven focus zoom. Base magnification is always the weapon's
-    // own optic value (the scope mask is authored to fill the screen at
-    // that magnification, so going below it would reveal the mask border).
-    // Holding breath eases toward a per-weapon ceiling of 1.5x base optic
-    // (stock: 1.6x rifle -> 2.4x, 3.0x sniper -> 4.5x); releasing eases back.
-    // The hold is self-limiting: Hunt.cpp caps Weapon.BTime at ~4s and then
-    // forces an exhale, so max zoom can never be parked. No free Numpad
-    // zoom on purpose — one mechanic (focus), one sensible cap per weapon.
+    // Breath-driven aim zoom. Scoped weapons rest at their optic value
+    // (the scope mask is authored to fill the screen at that
+    // magnification, so going below it would reveal the mask border) and
+    // holding breath eases toward a 1.5x focus ceiling (stock sniper:
+    // 3.0x -> 4.5x). Breath-aim weapons (stock rifle) rest unzoomed and
+    // only reach their optic while held (1.0x -> 1.6x); releasing eases
+    // back. The hold is self-limiting: Hunt.cpp caps Weapon.BTime at ~4s
+    // and then forces an exhale, so zoom can never be parked. No free
+    // Numpad zoom on purpose — one mechanic (focus), one sensible cap.
     const float opticFloor = (WeapInfo[CurrentWeapon].Optic > 1.0f) ? WeapInfo[CurrentWeapon].Optic : 1.0f;
-    const float focusCeil = opticFloor * 1.5f;
-    const float target = (Weapon.HoldBreath ? focusCeil : opticFloor);
+    const bool breathAim = WeapInfo[CurrentWeapon].breathaim;
+    const float restLevel = breathAim ? 1.0f : opticFloor;
+    const float focusCeil = breathAim ? opticFloor : opticFloor * 1.5f;
+    const float target = (Weapon.HoldBreath ? focusCeil : restLevel);
     // Slow exponential approach (~900ms time constant): a deliberate focus
     // pull, not a snap. Frame-rate independent via TimeDt.
     const float k = 1.f - expf(-static_cast<float>(TimeDt) / 900.f);
     ScopePower += (target - ScopePower) * k;
     // Hard clamp: also repairs any stale wide zoom (e.g. 10x from older
     // Numpad-zoom builds) the first scoped frame after loading.
-    if (ScopePower < opticFloor) ScopePower = opticFloor;
+    if (ScopePower < restLevel) ScopePower = restLevel;
     if (ScopePower > focusCeil) ScopePower = focusCeil;
   }
 

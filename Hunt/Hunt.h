@@ -97,3 +97,15 @@ static_assert(sizeof(TObject) >= 300 && sizeof(TObject) <= 400,
 static_assert(sizeof(TCharacterInfo) >= 3000 && sizeof(TCharacterInfo) <= 8000,
               "TCharacterInfo size is outside expected range — ChInfo[128] "
               "layout is affected");
+
+// The world-zoom factor Controls.cpp applies to CameraW/H each frame: the
+// optic magnification while a scoped weapon is raised, 1 otherwise. HUD
+// near-model renders (wind, compass) divide it back out so they stay
+// pixel-stable while the world magnifies behind them.
+inline float ActiveWorldZoom()
+{
+  if (g_GameMode == GameMode::OpticScope &&
+      (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2))
+    return ScopePower;
+  return 1.0f;
+}

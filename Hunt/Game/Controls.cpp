@@ -103,9 +103,13 @@ void ToggleRunMode()
 
 void ToggleCrouchMode()
 {
-	g_GameMode = (g_GameMode == GameMode::Crouching) ? GameMode::Normal : GameMode::Crouching;
-	HitBox.phase = g_GameMode == GameMode::Crouching;
-	if (g_GameMode == GameMode::Crouching) AddMessage("Crouch mode is ON");
+	// Stance is independent of GameMode. Crouch used to BE a game mode, so
+	// drawing a scoped weapon stood the player back up (HideWeapon overwrote
+	// it with OpticScope, leaving even HitBox.phase stale) and crouching
+	// silently killed an active scope with no way back except re-drawing.
+	CrouchMode = !CrouchMode;
+	HitBox.phase = CrouchMode;
+	if (CrouchMode) AddMessage("Crouch mode is ON");
 	else AddMessage("Crouch mode is OFF");
 }
 
@@ -297,7 +301,7 @@ void ProcessControls()
     }
   }
 
-  if ((g_GameMode == GameMode::Crouching) | (IsUnderwater()) )
+  if (CrouchMode | IsUnderwater())
   {
     if (HeadY<110.f) HeadY = 110.f;
     HeadY-=DeltaT*(60 + (HeadY-110)*5);
@@ -605,10 +609,13 @@ SKIPYMOVE:
     CameraW*=BinocularPower;
     CameraH*=BinocularPower;
   }
-  else if (g_GameMode == GameMode::OpticScope && (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2))
+  else
   {
-	  CameraW *= ScopePower;
-	  CameraH *= ScopePower;
+	  // Single source of truth for the scoped-raise condition (see Hunt.h);
+	  // inactive it returns 1.0f, which is a no-op multiply.
+	  const float worldZoom = ActiveWorldZoom();
+	  CameraW *= worldZoom;
+	  CameraH *= worldZoom;
   }
 
   // FOVK is a frustum-cull coefficient used by the renderer (e.g.
