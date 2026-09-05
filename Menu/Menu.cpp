@@ -2032,6 +2032,10 @@ void MenuEventInput(int32_t menu)
 								g_Options.Resolution++;
 								if (g_Options.Resolution >= g_ResCount)
 									g_Options.Resolution = 0;
+								// Persist immediately: config.cfg's WxH line
+								// overrides the profile index at engine boot,
+								// so without this the pick never reaches the hunt.
+								SaveConfig();
 							}
 							else if (mo.Hilite == 2) // Display Mode
 							{
