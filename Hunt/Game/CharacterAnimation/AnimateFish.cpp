@@ -63,7 +63,11 @@ TBEGIN:
 	// JUMP & IDLE PARTICLES
 
 	//int Scal = ((cptr->scale * 2) - 1);
-	if (pdistSq < ((ctViewR + 20) * 256) * ((ctViewR + 20) * 256)) {	//Only create particles within player render distance
+	// NOTE: float-first arithmetic is load-bearing: ((ctViewR+20)*256)^2 overflows
+	// int32 above ctViewR 161 (wraps negative, killing all fish particles at high
+	// view distance). Same bug class as the MakeCall dminSq overflow (issue #1).
+	const float particleRange = static_cast<float>(ctViewR + 20) * 256.f;
+	if (pdistSq < particleRange * particleRange) {	//Only create particles within player render distance
 		if (DinoInfo[cptr->CType].partCnt[cptr->Phase]) {
 			if (cptr->FTime > DinoInfo[cptr->CType].partFrame1[cptr->Phase] / cptr->pinfo->Animation[cptr->Phase].aniKPS
 				&& cptr->FTime < DinoInfo[cptr->CType].partFrame2[cptr->Phase] / cptr->pinfo->Animation[cptr->Phase].aniKPS) {
