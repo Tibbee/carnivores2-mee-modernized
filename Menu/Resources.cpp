@@ -16,6 +16,8 @@
 #include <fstream>
 #include <string>
 #include <cstdlib>
+#include <set>
+#include <vector>
 
 
 class script_error : public std::exception
@@ -1489,46 +1491,92 @@ static std::string GetConfigWritePath()
 void SaveConfig()
 {
 	std::string configPath = GetConfigWritePath();
-	std::ofstream fs(configPath, std::ios::trunc);
-	if (!fs.is_open()) {
-		std::cout << "Config: could not write " << configPath << std::endl;
-		return;
+
+	// Snapshot lines this build does not own (user comments, game-side
+	// envN_* audio keys, future keys) so the rewrite preserves them
+	// verbatim, in place. Without this, every save silently deletes hand
+	// edits and the render exe's audio tweaks.
+	std::vector<std::string> oldLines;
+	{
+		std::ifstream in(configPath);
+		std::string l;
+		while (std::getline(in, l)) oldLines.push_back(l);
 	}
 
-	fs << "# Carnivores 2 Modder's Engine configuration\n";
-	fs << "# Edit by hand if needed — values are validated on load.\n";
-	fs << "\n";
-	fs << "renderer " << g_Options.RenderAPI << "\n";
-	fs << "fov " << g_Options.FOV << "\n";
-	fs << "object_detail " << g_Options.ObjectDetail << "\n";
-	fs << "fps_limit " << g_Options.OptFpsLimit << "\n";
-	fs << "verbose_logging " << (g_Options.VerboseLogging ? 1 : 0) << "\n";
-	fs << "nightvision_key " << g_Options.NightVisionKey << "\n";
+	// Fresh renderings of every key this build owns, in canonical order.
+	// Conditional keys (resolution, hunt_*) are present only when valid —
+	// a missing entry means "leave any existing line alone, append nothing".
+	std::vector<std::pair<std::string, std::string>> fresh;
+	fresh.emplace_back("renderer", std::to_string(g_Options.RenderAPI));
+	fresh.emplace_back("fov", std::to_string(g_Options.FOV));
+	fresh.emplace_back("object_detail", std::to_string(g_Options.ObjectDetail));
+	fresh.emplace_back("fps_limit", std::to_string(g_Options.OptFpsLimit));
+	fresh.emplace_back("verbose_logging", g_Options.VerboseLogging ? "1" : "0");
+	fresh.emplace_back("nightvision_key", std::to_string(g_Options.NightVisionKey));
 
 	// Persist the selected resolution as WxH so the render exe honours it
 	// even though the legacy per-profile index (trophy0N.sav) is fragile
 	// across differently-ordered mode lists.
 	if (g_Options.Resolution >= 0 && g_Options.Resolution < g_ResCount) {
-		fs << "resolution " << g_ResolutionList[g_Options.Resolution].w
-		   << "x" << g_ResolutionList[g_Options.Resolution].h << "\n";
+		std::string res = std::to_string(g_ResolutionList[g_Options.Resolution].w)
+			+ "x" + std::to_string(g_ResolutionList[g_Options.Resolution].h);
+		fresh.emplace_back("resolution", res);
 	}
 
 	// Persist the display mode (0=windowed, 1=exclusive fullscreen,
 	// 2=borderless fullscreen). The render exe applies it on launch.
 	int dm = g_Options.DisplayMode;
 	if (dm < 0 || dm > 2) dm = 2;
-	fs << "display_mode " << dm << "\n";
+	fresh.emplace_back("display_mode", std::to_string(dm));
 
 	// Remember the last hunt setup (captured by Menu.cpp from the MenuHunt
 	// lists). Guarded: the lists only exist after the first hunt-screen
 	// visit, so a fresh boot or options-only session never clobbers the file
 	// with empty defaults.
 	if (g_HasSavedHunt) {
-		fs << "hunt_area " << g_SavedHuntArea << "\n";
-		fs << "hunt_dinos " << g_SavedHuntDinos << "\n";
-		fs << "hunt_weapons " << g_SavedHuntWeapons << "\n";
-		fs << "hunt_utils " << g_SavedHuntUtils << "\n";
-		fs << "hunt_time " << g_SavedHuntTime << "\n";
+		fresh.emplace_back("hunt_area", g_SavedHuntArea);
+		fresh.emplace_back("hunt_dinos", std::to_string(g_SavedHuntDinos));
+		fresh.emplace_back("hunt_weapons", std::to_string(g_SavedHuntWeapons));
+		fresh.emplace_back("hunt_utils", std::to_string(g_SavedHuntUtils));
+		fresh.emplace_back("hunt_time", std::to_string(g_SavedHuntTime));
+	}
+
+	std::ofstream fs(configPath, std::ios::trunc);
+	if (!fs.is_open()) {
+		std::cout << "Config: could not write " << configPath << std::endl;
+		return;
+	}
+
+	if (oldLines.empty()) {
+		// First run: canonical file, exactly as before.
+		fs << "# Carnivores 2 Modder's Engine configuration\n";
+		fs << "# Edit by hand if needed — values are validated on load.\n";
+		fs << "\n";
+		for (const auto& kv : fresh) fs << kv.first << " " << kv.second << "\n";
+	} else {
+		// Merge: owned keys get fresh values in place (comments and
+		// unowned keys pass through verbatim, so hand edits and the
+		// render exe's audio keys survive); brand-new keys append once.
+		// A stale duplicate of an owned key is dropped — the parser lets
+		// the last line win, so keeping it would override the fresh value.
+		std::set<std::string> written;
+		for (const auto& l : oldLines) {
+			size_t b = l.find_first_not_of(" \t");
+			std::string key;
+			if (b != std::string::npos && l[b] != '#') {
+				size_t e = l.find_first_of(" \t", b);
+				key = l.substr(b, e == std::string::npos ? e : e - b);
+			}
+			auto it = fresh.end();
+			for (auto f = fresh.begin(); f != fresh.end(); ++f)
+				if (f->first == key) { it = f; break; }
+			if (it == fresh.end()) { fs << l << "\n"; continue; }
+			if (written.count(key)) continue;
+			fs << it->first << " " << it->second << "\n";
+			written.insert(key);
+		}
+		for (const auto& kv : fresh)
+			if (!written.count(kv.first)) fs << kv.first << " " << kv.second << "\n";
 	}
 
 	std::cout << "Config Saved (" << configPath << ")." << std::endl;
