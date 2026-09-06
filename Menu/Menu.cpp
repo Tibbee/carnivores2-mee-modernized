@@ -368,10 +368,9 @@ void AcceptNewKey()
 
 void ChangeMenuState(int32_t ms)
 {
-	if (g_MenuState == MENU_MAIN && ms != MENU_MAIN) {
-		MenuAudioStopAmbient();
-	}
-
+	// NOTE: the ambient bed keeps playing across submenus (hunt, options,
+	// briefing...). It is silenced only around external processes — hunts
+	// and the trophy room — by LaunchProcess, which also resumes it.
 	g_PrevMenuState = g_MenuState;
 	g_MenuState = ms;
 	g_LastHoverId = -1;
