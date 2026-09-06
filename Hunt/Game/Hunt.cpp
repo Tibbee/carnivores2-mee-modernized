@@ -395,8 +395,12 @@ void DrawPostObjects()
       IsScopeView() &&
       (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2) &&
       ScopePower > 1.01f && !WeapInfo[CurrentWeapon].breathaim;
+  // The magnification guard matters: optic = 1.0 (red-dot style sights,
+  // no actual zoom) must NOT take the mask treatment — without it the
+  // viewmodel pops ~33% bigger at 16:9 the moment the draw finishes,
+  // and wind/compass vanish under a mask that was never drawn.
   const bool embeddedScopeActive =
-      WeapInfo[CurrentWeapon].Optic > 0.0f &&
+      WeapInfo[CurrentWeapon].Optic > 1.0f &&
       !WeapInfo[CurrentWeapon].cross && !WeapInfo[CurrentWeapon].breathaim &&
       Weapon.state == 2;
   if (g_GameMode == GameMode::Binocular)
