@@ -165,7 +165,17 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
     m_lastNearModelProjection = projection;
     m_hasLastNearModelProjection = true;
 
-    glClear(GL_DEPTH_BUFFER_BIT);
+    // Depth-coherent viewmodels: compress the overlay into the near slice
+    // of the SAME depth buffer instead of clearing it. The old glClear
+    // erased world depth mid-frame, so anything reading depth at present
+    // time (ReShade, GetTraceK sun occlusion) saw the gun only. With the
+    // range sandwich the gun still depth-tests nearer than any world
+    // fragment (always-on-top preserved, no wall clipping), world depth
+    // survives to SwapBuffers, and gun-vs-gun overlap keeps resolving in
+    // relative order. Nothing else in the codebase touches glDepthRange,
+    // so restoring (0,1) is exact. Slice 0.05 leaves 24-bit precision far
+    // beyond what a 200-triangle viewmodel needs.
+    glDepthRange(0.0, 0.05);
     DrawModelVertices(item.texture, item.opaqueVertices, projection, true, false, false);
     if (!item.cutoutVertices.empty()) {
         DrawModelVertices(item.texture, item.cutoutVertices, projection, true, false, false);
@@ -173,6 +183,7 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
     if (!item.transparentVertices.empty()) {
         DrawModelVertices(item.texture, item.transparentVertices, projection, true, true, false);
     }
+    glDepthRange(0.0, 1.0);
 }
 
 void GLRenderer::RenderModelClipWater(TModel* mptr, float x0, float y0, float z0,
