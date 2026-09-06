@@ -1,4 +1,5 @@
 #include "Hunt.h"
+#include "Core/KeyBindings.h"
 #include "stdio.h"
 #ifdef _gl
 #include "Renderer/GLUtils.h"
@@ -1054,13 +1055,19 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 
   }
 
-  if (message == WM_KEYDOWN)
+  // Toggles fire once per press, not on Windows key-repeat. SYSKEYDOWN
+  // also carries Alt bindings; the normal window handling below is retained.
+  if ((message == WM_KEYDOWN || message == WM_SYSKEYDOWN) &&
+      IsInitialKeyDown(static_cast<unsigned int>(lParam)))
   {
-    if (static_cast<int>(wParam) == KeyMap.fkBinoc && g_GameMode != GameMode::SurvivalMode) ToggleBinocular();
-    if (static_cast<int>(wParam) == KeyMap.fkCCall && g_GameMode != GameMode::SurvivalMode) ChangeCall();
-    if (static_cast<int>(wParam) == KeyMap.fkRun  && g_GameMode != GameMode::SurvivalMode) ToggleRunMode();
-	if (static_cast<int>(wParam) == KeyMap.fkCrouch && g_GameMode != GameMode::SurvivalMode) ToggleCrouchMode();
-    if (static_cast<int>(wParam) == NightVisionKey && NightVisionMode) {
+    const auto pressed = [&](int binding) {
+      return KeyDownMatches(binding, wParam, static_cast<unsigned int>(lParam));
+    };
+    if (pressed(KeyMap.fkBinoc) && g_GameMode != GameMode::SurvivalMode) ToggleBinocular();
+    if (pressed(KeyMap.fkCCall) && g_GameMode != GameMode::SurvivalMode) ChangeCall();
+    if (pressed(KeyMap.fkRun) && g_GameMode != GameMode::SurvivalMode) ToggleRunMode();
+    if (pressed(KeyMap.fkCrouch) && g_GameMode != GameMode::SurvivalMode) ToggleCrouchMode();
+    if (pressed(NightVisionKey) && NightVisionMode) {
       // Night vision is a pure orthogonal flag (all renderers read
       // NightVisionOn); it must not touch g_GameMode, or toggling it
       // while scoped would clobber OpticScope and kill the zoom.
