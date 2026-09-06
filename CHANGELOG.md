@@ -5,8 +5,40 @@ are listed here.
 Based on [Keep a Changelog](https://keepachangelog.com/).
 
 Upstream Modder's Engine v1.11 is the base, not the modernization release
-number. ModDB V1/V2/V3 correspond to GitHub v1.1.4/v1.1.5/v1.1.6-modernized.
-Windows executable resources use major.minor.patch.0 (currently 1.1.6.0).
+number. ModDB V1/V2/V3/V4 correspond to GitHub v1.1.4/v1.1.5/v1.1.6/v1.1.7-modernized.
+Windows executable resources use major.minor.patch.0 (currently 1.1.7.0).
+
+## [v1.1.7-modernized]
+
+ModDB label: V4. Changes since the published v1.1.6-modernized release.
+
+### Fixed
+- Mount trophy-room kills as static exhibits instead of live animals; the
+  room no longer bounces back to the menu, and invalid saved species are
+  skipped with a log line instead of crashing the load.
+- Restore trophy-room collisions, hunt-info plaques, removal, the exit
+  banner, and Escape save-and-quit so they survive game-mode slot changes
+  (swimming, binoculars, map, pause).
+- Match modifier-key bindings side-aware (default Left Shift sprint works
+  on fresh saves) and fire toggles once per press instead of retriggering
+  on Windows key auto-repeat.
+- Read config.cfg past NUL padding: the engine no longer silently keeps
+  its 60 FPS default when the file starts with NUL bytes; effective
+  fps_limit/fov/object_detail are logged at startup.
+- Keep world depth under viewmodels by drawing weapons in a near depth
+  slice (depth-based post-processing and sun occlusion see the world
+  again) while the gun stays always-on-top.
+- Unity-magnification optics (red-dot sights) no longer take the
+  scope-mask path: no viewmodel pop and no vanishing wind/compass
+  overlays at 16:9.
+- Menu: the sixth hunt slot falls back to area6.map for mods; ambient
+  music continues across submenus and is silenced only around external
+  processes (hunts and the trophy room).
+
+### Notes
+- Windows executable resources now report 1.1.7.0.
+- config.cfg files padded with NUL bytes are recovered automatically on
+  load (logged); resaving from the menu writes a clean file.
 
 ## [v1.1.6-modernized]
 
