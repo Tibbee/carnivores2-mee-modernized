@@ -106,9 +106,10 @@ Copy-Item (Join-Path $RepoRoot 'CHANGELOG.md') $PkgDir
 Copy-Item $lgpl (Join-Path $PkgDir 'THIRD-PARTY-LICENSES\COPYING.OpenAL-Soft.txt')
 
 # --- clean default config.cfg ------------------------------------------
-# Mirror Hunt/Game/EngineInit.cpp WriteDefaultConfig (fov 62 default,
+# Mirror Hunt/Game/EngineInit.cpp CreateDefaultConfig (fov 62 default,
 # object_detail 48 default, fps_limit 1, verbose_logging 0,
-# nightvision_key 78, glperf_logging 0). Keep this in sync with the source.
+# nightvision_key 78, glperf_logging 0, commented audio/hunt examples).
+# Keep this in sync with the source.
 @"
 # Carnivores 2 Modder's Engine - Configuration
 # This file is auto-generated on first launch.
@@ -152,6 +153,22 @@ gpufeatures 4294967295
 # GL performance logging: 0=off, 1=on (default: 0)
 # Requires GL_PERF_HOOKS build. Writes glperf-*.log files.
 glperf_logging 0
+
+# Audio reverb tuning (OpenAL EFX only; restart the game to apply).
+# envN: 0=Generic, 1=Plate, 2=Forest, 3=Mountain, 4=Canyon,
+# 5=Cave, 6=Special-1, 7=intentional no-op, 8=Underwater.
+# decay: seconds [0.1,20]; decayhf: HF decay ratio [0.1,2];
+# diffusion: [0,1]; reverb: late-reverb level in mB [-10000,0].
+# Uncomment to override; commented lines use compiled defaults
+# (Generic: decay=1.49, decayhf=0.3, diffusion=0.4, reverb=-620).
+#env0_decay 1.49
+#env0_decayhf 0.3
+#env0_diffusion 0.4
+#env0_reverb -620
+
+# Last hunt setup (written by the menu when you launch a hunt).
+# The menu reselects these on the hunt screen; delete them to
+# return to entry defaults.
 "@ | Set-Content -Path (Join-Path $PkgDir 'config.cfg') -Encoding Ascii
 
 # --- end-user README.txt ------------------------------------------------
