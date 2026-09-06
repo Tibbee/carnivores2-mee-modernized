@@ -1,9 +1,27 @@
-# Carnivores 2 - Modder's Engine v1.11 (Modernized)
+# Carnivores 2 - Modder's Engine v1.11 (Modernized v1.1.6)
 
 > **Original release:** 2000 (Action Forms)
 > **Base:** Carnivores 2 Modder's Engine v1.11 (community revival)
-> **This build:** v1.1.4 Modernized (stays version-aligned with upstream MEE)
+> **Project release:** Modernized v1.1.6 — GitHub `v1.1.6-modernized`
+> **ModDB download label:** V3
+> **Versioning:** upstream MEE v1.11 is the base; modernization releases are numbered separately
 > **Modernization:** OpenGL 3.3, OpenAL audio, memory arena, full codebase restructuring
+
+## Release Numbering
+
+| ModDB release | GitHub tag |
+|---------------|------------|
+| V1 | `v1.1.4-modernized` |
+| V2 | `v1.1.5-modernized` |
+| **V3** | **`v1.1.6-modernized`** |
+
+The project title retains **Modder's Engine v1.11** to identify the upstream
+base. **Modernized v1.1.6** identifies this fork's release; **V3** is only
+its ModDB download label, not an engine version. This identifies the base,
+not a guarantee that every mod or newer upstream feature is supported.
+Windows executable version resources identify the project release as `1.1.6.0`.
+These labels do not change save formats or the upstream engine version.
+See [CHANGELOG.md](CHANGELOG.md) for changes since Modernized v1.1.5.
 
 ## Overview
 

@@ -1,11 +1,61 @@
 # Changelog
 
-All notable changes to the Carnivores 2 MEE v1.1.4 (Modernized) source are
-listed here. This project follows a version-aligned scheme with upstream MEE.
+Notable changes to Carnivores 2 - Modder's Engine v1.11 (Modernized)
+are listed here.
+Based on [Keep a Changelog](https://keepachangelog.com/).
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/),
-The version stays aligned with upstream MEE (see `Hunt/Core/Version.h`);
-`v1.1.4-modernized` is a fork label, not a semver major bump.
+Upstream Modder's Engine v1.11 is the base, not the modernization release
+number. ModDB V1/V2/V3 correspond to GitHub v1.1.4/v1.1.5/v1.1.6-modernized.
+Windows executable resources use major.minor.patch.0 (currently 1.1.6.0).
+
+## [v1.1.6-modernized]
+
+ModDB label: V3. Changes since the published v1.1.5-modernized release.
+
+### Fixed
+- Retain camera-pocket fog on clear-cell terrain, characters, and shadows with the appropriate pocket colour.
+- Clamp camera fog opacity to prevent inverted skies and white blowout.
+- Restore dinosaur call responses and fish splash particles by correcting distance-calculation overflow.
+- Preserve scope/binocular zoom through menu and pause transitions; night vision no longer breaks scope zoom.
+- Close the area map when drawing a weapon and prevent reopening it while the weapon is raised.
+- Eliminate weapon sheen shimmer from mismatched overlay/base clipping.
+- Recalculate equipment debit immediately and refuse unaffordable selections; safely fall back from overdrawn saved setups.
+- Preserve comments and settings not owned by the menu when saving config.cfg.
+
+### Added
+- Remember the last hunt's area, creatures, weapons, accessories, and time of day.
+- OpenAL EFX preset overrides: envN_decay, envN_decayhf, envN_diffusion, and envN_reverb, with validated numeric input and safe rejection logs.
+- F10 SUN tab with independent glare and sun/moon disc controls (0-2, 1=normal), reset per hunt; PgUp/PgDn cycle tabs and D dumps values.
+
+### Changed
+- Generic and Forest reverb decay defaults reduced to 1.49 seconds; other preset fields unchanged.
+- Centralize menu/mode transitions to preserve overlay state consistently.
+- Prominently credit Ornithomimid1 (Oli) and link the upstream Map-Amb-Demo-2 branch.
+- Retain upstream MEE v1.11 in the product title and identify the project release as Modernized v1.1.6 (Windows resources: 1.1.6.0). V3 is only the ModDB label.
+
+### Notes
+- Audio overrides require a restart and OpenAL EFX. Preset 7 remains a no-op; the exposed controls do not fully disable early reflections.
+- Back up config.cfg and saves before updating; preserve your config to keep personal settings.
+
+## [v1.1.5-modernized] - 2026-09-05
+
+ModDB label: V2. Summary of the published release.
+
+### Fixed
+- Correct wide-FOV terrain/water culling and horizon fog, including the software renderer.
+- Apply the selected resolution in fullscreen/borderless modes and restore the desktop after exclusive fullscreen.
+- Keep projectiles working at maximum view distance and guard against projectile-list overflow during sustained fire.
+- Correct arrow/bolt orientation and prevent stuck bolts rotating with the camera.
+- Disable weapons in the trophy room and restore usable key defaults for fresh or foreign saves.
+- Fix shared trophy/resupply ship audio, ship spawn visibility, and menu music continuing into hunts.
+- Render fully submerged scenery, animate map objects in OpenGL, and keep distant sprites upright when looking up/down.
+- Preserve crouch/aim behavior and keep compass/wind HUD placement consistent while aiming.
+- Make maximum object detail reachable; allow observer mode without a loadout.
+- Correct accessory price mapping on five-line mods, retain the NV entry with fallback art, and reject malformed menu art.
+
+### Added
+- Rifle breath-aim support via optional breathaim = TRUE in the weapon's _RES.TXT block, alongside sniper breath-focus behavior.
+- Persistent windowed/exclusive/borderless display selection and documented resolution/display_mode config keys.
 
 ## [v1.1.4-modernized] - 2026-09-04
 

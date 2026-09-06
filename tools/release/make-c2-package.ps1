@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-  Builds the Carnivores 2 MEE v1.1.6 (Modernized) release zip.
+  Builds the Carnivores 2 MEE Modernized release zip (version from Version.h).
 
 .DESCRIPTION
-  Assembles the package folder (pkg/Carnivores2_MEE_v1.1.6_Modernized)
+  Assembles the package folder (pkg/Carnivores2_MEE_v<Version>_Modernized)
   from the shipping build outputs, the runtime OpenAL Soft files, a
   generated clean default config.cfg, the MIT/LGPL license texts, the
   end-user README.txt and CHANGELOG, and produces the versioned zip.
@@ -12,8 +12,8 @@
   v_soft.ren) because the menu launches those names (Menu/Menu.cpp).
 
   Requires the shipping builds to exist (see release-guide.md 5.1).
-  Note: ogl-release-shipping and menu-release share one build tree and
-  produce both Carnivores2Menu.exe and Carnivores1_GL.exe.
+  The ogl-release-shipping tree supplies both the menu and GL engine;
+  soft-release supplies the software engine. menu-release is a separate tree.
 
 .EXAMPLE
   powershell -NoProfile -File tools/release/make-c2-package.ps1
@@ -32,9 +32,14 @@ $ErrorActionPreference = 'Stop'
 if (-not $RepoRoot) { $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path }
 if (-not $PkgRoot)  { $PkgRoot  = Join-Path $RepoRoot 'pkg' }
 if (-not $ShaOut)   { $ShaOut   = Join-Path $PkgRoot 'SHA256.txt' }
-$Version   = '1.1.6'
+# Read the shared executable version to keep archive and binary labels aligned.
+$versionHeader = Get-Content (Join-Path $RepoRoot 'Hunt\Core\Version.h') -Raw
+if ($versionHeader -notmatch '#define\s+VERSION_STRING\s+"(\d+\.\d+\.\d+)\.0"') {
+    throw 'Expected VERSION_STRING in major.minor.patch.0 format'
+}
+$Version = $Matches[1]
 $ZipName   = "Carnivores2_MEE_v${Version}_Modernized.zip"
-$PkgName   = 'Carnivores2_MEE_v1.1.6_Modernized'
+$PkgName   = "Carnivores2_MEE_v${Version}_Modernized"
 $PkgDir    = Join-Path $PkgRoot $PkgName
 
 # Resolve external tools without hardcoding a developer's machine paths:
@@ -97,6 +102,7 @@ Copy-Item $openal  $PkgDir
 Copy-Item $alsoft  $PkgDir
 Copy-Item (Join-Path $RepoRoot 'LICENSE')   $PkgDir
 Copy-Item (Join-Path $RepoRoot 'NOTICE.md') $PkgDir
+Copy-Item (Join-Path $RepoRoot 'CHANGELOG.md') $PkgDir
 Copy-Item $lgpl (Join-Path $PkgDir 'THIRD-PARTY-LICENSES\COPYING.OpenAL-Soft.txt')
 
 # --- clean default config.cfg ------------------------------------------
@@ -108,8 +114,8 @@ Copy-Item $lgpl (Join-Path $PkgDir 'THIRD-PARTY-LICENSES\COPYING.OpenAL-Soft.txt
 # This file is auto-generated on first launch.
 # Edit values as needed - they are validated on load.
 #
-# The menu (Carnivores2Menu) also writes this file when you
-# change settings, so manual edits may be overwritten.
+# The menu updates the settings it owns when you change them.
+# Comments and other keys (including audio overrides) are preserved.
 
 # Renderer: 0=Software, 1=OpenGL (default: 1)
 renderer 1
@@ -151,8 +157,14 @@ glperf_logging 0
 # --- end-user README.txt ------------------------------------------------
 @"
 ================================================================
-  Carnivores 2 MEE v1.1.6 - Modernized
+  Carnivores 2 - Modder's Engine v1.11 (Modernized v$Version)
 ================================================================
+
+VERSIONING
+  Project release Modernized v$Version = GitHub v$Version-modernized.
+  Upstream Modder's Engine v1.11 is the base; modernization releases
+  are numbered separately. V3 is only the ModDB download label.
+  Windows executable version: $Version.0
 
 WHAT'S INCLUDED
   Carnivores2Menu.exe - Launcher / settings menu (entry point)
@@ -160,6 +172,7 @@ WHAT'S INCLUDED
   v_soft.ren          - Software renderer (launched by menu)
   shaders/            - GL shader programs
   config.cfg          - Default configuration
+  CHANGELOG.md        - Full V3 and previous release notes
   OpenAL32.dll        - OpenAL Soft runtime (audio)
   alsoft.ini          - OpenAL configuration for this game
   LICENSE, NOTICE.md, THIRD-PARTY-LICENSES/ - legal texts
@@ -171,9 +184,11 @@ REQUIREMENTS
   - Microsoft Visual C++ Redistributable 2019-2022 (x86)
 
 INSTALLATION
-  1. Install the original game (CD or digital/GOG).
-  2. Copy the contents of this zip into the game folder
-     (next to HUNTDAT).
+  1. Use your compatible original game/mod installation.
+     Back up config.cfg and saves before updating.
+  2. Copy the files INSIDE the extracted package folder into the
+     game folder next to HUNTDAT. Keep your existing config.cfg
+     when updating if you want to preserve personal settings.
   3. Launch Carnivores2Menu.exe.
 
 NIGHT VISION (modders)
@@ -194,8 +209,30 @@ LEGAL
   under the LGPL - see THIRD-PARTY-LICENSES/ and
   https://openal-soft.org/
 
-CHANGELOG / CONTACT
-  v1.1.6 Modernized - area map closes on weapon draw, dino call answers and fish splashes restored, scope/binocular zoom kept across menu and night vision, weapon sheen shimmer fixed, hunt setup remembered between visits
+UPSTREAM CREDITS
+  Built on Modder's Edition Engine by Ornithomimid1 (Oli) and
+  upstream contributors. Original Carnivores 2 by Action Forms.
+  https://github.com/Ornithomimid1
+  https://github.com/carnivores-cpe/Carnivores-CPE/tree/Map-Amb-Demo-2
+  See NOTICE.md for this fork's exact base snapshot and menu credits.
+
+MODERNIZED v$Version HIGHLIGHTS (since v1.1.5; ModDB label V3)
+  - Pocket fog retained on terrain, characters, and shadows;
+    opacity clamped to prevent inverted skies and white blowout.
+  - Dinosaur call answers and fish splashes restored.
+  - Scope/binocular zoom preserved across menus, pause, and NV.
+  - Drawing a weapon closes the area map; weapon sheen shimmer fixed.
+  - Hunt setup remembered; config comments/unknown keys preserved.
+  - Equipment costs update immediately; unaffordable picks refused;
+    overdrawn saved setups fall back safely.
+  - Configurable OpenAL EFX presets; Generic/Forest decay now 1.49s.
+  - F10 SUN controls for glare and sun/moon disc (reset per hunt).
+  See CHANGELOG.md for full notes and audio tuning limitations.
+
+REPORTING ISSUES
+  https://github.com/Tibbee/carnivores2-mee-modernized/issues
+  Include Modernized v$Version (ModDB V3), your mod/map, renderer,
+  and reproduction steps.
 "@ | Set-Content -Path (Join-Path $PkgDir 'README.txt') -Encoding Ascii
 
 # --- zip ----------------------------------------------------------------
