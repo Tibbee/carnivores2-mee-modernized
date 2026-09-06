@@ -195,7 +195,7 @@ LEGAL
   https://openal-soft.org/
 
 CHANGELOG / CONTACT
-  v1.1.6 Modernized - area map closes on weapon draw, dino call answers and fish splashes restored, scope/binocular zoom kept across menu and night vision, weapon sheen shimmer fixed
+  v1.1.6 Modernized - area map closes on weapon draw, dino call answers and fish splashes restored, scope/binocular zoom kept across menu and night vision, weapon sheen shimmer fixed, hunt setup remembered between visits
 "@ | Set-Content -Path (Join-Path $PkgDir 'README.txt') -Encoding Ascii
 
 # --- zip ----------------------------------------------------------------
