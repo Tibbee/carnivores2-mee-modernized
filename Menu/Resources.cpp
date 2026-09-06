@@ -122,20 +122,35 @@ AreaInfo MakeOldAreaInfo(int index, int price)
 	std::cout << " -> " << (a.m_Thumbnail.IsValid() ? "OK" : "FAILED") << std::endl;
 
 	// Make sure the map exists
-	// Area6 (Vereschagin Waterways) is locked in vanilla and uses external.map
+	// Area6 (Vereschagin Waterways) is locked in vanilla and uses external.map;
+	// mods commonly ship the sixth slot as area6.map instead, so try both in
+	// order — stock installs resolve on the first attempt, mods on the second.
 	std::string mapName;
 	if (index == 6) {
 		mapName = "huntdat/areas/external.map";
+		std::cout << "  Map:   " << mapName;
+		f.open(mapName.c_str());
+		a.m_Valid = f.is_open();
+		std::cout << " -> " << (a.m_Valid ? "OK" : "FAILED") << std::endl;
+		f.close();
+		if (!a.m_Valid) {
+			mapName = "huntdat/areas/area6.map";
+			std::cout << "  Map:   " << mapName << " (fallback)";
+			f.open(mapName.c_str());
+			a.m_Valid = f.is_open();
+			std::cout << " -> " << (a.m_Valid ? "OK" : "FAILED") << std::endl;
+			f.close();
+		}
 	} else {
 		ss.str(""); ss.clear();
 		ss << "huntdat/areas/area" << index << ".map";
 		mapName = ss.str();
+		std::cout << "  Map:   " << mapName;
+		f.open(mapName.c_str());
+		a.m_Valid = f.is_open();
+		std::cout << " -> " << (a.m_Valid ? "OK" : "FAILED") << std::endl;
+		f.close();
 	}
-	std::cout << "  Map:   " << mapName;
-	f.open(mapName.c_str());
-	a.m_Valid = f.is_open();
-	std::cout << " -> " << (a.m_Valid ? "OK" : "FAILED") << std::endl;
-	f.close();
 
 	std::cout << "  Result: " << (a.m_Valid ? "VALID" : "INVALID (will be skipped)") << std::endl;
 
