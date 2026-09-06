@@ -213,6 +213,10 @@ void ReInitGame()
   WWave3Amp = 5.00f;               // fine detail amplitude
   WWaveSpeed = 0.50f;              // time multiplier
 
+  // Sun glare debug parameters (1.0 = stock)
+  SunGlare_Master = 1.0f;         // fullscreen blinding strength
+  SunGlare_Disc = 1.0f;           // sky sun/moon disc alpha
+
   PlaceHunter();
   Muzz = false;
   MuzzFTime = 0;

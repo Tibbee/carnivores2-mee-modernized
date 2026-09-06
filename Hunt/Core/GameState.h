@@ -417,7 +417,7 @@ GLOBAL   float   UWFog_CapCameraBoost;         // soft cap camera depth boost
 GLOBAL   float   UWFog_BaseDensityMult;        // multiplier on base fog (Transp-based)
 GLOBAL   float   UWFog_CameraDepthMult;        // Beer-Lambert camera depth multiplier
 
-// Underwater debug menu tab state (0=fog, 1=waves)
+// Underwater debug menu tab state (0=fog, 1=waves, 2=sun)
 GLOBAL   int     UnderwaterDebugTab;
 
 // Water wave parameters (tweakable via F10 debug menu, tab 2)
@@ -425,6 +425,11 @@ GLOBAL   float   WWave1Amp;                    // primary swell amplitude
 GLOBAL   float   WWave2Amp;                    // secondary cross-wave amplitude
 GLOBAL   float   WWave3Amp;                    // fine detail amplitude
 GLOBAL   float   WWaveSpeed;                   // time multiplier (1.0 = normal)
+
+// Sun glare parameters (tweakable via F10 debug menu, tab 3). Multipliers
+// over the computed values (1.0 = stock); 0 disables that layer entirely.
+GLOBAL   float   SunGlare_Master;              // fullscreen blinding strength
+GLOBAL   float   SunGlare_Disc;                // sky sun/moon disc alpha
 
 GLOBAL   float   PlayerX, PlayerY, PlayerZ, PlayerAlpha, PlayerBeta,
             HeadY, HeadBackR, HeadBSpeed, HeadAlpha, HeadBeta,

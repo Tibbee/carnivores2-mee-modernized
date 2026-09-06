@@ -1120,20 +1120,20 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 
       // Tab switching (PgUp/PgDn)
       if (static_cast<int>(wParam) == VK_PRIOR) {  // PgUp
-        UnderwaterDebugTab = (UnderwaterDebugTab + 1) % 2;
+        UnderwaterDebugTab = (UnderwaterDebugTab + 1) % 3;
         UnderwaterDebugSelected = 0;
-        AddMessage(UnderwaterDebugTab == 0 ? "Tab: FOG" : "Tab: WAVES");
+        AddMessage(UnderwaterDebugTab == 0 ? "Tab: FOG" : UnderwaterDebugTab == 1 ? "Tab: WAVES" : "Tab: SUN");
         return 0;
       }
       if (static_cast<int>(wParam) == VK_NEXT) {   // PgDn
-        UnderwaterDebugTab = (UnderwaterDebugTab + 1) % 2;
+        UnderwaterDebugTab = (UnderwaterDebugTab + 1) % 3;
         UnderwaterDebugSelected = 0;
-        AddMessage(UnderwaterDebugTab == 0 ? "Tab: FOG" : "Tab: WAVES");
+        AddMessage(UnderwaterDebugTab == 0 ? "Tab: FOG" : UnderwaterDebugTab == 1 ? "Tab: WAVES" : "Tab: SUN");
         return 0;
       }
 
       // Parameter count per tab
-      int paramCount = (UnderwaterDebugTab == 0) ? 7 : 4;
+      int paramCount = (UnderwaterDebugTab == 0) ? 7 : (UnderwaterDebugTab == 1) ? 4 : 2;
 
       switch (static_cast<int>(wParam))
       {
@@ -1171,7 +1171,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
           if (UnderwaterDebugSelected == 6) *p = std::clamp(*p, 0.0f, 200.0f);
           const char* names[] = { "BaseDensity", "CamDepthMult", "VertRange", "VertStrength", "CurveExp", "CapBase", "CapCamBoost" };
           sprintf_s(buf, sizeof(buf), "%s = %.2f", names[UnderwaterDebugSelected], *p);
-        } else {
+        } else if (UnderwaterDebugTab == 1) {
           // ── Wave parameters ──
           float* params[] = { &WWave1Amp, &WWave2Amp, &WWave3Amp, &WWaveSpeed };
           float* p = params[UnderwaterDebugSelected];
@@ -1188,6 +1188,14 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
           if (UnderwaterDebugSelected == 2) *p = std::clamp(*p, 0.0f, 30.0f);
           if (UnderwaterDebugSelected == 3) *p = std::clamp(*p, 0.1f, 4.0f);
           const char* names[] = { "Wave1Amp", "Wave2Amp", "Wave3Amp", "WaveSpeed" };
+          sprintf_s(buf, sizeof(buf), "%s = %.2f", names[UnderwaterDebugSelected], *p);
+        } else {
+          // ── Sun glare parameters (multipliers over computed values) ──
+          float* params[] = { &SunGlare_Master, &SunGlare_Disc };
+          float* p = params[UnderwaterDebugSelected];
+          *p += right ? 0.1f : -0.1f;
+          *p = std::clamp(*p, 0.0f, 2.0f);
+          const char* names[] = { "GlareMaster", "GlareDisc" };
           sprintf_s(buf, sizeof(buf), "%s = %.2f", names[UnderwaterDebugSelected], *p);
         }
         AddMessage(buf);
@@ -1211,6 +1219,9 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
         sprintf_s(buf, sizeof(buf), "WWave2Amp = %.2f", WWave2Amp); PrintLog(buf); PrintLog("\n");
         sprintf_s(buf, sizeof(buf), "WWave3Amp = %.2f", WWave3Amp); PrintLog(buf); PrintLog("\n");
         sprintf_s(buf, sizeof(buf), "WWaveSpeed = %.2f", WWaveSpeed); PrintLog(buf); PrintLog("\n");
+        PrintLog("--- Sun glare ---\n");
+        sprintf_s(buf, sizeof(buf), "SunGlare_Master = %.2f", SunGlare_Master); PrintLog(buf); PrintLog("\n");
+        sprintf_s(buf, sizeof(buf), "SunGlare_Disc = %.2f", SunGlare_Disc); PrintLog(buf); PrintLog("\n");
         PrintLog("=== END DEBUG VALUES ===\n");
         AddMessage("Values dumped to log!");
         return 0;

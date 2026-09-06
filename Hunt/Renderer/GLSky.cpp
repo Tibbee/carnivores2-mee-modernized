@@ -631,7 +631,9 @@ void GLRenderer::RenderSun(float x, float y, float z)
     // light fog barely touches it and even a dense fog only pulls it toward
     // ~30%), complementing the sky shader's halo attenuation.
     const float sunEnvDim = 1.0f - m_camEnvelopeAmount * 0.7f;
-    const int sunAlpha = static_cast<int>(200.0f * std::pow(m_skyTraceK, 0.6f) * depthAtten * sunEnvDim);
+    // SunGlare_Disc scales the disc (1.0 = stock); m_sunLight-style paths
+    // elsewhere are untouched (fog-scatter tuning reads the raw value).
+    const int sunAlpha = static_cast<int>(200.0f * std::pow(m_skyTraceK, 0.6f) * depthAtten * sunEnvDim * SunGlare_Disc);
 
     // The moon uses the same sunAlpha as the day sun, so it is already
     // dimmed by clouds (m_skyTraceK).  RenderModelSun switches to normal
