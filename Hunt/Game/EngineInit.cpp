@@ -5,6 +5,8 @@
 
 #include "Hunt.h"
 #include <mmsystem.h>
+#include <cerrno>
+#include <cstdlib>
 
 #ifdef _gl
 #include "Renderer/GLPerf.h"
@@ -1042,6 +1044,41 @@ static void LoadConfig()
           BORDERLESS = (value == 2);
         } else {
           PrintLog("Config: display_mode must be 0 (windowed), 1 (fullscreen) or 2 (borderless), ignoring.\n");
+        }
+      }
+      else if (_strnicmp(key, "env", 3) == 0) {
+        // Runtime reverb preset tuning: env<0-8>_<decay|decayhf|diffusion|reverb>.
+        // Floats (e.g. env0_decay 1.49). Unset fields read compiled defaults;
+        // out-of-range values are rejected with a log line. room/envID have
+        // no keys — the EFX path does not consume them.
+        // Require one preset digit and consume the entire numeric token.
+        // Parsing after the case-insensitive prefix also permits ENV0_decay.
+        const int env = key[3] - '0';
+        const char* field = strlen(key) >= 5 ? key + 5 : "";
+        char* end = nullptr;
+        errno = 0;
+        const float f = std::strtof(keyval, &end);
+        if (env >= 0 && env <= 8 && key[4] == '_' &&
+            end != keyval && *end == '\0' && errno != ERANGE) {
+          int fi = -1;
+          if (_stricmp(field, "decay") == 0) fi = 0;
+          else if (_stricmp(field, "decayhf") == 0) fi = 1;
+          else if (_stricmp(field, "diffusion") == 0) fi = 2;
+          else if (_stricmp(field, "reverb") == 0) fi = 3;
+          if (fi >= 0 && Audio_SetEnvParam(env, fi, f)) {
+            char msg[96];
+            sprintf_s(msg, sizeof(msg), "Config: env%d_%s = %.3g\n", env, field, (double)f);
+            PrintLog(msg);
+          } else {
+            // Two tokens of up to 63 chars plus the fixed diagnostic.
+            char msg[256];
+            sprintf_s(msg, sizeof(msg), "Config: '%s %s' invalid (env 0-8, known field, range), ignoring.\n", key, keyval);
+            PrintLog(msg);
+          }
+        } else {
+          char msg[256];
+          sprintf_s(msg, sizeof(msg), "Config: '%s' expects env<0-8>_<decay|decayhf|diffusion|reverb> value, ignoring.\n", key);
+          PrintLog(msg);
         }
       }
       // Future settings: add else-if branches here

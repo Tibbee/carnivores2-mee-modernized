@@ -88,6 +88,36 @@ static float mBToGain(int mB) {
     return std::pow(10.0f, mB / 2000.0f);
 }
 
+// Runtime-tunable copy of the preset table (config.cfg envN_* keys).
+// Untouched entries read exactly the compiled defaults above.
+static EAX2ENV g_EnvRuntime[9];
+static bool g_EnvRuntimeInit = false;
+static void EnsureEnvRuntime() {
+    if (!g_EnvRuntimeInit) {
+        memcpy(g_EnvRuntime, g_EnvPresets, sizeof(g_EnvPresets));
+        g_EnvRuntimeInit = true;
+    }
+}
+// field: 0=decay (s, 0.1–20), 1=decayHF (ratio, 0.1–2), 2=diffusion (0–1),
+// 3=reverb (mB, −10000–0). room/envID are intentionally not settable — the
+// EFX path does not consume them, so a knob would be wired to nothing.
+bool Audio_SetEnvParam(int env, int field, float v)
+{
+    // NaN bypasses ordered range comparisons; reject it (and infinities)
+    // before storing floats or converting the reverb level to an integer.
+    if (env < 0 || env > 8 || !std::isfinite(v)) return false;
+    EnsureEnvRuntime();
+    switch (field) {
+    case 0: if (v < 0.1f || v > 20.0f) return false; g_EnvRuntime[env].decay = v; break;
+    case 1: if (v < 0.1f || v > 2.0f) return false; g_EnvRuntime[env].decayHF = v; break;
+    case 2: if (v < 0.0f || v > 1.0f) return false; g_EnvRuntime[env].diffusion = v; break;
+    case 3: if (v < -10000.0f || v > 0.0f) return false; g_EnvRuntime[env].reverb = static_cast<int>(v); break;
+    default: return false;
+    }
+    if (env == g_CurrentEnv) g_CurrentEnv = -1;  // force re-push if live
+    return true;
+}
+
 static void UnloadLegacyAudioBackend()
 {
     if (g_LegacyAudioDLL) {
@@ -666,6 +696,7 @@ void Audio_SetEnvironment(int e, float f)
     if (!iSoundActive || !alContext) return;
     if (e == g_CurrentEnv) return;
     g_CurrentEnv = e;
+    EnsureEnvRuntime();
 
     // No EFX support — silently ignore
     if (!g_effect || !g_slot) { PrintLog("Audio_SetEnvironment: no EFX objects\n"); return; }
@@ -675,7 +706,7 @@ void Audio_SetEnvironment(int e, float f)
     // Clear any residual errors before setting up reverb
     while (alGetError && alGetError() != AL_NO_ERROR);
 
-    const EAX2ENV* env = &g_EnvPresets[e];
+    const EAX2ENV* env = &g_EnvRuntime[e];
     {
         char buf[128];
         sprintf_s(buf, sizeof(buf), "Audio_SetEnvironment: env=%d gain=100 decay=%d decayHF=%d diff=%d reverblevel=%d\n",

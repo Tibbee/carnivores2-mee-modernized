@@ -459,6 +459,7 @@ void Audio_Restore();
 void AudioStop();
 void Audio_Shutdown();
 void Audio_SetEnvironment(int, float);
+bool Audio_SetEnvParam(int env, int field, float v);  // config.cfg envN_* tuning
 void Audio_UploadGeometry();
 
 
