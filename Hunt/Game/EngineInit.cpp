@@ -7,6 +7,8 @@
 #include <mmsystem.h>
 #include <cerrno>
 #include <cstdlib>
+#include <fstream>
+#include "Core/ConfigText.h"
 
 #ifdef _gl
 #include "Renderer/GLPerf.h"
@@ -620,6 +622,13 @@ OptFpsLimit = 1;  // 1 = 60 FPS (0 remains available for unlimited)
   // This file is the single source of truth for settings that are not
   // part of the legacy binary trophy format (e.g. OptFov).
   LoadConfig();
+  {
+    const int fpsValues[] = {0, 60, 120, 240};
+    char msg[192];
+    sprintf_s(msg, sizeof(msg), "Config effective: fps_limit=%d (%d FPS; 0=unlimited), fov=%d, object_detail=%d\n",
+              OptFpsLimit, fpsValues[OptFpsLimit], OptFov, OptObjectDetail);
+    PrintLog(msg);
+  }
 
 #ifdef _gl
   // Init3DHardware runs before InitEngine, so apply the config value now
@@ -933,25 +942,28 @@ static void LoadConfig()
   char configPath[MAX_PATH];
   GetConfigPath(configPath, sizeof(configPath));
 
-  HANDLE hfile = CreateFileA(configPath, GENERIC_READ, FILE_SHARE_READ,
-                           nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (hfile == INVALID_HANDLE_VALUE) {
+  std::ifstream input(configPath, std::ios::binary);
+  if (!input) {
     PrintLog("Config: config.cfg not found, using defaults.\n");
     return;
   }
 
-  char buf[4096];
-  DWORD bytesRead = 0;
-  if (!ReadFile(hfile, buf, sizeof(buf) - 1, &bytesRead, nullptr) || bytesRead == 0) {
-    CloseHandle(hfile);
+  std::string text;
+  size_t nulBytes = 0;
+  if (!ReadConfigText(input, text, nulBytes)) {
+    PrintLog("Config: unreadable, unsupported encoding, or larger than 1 MiB; using defaults.\n");
     return;
   }
-  buf[bytesRead] = '\0';
-  CloseHandle(hfile);
+  if (nulBytes) {
+    char msg[128];
+    sprintf_s(msg, sizeof(msg), "Config: recovered %u NUL padding bytes; please resave config.cfg.\n",
+              static_cast<unsigned>(nulBytes));
+    PrintLog(msg);
+  }
 
   // Simple line-by-line parser: "key value"
   char* ctx = nullptr;
-  char* line = strtok_s(buf, "\r\n", &ctx);
+  char* line = strtok_s(text.data(), "\r\n", &ctx);
   while (line) {
     // Skip comments and empty lines
     if (line[0] == '#' || line[0] == '\0') {

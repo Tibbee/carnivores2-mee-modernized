@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include <set>
 #include <vector>
+#include "Core/ConfigText.h"
 
 
 class script_error : public std::exception
@@ -1715,8 +1716,18 @@ void LoadConfig()
 		return;
 	}
 
+	std::string whole;
+	size_t nulBytes = 0;
+	if (!ReadConfigText(fs, whole, nulBytes)) {
+		std::cout << "Config: unreadable or unsupported encoding; using defaults." << std::endl;
+		return;
+	}
+	if (nulBytes) {
+		std::cout << "Config: recovered " << nulBytes << " NUL padding bytes; please resave config.cfg." << std::endl;
+	}
 	std::string line;
-	while (std::getline(fs, line)) {
+	std::istringstream iss(whole);
+	while (std::getline(iss, line)) {
 		ParseConfigLine(line);
 	}
 

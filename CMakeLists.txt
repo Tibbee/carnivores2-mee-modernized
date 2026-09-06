@@ -185,6 +185,7 @@ set(CORE_FILES
     Hunt/Core/GameTypes.h
     Hunt/Core/GameState.h
     Hunt/Core/GameMode.h
+    Hunt/Core/ConfigText.h
     Hunt/Core/Version.h
     Hunt/Renderer/RenderContext.h
     Hunt/Renderer/RenderContext.cpp
