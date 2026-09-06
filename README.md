@@ -16,6 +16,21 @@ This is a comprehensive modernization of Carnivores 2 Modder's Engine, featuring
 - **Standalone menu** - dedicated `Carnivores2Menu.exe` for settings
 - **Expanded gameplay** - new creatures, survival mode, night vision, fog system
 
+## Upstream Credits
+
+This modernization builds on **Carnivores 2 Modder's Edition Engine** by
+**[Ornithomimid1 (Oli)](https://github.com/Ornithomimid1)** and the upstream
+community. Please credit and visit the original project:
+
+**[Carnivores-CPE — Map-Amb-Demo-2](https://github.com/carnivores-cpe/Carnivores-CPE/tree/Map-Amb-Demo-2)**
+
+The inherited engine and modding foundation are their work; this repository
+adds the modernization described above. The linked branch continues to evolve
+independently and does not imply that all its latest changes are included here.
+See [NOTICE.md](NOTICE.md) for the exact base snapshot, standalone-menu
+heritage, and third-party credits. The original Carnivores 2 game is by
+**Action Forms**.
+
 ## Quick Start
 
 ### Prerequisites

@@ -3,9 +3,14 @@
 ## Upstream MEE heritage
 
 This project is a fork/derivative of
-**Ornithomimid1 Carnivores 2 Modders Edition Engine**.
+**Carnivores 2 Modders Edition Engine** by
+**[Ornithomimid1 (Oli)](https://github.com/Ornithomimid1)** and upstream
+contributors. Credit for the inherited engine and modding foundation belongs
+to its original authors.
 
-- Upstream snapshot:
+- Upstream project (independently evolving branch):
+  https://github.com/carnivores-cpe/Carnivores-CPE/tree/Map-Amb-Demo-2
+- Upstream snapshot used as this fork's base:
   https://github.com/carnivores-cpe/Carnivores-CPE/tree/8be284e07a04010066616ca3b4bcc30666a44cb0
 - Base commit: `8be284e07a04010066616ca3b4bcc30666a44cb0`
 
