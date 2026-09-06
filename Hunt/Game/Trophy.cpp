@@ -27,6 +27,16 @@ void ProcessTrophy()
 
   for (int c=0; c<ChCount; c++)
   {
+  // Only stuffed mounts feed the plaque: live characters carry AI
+  // states that can numerically equal a body slot (a companion at
+  // state 5 beside an occupied slot 5 shows a stranger trophy plaque).
+  // Mounts are exactly the StateF == 0xFF characters (see PlaceTrophy).
+  // Hunt claim plaques are populated separately by AnimateCharacters.
+  if (Characters[c].StateF != 0xFF) continue;
+  const int slot = Characters[c].State;
+  if (slot < 0 || slot >= TROPHY2_COUNT) continue;
+
+
 	  //Vector3d p = Characters[c].pos;
 	  Vector3d p;
     //p.x+=Characters[c].lookx * 256*2.5f;
@@ -263,7 +273,11 @@ void AnimateProcesses()
   AnimateShip();
   AnimateSShip();
   AnimateBag();
-  if (g_GameMode == GameMode::TrophyMode)
+  // The proximity scan feeds the info plaque (TrophyBody). It must run
+  // in the trophy room too: the room runs in Normal mode (trophy-ness
+  // is only the map name), so gating on TrophyMode alone left every
+  // mount mute. Harmless elsewhere: in hunts TrophyBody was already set.
+  if (InTrophyRoom())
     ProcessTrophy();
 
   for (int w=0; w<WCCount; w++)
@@ -307,28 +321,34 @@ void AnimateProcesses()
 }
 void RemoveCurrentTrophy()
 {
+  if (!InTrophyRoom()) return;
+  if (TrophyBody < 0 || TrophyBody >= TROPHY2_COUNT) return;
+  if (!TrophyRoom2.Body[TrophyBody].ctype) return;
+
+  // Placement may skip invalid saved species, so find the mount by slot.
   int p = 0;
-  if (g_GameMode != GameMode::TrophyMode) return;
-  if (!TrophyRoom2.Body[TrophyBody].ctype) return;
-
+  while (p < ChCount &&
+         (Characters[p].StateF != 0xFF || Characters[p].State != TrophyBody)) ++p;
+  if (p == ChCount) return;
+
+
+
   PrintLogVerbose("Trophy removed: ");
   //PrintLog(DinoInfo[TrophyRoom.Body[TrophyBody].ctype].Name);
   PrintLogVerbose(DinoInfo[TrophyRoom2.Body[TrophyBody].ctype].Name);
   PrintLogVerbose("\n");
 
   
-  for (int c=0; c<TrophyBody; c++)
-    if (TrophyRoom2.Body[c].ctype) p++;
-
-  Characters[p] = {};
   TrophyRoom2.Body[TrophyBody] = {};
 
-  memcpy(&Characters[p],
-         &Characters[p+1],
-         (250-p) * sizeof(TCharacter) );
-  ChCount--;
-
-  
+  for (int c = p; c + 1 < ChCount; ++c)
+    Characters[c] = Characters[c + 1];
+  Characters[--ChCount] = {};
+
+
+
+
+
   TrophyDisplay = false;
   TrophyBody = -1;
 }

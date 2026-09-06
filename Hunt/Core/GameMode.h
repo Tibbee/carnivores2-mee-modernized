@@ -118,4 +118,6 @@ extern char ProjectName[128]; // set once from the prj= command line (GameState.
 // stable for the whole session. Same substring LoadResources() uses to set
 // TrophyMode, so the two can never disagree about which map is the room.
 inline bool InTrophyRoomMap() { return strstr(ProjectName, "trophy") != nullptr; }
+// Session semantics must survive movement and overlay changes to the mode slot.
+inline bool InTrophyRoom() { return IsTrophyMode() || InTrophyRoomMap(); }
 inline bool IsSurvivalMode()  { return g_GameMode == GameMode::SurvivalMode; }

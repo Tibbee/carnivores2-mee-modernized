@@ -288,11 +288,14 @@ void CheckCollision(float &cx, float &cz)
 
 
 
-  if (g_GameMode != GameMode::TrophyMode) return;
+  if (!InTrophyRoom()) return;
 
   for (int c=0; c<ChCount; c++)
 
   {
+
+    // Static mounts remain solid even when movement changes the mode slot.
+    if (Characters[c].StateF != 0xFF) continue;
 
     float px = Characters[c].pos.x;
 
@@ -324,6 +327,11 @@ void CheckCollision(float &cx, float &cz)
 
         cz = cz - dz * push;
 
+      }
+      else
+      {
+        // A spawn/teleport exactly at the centre still needs separation.
+        cx = px + CR;
       }
 
     }

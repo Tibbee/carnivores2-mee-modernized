@@ -889,7 +889,7 @@ SKIPWEAPON:
   }
 
 
-  if (g_GameMode == GameMode::TrophyMode)
+  if (InTrophyRoom())
   {
     const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
     DrawScaledPicture(VideoCX - static_cast<int>((TrophyExit.W * uiscale)) / 2, 2,
@@ -935,19 +935,19 @@ SKIPWEAPON:
 	  }
 
   } else {
-	  if (g_GameMode == GameMode::TrophyMode || TrophyDisplay)
+	  if (InTrophyRoom() || TrophyDisplay)
 		  if (TrophyBody != -1 || TrophyDisplay)
 		  {
 			  const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
 			  TPicture *Pic = &TrophyPic;
-			  if (g_GameMode != GameMode::TrophyMode && (Tranq || Characters[TrophyDisplayC].claimed)) {
+			  if (!InTrophyRoom() && (Tranq || Characters[TrophyDisplayC].claimed)) {
 				  Pic = &TrophyNoCollectPic;
 			  }
 			  const int trophyW = static_cast<int>((Pic->W * uiscale));
 			  const int trophyH = static_cast<int>((Pic->H * uiscale));
 			  int x0 = WinW - trophyW - static_cast<int>((16.0f * uiscale));
 			  int y0 = WinH - trophyH - static_cast<int>((12.0f * uiscale));
-			  if (g_GameMode != GameMode::TrophyMode)
+			  if (!InTrophyRoom())
 				  x0 = VideoCX - trophyW / 2;
 
 			  DrawScaledPicture(x0, y0, trophyW, trophyH, *Pic);
@@ -1353,7 +1353,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       break;
 
     case VK_ESCAPE:
-      if (g_GameMode == GameMode::TrophyMode || g_GameMode == GameMode::SurvivalMode)
+      if (InTrophyRoom() || g_GameMode == GameMode::SurvivalMode)
       {
         SaveTrophy();
         ExitTime = 1;
