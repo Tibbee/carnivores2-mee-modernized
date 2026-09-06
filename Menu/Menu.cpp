@@ -457,7 +457,9 @@ int32_t CalculateDebit()
 		}
 	}
 
-	// Equipment prices (utilities/accessories)
+	// Accessories settle their *scoring* at hunt end (smod= multipliers),
+	// but their license price debits upfront like everything else — and
+	// the equipment toggle gates on affordability for exactly that reason.
 	for (unsigned i = 0; i < MenuHunt[3].Item.size() && i < g_UtilInfo.size(); i++)
 	{
 		if (MenuHunt[3].Item[i].second)
@@ -1133,6 +1135,27 @@ static void RestoreHuntSelections()
 		g_MenuItem.SetIsElementSet(g_TimeOfDay + 1, false);
 		g_TimeOfDay = g_SavedHuntTime;
 		g_MenuItem.SetIsElementSet(g_TimeOfDay + 1, true);
+	}
+	if (g_UserProfile.Score - CalculateDebit() < 0) {
+		// Saved setup is unaffordable here (e.g. restored onto a poorer
+		// profile, or hand-edited masks) — fall back to the entry defaults
+		// above instead of displaying a negative account. Time-of-day is
+		// free, so it stays as restored.
+		MenuHunt[0].Selected = g_AreaInfo.empty() ? -1 : 0;
+		for (auto m = 1U; m <= 3U; m++) {
+			for (auto& it : MenuHunt[m].Item) it.second = false;
+			if (m < 3U && !MenuHunt[m].Item.empty()) MenuHunt[m].Item[0].second = true;
+		}
+		// Modded prices or a low-credit profile can make even the defaults
+		// unaffordable. Clear the loadout and keep only an affordable area.
+		// Existing launch guards require an area and, outside observer mode,
+		// at least one creature and weapon before starting a hunt.
+		if (CalculateDebit() > g_UserProfile.Score) {
+			for (auto m = 1U; m <= 3U; m++)
+				for (auto& it : MenuHunt[m].Item) it.second = false;
+			if (CalculateDebit() > g_UserProfile.Score)
+				MenuHunt[0].Selected = -1;
+		}
 	}
 }
 void MenuEventStart(int32_t menu_state)
@@ -2258,7 +2281,7 @@ void MenuEventInput(int32_t menu)
 		}
 		else if (IsPointInRect(g_CursorPos, MenuHunt[3].Rect))
 		{
-			//int32_t score = g_UserProfile.Score - g_ScoreDebit;
+			int32_t score = g_UserProfile.Score - g_ScoreDebit;
 			int yd = g_CursorPos.y - MenuHunt[3].Rect.top;
 			unsigned accIndex = (unsigned)(yd / 16) + MenuHunt[3].Offset;
 
@@ -2275,7 +2298,19 @@ void MenuEventInput(int32_t menu)
 					WaitForMouseRelease();
 					MenuAudioPlayClick();
 
-					MenuHunt[3].Item[accIndex].second = !MenuHunt[3].Item[accIndex].second;
+					// Same affordability gate as dinos/weapons: selecting
+					// requires covering the price, deselecting is always
+					// free — so the account can never be driven negative.
+					if (score >= g_UtilInfo[accIndex].m_Price && !MenuHunt[3].Item[accIndex].second)
+					{
+						MenuHunt[3].Item[accIndex].second = true;
+					}
+					else
+					{
+						MenuHunt[3].Item[accIndex].second = false;
+					}
+
+					g_ScoreDebit = CalculateDebit();
 				}
 			}
 		}
