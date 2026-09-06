@@ -18,6 +18,19 @@ void PlaceTrophy()
 
 		if (!TrophyRoom2.Body[c].ctype) continue;
 
+		// A body slot can reference a dino that no longer exists in this
+		// install (stale save, roster changed since the kill). Mounting it
+		// would index DinoInfo and the model files out of range, so skip
+		// it loudly instead of dying quietly.
+		if (TrophyRoom2.Body[c].ctype < 0 || TrophyRoom2.Body[c].ctype >= TotalC) {
+			char msg[128];
+			sprintf_s(msg, sizeof(msg),
+				"Placing Trophies: slot %d has invalid ctype %d (roster holds %d) - skipped.\n",
+				c, TrophyRoom2.Body[c].ctype, TotalC);
+			PrintLog(msg);
+			continue;
+		}
+
 			//do this in addshiptask too
 
 		Characters[ChCount].CType = TrophyRoom2.Body[c].ctype;
@@ -79,6 +92,14 @@ void PlaceTrophy()
 		Characters[ChCount].ydata = trophyType[c].ydata;
 
 		Characters[ChCount].animateTrophy = trophyType[c].playAnim;
+
+		// Mounts are static exhibits, not live animals: remove them from AI
+		// and animation processing (same sentinel the dropship uses for a
+		// carried dino — skipped by AnimateCharacters, still rendered).
+		// Without this, mounts run the full hunt-AI path on setup-only
+		// state and kill the room load on the first frame. Phase keeps the
+		// mount's display pose (tropAnim) and FTime stays frozen at 0.
+		Characters[ChCount].StateF = 0xFF;
 
 		//DinoInfo[Characters[ChCount].CType].tCounter++;
 		ChCount++;
