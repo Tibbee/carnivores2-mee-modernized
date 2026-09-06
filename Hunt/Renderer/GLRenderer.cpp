@@ -1450,7 +1450,10 @@ void GLRenderer::UpdateCameraFogEnvelope()
             constexpr float kRefTransp = 160.0f;   // typical Transp (tune)
             const float transpFactor = std::clamp(
                 kRefTransp / std::max(fog.Transp, 1.0f), 0.5f, 1.5f);
-            targetAmount = (fog.FLimit / 255.0f) * transpFactor;
+            // Clamped to 1.0: every consumer mix()es with this amount, and
+            // anything above 1.0 extrapolates past the fog colour (inverted
+            // skies) and clips to white (blowout) instead of fogging fully.
+            targetAmount = std::min((fog.FLimit / 255.0f) * transpFactor, 1.0f);
             targetColor  = GetFogColorForMapPoint(CameraFogI);
         }
     }
