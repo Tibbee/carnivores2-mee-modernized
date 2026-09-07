@@ -638,6 +638,29 @@ void LoadBMPModel(TObject &obj)
   obj.bmpmodel.gVertex[3].z = 0;
 }
 
+// ReleaseModelBuffers: idempotent release of TModel's raw-owned backing
+// blocks (gFace and the single VLight[0..3] allocation created by
+// AllocateMemoryForModel). Smart-pointer members are NOT touched — the
+// caller's unique_ptrs own those. Safe for heap and arena backing alike:
+// _HeapFree no-ops arena addresses (erasing only the debug record).
+// Every path that drops a TModel must call this before releasing the
+// object itself. ~TModel stays default on purpose: arena-owned models
+// are reclaimed in bulk by Reset() and must not need per-object teardown.
+void ReleaseModelBuffers(TModel* mptr)
+{
+  if (!mptr) return;
+  if (mptr->gFace) {
+    (void)_HeapFree(Heap, 0, mptr->gFace);
+    mptr->gFace = nullptr;
+  }
+  if (mptr->VLight[0]) {
+    (void)_HeapFree(Heap, 0, mptr->VLight[0]);
+    for (int i = 0; i < 4; i++) {
+      mptr->VLight[i] = nullptr;
+    }
+  }
+}
+
 void ReleaseModel(unique_obj_ptr<TModel> &mptr)
 {
   // Release the GL texture cache entry for this model before dropping
@@ -655,20 +678,10 @@ void ReleaseModel(unique_obj_ptr<TModel> &mptr)
 
   // gFace and VLight[0] are raw pointers (not smart pointers) because
   // gFace lives in a union and VLight is a 4-channel view into one
-  // allocation. They are heap-allocated by AllocateMemoryForModel and
-  // must be freed explicitly. _HeapFree safely no-ops for arena-owned
-  // addresses, so this is correct regardless of the MemoryTag used at
-  // allocation time.
-  if (mptr->gFace) {
-    (void)_HeapFree(Heap, 0, mptr->gFace);
-    mptr->gFace = nullptr;
-  }
-  if (mptr->VLight[0]) {
-    (void)_HeapFree(Heap, 0, mptr->VLight[0]);
-    for (int i = 0; i < 4; i++) {
-      mptr->VLight[i] = nullptr;
-    }
-  }
+  // allocation. ReleaseModelBuffers frees them explicitly; _HeapFree
+  // safely no-ops for arena-owned addresses, so this is correct
+  // regardless of the MemoryTag used at allocation time.
+  ReleaseModelBuffers(mptr.get());
 
   mptr.reset();
 }
@@ -677,6 +690,11 @@ void ReleaseCharacterInfo(TCharacterInfo &chinfo)
 {
   if (!chinfo.mptr) return;
 
+  // The old code reset the smart pointer here, orphaning the raw gFace
+  // and VLight[0] blocks (unique_obj_ptr only frees the TModel shell).
+  // Every replacement and every shutdown leaked them; route through the
+  // shared helper so both release paths stay in sync by construction.
+  ReleaseModelBuffers(chinfo.mptr.get());
   chinfo.mptr.reset();
 
   for (int c = 0; c<64; c++)
