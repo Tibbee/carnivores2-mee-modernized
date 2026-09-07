@@ -92,11 +92,13 @@ void LoadCharacters()
 	  
     }
 
-  // Allocate space for normals fitting all available weapons. This is
-  // a per-level allocation -- it's reallocated in LoadResources() on
-  // each level load, and the old one is dropped by LevelArena->Reset()
-  // in ReleaseResources(). Tag it Level so the arena holds it.
-  Weapon.normals.reset((Vector3d*)_HeapAlloc(Heap, 0, sizeof(Vector3d) * maxWeaponVCount, MemoryTag::Level));
+  // Weapon normals are reallocated on every LoadCharacters (each level
+  // load AND each in-process restart), and the old buffer is dropped by
+  // unique_ptr reset. LevelArena->Reset() only runs on full level loads,
+  // so a Level tag would strand unreclaimable arena space on restarts.
+  // Tag it Global: the heap free on reset is real, and the report stays
+  // clean because the owner always releases it.
+  Weapon.normals.reset((Vector3d*)_HeapAlloc(Heap, 0, sizeof(Vector3d) * maxWeaponVCount, MemoryTag::Global));
 
   for (int c=10; c<20; c++)
     if (TargetDino & (1<<c))
@@ -314,13 +316,16 @@ void ReInitGame()
   answtime = 0;
   ExitTime = 0;
 
-  // Allocate (vertex count based) buffers for renderers. These are
-  // per-level scratch (reset on each ReInitGame call before the new
-  // level's vertices are read), so they go in the LevelArena. The
-  // previous 3-arg form went to Heap; the arena will reclaim them on
-  // LevelArena->Reset() during ReleaseResources().
-  rVertex = (Vector3d*)_HeapAlloc(Heap, 0, sizeof(Vector3d) * MaxObjectVCount, MemoryTag::Level);
-  gScrp = (Vector2di*)_HeapAlloc(Heap, 0, sizeof(Vector2di) * MaxObjectVCount, MemoryTag::Level);
-  PhongMapping = (Vector2df*)_HeapAlloc(Heap, 0, sizeof(Vector2df) * MaxObjectVCount, MemoryTag::Level);
+  // Per-restart render scratch. ReInitGame does NOT call ReleaseResources,
+  // so the old comment's arena-reclamation claim was wrong: each restart
+  // orphaned three unreclaimable arena blocks (~27 KiB measured). Free the
+  // previous buffers explicitly and keep them on the heap, where the free
+  // is real. ReleaseResources() still releases them on level transitions.
+  if (rVertex) { (void)_HeapFree(Heap, 0, rVertex); rVertex = nullptr; }
+  if (gScrp) { (void)_HeapFree(Heap, 0, gScrp); gScrp = nullptr; }
+  if (PhongMapping) { (void)_HeapFree(Heap, 0, PhongMapping); PhongMapping = nullptr; }
+  rVertex = (Vector3d*)_HeapAlloc(Heap, 0, sizeof(Vector3d) * MaxObjectVCount, MemoryTag::Global);
+  gScrp = (Vector2di*)_HeapAlloc(Heap, 0, sizeof(Vector2di) * MaxObjectVCount, MemoryTag::Global);
+  PhongMapping = (Vector2df*)_HeapAlloc(Heap, 0, sizeof(Vector2df) * MaxObjectVCount, MemoryTag::Global);
   AllocateRenderTables();
 }
