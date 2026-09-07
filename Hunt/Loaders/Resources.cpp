@@ -15,9 +15,53 @@ static void RscLoadFail(const char* what, int value, int limit)
   DoHalt(sz);
 }
 
+static void ReadRscExact(HANDLE file, void* dst, DWORD bytes, const char* what)
+{
+  if (!ReadExact(file, dst, bytes))
+  {
+    char sz[256];
+    sprintf_s(sz, sizeof(sz), "Resource loading error: truncated %s.", what);
+    DoHalt(sz);
+  }
+}
+
+static void MapLoadFail(const char* what, int x, int y, int value, int limit)
+{
+  char sz[256];
+  sprintf_s(sz, sizeof(sz),
+            "Map loading error: %s at (%d,%d) (value=%d, limit=%d).",
+            what, x, y, value, limit);
+  DoHalt(sz);
+}
+
+static void ValidateMapReferences(int textureCount, int modelCount, int waterCount)
+{
+  int landingCount = 0;
+  constexpr int landingCapacity =
+      static_cast<int>(sizeof(LandingList.list) / sizeof(LandingList.list[0]));
+
+  for (int y = 0; y < ctMapSize; y++)
+    for (int x = 0; x < ctMapSize; x++)
+    {
+      if (!IsValidMapTextureIndex(TMap1[y][x], textureCount))
+        MapLoadFail("primary texture index out of range", x, y, TMap1[y][x], textureCount);
+      if (!IsValidMapTextureIndex(TMap2[y][x], textureCount))
+        MapLoadFail("secondary texture index out of range", x, y, TMap2[y][x], textureCount);
+      if (!IsValidMapObjectIndex(OMap[y][x], modelCount))
+        MapLoadFail("object index out of range", x, y, OMap[y][x], modelCount);
+
+      if (OMap[y][x] == 254 && ++landingCount > landingCapacity)
+        MapLoadFail("landing marker capacity exceeded", x, y, landingCount, landingCapacity);
+
+      if ((FMap[y][x] & fmWaterA) &&
+          !IsValidMapWaterIndex(WMap[y][x], waterCount))
+        MapLoadFail("water index out of range", x, y, WMap[y][x], waterCount);
+    }
+}
+
 // Forward declarations for functions in ModelLoader.cpp
 void LoadBMPModel(TObject &obj);
-void LoadAnimation(TVTL &vtl);
+void LoadAnimation(TVTL &vtl, int modelVertexCount);
 void GenerateMapImage();
 
 #ifdef MEM_DEBUG
@@ -320,40 +364,20 @@ void PrintMemoryLeaks()
     g_Allocations = nullptr;
 }
 
-// Phase 5F: strip every entry with the given tag out of g_Allocations.
-// Called from ReleaseResources() after LevelArena->Reset() so the
-// per-level entries (which were arena-owned and just got bulk-freed)
-// don't show up as leaks in the shutdown report. C1 does the same
-// thing in its ReleaseResources.
-//
-// C1's version only clears MemoryTag::Level. We follow that -- the
-// other tags don't have the same lifetime mismatch because the
-// Global/Graphics/Audio/etc. allocations are _HeapFree'd explicitly
-// by their owners.
+// Remove only arena-backed entries after a bulk Reset. A Level-tagged
+// allocation can be heap-backed when the arena did not exist; such a block
+// was not reclaimed by Reset and must remain visible in the leak report
+// until its owner explicitly frees it.
 void ClearTagAllocations(MemoryTag tag)
 {
     if (!g_Allocations) return;
     std::lock_guard<std::mutex> lock(g_AllocMutex);
-    size_t heapBacked = 0;
     for (auto it = g_Allocations->begin(); it != g_Allocations->end(); ) {
-        if (it->second.tag == tag) {
-            // A Level-tagged block can be heap-backed when it was
-            // allocated while LevelArena was null. Erasing it here is
-            // still correct (its owner was bulk-released), but count it
-            // so heap-fallback blocks can never hide silently again.
-            if (it->second.backend != AllocBackend::Arena)
-                heapBacked++;
+        if (IsReclaimedByArenaReset(it->second.tag, it->second.backend, tag)) {
             it = g_Allocations->erase(it);
         } else {
             ++it;
         }
-    }
-    if (heapBacked > 0) {
-        char buf[160];
-        sprintf(buf, "ClearTagAllocations(%s): %u heap-backed blocks erased "
-                "(allocated while LevelArena was null)\n",
-                MemoryTagToString(tag), (unsigned)heapBacked);
-        PrintLog(buf);
     }
 }
 #endif // MEM_DEBUG
@@ -535,20 +559,16 @@ void ReleaseResources()
     }
     else break;
 
-  for (int m=0; m<255; m++)
+  for (int m = 0; m < 256; m++)
   {
+    MObjects[m].bmpmodel.lpTexture.reset();
+    MObjects[m].vtl.aniData.reset();
+    MObjects[m].vtl.FramesCount = 0;
+    MObjects[m].vtl.AniTime = 0;
+
     TModel *mptr = MObjects[m].model.get();
     if (mptr)
     {
-      MObjects[m].bmpmodel.lpTexture.reset();
-      MObjects[m].bmpmodel.lpTexture = nullptr;
-
-      if (MObjects[m].vtl.FramesCount>0)
-      {
-        MObjects[m].vtl.aniData.reset();
-        MObjects[m].vtl.aniData = nullptr;
-      }
-
       // Remove GL texture cache entry before freeing the TModel.
       ReleaseModelTexture(mptr);
 
@@ -566,25 +586,21 @@ void ReleaseResources()
       ReleaseModelBuffers(mptr);
 
       MObjects[m].model.reset();
-      MObjects[m].model = nullptr;
-      MObjects[m].vtl.FramesCount = 0;
     }
-    else break;
   }
 
-  // Phase 5B.1: TSFX::lpData is now std::vector<short int>; the vector
-  // destructor reclaims the buffer on Reset. The presence check is also
-  // updated to use the vector's empty()/size() rather than a null pointer.
-  for (int a=0; a<255; a++)
+  // Zero-length sounds are valid, so empty vectors cannot act as sentinels.
+  // Visit every slot and swap with an empty vector to release capacity too.
+  for (int a = 0; a < 256; a++)
   {
-    if (Ambient[a].sfx.lpData.empty()) break;
-    Ambient[a].sfx.lpData.clear();
+    std::vector<short int>().swap(Ambient[a].sfx.lpData);
+    Ambient[a].sfx.length = 0;
+    Ambient[a].RSFXCount = 0;
   }
 
-  for (int r=0; r<255; r++)
+  for (int r = 0; r < 256; r++)
   {
-    if (RandSound[r].lpData.empty()) break;
-    RandSound[r].lpData.clear();
+    std::vector<short int>().swap(RandSound[r].lpData);
     RandSound[r].length = 0;
   }
 
@@ -778,8 +794,8 @@ void LoadResources()
   if (!IsValidCount(mc, 256))
     RscLoadFail("model count exceeds capacity", mc, 256);
 
-  ReadFile(hfile,  FadeRGB, 4*3*3, &l, nullptr);
-  ReadFile(hfile, TransRGB, 4*3*3, &l, nullptr);
+  ReadRscExact(hfile, FadeRGB, sizeof(FadeRGB), "fade color table");
+  ReadRscExact(hfile, TransRGB, sizeof(TransRGB), "transparency color table");
 
   SkyR  =  FadeRGB[OptDayNight][0];
   SkyG  =  FadeRGB[OptDayNight][1];
@@ -814,7 +830,7 @@ void LoadResources()
   PrintLoad("Loading models...");
   for (int mm=0; mm<mc; mm++)
   {
-    ReadFile(hfile, &MObjects[mm].info, 64, &l, nullptr);
+    ReadRscExact(hfile, &MObjects[mm].info, 64, "model info record");
     MObjects[mm].info.Radius*=2;
     MObjects[mm].info.YLo*=2;
     MObjects[mm].info.YHi*=2;
@@ -831,7 +847,7 @@ void LoadResources()
     }
 
     if (MObjects[mm].info.flags & ofANIMATED)
-      LoadAnimation(MObjects[mm].vtl);
+      LoadAnimation(MObjects[mm].vtl, MObjects[mm].model->VCount);
 
     MObjects[mm].info.BoundR = 0;
     for (int v=0; v<MObjects[mm].model->VCount; v++)
@@ -854,14 +870,14 @@ void LoadResources()
   LoadSky();
   LoadSkyMap();
 
-  int FgCount;
-  ReadFile(hfile, &FgCount, 4, &l, nullptr);
+  int FgCount = 0;
+  ReadRscExact(hfile, &FgCount, 4, "fog count");
   // Loop below touches FogsList[0..FgCount]; the read targets FogsList[1].
   size_t fogbytes = 0;
   if (!IsValidCount(FgCount, 255) ||
       !CheckedBytes2((size_t)FgCount, sizeof(TFogEntity), fogbytes))
     RscLoadFail("fog count exceeds FogsList capacity", FgCount, 255);
-  ReadFile(hfile, &FogsList[1], (DWORD)fogbytes, &l, nullptr);
+  ReadRscExact(hfile, &FogsList[1], (DWORD)fogbytes, "fog records");
 
   for (int f=0; f<=FgCount; f++)
   {
@@ -874,14 +890,14 @@ void LoadResources()
     // Night vision green fog tint removed — handled by per-frame overlay
   }
 
-  int RdCount, AmbCount, WtrCount;
+  int RdCount = 0, AmbCount = 0, WtrCount = 0;
 
-  ReadFile(hfile, &RdCount, 4, &l, nullptr);
+  ReadRscExact(hfile, &RdCount, 4, "random-sound count");
   if (!IsValidCount(RdCount, 256))
     RscLoadFail("random-sound count exceeds capacity", RdCount, 256);
   for (int r=0; r<RdCount; r++)
   {
-    ReadFile(hfile, &RandSound[r].length, 4, &l, nullptr);
+    ReadRscExact(hfile, &RandSound[r].length, 4, "random-sound length");
     // Phase 5B.1: lpData is now std::vector<short int>. assign() value-
     // initializes to zero (matches the previous HEAP_ZERO_MEMORY behavior).
     // Bound the length first: corrupt values drove huge assigns (and odd
@@ -889,23 +905,25 @@ void LoadResources()
     if (!IsValidWavLength(RandSound[r].length))
       RscLoadFail("random-sound length out of range", RandSound[r].length, 16 << 20);
     RandSound[r].lpData.assign(WavAllocSamples(RandSound[r].length), 0);
-    ReadFile(hfile, RandSound[r].lpData.data(), RandSound[r].length, &l, nullptr);
+    ReadRscExact(hfile, RandSound[r].lpData.data(),
+                 (DWORD)RandSound[r].length, "random-sound data");
   }
 
-  ReadFile(hfile, &AmbCount, 4, &l, nullptr);
+  ReadRscExact(hfile, &AmbCount, 4, "ambient count");
   if (!IsValidCount(AmbCount, 256))
     RscLoadFail("ambient count exceeds capacity", AmbCount, 256);
   for (int a=0; a<AmbCount; a++)
   {
-    ReadFile(hfile, &Ambient[a].sfx.length, 4, &l, nullptr);
+    ReadRscExact(hfile, &Ambient[a].sfx.length, 4, "ambient-sound length");
     if (!IsValidWavLength(Ambient[a].sfx.length))
       RscLoadFail("ambient-sound length out of range", Ambient[a].sfx.length, 16 << 20);
     Ambient[a].sfx.lpData.assign(WavAllocSamples(Ambient[a].sfx.length), 0);
-    ReadFile(hfile, Ambient[a].sfx.lpData.data(), Ambient[a].sfx.length, &l, nullptr);
+    ReadRscExact(hfile, Ambient[a].sfx.lpData.data(),
+                 (DWORD)Ambient[a].sfx.length, "ambient-sound data");
 
-    ReadFile(hfile, Ambient[a].rdata, sizeof(Ambient[a].rdata), &l, nullptr);
-    ReadFile(hfile, &Ambient[a].RSFXCount, 4, &l, nullptr);
-    ReadFile(hfile, &Ambient[a].AVolume, 4, &l, nullptr);
+    ReadRscExact(hfile, Ambient[a].rdata, sizeof(Ambient[a].rdata), "ambient random-effect records");
+    ReadRscExact(hfile, &Ambient[a].RSFXCount, 4, "ambient random-effect count");
+    ReadRscExact(hfile, &Ambient[a].AVolume, 4, "ambient volume");
     // RSFXCount indexes rdata[16] (and rdata[r+1]) in the filter below
     // and feeds rand() % RSFXCount in Controls.cpp.
     if (!IsValidCount(Ambient[a].RSFXCount, 16))
@@ -935,12 +953,12 @@ void LoadResources()
 
   }
 
-  ReadFile(hfile, &WtrCount, 4, &l, nullptr);
+  ReadRscExact(hfile, &WtrCount, 4, "water count");
   size_t wtrbytes = 0;
   if (!IsValidCount(WtrCount, 256) ||
       !CheckedBytes2((size_t)WtrCount, 16, wtrbytes))
     RscLoadFail("water count exceeds WaterList capacity", WtrCount, 256);
-  ReadFile(hfile, WaterList, (DWORD)wtrbytes, &l, nullptr);
+  ReadRscExact(hfile, WaterList, (DWORD)wtrbytes, "water records");
 
   WaterList[255].wlevel = 0;
   for (int w=0; w<WtrCount; w++)
@@ -971,18 +989,22 @@ void LoadResources()
   if (hfile==INVALID_HANDLE_VALUE)
     DoHalt("Error opening map file.");
 
-  ReadFile(hfile, HMap,    1024*1024, &l, nullptr);
-  ReadFile(hfile, TMap1,   1024*1024*2, &l, nullptr);
-  ReadFile(hfile, TMap2,   1024*1024*2, &l, nullptr);
-  ReadFile(hfile, OMap,    1024*1024, &l, nullptr);
-  ReadFile(hfile, FMap,    1024*1024*2, &l, nullptr);
-  SetFilePointer(hfile, 1024*1024*OptDayNight, nullptr, FILE_CURRENT);
-  ReadFile(hfile, LMap,    1024*1024, &l, nullptr);
-  SetFilePointer(hfile, 1024*1024*(2-OptDayNight), nullptr, FILE_CURRENT);
-  ReadFile(hfile, WMap,   1024*1024, &l, nullptr);
-  ReadFile(hfile, HMapO,   1024*1024, &l, nullptr);
-  ReadFile(hfile, FogsMap, 512*512, &l, nullptr);
-  ReadFile(hfile, AmbMap,  512*512, &l, nullptr);
+  ReadRscExact(hfile, HMap, sizeof(HMap), "height map");
+  ReadRscExact(hfile, TMap1, sizeof(TMap1), "primary texture map");
+  ReadRscExact(hfile, TMap2, sizeof(TMap2), "secondary texture map");
+  ReadRscExact(hfile, OMap, sizeof(OMap), "object map");
+  ReadRscExact(hfile, FMap, sizeof(FMap), "flags map");
+  if (SetFilePointer(hfile, 1024*1024*OptDayNight, nullptr, FILE_CURRENT) == INVALID_SET_FILE_POINTER)
+    DoHalt("Map loading error: truncated light-map table.");
+  ReadRscExact(hfile, LMap, sizeof(LMap), "light map");
+  if (SetFilePointer(hfile, 1024*1024*(2-OptDayNight), nullptr, FILE_CURRENT) == INVALID_SET_FILE_POINTER)
+    DoHalt("Map loading error: truncated light-map table.");
+  ReadRscExact(hfile, WMap, sizeof(WMap), "water map");
+  ReadRscExact(hfile, HMapO, sizeof(HMapO), "object-height map");
+  ReadRscExact(hfile, FogsMap, sizeof(FogsMap), "fog map");
+  ReadRscExact(hfile, AmbMap, sizeof(AmbMap), "ambient map");
+
+  ValidateMapReferences(tc, mc, WtrCount);
 
   if (FogsList[1].YBegin>1.f)
     for (int x=0; x<510; x++)

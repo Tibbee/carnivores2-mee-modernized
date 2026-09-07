@@ -88,8 +88,7 @@ void LoadPicture(TPicture &pic, LPSTR pname, MemoryTag tag)
 
 void LoadPictureTGA(TPicture &pic, LPSTR pname, MemoryTag tag)
 {
-  DWORD l;
-  WORD w,h;
+  WORD w = 0, h = 0;
   HANDLE hfile;
 
   hfile = CreateFile(pname, GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr );
@@ -100,12 +99,12 @@ void LoadPictureTGA(TPicture &pic, LPSTR pname, MemoryTag tag)
     DoHalt(sz);
   }
 
-  SetFilePointer(hfile, 12, 0, FILE_BEGIN);
+  if (SetFilePointer(hfile, 12, nullptr, FILE_BEGIN) == INVALID_SET_FILE_POINTER ||
+      !ReadExact(hfile, &w, 2) || !ReadExact(hfile, &h, 2))
+    DoHalt("Picture loading error: truncated TGA header.");
 
-  ReadFile( hfile, &w, 2, &l, nullptr );
-  ReadFile( hfile, &h, 2, &l, nullptr );
-
-  SetFilePointer(hfile, 18, 0, FILE_BEGIN);
+  if (SetFilePointer(hfile, 18, nullptr, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+    DoHalt("Picture loading error: truncated TGA header.");
 
   pic.lpImage.reset();
   pic.lpImage = nullptr;
@@ -116,12 +115,16 @@ void LoadPictureTGA(TPicture &pic, LPSTR pname, MemoryTag tag)
   // (65535^2*2); compute checked. Reads go straight to the heap buffer,
   // so no stack width cap applies here.
   size_t tpxbytes = 0;
-  if (!CheckedBytes3((size_t)pic.W, (size_t)pic.H, 2, tpxbytes))
+  if (pic.W <= 0 || pic.H <= 0 ||
+      !CheckedBytes3((size_t)pic.W, (size_t)pic.H, 2, tpxbytes))
     PicLoadFail("TGA dimensions out of range", pic.W, pic.H);
   pic.lpImage.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, (DWORD)tpxbytes, tag)));
 
   for (int y=0; y<pic.H; y++)
-    ReadFile( hfile, (void*)(pic.lpImage.get() + (pic.H-y-1)*pic.W), 2*pic.W, &l, nullptr );
+    if (!ReadExact(hfile,
+                   (void*)(pic.lpImage.get() + (pic.H-y-1)*pic.W),
+                   (DWORD)(2*pic.W)))
+      DoHalt("Picture loading error: truncated TGA rows.");
 
   CloseHandle( hfile );
 }

@@ -5,6 +5,7 @@
 // These functions interpolate animation frames to produce morphed vertices.
 
 #include "Hunt.h"
+#include "Loaders/LoadValidate.h"
 
 void CreateChMorphedModel(TCharacter *cptr)
 {
@@ -15,7 +16,7 @@ void CreateChMorphedModel(TCharacter *cptr)
 	int CurFrame, SplineD, PCurFrame = 0, PSplineD = 0;
 	float scale = cptr->scale;
 
-	CurFrame = ((aptr->FramesCount - 1) * cptr->FTime * 256) / aptr->AniTime;
+	CurFrame = CalculateMorphFrameFixed(aptr->FramesCount, cptr->FTime, aptr->AniTime);
 	SplineD = CurFrame & 0xFF;
 	CurFrame = (CurFrame >> 8);
 
@@ -24,7 +25,7 @@ void CreateChMorphedModel(TCharacter *cptr)
 
 	if (PMorph)
 	{
-		PCurFrame = ((paptr->FramesCount - 1) * cptr->PrevPFTime * 256) / paptr->AniTime;
+		PCurFrame = CalculateMorphFrameFixed(paptr->FramesCount, cptr->PrevPFTime, paptr->AniTime);
 		PSplineD = PCurFrame & 0xFF;
 		PCurFrame = (PCurFrame >> 8);
 	}
@@ -144,7 +145,7 @@ void CreateMorphedModelBetaGamma(TModel* mptr, TAni *aptr, int FTime, float scal
 
 	int CurFrame, SplineD, PCurFrame = 0, PSplineD = 0;
 
-	CurFrame = ((aptr->FramesCount - 1) * FTime * 256) / aptr->AniTime;
+	CurFrame = CalculateMorphFrameFixed(aptr->FramesCount, FTime, aptr->AniTime);
 	SplineD = CurFrame & 0xFF;
 	CurFrame = (CurFrame >> 8);
 
@@ -209,7 +210,7 @@ void CreateMorphedModelBetaGamma(TModel* mptr, TAni *aptr, int FTime, float scal
 
 void CreateMorphedModel(TModel* mptr, TAni *aptr, int FTime, float scale)
 {
-	int CurFrame = ((aptr->FramesCount - 1) * FTime * 256) / aptr->AniTime;
+	int CurFrame = CalculateMorphFrameFixed(aptr->FramesCount, FTime, aptr->AniTime);
 
 	int SplineD = CurFrame & 0xFF;
 	CurFrame = (CurFrame >> 8);
@@ -233,7 +234,7 @@ void CreateMorphedModel(TModel* mptr, TAni *aptr, int FTime, float scale)
 
 void CreateMorphedObject(TModel* mptr, TVTL &vtl, int FTime)
 {
-	int CurFrame = ((vtl.FramesCount - 1) * FTime * 256) / vtl.AniTime;
+	int CurFrame = CalculateMorphFrameFixed(vtl.FramesCount, FTime, vtl.AniTime);
 
 	int SplineD = CurFrame & 0xFF;
 	CurFrame = (CurFrame >> 8);

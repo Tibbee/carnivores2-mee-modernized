@@ -17,6 +17,16 @@ static void ModelLoadFail(const char* what, int value, int limit)
   DoHalt(sz);
 }
 
+static void ReadModelExact(HANDLE file, void* dst, DWORD bytes, const char* what)
+{
+  if (!ReadExact(file, dst, bytes))
+  {
+    char sz[256];
+    sprintf_s(sz, sizeof(sz), "Model loading error: truncated %s.", what);
+    DoHalt(sz);
+  }
+}
+
 // Face indices must address loaded vertices; renderer and lighting code
 // index gVertex[] with them unchecked.
 static void ValidateFaceIndices(const TModel* mptr)
@@ -236,8 +246,7 @@ void LoadTexture(unique_obj_ptr<TEXTURE> &T)
   // LoadResources (per-level). Tag as Level so the arena reclaims
   // per-level textures in bulk on Reset().
   T.reset((TEXTURE*) _HeapAlloc(Heap, 0, sizeof(TEXTURE), MemoryTag::Level));
-  DWORD L;
-  ReadFile(hfile, T->DataA, 128*128*2, &L, nullptr);
+  ReadModelExact(hfile, T->DataA, 128*128*2, "terrain texture");
   for (int y=0; y<128; y++)
     for (int x=0; x<128; x++)
       if (!T->DataA[y*128+x]) T->DataA[y*128+x]=1;
@@ -264,7 +273,7 @@ void LoadTexture(unique_obj_ptr<TEXTURE> &T)
 void LoadSky()
 {
   SetFilePointer(hfile, 256*512*OptDayNight, nullptr, FILE_CURRENT);
-  ReadFile(hfile, SkyPic, 256*256*2, &l, nullptr);
+  ReadModelExact(hfile, SkyPic, 256*256*2, "sky texture");
   SetFilePointer(hfile, 256*512*(2-OptDayNight), nullptr, FILE_CURRENT);
 
   BrightenTexture(SkyPic, 256*256);
@@ -282,7 +291,7 @@ void LoadSky()
 
 void LoadSkyMap()
 {
-  ReadFile(hfile, SkyMap, 128*128, &l, nullptr);
+  ReadModelExact(hfile, SkyMap, 128*128, "sky map");
 }
 
 void fp_conv(LPVOID d)
@@ -384,7 +393,7 @@ void AllocateMemoryForModel(TModel* mptr, MemoryTag tag) {
 	// Sanity cap far above shipped maxima (VCount 1989, FCount 1488):
 	// keeps downstream int shifts and per-vertex loops bounded for
 	// hostile files while leaving legitimate mods effectively unlimited.
-	if (!IsValidCount(mptr->VCount, 1 << 20) ||
+	if (mptr->VCount <= 0 || mptr->VCount > (1 << 20) ||
 	    !IsValidCount(mptr->FCount, 1 << 20) ||
 	    !CheckedBytes2((size_t)mptr->VCount, 16, vbytes) ||
 	    !CheckedBytes2((size_t)mptr->FCount, 64, fbytes) ||
@@ -430,9 +439,9 @@ void LoadModel(unique_obj_ptr<TModel> &mptr, MemoryTag tag)
 
   AllocateMemoryForModel(mptr.get(), tag);
 
-  ReadFile( hfile, mptr->gFace,        mptr->FCount<<6, &l, nullptr );
-  ReadFile( hfile, mptr->gVertex.get(),      mptr->VCount<<4, &l, nullptr );
-  ReadFile( hfile, gObj,               OCount*48, &l, nullptr );
+  ReadModelExact(hfile, mptr->gFace, (DWORD)(mptr->FCount * 64), "model faces");
+  ReadModelExact(hfile, mptr->gVertex.get(), (DWORD)(mptr->VCount * 16), "model vertices");
+  ReadModelExact(hfile, gObj, (DWORD)(OCount * 48), "model object records");
   ValidateFaceIndices(mptr.get());
 
   if (HARD3D) CalcLights(mptr.get());
@@ -451,7 +460,7 @@ void LoadModel(unique_obj_ptr<TModel> &mptr, MemoryTag tag)
   // it, so reject instead of reading.
   if (ts < 0 || (size_t)ts > (size_t)mptr->TextureSize)
     ModelLoadFail("texture byte count exceeds buffer", ts, mptr->TextureSize);
-  ReadFile(hfile, mptr->lpTexture.get(), ts, &l, nullptr);
+  ReadModelExact(hfile, mptr->lpTexture.get(), (DWORD)ts, "model texture");
   BrightenTexture(mptr->lpTexture.get(), ts/2);
 
   for (int v=0; v<mptr->VCount; v++)
@@ -466,34 +475,37 @@ void LoadModel(unique_obj_ptr<TModel> &mptr, MemoryTag tag)
   DATASHIFT(mptr->lpTexture.get(), mptr->TextureSize);
 }
 
-void LoadAnimation(TVTL &vtl)
+void LoadAnimation(TVTL &vtl, int modelVertexCount)
 {
-  int vc;
-  DWORD l;
+  int recordType = 0;
+  int vertexCount = 0;
+  int storedFrameCount = 0;
 
-  if (!ReadExact(hfile, &vc, 4) ||
-      !ReadExact(hfile, &vc, 4) ||
+  if (!ReadExact(hfile, &recordType, 4) ||
+      !ReadExact(hfile, &vertexCount, 4) ||
       !ReadExact(hfile, &vtl.aniKPS, 4) ||
-      !ReadExact(hfile, &vtl.FramesCount, 4))
+      !ReadExact(hfile, &storedFrameCount, 4))
     DoHalt("Model loading error: truncated animation header.");
-  l = 4;
-  vtl.FramesCount++;
+  (void)recordType;
 
-  // aniKPS == 0 would divide by zero below; negative/huge counts would
-  // overflow the signed size product before the allocator sees it.
-  if (vtl.aniKPS <= 0)
-    ModelLoadFail("animation rate is not positive", vtl.aniKPS, 0);
+  if (vertexCount != modelVertexCount)
+    ModelLoadFail("animation vertex count does not match model", vertexCount, modelVertexCount);
+  constexpr int maxAnimationFrames = (std::numeric_limits<int>::max)() / 256;
+  if (storedFrameCount < 1 || storedFrameCount >= maxAnimationFrames)
+    ModelLoadFail("animation frame count out of range", storedFrameCount, maxAnimationFrames - 1);
+  vtl.FramesCount = storedFrameCount + 1;
+
   size_t anibytes = 0;
-  if (vc < 0 || vtl.FramesCount < 0 ||
-      !CheckedBytes3((size_t)vc, (size_t)vtl.FramesCount, 6, anibytes))
-    ModelLoadFail("animation size overflow", vc, vtl.FramesCount);
+  if (!CheckedBytes3((size_t)vertexCount, (size_t)vtl.FramesCount, 6, anibytes))
+    ModelLoadFail("animation size overflow", vertexCount, vtl.FramesCount);
+  if (!CheckedAnimationDuration(vtl.FramesCount, vtl.aniKPS, vtl.AniTime))
+    ModelLoadFail("animation duration is invalid", vtl.FramesCount, vtl.aniKPS);
 
   // Phase 5E follow-up (Gap #2): LoadAnimation is only called from
   // LoadResources (per-level). Tag as Level for arena reclamation.
-  vtl.AniTime = (vtl.FramesCount * 1000) / vtl.aniKPS;
   vtl.aniData.reset((short int*)
                 _HeapAlloc(Heap, 0, (DWORD)anibytes, MemoryTag::Level));
-  ReadFile( hfile, vtl.aniData.get(), (DWORD)anibytes, &l, nullptr);
+  ReadModelExact(hfile, vtl.aniData.get(), (DWORD)anibytes, "object animation data");
 
 }
 
@@ -528,9 +540,9 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName, MemoryTag tag)
   if (mptr->TextureSize < 0)
     ModelLoadFail("negative TextureSize", mptr->TextureSize, 0);
 
-  ReadFile( hfile, mptr->gFace,        mptr->FCount<<6, &l, nullptr );
-  ReadFile( hfile, mptr->gVertex.get(),      mptr->VCount<<4, &l, nullptr );
-  ReadFile( hfile, gObj,               OCount*48, &l, nullptr );
+  ReadModelExact(hfile, mptr->gFace, (DWORD)(mptr->FCount * 64), "model faces");
+  ReadModelExact(hfile, mptr->gVertex.get(), (DWORD)(mptr->VCount * 16), "model vertices");
+  ReadModelExact(hfile, gObj, (DWORD)(OCount * 48), "model object records");
   ValidateFaceIndices(mptr.get());
 
   int ts = mptr->TextureSize;
@@ -542,7 +554,7 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName, MemoryTag tag)
 
   if (ts < 0 || (size_t)ts > (size_t)mptr->TextureSize)
     ModelLoadFail("texture byte count exceeds buffer", ts, mptr->TextureSize);
-  ReadFile(hfile, mptr->lpTexture.get(), ts, &l, nullptr);
+  ReadModelExact(hfile, mptr->lpTexture.get(), (DWORD)ts, "model texture");
   BrightenTexture(mptr->lpTexture.get(), ts/2);
 
   for (int v=0; v<mptr->VCount; v++)
@@ -668,7 +680,7 @@ void LoadBMPModel(TObject &obj)
   //ReadFile(hfile, lpT, 256*256*2, &l, nullptr);
   //DATASHIFT(obj.bmpmodel.lpTexture.get(), 128*128*2);
   //BrightenTexture(lpT, 256*256);
-  ReadFile(hfile, obj.bmpmodel.lpTexture.get(), 128*128*2, &l, nullptr);
+  ReadModelExact(hfile, obj.bmpmodel.lpTexture.get(), 128*128*2, "billboard texture");
   BrightenTexture(obj.bmpmodel.lpTexture.get(), 128*128);
   DATASHIFT(obj.bmpmodel.lpTexture.get(), 128*128*2);
   //CreateMipMapMT(obj.bmpmodel.lpTexture, lpT, 128);
@@ -773,18 +785,15 @@ void ReleaseCharacterInfo(TCharacterInfo &chinfo)
   ReleaseModelBuffers(chinfo.mptr.get());
   chinfo.mptr.reset();
 
-  for (int c = 0; c<64; c++)
-  {
-    if (chinfo.Animation[c].aniData.get() == nullptr) break;
+  for (int c = 0; c < 64; c++)
     chinfo.Animation[c].aniData.reset();
-  }
 
-  // Phase 5B.1: TSFX::lpData is now std::vector; the vector destructor
-  // reclaims the buffer on Reset, so no manual _HeapFree is needed.
-  for (int c = 0; c<64; c++)
+  // Do not use an empty vector as a sentinel: zero-length effects are valid,
+  // and a hole must not leave later buffers resident.
+  for (int c = 0; c < 64; c++)
   {
-    if (chinfo.SoundFX[c].lpData.empty()) break;
-    chinfo.SoundFX[c].lpData.clear();
+    std::vector<short int>().swap(chinfo.SoundFX[c].lpData);
+    chinfo.SoundFX[c].length = 0;
   }
 
   chinfo.AniCount = 0;
@@ -832,8 +841,10 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
 
   AllocateMemoryForModel(chinfo.mptr.get(), tag);
 
-  ReadFile( hfile, chinfo.mptr->gFace,        chinfo.mptr->FCount<<6, &l, nullptr );
-  ReadFile( hfile, chinfo.mptr->gVertex.get(),      chinfo.mptr->VCount<<4, &l, nullptr );
+  ReadModelExact(hfile, chinfo.mptr->gFace,
+                 (DWORD)(chinfo.mptr->FCount * 64), "character faces");
+  ReadModelExact(hfile, chinfo.mptr->gVertex.get(),
+                 (DWORD)(chinfo.mptr->VCount * 16), "character vertices");
   ValidateFaceIndices(chinfo.mptr.get());
 
   int ts = chinfo.mptr->TextureSize;
@@ -845,7 +856,7 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
 
   if (ts < 0 || (size_t)ts > (size_t)chinfo.mptr->TextureSize)
     ModelLoadFail("texture byte count exceeds buffer", ts, chinfo.mptr->TextureSize);
-  ReadFile(hfile, chinfo.mptr->lpTexture.get(), ts, &l, nullptr);
+  ReadModelExact(hfile, chinfo.mptr->lpTexture.get(), (DWORD)ts, "character texture");
   BrightenTexture(chinfo.mptr->lpTexture.get(), ts/2);
 
   DATASHIFT(chinfo.mptr->lpTexture.get(), chinfo.mptr->TextureSize);
@@ -858,36 +869,49 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
 //============= read animations =============//
   for (int a=0; a<chinfo.AniCount; a++)
   {
-    ReadFile(hfile, chinfo.Animation[a].aniName, 32, &l, nullptr);
-    ReadFile(hfile, &chinfo.Animation[a].aniKPS, 4, &l, nullptr);
-    ReadFile(hfile, &chinfo.Animation[a].FramesCount, 4, &l, nullptr);
-    if (chinfo.Animation[a].aniKPS <= 0)
-      ModelLoadFail("animation rate is not positive", chinfo.Animation[a].aniKPS, 0);
-    size_t chAnibytes = 0;
-    if (chinfo.Animation[a].FramesCount < 0 ||
+    ReadModelExact(hfile, chinfo.Animation[a].aniName, 32, "animation name");
+    ReadModelExact(hfile, &chinfo.Animation[a].aniKPS, 4, "animation rate");
+    ReadModelExact(hfile, &chinfo.Animation[a].FramesCount, 4, "animation frame count");
+    const int fileFrames = chinfo.Animation[a].FramesCount;
+    constexpr int maxAnimationFrames = (std::numeric_limits<int>::max)() / 256;
+    if (fileFrames <= 0 || fileFrames > maxAnimationFrames)
+      ModelLoadFail("animation frame count out of range", fileFrames, maxAnimationFrames);
+    const int storageFrames = fileFrames == 1 ? 2 : fileFrames;
+    size_t fileAniBytes = 0, storageAniBytes = 0;
+    if (!CheckedBytes3((size_t)chinfo.mptr->VCount,
+                       (size_t)fileFrames, 6, fileAniBytes) ||
         !CheckedBytes3((size_t)chinfo.mptr->VCount,
-                       (size_t)chinfo.Animation[a].FramesCount, 6, chAnibytes))
-      ModelLoadFail("animation size overflow", chinfo.Animation[a].FramesCount, 0);
-    chinfo.Animation[a].AniTime = (chinfo.Animation[a].FramesCount * 1000) / chinfo.Animation[a].aniKPS;
+                       (size_t)storageFrames, 6, storageAniBytes))
+      ModelLoadFail("animation size overflow", fileFrames, 0);
+    if (!CheckedAnimationDuration(fileFrames,
+                                  chinfo.Animation[a].aniKPS,
+                                  chinfo.Animation[a].AniTime))
+      ModelLoadFail("animation duration is invalid",
+                    fileFrames, chinfo.Animation[a].aniKPS);
     chinfo.Animation[a].aniData.reset((short int*)
-                                  _HeapAlloc(Heap, 0, (DWORD)chAnibytes, tag));
+                                  _HeapAlloc(Heap, 0, (DWORD)storageAniBytes, tag));
 
-    ReadFile(hfile, chinfo.Animation[a].aniData.get(), (DWORD)chAnibytes, &l, nullptr);
+    ReadModelExact(hfile, chinfo.Animation[a].aniData.get(),
+                   (DWORD)fileAniBytes, "character animation data");
+    if (fileFrames == 1)
+      memcpy(reinterpret_cast<BYTE*>(chinfo.Animation[a].aniData.get()) + fileAniBytes,
+             chinfo.Animation[a].aniData.get(), fileAniBytes);
   }
 
 //============= read sound fx ==============//
   BYTE tmp[32];
   for (int s=0; s<chinfo.SfxCount; s++)
   {
-    ReadFile(hfile, tmp, 32, &l, nullptr);
-    ReadFile(hfile, &chinfo.SoundFX[s].length, 4, &l, nullptr);
+    ReadModelExact(hfile, tmp, 32, "sound effect name");
+    ReadModelExact(hfile, &chinfo.SoundFX[s].length, 4, "sound effect length");
     // Phase 5B.1: lpData is now std::vector<short int>. A malformed length
     // previously drove a huge assign (or, when odd, a 1-byte heap overflow
     // on the read below); bound it and round the allocation up.
     if (!IsValidWavLength(chinfo.SoundFX[s].length))
       ModelLoadFail("sound effect length out of range", chinfo.SoundFX[s].length, 16 << 20);
     chinfo.SoundFX[s].lpData.assign(WavAllocSamples(chinfo.SoundFX[s].length), 0);
-    ReadFile(hfile, chinfo.SoundFX[s].lpData.data(), chinfo.SoundFX[s].length, &l, nullptr);
+    ReadModelExact(hfile, chinfo.SoundFX[s].lpData.data(),
+                   (DWORD)chinfo.SoundFX[s].length, "sound effect data");
   }
 
   for (int v=0; v<chinfo.mptr->VCount; v++)

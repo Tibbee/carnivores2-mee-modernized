@@ -39,6 +39,53 @@ TEST(LoadValidate, VertexIndicesStayInRange) {
     EXPECT_FALSE(IsValidVertexIndex(-1, 1989));
     EXPECT_FALSE(IsValidVertexIndex(1989, 1989));
     EXPECT_FALSE(IsValidVertexIndex(100000, 1989));
+
+    EXPECT_TRUE(IsValidIndex(0, 32));
+    EXPECT_TRUE(IsValidIndex(31, 32));
+    EXPECT_FALSE(IsValidIndex(-1, 32));
+    EXPECT_FALSE(IsValidIndex(32, 32));
+}
+
+TEST(LoadValidate, AnimationDurationIsPositiveAndChecked) {
+    int duration = 0;
+    EXPECT_TRUE(CheckedAnimationDuration(20, 10, duration));
+    EXPECT_EQ(duration, 2000);
+    EXPECT_TRUE(CheckedAnimationDuration(1, 10, duration));
+    EXPECT_EQ(duration, 100);
+    EXPECT_FALSE(CheckedAnimationDuration(0, 10, duration));
+    EXPECT_FALSE(CheckedAnimationDuration(20, 0, duration));
+    EXPECT_FALSE(CheckedAnimationDuration(20, -1, duration));
+    EXPECT_FALSE(CheckedAnimationDuration(2, 3000, duration));
+    EXPECT_FALSE(CheckedAnimationDuration((std::numeric_limits<int>::max)(), 1, duration));
+}
+
+TEST(LoadValidate, MorphFrameCalculationIsBoundedAndOverflowSafe) {
+    EXPECT_EQ(CalculateMorphFrameFixed(1, 100, 1000), 0);
+    EXPECT_EQ(CalculateMorphFrameFixed(10, -1, 1000), 0);
+    EXPECT_EQ(CalculateMorphFrameFixed(10, 1000, 1000),
+              CalculateMorphFrameFixed(10, 999, 1000));
+    const int nearEnd = CalculateMorphFrameFixed(365, 24332, 24333);
+    EXPECT_GE(nearEnd, 0);
+    EXPECT_LT((nearEnd >> 8) + 1, 365);
+    EXPECT_EQ(CalculateMorphFrameFixed((std::numeric_limits<int>::max)(),
+                                       1000, 1000), 0);
+    EXPECT_EQ(CalculateMorphFrameFixed(10, 100, 0), 0);
+}
+
+TEST(LoadValidate, MapReferencesRespectCountsAndSentinels) {
+    EXPECT_TRUE(IsValidMapTextureIndex(0, 1));
+    EXPECT_FALSE(IsValidMapTextureIndex(1, 1));
+    EXPECT_TRUE(IsValidMapTextureIndex(0xFFFFu, 2));
+    EXPECT_FALSE(IsValidMapTextureIndex(0xFFFFu, 1));
+
+    EXPECT_TRUE(IsValidMapObjectIndex(0, 1));
+    EXPECT_FALSE(IsValidMapObjectIndex(1, 1));
+    EXPECT_TRUE(IsValidMapObjectIndex(254, 0));
+    EXPECT_TRUE(IsValidMapObjectIndex(255, 0));
+
+    EXPECT_TRUE(IsValidMapWaterIndex(0, 1));
+    EXPECT_FALSE(IsValidMapWaterIndex(1, 1));
+    EXPECT_FALSE(IsValidMapWaterIndex(255, 0));
 }
 
 TEST(LoadValidate, BmpWidthGuardsStackBuffer) {

@@ -139,6 +139,10 @@ void CreateTMap()
 
       if (OMap[y][x]==254)
       {
+        constexpr int landingCapacity =
+            static_cast<int>(sizeof(LandingList.list) / sizeof(LandingList.list[0]));
+        if (LandingList.PCount >= landingCapacity)
+          DoHalt("Map loading error: too many landing markers (max 64).");
         LandingList.list[LandingList.PCount].x = x;
         LandingList.list[LandingList.PCount].y = y;
         LandingList.PCount++;

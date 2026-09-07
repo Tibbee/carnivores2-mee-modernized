@@ -30,6 +30,41 @@ static void CopyProjectName(char* dst, const char* src)
     DoHalt("Script loading error: project path too long.");
 }
 
+static void RequireScriptSlot(int index, int capacity, const char* what)
+{
+  if (!IsValidIndex(index, capacity))
+  {
+    char sz[192];
+    sprintf_s(sz, sizeof(sz),
+              "Script loading error: %s capacity exceeded (index=%d, max=%d).",
+              what, index, capacity - 1);
+    DoHalt(sz);
+  }
+}
+
+static int ScriptIndex(const char* value, int capacity, const char* what)
+{
+  const int index = value ? atoi(value) : -1;
+  RequireScriptSlot(index, capacity, what);
+  return index;
+}
+
+static int CurrentJumpPartIndex()
+{
+  const int index = DinoInfo[TotalC].jumpAnim;
+  RequireScriptSlot(index, 50, "jump particle animation");
+  return index;
+}
+
+static int CurrentIdlePartIndex()
+{
+  if (DinoInfo[TotalC].lookCount <= 0)
+    DoHalt("Script loading error: idle particle data has no preceding look animation.");
+  const int index = DinoInfo[TotalC].lookAnim[DinoInfo[TotalC].lookCount - 1];
+  RequireScriptSlot(index, 50, "idle particle animation");
+  return index;
+}
+
 void readBool(char *value, BOOL &out) {
 	if (strstr(value, "TRUE")) out = true;
 	if (strstr(value, "FALSE")) out = false;
@@ -79,6 +114,7 @@ void SkipSector(FILE *stream)
 
 void ReadTrophyTypeInfo(FILE *stream, int trophyGroup)
 {
+	RequireScriptSlot(trophyTypeCount, TROPHY2_COUNT, "trophy types");
 	char *value;
 	char line[256];
 
@@ -89,6 +125,8 @@ void ReadTrophyTypeInfo(FILE *stream, int trophyGroup)
 				trophyType[trophyTypeCount].group = trophyGroup;
 			}
 			else {
+				RequireScriptSlot(trophyType[trophyTypeCount].ctypeCh, TROPHY2_COUNT,
+				                  "trophy character list");
 				trophyType[trophyTypeCount].ctype[trophyType[trophyTypeCount].ctypeCh] = TotalC;
 				trophyType[trophyTypeCount].ctypeCh++;
 				DinoInfo[TotalC].trophy = true;
@@ -149,6 +187,7 @@ void WipeSpawnInfo() {
 
 void ReadSpawnInfo(FILE *stream)
 {
+	RequireScriptSlot(DinoInfo[TotalC].SpawnInfoCh, 32, "character spawn-info list");
 	char *value;
 	char line[256];
 
@@ -176,6 +215,7 @@ void ReadSpawnInfo(FILE *stream)
 
 
 void WipeSpawnInfoPack() {
+	RequireScriptSlot(packTypeCount, 1024, "pack types");
 	if (packType[packTypeCount].SpawnInfoCh) {
 		for (int i = 0; i < packType[packTypeCount].SpawnInfoCh; i++) {
 			packType[packTypeCount].SpawnInfo[i] = {};
@@ -186,6 +226,8 @@ void WipeSpawnInfoPack() {
 
 void ReadSpawnInfoPack(FILE *stream)
 {
+	RequireScriptSlot(packTypeCount, 1024, "pack types");
+	RequireScriptSlot(packType[packTypeCount].SpawnInfoCh, 32, "pack spawn-info list");
 	char *value;
 	char line[256];
 
@@ -211,6 +253,7 @@ void ReadSpawnInfoPack(FILE *stream)
 
 
 void ReadPackMember2(FILE *stream) {
+	RequireScriptSlot(DinoInfo[TotalC].packMember2Ch, 32, "character pack-member list");
 	char *value;
 	char line[256];
 
@@ -236,6 +279,8 @@ void ReadPackMember2(FILE *stream) {
 
 void ReadAvoid(FILE *stream)
 {
+	RequireScriptSlot(TotalSpawnGroup, 256, "spawn groups");
+	RequireScriptSlot(spawnGroup[TotalSpawnGroup].avoidRegionCh, 16, "spawn-group avoid regions");
 	char *value;
 	char line[256];
 
@@ -262,6 +307,8 @@ void ReadAvoid(FILE *stream)
 
 void ReadRegion(FILE *stream)
 {
+	RequireScriptSlot(TotalSpawnGroup, 256, "spawn groups");
+	RequireScriptSlot(spawnGroup[TotalSpawnGroup].spawnRegionCh, 16, "spawn-group regions");
 	char *value;
 	char line[256];
 
@@ -288,6 +335,7 @@ void ReadRegion(FILE *stream)
 }
 
 void WipeAvoidReg() {
+	RequireScriptSlot(TotalSpawnGroup, 256, "spawn groups");
 
 	if (spawnGroup[TotalSpawnGroup].avoidRegionCh) {
 
@@ -301,6 +349,7 @@ void WipeAvoidReg() {
 }
 
 void WipeSpawnReg() {
+	RequireScriptSlot(TotalSpawnGroup, 256, "spawn groups");
 
 	if (spawnGroup[TotalSpawnGroup].spawnRegionCh) {
 
@@ -355,6 +404,7 @@ void ReadSpawnTableLine(FILE *stream, char *_value, char line[256], bool &spawnO
 //mode 1 = characters
 //mode 2 = packtable
 void ReadSpawnGroup(FILE *stream, char line[256], int mode) {
+	RequireScriptSlot(TotalSpawnGroup, 256, "spawn groups");
 
 	//area
 	char tempProjectName[128];
@@ -384,11 +434,14 @@ void ReadSpawnGroup(FILE *stream, char line[256], int mode) {
 		if (strstr(line, "}"))
 		{
 			if (mode == 2) {
+				RequireScriptSlot(packTypeCount, 1024, "pack types");
+				RequireScriptSlot(packType[packTypeCount].SpawnInfoCh, 32, "pack spawn-info list");
 				packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnRatio = 1;
 				packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnGroup = TotalSpawnGroup;
 				packType[packTypeCount].SpawnInfoCh++;
 			}
 			if (mode == 1) {
+				RequireScriptSlot(DinoInfo[TotalC].SpawnInfoCh, 32, "character spawn-info list");
 				DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnRatio = 1;
 				DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnGroup = TotalSpawnGroup;
 				DinoInfo[TotalC].SpawnInfoCh++;
@@ -494,7 +547,7 @@ void ReadSpawnGroup(FILE *stream, char line[256], int mode) {
 						&& !strstr(line, "region")
 						&& !strstr(line, "avoid"))
 						DoHalt("Script loading error: SpawnTable");
-					value++;
+					value = value ? value + 1 : line;
 
 					ReadSpawnTableLine(stream, value, line, regionOverwrite, avoidOverwrite);
 
@@ -509,7 +562,7 @@ void ReadSpawnGroup(FILE *stream, char line[256], int mode) {
 			bool temp, temp2;
 			temp = false;
 			temp2 = false;
-			value++;
+			value = value ? value + 1 : line;
 			ReadSpawnTableLine(stream, value, line, temp, temp2);
 
 		}
@@ -550,7 +603,7 @@ void ReadSpawnTable(FILE *stream)
 
 
 void ReadPackTableLine(FILE *stream, char *_value, char line[256], bool &spawnIOverwrite) {
-
+	RequireScriptSlot(packTypeCount, 1024, "pack types");
 
 	char *value = _value;
 
@@ -579,6 +632,7 @@ void ReadPackTableLine(FILE *stream, char *_value, char line[256], bool &spawnIO
 //mode 0 = packtable
 //mode 1 = character
 void ReadPackGroup(FILE *stream, char line[256], int mode) {
+	RequireScriptSlot(packTypeCount, 1024, "pack types");
 
 	//area
 	char tempProjectName[128];
@@ -607,6 +661,7 @@ void ReadPackGroup(FILE *stream, char line[256], int mode) {
 		if (strstr(line, "}"))
 		{
 			if (mode == 1) {
+				RequireScriptSlot(DinoInfo[TotalC].packMember2Ch, 32, "character pack-member list");
 				DinoInfo[TotalC].packMember2[DinoInfo[TotalC].packMember2Ch].packGroup = packTypeCount;
 				DinoInfo[TotalC].packMember2[DinoInfo[TotalC].packMember2Ch].ratio = 1;
 				DinoInfo[TotalC].packMember2Ch++;
@@ -616,7 +671,7 @@ void ReadPackGroup(FILE *stream, char line[256], int mode) {
 		}
 
 		value = strstr(line, "=");
-		value++;
+		value = value ? value + 1 : line;
 		bool temp1;
 		temp1 = false;
 		ReadPackTableLine(stream, value, line, temp1);
@@ -712,7 +767,7 @@ void ReadPackGroup(FILE *stream, char line[256], int mode) {
 					if (strstr(line, "}")) break;
 
 					value = strstr(line, "=");
-					value++;
+					value = value ? value + 1 : line;
 
 					ReadPackTableLine(stream, value, line, spawnInfoOverwrite);
 
@@ -779,6 +834,7 @@ void ReadTrophyTable(FILE *stream)
 
 void ReadSnowType(FILE *stream)
 {
+	RequireScriptSlot(SnowCh, 32, "snow types");
 	char *value;
 	char line[256];
 
@@ -797,7 +853,12 @@ void ReadSnowType(FILE *stream)
 
 		if (strstr(line, "vSpd"))  SnowInfo[SnowCh].snow_vSpd = atoi(value);
 		if (strstr(line, "hSpd"))  SnowInfo[SnowCh].snow_hSpd = atoi(value);
-		if (strstr(line, "dens"))  SnowInfo[SnowCh].snow_dens = atoi(value);
+		if (strstr(line, "dens")) {
+			const int density = atoi(value);
+			if (density < 0 || density > (1 << 20))
+				DoHalt("Script loading error: snow density out of range.");
+			SnowInfo[SnowCh].snow_dens = density;
+		}
 
 		if (strstr(line, "red"))  SnowInfo[SnowCh].snow_r = atoi(value);
 		if (strstr(line, "gre"))  SnowInfo[SnowCh].snow_g = atoi(value);
@@ -826,6 +887,9 @@ void ReadAreaTable (FILE *stream, int areaNumber)
 					if (SnowCh){
 						int totalSnowTemp=0;
 						for (int st = 0; st < SnowCh; st++) {
+							if (SnowInfo[st].snow_dens < 0 ||
+							    SnowInfo[st].snow_dens > (1 << 20) - totalSnowTemp)
+								DoHalt("Script loading error: total snow density out of range.");
 							SnowInfo[st].addr = totalSnowTemp;
 							totalSnowTemp += SnowInfo[st].snow_dens;
 						}
@@ -849,7 +913,7 @@ void ReadAreaTable (FILE *stream, int areaNumber)
 				}
 				value = strstr(line, "=");
 				if (!value && !strstr(line, "snow")) DoHalt("Script loading error: AreaTable");
-				value++;
+				value = value ? value + 1 : line;
 
 				char testBuff[100];
 				sprintf(testBuff, "\n TEST: %i", TotalAreaInfo);
@@ -864,7 +928,8 @@ void ReadAreaTable (FILE *stream, int areaNumber)
 						ReadSnowType(stream);
 					}
 
-					if (strstr(line, "tree")) TreeTable[atoi(value)] = true;
+					if (strstr(line, "tree"))
+						TreeTable[ScriptIndex(value, 255, "tree table")] = true;
 
 					if (strstr(line, "survivalPlayerX")) SurvivalSpawnX = atoi(value);
 					if (strstr(line, "survivalPlayerY")) SurvivalSpawnZ = atoi(value);
@@ -886,6 +951,7 @@ void ReadAreaTable (FILE *stream, int areaNumber)
 
 
 void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
+	RequireScriptSlot(TotalW, 10, "weapons");
 	char *value = _value;
 
 	if (strstr(line, "getAnim"))  WeapInfo[TotalW].getAnim = atoi(value);
@@ -1045,6 +1111,9 @@ void ReadWeapons(FILE *stream)
     if (strstr(line, "{"))
       while (fgets( line, 255, stream))
       {
+        // Validate before any field or end-of-section calculation indexes
+        // WeapInfo; an empty eleventh section must be rejected too.
+        RequireScriptSlot(TotalW, 10, "weapons");
         if (strstr(line, "}"))
         {
 
@@ -1072,7 +1141,7 @@ void ReadWeapons(FILE *stream)
 			sprintf(errorBuff, "Script loading error: Weapons: %s", WeapInfo[TotalW].Name);
 			DoHalt(errorBuff);
 		}
-        value++;
+        value = value ? value + 1 : line;
 
 		ReadWeaponLine(stream, value, line);
 
@@ -1260,6 +1329,7 @@ void WipeIdle2Groups() {
 
 void ReadIdleGroupInfo(FILE *stream)
 {
+	RequireScriptSlot(DinoInfo[TotalC].idleGroupCount, 32, "idle groups");
 	char *value;
 	char line[256];
 
@@ -1287,6 +1357,8 @@ void ReadIdleGroupInfo(FILE *stream)
 			//	DinoInfo[TotalC].idleCount = 0;
 			//	idleOverwrite = false;
 			//}
+			RequireScriptSlot(DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].count,
+			                  32, "idle-group animations");
 			DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].anim[DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].count] = atoi(value);
 			DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].count++;
 		}
@@ -1297,6 +1369,7 @@ void ReadIdleGroupInfo(FILE *stream)
 
 void ReadIdle2GroupInfo(FILE *stream)
 {
+	RequireScriptSlot(DinoInfo[TotalC].idle2GroupCount, 32, "secondary idle groups");
 	char *value;
 	char line[256];
 
@@ -1324,6 +1397,8 @@ void ReadIdle2GroupInfo(FILE *stream)
 			//	DinoInfo[TotalC].idleCount = 0;
 			//	idleOverwrite = false;
 			//}
+			RequireScriptSlot(DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].count,
+			                  32, "secondary idle-group animations");
 			DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].anim[DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].count] = atoi(value);
 			DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].count++;
 		}
@@ -1334,6 +1409,7 @@ void ReadIdle2GroupInfo(FILE *stream)
 
 void ReadDeathTypeInfo(FILE *stream)
 {
+	RequireScriptSlot(DinoInfo[TotalC].deathTypeCount, 32, "death types");
 	char *value;
 	char line[256];
 
@@ -1360,6 +1436,7 @@ void ReadDeathTypeInfo(FILE *stream)
 
 void ReadKillTypeInfo(FILE *stream)
 {
+	RequireScriptSlot(DinoInfo[TotalC].killTypeCount, 32, "kill types");
 	char *value;
 	char line[256];
 
@@ -1465,6 +1542,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	bool &deathTypeOverwrite, bool &trophyTypeOverwrite, bool &idleGroupOverwrite, bool &idle2GroupOverwrite,
 	bool &memberOverwrite) {
 
+	RequireScriptSlot(TotalC, DINOINFO_MAX, "characters");
 	char *value = _value;
 //	bool overwrite = _overwrite;
 
@@ -1488,6 +1566,8 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 		int gr = atoi(value);
 		for (int i = 0; i < trophyTypeCount; i++){
 			if (trophyType[i].group == gr) {
+				RequireScriptSlot(trophyType[i].ctypeCh, TROPHY2_COUNT,
+				                  "trophy character list");
 				trophyType[i].ctype[trophyType[i].ctypeCh] = TotalC;
 				trophyType[i].ctypeCh++;
 				DinoInfo[TotalC].trophy = true;
@@ -1511,8 +1591,8 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	if (strstr(line, "shipdelta")) DinoInfo[TotalC].ShDelta = static_cast<float>(atof(value));
 	if (strstr(line, "scale0")) DinoInfo[TotalC].Scale0 = atoi(value);
 	if (strstr(line, "scaleA")) DinoInfo[TotalC].ScaleA = atoi(value);
-	if (strstr(line, "fearCall")) DinoInfo[TotalC].fearCall[atoi(value)] = true; //DIFFERANT TO STND BOOL!!!! e.g. fearcall = 1
-	if (strstr(line, "dontFear")) DinoInfo[TotalC].fearCall[atoi(value)] = false; //DIFFERANT TO STND BOOL!!!!
+	if (strstr(line, "fearCall")) DinoInfo[TotalC].fearCall[ScriptIndex(value, 64, "fear-call table")] = true;
+	if (strstr(line, "dontFear")) DinoInfo[TotalC].fearCall[ScriptIndex(value, 64, "fear-call table")] = false;
 	if (strstr(line, "maxdepth")) DinoInfo[TotalC].maxDepth = atoi(value);
 	if (strstr(line, "maxalt")) DinoInfo[TotalC].maxDepth = atoi(value);
 	if (strstr(line, "mindepth")) DinoInfo[TotalC].minDepth = atoi(value);
@@ -1536,7 +1616,8 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 
 	if (strstr(line, "survivalIndex")) {
 		DinoInfo[TotalC].survivalDino = true;
-		SurvivalIndex[atoi(value)] = TotalC;
+		RequireScriptSlot(SurvivalIndexCh, 128, "survival character list");
+		SurvivalIndex[ScriptIndex(value, 128, "survival index")] = TotalC;
 		SurvivalIndexCh++;
 	}
 
@@ -1579,23 +1660,23 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 
 	if (strstr(line, "canswim")) readBool(value, DinoInfo[TotalC].canSwim); //check animate subroutines for what this includes. LandBrach needs this attribute, but maybe rename to wade? (and default to off for landbrach ai? maybe?)
 
-	if (strstr(line, "jumpPartFrame1")) DinoInfo[TotalC].partFrame1[DinoInfo[TotalC].jumpAnim] = 1000 * atoi(value); // x1000
-	if (strstr(line, "jumpPartFrame2")) DinoInfo[TotalC].partFrame2[DinoInfo[TotalC].jumpAnim] = 1000 * atoi(value); // x1000
-	if (strstr(line, "jumpPartDist")) DinoInfo[TotalC].partDist[DinoInfo[TotalC].jumpAnim] = atoi(value);
-	if (strstr(line, "jumpPartCnt")) DinoInfo[TotalC].partCnt[DinoInfo[TotalC].jumpAnim] = atoi(value);
-	if (strstr(line, "jumpPartMag")) DinoInfo[TotalC].partMag[DinoInfo[TotalC].jumpAnim] = atoi(value);
-	if (strstr(line, "jumpPartOffset")) DinoInfo[TotalC].partOffset[DinoInfo[TotalC].jumpAnim] = atoi(value);
-	if (strstr(line, "jumpPartAngled")) readBool(value, DinoInfo[TotalC].partAngled[DinoInfo[TotalC].jumpAnim]);
-	if (strstr(line, "jumpPartCircle")) readBool(value, DinoInfo[TotalC].partCircle[DinoInfo[TotalC].jumpAnim]);
+	if (strstr(line, "jumpPartFrame1")) DinoInfo[TotalC].partFrame1[CurrentJumpPartIndex()] = 1000 * atoi(value); // x1000
+	if (strstr(line, "jumpPartFrame2")) DinoInfo[TotalC].partFrame2[CurrentJumpPartIndex()] = 1000 * atoi(value); // x1000
+	if (strstr(line, "jumpPartDist")) DinoInfo[TotalC].partDist[CurrentJumpPartIndex()] = atoi(value);
+	if (strstr(line, "jumpPartCnt")) DinoInfo[TotalC].partCnt[CurrentJumpPartIndex()] = atoi(value);
+	if (strstr(line, "jumpPartMag")) DinoInfo[TotalC].partMag[CurrentJumpPartIndex()] = atoi(value);
+	if (strstr(line, "jumpPartOffset")) DinoInfo[TotalC].partOffset[CurrentJumpPartIndex()] = atoi(value);
+	if (strstr(line, "jumpPartAngled")) readBool(value, DinoInfo[TotalC].partAngled[CurrentJumpPartIndex()]);
+	if (strstr(line, "jumpPartCircle")) readBool(value, DinoInfo[TotalC].partCircle[CurrentJumpPartIndex()]);
 
-	if (strstr(line, "idlePartFrame1")) DinoInfo[TotalC].partFrame1[DinoInfo[TotalC].lookAnim[DinoInfo[TotalC].lookCount-1]] = 1000 * atoi(value); // x1000
-	if (strstr(line, "idlePartFrame2")) DinoInfo[TotalC].partFrame2[DinoInfo[TotalC].lookAnim[DinoInfo[TotalC].lookCount-1]] = 1000 * atoi(value); // x1000
-	if (strstr(line, "idlePartDist")) DinoInfo[TotalC].partDist[DinoInfo[TotalC].lookAnim[DinoInfo[TotalC].lookCount-1]] = atoi(value);
-	if (strstr(line, "idlePartCnt")) DinoInfo[TotalC].partCnt[DinoInfo[TotalC].lookAnim[DinoInfo[TotalC].lookCount - 1]] = atoi(value);
-	if (strstr(line, "idlePartMag")) DinoInfo[TotalC].partMag[DinoInfo[TotalC].lookAnim[DinoInfo[TotalC].lookCount-1]] = atoi(value);
-	if (strstr(line, "idlePartOffset")) DinoInfo[TotalC].partOffset[DinoInfo[TotalC].lookAnim[DinoInfo[TotalC].lookCount - 1]] = atoi(value);
-	if (strstr(line, "idlePartAngled")) readBool(value, DinoInfo[TotalC].partAngled[DinoInfo[TotalC].lookAnim[DinoInfo[TotalC].lookCount-1]]);
-	if (strstr(line, "idlePartCircle")) readBool(value, DinoInfo[TotalC].partCircle[DinoInfo[TotalC].lookAnim[DinoInfo[TotalC].lookCount - 1]]);
+	if (strstr(line, "idlePartFrame1")) DinoInfo[TotalC].partFrame1[CurrentIdlePartIndex()] = 1000 * atoi(value); // x1000
+	if (strstr(line, "idlePartFrame2")) DinoInfo[TotalC].partFrame2[CurrentIdlePartIndex()] = 1000 * atoi(value); // x1000
+	if (strstr(line, "idlePartDist")) DinoInfo[TotalC].partDist[CurrentIdlePartIndex()] = atoi(value);
+	if (strstr(line, "idlePartCnt")) DinoInfo[TotalC].partCnt[CurrentIdlePartIndex()] = atoi(value);
+	if (strstr(line, "idlePartMag")) DinoInfo[TotalC].partMag[CurrentIdlePartIndex()] = atoi(value);
+	if (strstr(line, "idlePartOffset")) DinoInfo[TotalC].partOffset[CurrentIdlePartIndex()] = atoi(value);
+	if (strstr(line, "idlePartAngled")) readBool(value, DinoInfo[TotalC].partAngled[CurrentIdlePartIndex()]);
+	if (strstr(line, "idlePartCircle")) readBool(value, DinoInfo[TotalC].partCircle[CurrentIdlePartIndex()]);
 
 	if (strstr(line, "DangerFish")) readBool(value, DinoInfo[TotalC].DangerFish);
 
@@ -1607,7 +1688,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	if (strstr(line, "JumpRange")) DinoInfo[TotalC].jumpRange = atoi(value);
 
 	if (strstr(line, "Weapon")) {
-		DinoInfo[TotalC].Weapon = atoi(value);
+		DinoInfo[TotalC].Weapon = ScriptIndex(value, TotalW, "character weapon");
 		DinoInfo[TotalC].Reload = WeapInfo[DinoInfo[TotalC].Weapon].Shots;
 		if (WeapInfo[DinoInfo[TotalC].Weapon].Reload)
 			DinoInfo[TotalC].Reload = WeapInfo[DinoInfo[TotalC].Weapon].Reload;
@@ -1635,6 +1716,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 			DinoInfo[TotalC].lookCount = 0;
 			idleOverwrite = false;
 		}
+		RequireScriptSlot(DinoInfo[TotalC].lookCount, 32, "look animations");
 		DinoInfo[TotalC].lookAnim[DinoInfo[TotalC].lookCount] = atoi(value);
 		DinoInfo[TotalC].lookCount++;
 	}
@@ -1644,6 +1726,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 			DinoInfo[TotalC].smellCount = 0;
 			idle2Overwrite = false;
 		}
+		RequireScriptSlot(DinoInfo[TotalC].smellCount, 32, "smell animations");
 		DinoInfo[TotalC].smellAnim[DinoInfo[TotalC].smellCount] = atoi(value);
 		DinoInfo[TotalC].smellCount++;
 	}
@@ -1654,6 +1737,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 			DinoInfo[TotalC].roarCount = 0;
 			roarOverwrite = false;
 		}
+		RequireScriptSlot(DinoInfo[TotalC].roarCount, 32, "roar animations");
 		DinoInfo[TotalC].roarAnim[DinoInfo[TotalC].roarCount] = atoi(value);
 		DinoInfo[TotalC].roarCount++;
 	}
@@ -1663,6 +1747,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 			DinoInfo[TotalC].waterDieCount = 0;
 			waterDieOverwrite = false;
 		}
+		RequireScriptSlot(DinoInfo[TotalC].waterDieCount, 32, "water-death animations");
 		DinoInfo[TotalC].waterDieAnim[DinoInfo[TotalC].waterDieCount] = atoi(value);
 		DinoInfo[TotalC].waterDieCount++;
 	}
@@ -1819,6 +1904,9 @@ void ReadCharacters(FILE *stream)
     if (strstr(line, "{"))
       while (fgets( line, 255, stream))
       {
+        // Validate before any field or end-of-section calculation indexes
+        // DinoInfo; an empty 129th section must be rejected too.
+        RequireScriptSlot(TotalC, DINOINFO_MAX, "characters");
 
         if (strstr(line, "}"))
         {
@@ -1886,7 +1974,7 @@ void ReadCharacters(FILE *stream)
 				!strstr(line, "packgroup") &&
 				!strstr(line, "waterIgroup"))
 				DoHalt("Script loading error: Characters");
-			value++;
+			value = value ? value + 1 : line;
 
 
 			bool temp, temp3, temp4, temp5, temp6, temp7, temp8, temp9, temp10, temp11, temp12, temp13;
@@ -2019,7 +2107,7 @@ void ReadCharacters(FILE *stream)
 							&& !strstr(line, "packgroup")
 							&& !strstr(line, "killtype"))
 							DoHalt("Script loading error: Characters");
-						value++;
+						value = value ? value + 1 : line;
 
 						ReadCharacterLine(stream, value, line, spawnInfoOverwrite, spawnGroupOverwrite,
 							idleOverwrite, idle2Overwrite, roarOverwrite, killOverwrite,

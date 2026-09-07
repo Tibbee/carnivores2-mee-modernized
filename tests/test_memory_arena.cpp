@@ -45,6 +45,17 @@ TEST(MemoryArena, ExactFitSucceeds) {
     EXPECT_EQ(arena.GetRemaining(), 0u);
 }
 
+TEST(MemoryArena, ZeroByteAllocationsHaveDistinctOwnership) {
+    MemoryArena arena(64, "test");
+    void* first = arena.Allocate(0);
+    void* second = arena.Allocate(0);
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(second, nullptr);
+    EXPECT_NE(first, second);
+    EXPECT_EQ(arena.GetAllocCount(), 2u);
+    EXPECT_GT(arena.GetUsed(), 1u);
+}
+
 TEST(MemoryArena, OverflowReturnsNullWithoutGrowing) {
     MemoryArena arena(64, "test");
     ASSERT_NE(arena.Allocate(64), nullptr);
@@ -131,6 +142,37 @@ TEST(MemoryArena, GenerationAdvancesOnReset) {
     EXPECT_EQ(arena.GetGeneration(), 1u);
     arena.Reset();
     EXPECT_EQ(arena.GetGeneration(), 2u);
+}
+
+TEST(MemoryArena, ArenaResetClearsOnlyArenaBackedMatchingTags) {
+    EXPECT_TRUE(IsReclaimedByArenaReset(MemoryTag::Level,
+                                        AllocBackend::Arena,
+                                        MemoryTag::Level));
+    EXPECT_FALSE(IsReclaimedByArenaReset(MemoryTag::Level,
+                                         AllocBackend::Heap,
+                                         MemoryTag::Level));
+    EXPECT_FALSE(IsReclaimedByArenaReset(MemoryTag::Global,
+                                         AllocBackend::Arena,
+                                         MemoryTag::Level));
+}
+
+TEST(MemoryArena, RepeatedLevelLifecycleDoesNotAccumulate) {
+    MemoryArena arena(4096, "test");
+    size_t expectedUsed = 0;
+    for (int restart = 0; restart < 100; restart++) {
+        ASSERT_NE(arena.Allocate(111), nullptr);
+        ASSERT_NE(arena.Allocate(257), nullptr);
+        ASSERT_NE(arena.Allocate(19), nullptr);
+        if (restart == 0)
+            expectedUsed = arena.GetUsed();
+        EXPECT_EQ(arena.GetUsed(), expectedUsed) << "restart " << restart;
+        EXPECT_EQ(arena.GetAllocCount(), 3u);
+        arena.Reset();
+        EXPECT_EQ(arena.GetUsed(), 0u);
+        EXPECT_EQ(arena.GetAllocCount(), 0u);
+    }
+    EXPECT_EQ(arena.GetSessionPeak(), expectedUsed);
+    EXPECT_EQ(arena.GetGeneration(), 100u);
 }
 
 TEST(MemoryArena, LogStatsDoesNotCrash) {

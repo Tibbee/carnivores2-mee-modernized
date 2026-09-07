@@ -18,12 +18,69 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <windows.h>
 
 // File-derived count must fit its fixed destination array.
 inline bool IsValidCount(int value, int capacity)
 {
     return value >= 0 && value <= capacity;
+}
+
+// File/script-derived array index must be strictly below capacity.
+inline bool IsValidIndex(int value, int capacity)
+{
+    return value >= 0 && value < capacity;
+}
+
+// Compute animation duration without signed overflow. A one-frame character
+// animation is valid; its loader adds a duplicate interpolation frame.
+inline bool CheckedAnimationDuration(int frames, int kps, int& durationMs)
+{
+    if (frames < 1 || kps <= 0)
+        return false;
+    const uint64_t totalMs = static_cast<uint64_t>(frames) * 1000u;
+    const uint64_t duration = totalMs / static_cast<uint64_t>(kps);
+    if (duration == 0 || duration > static_cast<uint64_t>((std::numeric_limits<int>::max)()))
+        return false;
+    durationMs = static_cast<int>(duration);
+    return true;
+}
+
+// 8-bit fixed-point morph position with checked-width intermediates. The
+// loader enforces the same frame-count limit; invalid runtime state falls
+// back to frame zero rather than indexing outside animation data.
+inline int CalculateMorphFrameFixed(int frameCount, int frameTime, int animationTime)
+{
+    constexpr int maxAnimationFrames = (std::numeric_limits<int>::max)() / 256;
+    if (frameCount <= 1 || frameCount > maxAnimationFrames || animationTime <= 0)
+        return 0;
+    int clampedTime = frameTime;
+    if (clampedTime < 0) clampedTime = 0;
+    if (clampedTime >= animationTime) clampedTime = animationTime - 1;
+    const int64_t fixed = static_cast<int64_t>(frameCount - 1) *
+                          static_cast<int64_t>(clampedTime) * 256 /
+                          static_cast<int64_t>(animationTime);
+    return static_cast<int>(fixed);
+}
+
+// Map-reference helpers preserve the two object sentinels and the legacy
+// 0xFFFF texture sentinel (which CreateTMap normalizes to texture 1).
+inline bool IsValidMapTextureIndex(uint16_t index, int textureCount)
+{
+    return index == 0xFFFFu ? textureCount > 1
+                            : IsValidIndex(static_cast<int>(index), textureCount);
+}
+
+inline bool IsValidMapObjectIndex(uint8_t index, int modelCount)
+{
+    return index == 254u || index == 255u ||
+           IsValidIndex(static_cast<int>(index), modelCount);
+}
+
+inline bool IsValidMapWaterIndex(uint8_t index, int waterCount)
+{
+    return IsValidIndex(static_cast<int>(index), waterCount);
 }
 
 // size = a * b without 32-bit wrap. The allocator takes a DWORD, so the

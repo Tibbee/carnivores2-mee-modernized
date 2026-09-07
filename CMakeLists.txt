@@ -21,6 +21,7 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 # -DGL_PERF_HOOKS=OFF or build a different preset. Has no effect on
 # SOFT builds.
 option(GL_PERF_HOOKS "Enable in-engine GL performance harness (Phase 0.1)" OFF)
+option(MEM_DEBUG "Enable game allocation tracking and leak reporting" OFF)
 
 # Renderer and game-only definitions are applied to the game target below;
 # keeping them target-scoped prevents the standalone menu from inheriting
@@ -44,10 +45,10 @@ if(MSVC)
     # Fix for some legacy headers and scoping
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /permissive")
 
-    # Enable memory debugging for the game executable in Debug builds.
-    # This is stored and applied target-scoped after Carnivores1 is created;
+    # Enable memory debugging for Debug builds by default, or explicitly for
+    # any configuration through -DMEM_DEBUG=ON. Keep it game-target scoped;
     # the standalone menu intentionally remains outside MEM_DEBUG.
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR MEM_DEBUG)
         list(APPEND GAME_DEBUG_DEFINES MEM_DEBUG)
     endif()
 endif()

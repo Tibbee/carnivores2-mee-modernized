@@ -8,6 +8,31 @@ Upstream Modder's Engine v1.11 is the base, not the modernization release
 number. ModDB V1/V2/V3/V4 correspond to GitHub v1.1.4/v1.1.5/v1.1.6/v1.1.7-modernized.
 Windows executable resources use major.minor.patch.0 (currently 1.1.7.0).
 
+## [Unreleased]
+
+### Fixed
+- Release every persistent model/character owner and raw model buffer on
+  shutdown; repeated in-process restarts keep level-arena use flat and clean
+  shutdown reports no tracked leaks.
+- Preserve heap-backed Level allocations in MEM_DEBUG reports instead of
+  erasing them during an arena reset; allocation reports now include source,
+  backend, generation, current-level peak, and session peak.
+- Reject truncated or out-of-range model, character, resource, map, picture,
+  sound, and `_RES.TXT` data before it can overflow fixed arrays or allocation
+  arithmetic. Zero-byte arena allocations retain distinct ownership. Animated
+  resource vertex counts and durations are validated,
+  one-frame character animation interpolation is kept in bounds, and morph
+  frame math no longer overflows 32-bit intermediates.
+- Validate map texture/object/water references and the 64-entry landing list;
+  fix the Software renderer's far-edge diagonal height-map read.
+- Release all 256 model/sound slots, including valid zero-length sound entries.
+- Make `-DMEM_DEBUG=ON` effective for non-Debug CMake configurations.
+
+### Added
+- Unit coverage for arena alignment, reset/restart lifecycle, loader arithmetic,
+  animation timing, map references, exact reads, and script helper boundaries.
+- Allocator-matched `make_heap_object<T>()` and `make_heap_array<T>()` helpers.
+
 ## [v1.1.7-modernized]
 
 ModDB label: V4. Changes since the published v1.1.6-modernized release.

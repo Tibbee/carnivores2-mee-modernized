@@ -27,6 +27,7 @@
 #include <memory>
 #include <new>
 #include <type_traits>
+#include <utility>
 
 
 // ----------------------------------------------------------------------------
@@ -35,8 +36,9 @@
 
 // Per-level arena size. C2 ME's world is 4x larger than C1's (ctHScale=64
 // vs 32, ctMapSize=1024 vs 512), so C1's 128 MiB default is not always
-// enough. 256 MiB gives 50-70% headroom on memory-hungry areas. Tunable
-// here. A future Phase 5C pass can expose a command-line override
+// enough. The 2026-09-07 shipped-area sweep peaked at 7.5% arena use;
+// process address-space use is tracked separately. Tunable here. A future
+// Phase 5C pass can expose a command-line override
 // (smod=arena=N) and emit peak-usage stats to carnivor.log.
 inline constexpr size_t LEVEL_ARENA_SIZE = 256 * 1024 * 1024;  // 256 MiB
 
@@ -61,12 +63,25 @@ enum class MemoryTag {
     Physics    // Reserved for future per-physics allocations
 };
 
+// Actual backing store is independent of the requested lifetime tag when a
+// Level allocation falls back to the heap before the arena exists.
+enum class AllocBackend { Heap, Arena };
+
+inline bool IsReclaimedByArenaReset(MemoryTag allocationTag,
+                                    AllocBackend backend,
+                                    MemoryTag resetTag)
+{
+    return allocationTag == resetTag && backend == AllocBackend::Arena;
+}
+
 
 // ----------------------------------------------------------------------------
 // Forward declarations (match C1)
 // ----------------------------------------------------------------------------
 
 extern HANDLE Heap;
+[[nodiscard]] LPVOID _HeapAlloc(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes);
+[[nodiscard]] LPVOID _HeapAlloc(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes, MemoryTag tag);
 [[nodiscard]] BOOL   _HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem);
 [[noreturn]] void   DoHalt(char* msg);
 void   PrintLog(char* msg);
@@ -121,6 +136,32 @@ using unique_heap_ptr = std::unique_ptr<T, unique_heap_ptr_deleter<T>>;
 template<typename T>
 using unique_obj_ptr = std::unique_ptr<T, HeapDeleter<T>>;
 
+// Allocator-matched factories for persistent objects and trivial arrays.
+// These deliberately allocate through _HeapAlloc; constructing either smart
+// pointer from CRT new/new[] would later free it through the private game heap.
+template<typename T, typename... Args>
+unique_obj_ptr<T> make_heap_object(Args&&... args)
+{
+    void* storage = _HeapAlloc(Heap, 0, static_cast<DWORD>(sizeof(T)), MemoryTag::Global);
+    try {
+        return unique_obj_ptr<T>(new(storage) T(std::forward<Args>(args)...));
+    } catch (...) {
+        (void)_HeapFree(Heap, 0, storage);
+        throw;
+    }
+}
+
+template<typename T>
+unique_heap_ptr<T[]> make_heap_array(size_t count)
+{
+    static_assert(std::is_trivially_destructible_v<T>,
+                  "make_heap_array requires trivially destructible elements");
+    if (count > static_cast<size_t>(MAXDWORD) / sizeof(T))
+        DoHalt("Heap array allocation size overflow.");
+    return unique_heap_ptr<T[]>(static_cast<T*>(
+        _HeapAlloc(Heap, 0, static_cast<DWORD>(count * sizeof(T)), MemoryTag::Global)));
+}
+
 
 // ----------------------------------------------------------------------------
 // Per-level arena (bump allocator backed by VirtualAlloc) — match C1
@@ -149,6 +190,12 @@ public:
     [[nodiscard]] void* Allocate(size_t size, size_t alignment = 16) {
         if (!m_Base) return nullptr;
 
+        // HeapAlloc permits zero-byte requests and returns independently
+        // ownable pointers. Reserve one arena byte too: returning the same
+        // address for repeated zero-byte allocations would alias owners and
+        // overwrite the pointer-keyed MEM_DEBUG record.
+        const size_t allocationSize = size == 0 ? 1 : size;
+
         // Harden the public alignment parameter. All current callers use
         // the default 16; anything else must be an explicit power of two.
         // alignment==0 would divide by zero below, and a huge alignment
@@ -171,17 +218,17 @@ public:
         // The intermediate guards prove `used <= m_Size` before the
         // subtraction, so `m_Size - used` cannot underflow even for
         // adversarial (size, alignment) pairs.
-        if (size > m_Size) return nullptr;
+        if (allocationSize > m_Size) return nullptr;
         if (padding > m_Size) return nullptr;
         size_t used = m_Offset + padding;
         if (used < m_Offset) return nullptr;  // defensive wrap guard
         if (used > m_Size) return nullptr;
-        if (size > m_Size - used) {
+        if (allocationSize > m_Size - used) {
 #ifdef _DEBUG
             char buf[128];
             sprintf(buf, "Arena '%s' overflow: need %u, free %u (used %u / %u)\n",
                     m_DebugName ? m_DebugName : "?",
-                    (unsigned)size, (unsigned)(m_Size - m_Offset),
+                    (unsigned)allocationSize, (unsigned)(m_Size - m_Offset),
                     (unsigned)m_Offset, (unsigned)m_Size);
             PrintLog(buf);
 #endif
@@ -189,7 +236,7 @@ public:
         }
 
         void* ptr = m_Base + m_Offset + padding;
-        m_Offset += padding + size;
+        m_Offset += padding + allocationSize;
         m_AllocCount++;
         if (m_Offset > m_PeakUsage) m_PeakUsage = m_Offset;
         if (m_Offset > m_SessionPeak) m_SessionPeak = m_Offset;
@@ -291,12 +338,9 @@ static_assert(sizeof(unique_obj_ptr<int>) == sizeof(void*),
 #include <map>
 #include <string>
 
-// Which backing store served the allocation. Recorded at alloc time because
-// the tag alone cannot answer it: a Level-tagged allocation made while
-// LevelArena was null falls back to the heap but would otherwise be hidden
-// by the next ClearTagAllocations(Level).
-enum class AllocBackend { Heap, Arena };
-
+// Backing store is recorded at alloc time because the tag alone cannot
+// answer it: a Level-tagged allocation made while LevelArena was null falls
+// back to the heap and must survive ClearTagAllocations(Level).
 struct AllocationInfo {
     size_t      size;
     MemoryTag   tag;

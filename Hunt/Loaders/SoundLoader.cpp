@@ -63,10 +63,12 @@ void LoadWav(char* FName, TSFX &sfx)
   // (corrupt values drove huge assigns) and round the allocation UP: an odd
   // length previously overflowed the floor(length/2) buffer by one byte.
   // assign() value-initializes to zero, matching the old HEAP_ZERO_MEMORY
-  // behavior. A short payload tail simply leaves trailing zeros.
+  // behavior. Reject a short payload instead of silently accepting a
+  // partially initialized sound.
   if (!IsValidWavLength(sfx.length))
     DoHalt("Sound loading error: WAV data length out of range.");
   sfx.lpData.assign(WavAllocSamples(sfx.length), 0);
-  ReadFile( hfile, sfx.lpData.data(), sfx.length, &l, nullptr );
+  if (!ReadExact(hfile, sfx.lpData.data(), (DWORD)sfx.length))
+    DoHalt("Sound loading error: truncated WAV data.");
   CloseHandle(hfile);
 }
