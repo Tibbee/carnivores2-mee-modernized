@@ -3,6 +3,32 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "LoadValidate.h"
+
+// Corrupt/modded-model fail-fast. All shipped .CAR files pass these checks
+// (audit-scanned 111/111); anything rejected here would previously have
+// driven shift overflows, fixed-array overruns, or unbounded allocations.
+static void ModelLoadFail(const char* what, int value, int limit)
+{
+  char sz[256];
+  sprintf_s(sz, sizeof(sz),
+            "Model loading error: %s (value=%d, limit=%d). File is corrupt or modded.",
+            what, value, limit);
+  DoHalt(sz);
+}
+
+// Face indices must address loaded vertices; renderer and lighting code
+// index gVertex[] with them unchecked.
+static void ValidateFaceIndices(const TModel* mptr)
+{
+  for (int f = 0; f < mptr->FCount; f++)
+  {
+    if (!IsValidVertexIndex(mptr->gFace[f].v1, mptr->VCount) ||
+        !IsValidVertexIndex(mptr->gFace[f].v2, mptr->VCount) ||
+        !IsValidVertexIndex(mptr->gFace[f].v3, mptr->VCount))
+      ModelLoadFail("face index out of range", f, mptr->FCount);
+  }
+}
 
 // Forward declarations (from original Resources.cpp)
 void GenerateModelMipMaps(TModel *mptr, MemoryTag tag);
@@ -351,13 +377,26 @@ void CorrectModel(TModel *mptr, MemoryTag tag)
 }
 
 void AllocateMemoryForModel(TModel* mptr, MemoryTag tag) {
-	mptr->gVertex.reset((TPoint3d*)_HeapAlloc(Heap, 0, mptr->VCount << 4, tag));
-	mptr->gFace = (TFace*)_HeapAlloc(Heap, 0, mptr->FCount << 6, tag);
+	// VCount/FCount come straight from the file. The old signed shifts
+	// (VCount << 4, FCount << 6) overflowed for hostile values before the
+	// allocator ever saw them; compute byte sizes checked instead.
+	size_t vbytes = 0, fbytes = 0, lbytes = 0;
+	// Sanity cap far above shipped maxima (VCount 1989, FCount 1488):
+	// keeps downstream int shifts and per-vertex loops bounded for
+	// hostile files while leaving legitimate mods effectively unlimited.
+	if (!IsValidCount(mptr->VCount, 1 << 20) ||
+	    !IsValidCount(mptr->FCount, 1 << 20) ||
+	    !CheckedBytes2((size_t)mptr->VCount, 16, vbytes) ||
+	    !CheckedBytes2((size_t)mptr->FCount, 64, fbytes) ||
+	    !CheckedBytes3((size_t)mptr->VCount, 4, sizeof(float), lbytes))
+	  ModelLoadFail("VCount/FCount size overflow", mptr->VCount, mptr->FCount);
+	mptr->gVertex.reset((TPoint3d*)_HeapAlloc(Heap, 0, (DWORD)vbytes, tag));
+	mptr->gFace = (TFace*)_HeapAlloc(Heap, 0, (DWORD)fbytes, tag);
 
 	// Keep track of maximum VCount value
 	MaxObjectVCount = MAX(MaxObjectVCount, mptr->VCount);
 
-	float *lightBuffer = static_cast<float*>(_HeapAlloc(Heap, 0, mptr->VCount * 4 * sizeof(float), tag));
+	float *lightBuffer = static_cast<float*>(_HeapAlloc(Heap, 0, (DWORD)lbytes, tag));
 	mptr->VLight[0] = lightBuffer;
 	mptr->VLight[1] = lightBuffer + mptr->VCount;
 	mptr->VLight[2] = lightBuffer + mptr->VCount * 2;
@@ -378,16 +417,23 @@ void LoadModel(unique_obj_ptr<TModel> &mptr, MemoryTag tag)
   TModel* raw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel));
   mptr.reset(new(raw) TModel());
 
-  ReadFile( hfile, &mptr->VCount,      4,         &l, nullptr );
-  ReadFile( hfile, &mptr->FCount,      4,         &l, nullptr );
-  ReadFile( hfile, &OCount,            4,         &l, nullptr );
-  ReadFile( hfile, &mptr->TextureSize, 4,         &l, nullptr );
+  if (!ReadExact(hfile, &mptr->VCount, 4) ||
+      !ReadExact(hfile, &mptr->FCount, 4) ||
+      !ReadExact(hfile, &OCount, 4) ||
+      !ReadExact(hfile, &mptr->TextureSize, 4))
+    DoHalt("Model loading error: truncated model header.");
+  l = 4;
+  if (!IsValidCount(OCount, 1024))
+    ModelLoadFail("OCount exceeds gObj capacity", OCount, 1024);
+  if (mptr->TextureSize < 0)
+    ModelLoadFail("negative TextureSize", mptr->TextureSize, 0);
 
   AllocateMemoryForModel(mptr.get(), tag);
 
   ReadFile( hfile, mptr->gFace,        mptr->FCount<<6, &l, nullptr );
   ReadFile( hfile, mptr->gVertex.get(),      mptr->VCount<<4, &l, nullptr );
   ReadFile( hfile, gObj,               OCount*48, &l, nullptr );
+  ValidateFaceIndices(mptr.get());
 
   if (HARD3D) CalcLights(mptr.get());
 
@@ -400,6 +446,11 @@ void LoadModel(unique_obj_ptr<TModel> &mptr, MemoryTag tag)
 
   mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize, tag)));
 
+  // On HARD3D the allocation is normalized to 131072 bytes while ts is the
+  // original file size: a malformed ts larger than the buffer would overflow
+  // it, so reject instead of reading.
+  if (ts < 0 || (size_t)ts > (size_t)mptr->TextureSize)
+    ModelLoadFail("texture byte count exceeds buffer", ts, mptr->TextureSize);
   ReadFile(hfile, mptr->lpTexture.get(), ts, &l, nullptr);
   BrightenTexture(mptr->lpTexture.get(), ts/2);
 
@@ -420,18 +471,29 @@ void LoadAnimation(TVTL &vtl)
   int vc;
   DWORD l;
 
-  ReadFile( hfile, &vc,          4,    &l, nullptr );
-  ReadFile( hfile, &vc,          4,    &l, nullptr );
-  ReadFile( hfile, &vtl.aniKPS,  4,    &l, nullptr );
-  ReadFile( hfile, &vtl.FramesCount,  4,    &l, nullptr );
+  if (!ReadExact(hfile, &vc, 4) ||
+      !ReadExact(hfile, &vc, 4) ||
+      !ReadExact(hfile, &vtl.aniKPS, 4) ||
+      !ReadExact(hfile, &vtl.FramesCount, 4))
+    DoHalt("Model loading error: truncated animation header.");
+  l = 4;
   vtl.FramesCount++;
+
+  // aniKPS == 0 would divide by zero below; negative/huge counts would
+  // overflow the signed size product before the allocator sees it.
+  if (vtl.aniKPS <= 0)
+    ModelLoadFail("animation rate is not positive", vtl.aniKPS, 0);
+  size_t anibytes = 0;
+  if (vc < 0 || vtl.FramesCount < 0 ||
+      !CheckedBytes3((size_t)vc, (size_t)vtl.FramesCount, 6, anibytes))
+    ModelLoadFail("animation size overflow", vc, vtl.FramesCount);
 
   // Phase 5E follow-up (Gap #2): LoadAnimation is only called from
   // LoadResources (per-level). Tag as Level for arena reclamation.
   vtl.AniTime = (vtl.FramesCount * 1000) / vtl.aniKPS;
   vtl.aniData.reset((short int*)
-                _HeapAlloc(Heap, 0, (vc*vtl.FramesCount*6), MemoryTag::Level));
-  ReadFile( hfile, vtl.aniData.get(), (vc*vtl.FramesCount*6), &l, nullptr);
+                _HeapAlloc(Heap, 0, (DWORD)anibytes, MemoryTag::Level));
+  ReadFile( hfile, vtl.aniData.get(), (DWORD)anibytes, &l, nullptr);
 
 }
 
@@ -452,16 +514,24 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName, MemoryTag tag)
   TModel* raw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel), tag);
   mptr.reset(new(raw) TModel());
 
-  ReadFile( hfile, &mptr->VCount,      4,         &l, nullptr );
-  ReadFile( hfile, &mptr->FCount,      4,         &l, nullptr );
-  ReadFile( hfile, &OCount,            4,         &l, nullptr );
-  ReadFile( hfile, &mptr->TextureSize, 4,         &l, nullptr );
+  if (!ReadExact(hfile, &mptr->VCount, 4) ||
+      !ReadExact(hfile, &mptr->FCount, 4) ||
+      !ReadExact(hfile, &OCount, 4) ||
+      !ReadExact(hfile, &mptr->TextureSize, 4))
+    DoHalt("Model loading error: truncated model header.");
+  l = 4;
 
   AllocateMemoryForModel(mptr.get(), tag);
+
+  if (!IsValidCount(OCount, 1024))
+    ModelLoadFail("OCount exceeds gObj capacity", OCount, 1024);
+  if (mptr->TextureSize < 0)
+    ModelLoadFail("negative TextureSize", mptr->TextureSize, 0);
 
   ReadFile( hfile, mptr->gFace,        mptr->FCount<<6, &l, nullptr );
   ReadFile( hfile, mptr->gVertex.get(),      mptr->VCount<<4, &l, nullptr );
   ReadFile( hfile, gObj,               OCount*48, &l, nullptr );
+  ValidateFaceIndices(mptr.get());
 
   int ts = mptr->TextureSize;
   if (HARD3D) mptr->TextureHeight = 256;
@@ -470,6 +540,8 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName, MemoryTag tag)
 
   mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, mptr->TextureSize, tag)));
 
+  if (ts < 0 || (size_t)ts > (size_t)mptr->TextureSize)
+    ModelLoadFail("texture byte count exceeds buffer", ts, mptr->TextureSize);
   ReadFile(hfile, mptr->lpTexture.get(), ts, &l, nullptr);
   BrightenTexture(mptr->lpTexture.get(), ts/2);
 
@@ -734,23 +806,35 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
     DoHalt(sz);
   }
 
-  ReadFile(hfile, chinfo.ModelName, 32, &l, nullptr);
-  ReadFile(hfile, &chinfo.AniCount,  4, &l, nullptr);
-  ReadFile(hfile, &chinfo.SfxCount,  4, &l, nullptr);
+  if (!ReadExact(hfile, chinfo.ModelName, 32) ||
+      !ReadExact(hfile, &chinfo.AniCount, 4) ||
+      !ReadExact(hfile, &chinfo.SfxCount, 4))
+    DoHalt("Model loading error: truncated character header.");
+  l = 4;
+  // Animation/sound counts index fixed 64-entry arrays (GameTypes.h).
+  if (!IsValidCount(chinfo.AniCount, 64))
+    ModelLoadFail("AniCount exceeds fixed capacity", chinfo.AniCount, 64);
+  if (!IsValidCount(chinfo.SfxCount, 64))
+    ModelLoadFail("SfxCount exceeds fixed capacity", chinfo.SfxCount, 64);
 
 //============= read model =================//
 
   TModel* chraw = (TModel*) _HeapAlloc(Heap, 0, sizeof(TModel), tag);
   chinfo.mptr.reset(new(chraw) TModel());
 
-  ReadFile( hfile, &chinfo.mptr->VCount,      4,         &l, nullptr );
-  ReadFile( hfile, &chinfo.mptr->FCount,      4,         &l, nullptr );
-  ReadFile( hfile, &chinfo.mptr->TextureSize, 4,         &l, nullptr );
+  if (!ReadExact(hfile, &chinfo.mptr->VCount, 4) ||
+      !ReadExact(hfile, &chinfo.mptr->FCount, 4) ||
+      !ReadExact(hfile, &chinfo.mptr->TextureSize, 4))
+    DoHalt("Model loading error: truncated character model header.");
+  l = 4;
+  if (chinfo.mptr->TextureSize < 0)
+    ModelLoadFail("negative TextureSize", chinfo.mptr->TextureSize, 0);
 
   AllocateMemoryForModel(chinfo.mptr.get(), tag);
 
   ReadFile( hfile, chinfo.mptr->gFace,        chinfo.mptr->FCount<<6, &l, nullptr );
   ReadFile( hfile, chinfo.mptr->gVertex.get(),      chinfo.mptr->VCount<<4, &l, nullptr );
+  ValidateFaceIndices(chinfo.mptr.get());
 
   int ts = chinfo.mptr->TextureSize;
   if (HARD3D) chinfo.mptr->TextureHeight = 256;
@@ -759,6 +843,8 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
 
   chinfo.mptr->lpTexture.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, chinfo.mptr->TextureSize, tag)));
 
+  if (ts < 0 || (size_t)ts > (size_t)chinfo.mptr->TextureSize)
+    ModelLoadFail("texture byte count exceeds buffer", ts, chinfo.mptr->TextureSize);
   ReadFile(hfile, chinfo.mptr->lpTexture.get(), ts, &l, nullptr);
   BrightenTexture(chinfo.mptr->lpTexture.get(), ts/2);
 
@@ -775,11 +861,18 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
     ReadFile(hfile, chinfo.Animation[a].aniName, 32, &l, nullptr);
     ReadFile(hfile, &chinfo.Animation[a].aniKPS, 4, &l, nullptr);
     ReadFile(hfile, &chinfo.Animation[a].FramesCount, 4, &l, nullptr);
+    if (chinfo.Animation[a].aniKPS <= 0)
+      ModelLoadFail("animation rate is not positive", chinfo.Animation[a].aniKPS, 0);
+    size_t chAnibytes = 0;
+    if (chinfo.Animation[a].FramesCount < 0 ||
+        !CheckedBytes3((size_t)chinfo.mptr->VCount,
+                       (size_t)chinfo.Animation[a].FramesCount, 6, chAnibytes))
+      ModelLoadFail("animation size overflow", chinfo.Animation[a].FramesCount, 0);
     chinfo.Animation[a].AniTime = (chinfo.Animation[a].FramesCount * 1000) / chinfo.Animation[a].aniKPS;
     chinfo.Animation[a].aniData.reset((short int*)
-                                  _HeapAlloc(Heap, 0, (chinfo.mptr->VCount*chinfo.Animation[a].FramesCount*6), tag));
+                                  _HeapAlloc(Heap, 0, (DWORD)chAnibytes, tag));
 
-    ReadFile(hfile, chinfo.Animation[a].aniData.get(), (chinfo.mptr->VCount*chinfo.Animation[a].FramesCount*6), &l, nullptr);
+    ReadFile(hfile, chinfo.Animation[a].aniData.get(), (DWORD)chAnibytes, &l, nullptr);
   }
 
 //============= read sound fx ==============//
@@ -788,9 +881,12 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
   {
     ReadFile(hfile, tmp, 32, &l, nullptr);
     ReadFile(hfile, &chinfo.SoundFX[s].length, 4, &l, nullptr);
-    // Phase 5B.1: lpData is now std::vector<short int>.
-    const size_t sfxSampleCount = chinfo.SoundFX[s].length / sizeof(short int);
-    chinfo.SoundFX[s].lpData.assign(sfxSampleCount, 0);
+    // Phase 5B.1: lpData is now std::vector<short int>. A malformed length
+    // previously drove a huge assign (or, when odd, a 1-byte heap overflow
+    // on the read below); bound it and round the allocation up.
+    if (!IsValidWavLength(chinfo.SoundFX[s].length))
+      ModelLoadFail("sound effect length out of range", chinfo.SoundFX[s].length, 16 << 20);
+    chinfo.SoundFX[s].lpData.assign(WavAllocSamples(chinfo.SoundFX[s].length), 0);
     ReadFile(hfile, chinfo.SoundFX[s].lpData.data(), chinfo.SoundFX[s].length, &l, nullptr);
   }
 
