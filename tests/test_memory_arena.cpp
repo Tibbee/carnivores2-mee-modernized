@@ -92,6 +92,36 @@ TEST(MemoryArena, PeakTracksHighWaterAcrossAllocations) {
     EXPECT_LE(arena.GetPeakUsage(), arena.GetCapacity());
 }
 
+TEST(MemoryArena, InvalidAlignmentReturnsNull) {
+    MemoryArena arena(1024, "test");
+    EXPECT_EQ(arena.Allocate(16, 0), nullptr);    // divide-by-zero guard
+    EXPECT_EQ(arena.Allocate(16, 3), nullptr);    // non-power-of-two
+    EXPECT_EQ(arena.Allocate(16, 24), nullptr);   // non-power-of-two
+    EXPECT_EQ(arena.Allocate(16, 1u << 31), nullptr);  // padding wrap guard
+    EXPECT_EQ(arena.GetUsed(), 0u);
+    EXPECT_EQ(arena.GetAllocCount(), 0u);
+    // Valid non-default power-of-two alignments still work.
+    void* p = arena.Allocate(16, 32);
+    ASSERT_NE(p, nullptr);
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(p) % 32, 0u);
+}
+
+TEST(MemoryArena, SessionPeakSurvivesReset) {
+    MemoryArena arena(512, "test");
+    ASSERT_NE(arena.Allocate(200), nullptr);
+    const size_t sessionPeak = arena.GetSessionPeak();
+    EXPECT_GT(sessionPeak, 0u);
+    arena.Reset();
+    EXPECT_EQ(arena.GetUsed(), 0u);
+    EXPECT_EQ(arena.GetPeakUsage(), 0u);
+    EXPECT_EQ(arena.GetSessionPeak(), sessionPeak);
+    (void)arena.Allocate(50);
+    EXPECT_EQ(arena.GetSessionPeak(), sessionPeak);  // smaller reuse keeps max
+    arena.Reset();
+    (void)arena.Allocate(300);
+    EXPECT_GT(arena.GetSessionPeak(), sessionPeak);  // larger level raises max
+}
+
 TEST(MemoryArena, LogStatsDoesNotCrash) {
     MemoryArena arena(512, "test");
     (void)arena.Allocate(64);

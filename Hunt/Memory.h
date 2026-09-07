@@ -149,6 +149,13 @@ public:
     [[nodiscard]] void* Allocate(size_t size, size_t alignment = 16) {
         if (!m_Base) return nullptr;
 
+        // Harden the public alignment parameter. All current callers use
+        // the default 16; anything else must be an explicit power of two.
+        // alignment==0 would divide by zero below, and a huge alignment
+        // could wrap m_Offset + padding before the capacity check runs.
+        if (alignment == 0 || (alignment & (alignment - 1)) != 0)
+            return nullptr;
+
         // Padding-based alignment: aligns the actual returned address
         // (not just the offset), so this is correct even if m_Base were
         // not naturally aligned to `alignment`. VirtualAlloc returns
@@ -161,8 +168,14 @@ public:
         // and the true remaining space must be sufficient. Computing
         // size > m_Size - (m_Offset + padding) avoids the 32-bit integer
         // overflow that would let a near-4-GiB size pass the check.
+        // The intermediate guards prove `used <= m_Size` before the
+        // subtraction, so `m_Size - used` cannot underflow even for
+        // adversarial (size, alignment) pairs.
         if (size > m_Size) return nullptr;
+        if (padding > m_Size) return nullptr;
         size_t used = m_Offset + padding;
+        if (used < m_Offset) return nullptr;  // defensive wrap guard
+        if (used > m_Size) return nullptr;
         if (size > m_Size - used) {
 #ifdef _DEBUG
             char buf[128];
@@ -179,6 +192,7 @@ public:
         m_Offset += padding + size;
         m_AllocCount++;
         if (m_Offset > m_PeakUsage) m_PeakUsage = m_Offset;
+        if (m_Offset > m_SessionPeak) m_SessionPeak = m_Offset;
         return ptr;
     }
 
@@ -186,6 +200,9 @@ public:
         m_Offset = 0;
         m_AllocCount = 0;
         m_PeakUsage = 0;  // per-level peak, not session max
+        // m_SessionPeak intentionally survives Reset: it is the telemetry
+        // for restart-accumulation and mod headroom (the arena size itself
+        // stays fixed; see LEVEL_ARENA_SIZE).
     }
 
     size_t GetUsed() const      { return m_Offset; }
@@ -194,17 +211,19 @@ public:
     float  GetUtilization() const { return static_cast<float>(m_Offset) / static_cast<float>(m_Size); }
     size_t GetAllocCount() const { return m_AllocCount; }
     size_t GetPeakUsage() const  { return m_PeakUsage; }
+    size_t GetSessionPeak() const { return m_SessionPeak; }
 
     void LogStats(const char* context = nullptr) const {
-        char buf[160];
-        sprintf(buf, "Arena '%s'%s: %u KB used / %u KB (%.1f%%), %u allocs, peak %u KB\n",
+        char buf[192];
+        sprintf(buf, "Arena '%s'%s: %u KB used / %u KB (%.1f%%), %u allocs, peak %u KB, session peak %u KB\n",
                 m_DebugName ? m_DebugName : "?",
                 context ? context : "",
                 (unsigned)(m_Offset / 1024),
                 (unsigned)(m_Size / 1024),
                 GetUtilization() * 100.0f,
                 (unsigned)m_AllocCount,
-                (unsigned)(m_PeakUsage / 1024));
+                (unsigned)(m_PeakUsage / 1024),
+                (unsigned)(m_SessionPeak / 1024));
         PrintLog(buf);
     }
 
@@ -221,6 +240,7 @@ private:
     size_t m_Offset;
     size_t m_AllocCount = 0;
     size_t m_PeakUsage = 0;
+    size_t m_SessionPeak = 0;
     const char* m_DebugName;
 };
 
