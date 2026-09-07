@@ -276,8 +276,12 @@ void CorrectModel(TModel *mptr, MemoryTag tag)
 {
 	// Allocating for 2x the faces here, since the code below could potentially
 	// result in duplicated faces when sfOpacity & sfTransparent is set for the same
-	// face.
-	TFace *tface = (TFace*)_HeapAlloc(Heap, 0, sizeof(TFace) * mptr->FCount * 2, tag);
+	// face. Load-time scratch freed at the end of this function: always heap
+	// (Global), never the caller's arena tag — arena space cannot be reclaimed
+	// per-allocation, so borrowing the arena here would inflate the per-level
+	// high-water mark for no reason. `tag` still governs the model's own buffers.
+	(void)tag;
+	TFace *tface = (TFace*)_HeapAlloc(Heap, 0, sizeof(TFace) * mptr->FCount * 2, MemoryTag::Global);
 
   for (int f=0; f<mptr->FCount; f++)
   {

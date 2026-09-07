@@ -1265,19 +1265,11 @@ void CalcLights(TModel* mptr)
 
   float c;
 
-  // Phase 5E: tag as MemoryTag::Level. norms is per-frame scratch
-
-  // that lives for the duration of CalcNormals -- it gets reallocated
-
-  // on every call, so the arena's bulk-reset on LevelArena->Reset()
-
-  // is the right lifetime. The corresponding _HeapFree at the end of
-
-  // the function stays; it correctly no-ops via LevelArena->Contains()
-
-  // in _HeapFree.
-
-  Vector3d* norms = (Vector3d*)_HeapAlloc(Heap, 0, sizeof(Vector3d) * FCount, MemoryTag::Level);
+  // Load-time scratch that lives for the duration of this call only.
+  // A Level tag would strand unreclaimable arena space until the next
+  // bulk reset (arena _HeapFree is a no-op); the heap free at the end of
+  // the function is real, so tag it Global.
+  Vector3d* norms = (Vector3d*)_HeapAlloc(Heap, 0, sizeof(Vector3d) * FCount, MemoryTag::Global);
 
   Vector3d a, b, nv, rv;
 
