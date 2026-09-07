@@ -196,6 +196,8 @@ public:
         return ptr;
     }
 
+    // Bulk-reclaim everything. Also advances the allocation generation so
+    // the leak tracker can tell which arena epoch a block belongs to.
     void Reset() {
         m_Offset = 0;
         m_AllocCount = 0;
@@ -203,7 +205,10 @@ public:
         // m_SessionPeak intentionally survives Reset: it is the telemetry
         // for restart-accumulation and mod headroom (the arena size itself
         // stays fixed; see LEVEL_ARENA_SIZE).
+        m_Generation++;
     }
+
+    unsigned GetGeneration() const { return m_Generation; }
 
     size_t GetUsed() const      { return m_Offset; }
     size_t GetCapacity() const   { return m_Size; }
@@ -241,6 +246,7 @@ private:
     size_t m_AllocCount = 0;
     size_t m_PeakUsage = 0;
     size_t m_SessionPeak = 0;
+    unsigned m_Generation = 0;
     const char* m_DebugName;
 };
 
@@ -285,11 +291,19 @@ static_assert(sizeof(unique_obj_ptr<int>) == sizeof(void*),
 #include <map>
 #include <string>
 
+// Which backing store served the allocation. Recorded at alloc time because
+// the tag alone cannot answer it: a Level-tagged allocation made while
+// LevelArena was null falls back to the heap but would otherwise be hidden
+// by the next ClearTagAllocations(Level).
+enum class AllocBackend { Heap, Arena };
+
 struct AllocationInfo {
     size_t      size;
     MemoryTag   tag;
     std::string file;
     int         line;
+    AllocBackend backend = AllocBackend::Heap;
+    unsigned    arenaGen = 0;
 };
 
 // The map is heap-allocated lazily (see bootstrap note above) and freed
@@ -301,17 +315,37 @@ extern std::map<void*, AllocationInfo>* g_Allocations;
 void PrintMemoryLeaks();
 void ClearTagAllocations(MemoryTag tag);
 
-// Convenience macro that captures __FILE__ and __LINE__ at the call site
-// and forwards to the 5-arg _HeapAlloc overload (which is only declared
-// when MEM_DEBUG is on). In non-MEM_DEBUG builds, _AllocTrack forwards to
-// the 4-arg overload with file=nullptr, line=0 -- a cheap no-op in release.
+// Automatic call-site capture (MEM_DEBUG only). Every 3-arg and 4-arg
+// _HeapAlloc call in every TU that includes this header is rerouted to
+// _HeapAllocImpl with __FILE__/__LINE__ appended — contributors get full
+// leak attribution without remembering a special macro, and the plain
+// function signatures keep working for any TU that bypasses the header.
 //
+// Only 3-arg and 4-arg shapes exist in the codebase (verified by audit);
+// a call with any other arity fails loudly at the selector instead of
+// silently recording a wrong tag.
+LPVOID _HeapAllocImpl(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes,
+                      MemoryTag tag, const char* file, int line);
+#define _HeapAlloc3Dbg(hHeap, dwFlags, dwBytes) \
+    _HeapAllocImpl(hHeap, dwFlags, dwBytes, MemoryTag::Global, __FILE__, __LINE__)
+#define _HeapAlloc4Dbg(hHeap, dwFlags, dwBytes, tag) \
+    _HeapAllocImpl(hHeap, dwFlags, dwBytes, tag, __FILE__, __LINE__)
+#define _HeapAllocSelect(_1, _2, _3, _4, NAME, ...) NAME
+// Extra indirection: MSVC's traditional preprocessor (C++17 without
+// /Zc:preprocessor) does not rescan the selector result before the
+// trailing (args) are applied, so without this layer every call
+// mis-selects the 3-arg form (observed as C4003 + C2440 at call sites).
+#define _HeapAllocExpand(x) x
+#define _HeapAlloc(...) \
+    _HeapAllocExpand(_HeapAllocSelect(__VA_ARGS__, _HeapAlloc4Dbg, _HeapAlloc3Dbg)(__VA_ARGS__))
+
 // Note: originally named _Alloc in the design doc and in C1, but MSVC's
 // STL uses _Alloc internally in <unordered_map> and <map>, so naming
 // our macro _Alloc produces a 'not enough arguments for function-like
 // macro' warning every time those headers are included. _AllocTrack
-// avoids the collision without changing semantics.
-#define _AllocTrack(size, tag) _HeapAlloc(Heap, 0, (size_t)(size), (tag), __FILE__, __LINE__)
+// avoids the collision without changing semantics. It now forwards to
+// the plain 4-arg form; the selector macro above captures the location.
+#define _AllocTrack(size, tag) _HeapAlloc(Heap, 0, (size_t)(size), (tag))
 
 #endif // MEM_DEBUG
 

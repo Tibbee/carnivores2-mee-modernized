@@ -259,6 +259,13 @@ Vector3d SubVectors( Vector3d& v1, Vector3d& v2 );
 Vector3d SubVectors2d(Vector3d& v1, Vector3d& v2);
 void NormVector(Vector3d& v, float Scale);
 
+#ifdef MEM_DEBUG
+// Park the Memory.h call-site macro while declaring the underlying
+// functions (see Resources.cpp for the matching guard around the
+// definitions).
+#pragma push_macro("_HeapAlloc")
+#undef _HeapAlloc
+#endif
 [[nodiscard]] LPVOID _HeapAlloc(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes);
 // Phase 5A: 4-arg overload with MemoryTag dispatch. No default for `tag` —
 // MSVC's overload resolution treats a 3-arg call as ambiguous between this
@@ -272,6 +279,9 @@ void NormVector(Vector3d& v, float Scale);
 // 4-arg form with the appropriate tag (Global for session-lifetime, Level
 // for per-level).
 [[nodiscard]] LPVOID _HeapAlloc(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes, MemoryTag tag);
+#ifdef MEM_DEBUG
+#pragma pop_macro("_HeapAlloc")
+#endif
 [[nodiscard]] BOOL _HeapFree(HANDLE hHeap, DWORD  dwFlags, LPVOID lpMem);
 
 // Phase 5A: per-level arena. Constructed in InitEngine() and destroyed in

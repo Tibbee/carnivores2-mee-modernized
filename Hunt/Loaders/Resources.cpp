@@ -72,6 +72,15 @@ static LPVOID AllocDispatch(HANDLE hHeap,
 }
 
 
+#ifdef MEM_DEBUG
+// The Memory.h tracking macro reroutes _HeapAlloc call syntax to
+// _HeapAllocImpl. It must not rewrite the function definitions below,
+// so park it here and restore it afterwards; every other TU keeps
+// automatic __FILE__/__LINE__ capture.
+#pragma push_macro("_HeapAlloc")
+#undef _HeapAlloc
+#endif
+
 // 3-arg _HeapAlloc: forwards to the 4-arg overload with MemoryTag::Global.
 // This is the safe default — untagged allocations land on the persistent
 // heap where LevelArena->Reset() cannot invalidate them.
@@ -139,6 +148,35 @@ LPVOID _HeapAlloc(HANDLE hHeap,
                             file ? file : "unknown", line };
   return res;
 }
+
+// _HeapAllocImpl: the MEM_DEBUG workhorse behind the Memory.h selector
+// macro. Records the call site plus the actual backing store and arena
+// generation at alloc time, so the shutdown report attributes every block
+// and ClearTagAllocations can no longer silently hide heap-fallback blocks.
+LPVOID _HeapAllocImpl(HANDLE hHeap,
+                      DWORD dwFlags,
+                      DWORD dwBytes,
+                      MemoryTag tag,
+                      const char* file,
+                      int line)
+{
+  std::lock_guard<std::mutex> lock(g_AllocMutex);
+  if (!g_Allocations) g_Allocations = new std::map<void*, AllocationInfo>();
+
+  LPVOID res = AllocDispatch(hHeap, dwFlags, dwBytes, tag);
+
+  AllocationInfo info{ (size_t)dwBytes, tag,
+                       file ? file : "unknown", line };
+  if (tag == MemoryTag::Level && LevelArena != nullptr &&
+      LevelArena->Contains(res)) {
+    info.backend = AllocBackend::Arena;
+    info.arenaGen = LevelArena->GetGeneration();
+  }
+  (*g_Allocations)[res] = std::move(info);
+  return res;
+}
+
+#pragma pop_macro("_HeapAlloc")
 #endif
 
 BOOL _HeapFree(HANDLE hHeap,
@@ -242,9 +280,14 @@ void PrintMemoryLeaks()
     for (auto const& kv : *g_Allocations) {
         void* ptr = kv.first;
         const AllocationInfo& info = kv.second;
-        sprintf(buf, "[%s] Leak: %p, size: %u, at %s:%d\n",
-                MemoryTagToString(info.tag), ptr,
-                (unsigned)info.size, info.file.c_str(), info.line);
+        if (info.backend == AllocBackend::Arena)
+            sprintf(buf, "[%s/arena gen %u] Leak: %p, size: %u, at %s:%d\n",
+                    MemoryTagToString(info.tag), info.arenaGen, ptr,
+                    (unsigned)info.size, info.file.c_str(), info.line);
+        else
+            sprintf(buf, "[%s/heap] Leak: %p, size: %u, at %s:%d\n",
+                    MemoryTagToString(info.tag), ptr,
+                    (unsigned)info.size, info.file.c_str(), info.line);
         PrintLog(buf);
         tagTotals[info.tag] += info.size;
         total += info.size;
@@ -278,12 +321,26 @@ void ClearTagAllocations(MemoryTag tag)
 {
     if (!g_Allocations) return;
     std::lock_guard<std::mutex> lock(g_AllocMutex);
+    size_t heapBacked = 0;
     for (auto it = g_Allocations->begin(); it != g_Allocations->end(); ) {
         if (it->second.tag == tag) {
+            // A Level-tagged block can be heap-backed when it was
+            // allocated while LevelArena was null. Erasing it here is
+            // still correct (its owner was bulk-released), but count it
+            // so heap-fallback blocks can never hide silently again.
+            if (it->second.backend != AllocBackend::Arena)
+                heapBacked++;
             it = g_Allocations->erase(it);
         } else {
             ++it;
         }
+    }
+    if (heapBacked > 0) {
+        char buf[160];
+        sprintf(buf, "ClearTagAllocations(%s): %u heap-backed blocks erased "
+                "(allocated while LevelArena was null)\n",
+                MemoryTagToString(tag), (unsigned)heapBacked);
+        PrintLog(buf);
     }
 }
 #endif // MEM_DEBUG

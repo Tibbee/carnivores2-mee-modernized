@@ -122,6 +122,17 @@ TEST(MemoryArena, SessionPeakSurvivesReset) {
     EXPECT_GT(arena.GetSessionPeak(), sessionPeak);  // larger level raises max
 }
 
+TEST(MemoryArena, GenerationAdvancesOnReset) {
+    MemoryArena arena(256, "test");
+    EXPECT_EQ(arena.GetGeneration(), 0u);
+    (void)arena.Allocate(64);
+    EXPECT_EQ(arena.GetGeneration(), 0u);  // allocs do not advance it
+    arena.Reset();
+    EXPECT_EQ(arena.GetGeneration(), 1u);
+    arena.Reset();
+    EXPECT_EQ(arena.GetGeneration(), 2u);
+}
+
 TEST(MemoryArena, LogStatsDoesNotCrash) {
     MemoryArena arena(512, "test");
     (void)arena.Allocate(64);
