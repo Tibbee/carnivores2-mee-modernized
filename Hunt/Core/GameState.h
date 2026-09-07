@@ -489,6 +489,7 @@ enum GpuFeature : uint32_t {
     GPUF_WATER_CLIP_GPU        = 1u << 3,  // 2.10 water-plane clip on GPU
     GPUF_NEAR_CLIP_GPU         = 1u << 4,  // 2.11 near-plane clip on GPU
     GPUF_BACKFACE_CULL         = 1u << 5,  // 2.8  GPU back-face cull
+    GPUF_ANIMATED_SCENERY      = 1u << 6,  // shared-pose animated map-object instancing
 };
 GLOBAL uint32_t g_gpuFeatures;
 inline bool GpuFeatureEnabled(GpuFeature f) {
@@ -496,7 +497,8 @@ inline bool GpuFeatureEnabled(GpuFeature f) {
 }
 constexpr uint32_t kGpuFeaturesDefault =
     GPUF_ELEMENTS_INSTANCING | GPUF_SHADOWS_INSTANCING | GPUF_CHARACTERS_INSTANCING |
-    GPUF_WATER_CLIP_GPU | GPUF_NEAR_CLIP_GPU | GPUF_BACKFACE_CULL;
+    GPUF_WATER_CLIP_GPU | GPUF_NEAR_CLIP_GPU | GPUF_BACKFACE_CULL |
+    GPUF_ANIMATED_SCENERY;
 
 GLOBAL int  OptFpsLimit;
 

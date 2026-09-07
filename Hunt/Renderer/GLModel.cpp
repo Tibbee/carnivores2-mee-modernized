@@ -12,6 +12,7 @@
 
 #include "glad/glad.h"
 #include <cmath>
+#include <limits>
 
 void GLRenderer::RenderPlayer(int index)
 {
@@ -519,7 +520,7 @@ void GLRenderer::RenderInstancedModels()
     glBindBuffer(GL_ARRAY_BUFFER, m_instanceVBO);
     glBufferData(GL_ARRAY_BUFFER, maxGroupBytes, nullptr, GL_STREAM_DRAW);
     // Keep m_instanceVBO bound — the VAO references it for attributes
-    // 4-9.  The per-group loop glBufferSubData's into this same buffer.
+    // 4-14. The per-group loop glBufferSubData's into this same buffer.
 
     // Bind the static IBO for indexed drawing.
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_staticMeshIBO);
@@ -597,15 +598,19 @@ void GLRenderer::RenderMappedObject(int x, int y)
         return;
     }
 
+    const int flags = MObjects[ob].info.flags;
     const int FI = (FMap[y][x] >> 2) & 3;
     const float fi = CameraAlpha + static_cast<float>(FI) * 2.0f * pi / 4.0f;
+    const bool groundLighting = !(flags & ofDEFLIGHT) && (flags & ofGRNDLIGHT);
+    const bool animated = (flags & ofANIMATED) != 0;
 
     int mlight;
-    if (MObjects[ob].info.flags & ofDEFLIGHT) {
+    if (flags & ofDEFLIGHT) {
         mlight = MObjects[ob].info.DefLight;
-    } else if (MObjects[ob].info.flags & ofGRNDLIGHT) {
+    } else if (groundLighting) {
+        // The instanced shader normally replaces the legacy 128 +
+        // (GetLandLt2 - 128) expression with the sampled VMap value itself.
         mlight = 128;
-        CalcModelGroundLight(MObjects[ob].model.get(), x * 256 + 128, y * 256 + 128, FI);
     } else {
         mlight = -(RandomMap[y & 31][x & 31] >> 5) + (LMap[y][x] >> 1) + 96;
     }
@@ -680,13 +685,28 @@ void GLRenderer::RenderMappedObject(int x, int y)
         zs = static_cast<float>(std::sqrt(distanceSq));
     }
 
-    if ((MObjects[ob].info.flags & ofANIMATED) && MObjects[ob].info.LastAniTime != RealTime) {
+    int legacyLightVariant = FI;
+    bool legacyGroundLightReady = false;
+    auto prepareLegacyGroundLight = [&]() {
+        if (groundLighting && !legacyGroundLightReady) {
+            CalcModelGroundLight(MObjects[ob].model.get(), x * 256 + 128, y * 256 + 128, FI);
+            legacyLightVariant = 0; // D3D/3DFX selected the generated VLight[0].
+            legacyGroundLightReady = true;
+        }
+    };
+
+    // Preserve the old ground-light/morph ordering for the uncommon combined
+    // flag case. Static ground-lit models use the exact instanced path below.
+    if (groundLighting && animated) {
+        prepareLegacyGroundLight();
+    }
+    if (animated && MObjects[ob].info.LastAniTime != RealTime) {
         MObjects[ob].info.LastAniTime = RealTime;
         CreateMorphedObject(MObjects[ob].model.get(), MObjects[ob].vtl, RealTime % MObjects[ob].vtl.AniTime);
     }
 
     bool renderAsBMP = false;
-    if (!(MObjects[ob].info.flags & ofNOBMP)) {
+    if (!(flags & ofNOBMP)) {
         const float bmpDistanceLimit = ctViewRM * 256.0f;
         const float bmpDistanceLimitSq = bmpDistanceLimit * bmpDistanceLimit;
         if (distanceSq > bmpDistanceLimitSq) {
@@ -709,31 +729,32 @@ void GLRenderer::RenderMappedObject(int x, int y)
         // (see RenderModelClipWater); the water surface is
         // alpha-blended on top in RenderWaterSurface() to produce
         // the underwater appearance, matching the 3dfx renderer.
+        prepareLegacyGroundLight();
         UploadStaticMesh(MObjects[ob].model.get());
-        RenderModelClipWater(MObjects[ob].model.get(), pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+        RenderModelClipWater(MObjects[ob].model.get(), pos.x, pos.y, pos.z,
+                             mlight, legacyLightVariant, fi, CameraBeta);
     } else {
         // Phase 2.3: instanced path for non-BMP, non-water-clip objects.
         // Compute world matrix from position and rotation.
-        // Animated (.vtl) objects must NOT use the instanced static cache:
-        // UploadStaticMesh snapshots gVertex into the VBO once, so the
-        // per-frame CreateMorphedObject update above would never reach the
-        // screen and the object would freeze in its first-frame pose (this
-        // is why swaying vegetation etc. went static on GL while characters
-        // — which always take the legacy CPU path — kept animating).
-        // Route them through the legacy path like transparent faces below.
-        if (MObjects[ob].info.flags & ofANIMATED) {
-            RenderModelClip(MObjects[ob].model.get(), pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
-            return;
-        }
         const StaticMeshEntry meshEntry = UploadStaticMesh(MObjects[ob].model.get());
 
         // Phase 2.3: route models with sfTransparent faces through the
         // legacy path (they need blend which the instanced opaque pass
         // does not set up).  The proper instanced transparent pass is
         // deferred to a follow-up task.
-        if (meshEntry.hasTransparent) {
-            RenderModelClip(MObjects[ob].model.get(), pos.x, pos.y, pos.z, mlight, FI, fi, CameraBeta);
+        if (meshEntry.hasTransparent || (groundLighting && animated) ||
+            (animated && !GpuFeatureEnabled(GPUF_ANIMATED_SCENERY))) {
+            prepareLegacyGroundLight();
+            RenderModelClip(MObjects[ob].model.get(), pos.x, pos.y, pos.z,
+                            mlight, legacyLightVariant, fi, CameraBeta);
             return;
+        }
+
+        // All placements of a map-object animation share the same RealTime
+        // phase. Refresh that model's expanded vertex range once, then retain
+        // one instanced draw for every placement (dense swaying vegetation).
+        if (animated) {
+            UpdateAnimatedStaticMesh(MObjects[ob].model.get());
         }
 
         const float ca = std::cos(fi);
@@ -741,7 +762,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
         const float cb = std::cos(CameraBeta);
         const float sb = std::sin(CameraBeta);
 
-        ModelInstance instance;
+        ModelInstance instance{};
         // Phase 2.3: populate the view-from-model matrix COLUMNS.
         // GLSL mat4(col0,col1,col2,col3) takes column vectors, so
         // we fill worldCol0-3 as the four columns of:
@@ -773,17 +794,27 @@ void GLRenderer::RenderMappedObject(int x, int y)
         instance.instanceLight[2] = fogPocketColor.y;
         instance.instanceLight[3] = fogPocketColor.z;
 
-        // Phase 2.3: sfOpacity flag from the static mesh cache. The fragment
-        // shader alpha-tests cutout faces with linear filtering, matching the
-        // Ice Age 3DFX-style handling instead of switching whole textures to
-        // nearest filtering.
+        // sfOpacity is carried by each expanded face vertex in the static
+        // mesh. Only those faces are alpha-tested; mixed solid/cutout models
+        // therefore retain the D3D/3DFX semantics without losing instancing.
         // Phase 2.x: .y = fogGrad (Y-gradient, was tintByFog=0).
         //            .z = fogBase (pocket-fog amount at object centre).
         const float alpha = m_modelDistanceAlpha;
-        instance.instanceFlags[0] = meshEntry.hasCutout ? 1.0f : 0.0f; // cutout
+        instance.instanceFlags[0] = static_cast<float>(FI);
         instance.instanceFlags[1] = (fogGrad / 255.0f) * kFogDensity; // Phase 2.x: fog Y-gradient
         instance.instanceFlags[2] = (fogBase / 255.0f) * kFogDensity; // Phase 2.x: fog base amount
         instance.instanceFlags[3] = alpha; // alpha
+
+        if (groundLighting &&
+            !PopulateGroundLightInstance(instance, meshEntry,
+                                         x * 256 + 128, y * 256 + 128, FI)) {
+            // A footprint spanning more than the 4x4 VMap sample grid can
+            // represent keeps the exact CPU path rather than an approximation.
+            prepareLegacyGroundLight();
+            RenderModelClip(MObjects[ob].model.get(), pos.x, pos.y, pos.z,
+                            mlight, legacyLightVariant, fi, CameraBeta);
+            return;
+        }
 
         // Ensure capacity and add instance.
         m_instanceData.push_back(instance);
@@ -807,7 +838,7 @@ void GLRenderer::RenderObject(int x, int y)
     // Safety cap.  Each cell is visited at most once per frame by the
     // 1x1 ring walk in CollectTerrainTile's caller.  Dense custom maps
     // at max view distance may still push beyond 8K unique objects —
-    // 32K is a generous upper bound (~256 KB in m_objectList, ~3 MB in
+    // 32K is a generous upper bound (~256 KB in m_objectList, ~6 MB in
     // m_instanceData).
     if (m_objectList.size() >= 32768) {
         static int hitCount = 0;
@@ -1442,6 +1473,150 @@ const GLRenderer::StaticMeshEntry* GLRenderer::GetStaticMeshEntry(const TModel* 
     return &it->second;
 }
 
+void GLRenderer::BuildStaticMeshVertices(std::vector<StaticMeshVertex>& vertices,
+                                         const TModel* mptr) const
+{
+    vertices.clear();
+    if (!mptr || !mptr->gVertex || !mptr->gFace) {
+        return;
+    }
+
+    vertices.reserve(static_cast<size_t>(mptr->FCount) * 3);
+    const int texHeight = (mptr->TextureHeight > 1) ? mptr->TextureHeight : 1;
+
+    auto appendVertex = [&](int vertexIndex, const Vector2df& uv,
+                            float nx, float ny, float nz, float cutout) {
+        const TPoint3d& p = mptr->gVertex[vertexIndex];
+        StaticMeshVertex vertex{};
+        vertex.x = p.x;
+        vertex.y = p.y;
+        vertex.z = p.z;
+        vertex.nx = nx;
+        vertex.ny = ny;
+        vertex.nz = nz;
+        vertex.u = uv.x;
+        vertex.v = uv.y;
+        for (int orientation = 0; orientation < 4; ++orientation) {
+            vertex.light[orientation] = mptr->VLight[orientation]
+                ? mptr->VLight[orientation][vertexIndex]
+                : 0.0f;
+        }
+        vertex.cutout = cutout;
+        vertices.push_back(vertex);
+    };
+
+    for (int f = 0; f < mptr->FCount; ++f) {
+        const TFace& face = mptr->gFace[f];
+        const TPoint3d& p0 = mptr->gVertex[face.v1];
+        const TPoint3d& p1 = mptr->gVertex[face.v2];
+        const TPoint3d& p2 = mptr->gVertex[face.v3];
+
+        const float e1x = p1.x - p0.x;
+        const float e1y = p1.y - p0.y;
+        const float e1z = p1.z - p0.z;
+        const float e2x = p2.x - p0.x;
+        const float e2y = p2.y - p0.y;
+        const float e2z = p2.z - p0.z;
+        const float nx = e1y * e2z - e1z * e2y;
+        const float ny = e1z * e2x - e1x * e2z;
+        const float nz = e1x * e2y - e1y * e2x;
+
+        const float cutout = (face.Flags & sfOpacity) != 0 ? 1.0f : 0.0f;
+        appendVertex(face.v1, DecodeLegacyFaceUV(face.tax, face.tay, texHeight), nx, ny, nz, cutout);
+        appendVertex(face.v2, DecodeLegacyFaceUV(face.tbx, face.tby, texHeight), nx, ny, nz, cutout);
+        appendVertex(face.v3, DecodeLegacyFaceUV(face.tcx, face.tcy, texHeight), nx, ny, nz, cutout);
+    }
+}
+
+void GLRenderer::UpdateAnimatedStaticMesh(TModel* mptr)
+{
+    auto it = m_staticMeshCache.find(mptr);
+    if (it == m_staticMeshCache.end() || it->second.lastVertexUploadTime == RealTime) {
+        return;
+    }
+
+    BuildStaticMeshVertices(m_animatedMeshScratch, mptr);
+    if (m_animatedMeshScratch.size() != it->second.vertexCount) {
+        return;
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, m_staticMeshVBO);
+    glBufferSubData(GL_ARRAY_BUFFER,
+                    static_cast<GLintptr>(it->second.baseVertex) * sizeof(StaticMeshVertex),
+                    static_cast<GLsizeiptr>(m_animatedMeshScratch.size() * sizeof(StaticMeshVertex)),
+                    m_animatedMeshScratch.data());
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    it->second.lastVertexUploadTime = RealTime;
+}
+
+bool GLRenderer::PopulateGroundLightInstance(ModelInstance& instance,
+                                             const StaticMeshEntry& mesh,
+                                             int worldCenterX,
+                                             int worldCenterZ,
+                                             int orientation) const
+{
+    float minX = mesh.minX;
+    float maxX = mesh.maxX;
+    float minZ = mesh.minZ;
+    float maxZ = mesh.maxZ;
+    switch (orientation & 3) {
+    case 1:
+        minX = mesh.minZ;  maxX = mesh.maxZ;
+        minZ = -mesh.maxX; maxZ = -mesh.minX;
+        break;
+    case 2:
+        minX = -mesh.maxX; maxX = -mesh.minX;
+        minZ = -mesh.maxZ; maxZ = -mesh.minZ;
+        break;
+    case 3:
+        minX = -mesh.maxZ; maxX = -mesh.minZ;
+        minZ = mesh.minX;  maxZ = mesh.maxX;
+        break;
+    default:
+        break;
+    }
+
+    const float worldMinX = static_cast<float>(worldCenterX) + minX;
+    const float worldMaxX = static_cast<float>(worldCenterX) + maxX;
+    const float worldMinZ = static_cast<float>(worldCenterZ) + minZ;
+    const float worldMaxZ = static_cast<float>(worldCenterZ) + maxZ;
+    if (worldMinX < 0.0f || worldMinZ < 0.0f) {
+        return false;
+    }
+
+    // A 4x4 sample grid exactly covers a footprint spanning at most three
+    // 512-unit interpolation cells on each axis. Still-larger models retain
+    // the legacy CPU path rather than approximating their lighting.
+    const int firstCellX = static_cast<int>(worldMinX) / 512;
+    const int firstCellZ = static_cast<int>(worldMinZ) / 512;
+    const int lastCellX = static_cast<int>(worldMaxX) / 512;
+    const int lastCellZ = static_cast<int>(worldMaxZ) / 512;
+    if (lastCellX - firstCellX > 2 || lastCellZ - firstCellZ > 2) {
+        return false;
+    }
+
+    const int gridX = firstCellX * 2 - CCX + kViewGridCenter;
+    const int gridZ = firstCellZ * 2 - CCY + kViewGridCenter;
+    if (gridX < 0 || gridZ < 0 || gridX + 6 >= kViewGridSize || gridZ + 6 >= kViewGridSize) {
+        return false;
+    }
+
+    const auto normalizedLight = [](int light) {
+        return static_cast<float>(std::clamp(light, 0, 255)) / 255.0f;
+    };
+    for (int sampleZ = 0; sampleZ < 4; ++sampleZ) {
+        for (int sampleX = 0; sampleX < 4; ++sampleX) {
+            instance.groundLight[sampleZ * 4 + sampleX] =
+                normalizedLight(VMap[gridZ + sampleZ * 2][gridX + sampleX * 2].Light);
+        }
+    }
+    instance.groundParams[0] = 1.0f;
+    instance.groundParams[1] = static_cast<float>(worldCenterX - firstCellX * 512);
+    instance.groundParams[2] = static_cast<float>(worldCenterZ - firstCellZ * 512);
+    instance.groundParams[3] = 0.0f;
+    return true;
+}
+
 GLRenderer::StaticMeshEntry GLRenderer::UploadStaticMesh(TModel* mptr)
 {
     if (!mptr || !mptr->gVertex || !mptr->gFace) {
@@ -1470,58 +1645,24 @@ GLRenderer::StaticMeshEntry GLRenderer::UploadStaticMesh(TModel* mptr)
         return it->second;
     }
 
-    // Build the upload data on the CPU.
+    // Build the upload data on the CPU. Faces are expanded to a triangle
+    // list because each corner has face-specific UVs, while the four VLight
+    // values retain the original model-vertex Gouraud semantics.
     std::vector<StaticMeshVertex> vertices;
     vertices.reserve(vertexCount);
+    BuildStaticMeshVertices(vertices, mptr);
     std::vector<uint32_t> indices;
     indices.reserve(indexCount);
 
-    const int texHeight = (mptr->TextureHeight > 1) ? mptr->TextureHeight : 1;
-
-    // Phase 2.3: sfOpacity faces are alpha-tested cutouts. sfTransparent
-    // faces are real blended/non-solid faces and must not force cutout handling.
-    // These are per-model booleans cached in the entry so the instanced draw
-    // path can set the correct shader flags.
-    bool hasCutout = false;
+    // sfOpacity is encoded per expanded face vertex above. sfTransparent
+    // remains a model-level fallback because blended faces require a sorted
+    // pass which the current instanced opaque path does not provide.
     bool hasTransparent = false;
-
     for (int f = 0; f < mptr->FCount; ++f) {
         const TFace& face = mptr->gFace[f];
+        hasTransparent = hasTransparent || (face.Flags & sfTransparent) != 0;
 
-        if (!hasCutout && (face.Flags & sfOpacity)) {
-            hasCutout = true;
-        }
-        if (!hasTransparent && (face.Flags & sfTransparent)) {
-            hasTransparent = true;
-        }
-
-        const TPoint3d& p0Raw = mptr->gVertex[face.v1];
-        const TPoint3d& p1Raw = mptr->gVertex[face.v2];
-        const TPoint3d& p2Raw = mptr->gVertex[face.v3];
-
-        const Vector2df uv0 = DecodeLegacyFaceUV(face.tax, face.tay, texHeight);
-        const Vector2df uv1 = DecodeLegacyFaceUV(face.tbx, face.tby, texHeight);
-        const Vector2df uv2 = DecodeLegacyFaceUV(face.tcx, face.tcy, texHeight);
-
-        // Face normal: e1 × e2 where e1 = p1-p0, e2 = p2-p0.
-        // (Not normalized — the vertex shader normalizes when needed.
-        // Saves a sqrt per face for a one-time upload cost.)
-        const float e1x = p1Raw.x - p0Raw.x;
-        const float e1y = p1Raw.y - p0Raw.y;
-        const float e1z = p1Raw.z - p0Raw.z;
-        const float e2x = p2Raw.x - p0Raw.x;
-        const float e2y = p2Raw.y - p0Raw.y;
-        const float e2z = p2Raw.z - p0Raw.z;
-        const float nx = e1y * e2z - e1z * e2y;
-        const float ny = e1z * e2x - e1x * e2z;
-        const float nz = e1x * e2y - e1y * e2x;
-
-        const uint32_t baseIdx = m_staticMeshNextVertexOffset + static_cast<uint32_t>(vertices.size());
-
-        vertices.push_back({p0Raw.x, p0Raw.y, p0Raw.z, nx, ny, nz, uv0.x, uv0.y});
-        vertices.push_back({p1Raw.x, p1Raw.y, p1Raw.z, nx, ny, nz, uv1.x, uv1.y});
-        vertices.push_back({p2Raw.x, p2Raw.y, p2Raw.z, nx, ny, nz, uv2.x, uv2.y});
-
+        const uint32_t baseIdx = m_staticMeshNextVertexOffset + static_cast<uint32_t>(f * 3);
         indices.push_back(baseIdx);
         indices.push_back(baseIdx + 1);
         indices.push_back(baseIdx + 2);
@@ -1545,8 +1686,16 @@ GLRenderer::StaticMeshEntry GLRenderer::UploadStaticMesh(TModel* mptr)
     entry.baseIndex = iboOffset;
     entry.vertexCount = static_cast<uint32_t>(vertexCount);
     entry.indexCount = static_cast<uint32_t>(indexCount);
-    entry.hasCutout = hasCutout;
     entry.hasTransparent = hasTransparent;
+    entry.lastVertexUploadTime = RealTime;
+    entry.minX = entry.minZ = std::numeric_limits<float>::max();
+    entry.maxX = entry.maxZ = std::numeric_limits<float>::lowest();
+    for (int v = 0; v < mptr->VCount; ++v) {
+        entry.minX = (std::min)(entry.minX, mptr->gVertex[v].x);
+        entry.maxX = (std::max)(entry.maxX, mptr->gVertex[v].x);
+        entry.minZ = (std::min)(entry.minZ, mptr->gVertex[v].z);
+        entry.maxZ = (std::max)(entry.maxZ, mptr->gVertex[v].z);
+    }
     m_staticMeshCache[mptr] = entry;
 
     // Advance the next-offset cursors.
@@ -1558,8 +1707,16 @@ GLRenderer::StaticMeshEntry GLRenderer::UploadStaticMesh(TModel* mptr)
 
 void GLRenderer::EnsureStaticMeshCapacity(size_t vertexBytes, size_t indexBytes)
 {
-    const bool needGrowVBO = vertexBytes > m_staticMeshVBOCapacity;
-    const bool needGrowIBO = indexBytes > m_staticMeshIBOCapacity;
+    // Account for the models already concatenated into each global buffer.
+    // This matters more now that VLight expands each static vertex from 32 to
+    // 52 bytes; comparing only the incoming model size could write past the
+    // allocation once several individually-small models filled the buffer.
+    const size_t requiredVertexBytes =
+        static_cast<size_t>(m_staticMeshNextVertexOffset) * sizeof(StaticMeshVertex) + vertexBytes;
+    const size_t requiredIndexBytes =
+        static_cast<size_t>(m_staticMeshNextIndexOffset) * sizeof(uint32_t) + indexBytes;
+    const bool needGrowVBO = requiredVertexBytes > m_staticMeshVBOCapacity;
+    const bool needGrowIBO = requiredIndexBytes > m_staticMeshIBOCapacity;
 
     if (!needGrowVBO && !needGrowIBO) {
         return;
@@ -1567,7 +1724,7 @@ void GLRenderer::EnsureStaticMeshCapacity(size_t vertexBytes, size_t indexBytes)
 
     if (needGrowVBO) {
         size_t newCapacity = m_staticMeshVBOCapacity;
-        while (newCapacity < vertexBytes) newCapacity *= 2;
+        while (newCapacity < requiredVertexBytes) newCapacity *= 2;
         m_staticMeshVBOCapacity = newCapacity;
         glBindBuffer(GL_ARRAY_BUFFER, m_staticMeshVBO);
         glBufferData(GL_ARRAY_BUFFER, m_staticMeshVBOCapacity, nullptr, GL_STATIC_DRAW);
@@ -1576,7 +1733,7 @@ void GLRenderer::EnsureStaticMeshCapacity(size_t vertexBytes, size_t indexBytes)
 
     if (needGrowIBO) {
         size_t newCapacity = m_staticMeshIBOCapacity;
-        while (newCapacity < indexBytes) newCapacity *= 2;
+        while (newCapacity < requiredIndexBytes) newCapacity *= 2;
         m_staticMeshIBOCapacity = newCapacity;
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_staticMeshIBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_staticMeshIBOCapacity, nullptr, GL_STATIC_DRAW);
@@ -1606,13 +1763,17 @@ void GLRenderer::ShutdownStaticMeshPipeline()
     m_staticMeshNextVertexOffset = 0;
     m_staticMeshNextIndexOffset = 0;
     m_staticMeshCache.clear();
+    m_animatedMeshScratch.clear();
+    m_animatedMeshScratch.shrink_to_fit();
 }
 
 bool GLRenderer::InitializeStaticMeshPipeline()
 {
     // Phase 2.2: allocate the static VBO/IBO pair that holds every
-    // unique TModel*'s geometry. Both buffers are GL_STATIC_DRAW
-    // (data doesn't change after upload). Initial capacities cover a
+    // unique TModel*'s geometry. Both buffers remain GL_STATIC_DRAW because
+    // almost all ranges are immutable; the few animated scenery ranges are
+    // updated explicitly with glBufferSubData once per model per frame.
+    // Initial capacities cover a
     // typical custom map; growth is handled in EnsureStaticMeshCapacity.
 
     glGenBuffers(1, &m_staticMeshVBO);
@@ -1659,13 +1820,15 @@ bool GLRenderer::InitializeInstancingPipeline()
     // Phase 2.1 + 2.3: allocate and configure the instance VBO and VAO.
     //
     // The instance VAO combines:
-    //   - Static mesh VBO (per-vertex: position, normal, UV)
-    //   - Instance VBO (per-instance: world matrix, light, flags)
+    //   - Static mesh VBO (per-vertex: position, normal, UV, VLight[0..3])
+    //   - Instance VBO (per-instance: world matrix, light, flags, ground light)
     //
     // Per-vertex attributes (from static mesh VBO):
     //   attribute 0: vec3 aPos       (offset  0, 12 bytes)
     //   attribute 1: vec3 aNormal    (offset 12, 12 bytes)
     //   attribute 2: vec2 aTexCoord  (offset 24,  8 bytes)
+    //   attribute 3: vec4 aVertexLight (offset 32, 16 bytes)
+    //   attribute 15: float aCutout      (offset 48,  4 bytes)
     //
     // Per-instance attributes (from instance VBO, divisor=1):
     //   attribute 4: vec4 aWorldRow0      (offset  0)
@@ -1674,6 +1837,8 @@ bool GLRenderer::InitializeInstancingPipeline()
     //   attribute 7: vec4 aWorldRow3      (offset 48)
     //   attribute 8: vec4 aInstanceLight  (offset 64)
     //   attribute 9: vec4 aInstanceFlags  (offset 80)
+    //   attributes 10-13: vec4 aGroundLightRow[0..3] (offset 96)
+    //   attribute 14: vec4 aGroundParams  (offset 160)
 
     glGenBuffers(1, &m_instanceVBO);
     glGenVertexArrays(1, &m_instanceVAO);
@@ -1696,14 +1861,22 @@ bool GLRenderer::InitializeInstancingPipeline()
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(StaticMeshVertex),
                           reinterpret_cast<void*>(offsetof(StaticMeshVertex, u)));
 
+    glEnableVertexAttribArray(3); // aVertexLight
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(StaticMeshVertex),
+                          reinterpret_cast<void*>(offsetof(StaticMeshVertex, light)));
+
+    glEnableVertexAttribArray(15); // aCutout (per expanded face vertex)
+    glVertexAttribPointer(15, 1, GL_FLOAT, GL_FALSE, sizeof(StaticMeshVertex),
+                          reinterpret_cast<void*>(offsetof(StaticMeshVertex, cutout)));
+
     // Per-instance attributes from instance VBO.
     // Bind the instance VBO and set up per-instance attributes with divisor=1.
     glBindBuffer(GL_ARRAY_BUFFER, m_instanceVBO);
     glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_STREAM_DRAW);
 
     // Each instance attribute is a vec4 (4 floats).
-    // The attributes are at locations 4-9.
-    for (GLuint loc = 4; loc <= 9; ++loc) {
+    // The attributes are at locations 4-14 and are contiguous vec4 arrays.
+    for (GLuint loc = 4; loc <= 14; ++loc) {
         glEnableVertexAttribArray(loc);
         glVertexAttribPointer(loc, 4, GL_FLOAT, GL_FALSE, sizeof(ModelInstance),
                               reinterpret_cast<void*>(
