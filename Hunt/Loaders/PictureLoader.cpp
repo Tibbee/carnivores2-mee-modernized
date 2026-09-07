@@ -3,6 +3,16 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "LoadValidate.h"
+
+static void PicLoadFail(const char* what, int value, int limit)
+{
+  char sz[256];
+  sprintf_s(sz, sizeof(sz),
+            "Picture loading error: %s (value=%d, limit=%d). File is corrupt or modded.",
+            what, value, limit);
+  DoHalt(sz);
+}
 
 int conv_xGx(int c)
 {
@@ -41,19 +51,31 @@ void LoadPicture(TPicture &pic, LPSTR pname, MemoryTag tag)
     DoHalt(sz);
   }
 
-  ReadFile( hfile, &bmpFH, sizeof( BITMAPFILEHEADER ), &l, nullptr );
-  ReadFile( hfile, &bmpIH, sizeof( BITMAPINFOHEADER ), &l, nullptr );
+  if (!ReadExact(hfile, &bmpFH, sizeof(BITMAPFILEHEADER)) ||
+      !ReadExact(hfile, &bmpIH, sizeof(BITMAPINFOHEADER)))
+    DoHalt("Picture loading error: truncated BMP header.");
+  l = sizeof(BITMAPINFOHEADER);
 
   pic.lpImage.reset();
   pic.lpImage = nullptr;
 
   pic.W = bmpIH.biWidth;
   pic.H = bmpIH.biHeight;
-  pic.lpImage.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, pic.W * pic.H * 2, tag)));
+  // Rows land in byte fRGB[800][3] on the stack: width is structural.
+  // Height is heap-checked; both must be positive (negative heights
+  // previously wrapped the allocation size).
+  size_t pxbytes = 0;
+  if (!IsValidBmpWidth(pic.W))
+    PicLoadFail("BMP width exceeds row buffer", pic.W, 800);
+  if (pic.H <= 0 || !CheckedBytes3((size_t)pic.W, (size_t)pic.H, 2, pxbytes))
+    PicLoadFail("BMP dimensions out of range", pic.H, 0);
+  pic.lpImage.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, (DWORD)pxbytes, tag)));
 
   for (int y=0; y<pic.H; y++)
   {
-    ReadFile( hfile, fRGB, 3*pic.W, &l, nullptr );
+    if (!ReadExact(hfile, fRGB, (DWORD)(3 * pic.W)))
+      DoHalt("Picture loading error: truncated BMP rows.");
+    l = (DWORD)(3 * pic.W);
     for (int x=0; x<pic.W; x++)
     {
       C = (static_cast<int>(fRGB[x][2])/8<<10) + (static_cast<int>(fRGB[x][1])/8<< 5) + (static_cast<int>(fRGB[x][0])/8) ;
@@ -90,7 +112,13 @@ void LoadPictureTGA(TPicture &pic, LPSTR pname, MemoryTag tag)
 
   pic.W = w;
   pic.H = h;
-  pic.lpImage.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, pic.W * pic.H * 2, tag)));
+  // w/h are WORDs but their product still overflows 32-bit int arithmetic
+  // (65535^2*2); compute checked. Reads go straight to the heap buffer,
+  // so no stack width cap applies here.
+  size_t tpxbytes = 0;
+  if (!CheckedBytes3((size_t)pic.W, (size_t)pic.H, 2, tpxbytes))
+    PicLoadFail("TGA dimensions out of range", pic.W, pic.H);
+  pic.lpImage.reset(static_cast<WORD*>(_HeapAlloc(Heap, 0, (DWORD)tpxbytes, tag)));
 
   for (int y=0; y<pic.H; y++)
     ReadFile( hfile, (void*)(pic.lpImage.get() + (pic.H-y-1)*pic.W), 2*pic.W, &l, nullptr );

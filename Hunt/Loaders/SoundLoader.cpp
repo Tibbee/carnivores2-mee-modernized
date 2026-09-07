@@ -3,6 +3,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "LoadValidate.h"
 
 void LoadWav(char* FName, TSFX &sfx)
 {
@@ -20,30 +21,52 @@ void LoadWav(char* FName, TSFX &sfx)
   // manual _HeapFree is replaced by the vector's own destructor (handled
   // implicitly when the vector is reassigned/resized below). The nullptr
   // reset is also unnecessary.
-  SetFilePointer( hfile, 36, nullptr, FILE_BEGIN );
+  // Bound the chunk search by the real file size. A truncated file with no
+  // 'data' chunk previously spun here forever: at EOF ReadFile fails with
+  // l=0 but the loop never checked, re-reading nothing endlessly.
+  const DWORD fileSize = GetFileSize(hfile, nullptr);
+  if (fileSize == INVALID_FILE_SIZE)
+    DoHalt("Sound loading error: cannot stat WAV file.");
+  DWORD pos = SetFilePointer(hfile, 36, nullptr, FILE_BEGIN);
+  if (pos == INVALID_SET_FILE_POINTER)
+    DoHalt("Sound loading error: truncated WAV header.");
 
   char c[5];
   c[4] = 0;
 
   for ( ; ; )
   {
-    ReadFile( hfile, c, 1, &l, nullptr );
+    if (pos >= fileSize)
+      DoHalt("Sound loading error: WAV has no data chunk (truncated file).");
+    if (!ReadExact(hfile, c, 1))
+      DoHalt("Sound loading error: truncated WAV chunk scan.");
+    pos += 1;
     if( c[0] == 'd' )
     {
-      ReadFile( hfile, &c[1], 3, &l, nullptr );
+      if (!ReadExact(hfile, &c[1], 3))
+        DoHalt("Sound loading error: truncated WAV chunk header.");
+      pos += 3;
       if( !lstrcmp( c, "data" ) ) break;
-      else SetFilePointer( hfile, -3, nullptr, FILE_CURRENT );
+      else {
+        SetFilePointer( hfile, -3, nullptr, FILE_CURRENT );
+        pos -= 3;
+      }
     }
   }
 
-  ReadFile( hfile, &sfx.length, 4, &l, nullptr );
+  if (!ReadExact(hfile, &sfx.length, 4))
+    DoHalt("Sound loading error: truncated WAV data length.");
+  l = 4;
+  pos += 4;
 
-  // sfx.length is in bytes; std::vector is element-counted. Round down to
-  // whole short ints (WAV data is always 16-bit, so this is exact in
-  // practice). resize() value-initializes new elements to zero, matching
-  // the HEAP_ZERO_MEMORY behavior of the previous _HeapAlloc call.
-  const size_t sampleCount = sfx.length / sizeof(short int);
-  sfx.lpData.assign(sampleCount, 0);
+  // sfx.length is in bytes; std::vector is element-counted. Bound it first
+  // (corrupt values drove huge assigns) and round the allocation UP: an odd
+  // length previously overflowed the floor(length/2) buffer by one byte.
+  // assign() value-initializes to zero, matching the old HEAP_ZERO_MEMORY
+  // behavior. A short payload tail simply leaves trailing zeros.
+  if (!IsValidWavLength(sfx.length))
+    DoHalt("Sound loading error: WAV data length out of range.");
+  sfx.lpData.assign(WavAllocSamples(sfx.length), 0);
   ReadFile( hfile, sfx.lpData.data(), sfx.length, &l, nullptr );
   CloseHandle(hfile);
 }
