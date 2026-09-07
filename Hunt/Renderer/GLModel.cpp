@@ -618,9 +618,12 @@ void GLRenderer::RenderMappedObject(int x, int y)
     pos.y = static_cast<float>(HMapO[y][x]) * ctHScale - CameraY;
 
     const float distanceSq = VectorLengthSq(pos);
-    if (pos.y + MObjects[ob].info.YHi < (HMap[y][x] + HMap[y + 1][x + 1]) / 2 * ctHScale - CameraY) {
-        return;
-    }
+    // Do not reject an entire model just because its origin cell's terrain is
+    // above its authored YHi. The original D3D/3DFX renderers deliberately
+    // left this test disabled: large user-placed structures can extend over
+    // lower terrain even when their origin is buried. Manya's Paradise uses
+    // that layout for its cave roof, so the origin-cell test removed whole
+    // roof sections and exposed the sky from inside the cave.
 
     waterclip = false;
     if (!IsUnderwater() && (FMap[y][x] & fmWaterA)) {
