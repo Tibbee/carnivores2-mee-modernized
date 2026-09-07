@@ -809,6 +809,13 @@ void ReadAreaTable (FILE *stream, int areaNumber)
 						// Tag as Global because LoadResourcesScript runs once in
 						// InitEngine and Snow is never re-allocated on level loads.
 						// Freed in ReleaseGlobalResources.
+						// Free-before-realloc: _RES.TXT holds a snow sector per
+						// area table, so a second sector orphaned the first
+						// block (12,600-byte stock leak on snow maps).
+						if (Snow) {
+						    (void)_HeapFree(Heap, 0, Snow);
+						    Snow = nullptr;
+						}
 						Snow = totalSnowTemp > 0
 						    ? (TSnowElement*)_HeapAlloc(Heap, 0, totalSnowTemp * sizeof(TSnowElement), MemoryTag::Global)
 						    : nullptr;

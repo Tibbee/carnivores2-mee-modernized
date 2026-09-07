@@ -1,6 +1,19 @@
 #include "Hunt.h"
+#include "LoadValidate.h"
 #include "stdio.h"
 #include "timeapi.h"
+
+// Corrupt/modded-.RSC fail-fast. Shipped areas scan clean (audit); anything
+// rejected here previously overflowed fixed arrays (MObjects[256],
+// Ambient[256], WaterList[256], ...) or drove unbounded vector assigns.
+static void RscLoadFail(const char* what, int value, int limit)
+{
+  char sz[256];
+  sprintf_s(sz, sizeof(sz),
+            "Resource loading error: %s (value=%d, limit=%d). File is corrupt or modded.",
+            what, value, limit);
+  DoHalt(sz);
+}
 
 // Forward declarations for functions in ModelLoader.cpp
 void LoadBMPModel(TObject &obj);
@@ -756,8 +769,14 @@ void LoadResources()
     return;
   }
 
-  ReadFile(hfile, &tc, 4, &l, nullptr);
-  ReadFile(hfile, &mc, 4, &l, nullptr);
+  if (!ReadExact(hfile, &tc, 4) || !ReadExact(hfile, &mc, 4))
+    DoHalt("Resource loading error: truncated resource header.");
+  l = 4;
+  // tc indexes Textures[1024]; mc indexes MObjects[256].
+  if (!IsValidCount(tc, 1024))
+    RscLoadFail("texture count exceeds capacity", tc, 1024);
+  if (!IsValidCount(mc, 256))
+    RscLoadFail("model count exceeds capacity", mc, 256);
 
   ReadFile(hfile,  FadeRGB, 4*3*3, &l, nullptr);
   ReadFile(hfile, TransRGB, 4*3*3, &l, nullptr);
@@ -837,7 +856,12 @@ void LoadResources()
 
   int FgCount;
   ReadFile(hfile, &FgCount, 4, &l, nullptr);
-  ReadFile(hfile, &FogsList[1], FgCount * sizeof(TFogEntity), &l, nullptr);
+  // Loop below touches FogsList[0..FgCount]; the read targets FogsList[1].
+  size_t fogbytes = 0;
+  if (!IsValidCount(FgCount, 255) ||
+      !CheckedBytes2((size_t)FgCount, sizeof(TFogEntity), fogbytes))
+    RscLoadFail("fog count exceeds FogsList capacity", FgCount, 255);
+  ReadFile(hfile, &FogsList[1], (DWORD)fogbytes, &l, nullptr);
 
   for (int f=0; f<=FgCount; f++)
   {
@@ -853,27 +877,39 @@ void LoadResources()
   int RdCount, AmbCount, WtrCount;
 
   ReadFile(hfile, &RdCount, 4, &l, nullptr);
+  if (!IsValidCount(RdCount, 256))
+    RscLoadFail("random-sound count exceeds capacity", RdCount, 256);
   for (int r=0; r<RdCount; r++)
   {
     ReadFile(hfile, &RandSound[r].length, 4, &l, nullptr);
     // Phase 5B.1: lpData is now std::vector<short int>. assign() value-
     // initializes to zero (matches the previous HEAP_ZERO_MEMORY behavior).
-    const size_t sampleCount = RandSound[r].length / sizeof(short int);
-    RandSound[r].lpData.assign(sampleCount, 0);
+    // Bound the length first: corrupt values drove huge assigns (and odd
+    // lengths overflowed the floor(length/2) read by one byte).
+    if (!IsValidWavLength(RandSound[r].length))
+      RscLoadFail("random-sound length out of range", RandSound[r].length, 16 << 20);
+    RandSound[r].lpData.assign(WavAllocSamples(RandSound[r].length), 0);
     ReadFile(hfile, RandSound[r].lpData.data(), RandSound[r].length, &l, nullptr);
   }
 
   ReadFile(hfile, &AmbCount, 4, &l, nullptr);
+  if (!IsValidCount(AmbCount, 256))
+    RscLoadFail("ambient count exceeds capacity", AmbCount, 256);
   for (int a=0; a<AmbCount; a++)
   {
     ReadFile(hfile, &Ambient[a].sfx.length, 4, &l, nullptr);
-    const size_t ambSampleCount = Ambient[a].sfx.length / sizeof(short int);
-    Ambient[a].sfx.lpData.assign(ambSampleCount, 0);
+    if (!IsValidWavLength(Ambient[a].sfx.length))
+      RscLoadFail("ambient-sound length out of range", Ambient[a].sfx.length, 16 << 20);
+    Ambient[a].sfx.lpData.assign(WavAllocSamples(Ambient[a].sfx.length), 0);
     ReadFile(hfile, Ambient[a].sfx.lpData.data(), Ambient[a].sfx.length, &l, nullptr);
 
     ReadFile(hfile, Ambient[a].rdata, sizeof(Ambient[a].rdata), &l, nullptr);
     ReadFile(hfile, &Ambient[a].RSFXCount, 4, &l, nullptr);
     ReadFile(hfile, &Ambient[a].AVolume, 4, &l, nullptr);
+    // RSFXCount indexes rdata[16] (and rdata[r+1]) in the filter below
+    // and feeds rand() % RSFXCount in Controls.cpp.
+    if (!IsValidCount(Ambient[a].RSFXCount, 16))
+      RscLoadFail("ambient RSFX count exceeds rdata capacity", Ambient[a].RSFXCount, 16);
 
     if (Ambient[a].RSFXCount)
       Ambient[a].RndTime = (Ambient[a].rdata[0].RFreq / 2 + rRand(Ambient[a].rdata[0].RFreq)) * 1000;
@@ -900,11 +936,18 @@ void LoadResources()
   }
 
   ReadFile(hfile, &WtrCount, 4, &l, nullptr);
-  ReadFile(hfile, WaterList, 16*WtrCount, &l, nullptr);
+  size_t wtrbytes = 0;
+  if (!IsValidCount(WtrCount, 256) ||
+      !CheckedBytes2((size_t)WtrCount, 16, wtrbytes))
+    RscLoadFail("water count exceeds WaterList capacity", WtrCount, 256);
+  ReadFile(hfile, WaterList, (DWORD)wtrbytes, &l, nullptr);
 
   WaterList[255].wlevel = 0;
   for (int w=0; w<WtrCount; w++)
   {
+    // tindex comes from the file; Textures[] has tc live entries.
+    if (WaterList[w].tindex < 0 || WaterList[w].tindex >= tc)
+      RscLoadFail("water texture index out of range", WaterList[w].tindex, tc);
 #ifdef _3dfx
     WaterList[w].fogRGB = (Textures[WaterList[w].tindex]->mR) +
                           (Textures[WaterList[w].tindex]->mG<<8) +
