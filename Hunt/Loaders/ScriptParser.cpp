@@ -3,8 +3,32 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "LoadValidate.h"
 
+// _RES.TXT string safety. Name/file fields are fixed char arrays
+// (WeapInfo/DinoInfo [...][48]); an overlong modded value previously
+// overflowed via strcpy, and value[strlen(value)-2] indexed before the
+// buffer when the quoted value was shorter than ''. Halt loudly instead.
+static void ScriptFieldFail(const char* what)
+{
+  char sz[256];
+  sprintf_s(sz, sizeof(sz),
+            "Script loading error: %s missing, too long, or malformed.", what);
+  DoHalt(sz);
+}
 
+static void CopyScriptField(char* dst, size_t dstCap, char* value, const char* what)
+{
+  char* inner = StripQuoted(value);
+  if (!inner || !CopyCapped(dst, dstCap, inner))
+    ScriptFieldFail(what);
+}
+
+static void CopyProjectName(char* dst, const char* src)
+{
+  if (!CopyCapped(dst, 128, src))
+    DoHalt("Script loading error: project path too long.");
+}
 
 void readBool(char *value, BOOL &out) {
 	if (strstr(value, "TRUE")) out = true;
@@ -340,7 +364,7 @@ void ReadSpawnGroup(FILE *stream, char line[256], int mode) {
 		LPSTR s = __argv[a];
 		if (strstr(s, "prj="))
 		{
-			strcpy(tempProjectName, (s + 4));
+			CopyProjectName(tempProjectName, (s + 4));
 		}
 		if (strstr(s, "dtm=")) timeOfDay = atoi(&s[4]);
 		if (strstr(s, "din=")) dinSelect = (atoi(&s[4]) * 1024);
@@ -564,7 +588,7 @@ void ReadPackGroup(FILE *stream, char line[256], int mode) {
 		LPSTR s = __argv[a];
 		if (strstr(s, "prj="))
 		{
-			strcpy(tempProjectName, (s + 4));
+			CopyProjectName(tempProjectName, (s + 4));
 		}
 		if (strstr(s, "dtm=")) timeOfDay = atoi(&s[4]);
 		if (strstr(s, "din=")) dinSelect = (atoi(&s[4]) * 1024);
@@ -942,24 +966,21 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	{
 		value = strstr(line, "'");
 		if (!value) DoHalt("Script loading error: Weapons name");
-		value[strlen(value) - 2] = 0;
-		strcpy(WeapInfo[TotalW].Name, &value[1]);
+		CopyScriptField(WeapInfo[TotalW].Name, sizeof(WeapInfo[TotalW].Name), value, "Weapons name");
 	}
 
 	if (strstr(line, "file"))
 	{
 		value = strstr(line, "'");
 		if (!value) DoHalt("Script loading error: Weapons file");
-		value[strlen(value) - 2] = 0;
-		strcpy(WeapInfo[TotalW].FName, &value[1]);
+		CopyScriptField(WeapInfo[TotalW].FName, sizeof(WeapInfo[TotalW].FName), value, "Weapons file");
 	}
 
 	if (strstr(line, "gunshot"))
 	{
 		value = strstr(line, "'");
 		if (!value) DoHalt("Script loading error: Weapons gunshot");
-		value[strlen(value) - 2] = 0;
-		strcpy(WeapInfo[TotalW].SFXName, &value[1]);
+		CopyScriptField(WeapInfo[TotalW].SFXName, sizeof(WeapInfo[TotalW].SFXName), value, "Weapons gunshot");
 		WeapInfo[TotalW].MGSSound = true;
 	}
 
@@ -968,8 +989,7 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	{
 		value = strstr(line, "'");
 		if (!value) DoHalt("Script loading error: Weapons pic");
-		value[strlen(value) - 2] = 0;
-		strcpy(WeapInfo[TotalW].BFName, &value[1]);
+		CopyScriptField(WeapInfo[TotalW].BFName, sizeof(WeapInfo[TotalW].BFName), value, "Weapons pic");
 	}
 
 
@@ -977,8 +997,7 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	{
 		value = strstr(line, "'");
 		if (!value) DoHalt("Script loading error: Chamber pic");
-		value[strlen(value) - 2] = 0;
-		strcpy(WeapInfo[TotalW].CFName, &value[1]);
+		CopyScriptField(WeapInfo[TotalW].CFName, sizeof(WeapInfo[TotalW].CFName), value, "Chamber pic");
 		WeapInfo[TotalW].picch = true;
 	}
 
@@ -987,8 +1006,7 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	{
 		value = strstr(line, "'");
 		if (!value) DoHalt("Script loading error: Weapons bullet");
-		value[strlen(value) - 2] = 0;
-		strcpy(WeapInfo[TotalW].BLName, &value[1]);
+		CopyScriptField(WeapInfo[TotalW].BLName, sizeof(WeapInfo[TotalW].BLName), value, "Weapons bullet");
 		WeapInfo[TotalW].bullet = true;
 	}
 
@@ -1006,7 +1024,7 @@ void ReadWeapons(FILE *stream)
 		LPSTR s = __argv[a];
 		if (strstr(s, "prj="))
 		{
-			strcpy(tempProjectName, (s + 4));
+			CopyProjectName(tempProjectName, (s + 4));
 		}
 		if (strstr(s, "dtm=")) timeOfDay = atoi(&s[4]);
 		if (strstr(s, "din=")) dinSelect = (atoi(&s[4]) * 1024);
@@ -1039,6 +1057,9 @@ void ReadWeapons(FILE *stream)
 			if (WeapInfo[TotalW].Veloc > WeapInfo[TotalW].VelocAq) WeapInfo[TotalW].aqLow = true;
 			else WeapInfo[TotalW].aqLow = false;
 
+          // WeapInfo has 10 entries; an 11th weapon section would overflow.
+          if (TotalW >= 10)
+            DoHalt("Script loading error: too many weapons (max 10).");
           TotalW++;
           break;
         }
@@ -1674,16 +1695,14 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	{
 		value = strstr(line, "'");
 		if (!value) DoHalt("Script loading error: Characters name");
-		value[strlen(value) - 2] = 0;
-		strcpy(DinoInfo[TotalC].Name, &value[1]);
+		CopyScriptField(DinoInfo[TotalC].Name, sizeof(DinoInfo[TotalC].Name), value, "Characters name");
 	}
 
 	if (strstr(line, "file"))
 	{
 		value = strstr(line, "'");
 		if (!value) DoHalt("Script loading error: Characters file");
-		value[strlen(value) - 2] = 0;
-		strcpy(DinoInfo[TotalC].FName, &value[1]);
+		CopyScriptField(DinoInfo[TotalC].FName, sizeof(DinoInfo[TotalC].FName), value, "Characters file");
 	}
 
 	
@@ -1779,7 +1798,7 @@ void ReadCharacters(FILE *stream)
 		LPSTR s = __argv[a];
 		if (strstr(s, "prj="))
 		{
-			strcpy(tempProjectName, (s + 4));
+			CopyProjectName(tempProjectName, (s + 4));
 		}
 		if (strstr(s, "dtm=")) timeOfDay = atoi(&s[4]);
 		if (strstr(s, "din=")) dinSelect = (atoi(&s[4]) * 1024);
@@ -1843,6 +1862,9 @@ void ReadCharacters(FILE *stream)
 		  DinoInfo[TotalC].radarColour555 = ((DinoInfo[TotalC].radarRed >> 3) << 10) | ((DinoInfo[TotalC].radarGreen >> 3) << 5) | (DinoInfo[TotalC].radarBlue >> 3);
 		 
 
+		  // DinoInfo has DINOINFO_MAX (128) entries.
+		  if (TotalC >= DINOINFO_MAX)
+		    DoHalt("Script loading error: too many characters.");
 		  TotalC++;
 
           break;
@@ -2552,7 +2574,7 @@ void LoadResourcesScript()
 	  LPSTR s = __argv[a];
 	  if (strstr(s, "prj="))
 	  {
-		  strcpy(tempProjectName, (s + 4));
+		  CopyProjectName(tempProjectName, (s + 4));
 		  //break;
 	  }
 	  if (strstr(s, "-survival")) g_GameMode = GameMode::SurvivalMode;
