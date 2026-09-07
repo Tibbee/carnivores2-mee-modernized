@@ -172,6 +172,10 @@ void ReleaseResources();
 void ReleaseGlobalResources();
 void ReleaseCharacterInfo(TCharacterInfo &chinfo);
 void ReleaseModel(unique_obj_ptr<TModel> &mptr);
+// Idempotent release of TModel's raw gFace / VLight[0..3] backing blocks
+// (ModelLoader.cpp). Every drop path must call this before releasing the
+// TModel shell so the two never drift apart again.
+void ReleaseModelBuffers(TModel* mptr);
 void ReInitGame();
 
 

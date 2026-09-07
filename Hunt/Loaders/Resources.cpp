@@ -492,18 +492,8 @@ void ReleaseResources()
       // gFace and VLight[0] are raw heap pointers allocated by
       // AllocateMemoryForModel. They are not managed by unique_ptr
       // (~TModel() is default) and must be freed explicitly before
-      // the model is destroyed.
-      if (mptr->gFace) {
-        (void)_HeapFree(Heap, 0, mptr->gFace);
-        mptr->gFace = nullptr;
-      }
-      if (mptr->VLight[0]) {
-        (void)_HeapFree(Heap, 0, mptr->VLight[0]);
-        mptr->VLight[0] = nullptr;
-        mptr->VLight[1] = nullptr;
-        mptr->VLight[2] = nullptr;
-        mptr->VLight[3] = nullptr;
-      }
+      // the model is destroyed. Shared helper — see EngineAPI.h.
+      ReleaseModelBuffers(mptr);
 
       MObjects[m].model.reset();
       MObjects[m].model = nullptr;
@@ -608,9 +598,27 @@ void ReleaseGlobalResources()
   ReleaseCharacterInfo(SShipModel);
   ReleaseCharacterInfo(WindModel);
 
+  // Previously omitted persistent owners: each leaked its full allocation
+  // set at every clean shutdown (and polluted the MEM_DEBUG report).
+  // All release helpers are null-safe, so unconditional release is correct
+  // even when an owner was never loaded (e.g. MPlayerInfo in singleplayer).
+  // Releasing everything here — before PrintMemoryLeaks and before C++
+  // static teardown — is also what keeps late global destructors from
+  // calling _HeapFree after the leak tracker is gone.
+  ReleaseCharacterInfo(WCircleModel);
+  ReleaseCharacterInfo(BagModel);
+  ReleaseCharacterInfo(MuzzModel);
+  ReleaseCharacterInfo(HitBoxModel);
+
   for (int w = 0; w < 10; w++)
   {
     ReleaseCharacterInfo(Weapon.chinfo[w]);
+    ReleaseCharacterInfo(Weapon.Bullet[w]);
+  }
+
+  for (int p = 0; p < 3; p++)
+  {
+    ReleaseCharacterInfo(MPlayerInfo[p]);
   }
 
   ReleaseModel(SunModel);
