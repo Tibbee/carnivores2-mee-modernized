@@ -108,8 +108,11 @@ void CreateTMap()
       }
 
 #ifdef _soft
-  for (y=0; y<1024; y++)
-    for (x=0; x<1024; x++ )
+  // Border clamp: HMap is [ctMapSize][ctMapSize], so the y+1/x+1 diagonal
+  // reads run one row/column past the array at the far edge (stock-
+  // reachable out-of-bounds read, masked in practice by adjacent globals).
+  for (y=0; y<ctMapSize-1; y++)
+    for (x=0; x<ctMapSize-1; x++ )
     {
       if( abs( HMap[y][x]-HMap[y+1][x+1] ) > abs( HMap[y+1][x]-HMap[y][x+1] ) )
         FMap[y][x] |= fmReverse;
