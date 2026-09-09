@@ -1,0 +1,153 @@
+{
+  "specification": "../../CarnivoresDoc/archive/c2-capture-matrix-c2-implementation-spec-2026-09-06.md",
+  "project": "Carnivores 2 MEE v1.11",
+  "renderer": "OpenGL 3.3",
+  "build_preset": "ogl-release (GL_PERF_HOOKS=ON)",
+  "game_dir_env": "CARNIVORES2_LEGACY_DIR",
+  "default_game_dir": "E:/Games/CarnivoresLegacy",
+  "capture_frames": 120,
+  "settings": {
+    "fov": 62,
+    "object_detail": 96,
+    "view_option": 255,
+    "fps_limit": 0,
+    "gpufeatures": "4294967295",
+    "reshade": false
+  },
+  "resolutions": [
+    {
+      "id": "1024x768",
+      "aspect": "4:3",
+      "mode": "windowed",
+      "ready": true,
+      "role": "legacy-resolution CPU and visual control"
+    },
+    {
+      "id": "1920x1080",
+      "aspect": "16:9",
+      "mode": "windowed",
+      "ready": true,
+      "role": "modern resolution scaling control"
+    },
+    {
+      "id": "2560x1440",
+      "aspect": "16:9",
+      "mode": "borderless",
+      "ready": true,
+      "role": "owner native-resolution workload; borderless keeps the full client visible"
+    }
+  ],
+  "notes": "Stock-scenario coordinates are landing markers read from each deployed C2 MAP object layer (object id 254), expressed as tile centers. Area 4 is the owner's replacement modded map and uses an analyzed flat, dense-vegetation viewpoint instead; artifact hashes identify the exact data captured. Area baselines use observer mode with no selected huntable dinosaur or weapon, preventing death and close-range creature occlusion while retaining ambient life. Fixed positions and the engine's default heading stabilize terrain composition; ambient actors, animation phase, and wind remain live, so performance conclusions use repeated samples rather than byte-identical images.",
+  "scenarios": [
+    {
+      "id": "area1_spawn",
+      "name": "Area 1 observer baseline",
+      "ready": true,
+      "project": "huntdat\\areas\\area1",
+      "extra_args": ["reg=0", "din=0", "wep=0", "dtm=0", "-observ", "x=430.5", "y=203.5"],
+      "landing_tile": "430.5,203.5",
+      "camera": "fixed landing; default heading and pitch",
+      "notes": "First row-major landing marker in the shipped AREA1.MAP. General inland baseline."
+    },
+    {
+      "id": "area2_spawn",
+      "name": "Area 2 observer baseline",
+      "ready": true,
+      "project": "huntdat\\areas\\area2",
+      "extra_args": ["reg=0", "din=0", "wep=0", "dtm=0", "-observ", "x=745.5", "y=135.5"],
+      "landing_tile": "745.5,135.5",
+      "camera": "fixed landing; default heading and pitch",
+      "notes": "First row-major landing marker in the shipped AREA2.MAP."
+    },
+    {
+      "id": "area3_spawn",
+      "name": "Area 3 observer baseline",
+      "ready": true,
+      "project": "huntdat\\areas\\area3",
+      "extra_args": ["reg=0", "din=0", "wep=0", "dtm=0", "-observ", "x=180.5", "y=169.5"],
+      "landing_tile": "180.5,169.5",
+      "camera": "fixed landing; default heading and pitch",
+      "notes": "First row-major landing marker in the shipped AREA3.MAP."
+    },
+    {
+      "id": "area4_spawn",
+      "name": "Area 4 observer baseline",
+      "ready": true,
+      "project": "huntdat\\areas\\area4",
+      "extra_args": ["reg=0", "din=0", "wep=0", "dtm=0", "-observ", "x=528.5", "y=768.5"],
+      "landing_tile": "528.5,768.5",
+      "camera": "flat-terrain vegetation viewpoint; default north heading and level pitch",
+      "notes": "Data-selected candidate in the deployed modded AREA4.MAP: an object-free, non-water tile with high forward object density, negligible local rise, and a low north-facing terrain horizon. Primary worst-case object workload at view option 255 (ctViewR 230) and object detail 96; screenshot review remains mandatory."
+    },
+    {
+      "id": "area5_spawn",
+      "name": "Area 5 observer baseline",
+      "ready": true,
+      "project": "huntdat\\areas\\area5",
+      "extra_args": ["reg=0", "din=0", "wep=0", "dtm=0", "-observ", "x=669.5", "y=164.5"],
+      "landing_tile": "669.5,164.5",
+      "camera": "fixed landing; default heading and pitch",
+      "notes": "First row-major landing marker in the shipped AREA5.MAP."
+    },
+    {
+      "id": "area7_spawn",
+      "name": "Area 7 observer baseline",
+      "ready": true,
+      "project": "huntdat\\areas\\area7",
+      "extra_args": ["reg=0", "din=0", "wep=0", "dtm=0", "-observ", "x=351.5", "y=142.5"],
+      "landing_tile": "351.5,142.5",
+      "camera": "fixed landing; default heading and pitch",
+      "notes": "First row-major landing marker in the shipped AREA7.MAP. Largest shipped level by measured arena usage."
+    },
+    {
+      "id": "area8_spawn",
+      "name": "Area 8 observer baseline",
+      "ready": true,
+      "project": "huntdat\\areas\\area8",
+      "extra_args": ["reg=0", "din=0", "wep=0", "dtm=0", "-observ", "x=362.5", "y=317.5"],
+      "landing_tile": "362.5,317.5",
+      "camera": "fixed landing; default heading and pitch",
+      "notes": "The single landing marker in the shipped AREA8.MAP."
+    },
+    {
+      "id": "trophy_room",
+      "name": "Trophy room",
+      "ready": true,
+      "project": "huntdat\\areas\\trophy",
+      "extra_args": ["reg=0", "dtm=0"],
+      "landing_tile": null,
+      "camera": "engine trophy-room placement; default heading and pitch",
+      "notes": "Exercises the distinct trophy-room rendering and interaction path."
+    },
+    {
+      "id": "external_slot6",
+      "name": "Menu slot six / external",
+      "ready": false,
+      "project": "huntdat\\areas\\external",
+      "extra_args": ["reg=0", "din=5", "wep=1", "dtm=0"],
+      "landing_tile": null,
+      "camera": "unavailable",
+      "notes": "Excluded: the deployed slot-six external path has a separate unresolved access violation and is not a valid performance fixture."
+    },
+    {
+      "id": "waterline",
+      "name": "Fixed shoreline/water view",
+      "ready": true,
+      "project": "huntdat\\areas\\area4",
+      "extra_args": ["reg=0", "din=0", "wep=0", "dtm=0", "-observ", "x=464.5", "y=840.5"],
+      "landing_tile": "464.5,840.5",
+      "camera": "dry shoreline tile; default north heading and level pitch",
+      "notes": "Data-selected from the deployed modded AREA4.MAP: the spawn has a dry 9x9 neighborhood while the 361x181-cell north-facing validation region contains 23,051 fmWaterA cells and 3,760 object cells. Combines substantial visible water with the Area 4 exact-shading parity workload."
+    },
+    {
+      "id": "fog_characters",
+      "name": "Foggy character-heavy view",
+      "ready": false,
+      "project": null,
+      "extra_args": [],
+      "landing_tile": null,
+      "camera": "pending validated position, facing, and creature selection",
+      "notes": "Deferred until a repeatable workload is selected."
+    }
+  ]
+}

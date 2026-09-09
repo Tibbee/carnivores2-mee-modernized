@@ -29,6 +29,10 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.7.0).
 - Make `-DMEM_DEBUG=ON` effective for non-Debug CMake configurations.
 
 ### Added
+- Deterministic OpenGL performance-capture tooling with manifest-driven C2
+  scenarios, repeated 120-frame samples, exact configuration/save/ReShade
+  restoration, screenshots, hashes, machine provenance, and fail-closed
+  CSV/GPU/runtime-log validation. Generated evidence remains ignored.
 - Unit coverage for arena alignment, reset/restart lifecycle, loader arithmetic,
   animation timing, map references, exact reads, and script helper boundaries.
 - Allocator-matched `make_heap_object<T>()` and `make_heap_array<T>()` helpers.

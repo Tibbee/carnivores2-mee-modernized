@@ -12,10 +12,12 @@ CarnivoresPort/
 Carnivores1/
 stubs/
 pkg/
-# Local-only dev tooling: ignore everything under tools/ except the
-# release packaging script (true allowlist — tools/release/* re-ignores
-# any future helper files so only the script stays tracked).
+# Ignore local/generated tooling except the reviewed release and performance
+# capture harnesses. Generated capture evidence stays under tools/artifacts/.
 tools/*
 !tools/release/
 tools/release/*
 !tools/release/make-c2-package.ps1
+!tools/c2_capture_matrix.ps1
+!tools/c2_capture_manifest.json
+!tools/c2_capture_README.md
