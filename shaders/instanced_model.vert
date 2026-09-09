@@ -25,6 +25,9 @@ uniform PerFrame {
    vec3 uFogColor;
    mat4 uView;              // Phase 2.4: view matrix (identity for now)
 };
+uniform samplerBuffer uExactShade;
+uniform int uExactBaseVertex;
+flat out float vFaceVisible;
 out vec2 vTexCoord;
 out float vLight;
 out float vViewZ;           // Phase 2.5: view-space Z for per-pixel fog
@@ -44,7 +47,7 @@ void main() {
    int orientation = clamp(int(aInstanceFlags.x), 0, 3);
    vCutout = aCutout;
 
-   if (aGroundParams.x > 0.5) {
+   if (aGroundParams.x > 0.5 && aGroundParams.x < 1.5) {
       // Exact GPU equivalent of CalcModelGroundLight/GetLandLt2 for models
       // spanning at most three 512-unit interpolation cells per axis.
       // Still-larger models are conservatively sent through the CPU path.
@@ -93,4 +96,14 @@ void main() {
    float perVertexFog = aInstanceFlags.z + aPos.y * fogGrad;
    vVolumetricFog = clamp(perVertexFog, 0.0, 1.0);
    vVolumetricFogColor = aInstanceLight.yzw;
+   vFaceVisible = 1.0;
+   if (aGroundParams.x > 1.5) {
+      int index = 2 * (int(aGroundParams.y) + gl_VertexID - uExactBaseVertex);
+      vec4 first = texelFetch(uExactShade, index);
+      vec4 second = texelFetch(uExactShade, index + 1);
+      vLight = first.x;
+      vVolumetricFog = first.y;
+      vVolumetricFogColor = vec3(first.zw, second.x);
+      vFaceVisible = second.y;
+   }
 }

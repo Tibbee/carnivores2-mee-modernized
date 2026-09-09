@@ -1,5 +1,6 @@
 #version 330 core
 out vec4 FragColor;
+flat in float vFaceVisible;
 in vec2 vTexCoord;
 in float vLight;
 in float vViewZ;
@@ -23,6 +24,7 @@ uniform float uNightStrength;    // world-only night lighting (0=day, 1=night)
 uniform vec3 uCamFogColor;       // §3.10 camera-in-fog envelope colour
 uniform float uCamFogAmount;     // §3.10 camera-in-fog envelope strength (0 = off)
 void main() {
+   if (vFaceVisible < 0.5) discard;
    vec4 texColor = texture(uModelTexture, vTexCoord);
    if (vCutout > 0.5 && texColor.a <= 0.5) discard;
    vec3 litColor = texColor.rgb * vLight;

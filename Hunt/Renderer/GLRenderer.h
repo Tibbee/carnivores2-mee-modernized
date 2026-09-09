@@ -244,6 +244,17 @@ private:
     const StaticMeshEntry* GetStaticMeshEntry(const TModel* mptr) const;
     void BuildStaticMeshVertices(std::vector<StaticMeshVertex>& vertices, const TModel* mptr) const;
     void UpdateAnimatedStaticMesh(TModel* mptr);
+    // Two RGBA8 texels per expanded vertex: light/fog/r/g, b/visible/0/0.
+    struct ExactShade { uint8_t light, fog, r, g, b, visible, pad0, pad1; };
+    static_assert(sizeof(ExactShade) == 8, "Exact shading must occupy two RGBA8 texels");
+    std::vector<ExactShade> m_exactShades;
+#ifdef GL_PERF_HOOKS
+    std::map<const TModel*, unsigned> m_exactValidated;
+#endif
+    GLuint m_exactShadeBuffer = 0, m_exactShadeTexture = 0;
+    GLint m_exactShadeLimit = 0;
+    bool PopulateExactShadeInstance(ModelInstance& instance, const StaticMeshEntry& mesh,
+                                    TModel* model, const Vector3d& pos, float fi);
     bool PopulateGroundLightInstance(ModelInstance& instance,
                                      const StaticMeshEntry& mesh,
                                      int worldCenterX,

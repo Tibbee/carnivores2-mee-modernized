@@ -370,6 +370,7 @@ void GLRenderer::RenderModelsList()
     // RenderMappedObject now adds to m_instanceData for non-BMP,
     // non-water-clip objects.
     m_instanceData.clear();
+    m_exactShades.clear();
     m_instanceInfo.clear();
     {
         GL_PERF_CPU_SCOPE("Models_Prepare");
@@ -501,6 +502,17 @@ void GLRenderer::RenderInstancedModels()
     UpdatePerFrameUBO(projection);
 
     m_instancedModelShader.Use();
+    if (!m_exactShades.empty()) {
+        GL_PERF_CPU_SCOPE("Models_ExactUpload");
+        glBindBuffer(GL_TEXTURE_BUFFER, m_exactShadeBuffer);
+        glBufferData(GL_TEXTURE_BUFFER, m_exactShades.size() * sizeof(ExactShade),
+                     m_exactShades.data(), GL_STREAM_DRAW);
+        glBindBuffer(GL_TEXTURE_BUFFER, 0);
+    }
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_BUFFER, m_exactShadeTexture);
+    glUniform1i(glGetUniformLocation(m_instancedModelShader.GetProgramID(), "uExactShade"), 1);
+    glActiveTexture(GL_TEXTURE0);
     {
         static const GLint uNight = glGetUniformLocation(m_instancedModelShader.GetProgramID(), "uNightStrength");
         if (uNight >= 0) {
@@ -546,6 +558,9 @@ void GLRenderer::RenderInstancedModels()
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
 
+    // Resolve the mesh base at submission: static-cache growth can rebase
+    // meshes after a placement's shading record was prepared.
+    const GLint exactBaseLocation = glGetUniformLocation(m_instancedModelShader.GetProgramID(), "uExactBaseVertex");
     // Draw each group with instanced rendering.
     uint32_t totalDrawCalls = 0;
     uint32_t totalInstances = 0;
@@ -555,6 +570,8 @@ void GLRenderer::RenderInstancedModels()
         if (!meshEntry || meshEntry->indexCount == 0) {
             continue;
         }
+
+        glUniform1i(exactBaseLocation, static_cast<GLint>(meshEntry->baseVertex));
 
         // Phase 2.9: m_instanceVBO was already bound + orphaned above.
         // glBufferSubData writes the group's slice to offset 0 without
@@ -831,12 +848,36 @@ void GLRenderer::RenderMappedObject(int x, int y)
             !PopulateGroundLightInstance(instance, meshEntry,
                                          x * 256 + 128, y * 256 + 128, FI)) {
             GL_PERF_CPU_SCOPE("Models_GroundFallback");
+#ifdef GL_PERF_HOOKS
+            // One diagnostic record per model/orientation/reason, not per placement.
+            // The helper can reject view-grid coverage as well as footprint size.
+            static bool reported[256][4][3] = {};
+            float loX = meshEntry.minX, hiX = meshEntry.maxX;
+            float loZ = meshEntry.minZ, hiZ = meshEntry.maxZ;
+            if (FI == 1) { loX = meshEntry.minZ; hiX = meshEntry.maxZ; loZ = -meshEntry.maxX; hiZ = -meshEntry.minX; }
+            if (FI == 2) { loX = -meshEntry.maxX; hiX = -meshEntry.minX; loZ = -meshEntry.maxZ; hiZ = -meshEntry.minZ; }
+            if (FI == 3) { loX = -meshEntry.maxZ; hiX = -meshEntry.minZ; loZ = meshEntry.minX; hiZ = meshEntry.maxX; }
+            const float wx = x * 256 + 128.0f, wz = y * 256 + 128.0f;
+            const bool negative = wx + loX < 0 || wz + loZ < 0;
+            const int spanX = static_cast<int>(wx + hiX) / 512 - static_cast<int>(wx + loX) / 512;
+            const int spanZ = static_cast<int>(wz + hiZ) / 512 - static_cast<int>(wz + loZ) / 512;
+            const int reason = negative ? 0 : (spanX > 2 || spanZ > 2) ? 1 : 2;
+            if (!reported[ob][FI][reason]) {
+                reported[ob][FI][reason] = true;
+                LOG_INFO("GroundFallback model=%d orientation=%d reason=%d span=%d,%d bounds=%.1f,%.1f,%.1f,%.1f flags=%d vertices=%d faces=%d",
+                         ob, FI, reason, spanX, spanZ, loX, hiX, loZ, hiZ,
+                         flags, MObjects[ob].model->VCount, MObjects[ob].model->FCount);
+            }
+#endif
             // A footprint spanning more than the 4x4 VMap sample grid can
             // represent keeps the exact CPU path rather than an approximation.
             prepareLegacyGroundLight();
-            RenderModelClip(MObjects[ob].model.get(), pos.x, pos.y, pos.z,
-                            mlight, legacyLightVariant, fi, CameraBeta);
-            return;
+            if (!PopulateExactShadeInstance(instance, meshEntry,
+                                            MObjects[ob].model.get(), pos, fi)) {
+                RenderModelClip(MObjects[ob].model.get(), pos.x, pos.y, pos.z,
+                                mlight, legacyLightVariant, fi, CameraBeta);
+                return;
+            }
         }
 
         // Ensure capacity and add instance.
@@ -1601,6 +1642,92 @@ void GLRenderer::UpdateAnimatedStaticMesh(TModel* mptr)
     it->second.lastVertexUploadTime = RealTime;
 }
 
+bool GLRenderer::PopulateExactShadeInstance(ModelInstance& instance,
+                                             const StaticMeshEntry& mesh,
+                                             TModel* model, const Vector3d& pos, float fi)
+{
+    GL_PERF_CPU_SCOPE("Models_ExactShade");
+    // No blending, animation or clipping is introduced into the opaque pass.
+    // Float instance indices remain exact; buffer limits are measured in texels.
+    const size_t count = static_cast<size_t>(model->FCount) * 3;
+    if (m_modelDistanceAlpha < 0.999f || !m_exactShadeTexture ||
+        mesh.vertexCount != count || m_exactShadeLimit <= 0 ||
+        m_exactShades.size() + count > static_cast<size_t>(m_exactShadeLimit) / 2 ||
+        m_exactShades.size() + count > 8000000 || mesh.baseVertex > 8000000)
+        return false;
+
+    const float ca = std::cos(fi), sa = std::sin(fi);
+    const float cb = std::cos(CameraBeta), sb = std::sin(CameraBeta);
+    std::vector<Vector3d> positions;
+    std::vector<ExactShade> shades;
+    positions.reserve(model->VCount);
+    shades.reserve(model->VCount);
+    bool anyVisible = false;
+    for (int i = 0; i < model->VCount; ++i) {
+        const auto p = TransformModelVertex(model->gVertex[i], pos.x, pos.y, pos.z, ca, sa, cb, sb);
+        positions.push_back(p);
+        anyVisible |= p.z < kModelNearClip;
+        const float worldY = ::cb * p.y + ::sb * p.z;
+        const float yawZ = ::cb * p.z - ::sb * p.y;
+        const Vector3d world = {::ca * p.x - ::sa * yawZ, worldY, ::sa * p.x + ::ca * yawZ};
+        const FogSample fog = SampleFogAtPoint(world, false);
+        shades.push_back({Light255ToByte(std::clamp(128.0f + model->VLight[0][i], 0.0f, 255.0f)),
+                          Float01ToByte(fog.amount), Float01ToByte(fog.color.x),
+                          Float01ToByte(fog.color.y), Float01ToByte(fog.color.z), 255, 0, 0});
+    }
+    instance.groundParams[0] = 2.0f;
+    instance.groundParams[1] = static_cast<float>(m_exactShades.size());
+    instance.groundParams[2] = static_cast<float>(mesh.baseVertex);
+    instance.instanceFlags[3] = Float01ToByte(m_modelDistanceAlpha) / 255.0f;
+    for (int f = 0; f < model->FCount; ++f) {
+        const auto& face = model->gFace[f];
+        const bool visible = anyVisible && !ShouldCullModelFace(face.Flags,
+            positions[face.v1], positions[face.v2], positions[face.v3]);
+        for (int index : {face.v1, face.v2, face.v3}) {
+            auto shade = shades[index];
+            shade.visible = visible ? 255 : 0;
+            m_exactShades.push_back(shade);
+        }
+    }
+#ifdef GL_PERF_HOOKS
+    // Validate packed bytes and face selection against the retained legacy
+    // builder once per model/orientation, during warm-up rather than capture.
+    const unsigned orientationBit = 1u << static_cast<unsigned>(instance.instanceFlags[0]);
+    if (!(m_exactValidated[model] & orientationBit)) {
+        ModelDrawItem reference;
+        BuildModelDrawItem(reference, model, pos.x, pos.y, pos.z, 128, 0,
+                           fi, CameraBeta, false, false, true, false);
+        size_t opaque = 0, cutout = 0;
+        bool equal = reference.transparentVertices.empty();
+        const size_t start = static_cast<size_t>(instance.groundParams[1]);
+        for (int f = 0; f < model->FCount; ++f) {
+            const bool isCutout = (model->gFace[f].Flags & sfOpacity) != 0;
+            const auto& vertices = isCutout ? reference.cutoutVertices : reference.opaqueVertices;
+            size_t& cursor = isCutout ? cutout : opaque;
+            for (int v = 0; v < 3; ++v) {
+                const auto& shade = m_exactShades[start + f * 3 + v];
+                if (!shade.visible) continue;
+                if (cursor >= vertices.size()) { equal = false; continue; }
+                const auto& expected = vertices[cursor++];
+                equal &= shade.light == expected.light && shade.fog == expected.fog &&
+                         shade.r == expected.fogR && shade.g == expected.fogG &&
+                         shade.b == expected.fogB && expected.alpha == Float01ToByte(m_modelDistanceAlpha);
+            }
+        }
+        equal &= opaque == reference.opaqueVertices.size() && cutout == reference.cutoutVertices.size();
+        if (!equal) {
+            LOG_ERROR("ExactShade legacy parity FAILED");
+            m_exactShades.resize(start);
+            return false;
+        }
+        m_exactValidated[model] |= orientationBit;
+        LOG_INFO("ExactShade legacy parity passed: vertices=%d faces=%d orientation=%d",
+                 model->VCount, model->FCount, static_cast<int>(instance.instanceFlags[0]));
+    }
+#endif
+    return true;
+}
+
 bool GLRenderer::PopulateGroundLightInstance(ModelInstance& instance,
                                              const StaticMeshEntry& mesh,
                                              int worldCenterX,
@@ -1851,6 +1978,15 @@ bool GLRenderer::InitializeStaticMeshPipeline()
 
 void GLRenderer::ShutdownInstancingPipeline()
 {
+    if (m_exactShadeTexture) glDeleteTextures(1, &m_exactShadeTexture);
+    if (m_exactShadeBuffer) glDeleteBuffers(1, &m_exactShadeBuffer);
+    m_exactShadeTexture = m_exactShadeBuffer = 0;
+    m_exactShadeLimit = 0;
+    m_exactShades.clear();
+    m_exactShades.shrink_to_fit();
+#ifdef GL_PERF_HOOKS
+    m_exactValidated.clear();
+#endif
     if (m_instanceVBO) {
         glDeleteBuffers(1, &m_instanceVBO);
         m_instanceVBO = 0;
@@ -1869,6 +2005,15 @@ void GLRenderer::ShutdownInstancingPipeline()
 
 bool GLRenderer::InitializeInstancingPipeline()
 {
+    glGetIntegerv(GL_MAX_TEXTURE_BUFFER_SIZE, &m_exactShadeLimit);
+    glGenBuffers(1, &m_exactShadeBuffer);
+    glBindBuffer(GL_TEXTURE_BUFFER, m_exactShadeBuffer);
+    glBufferData(GL_TEXTURE_BUFFER, sizeof(ExactShade), nullptr, GL_STREAM_DRAW);
+    glGenTextures(1, &m_exactShadeTexture);
+    glBindTexture(GL_TEXTURE_BUFFER, m_exactShadeTexture);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA8, m_exactShadeBuffer);
+    glBindTexture(GL_TEXTURE_BUFFER, 0);
+    glBindBuffer(GL_TEXTURE_BUFFER, 0);
     // Phase 2.1 + 2.3: allocate and configure the instance VBO and VAO.
     //
     // The instance VAO combines:
