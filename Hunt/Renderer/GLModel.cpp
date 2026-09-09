@@ -723,6 +723,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
     bool legacyGroundLightReady = false;
     auto prepareLegacyGroundLight = [&]() {
         if (groundLighting && !legacyGroundLightReady) {
+            GL_PERF_CPU_SCOPE("Exact_GroundLight");
             CalcModelGroundLight(MObjects[ob].model.get(), x * 256 + 128, y * 256 + 128, FI);
             legacyLightVariant = 0; // D3D/3DFX selected the generated VLight[0].
             legacyGroundLightReady = true;
@@ -1658,15 +1659,25 @@ bool GLRenderer::PopulateExactShadeInstance(ModelInstance& instance,
 
     const float ca = std::cos(fi), sa = std::sin(fi);
     const float cb = std::cos(CameraBeta), sb = std::sin(CameraBeta);
-    std::vector<Vector3d> positions;
-    std::vector<ExactShade> shades;
+    auto& positions = m_exactPositionScratch;
+    auto& shades = m_exactVertexScratch;
+    positions.clear();
+    shades.clear();
     positions.reserve(model->VCount);
     shades.reserve(model->VCount);
     bool anyVisible = false;
+    {
+    GL_PERF_CPU_SCOPE("Exact_Transform");
     for (int i = 0; i < model->VCount; ++i) {
         const auto p = TransformModelVertex(model->gVertex[i], pos.x, pos.y, pos.z, ca, sa, cb, sb);
         positions.push_back(p);
         anyVisible |= p.z < kModelNearClip;
+    }
+    }
+    {
+    GL_PERF_CPU_SCOPE("Exact_FogPack");
+    for (int i = 0; i < model->VCount; ++i) {
+        const auto& p = positions[i];
         const float worldY = ::cb * p.y + ::sb * p.z;
         const float yawZ = ::cb * p.z - ::sb * p.y;
         const Vector3d world = {::ca * p.x - ::sa * yawZ, worldY, ::sa * p.x + ::ca * yawZ};
@@ -1675,10 +1686,13 @@ bool GLRenderer::PopulateExactShadeInstance(ModelInstance& instance,
                           Float01ToByte(fog.amount), Float01ToByte(fog.color.x),
                           Float01ToByte(fog.color.y), Float01ToByte(fog.color.z), 255, 0, 0});
     }
+    }
     instance.groundParams[0] = 2.0f;
     instance.groundParams[1] = static_cast<float>(m_exactShades.size());
     instance.groundParams[2] = static_cast<float>(mesh.baseVertex);
     instance.instanceFlags[3] = Float01ToByte(m_modelDistanceAlpha) / 255.0f;
+    {
+    GL_PERF_CPU_SCOPE("Exact_ExpandCull");
     for (int f = 0; f < model->FCount; ++f) {
         const auto& face = model->gFace[f];
         const bool visible = anyVisible && !ShouldCullModelFace(face.Flags,
@@ -1688,6 +1702,7 @@ bool GLRenderer::PopulateExactShadeInstance(ModelInstance& instance,
             shade.visible = visible ? 255 : 0;
             m_exactShades.push_back(shade);
         }
+    }
     }
 #ifdef GL_PERF_HOOKS
     // Validate packed bytes and face selection against the retained legacy
@@ -1984,6 +1999,10 @@ void GLRenderer::ShutdownInstancingPipeline()
     m_exactShadeLimit = 0;
     m_exactShades.clear();
     m_exactShades.shrink_to_fit();
+    m_exactPositionScratch.clear();
+    m_exactPositionScratch.shrink_to_fit();
+    m_exactVertexScratch.clear();
+    m_exactVertexScratch.shrink_to_fit();
 #ifdef GL_PERF_HOOKS
     m_exactValidated.clear();
 #endif

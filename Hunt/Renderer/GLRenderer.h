@@ -248,6 +248,9 @@ private:
     struct ExactShade { uint8_t light, fog, r, g, b, visible, pad0, pad1; };
     static_assert(sizeof(ExactShade) == 8, "Exact shading must occupy two RGBA8 texels");
     std::vector<ExactShade> m_exactShades;
+    // Single-threaded placement scratch; contents never escape preparation.
+    std::vector<Vector3d> m_exactPositionScratch;
+    std::vector<ExactShade> m_exactVertexScratch;
 #ifdef GL_PERF_HOOKS
     std::map<const TModel*, unsigned> m_exactValidated;
 #endif
