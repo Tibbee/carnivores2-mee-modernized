@@ -15,6 +15,7 @@
 //   GL_PERF_SCOPE("name")      -- CPU scope plus an asynchronous GPU pair
 //   GL_PERF_CPU_SCOPE("name")  -- CPU-only scope (use for collection work)
 //   GL_PERF_DRAW(n)             -- n = triangles submitted by one draw call
+//   GL_PERF_TERRAIN_WORKLOAD(...) -- aggregate terrain cull/geometry counters
 //   GL_PERF_TEXTURE_BIND(h)     -- an instrumented render-time texture bind
 //   GL_PERF_STATE_CHANGE()      -- an instrumented render-state change
 //
@@ -74,6 +75,9 @@ extern "C" {
 // call site cannot double-count a rendered frame.
 void glperf_frame_begin();
 void glperf_frame_end();
+// Recorded separately; CSV attributes these to the previous rendered frame.
+void glperf_swap_begin();
+void glperf_swap_end();
 
 // Return true when a scope was pushed. The RAII wrapper uses this to avoid a
 // destructor closing an unrelated scope when the profiling stack is full.
@@ -83,6 +87,15 @@ void glperf_scope_exit(const char* name);
 
 // Counter hooks.
 void glperf_add_draw(uint32_t triangles);
+void glperf_note_terrain_workload(uint32_t chunkCandidates,
+                                 uint32_t tileCandidates,
+                                 uint32_t coarseCulled,
+                                 uint32_t backCulled,
+                                 uint32_t frustumCulled,
+                                 uint32_t distanceCulled,
+                                 uint32_t alphaCulled,
+                                 uint32_t emittedTiles,
+                                 uint32_t vertices);
 void glperf_note_texture_bind(uint32_t handle);
 void glperf_note_state_change();
 
@@ -114,6 +127,11 @@ private:
 #define GL_PERF_SCOPE(name)         ::GLPerfScope glperf_scope_obj_(name)
 #define GL_PERF_CPU_SCOPE(name)     ::GLPerfScope glperf_scope_obj_(name, false)
 #define GL_PERF_DRAW(n)             ::glperf_add_draw(static_cast<uint32_t>(n))
+#define GL_PERF_TERRAIN_WORKLOAD(chunks, candidates, coarse, back, frustum, distance, alpha, emitted, vertices) \
+    ::glperf_note_terrain_workload(static_cast<uint32_t>(chunks), static_cast<uint32_t>(candidates), \
+        static_cast<uint32_t>(coarse), static_cast<uint32_t>(back), static_cast<uint32_t>(frustum), \
+        static_cast<uint32_t>(distance), static_cast<uint32_t>(alpha), static_cast<uint32_t>(emitted), \
+        static_cast<uint32_t>(vertices))
 #define GL_PERF_TEXTURE_BIND(h)     ::glperf_note_texture_bind(static_cast<uint32_t>(h))
 #define GL_PERF_STATE_CHANGE()      ::glperf_note_state_change()
 
@@ -124,6 +142,7 @@ private:
 #define GL_PERF_SCOPE(name)         ((void)0)
 #define GL_PERF_CPU_SCOPE(name)     ((void)0)
 #define GL_PERF_DRAW(n)             ((void)0)
+#define GL_PERF_TERRAIN_WORKLOAD(chunks, candidates, coarse, back, frustum, distance, alpha, emitted, vertices) ((void)0)
 #define GL_PERF_TEXTURE_BIND(h)     ((void)0)
 #define GL_PERF_STATE_CHANGE()      ((void)0)
 

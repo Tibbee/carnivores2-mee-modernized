@@ -327,42 +327,24 @@ void GLRenderer::AppendTerrainTriangle(const EPoint& v0,
     const auto uv = GetTerrainUVs(reverse, second, direction);
     const float layer = static_cast<float>(textureLayer);
 
-    // Phase 1.5: pack light/fog (0..200, treated as 0..255 in the
-    // shader) as uint8, alpha as uint8, and per-vertex fog color as a
-    // vec3 of uint8. The driver normalizes the uint8 back to [0,1] in
-    // the vertex shader, matching the old float layout.
-    // §5.4: write directly to the flat array instead of push_back.
     TerrainVertex* dst = m_terrainVertices.get() + m_terrainVertexCount;
     dst[0] = {v0.v.x, v0.v.y, v0.v.z, uv[0].x, uv[0].y, layer,
               Light255ToByte(static_cast<float>(v0.Light)),
-              Light255ToByte(v0.Fog),
-              Float01ToByte(alpha0),
-              0,  // pad1
-              Float01ToByte(fogColor0.x),
-              Float01ToByte(fogColor0.y),
-              Float01ToByte(fogColor0.z),
-              0};  // pad2
+              Light255ToByte(v0.Fog), Float01ToByte(alpha0), 0,
+              Float01ToByte(fogColor0.x), Float01ToByte(fogColor0.y),
+              Float01ToByte(fogColor0.z), 0};
     dst[1] = {v1.v.x, v1.v.y, v1.v.z, uv[1].x, uv[1].y, layer,
               Light255ToByte(static_cast<float>(v1.Light)),
-              Light255ToByte(v1.Fog),
-              Float01ToByte(alpha1),
-              0,  // pad1
-              Float01ToByte(fogColor1.x),
-              Float01ToByte(fogColor1.y),
-              Float01ToByte(fogColor1.z),
-              0};
+              Light255ToByte(v1.Fog), Float01ToByte(alpha1), 0,
+              Float01ToByte(fogColor1.x), Float01ToByte(fogColor1.y),
+              Float01ToByte(fogColor1.z), 0};
     dst[2] = {v2.v.x, v2.v.y, v2.v.z, uv[2].x, uv[2].y, layer,
               Light255ToByte(static_cast<float>(v2.Light)),
-              Light255ToByte(v2.Fog),
-              Float01ToByte(alpha2),
-              0,  // pad1
-              Float01ToByte(fogColor2.x),
-              Float01ToByte(fogColor2.y),
-              Float01ToByte(fogColor2.z),
-              0};
+              Light255ToByte(v2.Fog), Float01ToByte(alpha2), 0,
+              Float01ToByte(fogColor2.x), Float01ToByte(fogColor2.y),
+              Float01ToByte(fogColor2.z), 0};
     m_terrainVertexCount += 3;
 }
-
 
 
 void GLRenderer::RenderTerrain()
@@ -449,7 +431,7 @@ void GLRenderer::RenderTerrain()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_TRUE);
-    DrawVertexBatch(m_terrainVertices.get(), m_terrainVertexCount);
+    DrawVertexBatch(m_terrainVertices.get(), m_terrainVertexCount, "Terrain_Draw");
 
     glBindVertexArray(0);
 }
@@ -590,6 +572,9 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     if (localX < 0 || localY < 0 || localX + 1 >= kViewGridSize || localY + 1 >= kViewGridSize) {
         return;
     }
+#ifdef GL_PERF_HOOKS
+    ++m_terrainPerf.tileCandidates;
+#endif
 
     // Coarse frustum pre-test — SAFEGUARD: only reject when cz < 0.
     // The lateral MUST be scaled by FOVK so this cone matches the precise
@@ -607,6 +592,9 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
         const float cz1 = wz * ca - wx * sa;
         const float cz  = cz1 * cb + wy * sb;
         if (cz < 0.0f && std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
+#ifdef GL_PERF_HOOKS
+            ++m_terrainPerf.coarseCulled;
+#endif
             return;
         }
     }
@@ -692,6 +680,9 @@ void GLRenderer::EmitTerrainTile(int x, int y, float backR,
 {
     // Only reject if ALL corners are behind the back plane.
     if (v00.v.z > backR && v10.v.z > backR && v01.v.z > backR && v11.v.z > backR) {
+#ifdef GL_PERF_HOOKS
+        ++m_terrainPerf.backCulled;
+#endif
         return;
     }
 
@@ -714,6 +705,9 @@ void GLRenderer::EmitTerrainTile(int x, int y, float backR,
         bool allOutL = v00OutL && v10OutL && v01OutL && v11OutL;
 
         if (allOutR || allOutL) {
+#ifdef GL_PERF_HOOKS
+            ++m_terrainPerf.frustumCulled;
+#endif
             return;
         }
     }
@@ -726,15 +720,24 @@ void GLRenderer::EmitTerrainTile(int x, int y, float backR,
     const float viewDistanceSq = viewDistance * viewDistance;
     const float distanceSq = xx * xx + yy * yy + zz * zz;
     if (distanceSq > viewDistanceSq) {
+#ifdef GL_PERF_HOOKS
+        ++m_terrainPerf.distanceCulled;
+#endif
         return;
     }
 
     // Alpha cull — skip tiles whose 4 vertex alphas are all below threshold
     if (alpha00 < kAlphaCullThreshold && alpha10 < kAlphaCullThreshold &&
         alpha01 < kAlphaCullThreshold && alpha11 < kAlphaCullThreshold) {
+#ifdef GL_PERF_HOOKS
+        ++m_terrainPerf.alphaCulled;
+#endif
         RenderObject(x, y);
         return;
     }
+#ifdef GL_PERF_HOOKS
+    ++m_terrainPerf.emittedTiles;
+#endif
 
     const bool reverse = (FMap[y][x] & fmReverse) != 0;
     const int direction = FMap[y][x] & 3;
@@ -776,12 +779,14 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
         CollectTerrainTile(x + 1, y + 1, 0, fadeStart, fadeStartSq, fadeEnd);
         return;
     }
+#ifdef GL_PERF_HOOKS
+    ++m_terrainPerf.chunkCandidates;
+    m_terrainPerf.tileCandidates += 4;
+#endif
 
-    // Per-tile back radius + coarse (HMapO) frustum pre-test.  These use
-    // only OMap/HMapO — no VMap corners — so run them first: if every tile
-    // fails the coarse test the block is entirely behind the camera and we
-    // skip the shared 3x3 VMap read entirely (matches the 1x1 path, which
-    // culls behind tiles before any VMap read).
+    // Per-tile back radius + coarse (HMapO) frustum pre-test. These use
+    // only OMap/HMapO, allowing a fully rejected block to avoid VMap/fog
+    // preparation. The row sweep normally makes this a conservative guard.
     float backR[2][2];
     bool  coarsePass[2][2];
     bool  anyCoarse = false;
@@ -798,27 +803,33 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
             const float cxc = wx * ca + wz * sa;
             const float cz1 = wz * ca - wx * sa;
             const float cz  = cz1 * cb + wy * sb;
-            // FOVK-scaled like the 1x1 path: without it wide FOV clips the view sides.
             const bool pass = !(cz < 0.0f && std::fabs(cxc * FOVK) > -cz + br * 2.0f + 2048.0f);
             coarsePass[dj][di] = pass;
-            if (pass) anyCoarse = true;
+            if (pass) {
+                anyCoarse = true;
+            }
+#ifdef GL_PERF_HOOKS
+            else {
+                ++m_terrainPerf.coarseCulled;
+            }
+#endif
         }
     }
     if (!anyCoarse) {
-        return;  // all 4 behind; no reads, no RenderObject (matches 1x1 [D])
+        return;
     }
 
     // Read the shared 3x3 grid of VMap corners (9 reads for 4 tiles vs 16).
     EPoint v[3][3];
+    int      fogIdx[3][3];
+    Vector3d fogCol[3][3];
+    float    alpha[3][3];
     for (int j = 0; j < 3; ++j)
         for (int i = 0; i < 3; ++i)
             v[j][i] = VMap[localY + j][localX + i];
 
     // Per-corner fog index / fog amount / fog colour / alpha — each corner
     // is shared by up to 4 tiles, so compute once.
-    int      fogIdx[3][3];
-    Vector3d fogCol[3][3];
-    float    alpha[3][3];
     const int fogCellX[3] = { ((x) & (ctMapSize - 1)) >> 1,
                               ((x + 1) & (ctMapSize - 1)) >> 1,
                               ((x + 2) & (ctMapSize - 1)) >> 1 };
@@ -848,9 +859,7 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
         }
     }
 
-    // Emit each of the 4 child tiles.  Tiles that failed the coarse
-    // pre-test above are skipped (no RenderObject), matching the 1x1 path's
-    // [D] reject.  The remaining culls run in EmitTerrainTile.
+    // Emit each coarse survivor through the shared precise cull path.
     for (int dj = 0; dj < 2; ++dj) {
         for (int di = 0; di < 2; ++di) {
             if (!coarsePass[dj][di]) continue;
@@ -870,10 +879,16 @@ void GLRenderer::RenderGround()
 #ifdef GL_PERF_HOOKS
     GL_PERF_SCOPE("RenderGround");
 #endif
+    {
+    GL_PERF_CPU_SCOPE("Terrain_FrameSetup");
     BeginTerrainFrame();
+#ifdef GL_PERF_HOOKS
+    m_terrainPerf = {};
+#endif
     m_worldModelItems.clear();
     m_transparentModelItems.clear();
     m_objectList.clear();
+    }
 
     // Cache IsUnderwater() once per frame (Phase 5).
     m_isUnderwater = IsUnderwater();
@@ -1059,6 +1074,20 @@ void GLRenderer::RenderGround()
         }
     }
 
-    RenderTerrain();
+    {
+        GL_PERF_SCOPE("Terrain_Batch");
+        RenderTerrain();
+    }
+#ifdef GL_PERF_HOOKS
+    GL_PERF_TERRAIN_WORKLOAD(m_terrainPerf.chunkCandidates,
+                             m_terrainPerf.tileCandidates,
+                             m_terrainPerf.coarseCulled,
+                             m_terrainPerf.backCulled,
+                             m_terrainPerf.frustumCulled,
+                             m_terrainPerf.distanceCulled,
+                             m_terrainPerf.alphaCulled,
+                             m_terrainPerf.emittedTiles,
+                             m_terrainVertexCount);
+#endif
 }
 #endif // _gl

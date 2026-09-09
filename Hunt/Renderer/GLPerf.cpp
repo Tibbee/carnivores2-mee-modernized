@@ -44,7 +44,8 @@ namespace {
 
 using Clock = std::chrono::steady_clock;
 
-constexpr int   kMaxPasses          = 32;
+// Diagnostic model subscopes plus scene-dependent effects exceed 32 names.
+constexpr int   kMaxPasses          = 64;
 constexpr int   kMaxCaptureFrames   = 120;
 constexpr int   kScopeQueryRingSize = 8;
 constexpr int   kFrameQueryRingSize = 8;
@@ -115,6 +116,15 @@ struct GLPerfState {
     uint32_t frameTextureBinds = 0;
     uint32_t frameTextureSwitches = 0;
     uint32_t frameUniqueTextures = 0;
+    uint32_t frameTerrainChunkCandidates = 0;
+    uint32_t frameTerrainTileCandidates = 0;
+    uint32_t frameTerrainCoarseCulled = 0;
+    uint32_t frameTerrainBackCulled = 0;
+    uint32_t frameTerrainFrustumCulled = 0;
+    uint32_t frameTerrainDistanceCulled = 0;
+    uint32_t frameTerrainAlphaCulled = 0;
+    uint32_t frameTerrainEmittedTiles = 0;
+    uint32_t frameTerrainVertices = 0;
     uint32_t frameLastTexture = 0;
     bool frameHasLastTexture = false;
     std::unordered_set<uint32_t> frameUniqueTextureHandles;
@@ -151,6 +161,9 @@ struct GLPerfState {
     int scopeStackDepth = 0;
 
     Clock::time_point frameStart;
+    Clock::time_point previousFrameStart{}, swapStart{};
+    bool havePreviousFrame = false;
+    double previousFrameIntervalMs = -1.0, previousSwapMs = -1.0;
     double frameCpuMs = 0.0;
 
     std::array<PassTimings, kMaxPasses> passes {};
@@ -362,10 +375,14 @@ void AppendCaptureHeader() {
 
     std::fprintf(g_state.captureFile,
         "frame,cpu_ms,gpu_ms,draw_calls,triangles,state_changes,"
-        "texture_binds,texture_switches,unique_textures");
+        "texture_binds,texture_switches,unique_textures,"
+        "terrain_chunk_candidates,terrain_tile_candidates,terrain_coarse_culled,"
+        "terrain_back_culled,terrain_frustum_culled,terrain_distance_culled,"
+        "terrain_alpha_culled,terrain_emitted_tiles,terrain_vertices,"
+        "previous_frame_interval_ms,previous_swap_ms");
     for (const std::string& name : g_state.captureScopeOrder) {
-        std::fprintf(g_state.captureFile, ",%s_cpu_ms,%s_gpu_ms",
-                     name.c_str(), name.c_str());
+        std::fprintf(g_state.captureFile, ",%s_cpu_ms,%s_gpu_ms,%s_calls",
+                     name.c_str(), name.c_str(), name.c_str());
     }
     std::fputc('\n', g_state.captureFile);
     g_state.captureHeaderWritten = true;
@@ -418,7 +435,7 @@ void WriteCaptureFrame() {
     // GPU query results are asynchronous. Keep the sentinel explicit instead
     // of writing a result from another frame or a rolling average here.
     std::fprintf(g_state.captureFile,
-        "%d,%.3f,%.3f,%u,%u,%u,%u,%u,%u",
+        "%d,%.3f,%.3f,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u",
         g_state.captureFramesWritten,
         g_state.frameCpuMs,
         -1.0,
@@ -427,13 +444,27 @@ void WriteCaptureFrame() {
         g_state.frameStateChanges,
         g_state.frameTextureBinds,
         g_state.frameTextureSwitches,
-        g_state.frameUniqueTextures);
+        g_state.frameUniqueTextures,
+        g_state.frameTerrainChunkCandidates,
+        g_state.frameTerrainTileCandidates,
+        g_state.frameTerrainCoarseCulled,
+        g_state.frameTerrainBackCulled,
+        g_state.frameTerrainFrustumCulled,
+        g_state.frameTerrainDistanceCulled,
+        g_state.frameTerrainAlphaCulled,
+        g_state.frameTerrainEmittedTiles,
+        g_state.frameTerrainVertices);
+    // Previous begin-to-begin interval includes simulation, profiler overhead,
+    // presentation and pacing. This is throughput, not display latency.
+    std::fprintf(g_state.captureFile, ",%.3f,%.3f",
+                 g_state.previousFrameIntervalMs, g_state.previousSwapMs);
 
     for (const std::string& name : g_state.captureScopeOrder) {
         const PassTimings* pass = FindPassByName(name);
         const double cpu = (pass && pass->frameCpuSamples > 0)
                          ? pass->frameCpuMs : 0.0;
-        std::fprintf(g_state.captureFile, ",%.3f,%.3f", cpu, -1.0);
+        std::fprintf(g_state.captureFile, ",%.3f,%.3f,%u", cpu, -1.0,
+                     pass ? pass->frameCpuSamples : 0u);
     }
 
     std::fputc('\n', g_state.captureFile);
@@ -704,6 +735,11 @@ extern "C" void glperf_frame_begin() {
 
     g_state.frameActive = true;
     g_state.frameStart = Clock::now();
+    g_state.previousFrameIntervalMs = g_state.havePreviousFrame
+        ? std::chrono::duration<double, std::milli>(g_state.frameStart - g_state.previousFrameStart).count()
+        : -1.0;
+    g_state.previousFrameStart = g_state.frameStart;
+    g_state.havePreviousFrame = true;
     g_state.frameCpuMs = 0.0;
     g_state.frameDrawCalls = 0;
     g_state.frameTriangles = 0;
@@ -711,6 +747,15 @@ extern "C" void glperf_frame_begin() {
     g_state.frameTextureBinds = 0;
     g_state.frameTextureSwitches = 0;
     g_state.frameUniqueTextures = 0;
+    g_state.frameTerrainChunkCandidates = 0;
+    g_state.frameTerrainTileCandidates = 0;
+    g_state.frameTerrainCoarseCulled = 0;
+    g_state.frameTerrainBackCulled = 0;
+    g_state.frameTerrainFrustumCulled = 0;
+    g_state.frameTerrainDistanceCulled = 0;
+    g_state.frameTerrainAlphaCulled = 0;
+    g_state.frameTerrainEmittedTiles = 0;
+    g_state.frameTerrainVertices = 0;
     g_state.frameLastTexture = 0;
     g_state.frameHasLastTexture = false;
     g_state.frameUniqueTextureHandles.clear();
@@ -794,6 +839,15 @@ extern "C" void glperf_frame_end() {
     }
 }
 
+extern "C" void glperf_swap_begin() {
+    if (g_state.initialized && g_state.loggingEnabled) g_state.swapStart = Clock::now();
+}
+
+extern "C" void glperf_swap_end() {
+    if (g_state.initialized && g_state.loggingEnabled)
+        g_state.previousSwapMs = std::chrono::duration<double, std::milli>(Clock::now() - g_state.swapStart).count();
+}
+
 extern "C" bool glperf_scope_enter(const char* name) {
     return BeginScope(name, true);
 }
@@ -822,6 +876,27 @@ extern "C" void glperf_add_draw(uint32_t triangles) {
     if (!g_state.initialized || !g_state.loggingEnabled || !g_state.frameActive) return;
     ++g_state.frameDrawCalls;
     g_state.frameTriangles += triangles;
+}
+
+extern "C" void glperf_note_terrain_workload(uint32_t chunkCandidates,
+                                                   uint32_t tileCandidates,
+                                                   uint32_t coarseCulled,
+                                                   uint32_t backCulled,
+                                                   uint32_t frustumCulled,
+                                                   uint32_t distanceCulled,
+                                                   uint32_t alphaCulled,
+                                                   uint32_t emittedTiles,
+                                                   uint32_t vertices) {
+    if (!g_state.initialized || !g_state.loggingEnabled || !g_state.frameActive) return;
+    g_state.frameTerrainChunkCandidates = chunkCandidates;
+    g_state.frameTerrainTileCandidates = tileCandidates;
+    g_state.frameTerrainCoarseCulled = coarseCulled;
+    g_state.frameTerrainBackCulled = backCulled;
+    g_state.frameTerrainFrustumCulled = frustumCulled;
+    g_state.frameTerrainDistanceCulled = distanceCulled;
+    g_state.frameTerrainAlphaCulled = alphaCulled;
+    g_state.frameTerrainEmittedTiles = emittedTiles;
+    g_state.frameTerrainVertices = vertices;
 }
 
 extern "C" void glperf_note_texture_bind(uint32_t handle) {

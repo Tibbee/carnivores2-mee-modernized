@@ -1501,7 +1501,7 @@ float GetTerrainFogAmountForMapPoint(int mapX, int mapY, int legacyFog)
 
 
 
-void GLRenderer::DrawVertexBatch(const TerrainVertex* vertices, size_t count)
+void GLRenderer::DrawVertexBatch(const TerrainVertex* vertices, size_t count, const char* drawScopeName)
 {
     if (count == 0 || !m_terrainVBO) {
         return;
@@ -1527,13 +1527,19 @@ void GLRenderer::DrawVertexBatch(const TerrainVertex* vertices, size_t count)
 
         const size_t byteOffset = slice * m_terrainStreamSliceBytes;
         std::memcpy(static_cast<unsigned char*>(m_terrainMappedPtr) + byteOffset, vertices, static_cast<size_t>(vertexSize));
-        glDrawArrays(GL_TRIANGLES, static_cast<GLint>(slice * m_terrainStreamSliceVertices), static_cast<GLsizei>(count));
+        {
+            GL_PERF_SCOPE(drawScopeName);
+            glDrawArrays(GL_TRIANGLES, static_cast<GLint>(slice * m_terrainStreamSliceVertices), static_cast<GLsizei>(count));
+        }
         fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
     } else {
         glBindBuffer(GL_ARRAY_BUFFER, m_terrainVBO);
         glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
         glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices);
-        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(count));
+        {
+            GL_PERF_SCOPE(drawScopeName);
+            glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(count));
+        }
     }
 #ifdef GL_PERF_HOOKS
     GL_PERF_DRAW(static_cast<uint32_t>(count) / 3);
@@ -1581,7 +1587,13 @@ void GLRenderer::WaitRetrace()
 void GLRenderer::PostProcess()
 {
     if (m_hdc && m_hwnd) {
+#ifdef GL_PERF_HOOKS
+        glperf_swap_begin();
+#endif
         SwapBuffers(m_hdc);
+#ifdef GL_PERF_HOOKS
+        glperf_swap_end();
+#endif
     }
 }
 

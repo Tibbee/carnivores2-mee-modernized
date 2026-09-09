@@ -109,7 +109,7 @@ void GLRenderer::RenderWaterSurface()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
-    DrawVertexBatch(m_waterVertices.get(), m_waterVertexCount);
+    DrawVertexBatch(m_waterVertices.get(), m_waterVertexCount, "Water_Draw");
     SetWaterAlphaFade(0.0f, static_cast<float>((ctViewR - 8) << 8), 256.0f * static_cast<float>(ctViewR - 4), 3.0f);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);

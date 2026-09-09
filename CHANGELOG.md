@@ -33,6 +33,11 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.7.0).
   animation timing, map references, exact reads, and script helper boundaries.
 - Allocator-matched `make_heap_object<T>()` and `make_heap_array<T>()` helpers.
 
+### Changed
+- Profile terrain and water GPU draws directly around `glDrawArrays`, after
+  stream synchronization and upload, so pass timings no longer attribute
+  command-submission gaps to draw execution.
+
 ## [v1.1.7-modernized]
 
 ModDB label: V4. Changes since the published v1.1.6-modernized release.

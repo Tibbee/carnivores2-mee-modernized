@@ -371,18 +371,25 @@ void GLRenderer::RenderModelsList()
     // non-water-clip objects.
     m_instanceData.clear();
     m_instanceInfo.clear();
-    for (const Vector2di& object : m_objectList) {
-        RenderMappedObject(object.x, object.y);
+    {
+        GL_PERF_CPU_SCOPE("Models_Prepare");
+        for (const Vector2di& object : m_objectList) {
+            RenderMappedObject(object.x, object.y);
+        }
+        m_objectList.clear();
     }
-    m_objectList.clear();
 
     // Phase 2.3: render instanced models (non-BMP, non-water-clip).
     if (!m_instanceData.empty()) {
+        GL_PERF_CPU_SCOPE("Models_Instanced");
         RenderInstancedModels();
     }
 
     // Phase 2.3: render legacy path models (water-clip, BMP).
-    RenderWorldModels();
+    {
+        GL_PERF_CPU_SCOPE("Models_Legacy");
+        RenderWorldModels();
+    }
 }
 
 void GLRenderer::RenderInstancedModels()
@@ -415,30 +422,33 @@ void GLRenderer::RenderInstancedModels()
         return lhs.texture < rhs.texture;
     };
 
-    bool alreadyBucketed = true;
-    for (size_t i = 1; i < m_instanceInfo.size(); ++i) {
-        if (instanceKeyLess(m_instanceInfo[i], m_instanceInfo[i - 1])) {
-            alreadyBucketed = false;
-            break;
-        }
-    }
-
-    if (!alreadyBucketed) {
-        m_instanceSortScratch.resize(m_instanceData.size());
-        for (size_t i = 0; i < m_instanceData.size(); ++i) {
-            m_instanceSortScratch[i].data = m_instanceData[i];
-            m_instanceSortScratch[i].info = m_instanceInfo[i];
+    {
+        GL_PERF_CPU_SCOPE("Models_InstanceSort");
+        bool alreadyBucketed = true;
+        for (size_t i = 1; i < m_instanceInfo.size(); ++i) {
+            if (instanceKeyLess(m_instanceInfo[i], m_instanceInfo[i - 1])) {
+                alreadyBucketed = false;
+                break;
+            }
         }
 
-        std::sort(m_instanceSortScratch.begin(), m_instanceSortScratch.end(),
-                  [&instanceKeyLess](const InstanceSortRecord& lhs,
-                                      const InstanceSortRecord& rhs) {
-                      return instanceKeyLess(lhs.info, rhs.info);
-                  });
+        if (!alreadyBucketed) {
+            m_instanceSortScratch.resize(m_instanceData.size());
+            for (size_t i = 0; i < m_instanceData.size(); ++i) {
+                m_instanceSortScratch[i].data = m_instanceData[i];
+                m_instanceSortScratch[i].info = m_instanceInfo[i];
+            }
 
-        for (size_t i = 0; i < m_instanceData.size(); ++i) {
-            m_instanceData[i] = m_instanceSortScratch[i].data;
-            m_instanceInfo[i] = m_instanceSortScratch[i].info;
+            std::sort(m_instanceSortScratch.begin(), m_instanceSortScratch.end(),
+                      [&instanceKeyLess](const InstanceSortRecord& lhs,
+                                          const InstanceSortRecord& rhs) {
+                          return instanceKeyLess(lhs.info, rhs.info);
+                      });
+
+            for (size_t i = 0; i < m_instanceData.size(); ++i) {
+                m_instanceData[i] = m_instanceSortScratch[i].data;
+                m_instanceInfo[i] = m_instanceSortScratch[i].info;
+            }
         }
     }
 
@@ -460,6 +470,7 @@ void GLRenderer::RenderInstancedModels()
     // Instances are added in object-list order, so objects with the
     // same model/texture are often adjacent.
     {
+        GL_PERF_CPU_SCOPE("Models_InstanceGroup");
         const TModel* curModel = m_instanceInfo[0].model;
         GLuint curTexture = m_instanceInfo[0].texture;
         uint32_t groupStart = 0;
@@ -479,6 +490,11 @@ void GLRenderer::RenderInstancedModels()
         groups.push_back({curModel, curTexture, groupStart,
                           static_cast<uint32_t>(m_instanceInfo.size() - groupStart)});
     }
+
+    // Measure CPU submission/driver cost separately from placement
+    // preparation, sorting, and group construction. The outer
+    // RenderModelsList scope remains the sole GPU timer for this pass.
+    GL_PERF_CPU_SCOPE("Models_InstanceSubmit");
 
     // Set up rendering state.
     const auto projection = BuildLegacyProjection();
@@ -593,6 +609,7 @@ void GLRenderer::RenderInstancedModels()
 
 void GLRenderer::RenderMappedObject(int x, int y)
 {
+    GL_PERF_CPU_SCOPE("Models_Placement");
     const int ob = OMap[y][x];
     if (!MObjects[ob].model) {
         return;
@@ -701,6 +718,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
         prepareLegacyGroundLight();
     }
     if (animated && MObjects[ob].info.LastAniTime != RealTime) {
+        GL_PERF_CPU_SCOPE("Models_Morph");
         MObjects[ob].info.LastAniTime = RealTime;
         CreateMorphedObject(MObjects[ob].model.get(), MObjects[ob].vtl, RealTime % MObjects[ob].vtl.AniTime);
     }
@@ -721,8 +739,10 @@ void GLRenderer::RenderMappedObject(int x, int y)
 
     if (renderAsBMP) {
         // Phase 2.3: BMP fallback path unchanged.
+        GL_PERF_CPU_SCOPE("Models_BMP");
         RenderBMPModel(&MObjects[ob].bmpmodel, pos.x, pos.y, pos.z, mlight - 16);
     } else if (waterclip) {
+        GL_PERF_CPU_SCOPE("Models_WaterFallback");
         // Water-clipped objects use the legacy non-instanced path so
         // the model mesh is not consumed by the instanced bucket.
         // The mesh is drawn without CPU-side water plane clipping
@@ -744,6 +764,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
         // deferred to a follow-up task.
         if (meshEntry.hasTransparent || (groundLighting && animated) ||
             (animated && !GpuFeatureEnabled(GPUF_ANIMATED_SCENERY))) {
+            GL_PERF_CPU_SCOPE("Models_BlendAnimFallback");
             prepareLegacyGroundLight();
             RenderModelClip(MObjects[ob].model.get(), pos.x, pos.y, pos.z,
                             mlight, legacyLightVariant, fi, CameraBeta);
@@ -754,6 +775,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
         // phase. Refresh that model's expanded vertex range once, then retain
         // one instanced draw for every placement (dense swaying vegetation).
         if (animated) {
+            GL_PERF_CPU_SCOPE("Models_AnimUpload");
             UpdateAnimatedStaticMesh(MObjects[ob].model.get());
         }
 
@@ -808,6 +830,7 @@ void GLRenderer::RenderMappedObject(int x, int y)
         if (groundLighting &&
             !PopulateGroundLightInstance(instance, meshEntry,
                                          x * 256 + 128, y * 256 + 128, FI)) {
+            GL_PERF_CPU_SCOPE("Models_GroundFallback");
             // A footprint spanning more than the 4x4 VMap sample grid can
             // represent keeps the exact CPU path rather than an approximation.
             prepareLegacyGroundLight();
@@ -893,6 +916,8 @@ void GLRenderer::RenderWorldModels()
 
     std::map<BucketKey, std::vector<ModelVertex>> buckets;
 
+    {
+    GL_PERF_CPU_SCOPE("Legacy_BucketMerge");
     for (const ModelDrawItem& item : m_worldModelItems) {
         if (!item.opaqueVertices.empty()) {
             auto& v = buckets[{0, item.texture, false}];
@@ -908,7 +933,10 @@ void GLRenderer::RenderWorldModels()
         }
     }
 
+    }
+
     for (const auto& [key, verts] : buckets) {
+        GL_PERF_CPU_SCOPE("Legacy_Submit");
         if (verts.empty()) {
             continue;
         }
@@ -1019,9 +1047,15 @@ void GLRenderer::DrawModelVertices(GLuint texture,
     glBindVertexArray(m_modelVAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_modelVBO);
     const GLsizeiptr vertexSize = static_cast<GLsizeiptr>(vertices.size() * sizeof(ModelVertex));
-    glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices.data());
-    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+    {
+        GL_PERF_CPU_SCOPE("Legacy_Upload");
+        glBufferData(GL_ARRAY_BUFFER, vertexSize, nullptr, GL_STREAM_DRAW);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices.data());
+    }
+    {
+        GL_PERF_CPU_SCOPE("Legacy_Draw");
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+    }
 #ifdef GL_PERF_HOOKS
     GL_PERF_DRAW(static_cast<uint32_t>(vertices.size()) / 3);
 #endif
@@ -1059,6 +1093,7 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
                                     bool clippedVariant,
                                     bool additive) const
 {
+    GL_PERF_CPU_SCOPE("Model_BuildGeometry");
     if (!mptr || !mptr->lpTexture || !mptr->gVertex || !mptr->gFace) {
         return false;
     }
@@ -1110,8 +1145,11 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
     // rather than repeating it for every face that references that vertex.
     std::vector<FogSample> fogSamples;
     fogSamples.reserve(unrotated.size());
-    for (const Vector3d& point : unrotated) {
-        fogSamples.push_back(SampleFogAtPoint(point, disableFog));
+    {
+        GL_PERF_CPU_SCOPE("Model_VertexFog");
+        for (const Vector3d& point : unrotated) {
+            fogSamples.push_back(SampleFogAtPoint(point, disableFog));
+        }
     }
 
     outItem = ModelDrawItem();

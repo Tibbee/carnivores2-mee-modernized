@@ -214,7 +214,13 @@ void ShowVideo()
     if (g_GLRenderer && hwndMain) {
         HDC hdc = GetDC(hwndMain);
         if (hdc) {
+#ifdef GL_PERF_HOOKS
+            glperf_swap_begin();
+#endif
             SwapBuffers(hdc);
+#ifdef GL_PERF_HOOKS
+            glperf_swap_end();
+#endif
             ReleaseDC(hwndMain, hdc);
         }
     }

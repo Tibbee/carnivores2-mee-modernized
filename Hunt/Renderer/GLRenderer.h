@@ -272,7 +272,7 @@ private:
     static void BuildCharacterShadowVertices(const TCharacter& character, float alpha,
                                             std::vector<ModelVertex>& outVerts);
     void RenderProjectedCharacterShadow(const TCharacter& character, float alpha);
-    void DrawVertexBatch(const TerrainVertex* vertices, size_t count);
+    void DrawVertexBatch(const TerrainVertex* vertices, size_t count, const char* drawScopeName);
     GLuint UploadModelTexture(TModel* mptr);
     GLuint UploadBMPModelTexture(TBMPModel* mptr);
     GLuint UploadPictureTexture(const TPicture& pic);
@@ -548,6 +548,18 @@ private:
     std::unique_ptr<TerrainVertex[]> m_terrainVertices;
     size_t m_terrainVertexCapacity = 0;
     size_t m_terrainVertexCount    = 0;
+#ifdef GL_PERF_HOOKS
+    struct TerrainPerfCounters {
+        uint32_t chunkCandidates = 0;
+        uint32_t tileCandidates = 0;
+        uint32_t coarseCulled = 0;
+        uint32_t backCulled = 0;
+        uint32_t frustumCulled = 0;
+        uint32_t distanceCulled = 0;
+        uint32_t alphaCulled = 0;
+        uint32_t emittedTiles = 0;
+    } m_terrainPerf;
+#endif
     std::unique_ptr<TerrainVertex[]> m_waterVertices;
     size_t m_waterVertexCapacity = 0;
     size_t m_waterVertexCount    = 0;
