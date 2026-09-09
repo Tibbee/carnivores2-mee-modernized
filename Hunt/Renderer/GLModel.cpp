@@ -917,22 +917,36 @@ void GLRenderer::RenderWorldModels()
     std::map<BucketKey, std::vector<ModelVertex>> buckets;
 
     {
-    GL_PERF_CPU_SCOPE("Legacy_BucketMerge");
-    for (const ModelDrawItem& item : m_worldModelItems) {
-        if (!item.opaqueVertices.empty()) {
-            auto& v = buckets[{0, item.texture, false}];
-            v.insert(v.end(), item.opaqueVertices.begin(), item.opaqueVertices.end());
+        GL_PERF_CPU_SCOPE("Legacy_BucketMerge");
+        // Size each bucket before copying. Repeated insert growth otherwise
+        // reallocates and recopies large expanded legacy meshes. Preserve
+        // both key ordering and the original per-item append order.
+        std::map<BucketKey, size_t> counts;
+        for (const ModelDrawItem& item : m_worldModelItems) {
+            if (!item.opaqueVertices.empty())
+                counts[{0, item.texture, false}] += item.opaqueVertices.size();
+            if (!item.cutoutVertices.empty())
+                counts[{1, item.texture, false}] += item.cutoutVertices.size();
+            if (!item.transparentVertices.empty())
+                counts[{2, item.texture, item.additive}] += item.transparentVertices.size();
         }
-        if (!item.cutoutVertices.empty()) {
-            auto& v = buckets[{1, item.texture, false}];
-            v.insert(v.end(), item.cutoutVertices.begin(), item.cutoutVertices.end());
+        for (const auto& [key, count] : counts) {
+            buckets[key].reserve(count);
         }
-        if (!item.transparentVertices.empty()) {
-            auto& v = buckets[{2, item.texture, item.additive}];
-            v.insert(v.end(), item.transparentVertices.begin(), item.transparentVertices.end());
+        for (const ModelDrawItem& item : m_worldModelItems) {
+            if (!item.opaqueVertices.empty()) {
+                auto& v = buckets[{0, item.texture, false}];
+                v.insert(v.end(), item.opaqueVertices.begin(), item.opaqueVertices.end());
+            }
+            if (!item.cutoutVertices.empty()) {
+                auto& v = buckets[{1, item.texture, false}];
+                v.insert(v.end(), item.cutoutVertices.begin(), item.cutoutVertices.end());
+            }
+            if (!item.transparentVertices.empty()) {
+                auto& v = buckets[{2, item.texture, item.additive}];
+                v.insert(v.end(), item.transparentVertices.begin(), item.transparentVertices.end());
+            }
         }
-    }
-
     }
 
     for (const auto& [key, verts] : buckets) {
