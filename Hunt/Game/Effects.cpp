@@ -3,6 +3,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include <array>
 #include <cmath>
 
 void PreCashGroundModel()
@@ -114,6 +115,32 @@ void PreCashGroundModel()
     return out;
   };
 
+  // The square sweep revisits every X column for every Y row. Cache the
+  // wrapped map coordinate, camera-relative position and yaw products once
+  // per axis; terrain points can then combine them without repeating the
+  // same conversions and multiplies ~200K times. Animated water still uses
+  // rotateCached() after applying its per-point wave offsets.
+  std::array<int, kViewGridSize> mapX{};
+  std::array<int, kViewGridSize> mapY{};
+  std::array<float, kViewGridSize> worldX{};
+  std::array<float, kViewGridSize> worldZ{};
+  std::array<float, kViewGridSize> xCa{};
+  std::array<float, kViewGridSize> xSa{};
+  std::array<float, kViewGridSize> zCa{};
+  std::array<float, kViewGridSize> zSa{};
+  const int gridRadius = ctViewR + 3;
+  for (int offset = -gridRadius; offset < gridRadius; ++offset) {
+    const int grid = kViewGridCenter + offset;
+    mapX[grid] = (CCX + offset) & 1023;
+    mapY[grid] = (CCY + offset) & 1023;
+    worldX[grid] = static_cast<float>(mapX[grid] * 256) - CameraX;
+    worldZ[grid] = static_cast<float>(mapY[grid] * 256) - CameraZ;
+    xCa[grid] = worldX[grid] * localCa;
+    xSa[grid] = worldX[grid] * localSa;
+    zCa[grid] = worldZ[grid] * localCa;
+    zSa[grid] = worldZ[grid] * localSa;
+  }
+
   // CalcFogLevel normally derives the FogsMap cell from a world-space point.
   // This loop already has the exact map coordinates, and each 512-unit fog
   // cell covers a 2x2 block of these 256-unit samples. Keep the last value
@@ -136,11 +163,13 @@ void PreCashGroundModel()
 
       int r = MAX((MAX(y,-y)), (MAX(x,-x)));
 
-      int xx = (CCX + x) & 1023;
-      int yy = (CCY + y) & 1023;
+      const int gridX = kViewGridCenter + x;
+      const int gridY = kViewGridCenter + y;
+      const int xx = mapX[gridX];
+      const int yy = mapY[gridY];
 
-      v[0].x = xx*256 - CameraX;
-      v[0].z = yy*256 - CameraZ;
+      v[0].x = worldX[gridX];
+      v[0].z = worldZ[gridY];
       v[0].y = static_cast<float>((static_cast<int>(HMap[yy][xx])))*ctHScale - CameraY;
 
 
@@ -256,7 +285,10 @@ void PreCashGroundModel()
 #else
 #endif
 
-      rv = rotateCached(v[0]);
+      const float terrainVz = zCa[gridY] - xSa[gridX];
+      rv.x = xCa[gridX] + zSa[gridY];
+      rv.y = v[0].y * localCb - terrainVz * localSb;
+      rv.z = terrainVz * localCb + v[0].y * localSb;
 
 
       if (fabs(rv.x * FOVK) > -rv.z + 1600)

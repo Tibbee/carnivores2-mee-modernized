@@ -34,6 +34,9 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.7.0).
 - Allocator-matched `make_heap_object<T>()` and `make_heap_array<T>()` helpers.
 
 ### Changed
+- Precompute frame-invariant terrain-grid axis coordinates and yaw products in
+  `PreCashGroundModel`; matched five-run captures reduce that CPU scope by
+  5.4% without changing terrain or animated-water calculations.
 - Profile terrain and water GPU draws directly around `glDrawArrays`, after
   stream synchronization and upload, so pass timings no longer attribute
   command-submission gaps to draw execution.
