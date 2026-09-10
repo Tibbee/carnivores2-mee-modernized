@@ -78,8 +78,11 @@ freezes and records the resulting executable hash for the complete invocation.
 
 `c2_capture_manifest.json` is the canonical matrix. Initial ready scenarios
 cover the deployed Areas 1–5, 7, 8, and the Trophy room; the owner's Area 4 is a
-replacement modded map and is identified by its artifact hash. The broken slot-six
-`external` path is deliberately deferred and is not silently labeled Area 6.
+replacement modded map and is identified by its artifact hash. The slot-six
+`external` path stays excluded (`ready: false`): its launch crash was fixed at
+`0bdb52f` (2026-09-10), but this deployment never shipped `hunter1_a6.car`, so a
+full slot-six load still halts on the missing asset and the map remains an Area 1
+clone — not a meaningful performance fixture.
 Water-edge and character-heavy fog scenarios remain deferred until their camera
 composition is reviewed and frozen.
 

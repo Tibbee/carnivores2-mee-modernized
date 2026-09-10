@@ -11,6 +11,14 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.7.0).
 ## [Unreleased]
 
 ### Fixed
+- Launch slot six with the assets it validates: the menu now records which
+  slot-six basename resolved (`external` on vanilla, `area6` on mods) and
+  launches that name, and the engine's script parser aliases `external`→`area6`
+  for `_RES.TXT` area filtering. Previously the menu launched `area6` even when
+  it had validated `external.map` (clean abnormal resource halt on stock data),
+  and a direct `external` launch applied every area's overwrite/addition blocks
+  and crashed with an access violation after entering the game. File-open paths
+  keep loading `external.map/.rsc`; menu log reports the resolved launch name.
 - Release every persistent model/character owner and raw model buffer on
   shutdown; repeated in-process restarts keep level-arena use flat and clean
   shutdown reports no tracked leaks.
