@@ -44,6 +44,36 @@ TEST(TerrainFogTest, ClearTerrainStaysClearWhenCameraIsOutside)
 	EXPECT_FLOAT_EQ(ResolveTerrainFogAmount(0, 175, true, false, true, 0), 0.0f);
 }
 
+TEST(TerrainFogTest, CameraDepthReachesOwnPocketOnly)
+{
+	// Camera in pocket 5: its depth term still applies to vertices in 5.
+	EXPECT_FLOAT_EQ(ResolvePocketCameraDepth(8.0f, true, 5, 5), 8.0f);
+	// A foreign pocket keeps its authored density: the raw 8.0 camera term is
+	// dropped instead of saturating volume 2 at any distance.
+	EXPECT_FLOAT_EQ(ResolvePocketCameraDepth(8.0f, true, 2, 5), 0.0f);
+	// Above the foreign volume's ceiling the negative raw value is preserved,
+	// so the legacy from-above slice/§3.9 path is untouched.
+	EXPECT_FLOAT_EQ(ResolvePocketCameraDepth(-3.0f, true, 2, 5), -3.0f);
+}
+
+TEST(TerrainFogTest, CameraDepthLegacyClampWhenCameraIsOutsideFog)
+{
+	// No pocket: positive camera depth is clamped away (legacy behaviour),
+	// negative depth (camera above the volume) is preserved.
+	EXPECT_FLOAT_EQ(ResolvePocketCameraDepth(8.0f, false, 5, 5), 0.0f);
+	EXPECT_FLOAT_EQ(ResolvePocketCameraDepth(8.0f, false, 2, 5), 0.0f);
+	EXPECT_FLOAT_EQ(ResolvePocketCameraDepth(-3.0f, false, 2, 5), -3.0f);
+}
+
+TEST(TerrainFogTest, ClearCellFallbackKeepsOwnCameraPocket)
+{
+	// CalcFogLevel rewrites a clear destination to CameraFogI before this
+	// policy runs, so the clear-cell fallback keeps the camera term.
+	EXPECT_FLOAT_EQ(ResolvePocketCameraDepth(8.0f, true, 5, 5), 8.0f);
+	EXPECT_FLOAT_EQ(ResolvePocketCameraDepth(0.0f, true, 2, 5), 0.0f);
+	EXPECT_FLOAT_EQ(ResolvePocketCameraDepth(0.0f, false, 0, 0), 0.0f);
+}
+
 TEST(TerrainFogTest, DisabledFogDoesNotRetainStaleAmounts)
 {
 	EXPECT_FLOAT_EQ(ResolveTerrainFogAmount(0, 175, false, false, true, 1), 0.0f);

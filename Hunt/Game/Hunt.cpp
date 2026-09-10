@@ -1,5 +1,6 @@
 #include "Hunt.h"
 #include "Core/KeyBindings.h"
+#include "Core/TerrainFog.h"
 #include "stdio.h"
 #ifdef _gl
 #include "Renderer/GLUtils.h"
@@ -125,8 +126,12 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
   float fla= -(v.y     - fogFloorY) / ctHScale;
   if (!vinfog) if (fla>0) fla=0;
 
+  // Camera term. A foreign pocket must not inherit the camera's in-fog
+  // envelope (nor the §3.9b boost below): the destination volume is
+  // authoritative for its own demand, and the §3.10 global envelope already
+  // veils the scene from inside the camera's pocket.
   float flb = -(CameraY - fogFloorY) / ctHScale;
-  if (!CAMERAINFOG) if (flb>0) flb=0;
+  flb = ResolvePocketCameraDepth(flb, CAMERAINFOG != 0, cf, CameraFogI);
 
   if (fla<0 && flb<0) return 0;
 
