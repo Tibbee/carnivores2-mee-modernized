@@ -2381,10 +2381,18 @@ void MenuEventInput(int32_t menu)
 						wep |= 1 << i;
 				}
 
-				// Initialise the command line parameters
+				// Initialise the command line parameters. For slot six, launch the
+				// basename whose files actually exist (m_MapFile): vanilla resolves
+				// external.map/.rsc, mods that ship area6.map/.rsc resolve there.
+				// m_ProjectName keeps the logical slot name "area6" for saved-hunt
+				// restore matching. The engine aliases external->area6 in its script
+				// area filtering, so either basename loads correctly.
 				std::stringstream params("");
-				params << "reg=" << g_UserProfile.RegNumber;
-				params << " prj=huntdat/areas/" << g_AreaInfo[MenuHunt[0].Selected].m_ProjectName;
+				const AreaInfo& launchArea = g_AreaInfo[MenuHunt[0].Selected];
+				const std::string& launchName =
+					(launchArea.m_MapFile == "external") ? std::string("external") : launchArea.m_ProjectName;
+				params << " reg=" << g_UserProfile.RegNumber;
+				params << " prj=huntdat/areas/" << launchName;
 				params << " din=" << din;
 				params << " wep=" << wep;
 				params << " dtm=" << g_TimeOfDay;

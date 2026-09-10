@@ -28,6 +28,15 @@ static void CopyProjectName(char* dst, const char* src)
 {
   if (!CopyCapped(dst, 128, src))
     DoHalt("Script loading error: project path too long.");
+  // The vanilla sixth slot stores assets as external.map/.rsc; every other
+  // slot is areaN. The legacy area-filter logic below reads the fixed path
+  // offset that holds the area digit, which a bare "external" basename
+  // cannot satisfy (reproduced as an 0xC0000005 launch crash). Normalize the
+  // parser-local copy to the slot's logical name so the offset logic keeps
+  // working; the engine's file-open path (ProjectName) is untouched and still
+  // opens external.map/.rsc. See ProjectBasenameIsExternal/RewriteExternalProjectAlias
+  // in LoadValidate.h and tests/test_load_validate.cpp.
+  RewriteExternalProjectAlias(dst, 128);
 }
 
 static void RequireScriptSlot(int index, int capacity, const char* what)

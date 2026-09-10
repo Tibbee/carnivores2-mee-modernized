@@ -447,6 +447,7 @@ public:
 
 	std::string	m_Name; // Area Name
 	std::string	m_ProjectName; // MAP & RSC filename
+	std::string	m_MapFile; // Basename that actually resolved during validation ("external" or "area6"); empty unless validation found the map
 
 	std::vector<std::string> m_Description;
 
@@ -462,6 +463,7 @@ public:
 		m_Valid(false),
 		m_Name(""),
 		m_ProjectName(""),
+		m_MapFile(""),
 		m_Description(),
 		m_Price(0),
 		m_Rank(RANK_BEGINNER),
@@ -474,6 +476,7 @@ public:
 		m_Valid(a.m_Valid),
 		m_Name(a.m_Name),
 		m_ProjectName(a.m_ProjectName),
+		m_MapFile(a.m_MapFile),
 		m_Description(a.m_Description),
 		m_Price(a.m_Price),
 		m_Rank(a.m_Rank),

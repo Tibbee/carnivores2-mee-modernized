@@ -135,6 +135,52 @@ TEST(LoadValidate, CopyCappedRejectsOverflow) {
     EXPECT_FALSE(CopyCapped(dst, sizeof(dst), nullptr));
 }
 
+TEST(LoadValidate, ExternalSlotSixAliasDetectsVanillaProjectName) {
+    EXPECT_TRUE(ProjectBasenameIsExternal("huntdat/areas/external"));
+    EXPECT_TRUE(ProjectBasenameIsExternal("huntdat\\areas\\external"));
+    EXPECT_TRUE(ProjectBasenameIsExternal("huntdat/areas/External"));  // case-insensitive paths
+    EXPECT_TRUE(ProjectBasenameIsExternal("external"));               // bare basename
+    EXPECT_FALSE(ProjectBasenameIsExternal("huntdat/areas/area6"));
+    EXPECT_FALSE(ProjectBasenameIsExternal("huntdat/areas/myexternal"));
+    EXPECT_FALSE(ProjectBasenameIsExternal("huntdat/areas/trophy"));
+    EXPECT_FALSE(ProjectBasenameIsExternal(nullptr));
+}
+
+TEST(LoadValidate, ExternalSlotSixAliasRewritesToLogicalAreaName) {
+    // The engine's script area filtering reads the fixed offset that holds the
+    // area digit ("huntdat/areas/areaN" -> index 18). After the rewrite the
+    // legacy offset logic must see exactly "area6" there.
+    char forward[] = "huntdat/areas/external";
+    ASSERT_TRUE(RewriteExternalProjectAlias(forward, sizeof(forward)));
+    EXPECT_STREQ(forward, "huntdat/areas/area6");
+    EXPECT_EQ(forward[18], '6');  // legacy area-filter offset
+    EXPECT_EQ(forward[19], '\0'); // no area10 second digit
+
+    char back[] = "huntdat\\areas\\external";
+    ASSERT_TRUE(RewriteExternalProjectAlias(back, sizeof(back)));
+    EXPECT_STREQ(back, "huntdat\\areas\\area6");
+
+    // Non-external projects are untouched (returns false, buffer unchanged).
+    char area1[] = "huntdat/areas/area1";
+    EXPECT_FALSE(RewriteExternalProjectAlias(area1, sizeof(area1)));
+    EXPECT_STREQ(area1, "huntdat/areas/area1");
+    char trophy[] = "huntdat/areas/trophy";
+    EXPECT_FALSE(RewriteExternalProjectAlias(trophy, sizeof(trophy)));
+    EXPECT_STREQ(trophy, "huntdat/areas/trophy");
+}
+
+TEST(LoadValidate, ExternalSlotSixAliasRespectsBufferCap) {
+    // The rewrite only shortens the basename, so it must succeed in any buffer
+    // that already held the full path.
+    char tight[] = "x/external";
+    EXPECT_TRUE(RewriteExternalProjectAlias(tight, sizeof(tight)));
+    EXPECT_STREQ(tight, "x/area6");
+    // Degenerate caps are rejected without touching the buffer.
+    char path[] = "huntdat/areas/external";
+    EXPECT_FALSE(RewriteExternalProjectAlias(path, 0));
+    EXPECT_FALSE(RewriteExternalProjectAlias(nullptr, sizeof(path)));
+}
+
 TEST(LoadValidate, ReadExactDetectsTruncation) {
     const char* path = "load_validate_probe.bin";
     const unsigned char data[8] = {1, 2, 3, 4, 5, 6, 7, 8};

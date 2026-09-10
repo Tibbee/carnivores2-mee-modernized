@@ -121,10 +121,15 @@ AreaInfo MakeOldAreaInfo(int index, int price)
 	LoadPicture(a.m_Thumbnail, ss.str());
 	std::cout << " -> " << (a.m_Thumbnail.IsValid() ? "OK" : "FAILED") << std::endl;
 
-	// Make sure the map exists
-	// Area6 (Vereschagin Waterways) is locked in vanilla and uses external.map;
-	// mods commonly ship the sixth slot as area6.map instead, so try both in
-	// order — stock installs resolve on the first attempt, mods on the second.
+	// Make sure the map exists. m_ProjectName stays "area6" (the slot's logical
+	// identity, used by launch assembly and saved-hunt restore), but the vanilla
+	// sixth slot stores its assets as external.map/.rsc — so whichever basename
+	// actually resolved is recorded in m_MapFile and used at launch. Launching a
+	// name whose files do not exist halts the engine with "Error opening resource
+	// file" (reproduced with prj=huntdat/areas/area6 on stock data), and launching
+	// "external" without parser-side aliasing breaks the engine's script area
+	// filtering (0xC0000005); ScriptParser.cpp now aliases external->area6, so the
+	// resolved basename is always launchable.
 	std::string mapName;
 	if (index == 6) {
 		mapName = "huntdat/areas/external.map";
@@ -133,13 +138,16 @@ AreaInfo MakeOldAreaInfo(int index, int price)
 		a.m_Valid = f.is_open();
 		std::cout << " -> " << (a.m_Valid ? "OK" : "FAILED") << std::endl;
 		f.close();
-		if (!a.m_Valid) {
+		if (a.m_Valid) {
+			a.m_MapFile = "external";
+		} else {
 			mapName = "huntdat/areas/area6.map";
 			std::cout << "  Map:   " << mapName << " (fallback)";
 			f.open(mapName.c_str());
 			a.m_Valid = f.is_open();
 			std::cout << " -> " << (a.m_Valid ? "OK" : "FAILED") << std::endl;
 			f.close();
+			if (a.m_Valid) a.m_MapFile = "area6";
 		}
 	} else {
 		ss.str(""); ss.clear();
@@ -153,6 +161,8 @@ AreaInfo MakeOldAreaInfo(int index, int price)
 	}
 
 	std::cout << "  Result: " << (a.m_Valid ? "VALID" : "INVALID (will be skipped)") << std::endl;
+	if (a.m_Valid && !a.m_MapFile.empty())
+		std::cout << "  Launch: huntdat/areas/" << a.m_MapFile << std::endl;
 
 	return a;
 }

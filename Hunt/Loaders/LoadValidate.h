@@ -175,4 +175,51 @@ inline bool CopyCapped(char* dst, size_t dstCap, const char* src)
     return true;
 }
 
+// Pointer to the basename after the last path separator (either slash),
+// or the whole string when no separator is present.
+inline const char* PathBasename(const char* path)
+{
+    if (!path)
+        return nullptr;
+    const char* base = strrchr(path, '/');
+    const char* alt = strrchr(path, '\\');
+    if (alt && (!base || alt > base))
+        base = alt;
+    return base ? base + 1 : path;
+}
+
+// True when the project path's basename is the vanilla sixth-slot asset
+// name "external" (case-insensitive, either slash convention).
+inline bool ProjectBasenameIsExternal(const char* path)
+{
+    const char* base = PathBasename(path);
+    return base ? _stricmp(base, "external") == 0 : false;
+}
+
+// The sixth hunt slot stores its assets as external.map/.rsc in the vanilla
+// layout, while every other slot is areaN. Script area filtering in
+// ScriptParser.cpp keys off the fixed path offset that holds the area digit
+// ("huntdat/areas/areaN" -> index 18); a bare "external" basename satisfies
+// no area case there, so every overwrite/addition block is applied regardless
+// of its area tag and the areatable slice is never selected (reproduced as an
+// 0xC0000005 when launching prj=huntdat/areas/external).
+//
+// Rewriting the basename to the slot's logical name "area6" keeps the legacy
+// offset logic valid while the engine's file-open path (ProjectName, set in
+// CommandLine.cpp) keeps the original string and still opens external.map/.rsc.
+// The rewrite only ever shortens the basename, so it cannot fail after a
+// successful CopyCapped; a false return means the input was not "external"
+// or the caller's buffer is inconsistent.
+inline bool RewriteExternalProjectAlias(char* path, size_t cap)
+{
+    if (!path || cap == 0 || !ProjectBasenameIsExternal(path))
+        return false;
+    const char* base = PathBasename(path);
+    const size_t prefixLen = static_cast<size_t>(base - path);
+    if (prefixLen + strlen("area6") + 1 > cap)
+        return false;
+    memcpy(path + prefixLen, "area6", sizeof("area6"));
+    return true;
+}
+
 #endif // HUNT_LOAD_VALIDATE_H
