@@ -813,7 +813,16 @@ SKIPWEAPON:
   if (Weapon.state && MyHealth)
   {
     int y0 = 5;
-    if (g_GameMode != GameMode::SurvivalMode)
+    // The counter follows the weapon's visibility: hide it for the whole
+    // put-away animation (state 3), not only once it completes and the
+    // state reaches 0. It previously stayed up for the full holster
+    // duration — after the gun had already left the screen and, on scoped
+    // weapons, after the FOV had already snapped back (user report:
+    // "sometimes when the weapon is put away the ammo counter still
+    // remains instead of being hidden"). Stock holster animations run
+    // 323-700 ms (jager2/sniper/x-bow putaway), so the leftover window
+    // was clearly visible on every weapon.
+    if (g_GameMode != GameMode::SurvivalMode && wptr->state != 3)
     {
 
 		

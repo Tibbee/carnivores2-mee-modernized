@@ -11,6 +11,14 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.7.0).
 ## [Unreleased]
 
 ### Fixed
+- Hide the ammo counter for the whole weapon put-away animation (state 3).
+  The counter gate (`Weapon.state`) kept the bullet icons up until the
+  holster animation finished and the state reached 0 — after the gun had
+  already left the screen and, on scoped weapons, after the FOV had already
+  snapped back. Stock holster animations run 323-700 ms, so the leftover
+  window was clearly visible on every weapon; the counter now hides as
+  soon as the put-away begins and reappears when the next weapon starts
+  raising.
 - Launch slot six with the assets it validates: the menu now records which
   slot-six basename resolved (`external` on vanilla, `area6` on mods) and
   launches that name, and the engine's script parser aliases `external`→`area6`
