@@ -85,7 +85,14 @@ void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z
     const auto projection = m_hasLastNearModelProjection
         ? m_lastNearModelProjection
         : BuildLegacyProjection();
+    // RenderNearModel draws the weapon body inside glDepthRange(0, 0.05), so
+    // its depth sits in the near slice. This overlay re-draws the same
+    // triangles at the same depth, so it must use the same range: at (0, 1)
+    // its window depth is ~20x the stored value and GL_LEQUAL discards every
+    // fragment, which silently killed the env-map reflection.
+    glDepthRange(0.0, kViewmodelDepthRangeMax);
     DrawModelVertices(texture, vertices, projection, true, true, true, true);
+    glDepthRange(0.0, 1.0);
 }
 
 void GLRenderer::RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float z0,
@@ -123,7 +130,12 @@ void GLRenderer::RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float
     const auto projection = m_hasLastNearModelProjection
         ? m_lastNearModelProjection
         : BuildLegacyProjection();
+    // Same near-slice requirement as the env-map overlay above: the body's
+    // depth lives in the viewmodel depth range, so drawing the specular pass
+    // at (0, 1) put it behind the body it belongs to and GL_LEQUAL dropped it.
+    glDepthRange(0.0, kViewmodelDepthRangeMax);
     DrawModelVertices(texture, vertices, projection, true, true, true, true);
+    glDepthRange(0.0, 1.0);
 }
 
 void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
@@ -173,10 +185,13 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
     // range sandwich the gun still depth-tests nearer than any world
     // fragment (always-on-top preserved, no wall clipping), world depth
     // survives to SwapBuffers, and gun-vs-gun overlap keeps resolving in
-    // relative order. Nothing else in the codebase touches glDepthRange,
-    // so restoring (0,1) is exact. Slice 0.05 leaves 24-bit precision far
-    // beyond what a 200-triangle viewmodel needs.
-    glDepthRange(0.0, 0.05);
+    // relative order. Restoring (0,1) is exact. Slice 0.05 leaves 24-bit
+    // precision far beyond what a 200-triangle viewmodel needs.
+    //
+    // The weapon's specular/env-map overlays (RenderModelClipPhongMap /
+    // RenderModelClipEnvMap) re-draw these exact triangles, so they must
+    // reuse kViewmodelDepthRangeMax too -- see GLUtils.h.
+    glDepthRange(0.0, kViewmodelDepthRangeMax);
     DrawModelVertices(item.texture, item.opaqueVertices, projection, true, false, false);
     if (!item.cutoutVertices.empty()) {
         DrawModelVertices(item.texture, item.cutoutVertices, projection, true, false, false);

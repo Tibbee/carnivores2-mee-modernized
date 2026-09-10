@@ -24,6 +24,14 @@ extern HMODULE libGL;
 // ---------- constants ----------
 constexpr float kModelNearClip = -16.0f;
 
+// Depth-range slice the viewmodel is drawn into. The weapon body and its
+// specular/env-map overlays are the SAME triangles at the SAME depth, so
+// they must be drawn under the SAME glDepthRange: a range mismatch makes
+// the overlay's window depth 20x the stored value, and GL_LEQUAL silently
+// discards every overlay fragment. Keep all three call sites on this
+// constant, and restore (0, 1) when the viewmodel block ends.
+constexpr double kViewmodelDepthRangeMax = 0.05;
+
 // ---------- structs ----------
 struct FogSample
 {
