@@ -162,7 +162,7 @@ void GLRenderer::AppendWaterTriangle(const EPoint& v0,
                                      float alpha2,
                                      float fadeEnabled)
 {
-    const auto uv = GetTerrainUVs(reverse, second, direction);
+    const auto& uv = TerrainUV::Get(reverse, second, direction);
     const float layer = static_cast<float>(textureLayer);
 
     // Mark the water texture layer as used this frame so RenderWaterSurface

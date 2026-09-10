@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 
 #include "TerrainFog.h"
+#include "RenderTypes.h"
+
+#include <array>
 
 TEST(TerrainFogTest, ClearMountainRetainsCameraPocketFog)
 {
@@ -73,4 +76,42 @@ TEST(TerrainFogTest, VolumeSelectionPreservesByteRangeUsedByLegacyCalculation)
 {
 	EXPECT_EQ(ResolveTerrainFogIndex(255, true, 5), 255);
 	EXPECT_EQ(ResolveTerrainFogIndex(0, true, 255), 255);
+}
+
+TEST(TerrainUVTest, LookupPreservesAllLegacyMappings)
+{
+	// Each pair selects kMin (0) or kMax (1). Rows are indexed by
+	// reverse:bit 3, second-triangle:bit 2, direction:bits 0-1.
+	constexpr std::array<std::array<int, 6>, 16> expected = {{
+		{{0,0, 1,0, 1,1}}, {{0,1, 0,0, 1,0}},
+		{{1,1, 0,1, 0,0}}, {{1,0, 1,1, 0,1}},
+		{{0,0, 1,1, 0,1}}, {{0,1, 1,0, 1,1}},
+		{{1,1, 0,0, 1,0}}, {{1,0, 0,1, 0,0}},
+		{{0,0, 1,0, 0,1}}, {{0,1, 0,0, 1,1}},
+		{{1,1, 0,1, 1,0}}, {{1,0, 1,1, 0,0}},
+		{{0,1, 1,0, 1,1}}, {{1,1, 0,0, 1,0}},
+		{{1,0, 0,1, 0,0}}, {{0,0, 1,1, 0,1}}
+	}};
+
+	for (int reverse = 0; reverse < 2; ++reverse) {
+		for (int second = 0; second < 2; ++second) {
+			for (int direction = 0; direction < 4; ++direction) {
+				const int index = reverse * 8 + second * 4 + direction;
+				const auto& actual = TerrainUV::Get(reverse != 0, second != 0, direction);
+				for (int vertex = 0; vertex < 3; ++vertex) {
+					const float expectedU = expected[index][vertex * 2] ? TerrainUV::kMax : TerrainUV::kMin;
+					const float expectedV = expected[index][vertex * 2 + 1] ? TerrainUV::kMax : TerrainUV::kMin;
+					EXPECT_FLOAT_EQ(actual[vertex].x, expectedU) << "mapping=" << index << " vertex=" << vertex;
+					EXPECT_FLOAT_EQ(actual[vertex].y, expectedV) << "mapping=" << index << " vertex=" << vertex;
+				}
+			}
+		}
+	}
+}
+
+TEST(TerrainUVTest, LookupReturnsStableTableStorage)
+{
+	const auto& first = TerrainUV::Get(false, false, 0);
+	const auto& again = TerrainUV::Get(false, false, 0);
+	EXPECT_EQ(&first, &again);
 }

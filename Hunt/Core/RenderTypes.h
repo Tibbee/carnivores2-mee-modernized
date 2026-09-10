@@ -4,6 +4,9 @@
 
 #include "Memory.h"
 #include "Core/Constants.h"
+#include "Core/MathTypes.h"
+#include <array>
+#include <cstddef>
 #include <cstdint>
 
 struct TMessageList
@@ -47,3 +50,39 @@ struct TFogEntity
   int Mortal;
   float Transp, FLimit;
 };
+
+namespace TerrainUV {
+using Triangle = std::array<Vector2df, 3>;
+
+inline constexpr float kMin = static_cast<float>(TCMIN) / (128.0f * 65536.0f);
+inline constexpr float kMax = static_cast<float>(TCMAX) / (128.0f * 65536.0f);
+
+// Indexed by reverse:bit 3, second-triangle:bit 2, direction:bits 0-1.
+// This preserves the exact legacy 16-way terrain/water texture mapping.
+inline constexpr std::array<Triangle, 16> kTriangles = {{
+    {{{kMin, kMin}, {kMax, kMin}, {kMax, kMax}}},
+    {{{kMin, kMax}, {kMin, kMin}, {kMax, kMin}}},
+    {{{kMax, kMax}, {kMin, kMax}, {kMin, kMin}}},
+    {{{kMax, kMin}, {kMax, kMax}, {kMin, kMax}}},
+    {{{kMin, kMin}, {kMax, kMax}, {kMin, kMax}}},
+    {{{kMin, kMax}, {kMax, kMin}, {kMax, kMax}}},
+    {{{kMax, kMax}, {kMin, kMin}, {kMax, kMin}}},
+    {{{kMax, kMin}, {kMin, kMax}, {kMin, kMin}}},
+    {{{kMin, kMin}, {kMax, kMin}, {kMin, kMax}}},
+    {{{kMin, kMax}, {kMin, kMin}, {kMax, kMax}}},
+    {{{kMax, kMax}, {kMin, kMax}, {kMax, kMin}}},
+    {{{kMax, kMin}, {kMax, kMax}, {kMin, kMin}}},
+    {{{kMin, kMax}, {kMax, kMin}, {kMax, kMax}}},
+    {{{kMax, kMax}, {kMin, kMin}, {kMax, kMin}}},
+    {{{kMax, kMin}, {kMin, kMax}, {kMin, kMin}}},
+    {{{kMin, kMin}, {kMax, kMax}, {kMin, kMax}}}
+}};
+
+__forceinline const Triangle& Get(bool reverse, bool second, int direction)
+{
+    const std::size_t index = (reverse ? 8u : 0u) |
+                              (second ? 4u : 0u) |
+                              static_cast<unsigned>(direction & 3);
+    return kTriangles[index];
+}
+} // namespace TerrainUV

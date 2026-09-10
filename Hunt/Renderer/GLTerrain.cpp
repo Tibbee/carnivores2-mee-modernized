@@ -324,7 +324,7 @@ void GLRenderer::AppendTerrainTriangle(const EPoint& v0,
                                        float alpha1,
                                        float alpha2)
 {
-    const auto uv = GetTerrainUVs(reverse, second, direction);
+    const auto& uv = TerrainUV::Get(reverse, second, direction);
     const float layer = static_cast<float>(textureLayer);
 
     TerrainVertex* dst = m_terrainVertices.get() + m_terrainVertexCount;

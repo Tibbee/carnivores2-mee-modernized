@@ -1266,50 +1266,6 @@ unsigned int GLRenderer::Expand1555to8888(unsigned short c)
     return 0xFF000000 | (b << 16) | (g << 8) | r;
 }
 
-std::array<Vector2df, 3> GLRenderer::GetTerrainUVs(bool reverse, bool second, int direction)
-{
-    const float tcMin = static_cast<float>(TCMIN) / (128.0f * 65536.0f);
-    const float tcMax = static_cast<float>(TCMAX) / (128.0f * 65536.0f);
-
-    auto uv = [](float u, float v) -> Vector2df {
-        return Vector2df{u, v};
-    };
-
-    if (reverse) {
-        if (second) {
-            switch (direction) {
-            case 0: return {uv(tcMin, tcMax), uv(tcMax, tcMin), uv(tcMax, tcMax)};
-            case 1: return {uv(tcMax, tcMax), uv(tcMin, tcMin), uv(tcMax, tcMin)};
-            case 2: return {uv(tcMax, tcMin), uv(tcMin, tcMax), uv(tcMin, tcMin)};
-            default: return {uv(tcMin, tcMin), uv(tcMax, tcMax), uv(tcMin, tcMax)};
-            }
-        }
-
-        switch (direction) {
-        case 0: return {uv(tcMin, tcMin), uv(tcMax, tcMin), uv(tcMin, tcMax)};
-        case 1: return {uv(tcMin, tcMax), uv(tcMin, tcMin), uv(tcMax, tcMax)};
-        case 2: return {uv(tcMax, tcMax), uv(tcMin, tcMax), uv(tcMax, tcMin)};
-        default: return {uv(tcMax, tcMin), uv(tcMax, tcMax), uv(tcMin, tcMin)};
-        }
-    }
-
-    if (second) {
-        switch (direction) {
-        case 0: return {uv(tcMin, tcMin), uv(tcMax, tcMax), uv(tcMin, tcMax)};
-        case 1: return {uv(tcMin, tcMax), uv(tcMax, tcMin), uv(tcMax, tcMax)};
-        case 2: return {uv(tcMax, tcMax), uv(tcMin, tcMin), uv(tcMax, tcMin)};
-        default: return {uv(tcMax, tcMin), uv(tcMin, tcMax), uv(tcMin, tcMin)};
-        }
-    }
-
-    switch (direction) {
-    case 0: return {uv(tcMin, tcMin), uv(tcMax, tcMin), uv(tcMax, tcMax)};
-    case 1: return {uv(tcMin, tcMax), uv(tcMin, tcMin), uv(tcMax, tcMin)};
-    case 2: return {uv(tcMax, tcMax), uv(tcMin, tcMax), uv(tcMin, tcMin)};
-    default: return {uv(tcMax, tcMin), uv(tcMax, tcMax), uv(tcMin, tcMax)};
-    }
-}
-
 std::array<float, 16> GLRenderer::BuildLegacyProjection()
 {
     const float nearPlane = 16.0f;

@@ -374,7 +374,6 @@ private:
                              float alpha1,
                              float alpha2,
                              float fadeEnabled = 0.0f);
-    static std::array<Vector2df, 3> GetTerrainUVs(bool reverse, bool second, int direction);
     static std::array<float, 16> BuildLegacyProjection();
     static Vector3d GetCurrentFogColor();
     static Vector3d GetFogColorForMapPoint(int mapX, int mapY);
