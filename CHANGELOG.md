@@ -45,6 +45,13 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.7.0).
 - Make `-DMEM_DEBUG=ON` effective for non-Debug CMake configurations.
 
 ### Added
+- Accessory prices in the hunt selection menu: the equipment list now
+  shows each item's credit cost right-aligned next to its name (same
+  style as the area/dinosaur/weapon lists), and accessories the account
+  cannot cover are greyed out. The displayed value is the same price the
+  selection click charges (`UtilInfo::m_Price` from `_RES.TXT` acces
+  lines or the built-in defaults), so the list, the click gate, and the
+  debit all stay consistent.
 - Deterministic OpenGL performance-capture tooling with manifest-driven C2
   scenarios, repeated 120-frame samples, exact configuration/save/ReShade
   restoration, screenshots, hashes, machine provenance, and fail-closed

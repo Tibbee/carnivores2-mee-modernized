@@ -1738,6 +1738,17 @@ void DrawMenuHunt()
 		uint32_t c = 0xB0B070;
 		int i = (int)(ii - MenuHunt[3].Offset);
 
+		std::stringstream sc;
+		sc << g_UtilInfo[ii].m_Price;
+
+		// Same affordability grey-out as the other lists: accessories the
+		// account cannot cover show dimmed, so their cost is readable even
+		// before trying to select them.
+		if (score < g_UtilInfo[ii].m_Price)
+		{
+			c = 0x707070;
+		}
+
 		if (MenuHunt[3].Item[ii].second)
 		{
 			c = RGB(255, 255, 10);
@@ -1745,6 +1756,7 @@ void DrawMenuHunt()
 
 		//DrawTextShadow(MenuHunt[3].Rect.left + 4, MenuHunt[3].Rect.top + (16 * i), MenuHunt[3].Item[ii].first, c);
 		DrawTextShadow(MenuHunt[3].Rect.left + 4, MenuHunt[3].Rect.top + (16 * i), g_UtilInfo[ii].m_Name, c);
+		DrawTextShadow(MenuHunt[3].Rect.right - 4, MenuHunt[3].Rect.top + (16 * i), sc.str(), c, DTA_RIGHT);
 	}
 }
 
