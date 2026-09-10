@@ -1323,26 +1323,26 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 
 
     case 'M':
-      if (CTRL) SwitchMode("Draw 3D models",MODELS);
+      if (DEBUG && CTRL) SwitchMode("Draw 3D models",MODELS);
       break;
     case 'F':
-      if (CTRL) SwitchMode("V.Fog",FOGENABLE);
+      if (DEBUG && CTRL) SwitchMode("V.Fog",FOGENABLE);
       break;
     case 'L':
-      if (CTRL) SwitchMode("Fly",FLY);
+      if (DEBUG && CTRL) SwitchMode("Fly",FLY);
       break;
     case 'C':
-      if (CTRL) SwitchMode("Clouds shadow",Clouds);
+      if (DEBUG && CTRL) SwitchMode("Clouds shadow",Clouds);
       break;
 
     case 'E':
-      if (CTRL) SwitchMode("Env.Mapping",ENVMAP);
+      if (DEBUG && CTRL) SwitchMode("Env.Mapping",ENVMAP);
       break;
     case 'G':
-      if (CTRL) SwitchMode("Gour.Mapping",GOUR);
+      if (DEBUG && CTRL) SwitchMode("Gour.Mapping",GOUR);
       break;
     case 'P':
-		if (!CTRL) { if (DEBUG) ChangeViewR(0, +2, 0); } else  SwitchMode("Phong Mapping", PHONG);
+		if (!CTRL) { if (DEBUG) ChangeViewR(0, +2, 0); } else if (DEBUG) SwitchMode("Phong Mapping", PHONG);
 		break;
 
 //	case VK_UP:
