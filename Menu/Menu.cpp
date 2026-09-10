@@ -221,6 +221,10 @@ int g_WaitKey = -1;
 bool g_KeyboardUsed = false;
 static int g_LastHoverId = -1;
 
+// Registry name-list double-click tracking (double-click a name to enter).
+static DWORD g_LastListClickTime = 0;
+static int g_LastListClickIndex = -1;
+
 
 // String table
 const char g_GitHubURL[] = "https://github.com/carnivores-cpe/Carn2-Menu";
@@ -1166,6 +1170,8 @@ void MenuEventStart(int32_t menu_state)
 		MenuRegistry.Offset = 0;
 		MenuRegistry.Count = 0;
 		MenuRegistry.AddItem("");
+		g_LastListClickTime = 0;
+		g_LastListClickIndex = -1;
 		char tname[128];
 		for (auto i = 0U; i < 8U; i++) {
 			g_Profiles[i].m_Name = "";
@@ -1809,6 +1815,34 @@ void DrawMenuRegistry()
 
 
 /*
+Commit the current registry selection: load an existing profile or create
+a new one from the typing buffer. Shared by the GO button, the Enter key
+and the original double-click-a-name shortcut.
+*/
+static void ConfirmRegistrySelection()
+{
+	if (g_Profiles[g_ProfileIndex].m_Name.empty()) {
+		if (!g_TypingBuffer.empty())
+		{
+			g_UserProfile.New(g_TypingBuffer);
+			g_Options.Default();
+			TrophySave(g_UserProfile);
+			SaveConfig();
+			ChangeMenuState(MENU_REGISTRY_WAIVER);
+		}
+		else
+		{
+			MessageBox(hwndMain, "You need to enter a name!", "Try again!", MB_OK | MB_ICONINFORMATION);
+		}
+	}
+	else {
+		TrophyLoad(g_UserProfile, g_ProfileIndex);
+		LoadConfig();
+		ChangeMenuState(MENU_MAIN);
+	}
+}
+
+/*
 Keyboard and Mouse handling for menus
 NOTE: Could move these to individual functions if a state machine is confusing
 */
@@ -1862,28 +1896,8 @@ void MenuEventInput(int32_t menu)
 		if (g_KeyboardState[VK_LBUTTON] & 128) {
 			if (id == 1) {
 				MenuAudioPlayClick();
-
-				if (g_Profiles[g_ProfileIndex].m_Name.empty()) {
-					if (!g_TypingBuffer.empty())
-					{
-						g_UserProfile.New(g_TypingBuffer);
-						g_Options.Default();
-						TrophySave(g_UserProfile);
-						SaveConfig();
-						WaitForMouseRelease();
-						ChangeMenuState(MENU_REGISTRY_WAIVER);
-					}
-					else
-					{
-						MessageBox(hwndMain, "You need to enter a name!", "Try again!", MB_OK | MB_ICONINFORMATION);
-					}
-				}
-				else {
-					TrophyLoad(g_UserProfile, g_ProfileIndex);
-					LoadConfig();
-					WaitForMouseRelease();
-					ChangeMenuState(MENU_MAIN);
-				}
+				WaitForMouseRelease();
+				ConfirmRegistrySelection();
 			}
 			else if (id == 2) {
 				// Delete the selected 'save'
@@ -1893,9 +1907,36 @@ void MenuEventInput(int32_t menu)
 			}
 			else {
 				WaitForMouseRelease();
-				MenuAudioPlayHover();
-				g_ProfileIndex = g_HiliteProfileIndex;
-				g_TypingBuffer = g_Profiles[g_ProfileIndex].m_Name;
+
+				// Original behaviour: double-clicking a name in the list enters
+				// the menu directly (same as clicking GO); a single click only
+				// selects the profile.
+				DWORD now = timeGetTime();
+				bool inList = false;
+				for (auto i = 0U; i < 7U; i++) {
+					if (g_CursorPos.x >= 308 && g_CursorPos.y >= (368 + (16 * i)) &&
+						g_CursorPos.x <= 408 && g_CursorPos.y <= (368 + (16 * i) + 16)) {
+						inList = true;
+						break;
+					}
+				}
+
+				bool doubleClick = inList &&
+					g_LastListClickIndex == g_HiliteProfileIndex &&
+					(now - g_LastListClickTime) < (DWORD)GetDoubleClickTime();
+				g_LastListClickTime = now;
+				g_LastListClickIndex = g_HiliteProfileIndex;
+
+				if (doubleClick) {
+					g_ProfileIndex = g_HiliteProfileIndex;
+					MenuAudioPlayClick();
+					ConfirmRegistrySelection();
+				}
+				else {
+					MenuAudioPlayHover();
+					g_ProfileIndex = g_HiliteProfileIndex;
+					g_TypingBuffer = g_Profiles[g_ProfileIndex].m_Name;
+				}
 			}
 		}
 	}

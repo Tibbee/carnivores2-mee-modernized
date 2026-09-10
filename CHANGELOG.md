@@ -46,6 +46,11 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.7.0).
 - Allocator-matched `make_heap_object<T>()` and `make_heap_array<T>()` helpers.
 
 ### Changed
+- Restore the original double-click-a-name shortcut on the player registration
+  screen: double-clicking a profile in the name list enters the menu directly
+  (the same commit path as the GO button and the Enter key), so loading an
+  existing player no longer requires a separate OK click. Single clicks still
+  just select a profile.
 - Precompute frame-invariant terrain-grid axis coordinates and yaw products in
   `PreCashGroundModel`; matched five-run captures reduce that CPU scope by
   5.4% without changing terrain or animated-water calculations.
