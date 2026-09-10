@@ -12,6 +12,7 @@
 
 #include "Hunt.h"
 #include "GLRenderer.h"
+#include "Renderer/UIText.h"
 
 #ifdef _gl
 
@@ -387,15 +388,29 @@ static void DrawBoxBuf(int x, int y, int size, WORD color)
 
 static void DrawBoxMysteryBuf(int x, int y, WORD color)
 {
-    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x, y, 4, 6);
-    PutPixelBuf(x + 1, y, color);
-    PutPixelBuf(x + 2, y, color);
+    // The "?" marker for a Mystery dinosaur. Plots the same pixels as the
+    // software renderer's DrawBoxMystery, which is the reference shape: the
+    // open hook at the top and the dot at the bottom.
+    //
+    // This function previously plotted that pattern mirrored vertically (hook
+    // at the bottom, dot at the top), so the glyph read upside down on the
+    // radar. It also hung the glyph below the marker position (y..y+5) rather
+    // than centring it on the dinosaur like the software renderer does, so the
+    // extent is centred here too.
+    if (!lpVideoBuf || VideoPitch <= 0 || x < 0 || x + 3 >= WinW ||
+        y - 3 < 0 || y + 3 >= WinH) return;
+
+    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x, y - 3, 4, 7);
+
+    PutPixelBuf(x + 1, y - 3, color);
+    PutPixelBuf(x + 2, y - 3, color);
+    PutPixelBuf(x,     y - 2, color);
+    PutPixelBuf(x + 3, y - 2, color);
+    PutPixelBuf(x + 3, y - 1, color);
+    PutPixelBuf(x + 1, y,     color);
+    PutPixelBuf(x + 2, y,     color);
     PutPixelBuf(x + 1, y + 1, color);
     PutPixelBuf(x + 1, y + 3, color);
-    PutPixelBuf(x, y + 4, color);
-    PutPixelBuf(x + 3, y + 4, color);
-    PutPixelBuf(x + 1, y + 5, color);
-    PutPixelBuf(x + 2, y + 5, color);
 }
 
 // Scaled nearest-neighbour copy of a picture into lpVideoBuf (defined below,
@@ -703,33 +718,31 @@ void DrawScoreText(int x, int y)
     // Draw score text onto lpVideoBuf via GDI
     if (!hdcMain || !hbmpVideoBuf || !lpVideoBuf) return;
 
-    HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
-    SetBkMode(hdcCMain, TRANSPARENT);
-    HFONT oldFont = nullptr;
-    if (fnt_Small) oldFont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
-
     char t[32];
-    int tx = x + 14;
-    int ty = y + 18;
-
-    auto textOut = [&](int px, int py, const char* str, int color) {
-        SetTextColor(hdcCMain, 0x00101010);
-        TextOut(hdcCMain, px + 1, py + 1, str, static_cast<int>(strlen(str)));
-        SetTextColor(hdcCMain, color);
-        TextOut(hdcCMain, px, py, str, static_cast<int>(strlen(str)));
-    };
-
-    textOut(tx, ty, "Unclaimed Kill - Score Added: ", 0x00BFBFBF);
-    SIZE sz;
-    GetTextExtentPoint32(hdcCMain, "Unclaimed Kill - Score Added: ", 31, &sz);
-    tx += sz.cx;
     sprintf_s(t, sizeof(t), "%d", ScoreDisp);
-    textOut(tx, ty, t, 0x0000BFBF);
 
-    // Mark dirty: 1 line at (x+14, y+18) + shadow
-    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x + 13, y + 17, 260, 18);
+    const COLORREF kLabel = 0x00BFBFBF;
+    const COLORREF kValue = 0x0000BFBF;
 
-    if (oldFont) SelectObject(hdcCMain, oldFont);
+    const uitxt::Seg segs[] = {
+        { "Unclaimed Kill - Score Added: ", kLabel },
+        { t, kValue },
+    };
+    const uitxt::Row rows[] = { { segs, 2 } };
+
+    HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
+
+    // score.tga is 210x42; its recessed panel is the strip around row 18.
+    uitxt::DrawBox(hdcCMain, x, y,
+                   /*padX*/ 14, /*padY*/ 18, /*step*/ 16,
+                   /*maxW*/ 192, /*maxH*/ 16,
+                   rows, 1);
+
+    // Mark the full panel strip (not the text extent) so a shrinking font
+    // cannot leave stale pixels behind.
+    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x + uitxt::Px(14) - 2, y + uitxt::Px(18) - 2,
+                                                  uitxt::Px(192) + 4, uitxt::Px(16) + 6);
+
     SelectObject(hdcCMain, hbmpOld);
 }
 
@@ -738,41 +751,34 @@ void DrawSurvivalText(int x, int y)
     // Draw survival text onto lpVideoBuf via GDI
     if (!hdcMain || !hbmpVideoBuf || !lpVideoBuf) return;
 
-    HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
-    SetBkMode(hdcCMain, TRANSPARENT);
-    HFONT oldFont = nullptr;
-    if (fnt_Small) oldFont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
+    char tWaves[32], tHigh[32];
+    sprintf_s(tWaves, sizeof(tWaves), "%i", SurvivalWave - 1);
+    sprintf_s(tHigh,  sizeof(tHigh),  "%i", TrophyRoom2.survivalHighScore);
 
-    char t[32];
+    const COLORREF kLabel = 0x00BFBFBF;
+    const COLORREF kValue = 0x0000BFBF;
 
-    auto textOut = [&](int px, int py, const char* str, int color) {
-        SetTextColor(hdcCMain, 0x00101010);
-        TextOut(hdcCMain, px + 1, py + 1, str, static_cast<int>(strlen(str)));
-        SetTextColor(hdcCMain, color);
-        TextOut(hdcCMain, px, py, str, static_cast<int>(strlen(str)));
+    const uitxt::Seg rowWaves[] = { { "Waves Survived: ", kLabel }, { tWaves, kValue } };
+    const uitxt::Seg rowHigh[]  = { { "High Score: ",     kLabel }, { tHigh,  kValue } };
+
+    const uitxt::Row rows[] = {
+        { rowWaves, 2 },
+        { rowHigh,  2 },
     };
 
-    int tx = x + 40;
-    int ty = y + 98;
-    textOut(tx, ty, "Waves Survived: ", 0x00BFBFBF);
-    SIZE sz;
-    GetTextExtentPoint32(hdcCMain, "Waves Survived: ", 16, &sz);
-    tx += sz.cx;
-    sprintf_s(t, sizeof(t), "%i", SurvivalWave - 1);
-    textOut(tx, ty, t, 0x0000BFBF);
+    HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
 
-    tx = x + 40;
-    ty = y + 124;
-    textOut(tx, ty, "High Score: ", 0x00BFBFBF);
-    GetTextExtentPoint32(hdcCMain, "High Score: ", 12, &sz);
-    tx += sz.cx;
-    sprintf_s(t, sizeof(t), "%i", TrophyRoom2.survivalHighScore);
-    textOut(tx, ty, t, 0x0000BFBF);
+    // exit_s.tga is 212x196; the original drew these two lines at +40/+98 and
+    // +40/+124, so they sit 26 art pixels apart rather than the usual 16.
+    uitxt::DrawBox(hdcCMain, x, y,
+                   /*padX*/ 40, /*padY*/ 98, /*step*/ 26,
+                   /*maxW*/ 164, /*maxH*/ 88,
+                   rows, 2);
 
-    // Mark dirty: 2 lines at (x+40, y+98) and (x+40, y+124) + shadow
-    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x + 39, y + 97, 180, 45);
+    // Mark the whole text area rather than the text extent.
+    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x + uitxt::Px(40) - 2, y + uitxt::Px(98) - 2,
+                                                  uitxt::Px(164) + 4, uitxt::Px(88) + 6);
 
-    if (oldFont) SelectObject(hdcCMain, oldFont);
     SelectObject(hdcCMain, hbmpOld);
 }
 

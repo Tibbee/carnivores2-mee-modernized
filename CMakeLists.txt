@@ -173,6 +173,8 @@ set(CORE_FILES
     Hunt/Loaders/PictureLoader.cpp
     Hunt/Loaders/CharacterLoader.cpp
     Hunt/Renderer/renderasm.cpp
+    Hunt/Renderer/UIText.cpp
+    Hunt/Renderer/UIText.h
     Hunt/AppRes.rc
     Hunt/Carnivores1.manifest
     # Headers (optional, for IDE)
@@ -286,6 +288,16 @@ if(MSVC)
     target_include_directories(Carnivores2FogTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Hunt)
     target_link_libraries(Carnivores2FogTests PRIVATE gtest_main)
     add_test(NAME Carnivores2Tests.FogSampling COMMAND Carnivores2FogTests)
+
+    # Exercise the production box-text layout without a renderer. Only WinH and
+    # UIScale are needed as test doubles for Hunt/Renderer/UIText.cpp.
+    add_executable(Carnivores2UITests
+        tests/test_ui_text.cpp
+        Hunt/Renderer/UIText.cpp
+    )
+    target_include_directories(Carnivores2UITests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Hunt)
+    target_link_libraries(Carnivores2UITests PRIVATE gtest_main gdi32)
+    add_test(NAME Carnivores2Tests.UIText COMMAND Carnivores2UITests)
 
     # SmokeTest only runs when a game executable is built (not menu-only)
     if(TARGET Carnivores1)

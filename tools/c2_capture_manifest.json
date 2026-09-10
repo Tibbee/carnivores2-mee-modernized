@@ -127,7 +127,7 @@
       "extra_args": ["reg=0", "din=5", "wep=1", "dtm=0"],
       "landing_tile": null,
       "camera": "unavailable",
-      "notes": "Excluded: the slot-six external launch crash was fixed at 0bdb52f (2026-09-10), but the deployment never shipped hunter1_a6.car, so a full slot-six load still halts on the missing asset and the map remains an Area 1 clone - not a valid performance fixture."
+      "notes": "Excluded: the slot-six external launch crash was fixed at f2c1700 (2026-09-10), but the deployment never shipped hunter1_a6.car, so a full slot-six load still halts on the missing asset and the map remains an Area 1 clone - not a valid performance fixture."
     },
     {
       "id": "waterline",

@@ -5,6 +5,7 @@
 #include "Hunt.h"
 #include "GLRenderer.h"
 #include "Renderer/GLUtils.h"
+#include "Renderer/UIText.h"
 
 #ifdef _gl
 
@@ -143,73 +144,71 @@ void GLRenderer::DrawTrophyText(int x, int y)
 
     if (!hdcCMain || !hbmpVideoBuf || !lpVideoBuf) return;
 
+    const int   dtype = TrophyDisplayBody.ctype;
+    const int   time  = TrophyDisplayBody.time;
+    const int   date  = TrophyDisplayBody.date;
+    const int   wep   = TrophyDisplayBody.weapon;
+    const int   score = TrophyDisplayBody.score;
+    const float scale = TrophyDisplayBody.scale;
+    const float range = TrophyDisplayBody.range;
+
+    char tWeight[32], tLength[32], tWeapon[64], tScore[32], tRange[32], tDate[32], tTime[32];
+
+    if (OptSys) sprintf_s(tWeight, sizeof(tWeight), "%3.2ft", DinoInfo[dtype].Mass * scale * scale / 0.907f);
+    else        sprintf_s(tWeight, sizeof(tWeight), "%3.2fT", DinoInfo[dtype].Mass * scale * scale);
+
+    if (OptSys) sprintf_s(tLength, sizeof(tLength), "%3.2fft", DinoInfo[dtype].Length * scale / 0.3f);
+    else        sprintf_s(tLength, sizeof(tLength), "%3.2fm", DinoInfo[dtype].Length * scale);
+
+    sprintf_s(tWeapon, sizeof(tWeapon), "%s", WeapInfo[wep].Name);
+    sprintf_s(tScore,  sizeof(tScore),  "%d", score);
+
+    if (OptSys) sprintf_s(tRange, sizeof(tRange), "%3.1fft", range / 0.3f);
+    else        sprintf_s(tRange, sizeof(tRange), "%3.1fm", range);
+
+    if (OptSys) sprintf_s(tDate, sizeof(tDate), "%d.%d.%d", ((date >> 10) & 255), (date & 255), date >> 20);
+    else        sprintf_s(tDate, sizeof(tDate), "%d.%d.%d", (date & 255), ((date >> 10) & 255), date >> 20);
+
+    sprintf_s(tTime, sizeof(tTime), "%d:%02d", ((time >> 10) & 255), (time & 255));
+
+    // Five paired rows rather than eight single-stat ones: the recessed panel
+    // in trophy.tga/collect.tga is only ~76 art pixels tall, so eight rows at a
+    // resolution-scaled font cannot fit it. This is the layout C2's software
+    // renderer and both C1 renderers already use - all eight stats are kept.
+    const COLORREF kLabel = 0x00BFBFBF;
+    const COLORREF kValue = 0x0000BFBF;
+
+    const uitxt::Seg rowName[]   = { { "Name: ",        kLabel }, { DinoInfo[dtype].Name, kValue } };
+    const uitxt::Seg rowSize[]   = { { "Weight: ",      kLabel }, { tWeight,  kValue },
+                                     { "Length: ",      kLabel }, { tLength,  kValue } };
+    const uitxt::Seg rowGear[]   = { { "Weapon: ",      kLabel }, { tWeapon,  kValue },
+                                     { "Score: ",       kLabel }, { tScore,   kValue } };
+    const uitxt::Seg rowRange[]  = { { "Range of kill: ", kLabel }, { tRange, kValue } };
+    const uitxt::Seg rowWhen[]   = { { "Date: ",        kLabel }, { tDate,    kValue },
+                                     { "Time: ",        kLabel }, { tTime,    kValue } };
+
+    const uitxt::Row rows[] = {
+        { rowName,  2 },
+        { rowSize,  4 },
+        { rowGear,  4 },
+        { rowRange, 2 },
+        { rowWhen,  4 },
+    };
+
     HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
-    SetBkMode(hdcCMain, TRANSPARENT);
-    HFONT oldFont = nullptr;
-    if (fnt_Small) oldFont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
 
-    int dtype = TrophyDisplayBody.ctype;
-    int time  = TrophyDisplayBody.time;
-    int date  = TrophyDisplayBody.date;
-    int wep   = TrophyDisplayBody.weapon;
-    int score = TrophyDisplayBody.score;
-    float scale = TrophyDisplayBody.scale;
-    float range = TrophyDisplayBody.range;
-    char t[64];
+    // trophy.tga / collect.tga are 210x124; the recessed panel spans rows
+    // 22..98, so the text area starts 18px down and is 80px tall.
+    uitxt::DrawBox(hdcCMain, x, y,
+                   /*padX*/ 16, /*padY*/ 18, /*step*/ 16,
+                   /*maxW*/ 190, /*maxH*/ 80,
+                   rows, 5);
 
-    // D3D/3DFX draw at (x0+14, y0+18)
-    int tx = x + 14;
-    int ty = y + 18;
-    int lineStep = 16;
+    // Cover the whole panel rather than the text extent: the chosen font can
+    // shrink, and a too-small rect would leave ghost pixels on the overlay.
+    MarkDirtyRect(x + uitxt::Px(16) - 2, y + uitxt::Px(18) - 2,
+                  uitxt::Px(190) + 4, uitxt::Px(80) + 6);
 
-    auto textOut = [&](int px, int py, const char* str, int color) {
-        SetTextColor(hdcCMain, 0x00101010);
-        TextOut(hdcCMain, px + 1, py + 1, str, static_cast<int>(strlen(str)));
-        SetTextColor(hdcCMain, color);
-        TextOut(hdcCMain, px, py, str, static_cast<int>(strlen(str)));
-    };
-
-    SIZE sz;
-    auto drawLine = [&](const char* label, const char* value, int color) {
-        textOut(tx, ty, label, color);
-        GetTextExtentPoint32(hdcCMain, label, static_cast<int>(strlen(label)), &sz);
-        int lw = sz.cx;
-        textOut(tx + lw, ty, value, 0x0000BFBF);
-        ty += lineStep;
-    };
-
-    drawLine("Name: ", DinoInfo[dtype].Name, 0x00BFBFBF);
-
-    if (OptSys) sprintf(t, "%3.2ft ", DinoInfo[dtype].Mass * scale * scale / 0.907f);
-    else        sprintf(t, "%3.2fT ", DinoInfo[dtype].Mass * scale * scale);
-    drawLine("Weight: ", t, 0x00BFBFBF);
-
-    if (OptSys) sprintf(t, "%3.2fft", DinoInfo[dtype].Length * scale / 0.3f);
-    else        sprintf(t, "%3.2fm", DinoInfo[dtype].Length * scale);
-    drawLine("Length: ", t, 0x00BFBFBF);
-
-    sprintf_s(t, sizeof(t), "%s    ", WeapInfo[wep].Name);
-    drawLine("Weapon: ", t, 0x00BFBFBF);
-
-    sprintf_s(t, sizeof(t), "%d", score);
-    drawLine("Score: ", t, 0x00BFBFBF);
-
-    if (OptSys) sprintf(t, "%3.1fft", range / 0.3f);
-    else        sprintf(t, "%3.1fm", range);
-    drawLine("Range of kill: ", t, 0x00BFBFBF);
-
-    if (OptSys) sprintf_s(t, sizeof(t), "%d.%d.%d   ", ((date>>10) & 255), (date & 255), date>>20);
-    else        sprintf_s(t, sizeof(t), "%d.%d.%d   ", (date & 255), ((date>>10) & 255), date>>20);
-    drawLine("Date: ", t, 0x00BFBFBF);
-
-    sprintf_s(t, sizeof(t), "%d:%02d", ((time>>10) & 255), (time & 255));
-    drawLine("Time: ", t, 0x00BFBFBF);
-
-    // Mark dirty: 7 lines × 16px step starting at (x+14, y+18),
-    // plus shadow offset (+1,+1) and font height (~14px).
-    MarkDirtyRect(x + 13, y + 17, 160, 128);
-
-    if (oldFont) SelectObject(hdcCMain, oldFont);
     SelectObject(hdcCMain, hbmpOld);
 }
 

@@ -7,6 +7,7 @@
 #include "Hunt.h"
 #include "SoftInternal.h"
 #include "Renderer/SoftRenderer.h"
+#include "Renderer/UIText.h"
 
 #ifdef _soft
 void STTextOut(int x, int y, LPSTR t, int color)
@@ -274,137 +275,115 @@ void DrawHMap()
 
 void DrawSurvivalText(int x0, int y0)
 {
+    char tWaves[32], tHigh[32];
+    sprintf_s(tWaves, sizeof(tWaves), "%i", SurvivalWave - 1);
+    sprintf_s(tHigh,  sizeof(tHigh),  "%i", TrophyRoom2.survivalHighScore);
 
-	HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
-	HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
+    const COLORREF kLabel = 0x00BFBFBF;
+    const COLORREF kValue = 0x0000BFBF;
 
-	int x = x0;
-	STTextOut(40 + x0, 98 + y0, "Waves Survived: ", 0x00BFBFBF);
-	x += GetTextW(hdcMain, "Waves Survived: ");
-	char t[32];
-	sprintf_s(t, sizeof(t), "%i", SurvivalWave - 1);
-	STTextOut(40 + x, 98 + y0, t, 0x0000BFBF);
-	x = x0;
-	STTextOut(40 + x0, 124 + y0, "High Score: ", 0x00BFBFBF);
-	x += GetTextW(hdcMain, "High Score: ");
-	sprintf_s(t, sizeof(t), "%i", TrophyRoom2.survivalHighScore);
-	STTextOut(40 + x, 124 + y0, t, 0x0000BFBF);
+    const uitxt::Seg rowWaves[] = { { "Waves Survived: ", kLabel }, { tWaves, kValue } };
+    const uitxt::Seg rowHigh[]  = { { "High Score: ",     kLabel }, { tHigh,  kValue } };
 
-	SelectObject(hdcCMain, oldfont);
-	SelectObject(hdcCMain, hbmpOld);
+    const uitxt::Row rows[] = {
+        { rowWaves, 2 },
+        { rowHigh,  2 },
+    };
+
+    HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
+
+    // exit_s.tga is 212x196; the two lines sit 26 art pixels apart.
+    uitxt::DrawBox(hdcCMain, x0, y0,
+                   /*padX*/ 40, /*padY*/ 98, /*step*/ 26,
+                   /*maxW*/ 164, /*maxH*/ 88,
+                   rows, 2);
+
+    SelectObject(hdcCMain, hbmpOld);
 }
 
 void DrawScoreText(int x0, int y0) {
-	int x;
-	HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
-	HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcMain, fnt_Small));
+    char t[32];
+    sprintf_s(t, sizeof(t), "%d", ScoreDisp);
 
-	char t[32];
+    const COLORREF kLabel = 0x00BFBFBF;
+    const COLORREF kValue = 0x0000BFBF;
 
-	x0 += 14;
-	y0 += 18;
-	x = x0;
+    const uitxt::Seg segs[] = {
+        { "Unclaimed Kill - Score Added: ", kLabel },
+        { t, kValue },
+    };
+    const uitxt::Row rows[] = { { segs, 2 } };
 
-	STTextOut(x - 5, y0, "Unclaimed Kill - Score Added: ", 0x00BFBFBF);
-	x += GetTextW(hdcMain, "Unclaimed Kill - Score Added: ");
-	sprintf_s(t, sizeof(t), "%d", ScoreDisp);
-	STTextOut(x - 5, y0, t, 0x0000BFBF);
+    HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
 
-	SelectObject(hdcCMain, oldfont);
-	SelectObject(hdcCMain, hbmpOld);
+    // score.tga is 210x42; its recessed panel is the strip around row 18.
+    uitxt::DrawBox(hdcCMain, x0, y0,
+                   /*padX*/ 14, /*padY*/ 18, /*step*/ 16,
+                   /*maxW*/ 192, /*maxH*/ 16,
+                   rows, 1);
+
+    SelectObject(hdcCMain, hbmpOld);
 }
 
 
 
 void DrawTrophyText(int x0, int y0)
 {
-  int x;
+  const int   dtype = TrophyDisplayBody.ctype;
+  const int   time  = TrophyDisplayBody.time;
+  const int   date  = TrophyDisplayBody.date;
+  const int   wep   = TrophyDisplayBody.weapon;
+  const int   score = TrophyDisplayBody.score;
+  const float scale = TrophyDisplayBody.scale;
+  const float range = TrophyDisplayBody.range;
+
+  char tWeight[32], tLength[32], tWeapon[64], tScore[32], tRange[32], tDate[32], tTime[32];
+
+  if (OptSys) sprintf_s(tWeight, sizeof(tWeight), "%3.2ft", DinoInfo[dtype].Mass * scale * scale / 0.907f);
+  else        sprintf_s(tWeight, sizeof(tWeight), "%3.2fT", DinoInfo[dtype].Mass * scale * scale);
+
+  if (OptSys) sprintf_s(tLength, sizeof(tLength), "%3.2fft", DinoInfo[dtype].Length * scale / 0.3f);
+  else        sprintf_s(tLength, sizeof(tLength), "%3.2fm", DinoInfo[dtype].Length * scale);
+
+  sprintf_s(tWeapon, sizeof(tWeapon), "%s", WeapInfo[wep].Name);
+  sprintf_s(tScore,  sizeof(tScore),  "%d", score);
+
+  if (OptSys) sprintf_s(tRange, sizeof(tRange), "%3.1fft", range / 0.3f);
+  else        sprintf_s(tRange, sizeof(tRange), "%3.1fm", range);
+
+  if (OptSys) sprintf_s(tDate, sizeof(tDate), "%d.%d.%d", ((date >> 10) & 255), (date & 255), date >> 20);
+  else        sprintf_s(tDate, sizeof(tDate), "%d.%d.%d", (date & 255), ((date >> 10) & 255), date >> 20);
+
+  sprintf_s(tTime, sizeof(tTime), "%d:%02d", ((time >> 10) & 255), (time & 255));
+
+  const COLORREF kLabel = 0x00BFBFBF;
+  const COLORREF kValue = 0x0000BFBF;
+
+  const uitxt::Seg rowName[]  = { { "Name: ",        kLabel }, { DinoInfo[dtype].Name, kValue } };
+  const uitxt::Seg rowSize[]  = { { "Weight: ",      kLabel }, { tWeight,  kValue },
+                                  { "Length: ",      kLabel }, { tLength,  kValue } };
+  const uitxt::Seg rowGear[]  = { { "Weapon: ",      kLabel }, { tWeapon,  kValue },
+                                  { "Score: ",       kLabel }, { tScore,   kValue } };
+  const uitxt::Seg rowRange[] = { { "Range of kill: ", kLabel }, { tRange, kValue } };
+  const uitxt::Seg rowWhen[]  = { { "Date: ",        kLabel }, { tDate,    kValue },
+                                  { "Time: ",        kLabel }, { tTime,    kValue } };
+
+  const uitxt::Row rows[] = {
+      { rowName,  2 },
+      { rowSize,  4 },
+      { rowGear,  4 },
+      { rowRange, 2 },
+      { rowWhen,  4 },
+  };
 
   HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
-  HFONT oldfont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
-  /*
-  	int dtype = Characters[TrophyBody].CType;
-  	int tc = Characters[TrophyBody].State;
-  	int time = TrophyRoom.Body[tc].time;
-  	int date = TrophyRoom.Body[tc].date;
-  	int wep  = TrophyRoom.Body[tc].weapon;
-  	int score = TrophyRoom.Body[tc].score;
-  	float scale = Characters[TrophyBody].scale;*/
-  int   dtype = TrophyDisplayBody.ctype;
-  int   time  = TrophyDisplayBody.time;
-  int   date  = TrophyDisplayBody.date;
-  int   wep   = TrophyDisplayBody.weapon;
-  int   score = TrophyDisplayBody.score;
-  float scale = TrophyDisplayBody.scale;
-  float range = TrophyDisplayBody.range;
 
-  char t[32];
+  // trophy.tga / collect.tga are 210x124; the recessed panel spans rows 22..98.
+  uitxt::DrawBox(hdcCMain, x0, y0,
+                 /*padX*/ 16, /*padY*/ 18, /*step*/ 16,
+                 /*maxW*/ 190, /*maxH*/ 80,
+                 rows, 5);
 
-  x0+=16;
-  y0+=18;
-  x = x0;
-  STTextOut(x, y0, "Name: ", 0x00BFBFBF);
-  x+=GetTextW(hdcCMain,"Name: ");
-  STTextOut(x, y0, DinoInfo[dtype].Name, 0x0000BFBF);
-
-  x = x0;
-  STTextOut(x, y0+16, "Weight: ", 0x00BFBFBF);
-  x+=GetTextW(hdcCMain,"Weight: ");
-
-  if (OptSys)
-    sprintf(t,"%3.2ft ", DinoInfo[dtype].Mass * scale * scale / 0.907);
-  else
-    sprintf(t,"%3.2fT ", DinoInfo[dtype].Mass * scale * scale);
-
-  STTextOut(x, y0+16, t, 0x0000BFBF);
-  x+=GetTextW(hdcCMain,t);
-  STTextOut(x, y0+16, "Length: ", 0x00BFBFBF);
-  x+=GetTextW(hdcCMain,"Length: ");
-
-  if (OptSys)
-    sprintf(t,"%3.2fft", DinoInfo[dtype].Length * scale / 0.3);
-  else
-    sprintf(t,"%3.2fm", DinoInfo[dtype].Length * scale);
-
-  STTextOut(x, y0+16, t, 0x0000BFBF);
-
-  x = x0;
-  STTextOut(x, y0+32, "Weapon: ", 0x00BFBFBF);
-  x+=GetTextW(hdcCMain,"Weapon: ");
-  sprintf_s(t, sizeof(t),"%s    ", WeapInfo[wep].Name);
-  STTextOut(x, y0+32, t, 0x0000BFBF);
-  x+=GetTextW(hdcCMain,t);
-  STTextOut(x, y0+32, "Score: ", 0x00BFBFBF);
-  x+=GetTextW(hdcCMain,"Score: ");
-  sprintf_s(t, sizeof(t),"%d", score);
-  STTextOut(x, y0+32, t, 0x0000BFBF);
-
-
-
-  x = x0;
-  STTextOut(x, y0+48, "Range of kill: ", 0x00BFBFBF);
-  x+=GetTextW(hdcCMain,"Range of kill: ");
-  if (OptSys) sprintf(t,"%3.1fft", range / 0.3);
-  else        sprintf(t,"%3.1fm", range);
-  STTextOut(x, y0+48, t, 0x0000BFBF);
-
-
-  x = x0;
-  STTextOut(x, y0+64, "Date: ", 0x00BFBFBF);
-  x+=GetTextW(hdcCMain,"Date: ");
-  if (OptSys)
-    sprintf_s(t, sizeof(t),"%d.%d.%d   ", ((date>>10) & 255), (date & 255), date>>20);
-  else
-    sprintf_s(t, sizeof(t),"%d.%d.%d   ", (date & 255), ((date>>10) & 255), date>>20);
-
-  STTextOut(x, y0+64, t, 0x0000BFBF);
-  x+=GetTextW(hdcCMain,t);
-  STTextOut(x, y0+64, "Time: ", 0x00BFBFBF);
-  x+=GetTextW(hdcCMain,"Time: ");
-  sprintf_s(t, sizeof(t),"%d:%02d", ((time>>10) & 255), (time & 255));
-  STTextOut(x, y0+64, t, 0x0000BFBF);
-
-  SelectObject(hdcCMain, oldfont);
   SelectObject(hdcCMain, hbmpOld);
 }
 
