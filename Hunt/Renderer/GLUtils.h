@@ -6,6 +6,9 @@
 
 #include "Core/MathTypes.h"
 #include "Core/Constants.h"
+#include "Core/EngineAPI.h"
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <vector>
 
@@ -70,11 +73,81 @@ void EnsureNightSceneTex(GLuint& tex, int& texW, int& texH, int winW, int winH);
 #endif
 WORD Conv565to555(WORD c);
 
-// Clipping / fog helpers
-// point is camera-relative WORLD space (before camera rotation).
-// Shadows skip the legacy CPU horizon fallback: model.frag already applies
-// distance fog, and their fog must match the terrain receiver, not double it.
-FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog, bool distanceFallback = true);
+// Clipping / fog helpers. Point is camera-relative WORLD space (before
+// camera rotation). The full sampler includes CPU horizon fog for consumers
+// without shader distance fog (screen-space particles). World models and
+// shadows use the pocket-only sampler because their fragment shader applies
+// the common distance ramp.
+FogSample SampleFogAtPoint(const Vector3d& point, bool disableFog);
+FogSample SamplePocketFogAtPoint(const Vector3d& point, bool disableFog);
+
+// Single implementation for the public APIs and hot exact/legacy model loops.
+// The compile-time policy removes CPU horizon work from shader-fog consumers.
+template<bool DistanceFallback>
+__forceinline FogSample SampleFogAtPointInline(const Vector3d& point, bool disableFog)
+{
+    if (disableFog) {
+        return {0.0f, GetDistanceFogColor()};
+    }
+
+    // Preserve the existing underwater model treatment.
+    if (IsUnderwater()) {
+        float d = VectorLength(point);
+        const TFogEntity& fog = FogsList[127];
+        float fla = -(point.y + CameraY - fog.YBegin * ctHScale) / ctHScale;
+        float flb = -(CameraY - fog.YBegin * ctHScale) / ctHScale;
+        float fl = 0.0f;
+        if (!(fla < 0.0f && flb < 0.0f)) {
+            if (fla < 0.0f) { d *= flb / (flb - fla); fla = 0.0f; }
+            if (flb < 0.0f) { d *= fla / (fla - flb); flb = 0.0f; }
+            fl = std::clamp((fla + flb) * (d + fog.Transp * 0.5f) / fog.Transp,
+                            0.0f, fog.FLimit);
+        }
+
+        if (fl <= 0.0f) {
+            fl = (d + fog.Transp * 0.5f) / fog.Transp;
+        }
+
+        const float extinction = 1.0f - std::exp(-CameraWaterDepthFactor * 3.5f);
+        fl *= 1.0f + extinction * 0.5f;
+
+        const float vertDepth = (std::max)(0.0f, fog.YBegin * ctHScale - (point.y + CameraY));
+        const float vertFactor = std::clamp(vertDepth / 512.0f, 0.0f, 1.0f);
+        fl *= 1.0f + vertFactor * 2.5f;
+
+        const float capBoost = (1.0f - std::exp(-CameraWaterDepthFactor * 2.0f)) * 50.0f;
+        fl = (std::min)(fl, fog.FLimit + capBoost);
+
+        const float amount = std::clamp(fl / 255.0f, 0.0f, (fog.FLimit + capBoost) / 255.0f);
+        return {amount, DecodeFogColorBGR(fog.fogRGB)};
+    }
+
+    if (FOGON) {
+        const int worldX = static_cast<int>(point.x + CameraX);
+        const int worldZ = static_cast<int>(point.z + CameraZ);
+        const int mapFogIndex = FogsMap[(worldZ >> 9) & 511][(worldX >> 9) & 511];
+        // Preserve zero-index camera-pocket traversal, but skip the otherwise
+        // side-effect-free CalcFogLevel clear-cell return.
+        if (mapFogIndex != 0 || CAMERAINFOG) {
+            const float amount = std::clamp(CalcFogLevel(point, mapFogIndex) / 255.0f, 0.0f, 1.0f);
+            if (amount > 0.0f) {
+                return {amount, DecodeFogColor(CurFogColor)};
+            }
+        }
+    }
+
+    if constexpr (!DistanceFallback) {
+        return {0.0f, GetDistanceFogColor()};
+    } else {
+        const float d = VectorLength(point);
+        const float fogDistance = static_cast<float>(ctViewR) * 256.0f;
+        const float fogFadeStart = static_cast<float>(ctViewR) * 192.0f;
+        const float fadeRange = fogDistance - fogFadeStart;
+        const float distanceFog = std::clamp(
+            (d - fogFadeStart) / (fadeRange > 1.0f ? fadeRange : 1.0f), 0.0f, 1.0f);
+        return {distanceFog, GetDistanceFogColor()};
+    }
+}
 
 // Terrain / water helpers
 float VertexDistanceSq(const Vector3d& v);

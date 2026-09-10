@@ -2,7 +2,9 @@
 #include "Hunt.h"
 #include "Renderer/GLUtils.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 
 // Minimal engine state for the real GLFog.cpp sampler. These tests verify
@@ -65,6 +67,75 @@ protected:
     }
 };
 
+TEST_F(FogSamplingTest, InlinePocketPackingMatchesPublicSampler)
+{
+    // Exercise the exact loop's constant policy and byte-rounding boundaries.
+    // CalcFogLevel remains the test double above: this checks sampler routing,
+    // side effects, and packing rather than the pocket-density formula.
+    const auto pack = [](const FogSample& fog) {
+        const auto byte = [](float value) {
+            return static_cast<std::uint8_t>(
+                std::clamp(value, 0.0f, 1.0f) * 255.0f + 0.5f);
+        };
+        return std::array<std::uint8_t, 4>{
+            byte(fog.amount), byte(fog.color.x), byte(fog.color.y), byte(fog.color.z)};
+    };
+    const auto compare = [&](const Vector3d& point) {
+        calcCalls = 0;
+        sampledIndex = -1;
+        CurFogColor = 0x123456;
+        const auto expected = pack(SamplePocketFogAtPoint(point, false));
+        const int expectedCalls = calcCalls;
+        const int expectedIndex = sampledIndex;
+        const int expectedColor = CurFogColor;
+
+        calcCalls = 0;
+        sampledIndex = -1;
+        CurFogColor = 0x123456;
+        EXPECT_EQ(pack(SampleFogAtPointInline<false>(point, false)), expected);
+        EXPECT_EQ(calcCalls, expectedCalls);
+        EXPECT_EQ(sampledIndex, expectedIndex);
+        EXPECT_EQ(CurFogColor, expectedColor);
+    };
+
+    for (int z = 0; z < 512; ++z)
+        for (int x = 0; x < 512; ++x)
+            FogsMap[z][x] = static_cast<unsigned char>((x + z * 3) & 255);
+    CameraX = 1024.25f;
+    CameraZ = 2048.5f;
+    for (int i = -1; i <= 256; ++i) {
+        const float boundary = static_cast<float>(i) + 0.5f;
+        for (float amount : {std::nextafter(boundary, -1000.0f), boundary,
+                             std::nextafter(boundary, 1000.0f)}) {
+            calculatedAmount = amount;
+            calculatedColor = (i & 255) | (((i + 71) & 255) << 8) |
+                              (((i + 129) & 255) << 16);
+            for (int enabled : {0, 1}) {
+                FOGON = enabled;
+                for (float distance : {-262656.0f, -512.0f, 0.0f, 511.99f, 512.0f,
+                                       18432.0f, 21504.0f, 24576.0f, 262144.0f})
+                    compare({distance, -64.0f, distance});
+            }
+        }
+    }
+
+    UNDERWATER = 1;
+    auto& water = FogsList[127];
+    water.YBegin = 32.0f;
+    water.fogRGB = 0x123456;
+    for (float cameraY : {0.0f, 2048.0f, 2200.0f})
+        for (float vertexY : {-500.0f, 0.0f, 500.0f})
+            for (float depth : {0.0f, 0.25f, 0.5f, 1.0f})
+                for (float transparency : {64.0f, 512.0f, 4096.0f})
+                    for (float cap : {0.0f, 100.0f, 200.0f, 255.0f}) {
+                        CameraY = cameraY;
+                        CameraWaterDepthFactor = depth;
+                        water.Transp = transparency;
+                        water.FLimit = cap;
+                        compare({512.0f, vertexY, 1000.0f});
+                    }
+}
+
 TEST_F(FogSamplingTest, ClearCharacterCellRetainsCameraSegmentAndShiftedColour)
 {
     CAMERAINFOG = 1;
@@ -121,35 +192,49 @@ TEST_F(FogSamplingTest, NearModelBypassSkipsPocketAndDistanceSampling)
     EXPECT_FLOAT_EQ(fog.amount, 0.0f);
 }
 
-TEST_F(FogSamplingTest, ZeroContributionDoesNotLeakStalePocketColour)
+TEST_F(FogSamplingTest, ClearDestinationOutsidePocketSkipsCalculation)
 {
-    calculatedAmount = 0.0f;
     const FogSample fog = SampleFogAtPoint({0.0f, 0.0f, 2000.0f}, false);
+    EXPECT_EQ(calcCalls, 0);
     EXPECT_FLOAT_EQ(fog.amount, 0.0f);
     ExpectColor(fog.color, horizonColor);
 }
 
-TEST_F(FogSamplingTest, KeepsLegacyModelHorizonFallback)
+TEST_F(FogSamplingTest, ZeroContributionDoesNotLeakStalePocketColour)
 {
+    FogsMap[3][0] = 5;
     calculatedAmount = 0.0f;
+    const FogSample fog = SampleFogAtPoint({0.0f, 0.0f, 2000.0f}, false);
+    EXPECT_EQ(calcCalls, 1);
+    EXPECT_FLOAT_EQ(fog.amount, 0.0f);
+    ExpectColor(fog.color, horizonColor);
+}
+
+TEST_F(FogSamplingTest, FullSamplerKeepsCpuHorizonFallbackForScreenSpaceConsumers)
+{
     const float halfway = ctViewR * 224.0f;
+    FogsMap[42][0] = 5;
+    calculatedAmount = 0.0f;
     const FogSample fog = SampleFogAtPoint({0.0f, 0.0f, halfway}, false);
     EXPECT_FLOAT_EQ(fog.amount, 0.5f);
     ExpectColor(fog.color, horizonColor);
 }
 
-TEST_F(FogSamplingTest, ShadowDoesNotDoubleApplyShaderDistanceFog)
+TEST_F(FogSamplingTest, PocketOnlySamplerDoesNotDoubleApplyShaderDistanceFog)
 {
-    calculatedAmount = 0.0f;
-    const FogSample fog = SampleFogAtPoint({0.0f, 0.0f, ctViewR * 224.0f}, false, false);
+    const FogSample fog = SamplePocketFogAtPoint(
+        {0.0f, 0.0f, ctViewR * 224.0f}, false);
+    EXPECT_EQ(calcCalls, 0);
     EXPECT_FLOAT_EQ(fog.amount, 0.0f);
+    ExpectColor(fog.color, horizonColor);
 }
 
 TEST_F(FogSamplingTest, ShadowGroundSampleStillReceivesPocketFog)
 {
     CameraY = 2000.0f;
     const Vector3d ground = {512.0f, -1500.0f, 2000.0f};
-    const FogSample fog = SampleFogAtPoint(ground, false, false);
+    FogsMap[3][1] = 5;
+    const FogSample fog = SamplePocketFogAtPoint(ground, false);
     EXPECT_FLOAT_EQ(fog.amount, 175.0f / 255.0f);
     ExpectColor(sampledPoint, ground);
     ExpectColor(fog.color, DecodeFogColor(calculatedColor));
@@ -157,9 +242,10 @@ TEST_F(FogSamplingTest, ShadowGroundSampleStillReceivesPocketFog)
 
 TEST_F(FogSamplingTest, PocketAmountIsClampedWithoutDensityMultiplier)
 {
+    FogsMap[3][0] = 5;
     for (float amount : {-10.0f, 20.0f, 200.0f, 256.0f, 300.0f}) {
         calculatedAmount = amount;
-        const FogSample fog = SampleFogAtPoint({0.0f, 0.0f, 2000.0f}, false);
+        const FogSample fog = SamplePocketFogAtPoint({0.0f, 0.0f, 2000.0f}, false);
         EXPECT_FLOAT_EQ(fog.amount, std::clamp(amount / 255.0f, 0.0f, 1.0f));
     }
 }

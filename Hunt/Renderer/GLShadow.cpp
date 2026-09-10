@@ -52,7 +52,7 @@ void GLRenderer::BuildCharacterShadowVertices(const TCharacter& character, float
             shy + character.pos.y - CameraY,
             shz + character.pos.z - CameraZ
         };
-        projectedFog[s] = SampleFogAtPoint(groundPoint, false, false);
+        projectedFog[s] = SamplePocketFogAtPoint(groundPoint, false);
 
         Vector3d out;
         out.x = (shx * caCam + shz * saCam) + character.rpos.x;

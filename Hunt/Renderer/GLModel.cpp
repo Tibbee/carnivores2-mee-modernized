@@ -1204,7 +1204,7 @@ bool GLRenderer::BuildModelDrawItem(ModelDrawItem& outItem,
     {
         GL_PERF_CPU_SCOPE("Model_VertexFog");
         for (const Vector3d& point : unrotated) {
-            fogSamples.push_back(SampleFogAtPoint(point, disableFog));
+            fogSamples.push_back(SampleFogAtPointInline<false>(point, disableFog));
         }
     }
 
@@ -1681,7 +1681,7 @@ bool GLRenderer::PopulateExactShadeInstance(ModelInstance& instance,
         const float worldY = ::cb * p.y + ::sb * p.z;
         const float yawZ = ::cb * p.z - ::sb * p.y;
         const Vector3d world = {::ca * p.x - ::sa * yawZ, worldY, ::sa * p.x + ::ca * yawZ};
-        const FogSample fog = SampleFogAtPoint(world, false);
+        const FogSample fog = SampleFogAtPointInline<false>(world, false);
         shades.push_back({Light255ToByte(std::clamp(128.0f + model->VLight[0][i], 0.0f, 255.0f)),
                           Float01ToByte(fog.amount), Float01ToByte(fog.color.x),
                           Float01ToByte(fog.color.y), Float01ToByte(fog.color.z), 255, 0, 0});
