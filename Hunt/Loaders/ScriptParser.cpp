@@ -1283,6 +1283,7 @@ void WipeKillTypes() {
 }
 
 /*
+// Disabled: no live definition and nothing calls it.
 void WipeTrophyTypes() {
 	if (DinoInfo[TotalC].trophyTypeCount) {
 		for (int i = 0; i < DinoInfo[TotalC].trophyTypeCount; i++) {
@@ -1320,7 +1321,10 @@ void WipeIdle2Groups() {
 	DinoInfo[TotalC].idle2GroupCount = 0;
 }
 
-/*void WipeAvoidances() {
+/*
+// Disabled: no live definition. The only call site is the block below,
+// which is commented out too.
+void WipeAvoidances() {
 
 	if (DinoInfo[TotalC].AvoidCount) {
 
@@ -1482,6 +1486,9 @@ void ReadKillTypeInfo(FILE *stream)
 
 
 /*
+// Superseded: the original C1 spawn-info parser, reading spawnrate/
+// spawnmax/spawnmin into Region[]. The live parser reads the C2 format
+// (spawnratio into DinoInfo[].SpawnInfo[]) instead.
 void ReadSpawnInfo(FILE *stream)
 {
 	char *value;

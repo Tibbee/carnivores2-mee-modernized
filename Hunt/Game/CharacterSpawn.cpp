@@ -143,6 +143,7 @@ void spawnPositionPackFollower(int leader) {
 }
 
 /*
+// Disabled: no live definition and nothing calls it.
 void spawnHuntable(int &tr, int leader) {
 
 replace2:

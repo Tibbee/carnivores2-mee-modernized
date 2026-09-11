@@ -1401,6 +1401,8 @@ void CalcLights(TModel* mptr)
 
 
 /*
+// Superseded: averaged per-face normals. The live CalcGouraud below
+// shades from the sun direction instead.
 
 void CalcGouraud(TModel* mptr, Vecto3d *nvs[])
 
@@ -1639,6 +1641,8 @@ void CalcNormals(TModel* mptr, Vector3d *nvs)
 
 
 /*
+// Superseded: companion to the per-face CalcGouraud above. The live
+// CalcNormals is defined above this block.
 
 void CalcNormals(TModel* mptr, Vector3d *nvs)
 

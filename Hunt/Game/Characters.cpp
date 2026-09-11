@@ -5,6 +5,8 @@
 #define fx_DIE    0
 
 /*
+// Superseded: state indices for the dinosaur types that no longer use
+// named states. The live defines are below this block.
 #define RAP_RUN    0
 #define RAP_WALK   1
 #define RAP_SWIM   2
@@ -58,6 +60,8 @@
 #define MOSA_SLP    5
 
 /*
+// Superseded: state indices for the dinosaur types that no longer use
+// named states. The live defines are above this block.
 #define FISH_WALK   0
 #define FISH_RUN    1
 
