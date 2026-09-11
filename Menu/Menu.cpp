@@ -8,6 +8,7 @@
 
 #include "Hunt.h"
 #include "SliderMath.h"
+#include "../Hunt/Core/ScoreMod.h"
 #include <cassert>
 #include <cmath>
 
@@ -2498,17 +2499,21 @@ void MenuEventInput(int32_t menu)
 				if (g_ObserverMode)
 					params << " -observ";
 
-				// Pass accessory score multipliers to the engine. Order must
-				// match the engine's smod= parser in Hunt/Game/CommandLine.cpp
-				// ProcessCommandLine(): camo, radar, scent, double, tranq, observer.
+				// Pass accessory score multipliers to the engine. The order lives
+				// in Hunt/Core/ScoreMod.h and is shared with the parser in
+				// Hunt/Game/CommandLine.cpp, so the two cannot drift apart.
 				// Values come from UtilInfo.m_ScoreMod (populated from _RES.TXT's
 				// 'accessories {}' block, falling back to legacy defaults).
-				params << " smod=" << g_UtilInfo[kAccCamo].m_ScoreMod  // camo
-				       << ","  << g_UtilInfo[kAccRadar].m_ScoreMod    // radar
-				       << ","  << g_UtilInfo[kAccScent].m_ScoreMod    // scent
-				       << ","  << g_UtilInfo[kAccDouble].m_ScoreMod    // double
-				       << ","  << g_UtilInfo[kAccTranq].m_ScoreMod    // tranq
-				       << ","  << g_ObserverInfo.m_ScoreMod;  // observer
+				float scoreMods[kScoreModSlotCount] = {};
+				scoreMods[static_cast<int>(ScoreModSlot::Camo)]     = g_UtilInfo[kAccCamo].m_ScoreMod;
+				scoreMods[static_cast<int>(ScoreModSlot::Radar)]    = g_UtilInfo[kAccRadar].m_ScoreMod;
+				scoreMods[static_cast<int>(ScoreModSlot::Scent)]    = g_UtilInfo[kAccScent].m_ScoreMod;
+				scoreMods[static_cast<int>(ScoreModSlot::Double)]   = g_UtilInfo[kAccDouble].m_ScoreMod;
+				scoreMods[static_cast<int>(ScoreModSlot::Tranq)]    = g_UtilInfo[kAccTranq].m_ScoreMod;
+				scoreMods[static_cast<int>(ScoreModSlot::Observer)] = g_ObserverInfo.m_ScoreMod;
+				char scoreModPayload[kScoreModSlotCount * 24];
+				if (BuildScoreModPayload(scoreMods, scoreModPayload, sizeof scoreModPayload) > 0)
+					params << " smod=" << scoreModPayload;
 
 #ifdef _DEBUG
 				params << " -debug";

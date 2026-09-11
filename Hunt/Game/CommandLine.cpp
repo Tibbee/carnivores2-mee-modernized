@@ -3,7 +3,24 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "Core/ScoreMod.h"
 #include "Network/NetworkManager.h"
+
+// The engine's destination for each wire slot. Kept here rather than in
+// ScoreMod.h because these globals belong to the engine, not to the format.
+static float* ScoreModTarget(ScoreModSlot slot)
+{
+  switch (slot) {
+  case ScoreModSlot::Camo:     return &ScoreMod_Camo;
+  case ScoreModSlot::Radar:    return &ScoreMod_Radar;
+  case ScoreModSlot::Scent:    return &ScoreMod_Scent;
+  case ScoreModSlot::Double:   return &ScoreMod_Double;
+  case ScoreModSlot::Tranq:    return &ScoreMod_Tranq;
+  case ScoreModSlot::Observer: return &ScoreMod_Observer;
+  case ScoreModSlot::Count:    break;
+  }
+  return nullptr;
+}
 
 static bool equals_nocase(const char* lhs, const char* rhs)
 {
@@ -126,20 +143,18 @@ void ProcessCommandLine()
     if (strstr(s,"-tranq")) Tranq = true;
     if (strstr(s,"-observ")) ObservMode = true;
 
-	// smod=camo,radar,scent,double,tranq,observer
-	// Order must match the Menu's assembly in Menu.cpp and the defaults
-	// in InitEngine(). Modders can override these via the 'accessories {}'
+	// smod=camo,radar,scent,double,tranq,observer. The order lives in
+	// Hunt/Core/ScoreMod.h and is shared with the Menu's assembly, so the two
+	// cannot drift apart. Modders can override these via the 'accessories {}'
 	// block in _RES.TXT (parsed by Menu/Resources.cpp ReadAccessories()).
 	if (strstr(s, "smod=")) {
-		float mods[6] = {0};
-		int got = sscanf(s + 5, "%f,%f,%f,%f,%f,%f",
-			&mods[0], &mods[1], &mods[2], &mods[3], &mods[4], &mods[5]);
-		if (got >= 1) ScoreMod_Camo     = mods[0];
-		if (got >= 2) ScoreMod_Radar    = mods[1];
-		if (got >= 3) ScoreMod_Scent    = mods[2];
-		if (got >= 4) ScoreMod_Double   = mods[3];
-		if (got >= 5) ScoreMod_Tranq    = mods[4];
-		if (got >= 6) ScoreMod_Observer = mods[5];
+		float mods[kScoreModSlotCount] = {0};
+		const int got = ParseScoreModPayload(s + 5, mods);
+		for (int i = 0; i < got; ++i) {
+			const ScoreModSlot slot = kScoreModWireOrder[i];
+			float* target = ScoreModTarget(slot);
+			if (target) *target = mods[static_cast<int>(slot)];
+		}
 	}
 
   }
