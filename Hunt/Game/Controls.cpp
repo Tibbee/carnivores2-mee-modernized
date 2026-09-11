@@ -471,10 +471,7 @@ SKIPYMOVE:
   // (camera tweak, splash sound, water circle) when transitioning — they're
   // pure visual feedback from the physical state change, independent of
   // whether the logical game mode also flips to Underwater.
-  const bool canEnterUnderwaterFrom =
-      g_GameMode == GameMode::Normal ||
-      g_GameMode == GameMode::Swimming ||
-      g_GameMode == GameMode::Crouching;
+  const bool canEnterUnderwaterFrom = IsInWorldMovementMode(g_GameMode);
 
   if (UNDERWATER)
   {

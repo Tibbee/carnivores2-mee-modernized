@@ -45,6 +45,20 @@ inline void EnterExitCountdownNoStash() {
 inline bool IsOverlayMode(GameMode m) {
   return m == GameMode::OpticScope || m == GameMode::Binocular || m == GameMode::MapMode;
 }
+// The only modes an underwater transition may silently overwrite. Every other
+// mode is an overlay the player opened deliberately (Tab -> map, Escape ->
+// exit prompt, Pause), and stomping on it every frame would make that overlay
+// unreachable while the camera is submerged. The side effects of the
+// transition (camera tweak, splash sound, water circle) still apply either
+// way; see the swim branch in Hunt/Game/Controls.cpp.
+//
+// Crouching is kept in the set for symmetry with the original list, but it is
+// vestigial: stance moved to the CrouchMode flag above, and nothing assigns
+// GameMode::Crouching any more.
+inline bool IsInWorldMovementMode(GameMode m) {
+  return m == GameMode::Normal || m == GameMode::Swimming ||
+         m == GameMode::Crouching;
+}
 // Rendering view: the exit menu (ExitCountdown) and Pause borrow the mode
 // slot but must not change what the player SEES of an underlying magnifier.
 // The original engine kept EXITMODE/PAUSE as independent flags, so the scope

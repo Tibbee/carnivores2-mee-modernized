@@ -261,6 +261,7 @@ if(MSVC)
     add_executable(Carnivores2Tests
         tests/test_billboard_math.cpp
         tests/test_config_text.cpp
+        tests/test_game_mode.cpp
         tests/test_math.cpp
         tests/test_trophy_mode.cpp
         tests/test_key_bindings.cpp
