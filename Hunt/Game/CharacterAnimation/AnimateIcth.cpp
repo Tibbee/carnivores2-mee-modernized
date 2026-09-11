@@ -1,6 +1,6 @@
-// AnimateIcth.cpp � auto-extracted from CharacterAnimation.cpp
+// AnimateIcth.cpp � split from CharacterAnimation.cpp
 // ==========================================================================
-// Auto-generated from CharacterAnimation.cpp
+// One-time split from CharacterAnimation.cpp; no generator — edit this file.
 // ==========================================================================
 
 #include "Hunt.h"

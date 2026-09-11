@@ -1,6 +1,6 @@
-// AnimateDeadFish.cpp — auto-extracted from CharacterAnimation.cpp
+// AnimateDeadFish.cpp — split from CharacterAnimation.cpp
 // ==========================================================================
-// Auto-generated from CharacterAnimation.cpp
+// One-time split from CharacterAnimation.cpp; no generator â€” edit this file.
 // ==========================================================================
 
 #include "Hunt.h"

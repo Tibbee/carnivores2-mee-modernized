@@ -1,6 +1,5 @@
 // ==========================================================================
 // CharacterAnimation.cpp — dispatcher for per-dino animation files
-// Auto-generated from split_animations.py
 // ==========================================================================
 
 #include "Hunt.h"
