@@ -11,12 +11,12 @@ in float vViewDistance;
 in float vRadialDist;      // radial camera distance (see terrain.vert)
 in float vWaterAlphaFade;
 in vec3 vViewPos;            // view-space position (camera at origin)
-uniform vec3 uSunDirection;     // sun direction in view space (§3.5)
-uniform float uSunVisibility;    // 0..1 sun visibility (§3.5)
-uniform float uFogScatter;       // master scatter strength (§3.5)
+uniform vec3 uSunDirection;     // sun direction in view space
+uniform float uSunVisibility;    // 0..1 sun visibility
+uniform float uFogScatter;       // master scatter strength
 uniform float uNightStrength;     // world-only night lighting (0=day, 1=night)
-uniform vec3 uCamFogColor;       // §3.10 camera-in-fog envelope colour
-uniform float uCamFogAmount;     // §3.10 camera-in-fog envelope strength (0 = off)
+uniform vec3 uCamFogColor;       // camera-in-fog envelope colour
+uniform float uCamFogAmount;     // camera-in-fog envelope strength (0 = off)
 uniform PerFrame {
    mat4 uProjection;
    vec2 uFogRange;          // (fadeStart, distance)
@@ -25,8 +25,8 @@ uniform PerFrame {
    vec3 uFogColor;
    mat4 uView;
    vec4 uWaterAlphaFade;    // x=start, y=end, z=enabled, w=fade step
-   float uWaterDepthFactor; // 0 at surface, 1 at max depth (§3.4)
-   float uCloudCover;       // §3.7: 0=clear sun, 1=overcast (cloud colour temp)
+   float uWaterDepthFactor; // 0 at surface, 1 at max depth
+   float uCloudCover;       // 0=clear sun, 1=overcast (cloud colour temp)
 };
 uniform sampler2DArray uTerrainArray;
 void main() {
@@ -34,14 +34,14 @@ void main() {
    if (texColor.a < 0.05) discard;
    vec3 litColor = texColor.rgb * vLight;
 
-   // §3.7: Cloud colour temperature.  When the sun is obscured (overcast),
+   // Cloud colour temperature.  When the sun is obscured (overcast),
    // the remaining light is cooler/bluer skylight, so shift the terrain tint
    // toward blue in cloud shadow.  uCloudCover (0=clear sun, 1=overcast) is
    // derived from sun visibility in UpdatePerFrameUBO().
    vec3 cloudTint = mix(vec3(1.0), vec3(0.92, 0.95, 1.05), uCloudCover * 0.3);
    litColor *= cloudTint;
 
-   // §3.4: Water-colour-aware wavelength attenuation on terrain underwater.
+   // Water-colour-aware wavelength attenuation on terrain underwater.
    // vWaterAlphaFade > 0.5 identifies water surface vertices (which go
    // through the water fade path); terrain vertices have vWaterAlphaFade < 0.5.
    if (uWaterDepthFactor > 0.01 && vWaterAlphaFade < 0.5) {
@@ -70,7 +70,7 @@ void main() {
 
    // Per-vertex volumetric fog (volume-specific color and amount).
    vec3 volumetricFogColor = mix(litColor, vFogColor, vFog);
-   // §3.5: per-pixel sun-fog forward-scatter glow.  The warm glow only
+   // per-pixel sun-fog forward-scatter glow.  The warm glow only
    // appears where there is fog (vFog) and only when looking toward the
    // sun (view ray aligned with the view-space sun direction).  Evaluating
    // per fragment avoids the blocky per-tile approximation used before.
@@ -94,10 +94,10 @@ void main() {
    float distanceFog = clamp((vRadialDist - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);
    vec3 finalColor = mix(volumetricFogColor, uDistanceFogColor, distanceFog);
 
-   // §3.10: camera-in-fog global envelope.  When the camera is submerged in a
+   // camera-in-fog global envelope.  When the camera is submerged in a
    // tall pocket-fog volume, fog the whole scene by distance so the world
    // reads as enveloped (not just geometry that sits inside the volume).  The
-   // sky horizon is fogged separately (§3.8).  uCamFogAmount is 0 when the
+   // sky horizon is fogged separately.  uCamFogAmount is 0 when the
    // camera is in a shallow foot-level puddle, so it self-disables there.
    if (uCamFogAmount > 0.001f) {
        // Near baseline so close objects are also hazed (sells "inside fog");

@@ -31,7 +31,7 @@ void GLRenderer::RenderSkyPlane()
 
     SKYDTime = RealTime & ((1 << 16) - 1);
 
-    // §3.8: Dynamic sky pitch offset.  Replace C2's fixed -0.15 rad offset
+    // Dynamic sky pitch offset.  Replace C2's fixed -0.15 rad offset
     // with one that follows camera altitude: in deep valleys the sky sits
     // "higher" (larger offset), on mountain peaks it sits lower (smaller
     // offset).  Range 0.10..0.20 rad, centred on the original 0.15 default.
@@ -118,23 +118,23 @@ void GLRenderer::RenderSkyPlane()
     glUniform3f(m_locSkyQ, qx, qy, qz);
     glUniform3f(m_locSkyP, px, py, pz);
     glUniform3f(m_locSkyR, rx, ry, rz);
-    // §3.2 reverted: original (non-wind) sky scroll.  The §3.1 gradient,
-    // §3.6 sun glow and §3.5 pocket fog below are unchanged.
+    // Reverted: original (non-wind) sky scroll.  The gradient,
+    // sun glow and pocket fog below are unchanged.
     glUniform1f(m_locSkyTime, static_cast<float>(SKYDTime) / 256.0f);
 
-    // §3.6: Sun glow on sky texture.  The sun's screen position (m_sunScrX/Y)
+    // Sun glow on sky texture.  The sun's screen position (m_sunScrX/Y)
     // and visibility (m_skyTraceK) are members updated by RenderSun(), which
     // runs later in this same function — so these values are at most one
     // frame stale.  That lag is imperceptible for a slowly-moving sun.
     glUniform2f(m_locSkySunScreenPos, static_cast<float>(m_sunScrX), static_cast<float>(m_sunScrY));
     glUniform1f(m_locSkySunVisibility, m_skyTraceK);
-    // §3.6: sun vs moon get different glow character.  The sun is bright and
+    // sun vs moon get different glow character.  The sun is bright and
     // warm; the moon is dim and cool, so it gets a smaller master strength
     // (handled in the shader via uBodyIsMoon).  OptDayNight==2 is night/moon.
     glUniform1f(m_locSkySunGlow, (OptDayNight == 2) ? 0.10f : 0.18f);
     glUniform1f(m_locSkyBodyIsMoon, (OptDayNight == 2) ? 1.0f : 0.0f);
 
-    // §3.1 (world-space gradient): pass the camera basis so the sky shader
+    // World-space gradient: pass the camera basis so the sky shader
     // can derive the view ray's world elevation (pitch-invariant horizon).
     // The shader builds a WORLD-space view ray:
     //     vWorldDir = pos.x*uCamRight + pos.y*uCamUp + uCamForward
@@ -163,7 +163,7 @@ void GLRenderer::RenderSkyPlane()
         glUniform3f(m_locSkyCamForward, camForward.x,        camForward.y,        camForward.z);
     }
 
-    // §3.5: Per-pixel pocket fog on the sky.  Sample CalcFogLevel at the
+    // Per-pixel pocket fog on the sky.  Sample CalcFogLevel at the
     // camera (origin in view space) and, when a pocket fog volume is active,
     // pass its density/colour to the shader so the horizon blends into it.
     // Gated so it only activates with a real pocket fog (CameraFogI in
@@ -181,7 +181,7 @@ void GLRenderer::RenderSkyPlane()
     glUniform1f(m_locSkyPocketFog, pocketFogAmount);
     glUniform3f(m_locSkyPocketFogColor, pocketFogColor.x, pocketFogColor.y, pocketFogColor.z);
 
-    // §3.10: camera-in-fog global envelope also fogs the sky (see sky.frag).
+    // camera-in-fog global envelope also fogs the sky (see sky.frag).
     {
         static const GLint uCamFogCol = glGetUniformLocation(m_skyShader.GetProgramID(), "uCamFogColor");
         static const GLint uCamFogAmt = glGetUniformLocation(m_skyShader.GetProgramID(), "uCamFogAmount");
@@ -433,7 +433,7 @@ void GLRenderer::ApplySunDepthOcclusion()
 // introduction) and combined cloud + depth occlusion into m_skyTraceK, which
 // the architecture deliberately splits (cloud occlusion is live in GetSkyK
 // during the sky pass; depth occlusion is applied to m_sunLight later in
-// ApplySunDepthOcclusion()).  The §3.4 asymmetric transition now lives in
+// ApplySunDepthOcclusion()).  The asymmetric transition now lives in
 // GetSkyK's DeltaFunc.
 
 void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int alpha)
@@ -498,7 +498,7 @@ void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int 
     // here so the sun renders normally.
     glUniform1f(m_locModelTint, 0.0f);
 
-    // §3.10: the sun is a sky/light element drawn additively on top of the
+    // the sun is a sky/light element drawn additively on top of the
     // already-fogged sky. It must NOT inherit the model shader's global
     // envelope — that would colour-replace the bright corona into a harsh,
     // out-of-place fog-coloured additive blob when looking up inside a fog
@@ -590,7 +590,7 @@ void GLRenderer::RenderSun(float x, float y, float z)
     d += (1.0f - m_skyTraceK) / 2.0f;
     if (OptDayNight == 2) d = 1.5f;
 
-    // §3.3: Sun-size modulation with haze/elevation.  The disc appears
+    // Sun-size modulation with haze/elevation.  The disc appears
     // larger through haze and at low sun, smaller on a clear high sun.
     // NOTE: x/y/z are already the rotated sun direction (the caller rotates
     // {-2048,4048,-2048} before calling RenderSun), so use them directly —
@@ -600,7 +600,7 @@ void GLRenderer::RenderSun(float x, float y, float z)
     float sunLen = std::sqrt(x * x + y * y + z * z);
     float sunElev = (sunLen > 1e-3f) ? y / sunLen : 0.0f;   // up-component of rotated dir
     float elevFactor = 1.0f + (1.0f - (std::max)(0.0f, sunElev)) * 0.15f;
-    // §3.3 review fix: the original altitude term was sign-inverted — it made
+    // Review fix: the original altitude term was sign-inverted — it made
     // the disc grow at HIGH altitude.  Lower camera = more atmosphere = larger
     // sun, so use altitude directly (clamped) with no 0.85 floor.
     float sizeBoost = 1.0f + horizonFog
@@ -622,11 +622,11 @@ void GLRenderer::RenderSun(float x, float y, float z)
         depthAtten = 1.0f - CameraWaterDepthFactor * 0.7f;
     }
 
-    // §3.4: Perceptual (non-linear) brightness curve on the *visibility*
+    // Perceptual (non-linear) brightness curve on the *visibility*
     // signal only.  NOTE: m_sunLight is intentionally left linear — it also
     // drives the underwater/pocket fog-scatter paths, which are tuned
     // against the raw linear value.
-    // §3.10: inside a fog volume the sun should recede into the haze rather
+    // inside a fog volume the sun should recede into the haze rather
     // than stay a crisp disc. Dim it with the global envelope (gentle, so a
     // light fog barely touches it and even a dense fog only pulls it toward
     // ~30%), complementing the sky shader's halo attenuation.
@@ -645,8 +645,8 @@ void GLRenderer::RenderSun(float x, float y, float z)
 float GLRenderer::GetSkyK(int x, int y)
 {
     // Cloud-occlusion readback for the sun/moon glow.
-    // Average the sky colour in a ring at R (outside the <=120px glow halo,
-    // §3.6) and compare it to a SYMMETRIC reference ring at Rref around the
+    // Average the sky colour in a ring at R (outside the <=120px glow halo)
+    // and compare it to a SYMMETRIC reference ring at Rref around the
     // body. A symmetric reference (not a single off-centre point) removes the
     // directional offset, and averaging over a DENSE ring treats the cloud as
     // a FORMATION (overall coverage) instead of flickering with individual
@@ -713,7 +713,7 @@ float GLRenderer::GetSkyK(int x, int y)
             detR /= N; detG /= N; detB /= N;
             refR /= N; refG /= N; refB /= N;
 
-            // Deviation between the averaged formation colours (cancels §3.1 gradient).
+            // Deviation between the averaged formation colours (cancels the gradient).
             const long dr = detR - refR, dg = detG - refG, db = detB - refB;
             const float dev = std::sqrt(static_cast<float>(dr * dr + dg * dg + db * db));
             // Cloud response is intentionally aggressive: ~2x the earlier sensitivity
@@ -723,7 +723,7 @@ float GLRenderer::GetSkyK(int x, int y)
             if (k < 0.05f) k = 0.05f;
             if (k > 1.0f) k = 1.0f;
 
-            // §2.2 workaround: hysteresis latch (INTERIM).  The ring-vs-ring
+            // Workaround: hysteresis latch (INTERIM).  The ring-vs-ring
             // detector is blind when a large cloud covers both rings (dev ≈ 0 →
             // k ≈ 1 → "clear").  Once the detector sees a cloud EDGE (k drops),
             // this latch clamps k to prevent the false re-brighten while the sun
@@ -754,7 +754,7 @@ float GLRenderer::GetSkyK(int x, int y)
             // cloud dependence, so remap k to a lower range.
             if (OptDayNight == 2) k = 0.12f + k / 5.0f;
 
-            // §2.1 (review fix): apply the §3.4 asymmetric transition HERE (where it
+            // Review fix: apply the asymmetric transition HERE (where it
             // is actually live).  A cloud covering the sun (k < m_skyTraceK) darkens
             // fast; the sun emerging (k > m_skyTraceK) brightens slowly as the eye
             // readapts.  (The asymmetry was originally added to the now-deleted

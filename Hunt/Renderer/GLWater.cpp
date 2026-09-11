@@ -32,7 +32,7 @@ void GLRenderer::SetWaterAlphaFade(float enabled, float fadeStart, float fadeEnd
 void GLRenderer::BeginWaterFrame()
 {
     m_waterVertexCount = 0;
-    // §5.4: Ensure worst-case capacity for the current view distance.
+    // Ensure worst-case capacity for the current view distance.
     const size_t maxTiles = static_cast<size_t>(2 * ctViewR + 1) * static_cast<size_t>(2 * ctViewR + 1);
     EnsureWaterVertexCapacity(maxTiles * 6);
     m_waterUsedLayers.fill(false);
@@ -80,7 +80,7 @@ void GLRenderer::RenderWaterSurface()
         }
     }
 
-    // §3.5: the terrain program's sun forward-scatter uniforms are
+    // the terrain program's sun forward-scatter uniforms are
     // set for terrain in RenderTerrain(); the water surface reuses the
     // same program, so zero the scatter here to stop water fog from
     // inheriting the terrain glow.
@@ -178,7 +178,7 @@ void GLRenderer::AppendWaterTriangle(const EPoint& v0,
     // is in 0..200 from CalcFogLevel (clamped to FLimit, typically
     // 200) and the old shader divided it by 255, so the uint8 packing
     // matches byte-for-byte.
-    // §5.4: write directly to the flat array instead of push_back.
+    // write directly to the flat array instead of push_back.
     TerrainVertex* dst = m_waterVertices.get() + m_waterVertexCount;
     dst[0] = {v0.v.x, v0.v.y, v0.v.z, uv[0].x, uv[0].y, layer,
               Light255ToByte(static_cast<float>(v0.Light)),
@@ -283,7 +283,7 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
     float a01 = Clamp01(v01.ALPHA / 255.0f);
     float a11 = Clamp01(v11.ALPHA / 255.0f);
 
-    // §5.1: Early-out if all water vertex alphas are zero — skip the
+    // Early-out if all water vertex alphas are zero — skip the
     // fog lookup and triangle validation for fully transparent water.
     if (a00 <= 0.0f && a10 <= 0.0f && a01 <= 0.0f && a11 <= 0.0f) {
         return;
@@ -400,7 +400,7 @@ void GLRenderer::RenderWCircles()
         // i.e. the alpha is exactly the same expression the shader reads from GlassL.
         GlassL = 255 - (2000 - wptr->FTime) / 38;
 
-        // §fix: the GL model path derives the per-item alpha from
+        // Fix: the GL model path derives the per-item alpha from
         // m_modelDistanceAlpha, NOT GlassL, so feed the ripple's intended
         // fade (baseAlpha = (255 - GlassL) / 255, i.e. ~0.21 -> 0) into it.
         // Without this the ripple rendered at the stale distance alpha (~1.0),

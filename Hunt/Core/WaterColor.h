@@ -1,8 +1,8 @@
 // ==========================================================================
 // WaterColor.h — Water-colour-aware submersion depth modulation
 // ==========================================================================
-// Used by the underwater effects (§3.1 overlay, §3.2 fog colour, and the
-// §3.4 terrain wavelength attenuation) so that the depth tint respects the
+// Used by the underwater effects (the overlay, fog colour, and the
+// terrain wavelength attenuation) so that the depth tint respects the
 // actual colour of the body of water the camera is in.
 //
 // The old implementation used a FIXED, blue-biased absorption curve (red

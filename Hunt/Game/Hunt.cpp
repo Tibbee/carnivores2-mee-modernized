@@ -79,7 +79,7 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
   CurFogColor = fptr->fogRGB;
 
 #ifdef _gl
-  // §3.6: Sun-fog colour shift — modulate fog colour by sun elevation
+  // Sun-fog colour shift — modulate fog colour by sun elevation
   // and cloud visibility.  Delegated to ApplySunFogColourShift() so the
   // SAME shift reaches BOTH the terrain fog colour (via
   // GetFogColorForMapPoint, which now calls it) and the model/water
@@ -96,10 +96,10 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
 
   v.y+=CameraY;
 
-  // Pocket fog improvements (§3.2 breathing, §3.3 undulating floor):
+  // Pocket fog improvements (breathing, undulating floor):
   // Apply to pocket fog volumes only (cf 1..126, not underwater).
   float fogFloorY = fptr->YBegin * ctHScale;
-  // §3.3: Undulating fog floor — let the fog follow the terrain relief
+  // Undulating fog floor — let the fog follow the terrain relief
   // instead of sitting on a flat horizontal plane.  IMPORTANT: only the
   // SMOOTH terrain-following term is used.  The original used RandomMap
   // for a "fine-scale noise" offset, but RandomMap is white (per-2-cell)
@@ -108,7 +108,7 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
   // (mix(litColor, vFogColor, vFog)) turned into visible splotches of
   // fog colour.  Real low-frequency undulation should come from a proper
   // value/simplex noise field, not from RandomMap.
-  // Gated to pocket fog volumes (cf 1..126) like the rest of §3.x.
+  // Gated to pocket fog volumes (cf 1..126), like the other pocket-fog work.
   if (!IsUnderwater() && cf > 0 && cf < 127)
   {
   float mx = v.x + CameraX;
@@ -127,8 +127,8 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
   if (!vinfog) if (fla>0) fla=0;
 
   // Camera term. A foreign pocket must not inherit the camera's in-fog
-  // envelope (nor the §3.9b boost below): the destination volume is
-  // authoritative for its own demand, and the §3.10 global envelope already
+  // envelope (nor the inside-fog boost below): the destination volume is
+  // authoritative for its own demand, and the global envelope already
   // veils the scene from inside the camera's pocket.
   float flb = -(CameraY - fogFloorY) / ctHScale;
   flb = ResolvePocketCameraDepth(flb, CAMERAINFOG != 0, cf, CameraFogI);
@@ -144,7 +144,7 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
   {
     if (fla > 0 && !IsUnderwater() && cf > 0 && cf < 127)
     {
-      // §3.9: From-above visibility.  Camera is above the fog layer but the
+      // From-above visibility.  Camera is above the fog layer but the
       // vertex is inside it.  The legacy d *= fla/(fla-flb) left the bank
       // nearly invisible: fl collapsed to just the vertex's thin vertical
       // depth (fla) while the distance term was shrunk to the in-fog slice.
@@ -166,7 +166,7 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
 
   float fl = (fla + flb);
 
-  // §3.2: Fog density breathes over time — modulate effective Transp by
+  // Fog density breathes over time — modulate effective Transp by
   // a slow sine seeded by the fog volume index.  The breathe factor
   // depends only on (cf, RealTime); RealTime is constant within a
   // frame, so precompute the 256-entry table once per frame and
@@ -190,7 +190,7 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
     effectiveTransp = fptr->Transp / s_breatheCache[cf];
   }
 
-  // §3.7: distance-density term.  Kept LINEAR to match the original
+  // distance-density term.  Kept LINEAR to match the original
   // 3dfx/D3D CalcFogLevel strength.  The earlier pow(distTerm, 1.1/1.2)
   // curve reduced near-volume density and made the fog look weaker than the
   // baseline.  (A subtle S-curve can be re-added later as a separate,
@@ -198,13 +198,13 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
   float distTerm = (d + effectiveTransp * 0.5f) / effectiveTransp;
   fl *= distTerm;
 
-  // §3.9b: Inside-fog envelope.  §3.9 boosted the from-above viewpoint so a
+  // Inside-fog envelope.  The from-above boost above makes a
   // valley reads as a thick bank; when the camera is *inside* the same volume
   // the base formula leaves near/mid fog comparatively thin, so the layer
   // feels less enveloping than the bank seen from a ridge.  Lift the thin
   // (near/mid) fog up to 1.6x and taper to 1.0x as it approaches FLimit, so
   // the volume feels surrounding without white-ing out the already-opaque
-  // far fog.  Pocket fog only, like §3.9.
+  // far fog.  Pocket fog only, like the from-above case.
   if (flb > 0 && fla > 0 && !IsUnderwater() && cf > 0 && cf < 127) {
       const float opacity = std::clamp(fl / fptr->FLimit, 0.0f, 1.0f);
       fl *= 1.0f + 0.6f * (1.0f - opacity);
@@ -280,7 +280,7 @@ void DrawScene()
 #endif
   PreCashGroundModel();
 
-  // §3.10: compute the camera-in-fog global envelope once per frame so the
+  // compute the camera-in-fog global envelope once per frame so the
   // terrain and model shaders can fog the whole scene (not just in-volume
   // geometry) when the player is submerged in a tall pocket-fog volume.
 #ifdef _gl

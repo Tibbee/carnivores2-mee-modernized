@@ -21,8 +21,8 @@ uniform PerFrame {
 };
 uniform sampler2D uModelTexture;
 uniform float uNightStrength;    // world-only night lighting (0=day, 1=night)
-uniform vec3 uCamFogColor;       // §3.10 camera-in-fog envelope colour
-uniform float uCamFogAmount;     // §3.10 camera-in-fog envelope strength (0 = off)
+uniform vec3 uCamFogColor;       // camera-in-fog envelope colour
+uniform float uCamFogAmount;     // camera-in-fog envelope strength (0 = off)
 void main() {
    if (vFaceVisible < 0.5) discard;
    vec4 texColor = texture(uModelTexture, vTexCoord);
@@ -41,7 +41,7 @@ void main() {
    // Final: fade to distance fog colour over the ramp.
    vec3 finalColor = mix(afterVolumetric, uDistanceFogColor, distanceFog);
 
-   // §3.10: camera-in-fog global envelope — see terrain.frag.
+   // camera-in-fog global envelope — see terrain.frag.
    if (uCamFogAmount > 0.001f) {
        // Near baseline so close objects are also hazed (sells "inside fog");
        // far objects still reach the full envelope amount.

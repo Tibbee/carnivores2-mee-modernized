@@ -12,8 +12,9 @@ CarnivoresPort/
 Carnivores1/
 stubs/
 pkg/
-# Ignore local/generated tooling except the reviewed release and performance
-# capture harnesses. Generated capture evidence stays under tools/artifacts/.
+# Ignore local/generated tooling except the reviewed release, performance
+# capture, and comment-hygiene harnesses. Generated capture evidence stays
+# under tools/artifacts/.
 tools/*
 !tools/release/
 tools/release/*
@@ -21,3 +22,4 @@ tools/release/*
 !tools/c2_capture_matrix.ps1
 !tools/c2_capture_manifest.json
 !tools/c2_capture_README.md
+!tools/check_comment_hygiene.ps1

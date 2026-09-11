@@ -21,7 +21,7 @@
 
 #include "Renderer/GLUtils.h"
 #include "Core/TerrainFog.h"
-#include "Core/WaterColor.h"  // §3.1: water-colour-aware depth modulation
+#include "Core/WaterColor.h"  // water-colour-aware depth modulation
 
 #define WGL_CONTEXT_MAJOR_VERSION_ARB     0x2091
 #define WGL_CONTEXT_MINOR_VERSION_ARB     0x2092
@@ -403,7 +403,7 @@ void GLRenderer::EnsurePerFrameUBO()
     if (m_perFrameUBOInitialized) {
         return;
     }
-    constexpr GLsizeiptr kUBOBytes = 240;  // Phase 2.4: +64 for uView, +16 for uWaterAlphaFade, +48 for §3.4+
+    constexpr GLsizeiptr kUBOBytes = 240;  // Phase 2.4: +64 for uView, +16 for uWaterAlphaFade, +48 for the water-depth/wavelength block
     glGenBuffers(1, &m_perFrameUBO);
     glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
     glBufferData(GL_UNIFORM_BUFFER, kUBOBytes, nullptr, GL_DYNAMIC_DRAW);
@@ -473,8 +473,8 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection,
     //   offset 108 :        (pad to mat4 align) ( 1 float)   -- Phase 2.4
     //   offset 112 : mat4 uView                 (16 floats)   -- Phase 2.4
     //   offset 176 : vec4 uWaterAlphaFade       ( 4 floats)   -- x=start, y=end, z=enabled, w=fade step
-    //   offset 192 : float uWaterDepthFactor    ( 1 float)    -- §3.4
-    //   offset 196 : float uCloudCover           ( 1 float)    -- §3.7
+    //   offset 192 : float uWaterDepthFactor    ( 1 float)
+    //   offset 196 : float uCloudCover           ( 1 float)
     std::array<float, 60> data{};
     std::memcpy(&data[0],  m_cachedProjection.data(), 16 * sizeof(float));
     data[16] = m_cachedFogStart;     // uFogRange.x
@@ -498,9 +498,9 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection,
     data[45] = waterAlphaFadeEnd;     // uWaterAlphaFade.y
     data[46] = waterAlphaEnabled;     // uWaterAlphaFade.z
     data[47] = waterAlphaFadeStep;    // uWaterAlphaFade.w
-    // §3.4: wavelength attenuation on terrain
+    // wavelength attenuation on terrain
     data[48] = m_isUnderwater ? CameraWaterDepthFactor : 0.0f;  // uWaterDepthFactor
-    // §3.7: cloud colour temperature — overcast (low sun visibility) shifts
+    // cloud colour temperature — overcast (low sun visibility) shifts
     // terrain light cool/blue.  clamp(1 - traceK*1.2, 0, 1): fully clear at
     // traceK≈0.83+, fully overcast at traceK=0.
     data[49] = (std::max)(0.0f, (std::min)(1.0f, 1.0f - m_skyTraceK * 1.2f));  // uCloudCover
@@ -793,7 +793,7 @@ void GLRenderer::Render3DHardwarePosts()
     RenderWorldModels();
 }
 
-// §3.1: Underwater full-screen overlay — restores the missing colour wash
+// Underwater full-screen overlay — restores the missing colour wash
 // that both legacy C2 renderers (D3D and 3DFX) applied when submerged.
 // The overlay uses CurFogColor (already set to WaterList[w].fogRGB by
 // Controls.cpp) for dynamic per-water-body colouring, and darkens with
@@ -806,7 +806,7 @@ void GLRenderer::DrawUnderwaterOverlay()
     float depth = CameraWaterDepthFactor;          // 0 at surface, 1 at ~1024u
 
     // CurFogColor is the depth-modulated water fog colour, refreshed every
-    // frame by Controls.cpp §3.2 (via FogsList[127].fogRGB).  It is packed
+    // frame by Controls.cpp (via FogsList[127].fogRGB).  It is packed
     // BGR: bits 0-7 = Blue, 8-15 = Green, 16-23 = Red (DecodeFogColorBGR).
     int baseB = CurFogColor & 0xFF;
     int baseG = (CurFogColor >> 8) & 0xFF;
@@ -815,10 +815,10 @@ void GLRenderer::DrawUnderwaterOverlay()
     // Base alpha matches original C2 D3D: ~44%, deeper at depth.
     float alpha = 0.44f + depth * 0.30f;           // up to ~0.74 at max depth
 
-    // The per-water-body depth tint is already baked into CurFogColor by §3.2,
+    // The per-water-body depth tint is already baked into CurFogColor,
     // so the overlay simply washes that (correctly hued) colour over the
     // scene.  No extra blue-biased channel attenuation here — the old code
-    // forced brown swamp water toward blue at depth even after §3.2 had
+    // forced brown swamp water toward blue at depth even after the tint had
     // already tinted it correctly.
     // RenderFSRect decodes the packed colour as r = bits 16-23, g = bits 8-15,
     // b = bits 0-7 (i.e. red in the HIGH byte, blue in the LOW byte), so the
@@ -1363,7 +1363,7 @@ Vector3d GLRenderer::GetCachedTerrainFogColor(int fogIndex)
 
 void GLRenderer::UpdateCameraFogEnvelope()
 {
-    // §3.10: compute the *target* envelope for this frame, then smooth the
+    // compute the *target* envelope for this frame, then smooth the
     // actual values toward it so entering/leaving a fog volume fades the
     // global envelope in/out instead of snapping.  flb is low-passed
     // (m_camEnvFlbSmooth) so head-bob — which oscillates CameraY and thus flb
@@ -1387,7 +1387,7 @@ void GLRenderer::UpdateCameraFogEnvelope()
         constexpr float kFlbSmooth = 0.05f;   // low-pass on flb (kills head-bob)
         m_camEnvFlbSmooth += (flb - m_camEnvFlbSmooth) * kFlbSmooth;
 
-        // §3.10 strength now tracks the volume's REAL density.  fog.FLimit is
+        // Envelope strength now tracks the volume's REAL density.  fog.FLimit is
         // the max opacity the engine assigns the volume (0..255), so a light /
         // low-FLimit pocket only ever produces a light global envelope instead
         // of the old fixed 0.5 floor that over-fogged thin volumes.  flb is
@@ -1414,7 +1414,7 @@ void GLRenderer::UpdateCameraFogEnvelope()
         }
     }
 
-    // Temporal smoothing (per-frame lerp).  §3.10: gentle fade in/out.
+    // Temporal smoothing (per-frame lerp).  Gentle fade in/out.
     // Tunable: higher = snappier, lower = slower.
     constexpr float kSmooth = 0.05f;
     m_camEnvelopeAmount += (targetAmount - m_camEnvelopeAmount) * kSmooth;

@@ -87,7 +87,7 @@ Vector3d DecodeFogColorBGR(int rgb)
     };
 }
 
-// §3.6: Sun-angle fog colour shift — warm by sun elevation (warmth)
+// Sun-angle fog colour shift — warm by sun elevation (warmth)
 // and dimmed by low sun visibility (shadowDim).  Factored out of the
 // inline CalcFogLevel block so the SAME shift is applied to BOTH the
 // terrain fog colour (via GetFogColorForMapPoint) and the model/water

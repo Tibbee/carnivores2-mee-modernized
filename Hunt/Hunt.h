@@ -58,7 +58,7 @@
 // empty-base-optimization on HeapDeleter; adjust if the STL or compiler
 // changes.
 //
-// See memory-system-migration.md §5 for the full verification protocol.
+// See CarnivoresDoc architecture/memory-system.md for the full verification protocol.
 // ----------------------------------------------------------------------------
 
 // TAni: 32 (aniName) + 3 ints (12) + unique_heap_ptr (4) = 48

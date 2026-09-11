@@ -5,7 +5,7 @@
 #include "Hunt.h"
 #include <algorithm>
 #include <cmath>
-#include "Core/WaterColor.h"  // §3.2: water-colour-aware depth modulation
+#include "Core/WaterColor.h"  // water-colour-aware depth modulation
 
 void CaptureMouse(BOOL capture)
 {
@@ -590,7 +590,7 @@ SKIPYMOVE:
     const float maxDepth = (std::max)(1024.0f, waterLevel - terrainFloor);
     CameraWaterDepthFactor = std::clamp((waterLevel - CameraY) / maxDepth, 0.0f, 1.0f);
 
-    // §3.2: Depth-dependent fog colour.  Different wavelengths of light are
+    // Depth-dependent fog colour.  Different wavelengths of light are
     // absorbed at different rates, but the *rates* are no longer fixed to a
     // blue ocean: they are derived from the water body's own surface colour
     // (see ModulateWaterColorByDepth in Core/WaterColor.h).  The dominant

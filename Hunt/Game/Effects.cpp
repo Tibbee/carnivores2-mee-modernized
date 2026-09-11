@@ -28,7 +28,7 @@ void PreCashGroundModel()
   static int waveCacheTime = 0;
   static bool waveCacheReady = false;
 
-  // §3.6: Multi-component wave cache for water surface displacement
+  // Multi-component wave cache for water surface displacement
   struct WaveCacheEntry { float wx[3], wy[3], wz[3]; };
   static WaveCacheEntry waveCacheSurface[32][32];
   static int waveCacheSurfaceTime = 0;
@@ -54,7 +54,7 @@ void PreCashGroundModel()
     }
   }
 
-  // §3.6: Pre-compute multi-component wave offsets for water surface
+  // Pre-compute multi-component wave offsets for water surface
   // Invalidate cache when wave parameters change (for real-time debug tuning)
   static float lastWave1Amp = 0, lastWave2Amp = 0, lastWave3Amp = 0, lastWaveSpeed = 0;
   if (WWave1Amp != lastWave1Amp || WWave2Amp != lastWave2Amp ||
@@ -190,7 +190,7 @@ void PreCashGroundModel()
 
         if ( (FMap[yy][xx] & fmWater) && (r < ctViewR-4))
         {
-          // §3.6: Multi-component wave displacement from cache
+          // Multi-component wave displacement from cache
           const WaveCacheEntry& wc = waveCacheSurface[yy & 31][xx & 31];
           rv.x += wc.wx[0] + wc.wx[1] + wc.wx[2];
           rv.y += wc.wy[0] + wc.wy[1] + wc.wy[2];

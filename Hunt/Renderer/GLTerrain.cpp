@@ -231,7 +231,7 @@ void GLRenderer::BeginTerrainFrame()
 {
     m_terrainVertexCount = 0;
     m_terrainFogColorValid.fill(0);
-    // §5.4: Ensure worst-case capacity for the current view distance.
+    // Ensure worst-case capacity for the current view distance.
     // Worst case: every cell in the visible disk produces 2 triangles = 6 vertices.
     // The 2x safety margin absorbs per-frame variance without reallocation.
     const size_t maxTiles = static_cast<size_t>(2 * ctViewR + 1) * static_cast<size_t>(2 * ctViewR + 1);
@@ -378,7 +378,7 @@ void GLRenderer::RenderTerrain()
         }
     }
 
-    // §3.5: per-pixel sun-fog forward-scatter.  Replaces the old per-tile
+    // per-pixel sun-fog forward-scatter.  Replaces the old per-tile
     // CPU glow (one value per tile, interpolated across its 4 vertices, which
     // looked blocky).  We only pass the sun direction in view space plus the
     // sun visibility here; terrain.frag evaluates dot(viewDir, sunDir)^8 per
@@ -399,7 +399,7 @@ void GLRenderer::RenderTerrain()
                     glUniform3f(uSunDir, sunDir.x / len, sunDir.y / len, sunDir.z / len);
                     const float vis = std::clamp(GetSunLight() / kMaxSunLight, 0.0f, 1.0f);
                     glUniform1f(uSunVis, vis);
-                    glUniform1f(uScatter, 0.25f);  // master scatter strength (was 0.25 in §3.5)
+                    glUniform1f(uScatter, 0.25f);  // master scatter strength
                 } else {
                     glUniform1f(uScatter, 0.0f);
                 }
@@ -407,11 +407,11 @@ void GLRenderer::RenderTerrain()
         }
     }
 
-    // §3.10: camera-in-fog global envelope.  When the camera is submerged in
+    // camera-in-fog global envelope.  When the camera is submerged in
     // a tall pocket-fog volume, fog the whole scene by distance (not just
     // in-volume geometry).  Colour/amount are computed once per frame in
     // GLRenderer::UpdateCameraFogEnvelope() and consumed here + in the model
-    // shaders.  (The sky horizon is handled separately by §3.8.)
+    // shaders.  (The sky horizon is handled separately.)
     {
         static const GLint uCamFogCol = glGetUniformLocation(m_terrainShader.GetProgramID(), "uCamFogColor");
         static const GLint uCamFogAmt = glGetUniformLocation(m_terrainShader.GetProgramID(), "uCamFogAmount");
@@ -525,9 +525,9 @@ void GLRenderer::RebuildWaterBlockBits()
 // The original 3-arg version delegates to these for backward compat.
 // ---------------------------------------------------------------------------
 
-// §3.1: Smooth fog-volume transitions.  Blend the four per-corner fog
+// Smooth fog-volume transitions.  Blend the four per-corner fog
 // colours 30% toward their tile average to soften hard fog boundaries.
-// This is the "simpler alternative" from pocket-fog-improvements-c2.md —
+// This is the "simpler alternative" from CarnivoresDoc architecture/pocket-fog.md —
 // no additional FogsMap lookups, just averaging already-fetched colours.
 static void SmoothFogColors(Vector3d& fog00, Vector3d& fog10,
                             Vector3d& fog01, Vector3d& fog11)
@@ -551,8 +551,8 @@ static void SmoothFogColors(Vector3d& fog00, Vector3d& fog10,
     fog11.z = fog11.z * kInvBlend + avgZ * kBlend;
 }
 
-// §3.5+§3.6: Sun-fog forward-scatter glow and colour shift.
-// §3.5: Sun-fog forward-scatter glow.
+// Sun-fog forward-scatter glow and colour shift.
+// Sun-fog forward-scatter glow.
 void GLRenderer::CollectTerrainTile(int x, int y, int r,
                                     float fadeStart, float fadeStartSq, float fadeEnd)
 {
@@ -632,7 +632,7 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     Vector3d fog01 = GetCachedTerrainFogColor(fogIdx01);
     Vector3d fog11 = GetCachedTerrainFogColor(fogIdx11);
 
-    // §3.1: Smooth fog-volume transitions — blend corners toward tile average
+    // Smooth fog-volume transitions — blend corners toward tile average
     SmoothFogColors(fog00, fog10, fog01, fog11);
 
     // Phase 5: use cached m_isUnderwater to skip the global load
@@ -863,7 +863,7 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
     for (int dj = 0; dj < 2; ++dj) {
         for (int di = 0; di < 2; ++di) {
             if (!coarsePass[dj][di]) continue;
-            // §3.1: Smooth fog-volume transitions per tile
+            // Smooth fog-volume transitions per tile
             SmoothFogColors(fogCol[dj][di], fogCol[dj][di + 1],
                             fogCol[dj + 1][di], fogCol[dj + 1][di + 1]);
             EmitTerrainTile(x + di, y + dj, backR[dj][di],

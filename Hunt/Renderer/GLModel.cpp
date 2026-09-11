@@ -536,7 +536,7 @@ void GLRenderer::RenderInstancedModels()
     }
     glBindVertexArray(m_instanceVAO);
 
-    // §3.10: camera-in-fog global envelope (see GLRenderer::UpdateCameraFogEnvelope).
+    // camera-in-fog global envelope (see GLRenderer::UpdateCameraFogEnvelope).
     {
         static const GLint uCamFogCol = glGetUniformLocation(m_instancedModelShader.GetProgramID(), "uCamFogColor");
         static const GLint uCamFogAmt = glGetUniformLocation(m_instancedModelShader.GetProgramID(), "uCamFogAmount");
@@ -1050,7 +1050,7 @@ void GLRenderer::DrawModelVertices(GLuint texture,
     // stays a per-draw uniform; location cached at Initialize() (1.6).
     glUniform1f(m_locModelTint, tintByFogColor ? 1.0f : 0.0f);
 
-    // §3.10: camera-in-fog global envelope (see GLRenderer::UpdateCameraFogEnvelope).
+    // camera-in-fog global envelope (see GLRenderer::UpdateCameraFogEnvelope).
     {
         static const GLint uCamFogCol = glGetUniformLocation(m_modelShader.GetProgramID(), "uCamFogColor");
         static const GLint uCamFogAmt = glGetUniformLocation(m_modelShader.GetProgramID(), "uCamFogAmount");

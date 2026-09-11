@@ -173,7 +173,7 @@ void ShowVideo()
         g_GLRenderer->ApplySunDepthOcclusion();
     }
 
-    // §3.1: Underwater full-screen overlay — restores the missing colour
+    // Underwater full-screen overlay — restores the missing colour
     // wash that both D3D and 3DFX renderers applied when submerged.
     if (g_GLRenderer) {
         g_GLRenderer->DrawUnderwaterOverlay();

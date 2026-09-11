@@ -496,12 +496,12 @@ private:
     int m_locSkyFogBase = -1;          // sky shader: uFogBase
     int m_locSkyUnderwaterDepth = -1;  // sky shader: uUnderwaterDepth
     int m_locSkyWaterLineY = -1;       // sky shader: uWaterLineY (screen Y from top)
-    int m_locSkySunScreenPos = -1;     // sky shader: uSunScreenPos (§3.6)
-    int m_locSkySunVisibility = -1;    // sky shader: uSunVisibility (§3.6)
-    int m_locSkySunGlow = -1;          // sky shader: uSunGlow (§3.6)
-    int m_locSkyBodyIsMoon = -1;     // sky shader: uBodyIsMoon (§3.6)
-    int m_locSkyPocketFog = -1;        // sky shader: uPocketFog (§3.5)
-    int m_locSkyPocketFogColor = -1;   // sky shader: uPocketFogColor (§3.5)
+    int m_locSkySunScreenPos = -1;     // sky shader: uSunScreenPos
+    int m_locSkySunVisibility = -1;    // sky shader: uSunVisibility
+    int m_locSkySunGlow = -1;          // sky shader: uSunGlow
+    int m_locSkyBodyIsMoon = -1;     // sky shader: uBodyIsMoon
+    int m_locSkyPocketFog = -1;        // sky shader: uPocketFog
+    int m_locSkyPocketFogColor = -1;   // sky shader: uPocketFogColor
     int m_locSkyCamRight = -1;        // sky shader: uCamRight (world-space gradient)
     int m_locSkyCamUp = -1;           // sky shader: uCamUp (world-space gradient)
     int m_locSkyCamForward = -1;      // sky shader: uCamForward (world-space gradient)
@@ -552,7 +552,7 @@ private:
     static const size_t kInitialStaticMeshVBOCapacity = 8 * 1024 * 1024;
     static const size_t kInitialStaticMeshIBOCapacity = 4 * 1024 * 1024;
 
-    // §5.4: Flat vertex arrays to eliminate per-frame std::vector
+    // Flat vertex arrays to eliminate per-frame std::vector
     // reallocations.  The capacity is sized to the worst-case vertex
     // count for the current ctViewR and only grows (never shrinks
     // within a session).  The count resets to 0 each frame.
@@ -627,14 +627,14 @@ private:
     Vector3d m_smoothedSkyFogColor = {0.0f, 0.0f, 0.0f};
     bool m_smoothedSkyFogColorInit = false;
 
-    // §3.10: camera-in-fog global envelope parameters.  When the camera is
+    // camera-in-fog global envelope parameters.  When the camera is
     // submerged in a tall pocket-fog volume, the fog it is embedded in
     // attenuates the whole scene (terrain, models, sky) by view distance —
     // not just geometry that sits inside the volume.  Computed once per frame
     // in UpdateCameraFogEnvelope() and consumed by the terrain/model shaders.
     float    m_camEnvelopeAmount = 0.0f;
     Vector3d m_camEnvelopeColor  = {0.0f, 0.0f, 0.0f};
-    float    m_camEnvFlbSmooth   = 0.0f;   // §3.10 low-passed flb (kills head-bob flicker)
+    float    m_camEnvFlbSmooth   = 0.0f;   // low-passed flb (kills head-bob flicker)
 
     void InitializeSkyPipeline();
     void ShutdownSkyPipeline();
@@ -653,7 +653,7 @@ private:
     int m_lastSunTraceScrY = -1;
     unsigned int m_lastSunTraceFrame = 0;
     float m_lastSunTraceK = 1.0f;
-    // Hysteresis latch for uniform-overcast detection (§2.2 workaround).
+    // Hysteresis latch for uniform-overcast detection (interim workaround).
     // When a large cloud covers both detection and reference rings, the
     // ring-vs-ring detector reports "clear" (dev ≈ 0).  The latch prevents
     // the glow from re-brightening inside such a cloud: once k drops below
@@ -702,7 +702,7 @@ private:
 public:
     float GetSunLight() const { return m_sunLight; }
 
-    // §3.10: camera-in-fog global envelope accessors (see members above).
+    // camera-in-fog global envelope accessors (see members above).
     float    GetCamEnvelopeAmount() const { return m_camEnvelopeAmount; }
     Vector3d GetCamEnvelopeColor()  const { return m_camEnvelopeColor; }
     void     UpdateCameraFogEnvelope();
@@ -729,7 +729,7 @@ public:
     void RenderSceneDesaturated();   // desaturate 3D scene only (before HUD)
     void RenderNightDarkness();      // dark overlay only (after HUD)
 
-    // §3.1: Underwater full-screen colour overlay (dynamic per water body)
+    // Underwater full-screen colour overlay (dynamic per water body)
     void DrawUnderwaterOverlay();
 
 private:

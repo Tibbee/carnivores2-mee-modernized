@@ -52,7 +52,7 @@ TEST(TerrainFogTest, CameraDepthReachesOwnPocketOnly)
 	// dropped instead of saturating volume 2 at any distance.
 	EXPECT_FLOAT_EQ(ResolvePocketCameraDepth(8.0f, true, 2, 5), 0.0f);
 	// Above the foreign volume's ceiling the negative raw value is preserved,
-	// so the legacy from-above slice/§3.9 path is untouched.
+	// so the legacy from-above slice path is untouched.
 	EXPECT_FLOAT_EQ(ResolvePocketCameraDepth(-3.0f, true, 2, 5), -3.0f);
 }
 

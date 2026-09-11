@@ -5,9 +5,9 @@
 // ============================================================================
 // Phase 5A: Memory management system migration types.
 //
-// Ported from C1 (E:/Munka/Programming/C++/Carnivores1/Hunt/Memory.h) with
+// Ported from C1 (Carnivores1/Hunt/Memory.h) with
 // the C2-specific additions documented in
-// docs/design/memory-system-migration.md layered on top:
+// CarnivoresDoc architecture/memory-system.md layered on top:
 //
 //   * LEVEL_ARENA_SIZE constant (256 MiB; C1 hardcodes 128 MiB at the
 //     construction site because its world is half C2 ME's scale).
@@ -307,7 +307,8 @@ private:
 // TModel, TObject, TPicture, TAni, TCharacterInfo, etc. in later phases
 // doesn't bloat the structures or shift the MObjects[256] global.
 static_assert(sizeof(void*) == 4,
-              "C2 ME x86 build expected (see doc §9 hand-off #5)");
+              "C2 ME is x86-only; build with the 32-bit toolchain "
+              "(sizeof(void*) must be 4)");
 static_assert(sizeof(unique_heap_ptr<WORD[]>) == sizeof(void*),
               "unique_heap_ptr<WORD[]> must be the same size as a raw pointer "
               "(empty base optimization on HeapDeleter must apply)");

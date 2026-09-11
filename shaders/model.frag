@@ -18,8 +18,8 @@ uniform PerFrame {
 uniform sampler2D uModelTexture;
 uniform float uTintByFogColor;
 uniform float uNightStrength;    // world-only night lighting (0=day, 1=night)
-uniform vec3 uCamFogColor;       // §3.10 camera-in-fog envelope colour
-uniform float uCamFogAmount;     // §3.10 camera-in-fog envelope strength (0 = off)
+uniform vec3 uCamFogColor;       // camera-in-fog envelope colour
+uniform float uCamFogAmount;     // camera-in-fog envelope strength (0 = off)
 void main() {
    vec4 texColor = texture(uModelTexture, vTexCoord);
    if (vCutout > 0.5 && texColor.a <= 0.5) discard;
@@ -35,7 +35,7 @@ void main() {
    float distanceFog = clamp((vRadialDist - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);
    finalColor = mix(finalColor, uDistanceFogColor, distanceFog);
 
-   // §3.10: camera-in-fog global envelope — see terrain.frag.  Fogs the whole
+   // camera-in-fog global envelope — see terrain.frag.  Fogs the whole
    // scene by distance when the camera is submerged in a tall pocket-fog volume.
    if (uCamFogAmount > 0.001f) {
        // Near baseline so close objects are also hazed (sells "inside fog");

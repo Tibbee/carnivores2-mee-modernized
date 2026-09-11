@@ -16,14 +16,14 @@ uniform vec3 uQ;
 uniform vec3 uP;
 uniform vec3 uR;
 uniform float uSkyTime;
-uniform vec2 uSunScreenPos;   // §3.6: sun/moon screen pos (top-origin)
-uniform float uSunVisibility; // §3.6: = m_skyTraceK
-uniform float uSunGlow;       // §3.6: master glow strength (sun 0.18, moon 0.10)
-uniform float uBodyIsMoon;    // §3.6: 1.0 = moon (night), 0.0 = sun (day)
-uniform float uPocketFog;     // §3.5: camera pocket-fog density (0..1)
-uniform vec3  uPocketFogColor;// §3.5: camera pocket-fog colour
-uniform vec3  uCamFogColor;     // §3.10 camera-in-fog envelope colour
-uniform float uCamFogAmount;    // §3.10 camera-in-fog envelope strength (0 = off)
+uniform vec2 uSunScreenPos;   // sun/moon screen pos (top-origin)
+uniform float uSunVisibility; // = m_skyTraceK
+uniform float uSunGlow;       // master glow strength (sun 0.18, moon 0.10)
+uniform float uBodyIsMoon;    // 1.0 = moon (night), 0.0 = sun (day)
+uniform float uPocketFog;     // camera pocket-fog density (0..1)
+uniform vec3  uPocketFogColor;// camera pocket-fog colour
+uniform vec3  uCamFogColor;     // camera-in-fog envelope colour
+uniform float uCamFogAmount;    // camera-in-fog envelope strength (0 = off)
 uniform float uFogBase;
 uniform float uUnderwaterDepth;
 uniform float uWaterLineY;
@@ -62,17 +62,17 @@ void main() {
    // of camera pitch, so the gradient stays anchored to the world horizon.
    vec3 wdir = normalize(vWorldDir);
 
-   // §3.1: Horizon-zenith gradient.  Real skies are not flat: the zenith
+   // Horizon-zenith gradient.  Real skies are not flat: the zenith
    // is darker and more saturated, while the horizon is lighter and warmer.
    // Derived from the world-space elevation (wdir.y), not the screen, so it
    // does not swim when the camera pitches up/down.  (The debug-tab gradient
    // uniforms operate on this same world-anchored vert.)
    float vert = max(0.0, wdir.y);                 // 0 at horizon, 1 at zenith
 
-   // §3.10 (computed early): how strongly the global envelope fogs THIS sky
+   // Computed early: how strongly the global envelope fogs THIS sky
    // pixel.  Used both to fade the glows below WITH the fog (so the sun halo
    // does not punch through as a separated disc) and, later, to mix the sky to
-   // the volume colour.  Gentler vertical fade than §3.5 so the upper sky
+   // the volume colour.  Gentler vertical fade than the pocket fog so the upper sky
    // fogs too (a fog layer sits above the camera).
    float vertFade = pow(clamp(wdir.y * 0.5 + 0.5, 0.0, 1.0), 3.0);
    float envSky = (uCamFogAmount > 0.001f)
@@ -83,7 +83,7 @@ void main() {
    float zenithDark = 0.92 + 0.08 * (1.0 - vert);
    skyColor *= zenithDark;
 
-   // §3.6: Sun/moon glow on the sky texture — a soft halo around the body's
+   // Sun/moon glow on the sky texture — a soft halo around the body's
    // screen position.  `pixel` is top-origin, matching uSunScreenPos.  The sun
    // and moon are handled separately because they have very different
    // character: the sun is a bright, warm body with a warm-core / cool-outer
@@ -142,7 +142,7 @@ void main() {
        skyCamFogColor = mix(uCamFogColor, vec3(camLuma), kNightFogDesaturation);
    }
 
-   // §3.5: Per-pixel pocket fog on the sky.  Blend the (already globally
+   // Per-pixel pocket fog on the sky.  Blend the (already globally
    // fogged) sky toward the volume colour, but only near the horizon —
    // the zenith stays clear so the gradient/glow still read.  Applied after
    // the water-line fade that is already folded into fogFactor.
@@ -155,7 +155,7 @@ void main() {
    if (isMoon) pocketFade *= kNightSkyFogBlend;
    color = mix(color, skyPocketFogColor, pocketFade);
 
-   // §3.10: fog the whole sky toward the volume colour.  envSky (computed
+   // Fog the whole sky toward the volume colour.  envSky (computed
    // above, near wdir) already fades the sun/moon halo WITH this fog, so the
    // glow dissolves smoothly into the haze instead of sitting as a harsh,
    // separated disc on a flat fogged sky.
