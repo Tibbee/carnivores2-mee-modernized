@@ -12,6 +12,15 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    # The engine is 32-bit only (Hunt/Memory.h asserts sizeof(void*) == 4;
+    # the software renderer contains x86 inline assembly). windows-latest
+    # defaults to the x64 toolchain, which makes every translation unit fail
+    # to compile, so the x86 environment must be selected explicitly.
+    - name: Set up x86 MSVC toolchain
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x86
+
     - name: Configure CMake
       run: cmake --preset ${{ matrix.preset }}
 
