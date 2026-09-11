@@ -5,10 +5,14 @@ are listed here.
 Based on [Keep a Changelog](https://keepachangelog.com/).
 
 Upstream Modder's Engine v1.11 is the base, not the modernization release
-number. ModDB V1/V2/V3/V4 correspond to GitHub v1.1.4/v1.1.5/v1.1.6/v1.1.7-modernized.
-Windows executable resources use major.minor.patch.0 (currently 1.1.7.0).
+number. ModDB V1/V2/V3/V4/V5 correspond to GitHub v1.1.4/v1.1.5/v1.1.6/v1.1.7/v1.1.8-modernized.
+Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
 
 ## [Unreleased]
+
+## [v1.1.8-modernized]
+
+ModDB label: V5. Changes since the published v1.1.7-modernized release.
 
 ### Fixed
 - Hide the ammo counter for the whole weapon put-away animation (state 3).

@@ -180,7 +180,7 @@ glperf_logging 0
 VERSIONING
   Project release Modernized v$Version = GitHub v$Version-modernized.
   Upstream Modder's Engine v1.11 is the base; modernization releases
-  are numbered separately. V4 is only the ModDB download label.
+  are numbered separately. V5 is only the ModDB download label.
   Windows executable version: $Version.0
 
 WHAT'S INCLUDED
@@ -189,7 +189,7 @@ WHAT'S INCLUDED
   v_soft.ren          - Software renderer (launched by menu)
   shaders/            - GL shader programs
   config.cfg          - Default configuration
-  CHANGELOG.md        - Full V4 and previous release notes
+  CHANGELOG.md        - Full V5 and previous release notes
   OpenAL32.dll        - OpenAL Soft runtime (audio)
   alsoft.ini          - OpenAL configuration for this game
   LICENSE, NOTICE.md, THIRD-PARTY-LICENSES/ - legal texts
@@ -233,7 +233,7 @@ UPSTREAM CREDITS
   https://github.com/carnivores-cpe/Carnivores-CPE/tree/Map-Amb-Demo-2
   See NOTICE.md for this fork's exact base snapshot and menu credits.
 
-MODERNIZED v$Version HIGHLIGHTS (since v1.1.6; ModDB label V4)
+MODERNIZED v$Version HIGHLIGHTS (since v1.1.7; ModDB label V5)
   - Trophy room finished: kills mount as static exhibits, collisions
     and hunt-info plaques restored, removal and exit handling fixed.
   - Default Run key works on fresh saves (side-aware modifier keys);
@@ -248,7 +248,7 @@ MODERNIZED v$Version HIGHLIGHTS (since v1.1.6; ModDB label V4)
 
 REPORTING ISSUES
   https://github.com/Tibbee/carnivores2-mee-modernized/issues
-  Include Modernized v$Version (ModDB V4), your mod/map, renderer,
+  Include Modernized v$Version (ModDB V5), your mod/map, renderer,
   and reproduction steps.
 "@ | Set-Content -Path (Join-Path $PkgDir 'README.txt') -Encoding Ascii
 
