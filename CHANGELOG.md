@@ -15,6 +15,24 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
 ModDB label: V5. Changes since the published v1.1.7-modernized release.
 
 ### Fixed
+- Keep camera pocket-fog depth restricted to the camera's own pocket. A
+  foreign pocket fog volume previously inherited the camera's in-fog
+  depth, saturating distant objects into flat, fully fogged silhouettes
+  the moment the player stepped into any pocket. Cross-pocket objects
+  now keep their authored density and distance term.
+- Restore weapon specular and env-map overlays. The viewmodel depth
+  range introduced in v1.1.7 left the weapon body in a near slice but
+  drew the specular and env-map passes at full range, so their window
+  depth was ~20× the stored value and `GL_LEQUAL` discarded every
+  fragment — the reflections disappeared silently.
+- Scale HUD box text with resolution and unmirror the radar question
+  mark. Box artwork scaled with the resolution but the text inside it
+  did not, jamming into the panel corner at 1440p; the GL radar
+  question-mark was also mirrored.
+- Stop culling map objects with buried origin cells. The origin-cell
+  burial test removed whole roof sections in Manya's Paradise cave,
+  exposing the sky from inside — the original D3D/3DFX renderers
+  deliberately left this test disabled.
 - Hide the ammo counter for the whole weapon put-away animation (state 3).
   The counter gate (`Weapon.state`) kept the bullet icons up until the
   holster animation finished and the state reached 0 — after the gun had
@@ -65,6 +83,11 @@ ModDB label: V5. Changes since the published v1.1.7-modernized release.
 - Allocator-matched `make_heap_object<T>()` and `make_heap_array<T>()` helpers.
 
 ### Changed
+- Instance synchronized animated map objects on the GPU. Shared-pose
+  VBO refresh plus ordinary instancing replaces the per-placement CPU
+  geometry build for animated scenery, keeping legacy lighting and
+  asset formats. Transparent, water-intersecting, and oversized
+  ground-lit cases stay on the legacy path.
 - Restore the original double-click-a-name shortcut on the player registration
   screen: double-clicking a profile in the name list enters the menu directly
   (the same commit path as the GO button and the Enter key), so loading an
