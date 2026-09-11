@@ -260,6 +260,7 @@ if(MSVC)
 
     add_executable(Carnivores2Tests
         tests/test_billboard_math.cpp
+        tests/test_config_text.cpp
         tests/test_math.cpp
         tests/test_trophy_mode.cpp
         tests/test_key_bindings.cpp
@@ -269,6 +270,7 @@ if(MSVC)
         tests/test_menu_slider.cpp
         tests/test_projectile_math.cpp
         tests/test_terrain_fog.cpp
+        tests/test_water_color.cpp
         tests/test_water_object_visibility.cpp
     )
     target_include_directories(Carnivores2Tests PRIVATE
