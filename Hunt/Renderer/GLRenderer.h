@@ -240,6 +240,8 @@ private:
     void ShutdownInstancingPipeline();
     bool InitializeStaticMeshPipeline();
     void ShutdownStaticMeshPipeline();
+    // Phase 2.2: safe to call every frame — the first call for a model uploads
+    // it, later calls are a cache hit.
     StaticMeshEntry UploadStaticMesh(TModel* mptr);
     const StaticMeshEntry* GetStaticMeshEntry(const TModel* mptr) const;
     void BuildStaticMeshVertices(std::vector<StaticMeshVertex>& vertices, const TModel* mptr) const;

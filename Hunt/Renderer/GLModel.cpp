@@ -60,7 +60,6 @@ void GLRenderer::RegisterTexture(TEXTURE* tptr)
 void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z0,
                                        float al, float bt)
 {
-    // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
     UploadStaticMesh(mptr);
 
     if (!m_modelShader.IsValid() || !m_modelVAO || !m_modelVBO) {
@@ -98,7 +97,6 @@ void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z
 void GLRenderer::RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float z0,
                                          float al, float bt)
 {
-    // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
     UploadStaticMesh(mptr);
 
     if (!m_modelShader.IsValid() || !m_modelVAO || !m_modelVBO) {
@@ -141,7 +139,6 @@ void GLRenderer::RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float
 void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
                                  int light, int vt, float al, float bt)
 {
-    // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
     UploadStaticMesh(mptr);
 
     // Viewmodels (weapon/wind/compass/binocular) are anchored to the camera
@@ -230,7 +227,6 @@ void GLRenderer::RenderModelClipWater(TModel* mptr, float x0, float y0, float z0
 void GLRenderer::RenderModelClip(TModel* mptr, float x0, float y0, float z0,
                                  int light, int vt, float al, float bt)
 {
-    // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
     UploadStaticMesh(mptr);
 
     ModelDrawItem item;
@@ -247,7 +243,6 @@ void GLRenderer::RenderModelClip(TModel* mptr, float x0, float y0, float z0,
 void GLRenderer::RenderModel(TModel* mptr, float x0, float y0, float z0,
                              int light, int vt, float al, float bt)
 {
-    // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
     UploadStaticMesh(mptr);
 
     ModelDrawItem item;

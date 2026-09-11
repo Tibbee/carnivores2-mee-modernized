@@ -438,7 +438,6 @@ void GLRenderer::ApplySunDepthOcclusion()
 
 void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int alpha)
 {
-    // Phase 2.2: ensure the static mesh is uploaded (cache hit after first call).
     UploadStaticMesh(mptr);
 
     if (!mptr || !mptr->lpTexture || !mptr->gVertex || !mptr->gFace) return;
