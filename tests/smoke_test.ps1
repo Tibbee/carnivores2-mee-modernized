@@ -59,9 +59,26 @@ Write-Host "  Duration: $($Duration)s"
 Write-Host "  Log:      $LogFile"
 Write-Host "  WorkDir:  $WorkingDir"
 
+# A game instance that is already running holds carnivor.log open and keeps
+# writing to it. This test would then delete the file out from under it, read
+# back the other session's log, and report whatever it finds there as a
+# failure. Say so plainly instead of failing mysteriously later.
+$aliases = @(
+    [System.IO.Path]::GetFileNameWithoutExtension($ExePath),
+    'v_gl', 'v_soft', 'v_d3d', 'v_3dfx', 'Carnivores1_GL', 'Carnivores1_SOFT'
+) | Select-Object -Unique
+$running = Get-Process -Name $aliases -ErrorAction SilentlyContinue
+if ($running) {
+    throw "A game instance is already running (PID $(($running.Id) -join ', ')). Close it and re-run - this test needs carnivor.log to itself."
+}
+
 # Clean previous log
 if (Test-Path $LogFile) {
-    Remove-Item $LogFile -Force
+    try {
+        Remove-Item $LogFile -Force -ErrorAction Stop
+    } catch {
+        throw "Could not delete $LogFile - $($_.Exception.Message)"
+    }
     Write-Host "  Removed old log file"
 }
 
