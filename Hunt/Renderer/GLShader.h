@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLShader.h — OpenGL shader management for Carnivores 2 ME
+// GLShader.h -- OpenGL shader management for Carnivores 2 ME
 //
 // Encapsulates vertex+fragment shader compilation, linking, binding, and
 // uniform setting with location caching. Supports loading from external

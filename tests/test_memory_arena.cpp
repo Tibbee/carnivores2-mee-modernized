@@ -1,5 +1,5 @@
 // test_memory_arena.cpp
-// Unit tests for MemoryArena (Hunt/Memory.h) — the per-level bump allocator.
+// Unit tests for MemoryArena (Hunt/Memory.h) -- the per-level bump allocator.
 //
 // The arena is header-implemented except for PrintLog (used only on the
 // _DEBUG overflow path), so this TU provides a no-op PrintLog stub instead

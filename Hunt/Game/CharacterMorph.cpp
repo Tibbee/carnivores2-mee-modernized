@@ -1,5 +1,5 @@
 // ==========================================================================
-// CharacterMorph.cpp — Character/object vertex morphing (skeletal animation)
+// CharacterMorph.cpp -- Character/object vertex morphing (skeletal animation)
 // ==========================================================================
 // Extracted from Characters.cpp to reduce monolithic file size.
 // These functions interpolate animation frames to produce morphed vertices.

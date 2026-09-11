@@ -1,6 +1,6 @@
-// AnimateMClientCharacter.cpp — split from CharacterAnimation.cpp
+// AnimateMClientCharacter.cpp -- split from CharacterAnimation.cpp
 // ==========================================================================
-// One-time split from CharacterAnimation.cpp; no generator â€” edit this file.
+// One-time split from CharacterAnimation.cpp; no generator -- edit this file.
 // ==========================================================================
 
 #include "Hunt.h"

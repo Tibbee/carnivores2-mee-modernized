@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLUI.cpp — OpenGL 2D UI rendering and renderer dispatch free functions
+// GLUI.cpp -- OpenGL 2D UI rendering and renderer dispatch free functions
 //
 // Provides the free functions declared in Hunt.h for the OpenGL renderer
 // (_gl). The 2D UI elements (DrawPicture, DrawFlash, DrawTrophyText,
@@ -28,13 +28,13 @@
 // ============================================================================
 
 #ifdef GL_PERF_HOOKS
-// F11 key handler — triggers a 1-second per-frame GL perf CSV capture.
+// F11 key handler -- triggers a 1-second per-frame GL perf CSV capture.
 void PerfTriggerCapture()
 {
     glperf_trigger_capture();
 }
 
-// Frame boundary hooks — called from Hunt.cpp::DrawScene (begin) and
+// Frame boundary hooks -- called from Hunt.cpp::DrawScene (begin) and
 // ShowVideo() (end). They bracket one rendered frame without including
 // SwapBuffers/presentation wait. No-op when GL_PERF_HOOKS is not defined.
 void PerfFrameBegin()
@@ -149,7 +149,7 @@ void ReleaseModelTexture(const TModel* mptr)
     // model is freed (either via arena reset or explicit _HeapFree).
     // This prevents stale cache hits when a new model reuses the same
     // arena address. Global models (heap-allocated) also pass through
-    // here during ReleaseGlobalResources — the cache entry is removed
+    // here during ReleaseGlobalResources -- the cache entry is removed
     // once and the GL texture is deleted, which is correct since the
     // global model is being destroyed permanently.
     if (g_GLRenderer) {
@@ -173,7 +173,7 @@ void ShowVideo()
         g_GLRenderer->ApplySunDepthOcclusion();
     }
 
-    // Underwater full-screen overlay — restores the missing colour
+    // Underwater full-screen overlay -- restores the missing colour
     // wash that both D3D and 3DFX renderers applied when submerged.
     if (g_GLRenderer) {
         g_GLRenderer->DrawUnderwaterOverlay();
@@ -183,14 +183,14 @@ void ShowVideo()
     if (g_GLRenderer) {
         float sunLight = g_GLRenderer->GetSunLight();
         // SunGlare_Master scales the blinding strength (1.0 = stock,
-        // 0 = off — the > 1.0f gate below then skips the overlay).
+        // 0 = off -- the > 1.0f gate below then skips the overlay).
         sunLight *= SunGlare_Master;
         // Midway boost between C1 (1.5x + double skyTraceK) and C2 (1.0x),
         // softened to 0.9x so the fullscreen wash stays gentle: peak alpha
         // ~126/255 ≈ 0.49 (sunLight is clamped to 140 before the boost).
         const float kGlareBoost = 0.9f;
         sunLight = (std::min)(255.0f, sunLight * kGlareBoost);
-        // Night (moon): skip the sun glare — a moon shouldn't produce a
+        // Night (moon): skip the sun glare -- a moon shouldn't produce a
         // blinding yellow flash.  Its model and sky halo are rendered
         // separately by RenderModelSun() and sky.frag.
         if (!IsUnderwater() && OptDayNight != 2 && sunLight > 1.0f) {
@@ -273,7 +273,7 @@ void RenderSkyPlane()
     if (g_GLRenderer) {
         g_GLRenderer->ClearVideoBuf();
         // Clear only previous frame's dirty HUD regions (not the whole buffer).
-        // The rest of lpVideoBuf retains its state from the last upload — no
+        // The rest of lpVideoBuf retains its state from the last upload -- no
         // need to zero it out because the GPU texture already matches.
         g_GLRenderer->ClearStaleHUDRegions();
         g_GLRenderer->RenderSkyPlane();

@@ -1,5 +1,5 @@
 // ==========================================================================
-// SoftEntities.cpp — Software renderer character and entity rendering
+// SoftEntities.cpp -- Software renderer character and entity rendering
 //
 // Split from the original monolithic RenderSoft.cpp.
 // ==========================================================================
@@ -405,7 +405,7 @@ void RenderBullet(int b)
 
 	CreateMorphedModelBetaGamma(Weapon.Bullet[bullet[b].parent].mptr.get(), &Weapon.Bullet[bullet[b].parent].Animation[0], bullet[b].FTime, 1.0, bullet[b].beta, 0);
 
-	// Vanilla formula (ship convention — see GLRenderer.cpp): the morph above
+	// Vanilla formula (ship convention -- see GLRenderer.cpp): the morph above
 	// already applied the trajectory pitch; render adds only yaw + camera.
 	if (fabs(bullet[b].rpos.z) < 4000)
 		RenderModelClip(Weapon.Bullet[bullet[b].parent].mptr.get(),

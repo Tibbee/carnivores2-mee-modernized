@@ -24,7 +24,7 @@
 
 #include "Version.h"
 
-// Field of view (vertical, degrees) — modder-editable range
+// Field of view (vertical, degrees) -- modder-editable range
 // Kept in sync with Hunt/Hunt.h's kFov* defines.
 #define kFovMin      35
 #define kFovMax      90

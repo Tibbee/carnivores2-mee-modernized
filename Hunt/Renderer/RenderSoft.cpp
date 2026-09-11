@@ -1,5 +1,5 @@
 // ==========================================================================
-// RenderSoft.cpp — Software renderer global state definitions
+// RenderSoft.cpp -- Software renderer global state definitions
 //
 // After the monolithic file was split into focused files (SoftHUD.cpp,
 // SoftModel.cpp, SoftTerrain.cpp, SoftWater.cpp, SoftEntities.cpp,

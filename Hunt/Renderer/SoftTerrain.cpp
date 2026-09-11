@@ -1,5 +1,5 @@
 // ==========================================================================
-// SoftTerrain.cpp — Software renderer terrain and ground rendering
+// SoftTerrain.cpp -- Software renderer terrain and ground rendering
 //
 // Split from the original monolithic RenderSoft.cpp.
 // ==========================================================================

@@ -1,5 +1,5 @@
 // ==========================================================================
-// Log.cpp — Structured logging implementation
+// Log.cpp -- Structured logging implementation
 // ==========================================================================
 
 #include "Hunt.h"

@@ -1,5 +1,5 @@
 // ==========================================================================
-// Network.cpp — Free-function wrappers for NetworkManager
+// Network.cpp -- Free-function wrappers for NetworkManager
 // ==========================================================================
 // These thin wrappers delegate to the global g_Network instance so that
 // existing call sites (Hunt.cpp, Interface.cpp, etc.) work without changes.

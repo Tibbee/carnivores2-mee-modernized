@@ -1,4 +1,4 @@
-// CharacterCollision.cpp — auto-extracted from Characters.cpp
+// CharacterCollision.cpp -- auto-extracted from Characters.cpp
 // ==========================================================================
 // Auto-extracted from Characters.cpp
 // ==========================================================================

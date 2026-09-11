@@ -370,7 +370,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 			{
 				ProcessMenu();
 
-				// FPS limiter — honours the user's FPS limit setting.
+				// FPS limiter -- honours the user's FPS limit setting.
 				// 0=Unlimited, 1=60, 2=120, 3=240.
 				static LARGE_INTEGER menuFreq = { 0 };
 				static LARGE_INTEGER menuFrameStart = { 0 };

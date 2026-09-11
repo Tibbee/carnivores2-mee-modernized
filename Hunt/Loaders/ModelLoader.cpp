@@ -1,5 +1,5 @@
 // ==========================================================================
-// ModelLoader.cpp � Model loading, conversion, and release
+// ModelLoader.cpp -- Model loading, conversion, and release
 // ==========================================================================
 
 #include "Hunt.h"
@@ -312,7 +312,7 @@ void CorrectModel(TModel *mptr, MemoryTag tag)
 	// Allocating for 2x the faces here, since the code below could potentially
 	// result in duplicated faces when sfOpacity & sfTransparent is set for the same
 	// face. Load-time scratch freed at the end of this function: always heap
-	// (Global), never the caller's arena tag — arena space cannot be reclaimed
+	// (Global), never the caller's arena tag -- arena space cannot be reclaimed
 	// per-allocation, so borrowing the arena here would inflate the per-level
 	// high-water mark for no reason. `tag` still governs the model's own buffers.
 	(void)tag;
@@ -728,7 +728,7 @@ void LoadBMPModel(TObject &obj)
 
 // ReleaseModelBuffers: idempotent release of TModel's raw-owned backing
 // blocks (gFace and the single VLight[0..3] allocation created by
-// AllocateMemoryForModel). Smart-pointer members are NOT touched — the
+// AllocateMemoryForModel). Smart-pointer members are NOT touched -- the
 // caller's unique_ptrs own those. Safe for heap and arena backing alike:
 // _HeapFree no-ops arena addresses (erasing only the debug record).
 // Every path that drops a TModel must call this before releasing the

@@ -1,4 +1,4 @@
-// BillboardMath.h — dependency-free billboard geometry helpers
+// BillboardMath.h -- dependency-free billboard geometry helpers
 #pragma once
 
 struct BillboardViewOffset

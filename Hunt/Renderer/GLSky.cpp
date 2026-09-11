@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLSky.cpp � Sky plane, sun, and atmospheric rendering
+// GLSky.cpp -- Sky plane, sun, and atmospheric rendering
 // ==========================================================================
 
 #include "Hunt.h"
@@ -124,7 +124,7 @@ void GLRenderer::RenderSkyPlane()
 
     // Sun glow on sky texture.  The sun's screen position (m_sunScrX/Y)
     // and visibility (m_skyTraceK) are members updated by RenderSun(), which
-    // runs later in this same function — so these values are at most one
+    // runs later in this same function -- so these values are at most one
     // frame stale.  That lag is imperceptible for a slowly-moving sun.
     glUniform2f(m_locSkySunScreenPos, static_cast<float>(m_sunScrX), static_cast<float>(m_sunScrY));
     glUniform1f(m_locSkySunVisibility, m_skyTraceK);
@@ -141,7 +141,7 @@ void GLRenderer::RenderSkyPlane()
     // so these must be the camera's right/up/forward AXES in WORLD space, i.e.
     // R^(-1) * unit_axis, where R = R_x(beta)*R_y(alpha) is the engine's
     // world->view rotation (RotateVector).  NOTE: RotateVector computes R*v
-    // (world->view), which is the WRONG direction here — the gradient needs
+    // (world->view), which is the WRONG direction here -- the gradient needs
     // the inverse.  R^(-1) = R_y(-alpha)*R_x(-beta); the closed forms below are
     // exactly that inverse applied to (1,0,0), (0,1,0) and (0,0,-1).  camRight.y
     // = 0 is correct: with no camera roll the right axis is always horizontal.
@@ -264,7 +264,7 @@ void GLRenderer::RenderSkyPlane()
             waterLineY = static_cast<float>(scry);
         }
         // else scry <= 0: entire view is below water surface.
-        // Sky is completely hidden — scissorEnabled stays false,
+        // Sky is completely hidden -- scissorEnabled stays false,
         // underwaterFullSky stays false, and the draw is skipped.
     }
 
@@ -499,7 +499,7 @@ void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int 
 
     // the sun is a sky/light element drawn additively on top of the
     // already-fogged sky. It must NOT inherit the model shader's global
-    // envelope — that would colour-replace the bright corona into a harsh,
+    // envelope -- that would colour-replace the bright corona into a harsh,
     // out-of-place fog-coloured additive blob when looking up inside a fog
     // volume. The sky shader fogs the sky around it and attenuates the halo
     // instead, so disable the envelope for this draw. (DrawModelVertices
@@ -592,14 +592,14 @@ void GLRenderer::RenderSun(float x, float y, float z)
     // Sun-size modulation with haze/elevation.  The disc appears
     // larger through haze and at low sun, smaller on a clear high sun.
     // NOTE: x/y/z are already the rotated sun direction (the caller rotates
-    // {-2048,4048,-2048} before calling RenderSun), so use them directly —
+    // {-2048,4048,-2048} before calling RenderSun), so use them directly --
     // do NOT re-rotate here (that would double-rotate).
     float horizonFog = (m_skyTraceK < 0.8f) ? (1.0f - m_skyTraceK) * 0.6f : 0.0f;
     float altitude = (std::max)(0.0f, -CameraY / ctHScale);
     float sunLen = std::sqrt(x * x + y * y + z * z);
     float sunElev = (sunLen > 1e-3f) ? y / sunLen : 0.0f;   // up-component of rotated dir
     float elevFactor = 1.0f + (1.0f - (std::max)(0.0f, sunElev)) * 0.15f;
-    // Review fix: the original altitude term was sign-inverted — it made
+    // Review fix: the original altitude term was sign-inverted -- it made
     // the disc grow at HIGH altitude.  Lower camera = more atmosphere = larger
     // sun, so use altitude directly (clamped) with no 0.85 floor.
     float sizeBoost = 1.0f + horizonFog
@@ -622,7 +622,7 @@ void GLRenderer::RenderSun(float x, float y, float z)
     }
 
     // Perceptual (non-linear) brightness curve on the *visibility*
-    // signal only.  NOTE: m_sunLight is intentionally left linear — it also
+    // signal only.  NOTE: m_sunLight is intentionally left linear -- it also
     // drives the underwater/pocket fog-scatter paths, which are tuned
     // against the raw linear value.
     // inside a fog volume the sun should recede into the haze rather
@@ -637,7 +637,7 @@ void GLRenderer::RenderSun(float x, float y, float z)
     // The moon uses the same sunAlpha as the day sun, so it is already
     // dimmed by clouds (m_skyTraceK).  RenderModelSun switches to normal
     // alpha blending at night (no additive glare), and the night-darkness
-    // overlay provides the tonal dimming — so full brightness here is fine.
+    // overlay provides the tonal dimming -- so full brightness here is fine.
     RenderModelSun(SunModel.get(), x * d, y * d, z * d, sunAlpha);
 }
 
@@ -728,13 +728,13 @@ float GLRenderer::GetSkyK(int x, int y)
             // this latch clamps k to prevent the false re-brighten while the sun
             // is still inside the cloud, and only clears after the sky has been
             // confirmed clear (k > 0.9) for several frames.  NOTE: this suppresses
-            // the transit flicker but does NOT detect TRUE uniform overcast — a
+            // the transit flicker but does NOT detect TRUE uniform overcast -- a
             // cloud with no edge in the annulus never drops k below 0.5, so the
             // latch never arms and the glow stays bright.  A proper fix needs an
             // absolute clear-sky reference (the full sky.frag pipeline replicated
             // in C++); that is deferred to a separate, in-game-validated commit.
             // Applied BEFORE the night remap so it operates on the raw detector
-            // value — at night k is remapped to 0.12–0.32, which would always
+            // value -- at night k is remapped to 0.12-0.32, which would always
             // trigger the latch if applied after.
             const float kLatchThreshold = 0.5f;      // stronger dimming under cloud
             const int   kLatchClearFrames = 15;        // hold longer before allowing brighten

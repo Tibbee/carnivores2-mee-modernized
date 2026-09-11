@@ -1,4 +1,4 @@
-// ProjectileMath.h — dependency-free projectile range helpers
+// ProjectileMath.h -- dependency-free projectile range helpers
 #pragma once
 
 inline float ProjectileViewRangeSquared(int viewRadiusCells) noexcept

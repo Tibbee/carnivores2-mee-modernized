@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLModel.cpp � 3D model rendering pipeline
+// GLModel.cpp -- 3D model rendering pipeline
 // ==========================================================================
 
 #include "Hunt.h"
@@ -283,7 +283,7 @@ void GLRenderer::RenderBMPModel(TBMPModel* mptr, float x0, float y0, float z0, i
 
     // Unrotate view-space (x0,y0,z0) back to world-relative
     // coordinates for fog sampling. RotateVector was applied in
-    // RenderMappedObject — we invert it here so SampleFogAtPoint
+    // RenderMappedObject -- we invert it here so SampleFogAtPoint
     // sees a stable world-space position independent of camera
     // angle. Regular models do this in BuildModelDrawItem; BMP
     // models must do it here since they bypass that path.
@@ -545,7 +545,7 @@ void GLRenderer::RenderInstancedModels()
     // Phase 2.9: orphan the instance VBO once (glBufferData with
     // nullptr) to avoid per-group stalls.  Size to the largest group
     // in bytes.  The per-group loop then uses glBufferSubData without
-    // further orphans — the buffer was just orphaned so the driver
+    // further orphans -- the buffer was just orphaned so the driver
     // knows all content is being replaced.
     GLsizeiptr maxGroupBytes = 0;
     for (const auto& g : groups) {
@@ -557,7 +557,7 @@ void GLRenderer::RenderInstancedModels()
 
     glBindBuffer(GL_ARRAY_BUFFER, m_instanceVBO);
     glBufferData(GL_ARRAY_BUFFER, maxGroupBytes, nullptr, GL_STREAM_DRAW);
-    // Keep m_instanceVBO bound — the VAO references it for attributes
+    // Keep m_instanceVBO bound -- the VAO references it for attributes
     // 4-14. The per-group loop glBufferSubData's into this same buffer.
 
     // Bind the static IBO for indexed drawing.
@@ -625,7 +625,7 @@ void GLRenderer::RenderInstancedModels()
     // Phase 2.3: unbind the VAO to avoid leaking instance-attribute
     // state into subsequent draws (e.g., the legacy model path in
     // RenderWorldModels).  Do NOT reset glVertexAttribDivisor on
-    // m_instanceVAO — VAO state is persistent and we need divisor=1
+    // m_instanceVAO -- VAO state is persistent and we need divisor=1
     // for the next frame's instanced draws.
     glBindVertexArray(0);
     glUseProgram(0);
@@ -912,7 +912,7 @@ void GLRenderer::RenderObject(int x, int y)
     }
     // Safety cap.  Each cell is visited at most once per frame by the
     // 1x1 ring walk in CollectTerrainTile's caller.  Dense custom maps
-    // at max view distance may still push beyond 8K unique objects —
+    // at max view distance may still push beyond 8K unique objects --
     // 32K is a generous upper bound (~256 KB in m_objectList, ~6 MB in
     // m_instanceData).
     if (m_objectList.size() >= 32768) {
@@ -1084,7 +1084,7 @@ void GLRenderer::DrawModelVertices(GLuint texture,
         GL_PERF_STATE_CHANGE();
 #endif
         if (additive) {
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE);  // additive — used by water circles
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);  // additive -- used by water circles
         } else {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }

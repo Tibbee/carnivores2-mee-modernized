@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLPerf.cpp — OpenGL renderer performance harness
+// GLPerf.cpp -- OpenGL renderer performance harness
 //
 // The harness is intentionally single-threaded: all hooks execute on the
 // render thread while its GL context is current. CPU scope samples are

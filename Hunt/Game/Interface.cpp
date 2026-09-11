@@ -271,7 +271,7 @@ void SetVideoMode(int W, int H)
   // GDI pitch matches the runtime VideoPitchB. Required for widescreen
   // support; before this the DIB was always 1024x768 and the renderer
   // assumed a 2048-byte stride. No-op for the very first call (when
-  // hwndMain is not yet created) — that path uses the old hardcoded
+  // hwndMain is not yet created) -- that path uses the old hardcoded
   // 1024x768 DIB which is fine because the initial render is the
   // loading screen only.
   if (hwndMain) CreateVideoDIB(WinW, WinH);

@@ -1,4 +1,4 @@
-// EngineInit.cpp � auto-extracted from Game.cpp
+// EngineInit.cpp -- auto-extracted from Game.cpp
 // ==========================================================================
 // Auto-extracted from Game.cpp
 // ==========================================================================
@@ -122,7 +122,7 @@ void EnumerateResolutions()
   ZeroMemory(&current, sizeof(current));
   current.dmSize = sizeof(current);
   if (EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &current)) {
-    // Prefer the DEVMODE values — they can be slightly different from
+    // Prefer the DEVMODE values -- they can be slightly different from
     // GetSystemMetrics in multi-monitor / DPI-scaled setups.
     desktopW = current.dmPelsWidth;
     desktopH = current.dmPelsHeight;
@@ -472,7 +472,7 @@ OptFpsLimit = 1;  // 1 = 60 FPS (0 remains available for unlimited)
   // Default key bindings (mirror Menu Options::Default). LoadTrophy()
   // overwrites these from the save; without defaults a missing/short save
   // (first launch, pre-modernization file) leaves KeyMap zeroed and every
-  // bound action — notably sprint — dead until the user rebinds in the menu.
+  // bound action -- notably sprint -- dead until the user rebinds in the menu.
   KeyMap.fkForward = 'W';
   KeyMap.fkBackward = 'S';
   KeyMap.fkSLeft = 'A';
@@ -957,7 +957,7 @@ static void LoadConfig()
         // Runtime reverb preset tuning: env<0-8>_<decay|decayhf|diffusion|reverb>.
         // Floats (e.g. env0_decay 1.49). Unset fields read compiled defaults;
         // out-of-range values are rejected with a log line. room/envID have
-        // no keys — the EFX path does not consume them.
+        // no keys -- the EFX path does not consume them.
         // Require one preset digit and consume the entire numeric token.
         // Parsing after the case-insensitive prefix also permits ENV0_decay.
         const int env = key[3] - '0';

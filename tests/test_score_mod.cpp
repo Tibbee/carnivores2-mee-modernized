@@ -1,5 +1,5 @@
 // test_score_mod.cpp
-// Unit tests for Hunt/Core/ScoreMod.h — the smod= wire order shared by the
+// Unit tests for Hunt/Core/ScoreMod.h -- the smod= wire order shared by the
 // menu (which writes the string when launching the render exe) and the engine
 // (which reads it back into the ScoreMod_* globals).
 //

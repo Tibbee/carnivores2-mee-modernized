@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLShader.cpp — OpenGL shader management for Carnivores 2 ME
+// GLShader.cpp -- OpenGL shader management for Carnivores 2 ME
 //
 // Full implementation of GLShader with external file loading, uniform
 // caching, and error logging.

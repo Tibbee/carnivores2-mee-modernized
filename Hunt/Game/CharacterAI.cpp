@@ -1,5 +1,5 @@
 // ==========================================================================
-// CharacterAI.cpp — Character awareness and noise-making logic
+// CharacterAI.cpp -- Character awareness and noise-making logic
 // ==========================================================================
 // Extracted from Characters.cpp.
 

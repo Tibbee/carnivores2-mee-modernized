@@ -58,7 +58,7 @@ void main() {
    bool isMoon = uBodyIsMoon > 0.5;
 
    // World-space view ray (camera basis passed from C++).  Its .y is the
-   // elevation factor: 0 at the true horizon, +1 straight up — independent
+   // elevation factor: 0 at the true horizon, +1 straight up -- independent
    // of camera pitch, so the gradient stays anchored to the world horizon.
    vec3 wdir = normalize(vWorldDir);
 
@@ -83,7 +83,7 @@ void main() {
    float zenithDark = 0.92 + 0.08 * (1.0 - vert);
    skyColor *= zenithDark;
 
-   // Sun/moon glow on the sky texture — a soft halo around the body's
+   // Sun/moon glow on the sky texture -- a soft halo around the body's
    // screen position.  `pixel` is top-origin, matching uSunScreenPos.  The sun
    // and moon are handled separately because they have very different
    // character: the sun is a bright, warm body with a warm-core / cool-outer
@@ -118,7 +118,7 @@ void main() {
                          clamp(sunDist / glowRadius, 0.0, 1.0));
    }
    // Cloud occlusion: the sun's glow is dominated by direct-light scattering,
-   // so it falls off sharply with cloud cover (squared) — heavy cloud all but
+   // so it falls off sharply with cloud cover (squared) -- heavy cloud all but
    // kills it.  The moon's glow is diffuse moonlight, so it uses a gentler
    // (linear) dependence; at night m_skyTraceK is a dimness proxy rather than
    // cloud cover, so we don't want to crush the moon glow.
@@ -143,7 +143,7 @@ void main() {
    }
 
    // Per-pixel pocket fog on the sky.  Blend the (already globally
-   // fogged) sky toward the volume colour, but only near the horizon —
+   // fogged) sky toward the volume colour, but only near the horizon --
    // the zenith stays clear so the gradient/glow still read.  Applied after
    // the water-line fade that is already folded into fogFactor.
    // Night fog remains visible, but uses a lower sky blend so bright dynamic

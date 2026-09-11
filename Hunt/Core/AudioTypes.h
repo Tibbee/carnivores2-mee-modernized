@@ -1,5 +1,5 @@
-// AudioTypes.h — Audio-related type definitions
-// Extracted from Hunt.h (Phase 0.1 — Split god header into focused headers)
+// AudioTypes.h -- Audio-related type definitions
+// Extracted from Hunt.h (Phase 0.1 -- Split god header into focused headers)
 #pragma once
 
 #include <vector>

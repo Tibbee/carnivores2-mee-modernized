@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLPerf.h — OpenGL renderer performance harness
+// GLPerf.h -- OpenGL renderer performance harness
 //
 // Lightweight in-engine profiling hooks for the OpenGL renderer only. All
 // hooks compile to no-ops when GL_PERF_HOOKS is not defined, so non-GL

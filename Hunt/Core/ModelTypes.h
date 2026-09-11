@@ -1,5 +1,5 @@
-// ModelTypes.h — Model/animation-related type definitions
-// Extracted from Hunt.h (Phase 0.1 — Split god header into focused headers)
+// ModelTypes.h -- Model/animation-related type definitions
+// Extracted from Hunt.h (Phase 0.1 -- Split god header into focused headers)
 #pragma once
 
 #include "Memory.h"
@@ -111,7 +111,7 @@ struct TModel
   // Move ops are deleted because the hand-written versions leak gFace and
   // VLight[0-3] (raw heap pointers that must be freed explicitly before
   // overwriting). TModel is always managed through unique_obj_ptr, which
-  // never moves the pointee — only the pointer itself moves, so move ops
+  // never moves the pointee -- only the pointer itself moves, so move ops
   // are never needed. If move semantics become necessary in the future,
   // the new implementation must free the destination's gFace and VLight
   // buffers before moving from the source.

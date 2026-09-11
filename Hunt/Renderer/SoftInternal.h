@@ -1,5 +1,5 @@
 // ==========================================================================
-// SoftInternal.h — Shared internal declarations for the software renderer
+// SoftInternal.h -- Shared internal declarations for the software renderer
 //
 // Global state and structs used across the software renderer's split
 // implementation files (SoftHUD, SoftModel, SoftTerrain, SoftWater,

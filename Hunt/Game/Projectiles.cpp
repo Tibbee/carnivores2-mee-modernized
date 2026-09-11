@@ -1,4 +1,4 @@
-// Projectiles.cpp — auto-extracted from Game.cpp
+// Projectiles.cpp -- auto-extracted from Game.cpp
 // ==========================================================================
 // Auto-extracted from Game.cpp
 // ==========================================================================

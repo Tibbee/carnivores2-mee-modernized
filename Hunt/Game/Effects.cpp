@@ -78,15 +78,15 @@ void PreCashGroundModel()
         int r2 = RandomMap[(wy + 11) & 31][(wx + 7) & 31];
         float px = static_cast<float>(wx) * 0.5f;
         float py = static_cast<float>(wy) * 0.5f;
-        // Wave 1: primary swell — large slow heave
+        // Wave 1: primary swell -- large slow heave
         waveCacheSurface[wy][wx].wx[0] = static_cast<float>(sin(px + py + t)) * WWave1Amp;
         waveCacheSurface[wy][wx].wy[0] = static_cast<float>(sin(px * 0.8f + py * 0.6f + t * 0.9f)) * amp1y;
         waveCacheSurface[wy][wx].wz[0] = static_cast<float>(sin(pi/2.f + px + py + t)) * WWave1Amp;
-        // Wave 2: secondary cross-wave — medium amplitude, different direction
+        // Wave 2: secondary cross-wave -- medium amplitude, different direction
         waveCacheSurface[wy][wx].wx[1] = static_cast<float>(sin(px * 1.5f - py * 0.7f + t * 1.3f + r1 * 0.01f)) * WWave2Amp;
         waveCacheSurface[wy][wx].wy[1] = static_cast<float>(sin(px * 1.2f - py * 0.9f + t * 1.1f + r1 * 0.01f)) * amp2y;
         waveCacheSurface[wy][wx].wz[1] = static_cast<float>(sin(pi/3.f + px * 1.5f - py * 0.7f + t * 1.3f + r2 * 0.01f)) * WWave2Amp;
-        // Wave 3: fine detail — small fast ripples
+        // Wave 3: fine detail -- small fast ripples
         waveCacheSurface[wy][wx].wx[2] = static_cast<float>(sin(px * 2.3f + py * 1.2f + t * 2.1f + r2 * 0.01f)) * WWave3Amp;
         waveCacheSurface[wy][wx].wy[2] = static_cast<float>(sin(px * 2.0f + py * 1.5f + t * 1.8f + r2 * 0.01f)) * amp3y;
         waveCacheSurface[wy][wx].wz[2] = static_cast<float>(sin(pi/4.f + px * 2.3f + py * 1.2f + t * 2.1f + r1 * 0.01f)) * WWave3Amp;

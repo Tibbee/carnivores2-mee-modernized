@@ -11,7 +11,7 @@ inline constexpr int ResolveTerrainFogIndex(int mapFogIndex, bool cameraInFog, i
 }
 
 // Resolve the camera's depth term for CalcFogLevel. The camera's in-fog
-// envelope may only reach vertices in the camera's own pocket — or a clear
+// envelope may only reach vertices in the camera's own pocket -- or a clear
 // cell that falls back to that pocket. A foreign pocket keeps its own authored
 // density and distance term; lending the camera term to it saturated every
 // other volume the moment the player stepped into any pocket, producing flat,

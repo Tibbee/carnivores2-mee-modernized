@@ -1,5 +1,5 @@
 // ==========================================================================
-// SoftRenderer.cpp — IRenderer wrapper for the software renderer
+// SoftRenderer.cpp -- IRenderer wrapper for the software renderer
 //
 // Each method delegates to the existing free function in RenderSoft.cpp
 // (or Interface.cpp for system functions). This lets the game loop
@@ -14,7 +14,7 @@
 SoftRenderer* g_SoftRenderer = nullptr;
 
 // ============================================================================
-// Helpers — free functions that exist outside RenderSoft.cpp
+// Helpers -- free functions that exist outside RenderSoft.cpp
 // ============================================================================
 
 // Defined in Interface.cpp
@@ -35,7 +35,7 @@ SoftRenderer::~SoftRenderer()
 bool SoftRenderer::Initialize()
 {
     // The software renderer is initialized by InitEngine() and friends
-    // (CreateVideoDIB, etc.) — nothing extra needed here.
+    // (CreateVideoDIB, etc.) -- nothing extra needed here.
     return true;
 }
 
@@ -66,12 +66,12 @@ void SoftRenderer::DrawPostObjects()
 
 void SoftRenderer::RegisterTexture(TEXTURE* /*tptr*/)
 {
-    // The soft renderer reads Textures[] directly — no registration needed.
+    // The soft renderer reads Textures[] directly -- no registration needed.
 }
 
 void SoftRenderer::RegisterPicture(TPicture* /*pptr*/)
 {
-    // The soft renderer writes to lpVideoBuf directly — no registration needed.
+    // The soft renderer writes to lpVideoBuf directly -- no registration needed.
 }
 
 void SoftRenderer::ReleaseModelTextures(const TModel* mptr)
@@ -107,7 +107,7 @@ void SoftRenderer::PostProcess()
     // so no separate post-process step is needed here.
 }
 
-// ── 3D Rendering — Terrain ─────────────────────────────────────────────────
+// ── 3D Rendering -- Terrain ─────────────────────────────────────────────────
 
 void SoftRenderer::DrawTPlane(bool clip)
 {
@@ -124,7 +124,7 @@ void SoftRenderer::DrawHMap()
     ::DrawHMap();
 }
 
-// ── 3D Rendering — Models ──────────────────────────────────────────────────
+// ── 3D Rendering -- Models ──────────────────────────────────────────────────
 
 void SoftRenderer::RenderModel(TModel* mptr, float x0, float y0, float z0,
                                 int light, int vt, float al, float bt)

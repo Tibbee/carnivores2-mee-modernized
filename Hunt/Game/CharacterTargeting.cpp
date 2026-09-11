@@ -1,4 +1,4 @@
-// CharacterTargeting.cpp — auto-extracted from Characters.cpp
+// CharacterTargeting.cpp -- auto-extracted from Characters.cpp
 // ==========================================================================
 // Auto-extracted from Characters.cpp
 // ==========================================================================

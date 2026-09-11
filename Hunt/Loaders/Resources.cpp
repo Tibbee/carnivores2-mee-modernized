@@ -139,7 +139,7 @@ static LPVOID AllocDispatch(HANDLE hHeap,
 #endif
 
 // 3-arg _HeapAlloc: forwards to the 4-arg overload with MemoryTag::Global.
-// This is the safe default — untagged allocations land on the persistent
+// This is the safe default -- untagged allocations land on the persistent
 // heap where LevelArena->Reset() cannot invalidate them.
 LPVOID _HeapAlloc(HANDLE hHeap,
                   DWORD dwFlags,
@@ -157,8 +157,8 @@ LPVOID _HeapAlloc(HANDLE hHeap,
 //   otherwise → HeapAlloc on the game heap with HEAP_ZERO_MEMORY.
 //
 // HeapAllocated is incremented for ALL allocations (arena + heap),
-// matching C1. The name is a misnomer — it's really "total bytes
-// allocated" — but the counter feeds carnivor.log lines that downstream
+// matching C1. The name is a misnomer -- it's really "total bytes
+// allocated" -- but the counter feeds carnivor.log lines that downstream
 // tooling may parse, so the accounting is preserved verbatim.
 LPVOID _HeapAlloc(HANDLE hHeap,
                   DWORD dwFlags,
@@ -169,7 +169,7 @@ LPVOID _HeapAlloc(HANDLE hHeap,
   return AllocDispatch(hHeap, dwFlags, dwBytes, tag);
 #else
   // In MEM_DEBUG builds, every allocation is recorded so the leak report
-  // has complete coverage — even call sites that don't use _AllocTrack.
+  // has complete coverage -- even call sites that don't use _AllocTrack.
   std::lock_guard<std::mutex> lock(g_AllocMutex);
   if (!g_Allocations) g_Allocations = new std::map<void*, AllocationInfo>();
   LPVOID res = AllocDispatch(hHeap, dwFlags, dwBytes, tag);
@@ -582,7 +582,7 @@ void ReleaseResources()
       // gFace and VLight[0] are raw heap pointers allocated by
       // AllocateMemoryForModel. They are not managed by unique_ptr
       // (~TModel() is default) and must be freed explicitly before
-      // the model is destroyed. Shared helper — see EngineAPI.h.
+      // the model is destroyed. Shared helper -- see EngineAPI.h.
       ReleaseModelBuffers(mptr);
 
       MObjects[m].model.reset();
@@ -688,8 +688,8 @@ void ReleaseGlobalResources()
   // set at every clean shutdown (and polluted the MEM_DEBUG report).
   // All release helpers are null-safe, so unconditional release is correct
   // even when an owner was never loaded (e.g. MPlayerInfo in singleplayer).
-  // Releasing everything here — before PrintMemoryLeaks and before C++
-  // static teardown — is also what keeps late global destructors from
+  // Releasing everything here -- before PrintMemoryLeaks and before C++
+  // static teardown -- is also what keeps late global destructors from
   // calling _HeapFree after the leak tracker is gone.
   ReleaseCharacterInfo(WCircleModel);
   ReleaseCharacterInfo(BagModel);
@@ -887,7 +887,7 @@ void LoadResources()
 #ifdef _d3d
     FogsList[f].fogRGB = (fr) + (fg<<8) + (fb<<16);
 #endif
-    // Night vision green fog tint removed — handled by per-frame overlay
+    // Night vision green fog tint removed -- handled by per-frame overlay
   }
 
   int RdCount = 0, AmbCount = 0, WtrCount = 0;

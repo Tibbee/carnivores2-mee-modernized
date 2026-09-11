@@ -1,5 +1,5 @@
 // ==========================================================================
-// IRenderer.h — Abstract renderer interface for Carnivores 2 ME
+// IRenderer.h -- Abstract renderer interface for Carnivores 2 ME
 //
 // All renderers (Software, D3D, 3DFX, OpenGL) implement this interface.
 // The game loop calls only IRenderer methods; the concrete implementation
@@ -14,7 +14,7 @@
 
 #pragma once
 
-// Types are defined in Hunt.h — include that first.
+// Types are defined in Hunt.h -- include that first.
 
 #include "Renderer/RenderContext.h"
 
@@ -31,7 +31,7 @@ public:
     // and all the scattered per-frame global reads with a single context.
     virtual void DrawFrame(const RenderFrameContext& ctx) = 0;
 
-    // Legacy entry points — kept for renderers not yet migrated to DrawFrame.
+    // Legacy entry points -- kept for renderers not yet migrated to DrawFrame.
     virtual void DrawScene() = 0;
     virtual void DrawPostObjects() = 0;
 
@@ -47,12 +47,12 @@ public:
     virtual void WaitRetrace() = 0;
     virtual void PostProcess() = 0;
 
-    // ── 3D Rendering — Terrain ─────────────────────────────────────────
+    // ── 3D Rendering -- Terrain ─────────────────────────────────────────
     virtual void DrawTPlane(bool clip) = 0;
     virtual void DrawTPlaneClip(bool clip) = 0;
     virtual void DrawHMap() = 0;
 
-    // ── 3D Rendering — Models ──────────────────────────────────────────
+    // ── 3D Rendering -- Models ──────────────────────────────────────────
     virtual void RenderModel(TModel* mptr, float x0, float y0, float z0,
                              int light, int vt, float al, float bt) = 0;
     virtual void RenderModelClip(TModel* mptr, float x0, float y0, float z0,

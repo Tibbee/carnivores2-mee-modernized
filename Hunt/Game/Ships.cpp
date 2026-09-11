@@ -1,4 +1,4 @@
-// Ships.cpp — auto-extracted from Game.cpp
+// Ships.cpp -- auto-extracted from Game.cpp
 // ==========================================================================
 // Auto-extracted from Game.cpp
 // ==========================================================================

@@ -1,5 +1,5 @@
 // ==========================================================================
-// test_billboard_math.cpp — Cylindrical billboard regression tests
+// test_billboard_math.cpp -- Cylindrical billboard regression tests
 // ==========================================================================
 
 #include <gtest/gtest.h>

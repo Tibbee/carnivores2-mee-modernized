@@ -31,11 +31,11 @@ void main() {
    // Match the terrain/instanced-model horizon fade for legacy
    // model-path objects (BMP billboards and water-clipped meshes).
    // Radial distance (not forward-Z) so wide-FOV screen edges fog in
-   // step with the radial CPU alpha fade — see terrain.frag.
+   // step with the radial CPU alpha fade -- see terrain.frag.
    float distanceFog = clamp((vRadialDist - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);
    finalColor = mix(finalColor, uDistanceFogColor, distanceFog);
 
-   // camera-in-fog global envelope — see terrain.frag.  Fogs the whole
+   // camera-in-fog global envelope -- see terrain.frag.  Fogs the whole
    // scene by distance when the camera is submerged in a tall pocket-fog volume.
    if (uCamFogAmount > 0.001f) {
        // Near baseline so close objects are also hazed (sells "inside fog");

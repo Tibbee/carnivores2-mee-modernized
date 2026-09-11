@@ -1,5 +1,5 @@
 // ==========================================================================
-// SoftSky.cpp — Software renderer sky plane rendering
+// SoftSky.cpp -- Software renderer sky plane rendering
 //
 // Split from the original monolithic RenderSoft.cpp.
 // ==========================================================================

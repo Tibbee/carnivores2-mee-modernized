@@ -50,7 +50,7 @@ void main() {
        // The water body's own colour tells us which wavelengths it transmits:
        // uDistanceFogColor is the (depth-modulated) water fog colour, whose
        // dominant channel(s) reveal the water's hue.  We attenuate the
-       // NON-dominant channels more, letting the water's own tint survive —
+       // NON-dominant channels more, letting the water's own tint survive --
        // so blue ocean keeps blue while brown swamp water keeps its brown.
        // The old fixed "red/green lost, blue kept" curve wrongly turned swamp
        // water blue at depth.  Mirrors ModulateWaterColorByDepth() in C++.
@@ -64,7 +64,7 @@ void main() {
        float kB = kFloor + kScale * (1.0 - waterTint.b * invMax);
        litColor *= vec3(exp(-depth * kR), exp(-depth * kG), exp(-depth * kB));
 
-       // Avoid full black — retain a trace of every channel.
+       // Avoid full black -- retain a trace of every channel.
        litColor = max(litColor, vec3(0.01));
    }
 

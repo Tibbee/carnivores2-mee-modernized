@@ -1,4 +1,4 @@
-// Vector.cpp — auto-extracted from Math.cpp
+// Vector.cpp -- auto-extracted from Math.cpp
 // ==========================================================================
 // Auto-extracted from Math.cpp
 // ==========================================================================

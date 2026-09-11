@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLUtils.cpp — Shared helper implementations for OpenGL renderer
+// GLUtils.cpp -- Shared helper implementations for OpenGL renderer
 // ==========================================================================
 
 #include "Hunt.h"
@@ -87,13 +87,13 @@ Vector3d DecodeFogColorBGR(int rgb)
     };
 }
 
-// Sun-angle fog colour shift — warm by sun elevation (warmth)
+// Sun-angle fog colour shift -- warm by sun elevation (warmth)
 // and dimmed by low sun visibility (shadowDim).  Factored out of the
 // inline CalcFogLevel block so the SAME shift is applied to BOTH the
 // terrain fog colour (via GetFogColorForMapPoint) and the model/water
 // fog colour (via CurFogColor in CalcFogLevel).  Called per fog volume
 // (per corner at most), so the result is uniform across a volume's
-// vertices — not per-vertex.  sunLight is GLRenderer::GetSunLight();
+// vertices -- not per-vertex.  sunLight is GLRenderer::GetSunLight();
 // pass 0.0f to skip the shift entirely.
 int ApplySunFogColourShift(int fogRGB, float sunLight)
 {
@@ -101,7 +101,7 @@ int ApplySunFogColourShift(int fogRGB, float sunLight)
         return fogRGB;
     }
     // Sun elevation is constant for the fixed sun position; hoist the sqrt
-    // out of the (per-volume) call path — it is a compile-time constant.
+    // out of the (per-volume) call path -- it is a compile-time constant.
     static const float kSunElevation =
         4048.0f / std::sqrt(2048.0f * 2048.0f + 4048.0f * 4048.0f + 2048.0f * 2048.0f);
     const float warmth       = std::clamp(1.0f - kSunElevation, 0.0f, 0.5f);
@@ -297,7 +297,7 @@ float CalcTerrainAlpha(float distanceSq, float fadeStart, float fadeStartSq, flo
     return CalcTerrainAlpha(distanceSq, fadeStart, fadeStartSq, fadeEnd, IsUnderwater());
 }
 
-// Phase 5: overload with cached isUnderwater — avoids the per-call
+// Phase 5: overload with cached isUnderwater -- avoids the per-call
 // global IsUnderwater() load (~500K calls saved per frame at max view).
 float CalcTerrainAlpha(float distanceSq, float fadeStart, float fadeStartSq, float fadeEnd, bool isUnderwater)
 {
@@ -324,7 +324,7 @@ float CalcTerrainAlpha(float distanceSq, float fadeStart, float fadeStartSq, flo
     float fadeZone = maxDist - fadeEnd;
     float t = std::clamp((distance - fadeEnd) / fadeZone, 0.0f, 1.0f);
 
-    // Edge case — short fade distance: fall back to linear to prevent stretching
+    // Edge case -- short fade distance: fall back to linear to prevent stretching
     if (fadeZone < 256.0f) {
         return 1.0f - t;
     }
@@ -343,7 +343,7 @@ float GetTerrainFogAmountForMapPoint(int fogIndex, int legacyFog)
     return GetTerrainFogAmountForMapPoint(fogIndex, legacyFog, IsUnderwater());
 }
 
-// Phase 5: overload with cached isUnderwater — avoids the per-call
+// Phase 5: overload with cached isUnderwater -- avoids the per-call
 // global IsUnderwater() load.
 float GetTerrainFogAmountForMapPoint(int fogIndex, int legacyFog, bool isUnderwater)
 {

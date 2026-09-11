@@ -1,5 +1,5 @@
-// RenderTypes.h — Rendering-related type definitions
-// Extracted from Hunt.h (Phase 0.1 — Split god header into focused headers)
+// RenderTypes.h -- Rendering-related type definitions
+// Extracted from Hunt.h (Phase 0.1 -- Split god header into focused headers)
 #pragma once
 
 #include "Memory.h"

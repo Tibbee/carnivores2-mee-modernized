@@ -1,5 +1,5 @@
 // ==========================================================================
-// CharacterSpawn.cpp — Character placement and spawning logic
+// CharacterSpawn.cpp -- Character placement and spawning logic
 // ==========================================================================
 // Extracted from Characters.cpp.
 
@@ -95,7 +95,7 @@ void PlaceTrophy()
 
 		// Mounts are static exhibits, not live animals: remove them from AI
 		// and animation processing (same sentinel the dropship uses for a
-		// carried dino â€” skipped by AnimateCharacters, still rendered).
+		// carried dino -- skipped by AnimateCharacters, still rendered).
 		// Without this, mounts run the full hunt-AI path on setup-only
 		// state and kill the room load on the first frame. Phase keeps the
 		// mount's display pose (tropAnim) and FTime stays frozen at 0.

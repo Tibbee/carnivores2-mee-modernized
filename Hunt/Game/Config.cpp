@@ -156,7 +156,7 @@ bool ShowFaces = true;
 
 
 // ================================================================
-// config.cfg — text-based settings file (shared with Carnivores2Menu)
+// config.cfg -- text-based settings file (shared with Carnivores2Menu)
 // ================================================================
 // Resolve config.cfg relative to the game executable first, then fall
 // back to the current working directory. This ensures the file is found

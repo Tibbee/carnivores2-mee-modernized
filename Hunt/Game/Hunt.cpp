@@ -79,7 +79,7 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
   CurFogColor = fptr->fogRGB;
 
 #ifdef _gl
-  // Sun-fog colour shift — modulate fog colour by sun elevation
+  // Sun-fog colour shift -- modulate fog colour by sun elevation
   // and cloud visibility.  Delegated to ApplySunFogColourShift() so the
   // SAME shift reaches BOTH the terrain fog colour (via
   // GetFogColorForMapPoint, which now calls it) and the model/water
@@ -99,7 +99,7 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
   // Pocket fog improvements (breathing, undulating floor):
   // Apply to pocket fog volumes only (cf 1..126, not underwater).
   float fogFloorY = fptr->YBegin * ctHScale;
-  // Undulating fog floor — let the fog follow the terrain relief
+  // Undulating fog floor -- let the fog follow the terrain relief
   // instead of sitting on a flat horizontal plane.  IMPORTANT: only the
   // SMOOTH terrain-following term is used.  The original used RandomMap
   // for a "fine-scale noise" offset, but RandomMap is white (per-2-cell)
@@ -166,7 +166,7 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
 
   float fl = (fla + flb);
 
-  // Fog density breathes over time — modulate effective Transp by
+  // Fog density breathes over time -- modulate effective Transp by
   // a slow sine seeded by the fog volume index.  The breathe factor
   // depends only on (cf, RealTime); RealTime is constant within a
   // frame, so precompute the 256-entry table once per frame and
@@ -215,10 +215,10 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
   // vertical gradient so deeper terrain gets foggier.
   if (IsUnderwater())
   {
-    // Base density multiplier — scales the horizontal-distance fog.
+    // Base density multiplier -- scales the horizontal-distance fog.
     fl *= UWFog_BaseDensityMult;
 
-    // Beer-Lambert camera depth multiplier — fog increases as camera
+    // Beer-Lambert camera depth multiplier -- fog increases as camera
     // goes deeper (exponential curve).
     if (UWFog_CameraDepthMult > 0.01f) {
       float extinction = 1.0f - std::exp(-CameraWaterDepthFactor * 3.5f);
@@ -401,7 +401,7 @@ void DrawPostObjects()
       (!WeapInfo[CurrentWeapon].unzoom || Weapon.state == 2) &&
       ScopePower > 1.01f && !WeapInfo[CurrentWeapon].breathaim;
   // The magnification guard matters: optic = 1.0 (red-dot style sights,
-  // no actual zoom) must NOT take the mask treatment — without it the
+  // no actual zoom) must NOT take the mask treatment -- without it the
   // viewmodel pops ~33% bigger at 16:9 the moment the draw finishes,
   // and wind/compass vanish under a mask that was never drawn.
   const bool embeddedScopeActive =
@@ -425,7 +425,7 @@ void DrawPostObjects()
   // The wind indicator and compass sit where the sniper's scope mask covers
   // the screen, so they hide only while the mask is actually up (or under
   // the binocular overlay). A breath-aim weapon keeps both at every
-  // magnification — including mid breath-zoom.
+  // magnification -- including mid breath-zoom.
   if (g_GameMode == GameMode::Binocular || embeddedScopeActive) goto SKIPWIND;
 
   if (g_GameMode != GameMode::TrophyMode && g_GameMode != GameMode::SurvivalMode)
@@ -821,7 +821,7 @@ SKIPWEAPON:
     // The counter follows the weapon's visibility: hide it for the whole
     // put-away animation (state 3), not only once it completes and the
     // state reaches 0. It previously stayed up for the full holster
-    // duration — after the gun had already left the screen and, on scoped
+    // duration -- after the gun had already left the screen and, on scoped
     // weapons, after the FOV had already snapped back (user report:
     // "sometimes when the weapon is put away the ammo counter still
     // remains instead of being hidden"). Stock holster animations run
@@ -1024,7 +1024,7 @@ static void EnterMenuMode() // Escape from gameplay
     g_GameMode = GameMode::ExitCountdown;
     CaptureMouse(true);
   }
-  // else: the hunt is ending (evacuation countdown running) — do not open
+  // else: the hunt is ending (evacuation countdown running) -- do not open
   // a new prompt onto it and leave the view alone, so a scoped weapon stays
   // scoped through the evacuation like the original.
 }
@@ -1118,7 +1118,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       SetFullScreen();
       return 0;
     }
-    // F10 is a system key — handle it here, not in WM_KEYDOWN
+    // F10 is a system key -- handle it here, not in WM_KEYDOWN
     if (static_cast<int>(wParam) == VK_F10) {
       UnderwaterDebugMenu = !UnderwaterDebugMenu;
       if (UnderwaterDebugMenu) {
@@ -1459,7 +1459,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
   // DefWindowProc paint anything. If it does, DefWindowProc fills the
   // window with the background brush (black by default), which
   // manifests as a black screen after any event that generates
-  // WM_PAINT — Alt-tabbing back, uncovering the window, and crucially
+  // WM_PAINT -- Alt-tabbing back, uncovering the window, and crucially
   // for the OpenGL renderer, external screenshot tools that send
   // WM_PRINT -> WM_PRINTCLIENT -> WM_PAINT.
   //
@@ -1701,7 +1701,7 @@ void ProcessGame()
   if (DEBUG) ShotsLeft[CurrentWeapon] = WeapInfo[CurrentWeapon].Shots;
 
   // Phase 2.1: build per-frame render context and pass to the renderer.
-  // DrawFrame replaces DrawScene() for GL and Soft — it calls
+  // DrawFrame replaces DrawScene() for GL and Soft -- it calls
   // PreCashGroundModel first, then renders ground, water, sky, models,
   // and shadows via the renderer. Other renderers use the free-function
   // DrawScene().

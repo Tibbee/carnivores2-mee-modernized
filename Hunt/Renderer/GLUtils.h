@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLUtils.h — Shared helpers for OpenGL renderer files
+// GLUtils.h -- Shared helpers for OpenGL renderer files
 // ==========================================================================
 
 #pragma once

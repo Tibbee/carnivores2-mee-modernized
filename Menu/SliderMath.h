@@ -1,4 +1,4 @@
-// SliderMath.h — dependency-free menu slider helpers
+// SliderMath.h -- dependency-free menu slider helpers
 #pragma once
 
 inline int DiscreteSliderValue(float position, int minimum, int maximum, int step) noexcept

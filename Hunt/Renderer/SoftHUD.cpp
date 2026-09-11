@@ -1,5 +1,5 @@
 // ==========================================================================
-// SoftHUD.cpp — Software renderer HUD and 2D overlay rendering
+// SoftHUD.cpp -- Software renderer HUD and 2D overlay rendering
 //
 // Split from the original monolithic RenderSoft.cpp.
 // ==========================================================================

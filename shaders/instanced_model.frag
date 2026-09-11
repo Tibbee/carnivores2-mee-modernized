@@ -34,14 +34,14 @@ void main() {
    // Phase 2.5: per-pixel distance fog matching the terrain shader.
    // Ramp from uFogRange.x to uFogRange.y, uses radial camera distance
    // (not forward-only view-space Z) for parity with the terrain and
-   // with the radial CPU alpha fade — see terrain.frag.
+   // with the radial CPU alpha fade -- see terrain.frag.
    float distanceFog = clamp((vRadialDist - uFogRange.x) / max(uFogRange.y - uFogRange.x, 1.0), 0.0, 1.0);
-   // Phase 2.6: volumetric (pocket) fog placeholder — zero for now.
+   // Phase 2.6: volumetric (pocket) fog placeholder -- zero for now.
    vec3 afterVolumetric = mix(litColor, vVolumetricFogColor, vVolumetricFog);
    // Final: fade to distance fog colour over the ramp.
    vec3 finalColor = mix(afterVolumetric, uDistanceFogColor, distanceFog);
 
-   // camera-in-fog global envelope — see terrain.frag.
+   // camera-in-fog global envelope -- see terrain.frag.
    if (uCamFogAmount > 0.001f) {
        // Near baseline so close objects are also hazed (sells "inside fog");
        // far objects still reach the full envelope amount.

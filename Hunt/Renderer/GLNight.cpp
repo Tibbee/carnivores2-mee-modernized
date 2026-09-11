@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLNight.cpp � Night vision and desaturation rendering
+// GLNight.cpp -- Night vision and desaturation rendering
 // ==========================================================================
 
 #include "Hunt.h"
@@ -17,7 +17,7 @@
 
 void GLRenderer::RenderNightDarkness()
 {
-    // Just the dark overlay — applied AFTER the HUD is composited
+    // Just the dark overlay -- applied AFTER the HUD is composited
     RenderFSRect(0x80000000, false);
 }
 

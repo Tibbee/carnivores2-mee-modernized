@@ -1,5 +1,5 @@
 // ==========================================================================
-// test_projectile_math.cpp — Regression tests for projectile range math
+// test_projectile_math.cpp -- Regression tests for projectile range math
 // ==========================================================================
 
 #include <gtest/gtest.h>

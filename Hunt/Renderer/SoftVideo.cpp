@@ -1,5 +1,5 @@
 // ==========================================================================
-// SoftVideo.cpp — Software renderer frame post-processing
+// SoftVideo.cpp -- Software renderer frame post-processing
 //
 // Split from the original monolithic RenderSoft.cpp.
 // ==========================================================================

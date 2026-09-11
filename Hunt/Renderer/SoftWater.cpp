@@ -1,5 +1,5 @@
 // ==========================================================================
-// SoftWater.cpp — Software renderer water surface rendering
+// SoftWater.cpp -- Software renderer water surface rendering
 //
 // Split from the original monolithic RenderSoft.cpp.
 // ==========================================================================

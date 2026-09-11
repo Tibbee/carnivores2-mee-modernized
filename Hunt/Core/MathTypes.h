@@ -1,5 +1,5 @@
-// MathTypes.h — Vector and geometry types
-// Extracted from Hunt.h (Phase 0.1 — Split god header into focused headers)
+// MathTypes.h -- Vector and geometry types
+// Extracted from Hunt.h (Phase 0.1 -- Split god header into focused headers)
 #pragma once
 
 #include <type_traits>

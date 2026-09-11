@@ -1,6 +1,6 @@
-// AnimateBrahi.cpp � split from CharacterAnimation.cpp
+// AnimateBrahi.cpp -- split from CharacterAnimation.cpp
 // ==========================================================================
-// One-time split from CharacterAnimation.cpp; no generator — edit this file.
+// One-time split from CharacterAnimation.cpp; no generator -- edit this file.
 // ==========================================================================
 
 #include "Hunt.h"

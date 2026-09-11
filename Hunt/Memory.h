@@ -31,7 +31,7 @@
 
 
 // ----------------------------------------------------------------------------
-// Configuration (C2 ME addition — not present in C1)
+// Configuration (C2 ME addition -- not present in C1)
 // ----------------------------------------------------------------------------
 
 // Per-level arena size. C2 ME's world is 4x larger than C1's (ctHScale=64
@@ -52,7 +52,7 @@ inline constexpr size_t LEVEL_ARENA_SIZE = 256 * 1024 * 1024;  // 256 MiB
 // the MEM_DEBUG leak detector to attribute leaks to subsystems.
 //
 // Only Global and Level are exercised in current C2 ME code. The other tags
-// are reserved for future subsystems and cost nothing to keep — the type
+// are reserved for future subsystems and cost nothing to keep -- the type
 // system stays symmetric with C1's Memory.h.
 enum class MemoryTag {
     Global,    // Lives for the entire session (SunModel, SFX, ChInfo[])
@@ -99,7 +99,7 @@ void   PrintLog(char* msg);
 //      arena-owned pointers (LevelArena->Contains() check in _HeapFree).
 //
 // The struct has no members, so std::unique_ptr applies the empty base
-// optimization and ends up the same size as a raw pointer — verified by
+// optimization and ends up the same size as a raw pointer -- verified by
 // the static_assert at the bottom of this file.
 template<typename T>
 struct HeapDeleter {
@@ -164,7 +164,7 @@ unique_heap_ptr<T[]> make_heap_array(size_t count)
 
 
 // ----------------------------------------------------------------------------
-// Per-level arena (bump allocator backed by VirtualAlloc) — match C1
+// Per-level arena (bump allocator backed by VirtualAlloc) -- match C1
 // ----------------------------------------------------------------------------
 
 class MemoryArena {
@@ -299,7 +299,7 @@ private:
 
 
 // ----------------------------------------------------------------------------
-// Size sanity checks (C2 ME addition — not present in C1)
+// Size sanity checks (C2 ME addition -- not present in C1)
 // ----------------------------------------------------------------------------
 
 // The smart-pointer types are designed to be drop-in replacements for raw
@@ -318,7 +318,7 @@ static_assert(sizeof(unique_obj_ptr<int>) == sizeof(void*),
 
 
 // ----------------------------------------------------------------------------
-// Leak detection (Phase 5F) — only compiled when MEM_DEBUG is defined
+// Leak detection (Phase 5F) -- only compiled when MEM_DEBUG is defined
 // ----------------------------------------------------------------------------
 //
 // Wrapped in #ifdef MEM_DEBUG so release builds pay zero cost (no map, no
@@ -362,7 +362,7 @@ void ClearTagAllocations(MemoryTag tag);
 
 // Automatic call-site capture (MEM_DEBUG only). Every 3-arg and 4-arg
 // _HeapAlloc call in every TU that includes this header is rerouted to
-// _HeapAllocImpl with __FILE__/__LINE__ appended — contributors get full
+// _HeapAllocImpl with __FILE__/__LINE__ appended -- contributors get full
 // leak attribution without remembering a special macro, and the plain
 // function signatures keep working for any TU that bypasses the header.
 //

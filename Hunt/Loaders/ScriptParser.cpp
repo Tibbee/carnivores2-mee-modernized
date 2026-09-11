@@ -1,5 +1,5 @@
 // ==========================================================================
-// ScriptParser.cpp � _RES.TXT / _MENU.TXT script file parser
+// ScriptParser.cpp -- _RES.TXT / _MENU.TXT script file parser
 // ==========================================================================
 
 #include "Hunt.h"

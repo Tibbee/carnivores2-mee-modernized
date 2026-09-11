@@ -1,4 +1,4 @@
-// CharacterMovement.cpp — auto-extracted from Characters.cpp
+// CharacterMovement.cpp -- auto-extracted from Characters.cpp
 // ==========================================================================
 // Auto-extracted from Characters.cpp
 // ==========================================================================

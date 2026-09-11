@@ -1,5 +1,5 @@
 // ==========================================================================
-// SoftModel.cpp — Software renderer model rendering
+// SoftModel.cpp -- Software renderer model rendering
 //
 // Split from the original monolithic RenderSoft.cpp.
 // ==========================================================================

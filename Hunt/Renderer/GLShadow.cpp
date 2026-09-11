@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLShadow.cpp � Projected shadow rendering
+// GLShadow.cpp -- Projected shadow rendering
 // ==========================================================================
 
 #include "Hunt.h"

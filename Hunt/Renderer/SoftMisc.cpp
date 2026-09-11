@@ -1,5 +1,5 @@
 // ==========================================================================
-// SoftMisc.cpp — Software renderer miscellaneous functions
+// SoftMisc.cpp -- Software renderer miscellaneous functions
 //
 // Split from the original monolithic RenderSoft.cpp.
 // ==========================================================================

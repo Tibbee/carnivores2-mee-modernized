@@ -1,5 +1,5 @@
 // ==========================================================================
-// CharacterInternal.h — Internal declarations shared across Character module
+// CharacterInternal.h -- Internal declarations shared across Character module
 // ==========================================================================
 // Functions declared here are used by multiple Character/*.cpp files but are
 // not exposed to the rest of the engine (not in EngineAPI.h).

@@ -1,4 +1,4 @@
-// RenderContext.h — Per-frame renderer state (replaces direct global reads)
+// RenderContext.h -- Per-frame renderer state (replaces direct global reads)
 // Phase 2.1: bundles all globals the renderer reads into a single context
 // struct, eliminating scattered global lookups from DrawScene.
 #pragma once

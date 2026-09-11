@@ -1,5 +1,5 @@
 // ==========================================================================
-// Log.h — Structured logging with severity, timestamps, and categories
+// Log.h -- Structured logging with severity, timestamps, and categories
 // ==========================================================================
 // Provides LOG_DEBUG / LOG_INFO / LOG_WARN / LOG_ERROR macros that write
 // to carnivor.log with [LEVEL] [file:line] prefix. Replaces ad-hoc PrintLog

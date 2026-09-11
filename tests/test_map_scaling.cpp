@@ -1,4 +1,4 @@
-// test_map_scaling.cpp — Tests for map-scaling algorithms and HUD stale-region clearing.
+// test_map_scaling.cpp -- Tests for map-scaling algorithms and HUD stale-region clearing.
 //
 // These are C2-specific adaptations of the C1 test_map_scaling.cpp.  C2's
 // DrawHMap doesn't use a scaling cache (it draws MapPic at native size),

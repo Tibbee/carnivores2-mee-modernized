@@ -1,4 +1,4 @@
-// RenderContext.cpp — RenderFrameContext implementation
+// RenderContext.cpp -- RenderFrameContext implementation
 #include "Renderer/RenderContext.h"
 #include "Core/GameState.h"
 #include "Core/GameMode.h"
@@ -8,7 +8,7 @@ RenderFrameContext RenderFrameContext::FromGlobals()
 {
     RenderFrameContext ctx;
 
-    // Viewport — use :: prefix to resolve global vs member name conflict
+    // Viewport -- use :: prefix to resolve global vs member name conflict
     ctx.winW = ::WinW;
     ctx.winH = ::WinH;
     ctx.videoCX = ::VideoCX;
@@ -51,7 +51,7 @@ RenderFrameContext RenderFrameContext::FromGlobals()
     ctx.skyMin = ::SKYMin;
     ctx.skyDTime = ::SKYDTime;
 
-    // Lighting — SunLight is computed per-frame in the renderer
+    // Lighting -- SunLight is computed per-frame in the renderer
     ctx.sunLight = 0.0f;  // computed by renderer
     ctx.hard3D = ::HARD3D != 0;
 

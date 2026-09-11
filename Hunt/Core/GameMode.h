@@ -1,4 +1,4 @@
-// GameMode.h — Game mode state enum (replaces boolean flag sprawl)
+// GameMode.h -- Game mode state enum (replaces boolean flag sprawl)
 // Phase 1.1: replaces 30+ independent BOOL flags with a single state machine.
 #pragma once
 
@@ -8,7 +8,7 @@
 // them the same way so the two projects read uniformly.  Three have no user
 // yet.  Do not close those gaps: renumbering would break the mirror, and each
 // is the slot a BOOL flag still sitting in Core/GameState.h is meant to move
-// into (Phase 1.1 is partial — FLY, SWIM, PAUSE, OPTICMODE, BINMODE and
+// into (Phase 1.1 is partial -- FLY, SWIM, PAUSE, OPTICMODE, BINMODE and
 // EXITMODE are still independent globals).
 enum class GameMode : unsigned int {
     Normal          = 0,
@@ -70,7 +70,7 @@ inline bool IsInWorldMovementMode(GameMode m) {
 // The original engine kept EXITMODE/PAUSE as independent flags, so the scope
 // stayed zoomed under the menu; without this, ActiveWorldZoom() collapses to
 // 1x the moment the menu opens (mask up, world wide). Logic gates that drive
-// input/animation (breath ease, toggles) keep using the raw mode — only
+// input/animation (breath ease, toggles) keep using the raw mode -- only
 // rendering predicates use these.
 inline bool IsScopeView() {
   if (g_GameMode == GameMode::OpticScope) return true;
@@ -120,7 +120,7 @@ inline bool IsCrouching()   { return CrouchMode != 0; }
 // Mirrors the helper set in Carnivores1/Hunt/Core/GameMode.h so the
 // two projects read uniformly. Use these whenever you want to test
 // for a specific game-mode value without writing the inline
-// comparison — and so the call site stays readable if the underlying
+// comparison -- and so the call site stays readable if the underlying
 // GameMode enum evolves.
 
 inline bool IsNormal()        { return g_GameMode == GameMode::Normal; }

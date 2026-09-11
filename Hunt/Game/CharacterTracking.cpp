@@ -1,5 +1,5 @@
 // ==========================================================================
-// CharacterTracking.cpp — Blood trail and scent tracking system
+// CharacterTracking.cpp -- Blood trail and scent tracking system
 // ==========================================================================
 // Extracted from Game.cpp (AddBloodTrail, AnimateBloodTrails).
 

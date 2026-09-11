@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLTerrain.cpp � Terrain rendering pipeline
+// GLTerrain.cpp -- Terrain rendering pipeline
 // ==========================================================================
 
 #include "Hunt.h"
@@ -128,7 +128,7 @@ void GLRenderer::ShutdownTerrainPipeline()
 void GLRenderer::EnsureTerrainVertexCapacity(size_t needed)
 {
     if (needed <= m_terrainVertexCapacity) return;
-    // Grow to the needed size (no shrinking — ctViewR rarely decreases).
+    // Grow to the needed size (no shrinking -- ctViewR rarely decreases).
     auto newBuf = std::make_unique<TerrainVertex[]>(needed);
     m_terrainVertices = std::move(newBuf);
     m_terrainVertexCapacity = needed;
@@ -237,7 +237,7 @@ void GLRenderer::BeginTerrainFrame()
     const size_t maxTiles = static_cast<size_t>(2 * ctViewR + 1) * static_cast<size_t>(2 * ctViewR + 1);
     EnsureTerrainVertexCapacity(maxTiles * 6);
     // m_waterVertices is cleared in BeginWaterFrame (called by RenderWater).
-    // Clearing here too was redundant — RenderGround never touches water.
+    // Clearing here too was redundant -- RenderGround never touches water.
 }
 
 void GLRenderer::EnsureTerrainTextureArray()
@@ -481,7 +481,7 @@ void GLRenderer::ClearLevelTextureCache()
 }
 
 // ---------------------------------------------------------------------------
-// Phase 3: Water bitmask — coarse "has water" bitmap for 8x8 cell blocks.
+// Phase 3: Water bitmask -- coarse "has water" bitmap for 8x8 cell blocks.
 // Built once at level load; skips CollectWaterTileFast for dry blocks.
 // ---------------------------------------------------------------------------
 
@@ -527,7 +527,7 @@ void GLRenderer::RebuildWaterBlockBits()
 
 // Smooth fog-volume transitions.  Blend the four per-corner fog
 // colours 30% toward their tile average to soften hard fog boundaries.
-// This is the "simpler alternative" from CarnivoresDoc architecture/pocket-fog.md —
+// This is the "simpler alternative" from CarnivoresDoc architecture/pocket-fog.md --
 // no additional FogsMap lookups, just averaging already-fetched colours.
 static void SmoothFogColors(Vector3d& fog00, Vector3d& fog10,
                             Vector3d& fog01, Vector3d& fog11)
@@ -576,7 +576,7 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     ++m_terrainPerf.tileCandidates;
 #endif
 
-    // Coarse frustum pre-test — SAFEGUARD: only reject when cz < 0.
+    // Coarse frustum pre-test -- SAFEGUARD: only reject when cz < 0.
     // The lateral MUST be scaled by FOVK so this cone matches the precise
     // 4-corner check below (and the GPU projection).  Without FOVK the
     // bound assumes a ~90-degree frustum: at wide FOV (FOVK < 1) it is far
@@ -632,7 +632,7 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     Vector3d fog01 = GetCachedTerrainFogColor(fogIdx01);
     Vector3d fog11 = GetCachedTerrainFogColor(fogIdx11);
 
-    // Smooth fog-volume transitions — blend corners toward tile average
+    // Smooth fog-volume transitions -- blend corners toward tile average
     SmoothFogColors(fog00, fog10, fog01, fog11);
 
     // Phase 5: use cached m_isUnderwater to skip the global load
@@ -642,7 +642,7 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     float alpha11 = CalcTerrainAlpha(VertexDistanceSq(v11.v), fadeStart, fadeStartSq, fadeEnd, m_isUnderwater);
 
     // Step 5: Fog-aware distance fade
-    // When fog is dense, distance fade has less effect — fog already obscures the view
+    // When fog is dense, distance fade has less effect -- fog already obscures the view
     if (!m_isUnderwater) {
         const float fog00f = static_cast<float>(v00.Fog) / 200.0f;
         const float fog10f = static_cast<float>(v10.Fog) / 200.0f;
@@ -686,7 +686,7 @@ void GLRenderer::EmitTerrainTile(int x, int y, float backR,
         return;
     }
 
-    // Precise frustum cull — conservative 4-corner check.
+    // Precise frustum cull -- conservative 4-corner check.
     // When looking up a slope, the tile center can be at shallower depth
     // than the elevated corners, causing the single-center test to cull
     // tiles that are still partially visible.  Only reject if ALL 4
@@ -726,7 +726,7 @@ void GLRenderer::EmitTerrainTile(int x, int y, float backR,
         return;
     }
 
-    // Alpha cull — skip tiles whose 4 vertex alphas are all below threshold
+    // Alpha cull -- skip tiles whose 4 vertex alphas are all below threshold
     if (alpha00 < kAlphaCullThreshold && alpha10 < kAlphaCullThreshold &&
         alpha01 < kAlphaCullThreshold && alpha11 < kAlphaCullThreshold) {
 #ifdef GL_PERF_HOOKS
@@ -764,7 +764,7 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
     // needs 0 <= c <= ctMapSize-2 (CollectTerrainTile's [A] bound) and a
     // 2x2 VMap footprint inside the view grid ([C] bound).  The 3x3 shared
     // corner grid needs localX+2 <= kViewGridSize-1, i.e. localX <=
-    // kViewGridSize-3 — the same as the rightmost tile's [C] bound.  So the
+    // kViewGridSize-3 -- the same as the rightmost tile's [C] bound.  So the
     // block is valid iff all four tiles are valid.  Fall back otherwise.
     const bool mapOk = (x >= 0 && y >= 0 &&
                        x <= ctMapSize - 3 && y <= ctMapSize - 3);
@@ -828,7 +828,7 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
         for (int i = 0; i < 3; ++i)
             v[j][i] = VMap[localY + j][localX + i];
 
-    // Per-corner fog index / fog amount / fog colour / alpha — each corner
+    // Per-corner fog index / fog amount / fog colour / alpha -- each corner
     // is shared by up to 4 tiles, so compute once.
     const int fogCellX[3] = { ((x) & (ctMapSize - 1)) >> 1,
                               ((x + 1) & (ctMapSize - 1)) >> 1,
@@ -1023,7 +1023,7 @@ void GLRenderer::RenderGround()
         // VMap corners vertically as well as horizontally (9 reads for 4
         // tiles vs 16).  The block spans the UNION of the two rows' dx-ranges
         // (each row's range is a superset of its visible tiles, and the union
-        // is a superset of both — so no row's visible tile is missed; the
+        // is a superset of both -- so no row's visible tile is missed; the
         // per-tile culls in CollectTerrainChunk2x2 remove the slack).
         int y = yLo;
         for (; y + 1 <= yHi; y += 2) {
@@ -1058,7 +1058,7 @@ void GLRenderer::RenderGround()
                 }
             }
         }
-        // Leftover odd row — 1x1 (a 2x2 chunk would need a row beyond yHi).
+        // Leftover odd row -- 1x1 (a 2x2 chunk would need a row beyond yHi).
         if (y <= yHi) {
             float lo, hi;
             if (rowRange(static_cast<float>(y - CCY), lo, hi)) {

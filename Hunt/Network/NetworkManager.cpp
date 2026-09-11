@@ -1,5 +1,5 @@
 // ==========================================================================
-// NetworkManager.cpp — Multiplayer networking implementation
+// NetworkManager.cpp -- Multiplayer networking implementation
 // ==========================================================================
 
 #include "Hunt.h"

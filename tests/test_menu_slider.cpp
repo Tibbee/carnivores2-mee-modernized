@@ -1,5 +1,5 @@
 // ==========================================================================
-// test_menu_slider.cpp — Regression tests for discrete menu sliders
+// test_menu_slider.cpp -- Regression tests for discrete menu sliders
 // ==========================================================================
 
 #include <gtest/gtest.h>

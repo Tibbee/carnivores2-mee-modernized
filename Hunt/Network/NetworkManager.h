@@ -1,5 +1,5 @@
 // ==========================================================================
-// NetworkManager.h — Class-based multiplayer networking
+// NetworkManager.h -- Class-based multiplayer networking
 // ==========================================================================
 
 #pragma once

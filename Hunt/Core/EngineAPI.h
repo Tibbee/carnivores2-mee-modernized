@@ -267,11 +267,11 @@ void NormVector(Vector3d& v, float Scale);
 #undef _HeapAlloc
 #endif
 [[nodiscard]] LPVOID _HeapAlloc(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes);
-// Phase 5A: 4-arg overload with MemoryTag dispatch. No default for `tag` —
+// Phase 5A: 4-arg overload with MemoryTag dispatch. No default for `tag` --
 // MSVC's overload resolution treats a 3-arg call as ambiguous between this
 // overload (using the default) and the 3-arg overload above, so the tag
 // must be explicit. The 3-arg forwarder in Resources.cpp routes legacy
-// 3-arg calls through this overload with MemoryTag::Global — the safe
+// 3-arg calls through this overload with MemoryTag::Global -- the safe
 // default that keeps untagged allocations on the persistent heap where
 // LevelArena->Reset() cannot invalidate them. (Changed from MemoryTag::Level
 // in Phase 5C.2 after untagged GL allocations caused arena corruption.)
@@ -285,7 +285,7 @@ void NormVector(Vector3d& v, float Scale);
 [[nodiscard]] BOOL _HeapFree(HANDLE hHeap, DWORD  dwFlags, LPVOID lpMem);
 
 // Phase 5A: per-level arena. Constructed in InitEngine() and destroyed in
-// ShutDownEngine() (both Phase 5C). nullptr in Phase 5A — _HeapAlloc
+// ShutDownEngine() (both Phase 5C). nullptr in Phase 5A -- _HeapAlloc
 // checks for nullptr and falls through to HeapAlloc, so pre-5A call
 // sites are bit-for-bit unaffected.
 

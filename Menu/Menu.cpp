@@ -249,7 +249,7 @@ const char st_DisplayModeText[kDisplayModeCount][16] = { "Windowed", "Fullscreen
 // Accessory indices. MenuHunt[3].Item and g_UtilInfo stay parallel and fully
 // populated (see UtilInfo note in Hunt.h), so launch/smod code can index
 // both arrays with these. NOTE: _iceage inserts "Supply drop" at slot 4
-// and shifts NV/tranq — these constants are C2-only.
+// and shifts NV/tranq -- these constants are C2-only.
 constexpr int kAccCamo = 0;
 constexpr int kAccRadar = 1;
 constexpr int kAccScent = 2;
@@ -344,7 +344,7 @@ void AcceptNewKey()
 					// Check if this is the NightVision key slot
 					const int nvIndex = static_cast<int>(MenuOptions[OPT_KEYBINDINGS].Item.size() - 3);
 					if (g_WaitKey == nvIndex) {
-						// Avoid reassigning an already-used key — check only other NV keys
+						// Avoid reassigning an already-used key -- check only other NV keys
 						if (g_Options.NightVisionKey == k) return;
 						g_Options.NightVisionKey = k;
 					} else {
@@ -374,8 +374,8 @@ void AcceptNewKey()
 void ChangeMenuState(int32_t ms)
 {
 	// NOTE: the ambient bed keeps playing across submenus (hunt, options,
-	// briefing...). It is silenced only around external processes — hunts
-	// and the trophy room — by LaunchProcess, which also resumes it.
+	// briefing...). It is silenced only around external processes -- hunts
+	// and the trophy room -- by LaunchProcess, which also resumes it.
 	g_PrevMenuState = g_MenuState;
 	g_MenuState = ms;
 	g_LastHoverId = -1;
@@ -462,7 +462,7 @@ int32_t CalculateDebit()
 	}
 
 	// Accessories settle their *scoring* at hunt end (smod= multipliers),
-	// but their license price debits upfront like everything else — and
+	// but their license price debits upfront like everything else -- and
 	// the equipment toggle gates on affordability for exactly that reason.
 	for (unsigned i = 0; i < MenuHunt[3].Item.size() && i < g_UtilInfo.size(); i++)
 	{
@@ -1142,7 +1142,7 @@ static void RestoreHuntSelections()
 	}
 	if (g_UserProfile.Score - CalculateDebit() < 0) {
 		// Saved setup is unaffordable here (e.g. restored onto a poorer
-		// profile, or hand-edited masks) — fall back to the entry defaults
+		// profile, or hand-edited masks) -- fall back to the entry defaults
 		// above instead of displaying a negative account. Time-of-day is
 		// free, so it stays as restored.
 		MenuHunt[0].Selected = g_AreaInfo.empty() ? -1 : 0;
@@ -2353,7 +2353,7 @@ void MenuEventInput(int32_t menu)
 
 					// Same affordability gate as dinos/weapons: selecting
 					// requires covering the price, deselecting is always
-					// free — so the account can never be driven negative.
+					// free -- so the account can never be driven negative.
 					if (score >= g_UtilInfo[accIndex].m_Price && !MenuHunt[3].Item[accIndex].second)
 					{
 						MenuHunt[3].Item[accIndex].second = true;

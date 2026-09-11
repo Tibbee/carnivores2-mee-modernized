@@ -1,5 +1,5 @@
-// Audio_DLL.cpp — OpenAL Soft backend with optional legacy DirectSound DLL support
-// Keeps the same public API signatures as the original DLL‑based system
+// Audio_DLL.cpp -- OpenAL Soft backend with optional legacy DirectSound DLL support
+// Keeps the same public API signatures as the original DLL-based system
 // so the call sites in the engine need zero changes.
 
 #include "hunt.h"
@@ -64,11 +64,11 @@ static int    g_CurrentEnv = -1;
 // ---------------------------------------------------------------------------
 struct EAX2ENV {
     int   envID;      // EAX preset enum (unused in EFX path)
-    int   room;       // mB  (−10000 … 0)
+    int   room;       // mB  (-10000 … 0)
     float decay;      // seconds
     float decayHF;    // ratio
     float diffusion;  // 0.0 … 1.0
-    int   reverb;     // mB  (−10000 … 0)
+    int   reverb;     // mB  (-10000 … 0)
 };
 
 static const EAX2ENV g_EnvPresets[9] = {
@@ -79,11 +79,11 @@ static const EAX2ENV g_EnvPresets[9] = {
     { 4, -400, 1.1f,  0.6f,   0.275f, -700 },  // 4  Canyon
     { 5, -300, 3.2f,  0.6f,   0.9f,   -200 },  // 5  Cave
     { 6, -400, 1.8f,  0.4f,   0.4f,   -400 },  // 6  Special 2
-    { 7,    0, 0.0f,  0.0f,   0.0f,      0 },  // 7  Special 3 (no‑op)
+    { 7,    0, 0.0f,  0.0f,   0.0f,      0 },  // 7  Special 3 (no-op)
     { 8, -400, 1.5f,  0.1f,   0.1f,   -200 },  // 8  Underwater
 };
 
-// Convert EAX mB to linear gain (OpenAL EFX uses 0.0–1.0)
+// Convert EAX mB to linear gain (OpenAL EFX uses 0.0-1.0)
 static float mBToGain(int mB) {
     return std::pow(10.0f, mB / 2000.0f);
 }
@@ -98,8 +98,8 @@ static void EnsureEnvRuntime() {
         g_EnvRuntimeInit = true;
     }
 }
-// field: 0=decay (s, 0.1–20), 1=decayHF (ratio, 0.1–2), 2=diffusion (0–1),
-// 3=reverb (mB, −10000–0). room/envID are intentionally not settable — the
+// field: 0=decay (s, 0.1-20), 1=decayHF (ratio, 0.1-2), 2=diffusion (0-1),
+// 3=reverb (mB, -10000-0). room/envID are intentionally not settable -- the
 // EFX path does not consume them, so a knob would be wired to nothing.
 bool Audio_SetEnvParam(int env, int field, float v)
 {
@@ -293,7 +293,7 @@ void InitAudioSystem(HWND hw, HANDLE hlog, int driver)
         alSourcef(channel[i].source, AL_MAX_DISTANCE, 10000.0f);
     }
 
-    // ── Ambient (non‑positional, looping) ──
+    // ── Ambient (non-positional, looping) ──
     AL_CHECK(alGenSources(1, &ambient.source));
     alSourcei(ambient.source, AL_LOOPING, AL_TRUE);
     alSourcei(ambient.source, AL_SOURCE_RELATIVE, AL_TRUE);
@@ -452,7 +452,7 @@ void AudioStop()
 }
 
 // ---------------------------------------------------------------------------
-// Restore  (no‑op for OpenAL — device loss is handled by the OS)
+// Restore  (no-op for OpenAL -- device loss is handled by the OS)
 // ---------------------------------------------------------------------------
 void Audio_Restore()
 {
@@ -493,7 +493,7 @@ void AudioSetCameraPos(float cx, float cy, float cz, float ca, float cb)
 }
 
 // ---------------------------------------------------------------------------
-// Ambient (non‑positional, e.g. jungle loop)
+// Ambient (non-positional, e.g. jungle loop)
 // ---------------------------------------------------------------------------
 void SetAmbient(int length, short int* lpdata, int av)
 {
@@ -507,13 +507,13 @@ void SetAmbient(int length, short int* lpdata, int av)
 
     EnterCriticalSection(&AudioCS);
 
-    // Already playing this exact sound — nothing to do
+    // Already playing this exact sound -- nothing to do
     if (ambient.lpData == lpdata && ambient.avolume == av) {
         LeaveCriticalSection(&AudioCS);
         return;
     }
 
-    // Move current ambient to fade‑out slot
+    // Move current ambient to fade-out slot
     AL_CHECK(alSourceStop(ambient2.source));
     AL_CHECK(alSourcei(ambient2.source, AL_BUFFER, 0));
 
@@ -621,7 +621,7 @@ bool IsAmbient3dFree()
 }
 
 // ---------------------------------------------------------------------------
-// 3D voice (one‑shot sounds)
+// 3D voice (one-shot sounds)
 // ---------------------------------------------------------------------------
 void AddVoice3dv(int length, short int* lpdata, float cx, float cy, float cz, int vol)
 {
@@ -698,10 +698,10 @@ void Audio_SetEnvironment(int e, float f)
     g_CurrentEnv = e;
     EnsureEnvRuntime();
 
-    // No EFX support — silently ignore
+    // No EFX support -- silently ignore
     if (!g_effect || !g_slot) { PrintLog("Audio_SetEnvironment: no EFX objects\n"); return; }
     if (e < 0 || e > 8) { PrintLog("Audio_SetEnvironment: invalid env %d\n"); return; }
-    if (e == 7) return;  // Special 3 — intentionally empty
+    if (e == 7) return;  // Special 3 -- intentionally empty
 
     // Clear any residual errors before setting up reverb
     while (alGetError && alGetError() != AL_NO_ERROR);
@@ -716,7 +716,7 @@ void Audio_SetEnvironment(int e, float f)
 
     AL_CHECK(alEffecti(g_effect, AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB));
 
-    // Set reverb parameters — map EAX mB fields correctly:
+    // Set reverb parameters -- map EAX mB fields correctly:
     //   room   → AL_EAXREVERB_ROOM (reverb return level in mB)
     //   reverb → AL_EAXREVERB_LATE_REVERB_GAIN (late reverb level, linear from mB)
     //   decay  → AL_EAXREVERB_DECAY_TIME
@@ -747,7 +747,7 @@ void Audio_SetEnvironment(int e, float f)
 }
 
 // ---------------------------------------------------------------------------
-// Terrain geometry upload  (no‑op for OpenAL)
+// Terrain geometry upload  (no-op for OpenAL)
 // Still calls UploadGeometry() to keep the data array populated, but
 // never sends it to any audio driver.
 // ---------------------------------------------------------------------------
@@ -761,5 +761,5 @@ void Audio_UploadGeometry()
         return;
     }
 
-    // OpenAL Soft has no terrain‑occlusion equivalent — discard.
+    // OpenAL Soft has no terrain-occlusion equivalent -- discard.
 }

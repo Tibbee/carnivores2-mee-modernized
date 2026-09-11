@@ -537,7 +537,7 @@ void ProcessPlayerMovement()
     // only reach their optic while held (1.0x -> 1.6x); releasing eases
     // back. The hold is self-limiting: Hunt.cpp caps Weapon.BTime at ~4s
     // and then forces an exhale, so zoom can never be parked. No free
-    // Numpad zoom on purpose — one mechanic (focus), one sensible cap.
+    // Numpad zoom on purpose -- one mechanic (focus), one sensible cap.
     const float opticFloor = (WeapInfo[CurrentWeapon].Optic > 1.0f) ? WeapInfo[CurrentWeapon].Optic : 1.0f;
     const bool breathAim = WeapInfo[CurrentWeapon].breathaim;
     const float restLevel = breathAim ? 1.0f : opticFloor;

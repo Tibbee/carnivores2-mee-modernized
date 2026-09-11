@@ -480,7 +480,7 @@ GLOBAL int  OptFov;
 // ── GPU performance-optimization feature flags (global runtime kill-switch) ──
 // Single bitmask read by each new GPU optimization. Set the mask to 0 in
 // config.cfg ("gpufeatures 0") to disable ALL new GPU optimizations at once;
-// individual bits toggle features granularly. This is a runtime switch only —
+// individual bits toggle features granularly. This is a runtime switch only --
 // no per-feature build tasks / presets.
 enum GpuFeature : uint32_t {
     GPUF_ELEMENTS_INSTANCING   = 1u << 0,  // 2.17 elements batching

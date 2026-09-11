@@ -1,4 +1,4 @@
-// Hunt.h — Umbrella header (legacy compatibility, will be removed)
+// Hunt.h -- Umbrella header (legacy compatibility, will be removed)
 // All declarations have been moved to focused headers in Core/.
 #pragma once
 

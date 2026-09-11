@@ -1,5 +1,5 @@
 // ==========================================================================
-// WaterColor.h — Water-colour-aware submersion depth modulation
+// WaterColor.h -- Water-colour-aware submersion depth modulation
 // ==========================================================================
 // Used by the underwater effects (the overlay, fog colour, and the
 // terrain wavelength attenuation) so that the depth tint respects the
@@ -13,7 +13,7 @@
 // This version is water-colour aware: the dominant channel(s) of the
 // surface colour are transmitted (survive with depth) while the weaker
 // channels are absorbed. Blue ocean therefore deepens to dark blue, while
-// brown swamp water deepens to dark brown — i.e. a darker shade of the
+// brown swamp water deepens to dark brown -- i.e. a darker shade of the
 // water's OWN hue.
 //
 // The dominant-channel floor (kFloor) keeps the whole colour from going
@@ -52,7 +52,7 @@ inline void ModulateWaterColorByDepth(int& r, int& g, int& b, float depth)
     const float fB = std::exp(-d * kB);
 
     // Tiny floor avoids pure-black channels (looks broken) without forcing
-    // any particular hue — the result remains a dark shade of the water's
+    // any particular hue -- the result remains a dark shade of the water's
     // own colour.
     r = (std::max)(2, (std::min)(255, static_cast<int>(r * fR + 0.5f)));
     g = (std::max)(2, (std::min)(255, static_cast<int>(g * fG + 0.5f)));

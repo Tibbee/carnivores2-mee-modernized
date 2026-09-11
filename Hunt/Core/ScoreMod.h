@@ -1,4 +1,4 @@
-// ScoreMod.h — the wire order of the smod= launch argument
+// ScoreMod.h -- the wire order of the smod= launch argument
 //
 // Accessory score multipliers travel from the menu to the render exe as a
 // positional CSV:
@@ -8,7 +8,7 @@
 // No accessory name appears in the string, so the order is the whole
 // contract. If the menu emitted one accessory earlier than the engine
 // expected to read it, that accessory would quietly take another one's
-// multiplier — the hunt still runs, just with the wrong scores, and nothing
+// multiplier -- the hunt still runs, just with the wrong scores, and nothing
 // in the log would say so. Both sides build and read through
 // kScoreModWireOrder below so the two cannot drift apart.
 //
@@ -72,7 +72,7 @@ inline size_t BuildScoreModPayload(const float values[kScoreModSlotCount],
 
 // Read one value per slot, in wire order, stopping at the first field that is
 // not a number. Fewer fields than slots leaves the remaining slots untouched
-// — the engine's original sscanf chain assigned each score only when sscanf
+// -- the engine's original sscanf chain assigned each score only when sscanf
 // had reported that many conversions. Returns how many slots were filled.
 inline int ParseScoreModPayload(const char* payload,
                                 float values[kScoreModSlotCount])

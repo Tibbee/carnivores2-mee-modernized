@@ -1,5 +1,5 @@
 // ==========================================================================
-// test_water_object_visibility.cpp — Water/object visibility regression tests
+// test_water_object_visibility.cpp -- Water/object visibility regression tests
 // ==========================================================================
 
 #include <gtest/gtest.h>

@@ -1,5 +1,5 @@
 // test_config_text.cpp
-// Unit tests for Hunt/Core/ConfigText.h — the config-file reader shared by
+// Unit tests for Hunt/Core/ConfigText.h -- the config-file reader shared by
 // the engine (EngineInit.cpp) and the standalone menu (Menu/Resources.cpp).
 //
 // Every branch here is a stated invariant that had no test behind it: the

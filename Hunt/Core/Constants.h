@@ -1,5 +1,5 @@
-// Constants.h — Numerical constants and scoped enums
-// Extracted from Hunt.h (Phase 0.1 — Split god header into focused headers)
+// Constants.h -- Numerical constants and scoped enums
+// Extracted from Hunt.h (Phase 0.1 -- Split god header into focused headers)
 #pragma once
 
 #include <cstdint>

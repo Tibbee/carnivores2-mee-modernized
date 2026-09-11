@@ -1,5 +1,5 @@
 // ==========================================================================
-// SoftRenderer.h — Software renderer implementing IRenderer interface
+// SoftRenderer.h -- Software renderer implementing IRenderer interface
 //
 // Thin wrapper around the existing free-function software renderer in
 // RenderSoft.cpp. Each IRenderer method delegates to the corresponding
@@ -40,12 +40,12 @@ public:
     void WaitRetrace() override;
     void PostProcess() override;
 
-    // ── 3D Rendering — Terrain ─────────────────────────────────────────
+    // ── 3D Rendering -- Terrain ─────────────────────────────────────────
     void DrawTPlane(bool clip) override;
     void DrawTPlaneClip(bool clip) override;
     void DrawHMap() override;
 
-    // ── 3D Rendering — Models ──────────────────────────────────────────
+    // ── 3D Rendering -- Models ──────────────────────────────────────────
     void RenderModel(TModel* mptr, float x0, float y0, float z0,
                      int light, int vt, float al, float bt) override;
     void RenderModelClip(TModel* mptr, float x0, float y0, float z0,

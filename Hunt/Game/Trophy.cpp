@@ -1,4 +1,4 @@
-// Trophy.cpp — auto-extracted from Game.cpp
+// Trophy.cpp -- auto-extracted from Game.cpp
 // ==========================================================================
 // Auto-extracted from Game.cpp
 // ==========================================================================
@@ -432,7 +432,7 @@ void LoadTrophy()
     }
   }
   ReadFile(hfile, &REVERSEMS, 4, &l, nullptr);
-  //  Ignore savefile settings for equipment â€” skip 4 DWORDs
+  //  Ignore savefile settings for equipment -- skip 4 DWORDs
   SetFilePointer(hfile, 16, nullptr, FILE_CURRENT);
   ReadFile(hfile, &OPT_ALPHA_COLORKEY, 4, &l, nullptr);
 

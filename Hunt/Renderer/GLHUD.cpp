@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLHUD.cpp � HUD overlay and UI element rendering
+// GLHUD.cpp -- HUD overlay and UI element rendering
 // ==========================================================================
 
 #include "Hunt.h"
@@ -230,7 +230,7 @@ void GLRenderer::DrawHUDOverlay()
     // Upload dirty regions (or full buffer if needed).
     // The texture is top-down (EnsureUITexture allocates with nullptr data),
     // but lpVideoBuf is top-down too (CreateVideoDIB with negative height).
-    // So no flip is needed at upload — the vertex shader handles the v-flip.
+    // So no flip is needed at upload -- the vertex shader handles the v-flip.
     //
     // We upload BOTH the previous frame's dirty rects (now cleared to zero
     // by ClearStaleHUDRegions) AND the current frame's dirty rects (just
@@ -245,7 +245,7 @@ void GLRenderer::DrawHUDOverlay()
     } else {
         int totalRects = m_prevDirtyRectCount + m_dirtyRectCount;
         if (totalRects > kMaxDirtyRects) {
-            // Too many rects to upload individually — request a full
+            // Too many rects to upload individually -- request a full
             // clear+upload for next frame instead of uploading the (possibly
             // stale) buffer now. This frame we still upload the tracked
             // prev/current rects below (fresh content); any older stale pixels
@@ -395,7 +395,7 @@ void GLRenderer::MarkDirtyRect(int x, int y, int w, int h)
     // Overflow guard: too many rects to track individually. Request a full
     // buffer clear+upload for the NEXT frame instead of uploading the
     // (possibly stale) buffer now. Simply dropping rects here would leave
-    // their pixels in lpVideoBuf unmarked — and therefore un-erased — which
+    // their pixels in lpVideoBuf unmarked -- and therefore un-erased -- which
     // is exactly what causes HUD text/ghosting to persist. The next frame's
     // ClearStaleHUDRegions memsets the whole buffer, wiping those pixels.
     if (m_dirtyRectCount >= kMaxDirtyRects) {
@@ -426,7 +426,7 @@ void GLRenderer::ClearStaleHUDRegions()
     if (!lpVideoBuf || VideoPitch <= 0) return;
 
     if (m_hudNeedsFullClear) {
-        // A full-DIB write (CopyHARDToDIB) happened — the entire buffer
+        // A full-DIB write (CopyHARDToDIB) happened -- the entire buffer
         // has non-zero scene data.  Clear it all and force full upload.
         memset(lpVideoBuf, 0, static_cast<size_t>(VideoPitch) * WinH * sizeof(WORD));
         m_hudNeedsFullClear = false;
@@ -455,7 +455,7 @@ void GLRenderer::ClearStaleHUDRegions()
 void GLRenderer::UpdateUIPixels()
 {
     // Phase 2.20: this function is now a no-op.  lpVideoBuf is uploaded
-    // directly to the GPU as a GL_RGB5 texture in DrawHUDOverlay — no
+    // directly to the GPU as a GL_RGB5 texture in DrawHUDOverlay -- no
     // CPU-side 555→RGBA8 conversion needed.  Saved ~1ms CPU per frame.
     (void)0;
 }
@@ -463,7 +463,7 @@ void GLRenderer::UpdateUIPixels()
 void GLRenderer::EnsureUITexture()
 {
     // Phase 2.20: allocate as GL_RGB5 (16-bit) to match lpVideoBuf's
-    // X1R5G5B5 format.  No CPU-side RGBA8 buffer needed — we upload
+    // X1R5G5B5 format.  No CPU-side RGBA8 buffer needed -- we upload
     // lpVideoBuf directly via glTexSubImage2D.
     if (WinW <= 0 || WinH <= 0) return;
     if (m_uiTexture && m_uiTextureWidth == WinW && m_uiTextureHeight == WinH) return;
@@ -478,7 +478,7 @@ void GLRenderer::EnsureUITexture()
                  GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, nullptr);
     m_uiTextureWidth = WinW;
     m_uiTextureHeight = WinH;
-    m_hudNeedsFullUpload = true;  // texture recreated — must full-upload next frame
+    m_hudNeedsFullUpload = true;  // texture recreated -- must full-upload next frame
     m_dirtyRectCount = 0;
     m_prevDirtyRectCount = 0;
 }

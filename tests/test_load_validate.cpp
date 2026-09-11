@@ -1,5 +1,5 @@
 // test_load_validate.cpp
-// Unit tests for Hunt/Loaders/LoadValidate.h — the checked arithmetic and
+// Unit tests for Hunt/Loaders/LoadValidate.h -- the checked arithmetic and
 // file-data validation helpers used by the binary/text loaders.
 //
 // The header is pure (only ReadExact touches Win32, via a caller-provided

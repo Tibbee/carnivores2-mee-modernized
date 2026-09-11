@@ -1,5 +1,5 @@
 // test_water_color.cpp
-// Unit tests for Hunt/Core/WaterColor.h — the depth tint applied to water and
+// Unit tests for Hunt/Core/WaterColor.h -- the depth tint applied to water and
 // fog colour while submerged.
 //
 // The comment in Controls.cpp asserts that fogRGB is packed BGR (bits 0-7

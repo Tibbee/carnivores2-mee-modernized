@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLWater.cpp � Water surface rendering
+// GLWater.cpp -- Water surface rendering
 // ==========================================================================
 
 #include "Hunt.h"
@@ -62,7 +62,7 @@ void GLRenderer::RenderWaterSurface()
     }
 
     const auto projection = BuildLegacyProjection();
-    // Bake water alpha fade into the UBO update — saves a separate
+    // Bake water alpha fade into the UBO update -- saves a separate
     // glBufferSubData call vs. UpdatePerFrameUBO() + SetWaterAlphaFade().
     // Step 3: fadeStep = 3.0 to match terrain fade range (765 units total)
     UpdatePerFrameUBO(projection, 1.0f,
@@ -168,7 +168,7 @@ void GLRenderer::AppendWaterTriangle(const EPoint& v0,
     // Mark the water texture layer as used this frame so RenderWaterSurface
     // can skip its O(m_waterVertices) layer scan. All three Collect paths
     // (Fast, Tile, Tile2) go through this function, so the mark is
-    // centralized here. The bounds check is defensive — callers already
+    // centralized here. The bounds check is defensive -- callers already
     // validate, but a stray out-of-range layer would corrupt the array.
     if (textureLayer >= 0 && textureLayer < kMaxTerrainTextureLayers) {
         m_waterUsedLayers[textureLayer] = true;
@@ -240,7 +240,7 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
         return;
     }
 
-    // Coarse frustum pre-test — same as CollectTerrainTile, but using
+    // Coarse frustum pre-test -- same as CollectTerrainTile, but using
     // HMapO as a rough height proxy for the water surface (water level
     // is typically close to terrain height).  Skips 4 VMap2 reads for
     // tiles outside the horizontal frustum.
@@ -283,7 +283,7 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
     float a01 = Clamp01(v01.ALPHA / 255.0f);
     float a11 = Clamp01(v11.ALPHA / 255.0f);
 
-    // Early-out if all water vertex alphas are zero — skip the
+    // Early-out if all water vertex alphas are zero -- skip the
     // fog lookup and triangle validation for fully transparent water.
     if (a00 <= 0.0f && a10 <= 0.0f && a01 <= 0.0f && a11 <= 0.0f) {
         return;
@@ -327,7 +327,7 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
     }
 
     // Single FogsMap lookup for the tile center (water is flat; per-corner
-    // fog precision is invisible — saves 3 FogsMap lookups per tile). The
+    // fog precision is invisible -- saves 3 FogsMap lookups per tile). The
     // resolved colour is shared with terrain collection for this frame.
     const Vector3d fogTile = GetCachedTerrainFogColor(GetFogIndexForMapPoint(x, y));
 
@@ -355,7 +355,7 @@ void GLRenderer::RenderWater()
     }
 
     // Water vertices were already collected during the unified ring walk
-    // in RenderGround().  Only the GL draw call remains here — it must
+    // in RenderGround().  Only the GL draw call remains here -- it must
     // stay after the model/shadow passes for correct alpha blending order.
     RenderWaterSurface();
 }
@@ -364,7 +364,7 @@ void GLRenderer::RenderWCircles()
 {
     // Water circles are wave ripples spawned by wading dinosaurs, the player,
     // and projectile impacts. They are full 3D morphed models (WCircleModel),
-    // not 2D circles — so we use the model pipeline with CreateMorphedModel.
+    // not 2D circles -- so we use the model pipeline with CreateMorphedModel.
     // The D3D/3DFX legacy renderers call RenderWCircles() from inside their
     // own RenderWater() and use additive blending. We follow the same pattern
     // by routing through the IRenderer hook and drawing with additive=true.

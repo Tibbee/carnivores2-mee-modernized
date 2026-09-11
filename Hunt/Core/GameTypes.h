@@ -681,7 +681,7 @@ struct TMenuDinoInfo
 	TPicture CallIcon;
 };
 
-// Phase 1.3 — Binary struct layout assertions
+// Phase 1.3 -- Binary struct layout assertions
 // These lock the sizes of I/O-sensitive structs to prevent silent
 // binary format breakage. Update if struct fields change intentionally.
 // Values are for MSVC x86 (32-bit).
@@ -713,7 +713,7 @@ static_assert(sizeof(TSpawnGroup)    == 1568, "TSpawnGroup size changed — spaw
 static_assert(sizeof(TSpawnInfo)     == 8,    "TSpawnInfo size changed — spawn info");
 static_assert(sizeof(TSpawnRegion)   == 16,   "TSpawnRegion size changed — spawn region");
 static_assert(sizeof(TAIInfo)        == 92,   "TAIInfo size changed — AI info");
-// TCharacterInfo size is range-checked in Hunt.h (Phase 5 — ~3KB–8KB)
+// TCharacterInfo size is range-checked in Hunt.h (Phase 5 -- ~3KB-8KB)
 static_assert(sizeof(TPackType)      == 532,  "TPackType size changed — pack type config");
 static_assert(sizeof(TPackMember)    == 8,    "TPackMember size changed — pack member");
 static_assert(sizeof(TPackMember2)   == 8,    "TPackMember2 size changed — pack member 2");

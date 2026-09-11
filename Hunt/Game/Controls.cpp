@@ -93,7 +93,7 @@ void ToggleBinocular()
   g_GameMode = (g_GameMode == GameMode::Binocular) ? GameMode::Normal : GameMode::Binocular;
   // Note: unlike the original engine's separate MapMode flag, g_GameMode is a
   // single enum, so raising binoculars over an open map already replaces the
-  // map with the binocular view (the map closes) — no extra handling needed.
+  // map with the binocular view (the map closes) -- no extra handling needed.
   // The weapon case is different (HideWeapon does not touch g_GameMode) and is
   // handled by the per-frame close in Hunt.cpp's weapon block.
   if (g_GameMode == GameMode::Binocular) AddMessage("Binocular view");
@@ -136,9 +136,9 @@ void ProcessDemoMovement()
 {
   // Bug fix: previously stomped g_GameMode = GameMode::Normal here
   // three times in a row, every frame during the death cinematic.
-  // That silently reverted any user-initiated overlay state — most
+  // That silently reverted any user-initiated overlay state -- most
   // importantly ExitCountdown, which is what the WndProc sets when
-  // the player presses Escape — so the exit prompt wouldn't show
+  // the player presses Escape -- so the exit prompt wouldn't show
   // up until the 6-second auto-transition below kicked in. The
   // cinematic movement itself is camera/health/animation state and
   // does not read GameMode, so the per-frame outer reset was
@@ -401,7 +401,7 @@ SKIPYMOVE:
 
   if (PlayerBeta> 1.46f) {
     PlayerBeta= 1.46f;
-    // Don't let rbv keep accumulating against the clamp — when the user
+    // Don't let rbv keep accumulating against the clamp -- when the user
     // reverses direction the accumulated positive rbv would otherwise
     // need 3-10 frames to decay before the new negative deltas can move
     // PlayerBeta back down, causing a sluggish "push through" section
@@ -468,7 +468,7 @@ SKIPYMOVE:
   // (e.g. Tab -> map, Escape -> exit prompt). Stomping on it every frame
   // makes the map and exit menu unreachable while the camera is submerged,
   // and breaks other overlays similarly. We still apply the side effects
-  // (camera tweak, splash sound, water circle) when transitioning — they're
+  // (camera tweak, splash sound, water circle) when transitioning -- they're
   // pure visual feedback from the physical state change, independent of
   // whether the logical game mode also flips to Underwater.
   const bool canEnterUnderwaterFrom = IsInWorldMovementMode(g_GameMode);
@@ -511,7 +511,7 @@ SKIPYMOVE:
       AddWCircle(CameraX, CameraZ, 2.0);
       // Only transition to the underwater GameMode when the player was
       // actually moving around. If the player is in an overlay mode
-      // (MapMode, ExitCountdown, Paused, ...) we leave them alone — they
+      // (MapMode, ExitCountdown, Paused, ...) we leave them alone -- they
       // should still be able to use the map/exit menu even while their
       // camera is physically under water. The visual submersion cues draw
       // independently via the renderer / underwater fog; g_GameMode is
@@ -593,7 +593,7 @@ SKIPYMOVE:
     // (see ModulateWaterColorByDepth in Core/WaterColor.h).  The dominant
     // channel(s) of the surface colour are transmitted (survive with depth)
     // while the weaker channels are absorbed, so blue ocean deepens to dark
-    // blue and brown swamp water deepens to dark brown — a darker shade of
+    // blue and brown swamp water deepens to dark brown -- a darker shade of
     // the water's OWN hue, instead of always shifting toward navy.
     //
     // The mutation is self-correcting: the per-water-body update above resets

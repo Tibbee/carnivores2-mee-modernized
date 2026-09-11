@@ -1,5 +1,5 @@
 // ==========================================================================
-// GLRenderer.cpp — OpenGL 3.3 Core Profile renderer for Carnivores 2 ME
+// GLRenderer.cpp -- OpenGL 3.3 Core Profile renderer for Carnivores 2 ME
 // ==========================================================================
 
 #include "Hunt.h"
@@ -500,7 +500,7 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection,
     data[47] = waterAlphaFadeStep;    // uWaterAlphaFade.w
     // wavelength attenuation on terrain
     data[48] = m_isUnderwater ? CameraWaterDepthFactor : 0.0f;  // uWaterDepthFactor
-    // cloud colour temperature — overcast (low sun visibility) shifts
+    // cloud colour temperature -- overcast (low sun visibility) shifts
     // terrain light cool/blue.  clamp(1 - traceK*1.2, 0, 1): fully clear at
     // traceK≈0.83+, fully overcast at traceK=0.
     data[49] = (std::max)(0.0f, (std::min)(1.0f, 1.0f - m_skyTraceK * 1.2f));  // uCloudCover
@@ -769,7 +769,7 @@ void GLRenderer::Render3DHardwarePosts()
                                             bullet[b].FTime, 1.0, bullet[b].beta, 0.0f);
 
                 // Same formula as ships (which are authored long-axis-in-Z just
-                // like these projectiles — verified from the .car extents) and
+                // like these projectiles -- verified from the .car extents) and
                 // as the untouched vanilla software path below: the morph above
                 // already baked the trajectory pitch into the vertices, so the
                 // render adds only yaw + camera pitch. The -beta - pi/2 that
@@ -793,7 +793,7 @@ void GLRenderer::Render3DHardwarePosts()
     RenderWorldModels();
 }
 
-// Underwater full-screen overlay — restores the missing colour wash
+// Underwater full-screen overlay -- restores the missing colour wash
 // that both legacy C2 renderers (D3D and 3DFX) applied when submerged.
 // The overlay uses CurFogColor (already set to WaterList[w].fogRGB by
 // Controls.cpp) for dynamic per-water-body colouring, and darkens with
@@ -817,7 +817,7 @@ void GLRenderer::DrawUnderwaterOverlay()
 
     // The per-water-body depth tint is already baked into CurFogColor,
     // so the overlay simply washes that (correctly hued) colour over the
-    // scene.  No extra blue-biased channel attenuation here — the old code
+    // scene.  No extra blue-biased channel attenuation here -- the old code
     // forced brown swamp water toward blue at depth even after the tint had
     // already tinted it correctly.
     // RenderFSRect decodes the packed colour as r = bits 16-23, g = bits 8-15,
@@ -831,7 +831,7 @@ void GLRenderer::DrawUnderwaterOverlay()
         (std::clamp(baseB, 0, 255))       |
         (std::clamp(static_cast<int>(alpha * 255.0f), 0, 255) << 24);
 
-    // Standard blend (not additive) — overlay recolours and dims toward the
+    // Standard blend (not additive) -- overlay recolours and dims toward the
     // water body's own depth colour.
     RenderFSRect(packed, false);
 }
@@ -979,7 +979,7 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
     // Use the packed ModelVertex layout (Phase 1.4: 32 bytes, color
     // attributes are uint8 normalized). The model VAO's attribute
     // pointers expect this layout; the old CircleVertex used floats
-    // for color fields, which the driver read as raw bytes — producing
+    // for color fields, which the driver read as raw bytes -- producing
     // garbage colors (same regression as RenderFSRect, fixed in d3c7d25).
     //
     // fog=255 (normalized to 1.0) makes the model shader output the
@@ -1076,7 +1076,7 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
 
 // Blend an ABGR color (R in bits 0-7, B in 16-23, A in 24-31) toward the
 // current fog color at the given world position, preserving the source
-// alpha. Used to fog particles, blood trails, and snow — the legacy D3D/3DFX
+// alpha. Used to fog particles, blood trails, and snow -- the legacy D3D/3DFX
 // renderers pre-baked fog into the element RGBA, but the GL
 // pipeline doesn't reuse that, so we apply the fog here at draw time using
 // the same CalcFogLevel() the rest of the scene uses.
@@ -1319,7 +1319,7 @@ Vector3d GLRenderer::GetFogColorForMapPoint(int mapX, int mapY)
     return GetFogColorForMapPoint(GetFogIndexForMapPoint(mapX, mapY));
 }
 
-// Phase 2.x: fogIndex overload — caller already computed GetFogIndexForMapPoint.
+// Phase 2.x: fogIndex overload -- caller already computed GetFogIndexForMapPoint.
 // Eliminates the duplicate FogsMap lookup when both fog amount and fog color
 // are needed for the same (x,y) corner.
 Vector3d GLRenderer::GetFogColorForMapPoint(int fogIndex)
@@ -1366,8 +1366,8 @@ void GLRenderer::UpdateCameraFogEnvelope()
     // compute the *target* envelope for this frame, then smooth the
     // actual values toward it so entering/leaving a fog volume fades the
     // global envelope in/out instead of snapping.  flb is low-passed
-    // (m_camEnvFlbSmooth) so head-bob — which oscillates CameraY and thus flb
-    // — does not flip the check on/off every bob.
+    // (m_camEnvFlbSmooth) so head-bob -- which oscillates CameraY and thus flb
+    // -- does not flip the check on/off every bob.
     float targetAmount = 0.0f;
     Vector3d targetColor = {0.0f, 0.0f, 0.0f};
 
@@ -1381,8 +1381,8 @@ void GLRenderer::UpdateCameraFogEnvelope()
         // layer the player still stands in.  Only a truly foot-level puddle
         // (flb far below the feet) is excluded (see kFootCut).
         // flb = how far the eye sits below the fog top (fog units).  Low-passed
-        // into m_camEnvFlbSmooth so head-bob — which oscillates CameraY and
-        // thus flb — cannot flip the submersion gate on/off every bob.
+        // into m_camEnvFlbSmooth so head-bob -- which oscillates CameraY and
+        // thus flb -- cannot flip the submersion gate on/off every bob.
         const float flb = (fog.YBegin * ctHScale - CameraY) / ctHScale;
         constexpr float kFlbSmooth = 0.05f;   // low-pass on flb (kills head-bob)
         m_camEnvFlbSmooth += (flb - m_camEnvFlbSmooth) * kFlbSmooth;
@@ -1396,7 +1396,7 @@ void GLRenderer::UpdateCameraFogEnvelope()
         // volume the eye sits above) stays clear.
         if (m_camEnvFlbSmooth > 0.0f) {
             // FLimit is the ceiling; Transp is the OTHER half of "how dense
-            // the fog is" — the distance-ramp speed (smaller = builds up
+            // the fog is" -- the distance-ramp speed (smaller = builds up
             // faster = reads denser).  Fold Transp in as a gentle, bounded
             // strength nudge so a fast-building volume fogs harder globally and
             // a soft one fogs lighter, matching how the in-scene fog already
@@ -1442,7 +1442,7 @@ float GetTerrainFogAmountForMapPoint(int mapX, int mapY, int legacyFog)
     return GetTerrainFogAmountForMapPoint(GetFogIndexForMapPoint(mapX, mapY), legacyFog);
 }
 
-// Phase 2.x: fogIndex overload — caller already computed GetFogIndexForMapPoint.
+// Phase 2.x: fogIndex overload -- caller already computed GetFogIndexForMapPoint.
 // Eliminates the duplicate FogsMap lookup when both fog amount and fog color
 // are needed for the same (x,y) corner.
 
@@ -1526,7 +1526,7 @@ void GLRenderer::DrawScene()
 
 void GLRenderer::ClearVideoBuf()
 {
-    // NOTE: do NOT reset m_uploadedTerrainTextures here — ClearVideoBuf is
+    // NOTE: do NOT reset m_uploadedTerrainTextures here -- ClearVideoBuf is
     // called every frame from RenderSkyPlane(). Invalidating the cache
     // per-frame forces RenderTerrain() and RenderWaterSurface() to re-upload
     // every terrain texture layer on every draw (~10-20 glTexSubImage3D

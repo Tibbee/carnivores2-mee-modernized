@@ -1,5 +1,5 @@
 // ==========================================================================
-// test_math.cpp — Unit tests for dependency-free math functions
+// test_math.cpp -- Unit tests for dependency-free math functions
 // ==========================================================================
 // These functions are self-contained (no game state), making them ideal
 // first test candidates. Implementations are reproduced inline so the test

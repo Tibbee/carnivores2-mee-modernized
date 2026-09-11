@@ -1,5 +1,5 @@
 // ==========================================================================
-// Assert.h — Debug assertion framework
+// Assert.h -- Debug assertion framework
 // ==========================================================================
 // ASSERT(cond, msg) triggers a debug break in _DEBUG builds and logs the
 // failure. In release builds it compiles away to nothing.

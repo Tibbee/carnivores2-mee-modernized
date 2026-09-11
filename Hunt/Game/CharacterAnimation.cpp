@@ -1,5 +1,5 @@
 // ==========================================================================
-// CharacterAnimation.cpp — dispatcher for per-dino animation files
+// CharacterAnimation.cpp -- dispatcher for per-dino animation files
 // ==========================================================================
 
 #include "Hunt.h"
