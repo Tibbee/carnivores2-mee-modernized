@@ -23,3 +23,4 @@ tools/release/*
 !tools/c2_capture_manifest.json
 !tools/c2_capture_README.md
 !tools/check_comment_hygiene.ps1
+!tools/comments.py
