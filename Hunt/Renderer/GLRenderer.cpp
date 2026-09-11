@@ -1077,7 +1077,7 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
 // Blend an ABGR color (R in bits 0-7, B in 16-23, A in 24-31) toward the
 // current fog color at the given world position, preserving the source
 // alpha. Used to fog particles, blood trails, and snow — the legacy D3D/3DFX
-// renderers pre-baked fog into the element RGBA in Game.cpp, but the GL
+// renderers pre-baked fog into the element RGBA, but the GL
 // pipeline doesn't reuse that, so we apply the fog here at draw time using
 // the same CalcFogLevel() the rest of the scene uses.
 static uint32_t ApplyFogToABGR(uint32_t abgr, const Vector3d& worldPos)

@@ -308,8 +308,8 @@ const char* MemoryTagToString(MemoryTag tag) {
 
 // Phase 5F: walk g_Allocations and print every remaining entry (these
 // are the leaks). Prints a per-tag summary at the end, then deletes
-// the map. Called from Game.cpp ShutDownEngine() before delete
-// LevelArena so the pointers in the report are still valid.
+// the map. Called from ShutDownEngine() (Hunt/Game/EngineInit.cpp)
+// before delete LevelArena so the pointers in the report are still valid.
 //
 // Output goes to PrintLog, which writes to carnivor.log. The log is
 // flushed by CloseLog() after the call returns (the doc explicitly

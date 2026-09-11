@@ -368,8 +368,8 @@ void GLRenderer::RenderWCircles()
     // The D3D/3DFX legacy renderers call RenderWCircles() from inside their
     // own RenderWater() and use additive blending. We follow the same pattern
     // by routing through the IRenderer hook and drawing with additive=true.
-    // See Hunt/RendererD3D.cpp:3288 and Hunt/Render3DFX.cpp:2184 for the
-    // reference implementations.
+    // See the removed D3D/3DFX renderers for the reference implementations
+    // (recoverable from git history).
 
     if (WCCount <= 0) {
         return;

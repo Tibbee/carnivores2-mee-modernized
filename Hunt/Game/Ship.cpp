@@ -15,8 +15,8 @@ void AddWCircle(float x, float z, float scale)
   // view distance (180+) on a map with many aquatic ambients (e.g.
   // plesiosaurs wading on a beach), the activation radius becomes huge,
   // so many swimmers concurrently spawn water circles every frame.
-  // Circles only expire after FTime >= 2000 (Game.cpp update loop), so
-  // the spawn rate outruns the expiry rate and WCCount climbs past 2096,
+  // Circles only expire after FTime >= 2000 (AnimateProcesses in Trophy.cpp),
+  // so the spawn rate outruns the expiry rate and WCCount climbs past 2096,
   // writing out of bounds and clobbering the globals declared immediately
   // after WCircles in GameState.h (Snow, DemoPoint, killerDino, Players[],
   // PlayerPos/CameraPos, DirectDraw pointers...) -> hard crash.

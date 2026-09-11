@@ -28,7 +28,9 @@ $codeExtensions = @('.c', '.cpp', '.h', '.hpp', '.rc', '.frag', '.vert', '.ps1',
 $hashCommentExt = @('.ps1', '.cmake', '.txt')
 $sectionSymbol  = [char]0x00A7
 $drivePathRe    = [regex]'(?<![A-Za-z])[A-Za-z]:[\\/]'
-$mdRefRe        = [regex]'(?<![\w.\\-])([\w.\\/-]*\.md)\b'
+# A referenced doc needs a real stem, so a glob (*.md) or the bare
+# extension in prose is not mistaken for a file.
+$mdRefRe        = [regex]'(?<![\w.\\-])([\w.\\/-]*[\w-]\.md)\b'
 $phaseRe        = [regex]'\bPhase\s*[0-9][0-9A-Za-z.]*'
 
 # Comment text only. String literals are blanked first so a // or # inside one

@@ -382,8 +382,8 @@ void StartupClientCommsThread();
 
 
 
-// Score multipliers for accessories. Defaults are set in Hunt/Game.cpp
-// InitEngine() and match the legacy hardcoded values from
+// Score multipliers for accessories. Defaults are set in InitEngine()
+// (Hunt/Game/EngineInit.cpp) and match the legacy hardcoded values from
 // SubmitDinoScore() so a hunt launched without a Menu-supplied 'smod='
 // argument behaves identically to the original game. The Menu passes
 // 'smod=camo,radar,scent,double,tranq,observer' in the same order to

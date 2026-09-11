@@ -220,7 +220,7 @@ void GLRenderer::RenderSkyPlane()
     // the water-surface horizon in screen space.  Below that line the
     // distance-fog colour (already set as glClearColor) fills the
     // background and terrain renders on top.  Matches the 3DFX renderer
-    // which only draws the sky plane down to scry (Render3DFX.cpp:4841).
+    // which only draws the sky plane down to scry.
     //
     // Three cases for the screen-space water horizon (scry, Y from top):
     //   scry >= WinH  → water line below screen → looking UP through

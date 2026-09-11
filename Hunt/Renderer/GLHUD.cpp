@@ -129,7 +129,7 @@ void GLRenderer::Render_Cross(int x, int y)
 void GLRenderer::RenderHealthBar()
 {
     // Interface compliance only. The GL path draws the health bar into
-    // lpVideoBuf via the free function RenderHealthBar() in GLStubs.cpp
+    // lpVideoBuf via the free function RenderHealthBar() in GLUI.cpp
     // (called from ShowControlElements), and DrawHUDOverlay uploads it
     // along with the rest of the HUD. This matches how the other 2D
     // elements (DrawPicture, DrawTrophyText, etc.) are handled.

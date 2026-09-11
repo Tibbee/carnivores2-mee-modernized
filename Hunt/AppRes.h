@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Developer Studio generated include file.
-// Used by resource.rc
+// Used by AppRes.rc
 //
 #define IDD_NETCONNECT                  101
 #define IDC_CONNECTADDR                 1001

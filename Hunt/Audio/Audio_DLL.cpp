@@ -1,6 +1,6 @@
 // Audio_DLL.cpp — OpenAL Soft backend with optional legacy DirectSound DLL support
 // Keeps the same public API signatures as the original DLL‑based system
-// so Hunt.h / Hunt.cpp / Game.cpp need zero changes.
+// so the call sites in the engine need zero changes.
 
 #include "hunt.h"
 #include "Audio.h"

@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by Menu2.rc
+// Used by Menu.rc
 //
 #define IDI_ICON1                       101
 #define IDD_ERROR_DIALOG                102

@@ -500,7 +500,7 @@ void InitEngine()
   }
 
   // Phase 5C.2: Construct the per-level MemoryArena. C1 does this at
-  // Carnivores1/Hunt/Game.cpp:506 with 128 MiB; we use LEVEL_ARENA_SIZE
+  // Carnivores1/Hunt/Game/GameLifecycle.cpp with 128 MiB; we use LEVEL_ARENA_SIZE
   // (256 MiB) because C2 ME has more resident state (8 weapons, 128
   // dino types, multiplayer, snow, etc.). The arena must be created
   // AFTER HeapCreate (the Heap variable is referenced by all the
@@ -679,7 +679,7 @@ void ShutDownEngine()
 {
   // Phase 5C.1: Release per-level and global resources before tearing
   // down the heap and the window DC. C1's ShutDownEngine has these calls
-  // (Carnivores1/Hunt/Game.cpp:660-670); C2 ME was missing them, so every
+  // (Carnivores1/Hunt/Game/GameLifecycle.cpp); C2 ME was missing them, so every
   // Quit leaked the level resources, the weapon character info, the
   // Sun/Compass/Binocular models, and the menu pictures. The LevelArena
   // construction is still pending in Phase 5C.2; once it's in, the
@@ -701,7 +701,7 @@ void ShutDownEngine()
 #endif
 
   // Phase 5C.2: Tear down the LevelArena after all _HeapFree calls have
-  // run. C1 has the same order (Carnivores1/Hunt/Game.cpp:669-670).
+  // run. C1 has the same order (Carnivores1/Hunt/Game/GameLifecycle.cpp).
   // LevelArena->Reset() in ReleaseResources() expects LevelArena to be
   // alive; delete must come AFTER that. The VirtualFree on the arena's
   // base pointer is the only thing the destructor does.

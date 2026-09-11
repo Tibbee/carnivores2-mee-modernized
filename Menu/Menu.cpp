@@ -2499,7 +2499,7 @@ void MenuEventInput(int32_t menu)
 					params << " -observ";
 
 				// Pass accessory score multipliers to the engine. Order must
-				// match the engine's smod= parser in Hunt/Game.cpp
+				// match the engine's smod= parser in Hunt/Game/CommandLine.cpp
 				// ProcessCommandLine(): camo, radar, scent, double, tranq, observer.
 				// Values come from UtilInfo.m_ScoreMod (populated from _RES.TXT's
 				// 'accessories {}' block, falling back to legacy defaults).

@@ -2,10 +2,10 @@
 // Runtime resolution list for the standalone menu executable.
 //
 // The menu and the render exe are two separate binaries, so this is a
-// copy of Hunt/Game.cpp's EnumerateResolutions(). Keep them in sync if
-// the rules ever diverge (e.g., adding a `resmode=...` filter from
-// _MENU.TXT). The duplication is intentional: the menu does not link
-// against the render exe's code.
+// copy of Hunt/Game/EngineInit.cpp's EnumerateResolutions(). Keep them
+// in sync if the rules ever diverge (e.g., adding a `resmode=...`
+// filter from _MENU.TXT). The duplication is intentional: the menu
+// does not link against the render exe's code.
 
 #include "Hunt.h"
 
