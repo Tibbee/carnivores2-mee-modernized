@@ -4,19 +4,25 @@
 
 #include <cstring>
 
+// Values 0..11 are shared with Carnivores1/Hunt/Core/GameMode.h, which numbers
+// them the same way so the two projects read uniformly.  Three have no user
+// yet.  Do not close those gaps: renumbering would break the mirror, and each
+// is the slot a BOOL flag still sitting in Core/GameState.h is meant to move
+// into (Phase 1.1 is partial — FLY, SWIM, PAUSE, OPTICMODE, BINMODE and
+// EXITMODE are still independent globals).
 enum class GameMode : unsigned int {
     Normal          = 0,
     Swimming        = 1,
     Underwater      = 2,
-    Flying          = 3,
+    Flying          = 3,    // reserved: takes over the FLY bool when it moves
     Paused          = 4,
     Binocular       = 5,
     OpticScope      = 6,
     MapMode         = 7,
     ExitCountdown   = 8,
     TrophyMode      = 9,
-    Dead            = 10,
-    Falling         = 11,
+    Dead            = 10,   // reserved
+    Falling         = 11,   // reserved
     Crouching       = 12,
     NightVision     = 13,
     DogMode         = 14,
