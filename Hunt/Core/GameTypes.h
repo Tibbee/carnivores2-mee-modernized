@@ -3,9 +3,19 @@
 #pragma once
 
 #include "Core/AIBehavior.h"
+#include "Core/AudioTypes.h"
 #include "Core/ModelTypes.h"
 #include "Core/RenderTypes.h"
 #include <cstdint>
+
+// _RES.TXT text fields. Script values are copied into these fixed arrays and
+// the parser halts when a value does not fit (an overlong one used to run into
+// the following member instead). Mods ship model paths well past the old 48
+// bytes -- "models/maphuntables/mauvev/_ostafrikosaurusNIGHTM.car" is 53 -- so
+// allow 96. Every path is assembled in logt[128] (GameState.h) with prefixes
+// of at most 21 bytes ("MULTIPLAYER\\GUNSHOTS\\"), so 96 is the largest round
+// size that still cannot be truncated there.
+inline constexpr int SCRIPT_TEXT_MAX = 96;
 
 
 struct TCharacterInfo
@@ -387,7 +397,7 @@ struct TDinoInfo
 {
 	int menuDino = -1;
 
-  char Name[48], FName[48], PName[48];
+  char Name[SCRIPT_TEXT_MAX], FName[SCRIPT_TEXT_MAX], PName[SCRIPT_TEXT_MAX];
   int Health0, Clone;
   float Mass, Length, Radius,
         SmellK, HearK, LookK,
@@ -568,7 +578,7 @@ struct TWeapInfo
 {
 	bool pic2b = false;
 	bool picch = false;
-  char Name[48], FName[48], BFName[48], CFName[48], BLName[48], SFXName[48];
+  char Name[SCRIPT_TEXT_MAX], FName[SCRIPT_TEXT_MAX], BFName[SCRIPT_TEXT_MAX], CFName[SCRIPT_TEXT_MAX], BLName[SCRIPT_TEXT_MAX], SFXName[SCRIPT_TEXT_MAX];
   bool MGSSound = false;
   bool bullet = false;
   bool retrieve;
@@ -694,8 +704,8 @@ static_assert(sizeof(TTrophyRoom2)   == 7176, "TTrophyRoom2 size changed — tro
 static_assert(sizeof(TTrophyItem2)   == 56,   "TTrophyItem2 size changed — trophy item2 binary compat break");
 static_assert(sizeof(TCharacter)     == 344,  "TCharacter size changed — character state save compat break");
 static_assert(sizeof(TBullet)        == 96,   "TBullet size changed — projectile state");
-static_assert(sizeof(TDinoInfo)      == 13800,"TDinoInfo size changed — dino configuration data compat");
-static_assert(sizeof(TWeapInfo)      == 468,  "TWeapInfo size changed — weapon configuration");
+static_assert(sizeof(TDinoInfo)      == 13944,"TDinoInfo size changed — dino configuration data compat");
+static_assert(sizeof(TWeapInfo)      == 756,  "TWeapInfo size changed — weapon configuration");
 static_assert(sizeof(TPack)          == 8,    "TPack size changed — pack state");
 static_assert(sizeof(TTrophyType)    == 580,  "TTrophyType size changed — trophy type data");
 static_assert(sizeof(TDinoKill)      == 32,   "TDinoKill size changed — kill tracking record");

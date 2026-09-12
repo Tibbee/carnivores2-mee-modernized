@@ -107,20 +107,90 @@ TEST(LoadValidate, WavLengthsAreSane) {
     EXPECT_EQ(WavAllocSamples(0), 0u);
 }
 
-TEST(LoadValidate, StripQuotedMatchesScriptIdiom) {
-    char good[] = "'para.car'\n";
-    EXPECT_STREQ(StripQuoted(good), "para.car");
-    char crlf[] = "'area1'\r\n";
-    EXPECT_STREQ(StripQuoted(crlf), "area1");
-    char noNewline[] = "'bag1.car'";
-    EXPECT_STREQ(StripQuoted(noNewline), "bag1.car");
-    char tooShort[] = "'\n";
-    EXPECT_EQ(StripQuoted(tooShort), nullptr);
-    char empty[] = "";
-    EXPECT_EQ(StripQuoted(empty), nullptr);
-    EXPECT_EQ(StripQuoted(nullptr), nullptr);
-    char unquoted[] = "paracar\n";
-    EXPECT_EQ(StripQuoted(unquoted), nullptr);
+TEST(LoadValidate, ScriptKeyMatchesAssignmentTokenOnly) {
+    // Anything containing "file" used to be read as the model-file field:
+    // a // comment, a path like models/modname/x.car, or the value of the
+    // name key. The key is the token before '=', nothing else.
+    EXPECT_TRUE(ScriptKeyIs("file = 'para.car'", "file"));
+    EXPECT_TRUE(ScriptKeyIs(" file    = 'models/main_hunt/para.car'", "file"));
+    EXPECT_TRUE(ScriptKeyIs("name = 'Parasaurolophus'", "name"));
+    EXPECT_TRUE(ScriptKeyIs("\tpicc = 'ammo/chamb1.tga'", "picc"));
+    EXPECT_TRUE(ScriptKeyIs("bModel = 'Weapons/proj/b_pist.car'", "bModel"));
+
+    EXPECT_FALSE(ScriptKeyIs("filename = 'para.car'", "file"));
+    EXPECT_FALSE(ScriptKeyIs("junk file = 'para.car'", "file"));
+    EXPECT_FALSE(ScriptKeyIs("// file = 'disabled.car'", "file"));
+    EXPECT_FALSE(ScriptKeyIs("name = 'Profile'", "file"));
+    EXPECT_FALSE(ScriptKeyIs("file = 'models/modname/para.car'", "name"));
+    EXPECT_FALSE(ScriptKeyIs("overwrite area3 {", "file"));  // no assignment
+    EXPECT_FALSE(ScriptKeyIs("file = 'para.car'", "filename"));
+    EXPECT_FALSE(ScriptKeyIs(nullptr, "file"));
+    EXPECT_FALSE(ScriptKeyIs("file = 'x'", nullptr));
+}
+
+TEST(LoadValidate, QuotedValueKeepsTrailingComments) {
+    char dst[48];
+    // Callers pass the text after '='; the leading space, trailing spaces,
+    // semicolons and // comments all sit outside the value.
+    EXPECT_TRUE(CopyQuotedValue(dst, sizeof(dst), " 'para.car'"));
+    EXPECT_STREQ(dst, "para.car");
+    EXPECT_TRUE(CopyQuotedValue(dst, sizeof(dst), " 'jager.CAR'       // 3D model file"));
+    EXPECT_STREQ(dst, "jager.CAR");
+    EXPECT_TRUE(CopyQuotedValue(dst, sizeof(dst), " 'para.car'   "));
+    EXPECT_STREQ(dst, "para.car");
+    EXPECT_TRUE(CopyQuotedValue(dst, sizeof(dst), " 'para.car';\n"));
+    EXPECT_STREQ(dst, "para.car");
+
+    // Values the format cannot represent still fail loudly.
+    EXPECT_FALSE(CopyQuotedValue(dst, sizeof(dst), " 'para.car"));
+    EXPECT_FALSE(CopyQuotedValue(dst, sizeof(dst), " '"));
+    EXPECT_FALSE(CopyQuotedValue(dst, sizeof(dst), "para.car"));
+    EXPECT_FALSE(CopyQuotedValue(dst, sizeof(dst), ""));
+    EXPECT_FALSE(CopyQuotedValue(dst, sizeof(dst), nullptr));
+    EXPECT_FALSE(CopyQuotedValue(nullptr, sizeof(dst), " 'x'"));
+    EXPECT_FALSE(CopyQuotedValue(dst, 0, " 'x'"));
+
+    // '' is an empty value, not a malformed one (the legacy parser accepted
+    // it and the field stayed empty).
+    EXPECT_TRUE(CopyQuotedValue(dst, sizeof(dst), " ''"));
+    EXPECT_STREQ(dst, "");
+
+    // This local 48-byte destination accepts 47 characters, but not 48.
+    char quoted[64];
+    quoted[0] = '\'';
+    memset(quoted + 1, 'x', 47);
+    quoted[48] = '\'';
+    quoted[49] = '\0';
+    EXPECT_TRUE(CopyQuotedValue(dst, sizeof(dst), quoted));
+    EXPECT_EQ(strlen(dst), 47u);
+
+    memset(quoted + 1, 'x', 48);
+    quoted[49] = '\'';
+    quoted[50] = '\0';
+    EXPECT_FALSE(CopyQuotedValue(dst, sizeof(dst), quoted));
+}
+
+TEST(LoadValidate, FindQuotedValueExposesSpan) {
+    const char* value = nullptr;
+    size_t length = 0;
+    ASSERT_TRUE(FindQuotedValue(" 'bag1.car'\r\n", &value, &length));
+    EXPECT_EQ(length, 8u);
+    EXPECT_EQ(strncmp(value, "bag1.car", 8), 0);
+    EXPECT_FALSE(FindQuotedValue("'unclosed", &value, &length));
+    EXPECT_FALSE(FindQuotedValue(nullptr, &value, &length));
+}
+
+TEST(LoadValidate, ReportedModelPathLineNowParses) {
+    // Regression for "Script loading error: Characters file missing, too
+    // long, or malformed.": this path contains "name", and the old strstr()
+    // key match plus the in-place quote strip made the file branch eat a
+    // quote the name branch had already consumed.
+    char line[] = " file = 'models/modname/para.car'\n";
+    char dst[48];
+    EXPECT_FALSE(ScriptKeyIs(line, "name"));
+    ASSERT_TRUE(ScriptKeyIs(line, "file"));
+    ASSERT_TRUE(CopyQuotedValue(dst, sizeof(dst), strchr(line, '=') + 1));
+    EXPECT_STREQ(dst, "models/modname/para.car");
 }
 
 TEST(LoadValidate, CopyCappedRejectsOverflow) {

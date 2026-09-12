@@ -6,22 +6,42 @@
 #include "LoadValidate.h"
 
 // _RES.TXT string safety. Name/file fields are fixed char arrays
-// (WeapInfo/DinoInfo [...][48]); an overlong modded value previously
-// overflowed via strcpy, and value[strlen(value)-2] indexed before the
-// buffer when the quoted value was shorter than ''. Halt loudly instead.
-static void ScriptFieldFail(const char* what)
+// (WeapInfo/DinoInfo [SCRIPT_TEXT_MAX], GameTypes.h); an overlong modded
+// value previously overflowed via strcpy, and value[strlen(value)-2] indexed
+// before the buffer when the quoted value was shorter than ''. Halt loudly
+// instead. The offending line goes into the message as well: the field name
+// alone left modders hunting through the whole script for the bad entry.
+static void ScriptFieldFail(const char* what, const char* line)
 {
-  char sz[256];
-  sprintf_s(sz, sizeof(sz),
-            "Script loading error: %s missing, too long, or malformed.", what);
+  char bad[256];
+  bad[0] = 0;
+  if (line && !CopyCapped(bad, sizeof(bad), line))
+    bad[0] = 0;
+  size_t len = strlen(bad);
+  while (len > 0 && (bad[len - 1] == '\n' || bad[len - 1] == '\r'))
+    bad[--len] = 0;
+
+  char sz[512];
+  if (bad[0])
+    sprintf_s(sz, sizeof(sz),
+              "Script loading error: %s missing, too long, or malformed.\n"
+              "Line: %s",
+              what, bad);
+  else
+    sprintf_s(sz, sizeof(sz),
+              "Script loading error: %s missing, too long, or malformed.", what);
   DoHalt(sz);
 }
 
-static void CopyScriptField(char* dst, size_t dstCap, char* value, const char* what)
+// Read the quoted value out of `value` (the text after '='). The line is
+// never modified, so a second field on the same line still parses, and the
+// key is matched by name (ScriptKeyIs) instead of by searching the line for
+// a substring.
+static void CopyScriptField(char* dst, size_t dstCap, const char* value,
+                            const char* what, const char* line)
 {
-  char* inner = StripQuoted(value);
-  if (!inner || !CopyCapped(dst, dstCap, inner))
-    ScriptFieldFail(what);
+  if (!CopyQuotedValue(dst, dstCap, value))
+    ScriptFieldFail(what, line);
 }
 
 static void CopyProjectName(char* dst, const char* src)
@@ -210,7 +230,7 @@ void ReadSpawnInfo(FILE *stream)
 		value = strstr(line, "=");
 		if (!value) {
 			char errorBuff[100];
-			sprintf(errorBuff, "Script loading error: SpawnInfo: %s", DinoInfo[TotalC].Name);
+			sprintf_s(errorBuff, sizeof(errorBuff), "Script loading error: SpawnInfo: %s", DinoInfo[TotalC].Name);
 			DoHalt(errorBuff);
 		}
 		value++;
@@ -275,7 +295,7 @@ void ReadPackMember2(FILE *stream) {
 		value = strstr(line, "=");
 		if (!value) {
 			char errorBuff[100];
-			sprintf(errorBuff, "Script loading error: PackInfo: %s", DinoInfo[TotalC].Name);
+			sprintf_s(errorBuff, sizeof(errorBuff), "Script loading error: PackInfo: %s", DinoInfo[TotalC].Name);
 			DoHalt(errorBuff);
 		}
 		value++;
@@ -1037,51 +1057,39 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 
 	if (strstr(line, "retrieve")) readBool(value, WeapInfo[TotalW].retrieve);
 
-	if (strstr(line, "name"))
+	if (ScriptKeyIs(line, "name"))
 	{
-		value = strstr(line, "'");
-		if (!value) DoHalt("Script loading error: Weapons name");
-		CopyScriptField(WeapInfo[TotalW].Name, sizeof(WeapInfo[TotalW].Name), value, "Weapons name");
+		CopyScriptField(WeapInfo[TotalW].Name, sizeof(WeapInfo[TotalW].Name), value, "Weapons name", line);
 	}
 
-	if (strstr(line, "file"))
+	if (ScriptKeyIs(line, "file"))
 	{
-		value = strstr(line, "'");
-		if (!value) DoHalt("Script loading error: Weapons file");
-		CopyScriptField(WeapInfo[TotalW].FName, sizeof(WeapInfo[TotalW].FName), value, "Weapons file");
+		CopyScriptField(WeapInfo[TotalW].FName, sizeof(WeapInfo[TotalW].FName), value, "Weapons file", line);
 	}
 
-	if (strstr(line, "gunshot"))
+	if (ScriptKeyIs(line, "gunshot"))
 	{
-		value = strstr(line, "'");
-		if (!value) DoHalt("Script loading error: Weapons gunshot");
-		CopyScriptField(WeapInfo[TotalW].SFXName, sizeof(WeapInfo[TotalW].SFXName), value, "Weapons gunshot");
+		CopyScriptField(WeapInfo[TotalW].SFXName, sizeof(WeapInfo[TotalW].SFXName), value, "Weapons gunshot", line);
 		WeapInfo[TotalW].MGSSound = true;
 	}
 
 
-	if (strstr(line, "pic1"))
+	if (ScriptKeyIs(line, "pic1"))
 	{
-		value = strstr(line, "'");
-		if (!value) DoHalt("Script loading error: Weapons pic");
-		CopyScriptField(WeapInfo[TotalW].BFName, sizeof(WeapInfo[TotalW].BFName), value, "Weapons pic");
+		CopyScriptField(WeapInfo[TotalW].BFName, sizeof(WeapInfo[TotalW].BFName), value, "Weapons pic", line);
 	}
 
 
-	if (strstr(line, "picc"))
+	if (ScriptKeyIs(line, "picc"))
 	{
-		value = strstr(line, "'");
-		if (!value) DoHalt("Script loading error: Chamber pic");
-		CopyScriptField(WeapInfo[TotalW].CFName, sizeof(WeapInfo[TotalW].CFName), value, "Chamber pic");
+		CopyScriptField(WeapInfo[TotalW].CFName, sizeof(WeapInfo[TotalW].CFName), value, "Chamber pic", line);
 		WeapInfo[TotalW].picch = true;
 	}
 
 
-	if (strstr(line, "bModel"))
+	if (ScriptKeyIs(line, "bModel"))
 	{
-		value = strstr(line, "'");
-		if (!value) DoHalt("Script loading error: Weapons bullet");
-		CopyScriptField(WeapInfo[TotalW].BLName, sizeof(WeapInfo[TotalW].BLName), value, "Weapons bullet");
+		CopyScriptField(WeapInfo[TotalW].BLName, sizeof(WeapInfo[TotalW].BLName), value, "Weapons bullet", line);
 		WeapInfo[TotalW].bullet = true;
 	}
 
@@ -1147,7 +1155,7 @@ void ReadWeapons(FILE *stream)
 			!strstr(line, "overwrite") &&
 			!strstr(line, "addition")) {
 			char errorBuff[100];
-			sprintf(errorBuff, "Script loading error: Weapons: %s", WeapInfo[TotalW].Name);
+			sprintf_s(errorBuff, sizeof(errorBuff), "Script loading error: Weapons: %s", WeapInfo[TotalW].Name);
 			DoHalt(errorBuff);
 		}
         value = value ? value + 1 : line;
@@ -1247,7 +1255,7 @@ void ReadWeapons(FILE *stream)
 					value = strstr(line, "=");
 					if (!value){
 						char errorBuff[100];
-						sprintf(errorBuff, "Script loading error: Weapons: %s", WeapInfo[TotalW].Name);
+						sprintf_s(errorBuff, sizeof(errorBuff), "Script loading error: Weapons: %s", WeapInfo[TotalW].Name);
 						DoHalt(errorBuff);
 					}
 					value++;
@@ -1354,7 +1362,7 @@ void ReadIdleGroupInfo(FILE *stream)
 		value = strstr(line, "=");
 		if (!value) {
 			char errorBuff[100];
-			sprintf(errorBuff, "Script loading error: IdleGroup: %s", DinoInfo[TotalC].Name);
+			sprintf_s(errorBuff, sizeof(errorBuff), "Script loading error: IdleGroup: %s", DinoInfo[TotalC].Name);
 			DoHalt(errorBuff);
 		}
 		value++;
@@ -1394,7 +1402,7 @@ void ReadIdle2GroupInfo(FILE *stream)
 		value = strstr(line, "=");
 		if (!value) {
 			char errorBuff[100];
-			sprintf(errorBuff, "Script loading error: IdleGroup2: %s", DinoInfo[TotalC].Name);
+			sprintf_s(errorBuff, sizeof(errorBuff), "Script loading error: IdleGroup2: %s", DinoInfo[TotalC].Name);
 			DoHalt(errorBuff);
 		}
 		value++;
@@ -1434,7 +1442,7 @@ void ReadDeathTypeInfo(FILE *stream)
 		value = strstr(line, "=");
 		if (!value) {
 			char errorBuff[100];
-			sprintf(errorBuff, "Script loading error: DeathType: %s", DinoInfo[TotalC].Name);
+			sprintf_s(errorBuff, sizeof(errorBuff), "Script loading error: DeathType: %s", DinoInfo[TotalC].Name);
 			DoHalt(errorBuff);
 		}
 		value++;
@@ -1461,7 +1469,7 @@ void ReadKillTypeInfo(FILE *stream)
 		value = strstr(line, "=");
 		if (!value) {
 			char errorBuff[100];
-			sprintf(errorBuff, "Script loading error: KillInfo: %s", DinoInfo[TotalC].Name);
+			sprintf_s(errorBuff, sizeof(errorBuff), "Script loading error: KillInfo: %s", DinoInfo[TotalC].Name);
 			DoHalt(errorBuff);
 		}
 		value++;
@@ -1792,18 +1800,14 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	}
 
 
-	if (strstr(line, "name"))
+	if (ScriptKeyIs(line, "name"))
 	{
-		value = strstr(line, "'");
-		if (!value) DoHalt("Script loading error: Characters name");
-		CopyScriptField(DinoInfo[TotalC].Name, sizeof(DinoInfo[TotalC].Name), value, "Characters name");
+		CopyScriptField(DinoInfo[TotalC].Name, sizeof(DinoInfo[TotalC].Name), value, "Characters name", line);
 	}
 
-	if (strstr(line, "file"))
+	if (ScriptKeyIs(line, "file"))
 	{
-		value = strstr(line, "'");
-		if (!value) DoHalt("Script loading error: Characters file");
-		CopyScriptField(DinoInfo[TotalC].FName, sizeof(DinoInfo[TotalC].FName), value, "Characters file");
+		CopyScriptField(DinoInfo[TotalC].FName, sizeof(DinoInfo[TotalC].FName), value, "Characters file", line);
 	}
 
 	

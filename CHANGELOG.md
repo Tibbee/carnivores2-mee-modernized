@@ -10,6 +10,24 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
 
 ## [Unreleased]
 
+### Fixed
+- Accept modded `_RES.TXT` name/file lines that v1.1.8 rejected. The script
+  parser matched keys by searching the whole line for "file" or "name" and
+  stripped the quotes in place, so a path containing "name"
+  (`models/modname/x.car`), a `filename =` key, or a name value like
+  `'Profile'` was read as the model-file field and halted with "Characters
+  file missing, too long, or malformed". Keys are now matched by assignment
+  name, the value is read without editing the line, and spaces or `//`
+  comments after the closing quote are ignored, matching
+  `reference/res-txt-format.md`. The halt message now names the offending
+  line.
+- Raise the `_RES.TXT` text fields from 48 to 96 bytes (`SCRIPT_TEXT_MAX` in
+  `Hunt/Core/GameTypes.h`). Mods ship model paths past the old field width
+  (`models/maphuntables/mauvev/_ostafrikosaurusNIGHTM.car` is 53 characters);
+  v1.1.7 overflowed into the next struct member and v1.1.8 halted on the
+  line. The `TDinoInfo`/`TWeapInfo` layout assertions and the
+  `dispSighting`/parser buffers that print those fields are updated.
+
 ## [v1.1.8-modernized]
 
 ModDB label: V5. Changes since the published v1.1.7-modernized release.

@@ -497,8 +497,9 @@ void dispSighting(int dii, int xx, int zz) {
 		}
 	}
 
-	sprintf(buff, "Sighting:\n%s", DinoInfo[dii].Name);
-	sprintf(buff + strlen(buff), " %s", loc);
+	sprintf_s(buff, sizeof(buff), "Sighting:\n%s", DinoInfo[dii].Name);
+	size_t used = strlen(buff);
+	sprintf_s(buff + used, sizeof(buff) - used, " %s", loc);
 	MessageBox(hwndMain, buff, "TEST", IDOK);
 
 }
