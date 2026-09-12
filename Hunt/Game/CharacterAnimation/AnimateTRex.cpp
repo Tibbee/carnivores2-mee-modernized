@@ -31,8 +31,8 @@ TBEGIN:
 	float playerdx = PlayerX - cptr->pos.x - cptr->lookx * 108;
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
 	float pdistSq = playerdx * playerdx + playerdz * playerdz;
-	const bool investigatingShot = IsInvestigatingShot(cptr);
-	float responseAlpha = investigatingShot
+	const bool fixedPursuit = IsFixedHunterPursuit(cptr);
+	float responseAlpha = fixedPursuit
 		? FindVectorAlpha(targetdx, targetdz)
 		: FindVectorAlpha(playerdx, playerdz);
 	//if (cptr->State==2) { NewPhase=true; cptr->State=1; }
@@ -50,12 +50,14 @@ TBEGIN:
 		cptr->State = 1;
 		cptr->Phase = DinoInfo[cptr->CType].walkAnim;
 		cptr->FTime = 0;
-		cptr->tgx = PlayerX;
-		cptr->tgz = PlayerZ;
+		if (!fixedPursuit) {
+			cptr->tgx = PlayerX;
+			cptr->tgz = PlayerZ;
+		}
 		goto TBEGIN;
 	}
 
-	if (cptr->State && !investigatingShot && cptr->packId >= 0)
+	if (cptr->State && !fixedPursuit && cptr->packId >= 0)
 		Packs[cptr->packId].alert = true;
 
 
@@ -75,11 +77,10 @@ TBEGIN:
 
 		cptr->currentIdleGroup = -1;
 
-		if (investigatingShot) {
+		if (fixedPursuit) {
 			cptr->tgtime = 0;
-			cptr->AfraidTime -= TimeDt;
 			if (ShotInvestigationComplete(cptr->AfraidTime, tdistSq)) {
-				ClearShotInvestigation(cptr);
+				ClearHunterReaction(cptr);
 				SetNewTargetPlace(cptr, 8048.0f);
 				goto TBEGIN;
 			}
@@ -129,7 +130,7 @@ TBEGIN:
 
 
 
-		if (!investigatingShot
+		if (!fixedPursuit
 			&& pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist
 			&& DinoInfo[cptr->CType].killDist > 0 && MyHealth)
 		{

@@ -16,7 +16,9 @@ void AnimateHuntable(TCharacter *cptr)
 	int _Phase = cptr->Phase;
 	int _FTime = cptr->FTime;
 	float _tgalpha = cptr->tgalpha;
-	if ((!AIInfo[cptr->Clone].carnivore || AIInfo[cptr->Clone].iceAge) && cptr->AfraidTime) cptr->AfraidTime = MAX(0, cptr->AfraidTime - TimeDt);
+	if ((!AIInfo[cptr->Clone].carnivore || AIInfo[cptr->Clone].iceAge)
+		&& cptr->AfraidTime && !IsTimedHunterReaction(cptr))
+		cptr->AfraidTime = MAX(0, cptr->AfraidTime - TimeDt);
 
 	bool alertInit = false;
 	if (cptr->State == 2) alertInit = true;
@@ -78,16 +80,13 @@ TBEGIN:
 	{
 		cptr->currentIdleGroup = -1;
 
-		const bool fleesHeardShot = DinoInfo[cptr->CType].fearHearShot
-			|| DinoInfo[cptr->CType].aggress <= 0
-			|| (DinoInfo[cptr->CType].defensive
-				&& cptr->Health == DinoInfo[cptr->CType].Health0);
-		const bool investigatingShot = IsInvestigatingShot(cptr) && !fleesHeardShot;
-		if (investigatingShot) {
+		const bool fixedPursuit = IsFixedHunterPursuit(cptr);
+		const bool fixedFlee = IsFixedHunterFlee(cptr);
+		const bool fixedReaction = fixedPursuit || fixedFlee;
+		if (fixedPursuit) {
 			cptr->tgtime = 0;
-			cptr->AfraidTime -= TimeDt;
 			if (ShotInvestigationComplete(cptr->AfraidTime, tdistSq)) {
-				ClearShotInvestigation(cptr);
+				ClearHunterReaction(cptr);
 				SetNewTargetPlace(cptr, AIInfo[cptr->Clone].targetDistance);
 				goto TBEGIN;
 			}
@@ -105,23 +104,24 @@ TBEGIN:
 		bool fleeMode = false;
 		if (g_GameMode != GameMode::SurvivalMode) {
 			const bool recentlyDamaged = cptr->BloodTTime > 0;
-			if ((!investigatingShot
+			if ((!fixedPursuit
 				&& OutsideNormalAggressionRangeSquared(pdistSq, aDist, recentlyDamaged))
 				|| DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
 			}
 			else if (DinoInfo[cptr->CType].defensive && cptr->Health == DinoInfo[cptr->CType].Health0) fleeMode = true;
 			else if (DinoInfo[cptr->CType].fearShot && cptr->Health < DinoInfo[cptr->CType].Health0) fleeMode = true;
-			else if (DinoInfo[cptr->CType].fearHearShot && cptr->heardShot) fleeMode = true;
-			else if (!investigatingShot && cptr->packId >= 0) Packs[cptr->packId].attack = true;
+			else if (cptr->hunterAwareness == HunterAwarenessState::FleeingFromShot) fleeMode = true;
+			else if (!fixedReaction && cptr->packId >= 0) Packs[cptr->packId].attack = true;
 		}
+		if (fixedFlee) fleeMode = true;
 
 		if (cptr->packId >= 0) {
-			if (Packs[cptr->packId]._attack && !cptr->heardShot) fleeMode = false;
+			if (Packs[cptr->packId]._attack && !fixedReaction) fleeMode = false;
 		}
 
 		if (fleeMode) {
-			if (!cptr->heardShot) {
+			if (!fixedFlee) {
 				nv.x = playerdx;
 				nv.z = playerdz;
 				nv.y = 0;
@@ -130,7 +130,8 @@ TBEGIN:
 				cptr->tgz = cptr->pos.z - nv.z;
 			}
 			cptr->tgtime = 0;
-			if (AIInfo[cptr->Clone].carnivore) cptr->AfraidTime -= TimeDt;
+			if (AIInfo[cptr->Clone].carnivore && !fixedReaction)
+				cptr->AfraidTime -= TimeDt;
 
 			if (cptr->packId >= 0) {
 				if (cptr->AfraidTime <= 0)
@@ -141,7 +142,7 @@ TBEGIN:
 						cptr->State = 0;
 					}
 				}
-				else Packs[cptr->packId].alert = true;
+				else if (!fixedReaction) Packs[cptr->packId].alert = true;
 			}
 			else if (cptr->AfraidTime <= 0) {
 				if (AIInfo[cptr->Clone].carnivore)cptr->AfraidTime = 0;
@@ -152,24 +153,24 @@ TBEGIN:
 		}
 		else
 		{
-			if (!investigatingShot) {
+			if (!fixedPursuit) {
 				cptr->tgx = PlayerX;
 				cptr->tgz = PlayerZ;
 				cptr->tgtime = 0;
 			}
-			if (!investigatingShot && cptr->packId >= 0 && AIInfo[cptr->Clone].carnivore) {
+			if (!fixedReaction && cptr->packId >= 0 && AIInfo[cptr->Clone].carnivore) {
 				Packs[cptr->packId].alert = true;
 			}
 		}
 
-		if (!investigatingShot && AIInfo[cptr->Clone].jumper) {
+		if (!fixedReaction && AIInfo[cptr->Clone].jumper) {
 			if (!(cptr->StateF & csONWATER))
 				if (pdistSq < (1324 * cptr->scale) * (1324 * cptr->scale) && pdistSq > (900 * cptr->scale) * (900 * cptr->scale))
 					if (AngleDifference(cptr->alpha, FindVectorAlpha(playerdx, playerdz)) < 0.2f)
 						cptr->Phase = DinoInfo[cptr->CType].jumpAnim;
 		}
 
-		if (!investigatingShot
+		if (!fixedReaction
 			&& pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist
 			&& DinoInfo[cptr->CType].killDist > 0) {
 			int killAlt = DinoInfo[cptr->CType].waterLevel;

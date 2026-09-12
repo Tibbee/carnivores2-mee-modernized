@@ -38,6 +38,9 @@ TBEGIN:
 	float playerdx = PlayerX - cptr->pos.x - cptr->lookx * 100 *cptr->scale;
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 100 *cptr->scale;
 	float pdistSq = playerdx * playerdx + playerdz * playerdz;
+	const bool fixedPursuit = IsFixedHunterPursuit(cptr);
+	const bool fixedFlee = IsFixedHunterFlee(cptr);
+	const bool fixedReaction = fixedPursuit || fixedFlee;
 
 	// Step 4: Extend culling distance by 4 units (~1024 world units)
 	// to allow smoothstep fade-out to complete
@@ -169,7 +172,7 @@ TBEGIN:
 
 	if (cptr->State)
 	{
-		if (pdistSq > attackDist * attackDist || !playerInWater)
+		if (!fixedReaction && (pdistSq > attackDist * attackDist || !playerInWater))
 		{
 			cptr->AfraidTime -= TimeDt;
 
@@ -196,11 +199,14 @@ TBEGIN:
 
 		}
 
-		if (DinoInfo[cptr->CType].DangerFish || g_GameMode == GameMode::SurvivalMode) {
+		if (fixedPursuit) {
+			cptr->tgtime = 0;
+		}
+		else if (DinoInfo[cptr->CType].DangerFish || g_GameMode == GameMode::SurvivalMode) {
 			cptr->tgx = PlayerX;
 			cptr->tgz = PlayerZ;
-			cptr->tgtime = 0;
 			cptr->tdepth = PlayerY;
+			cptr->tgtime = 0;
 
 
 			// Mosa Target Depth Failsafes
@@ -217,12 +223,12 @@ TBEGIN:
 				}
 			}
 
-			if (cptr->packId >= 0) {
+			if (!fixedReaction && cptr->packId >= 0) {
 				Packs[cptr->packId].alert = true;
 			}
 
 		}
-		else
+		else if (!fixedFlee)
 		{
 			nv.x = playerdx;
 			nv.z = playerdz;
@@ -237,7 +243,7 @@ TBEGIN:
 
 		cptr->tgtime = 0;
 
-		if (cptr->Phase != DinoInfo[cptr->CType].jumpAnim){
+		if (!fixedReaction && cptr->Phase != DinoInfo[cptr->CType].jumpAnim){
 			if (AIInfo[cptr->Clone].jumper && DinoInfo[cptr->CType].DangerFish) {
 				if (cptr->depth > GetLandUpH(cptr->pos.x, cptr->pos.z) - (cptr->spcDepth * 0.95)){
 					float pUp = PlayerY - GetLandUpH(PlayerX, PlayerZ); //jump later if the player is on a low bridge, not at all if too high
@@ -268,7 +274,10 @@ TBEGIN:
 			}
 		}
 
-		if (pdistSq < (DinoInfo[cptr->CType].killDist * cptr->scale) * (DinoInfo[cptr->CType].killDist * cptr->scale) && DinoInfo[cptr->CType].killDist > 0) {
+		if (!fixedReaction
+			&& pdistSq < (DinoInfo[cptr->CType].killDist * cptr->scale)
+				* (DinoInfo[cptr->CType].killDist * cptr->scale)
+			&& DinoInfo[cptr->CType].killDist > 0) {
 			float killAlt = cptr->spcDepth;
 			if (killAlt < 256) killAlt = 256;
 			if (AIInfo[cptr->Clone].jumper && cptr->Phase == DinoInfo[cptr->CType].jumpAnim) killAlt += 80;

@@ -21,19 +21,23 @@ void MakeNoise(Vector3d pos, float range)
 
 		// Do not replace exact awareness from sight or direct damage with the
 		// less precise information supplied by a subsequent gunshot.
-		if (cptr->awareHunter && !cptr->heardShot) continue;
+		if (cptr->awareHunter
+			&& cptr->hunterAwareness != HunterAwarenessState::InvestigatingShot
+			&& cptr->hunterAwareness != HunterAwarenessState::FleeingFromShot)
+			continue;
 
 		const bool isTRex = cptr->Clone == AI_TREX;
-		cptr->AfraidTime = ShotInvestigationTime(l, r, isTRex);
+		const int reactionTime = ShotInvestigationTime(l, r, isTRex);
+		cptr->AfraidTime = reactionTime;
 		cptr->NoFindCnt = 0;
 		cptr->awareHunter = true;
-		cptr->heardShot = true;
 		if (!cptr->State) cptr->State = 2;
 
 		const bool fleesShot = DinoInfo[cptr->CType].fearHearShot
 			|| DinoInfo[cptr->CType].aggress <= 0
 			|| (DinoInfo[cptr->CType].defensive
 				&& cptr->Health == DinoInfo[cptr->CType].Health0);
+		cptr->hunterAwareness = HeardShotReactionState(fleesShot);
 		if (fleesShot) {
 			Vector3d away = SubVectors(cptr->pos, pos);
 			away.y = 0.0f;
@@ -156,7 +160,7 @@ void CheckAfraid()
 				cptr->State = 2;
 			}
 			cptr->awareHunter = true;
-			cptr->heardShot = false;
+			cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
 			if (cptr->Clone == AI_TREX) //===== T-Rex
 				if (kALook > kASmell) cptr->State = 3;
 			cptr->NoFindCnt = 0;

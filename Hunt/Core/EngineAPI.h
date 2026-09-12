@@ -321,7 +321,7 @@ int AnimateBullet(float ax, float ay, float az,
 	float bx, float by, float bz, int b);
 void AnimateBullets();
 void refillWeapons(bool);
-void registerDamage(int, bool);
+void registerDamage(int, bool, const Vector3d&);
 
 void AddBloodTrail(TCharacter *cptr);
 

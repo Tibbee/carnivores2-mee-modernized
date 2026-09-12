@@ -62,16 +62,13 @@ TBEGIN:
 
 		cptr->currentIdleGroup = -1;
 
-		const bool fleesHeardShot = DinoInfo[cptr->CType].fearHearShot
-			|| DinoInfo[cptr->CType].aggress <= 0
-			|| (DinoInfo[cptr->CType].defensive
-				&& cptr->Health == DinoInfo[cptr->CType].Health0);
-		const bool investigatingShot = IsInvestigatingShot(cptr) && !fleesHeardShot;
-		if (investigatingShot) {
+		const bool fixedPursuit = IsFixedHunterPursuit(cptr);
+		const bool fixedFlee = IsFixedHunterFlee(cptr);
+		const bool fixedReaction = fixedPursuit || fixedFlee;
+		if (fixedPursuit) {
 			cptr->tgtime = 0;
-			cptr->AfraidTime -= TimeDt;
 			if (ShotInvestigationComplete(cptr->AfraidTime, tdistSq)) {
-				ClearShotInvestigation(cptr);
+				ClearHunterReaction(cptr);
 				SetNewTargetPlace(cptr, AIInfo[cptr->Clone].targetDistance);
 				goto TBEGIN;
 			}
@@ -85,31 +82,32 @@ TBEGIN:
 		bool fleeMode = false;
 		if (g_GameMode != GameMode::SurvivalMode) {
 			const bool recentlyDamaged = cptr->BloodTTime > 0;
-			if ((!investigatingShot
+			if ((!fixedPursuit
 				&& OutsideNormalAggressionRangeSquared(pdistSq, aDist, recentlyDamaged))
 				|| DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
 			}
 			else if (DinoInfo[cptr->CType].defensive && cptr->Health == DinoInfo[cptr->CType].Health0) fleeMode = true;
 			else if (DinoInfo[cptr->CType].fearShot && cptr->Health < DinoInfo[cptr->CType].Health0) fleeMode = true;
-			else if (DinoInfo[cptr->CType].fearHearShot && cptr->heardShot) fleeMode = true;
-			else if (!investigatingShot && cptr->packId >= 0) Packs[cptr->packId].attack = true;
+			else if (cptr->hunterAwareness == HunterAwarenessState::FleeingFromShot) fleeMode = true;
+			else if (!fixedReaction && cptr->packId >= 0) Packs[cptr->packId].attack = true;
 		}
+		if (fixedFlee) fleeMode = true;
 
 		if (cptr->packId >= 0) {
-			if (Packs[cptr->packId]._attack && !cptr->heardShot) fleeMode = false;
+			if (Packs[cptr->packId]._attack && !fixedReaction) fleeMode = false;
 		}
 
 
 		Vector3d tree;
 		cptr->gottaClimb = false;
-		if (!investigatingShot && pdistSq > 1000 * 1000 && !cptr->gliding) {
+		if (!fixedReaction && pdistSq > 1000 * 1000 && !cptr->gliding) {
 			tree = LookForATree(cptr);
 			if (tree.x) cptr->gottaClimb = true;
 		}
 
 		if (fleeMode) {
-			if (!cptr->heardShot) {
+			if (!fixedFlee) {
 				nv.x = playerdx;
 				nv.z = playerdz;
 				nv.y = 0;
@@ -118,7 +116,7 @@ TBEGIN:
 				cptr->tgz = cptr->pos.z - nv.z;
 			}
 			cptr->tgtime = 0;
-			cptr->AfraidTime -= TimeDt;
+			if (!fixedReaction) cptr->AfraidTime -= TimeDt;
 
 			if (cptr->packId >= 0) {
 				if (cptr->AfraidTime <= 0)
@@ -128,7 +126,7 @@ TBEGIN:
 						cptr->State = 0;
 					}
 				}
-				else Packs[cptr->packId].alert = true;
+				else if (!fixedReaction) Packs[cptr->packId].alert = true;
 			}
 			else if (cptr->AfraidTime <= 0) {
 				cptr->AfraidTime = 0;
@@ -137,7 +135,7 @@ TBEGIN:
 
 		}
 		else {
-			if (investigatingShot) {
+			if (fixedPursuit) {
 				cptr->tgtime = 0;
 			}
 			else if (cptr->gottaClimb) {
@@ -151,7 +149,7 @@ TBEGIN:
 			cptr->tgtime = 0;
 
 
-			if (!investigatingShot && cptr->packId >= 0) {
+			if (!fixedReaction && cptr->packId >= 0) {
 				Packs[cptr->packId].alert = true;
 			}
 
@@ -159,7 +157,7 @@ TBEGIN:
 
 
 
-		if (!investigatingShot && pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist && DinoInfo[cptr->CType].killDist > 0) {
+		if (!fixedReaction && pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist && DinoInfo[cptr->CType].killDist > 0) {
 			int killAlt = DinoInfo[cptr->CType].waterLevel;
 			if (killAlt < 256) killAlt = 256;
 			if (fabs(PlayerY - cptr->pos.y) < killAlt + 20)

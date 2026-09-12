@@ -236,7 +236,7 @@ int AnimateBullet(float ax, float ay, float az,
 		  else Characters[ShotDino].Health -= WeapInfo[CurrentWeapon].Power;
 	  }
 	  if (Characters[ShotDino].Health < 0) Characters[ShotDino].Health = 0;
-	  registerDamage(ShotDino, bullet[b].enemy);
+	  registerDamage(ShotDino, bullet[b].enemy, bullet[b].orig);
   }
   
   return sres;
@@ -394,39 +394,59 @@ void AnimateBullets() {
 	}
 
 }
-void registerDamage(int Dino, bool enemyBullet) {
-
-	if (!Characters[Dino].Health)
-	{
-		if ((DinoInfo[Characters[Dino].CType].BaseScore || DinoInfo[Characters[Dino].CType].trophy) && !Multiplayer && g_GameMode != GameMode::SurvivalMode && !enemyBullet) //No trophies in multiplayer for now - update this at later date?
-		{
-			TrophyRoom.Last.success++;
-			SubmitDinoScore(Dino);
-		}
-
-		//No amb respawn in multiplayer for now - update this at later date?
-		Characters_AddSecondaryOne(&Characters[Dino]);
-
-	}
-	else
-	{
-		Characters[Dino].awareHunter = true;
-		Characters[Dino].heardShot = false;
-		Characters[Dino].AfraidTime = 60 * 1000;
-		if (Characters[Dino].Clone != AI_TREX || Characters[Dino].State == 0)
-			Characters[Dino].State = 2;
-
-		Characters[Dino].BloodTTime += 90000;
-
-	}
-
-	if (Characters[Dino].Clone == AI_TREX)
-		if (Characters[Dino].State)
-			Characters[Dino].State = 5;
-		else
-			Characters[Dino].State = 1;
-
-}
+void registerDamage(int Dino, bool enemyBullet, const Vector3d& hunterPosition) {
+
+	TCharacter& character = Characters[Dino];
+	const TDinoInfo& info = DinoInfo[character.CType];
+
+	if (!character.Health)
+	{
+		if ((info.BaseScore || info.trophy) && !Multiplayer
+			&& g_GameMode != GameMode::SurvivalMode && !enemyBullet)
+		{
+			TrophyRoom.Last.success++;
+			SubmitDinoScore(Dino);
+		}
+
+		Characters_AddSecondaryOne(&character);
+	}
+	else
+	{
+		const bool fleesHit = character.Clone != AI_TREX
+			&& (info.aggress <= 0
+				|| (info.defensive && character.Health == info.Health0)
+				|| (info.fearShot && character.Health < info.Health0));
+
+		character.awareHunter = true;
+		character.hunterAwareness = DirectHitReactionState(fleesHit);
+		character.AfraidTime = 60 * 1000;
+		if (character.Clone != AI_TREX || character.State == 0)
+			character.State = 2;
+
+		if (fleesHit) {
+			Vector3d away;
+			away.x = character.pos.x - hunterPosition.x;
+			away.y = 0.0f;
+			away.z = character.pos.z - hunterPosition.z;
+			NormVector(away, 2048.0f);
+			character.tgx = character.pos.x + away.x;
+			character.tgz = character.pos.z + away.z;
+		} else {
+			character.tgx = hunterPosition.x;
+			character.tgz = hunterPosition.z;
+			if (info.Aquatic) character.tdepth = hunterPosition.y;
+		}
+		character.tgtime = 0;
+		character.BloodTTime += 90000;
+	}
+
+	if (character.Clone == AI_TREX)
+		if (character.State)
+			character.State = 5;
+		else
+			character.State = 1;
+
+}
 void RemoveCharacter(int index)
 {
   if (index==-1) return;

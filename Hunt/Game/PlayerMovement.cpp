@@ -511,7 +511,7 @@ void ProcessPlayerMovement()
 			  Characters[c].Health -= mDamage[0][c];
 			  mDamage[0][c] = 0;
 			  if (Characters[c].Health < 0) Characters[c].Health = 0;
-			  registerDamage(c, false);// this needs to register enemy damage!
+			  registerDamage(c, true, MPlayers[0].pos);
 		  }
 	  }
   }

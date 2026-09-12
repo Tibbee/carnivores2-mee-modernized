@@ -61,15 +61,33 @@ inline float GetAngleDifference(float a, float b) { return AngleDifference(a, b)
 
 inline bool IsInvestigatingShot(const TCharacter* cptr)
 {
-    return cptr->awareHunter && cptr->heardShot;
+    return cptr->hunterAwareness == HunterAwarenessState::InvestigatingShot;
 }
 
-inline void ClearShotInvestigation(TCharacter* cptr)
+inline bool IsFixedHunterPursuit(const TCharacter* cptr)
+{
+    return IsFixedHunterPursuitState(cptr->hunterAwareness);
+}
+
+inline bool IsFixedHunterFlee(const TCharacter* cptr)
+{
+    return IsFixedHunterFleeState(cptr->hunterAwareness);
+}
+
+inline bool IsTimedHunterReaction(const TCharacter* cptr)
+{
+    return IsTimedHunterReactionState(cptr->hunterAwareness);
+}
+
+inline void ClearHunterReaction(TCharacter* cptr)
 {
     cptr->awareHunter = false;
-    cptr->heardShot = false;
+    cptr->hunterAwareness = HunterAwarenessState::None;
     cptr->AfraidTime = 0;
     cptr->State = 0;
+    cptr->tgx = cptr->pos.x;
+    cptr->tgz = cptr->pos.z;
+    cptr->tgtime = 0;
 }
 
 // Pack following helpers

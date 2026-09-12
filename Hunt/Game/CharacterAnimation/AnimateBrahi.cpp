@@ -62,16 +62,13 @@ TBEGIN:
 
 		cptr->currentIdleGroup = -1;
 
-		const bool fleesHeardShot = DinoInfo[cptr->CType].fearHearShot
-			|| DinoInfo[cptr->CType].aggress <= 0
-			|| (DinoInfo[cptr->CType].defensive
-				&& cptr->Health == DinoInfo[cptr->CType].Health0);
-		const bool investigatingShot = IsInvestigatingShot(cptr) && !fleesHeardShot;
-		if (investigatingShot) {
+		const bool fixedPursuit = IsFixedHunterPursuit(cptr);
+		const bool fixedFlee = IsFixedHunterFlee(cptr);
+		const bool fixedReaction = fixedPursuit || fixedFlee;
+		if (fixedPursuit) {
 			cptr->tgtime = 0;
-			cptr->AfraidTime -= TimeDt;
 			if (ShotInvestigationComplete(cptr->AfraidTime, tdist * tdist)) {
-				ClearShotInvestigation(cptr);
+				ClearHunterReaction(cptr);
 				SetNewTargetPlace_Brahi(cptr, 2048.0f);
 				goto TBEGIN;
 			}
@@ -80,7 +77,7 @@ TBEGIN:
 		bool fleeMode = false;
 		if (g_GameMode != GameMode::SurvivalMode) {
 			const bool recentlyDamaged = cptr->BloodTTime > 0;
-			if ((!investigatingShot
+			if ((!fixedPursuit
 				&& (OutsideNormalAggressionRange(pdist, static_cast<float>(attackDist), recentlyDamaged)
 					|| !playerAttackable))
 				|| DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
@@ -88,12 +85,13 @@ TBEGIN:
 			}
 			else if (DinoInfo[cptr->CType].defensive && cptr->Health == DinoInfo[cptr->CType].Health0) fleeMode = true;
 			else if (DinoInfo[cptr->CType].fearShot && cptr->Health < DinoInfo[cptr->CType].Health0) fleeMode = true;
-			else if (DinoInfo[cptr->CType].fearHearShot && cptr->heardShot) fleeMode = true;
-			else if (!investigatingShot && cptr->packId >= 0) Packs[cptr->packId].attack = true;
+			else if (cptr->hunterAwareness == HunterAwarenessState::FleeingFromShot) fleeMode = true;
+			else if (!fixedReaction && cptr->packId >= 0) Packs[cptr->packId].attack = true;
 		}
+		if (fixedFlee) fleeMode = true;
 
 		if (cptr->packId >= 0) {
-			if (Packs[cptr->packId]._attack && !cptr->heardShot) fleeMode = false;
+			if (Packs[cptr->packId]._attack && !fixedReaction) fleeMode = false;
 		}
 
 		if (!autoCorrect) {
@@ -104,20 +102,20 @@ TBEGIN:
 			}
 			else if (!fleeMode)
 			{
-				attacking = !investigatingShot;
-				if (!investigatingShot) {
+				attacking = !fixedPursuit;
+				if (!fixedPursuit) {
 					cptr->tgx = PlayerX;
 					cptr->tgz = PlayerZ;
 					cptr->tgtime = 0;
 				}
-				if (!investigatingShot && cptr->packId >= 0) {
+				if (!fixedReaction && cptr->packId >= 0) {
 					Packs[cptr->packId].alert = true;
 				}
 			}
 			else
 			{
 				attacking = false;
-				if (!cptr->heardShot) {
+				if (!fixedFlee) {
 					nv.x = playerdx;
 					nv.z = playerdz;
 					nv.y = 0;
@@ -126,7 +124,7 @@ TBEGIN:
 					cptr->tgz = cptr->pos.z - nv.z;
 				}
 				cptr->tgtime = 0;
-				cptr->AfraidTime -= TimeDt;
+				if (!fixedReaction) cptr->AfraidTime -= TimeDt;
 
 
 				if (cptr->packId >= 0) {
@@ -137,7 +135,7 @@ TBEGIN:
 							cptr->State = 0;
 						}
 					}
-					else Packs[cptr->packId].alert = true;
+					else if (!fixedReaction) Packs[cptr->packId].alert = true;
 				}
 				else if (cptr->AfraidTime <= 0) {
 					cptr->AfraidTime = 0;
@@ -147,7 +145,7 @@ TBEGIN:
 			}
 		}
 
-		if (!investigatingShot && pdist < DinoInfo[cptr->CType].killDist
+		if (!fixedReaction && pdist < DinoInfo[cptr->CType].killDist
 			&& DinoInfo[cptr->CType].killDist > 0) //killdist = 600
 			if (fabs(PlayerY - cptr->pos.y - 120) < 256)
 			{

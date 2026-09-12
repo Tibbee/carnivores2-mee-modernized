@@ -2,6 +2,7 @@
 // Extracted from Hunt.h (Phase 0.1 -- Split god header into focused headers)
 #pragma once
 
+#include "Core/AIBehavior.h"
 #include "Core/ModelTypes.h"
 #include "Core/RenderTypes.h"
 #include <cstdint>
@@ -141,7 +142,8 @@ struct TCharacter
   int dogPrey; // used by dog only. The dino currently being tracked
 
   bool awareHunter;
-  bool heardShot; // tgx/tgz hold the last-known shot position until confirmed
+  // Fixed reactions keep their event-time destination in tgx/tgz.
+  HunterAwarenessState hunterAwareness = HunterAwarenessState::None;
 
   bool aquaticIdle;
 

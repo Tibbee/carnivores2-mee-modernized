@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "AIBehavior.h"
 #include "Constants.h"
 
 TEST(AIBehaviorMathTest, LegacyViewDistancesRemainUnchanged)
@@ -47,6 +48,33 @@ TEST(AIBehaviorMathTest, ShotInvestigationEndsAtTargetOrTimeout)
                                          kShotInvestigationArrivalRadius
                                              * kShotInvestigationArrivalRadius));
     EXPECT_FALSE(ShotInvestigationComplete(1000, 10000.0f * 10000.0f));
+}
+
+TEST(AIBehaviorMathTest, AwarenessEventsSelectSpeciesReaction)
+{
+    EXPECT_EQ(HeardShotReactionState(false),
+              HunterAwarenessState::InvestigatingShot);
+    EXPECT_EQ(HeardShotReactionState(true),
+              HunterAwarenessState::FleeingFromShot);
+    EXPECT_EQ(DirectHitReactionState(false),
+              HunterAwarenessState::RetaliatingHit);
+    EXPECT_EQ(DirectHitReactionState(true),
+              HunterAwarenessState::FleeingFromHit);
+}
+
+TEST(AIBehaviorMathTest, AwarenessStatesDistinguishFixedReactions)
+{
+    EXPECT_TRUE(IsFixedHunterPursuitState(
+        HunterAwarenessState::InvestigatingShot));
+    EXPECT_TRUE(IsFixedHunterPursuitState(
+        HunterAwarenessState::RetaliatingHit));
+    EXPECT_TRUE(IsFixedHunterFleeState(
+        HunterAwarenessState::FleeingFromShot));
+    EXPECT_TRUE(IsFixedHunterFleeState(
+        HunterAwarenessState::FleeingFromHit));
+    EXPECT_FALSE(IsTimedHunterReactionState(
+        HunterAwarenessState::TrackingHunter));
+    EXPECT_FALSE(IsTimedHunterReactionState(HunterAwarenessState::None));
 }
 
 TEST(AIBehaviorMathTest, NormalAwarenessRespectsAggressionRange)

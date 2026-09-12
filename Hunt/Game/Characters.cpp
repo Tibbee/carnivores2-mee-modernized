@@ -277,7 +277,7 @@ void ResetCharacter(TCharacter *cptr)
 	cptr->currentIdle2Group = -1;
 
 	cptr->awareHunter = false;
-	cptr->heardShot = false;
+	cptr->hunterAwareness = HunterAwarenessState::None;
 
 	if (DinoInfo[cptr->CType].killTypeCount > 1) {
 		cptr->killType = rRand(DinoInfo[cptr->CType].killTypeCount - 1);
