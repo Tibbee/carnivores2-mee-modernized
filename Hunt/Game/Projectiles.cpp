@@ -411,6 +411,7 @@ void registerDamage(int Dino, bool enemyBullet) {
 	else
 	{
 		Characters[Dino].awareHunter = true;
+		Characters[Dino].heardShot = false;
 		Characters[Dino].AfraidTime = 60 * 1000;
 		if (Characters[Dino].Clone != AI_TREX || Characters[Dino].State == 0)
 			Characters[Dino].State = 2;

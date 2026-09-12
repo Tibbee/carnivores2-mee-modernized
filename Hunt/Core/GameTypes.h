@@ -141,7 +141,7 @@ struct TCharacter
   int dogPrey; // used by dog only. The dino currently being tracked
 
   bool awareHunter;
-  bool heardShot;
+  bool heardShot; // tgx/tgz hold the last-known shot position until confirmed
 
   bool aquaticIdle;
 

@@ -62,42 +62,61 @@ TBEGIN:
 
 		cptr->currentIdleGroup = -1;
 
+		const bool fleesHeardShot = DinoInfo[cptr->CType].fearHearShot
+			|| DinoInfo[cptr->CType].aggress <= 0
+			|| (DinoInfo[cptr->CType].defensive
+				&& cptr->Health == DinoInfo[cptr->CType].Health0);
+		const bool investigatingShot = IsInvestigatingShot(cptr) && !fleesHeardShot;
+		if (investigatingShot) {
+			cptr->tgtime = 0;
+			cptr->AfraidTime -= TimeDt;
+			if (ShotInvestigationComplete(cptr->AfraidTime, tdistSq)) {
+				ClearShotInvestigation(cptr);
+				SetNewTargetPlace(cptr, AIInfo[cptr->Clone].targetDistance);
+				goto TBEGIN;
+			}
+		}
+
 		float aDist;
-		aDist = ctViewR * DinoInfo[cptr->CType].aggress + OptAgres / AIInfo[cptr->Clone].agressMulti;
+		aDist = GameplayViewRadiusCells(ctViewR) * DinoInfo[cptr->CType].aggress
+			+ OptAgres / AIInfo[cptr->Clone].agressMulti;
 		if (cptr->gliding) aDist *= 2;
 
 		bool fleeMode = false;
 		if (g_GameMode != GameMode::SurvivalMode) {
 			const bool recentlyDamaged = cptr->BloodTTime > 0;
-			if (OutsideNormalAggressionRangeSquared(pdistSq, aDist, recentlyDamaged) ||
-				DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
+			if ((!investigatingShot
+				&& OutsideNormalAggressionRangeSquared(pdistSq, aDist, recentlyDamaged))
+				|| DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
 			}
 			else if (DinoInfo[cptr->CType].defensive && cptr->Health == DinoInfo[cptr->CType].Health0) fleeMode = true;
 			else if (DinoInfo[cptr->CType].fearShot && cptr->Health < DinoInfo[cptr->CType].Health0) fleeMode = true;
 			else if (DinoInfo[cptr->CType].fearHearShot && cptr->heardShot) fleeMode = true;
-			else if (cptr->packId >= 0) Packs[cptr->packId].attack = true;
+			else if (!investigatingShot && cptr->packId >= 0) Packs[cptr->packId].attack = true;
 		}
 
 		if (cptr->packId >= 0) {
-			if (Packs[cptr->packId]._attack) fleeMode = false;
+			if (Packs[cptr->packId]._attack && !cptr->heardShot) fleeMode = false;
 		}
 
 
 		Vector3d tree;
 		cptr->gottaClimb = false;
-		if (pdistSq > 1000 * 1000 && !cptr->gliding) {
+		if (!investigatingShot && pdistSq > 1000 * 1000 && !cptr->gliding) {
 			tree = LookForATree(cptr);
 			if (tree.x) cptr->gottaClimb = true;
 		}
 
 		if (fleeMode) {
-			nv.x = playerdx;
-			nv.z = playerdz;
-			nv.y = 0;
-			NormVector(nv, 2048.f);
-			cptr->tgx = cptr->pos.x - nv.x;
-			cptr->tgz = cptr->pos.z - nv.z;
+			if (!cptr->heardShot) {
+				nv.x = playerdx;
+				nv.z = playerdz;
+				nv.y = 0;
+				NormVector(nv, 2048.f);
+				cptr->tgx = cptr->pos.x - nv.x;
+				cptr->tgz = cptr->pos.z - nv.z;
+			}
 			cptr->tgtime = 0;
 			cptr->AfraidTime -= TimeDt;
 
@@ -118,7 +137,10 @@ TBEGIN:
 
 		}
 		else {
-			if (cptr->gottaClimb) {
+			if (investigatingShot) {
+				cptr->tgtime = 0;
+			}
+			else if (cptr->gottaClimb) {
 				cptr->tgx = tree.x * 256.f;
 				cptr->tgz = tree.z * 256.f;
 			}
@@ -129,7 +151,7 @@ TBEGIN:
 			cptr->tgtime = 0;
 
 
-			if (cptr->packId >= 0) {
+			if (!investigatingShot && cptr->packId >= 0) {
 				Packs[cptr->packId].alert = true;
 			}
 
@@ -137,7 +159,7 @@ TBEGIN:
 
 
 
-		if (pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist && DinoInfo[cptr->CType].killDist > 0) {
+		if (!investigatingShot && pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist && DinoInfo[cptr->CType].killDist > 0) {
 			int killAlt = DinoInfo[cptr->CType].waterLevel;
 			if (killAlt < 256) killAlt = 256;
 			if (fabs(PlayerY - cptr->pos.y) < killAlt + 20)

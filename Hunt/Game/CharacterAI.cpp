@@ -12,30 +12,39 @@ void MakeNoise(Vector3d pos, float range)
 	{
 		TCharacter *cptr = &Characters[c];
 		if (!cptr->Health) continue;
+		if ((DinoInfo[cptr->CType].Aquatic && cptr->Clone != AI_TREX)
+			|| cptr->Clone == AI_HUNTDOG) continue;
+
 		float l = VectorLength(SubVectors(cptr->pos, pos));
 		float r = range * (DinoInfo[cptr->CType].HearK * 2);
 		if (l > r) continue;
 
+		// Do not replace exact awareness from sight or direct damage with the
+		// less precise information supplied by a subsequent gunshot.
+		if (cptr->awareHunter && !cptr->heardShot) continue;
 
-		if (cptr->Clone == AI_TREX) {  //===== T-Rex
-			if (!cptr->State) {
-				cptr->State = 2;
-				cptr->awareHunter = true;
-				cptr->heardShot = true;
-			}
+		const bool isTRex = cptr->Clone == AI_TREX;
+		cptr->AfraidTime = ShotInvestigationTime(l, r, isTRex);
+		cptr->NoFindCnt = 0;
+		cptr->awareHunter = true;
+		cptr->heardShot = true;
+		if (!cptr->State) cptr->State = 2;
+
+		const bool fleesShot = DinoInfo[cptr->CType].fearHearShot
+			|| DinoInfo[cptr->CType].aggress <= 0
+			|| (DinoInfo[cptr->CType].defensive
+				&& cptr->Health == DinoInfo[cptr->CType].Health0);
+		if (fleesShot) {
+			Vector3d away = SubVectors(cptr->pos, pos);
+			away.y = 0.0f;
+			NormVector(away, 2048.0f);
+			cptr->tgx = cptr->pos.x + away.x;
+			cptr->tgz = cptr->pos.z + away.z;
+		} else {
+			cptr->tgx = pos.x;
+			cptr->tgz = pos.z;
 		}
-
-		if (cptr->Clone != AI_TREX && !DinoInfo[cptr->CType].Aquatic && cptr->Clone != AI_HUNTDOG)
-		{
-			cptr->AfraidTime = static_cast<int>((10.f + (range - l) / 256.f)) * 1024;
-			if (cptr->State == 0) {
-				cptr->State = 2;
-			}
-			cptr->NoFindCnt = 0;
-
-			cptr->awareHunter = true;
-			cptr->heardShot = true;
-		}
+		cptr->tgtime = 0;
 	}
 }
 
@@ -77,7 +86,8 @@ void CheckAfraid()
 		if (g_GameMode == GameMode::SurvivalMode) goto isAfraid;
 
 		rlook = SubVectors(ppos, cptr->pos);
-		kR = VectorLength(rlook) / 256.f / (32.f + charViewR / 2);
+		kR = VectorLength(rlook) / 256.f
+			/ (32.f + GameplayViewRadiusCells(ctViewR) / 2.f);
 		NormVector(rlook, 1.0f);
 
 		kR *= 2.5f / static_cast<float>((1.5 + OptSens / 128.f));
@@ -146,6 +156,7 @@ void CheckAfraid()
 				cptr->State = 2;
 			}
 			cptr->awareHunter = true;
+			cptr->heardShot = false;
 			if (cptr->Clone == AI_TREX) //===== T-Rex
 				if (kALook > kASmell) cptr->State = 3;
 			cptr->NoFindCnt = 0;

@@ -76,6 +76,34 @@ inline float GunshotNoiseRangeWorld(int renderViewRadiusCells, float weaponLoudn
         * 200.0f * weaponLoudness;
 }
 
+inline constexpr int kShotInvestigationMinTime = 10 * 1024;
+inline constexpr int kShotInvestigationMaxTime = 30 * 1024;
+inline constexpr int kTRexShotInvestigationMaxTime = 60 * 1024;
+inline constexpr float kShotInvestigationArrivalRadius = 512.0f;
+
+inline int ShotInvestigationTime(float distance, float hearingRange, bool isTRex)
+{
+    if (hearingRange <= 0.0f)
+        return kShotInvestigationMinTime;
+
+    float proximity = 1.0f - distance / hearingRange;
+    if (proximity < 0.0f) proximity = 0.0f;
+    if (proximity > 1.0f) proximity = 1.0f;
+
+    const int maximum = isTRex
+        ? kTRexShotInvestigationMaxTime
+        : kShotInvestigationMaxTime;
+    return kShotInvestigationMinTime
+        + static_cast<int>((maximum - kShotInvestigationMinTime) * proximity);
+}
+
+inline bool ShotInvestigationComplete(int remainingTime, float targetDistanceSquared)
+{
+    return remainingTime <= 0
+        || targetDistanceSquared <= kShotInvestigationArrivalRadius
+            * kShotInvestigationArrivalRadius;
+}
+
 // Recent direct damage is a stronger stimulus than passive detection. Species
 // fear and awareness rules are still evaluated after this range check.
 inline bool OutsideNormalAggressionRange(float distance, float aggressionRange,

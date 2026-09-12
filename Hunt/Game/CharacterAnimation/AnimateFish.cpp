@@ -106,7 +106,8 @@ TBEGIN:
 
 	int ao = 0;
 	if (DinoInfo[cptr->CType].DangerFish)ao = OptAgres;
-	float attackDist = ctViewR * DinoInfo[cptr->CType].aggress + ao / AIInfo[cptr->Clone].agressMulti;
+	float attackDist = GameplayViewRadiusCells(ctViewR) * DinoInfo[cptr->CType].aggress
+		+ ao / AIInfo[cptr->Clone].agressMulti;
 
 	if (!cptr->State)
 	{

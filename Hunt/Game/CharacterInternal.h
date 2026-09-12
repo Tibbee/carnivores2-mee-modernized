@@ -59,6 +59,19 @@ float CorrectedAlpha(float a, float b);
 // Inline helpers
 inline float GetAngleDifference(float a, float b) { return AngleDifference(a, b); }
 
+inline bool IsInvestigatingShot(const TCharacter* cptr)
+{
+    return cptr->awareHunter && cptr->heardShot;
+}
+
+inline void ClearShotInvestigation(TCharacter* cptr)
+{
+    cptr->awareHunter = false;
+    cptr->heardShot = false;
+    cptr->AfraidTime = 0;
+    cptr->State = 0;
+}
+
 // Pack following helpers
 // Called from animation functions to maintain pack formation
 inline void AnimatePackFollow(TCharacter* cptr, float leaderDist)

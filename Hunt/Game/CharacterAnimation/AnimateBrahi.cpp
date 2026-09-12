@@ -62,21 +62,38 @@ TBEGIN:
 
 		cptr->currentIdleGroup = -1;
 
+		const bool fleesHeardShot = DinoInfo[cptr->CType].fearHearShot
+			|| DinoInfo[cptr->CType].aggress <= 0
+			|| (DinoInfo[cptr->CType].defensive
+				&& cptr->Health == DinoInfo[cptr->CType].Health0);
+		const bool investigatingShot = IsInvestigatingShot(cptr) && !fleesHeardShot;
+		if (investigatingShot) {
+			cptr->tgtime = 0;
+			cptr->AfraidTime -= TimeDt;
+			if (ShotInvestigationComplete(cptr->AfraidTime, tdist * tdist)) {
+				ClearShotInvestigation(cptr);
+				SetNewTargetPlace_Brahi(cptr, 2048.0f);
+				goto TBEGIN;
+			}
+		}
+
 		bool fleeMode = false;
 		if (g_GameMode != GameMode::SurvivalMode) {
 			const bool recentlyDamaged = cptr->BloodTTime > 0;
-			if (OutsideNormalAggressionRange(pdist, static_cast<float>(attackDist), recentlyDamaged)
-				|| !playerAttackable || DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
+			if ((!investigatingShot
+				&& (OutsideNormalAggressionRange(pdist, static_cast<float>(attackDist), recentlyDamaged)
+					|| !playerAttackable))
+				|| DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
 			}
 			else if (DinoInfo[cptr->CType].defensive && cptr->Health == DinoInfo[cptr->CType].Health0) fleeMode = true;
 			else if (DinoInfo[cptr->CType].fearShot && cptr->Health < DinoInfo[cptr->CType].Health0) fleeMode = true;
 			else if (DinoInfo[cptr->CType].fearHearShot && cptr->heardShot) fleeMode = true;
-			else if (cptr->packId >= 0) Packs[cptr->packId].attack = true;
+			else if (!investigatingShot && cptr->packId >= 0) Packs[cptr->packId].attack = true;
 		}
 
 		if (cptr->packId >= 0) {
-			if (Packs[cptr->packId]._attack) fleeMode = false;
+			if (Packs[cptr->packId]._attack && !cptr->heardShot) fleeMode = false;
 		}
 
 		if (!autoCorrect) {
@@ -87,23 +104,27 @@ TBEGIN:
 			}
 			else if (!fleeMode)
 			{
-				attacking = true;
-				cptr->tgx = PlayerX;
-				cptr->tgz = PlayerZ;
-				cptr->tgtime = 0;
-				if (cptr->packId >= 0) {
+				attacking = !investigatingShot;
+				if (!investigatingShot) {
+					cptr->tgx = PlayerX;
+					cptr->tgz = PlayerZ;
+					cptr->tgtime = 0;
+				}
+				if (!investigatingShot && cptr->packId >= 0) {
 					Packs[cptr->packId].alert = true;
 				}
 			}
 			else
 			{
 				attacking = false;
-				nv.x = playerdx;
-				nv.z = playerdz;
-				nv.y = 0;
-				NormVector(nv, 2048.f);
-				cptr->tgx = cptr->pos.x - nv.x;
-				cptr->tgz = cptr->pos.z - nv.z;
+				if (!cptr->heardShot) {
+					nv.x = playerdx;
+					nv.z = playerdz;
+					nv.y = 0;
+					NormVector(nv, 2048.f);
+					cptr->tgx = cptr->pos.x - nv.x;
+					cptr->tgz = cptr->pos.z - nv.z;
+				}
 				cptr->tgtime = 0;
 				cptr->AfraidTime -= TimeDt;
 
@@ -126,7 +147,8 @@ TBEGIN:
 			}
 		}
 
-		if (pdist < DinoInfo[cptr->CType].killDist && DinoInfo[cptr->CType].killDist > 0) //killdist = 600
+		if (!investigatingShot && pdist < DinoInfo[cptr->CType].killDist
+			&& DinoInfo[cptr->CType].killDist > 0) //killdist = 600
 			if (fabs(PlayerY - cptr->pos.y - 120) < 256)
 			{
 

@@ -31,7 +31,10 @@ TBEGIN:
 	float playerdx = PlayerX - cptr->pos.x - cptr->lookx * 108;
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
 	float pdistSq = playerdx * playerdx + playerdz * playerdz;
-	float palpha = FindVectorAlpha(playerdx, playerdz);
+	const bool investigatingShot = IsInvestigatingShot(cptr);
+	float responseAlpha = investigatingShot
+		? FindVectorAlpha(targetdx, targetdz)
+		: FindVectorAlpha(playerdx, playerdz);
 	//if (cptr->State==2) { NewPhase=true; cptr->State=1; }
 
 
@@ -52,7 +55,8 @@ TBEGIN:
 		goto TBEGIN;
 	}
 
-	if (cptr->State) Packs[cptr->packId].alert = true;
+	if (cptr->State && !investigatingShot && cptr->packId >= 0)
+		Packs[cptr->packId].alert = true;
 
 
 
@@ -71,11 +75,27 @@ TBEGIN:
 
 		cptr->currentIdleGroup = -1;
 
-		cptr->tgx = PlayerX;
-		cptr->tgz = PlayerZ;
-		cptr->tgtime = 0;
+		if (investigatingShot) {
+			cptr->tgtime = 0;
+			cptr->AfraidTime -= TimeDt;
+			if (ShotInvestigationComplete(cptr->AfraidTime, tdistSq)) {
+				ClearShotInvestigation(cptr);
+				SetNewTargetPlace(cptr, 8048.0f);
+				goto TBEGIN;
+			}
+		} else {
+			cptr->tgx = PlayerX;
+			cptr->tgz = PlayerZ;
+			cptr->tgtime = 0;
+			if (cptr->AfraidTime > 0) cptr->AfraidTime -= TimeDt;
+			if (!cptr->awareHunter && cptr->AfraidTime <= 0) {
+				cptr->State = 0;
+				SetNewTargetPlace(cptr, 8048.0f);
+				goto TBEGIN;
+			}
+		}
 		if (cptr->State > 1)
-			if (AngleDifference(cptr->alpha, palpha) < 0.4f)
+			if (AngleDifference(cptr->alpha, responseAlpha) < 0.4f)
 			{
 				if (cptr->State == 2) {
 					if (DinoInfo[cptr->CType].lookCount) {
@@ -109,7 +129,9 @@ TBEGIN:
 
 
 
-		if (pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist && DinoInfo[cptr->CType].killDist > 0 && MyHealth)
+		if (!investigatingShot
+			&& pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist
+			&& DinoInfo[cptr->CType].killDist > 0 && MyHealth)
 		{
 			int killAlt = DinoInfo[cptr->CType].waterLevel;
 			if (killAlt < 256) killAlt = 256;

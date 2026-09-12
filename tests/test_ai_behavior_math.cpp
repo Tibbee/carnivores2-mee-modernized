@@ -30,6 +30,25 @@ TEST(AIBehaviorMathTest, GunshotNoiseUsesTheLegacyGameplayCeiling)
     EXPECT_FLOAT_EQ(GunshotNoiseRangeWorld(230, shotgunLoudness), legacyShotgunRange);
 }
 
+TEST(AIBehaviorMathTest, ShotInvestigationTimeIsFinite)
+{
+    EXPECT_EQ(ShotInvestigationTime(1000.0f, 1000.0f, false),
+              kShotInvestigationMinTime);
+    EXPECT_EQ(ShotInvestigationTime(0.0f, 1000.0f, false),
+              kShotInvestigationMaxTime);
+    EXPECT_EQ(ShotInvestigationTime(0.0f, 1000.0f, true),
+              kTRexShotInvestigationMaxTime);
+}
+
+TEST(AIBehaviorMathTest, ShotInvestigationEndsAtTargetOrTimeout)
+{
+    EXPECT_TRUE(ShotInvestigationComplete(0, 10000.0f * 10000.0f));
+    EXPECT_TRUE(ShotInvestigationComplete(1000,
+                                         kShotInvestigationArrivalRadius
+                                             * kShotInvestigationArrivalRadius));
+    EXPECT_FALSE(ShotInvestigationComplete(1000, 10000.0f * 10000.0f));
+}
+
 TEST(AIBehaviorMathTest, NormalAwarenessRespectsAggressionRange)
 {
     EXPECT_FALSE(OutsideNormalAggressionRange(99.0f, 100.0f, false));
