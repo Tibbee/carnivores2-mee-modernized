@@ -14,6 +14,9 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
 - Make species that fear hunter calls flee from the call-time position instead
   of continuously tracking the hunter. Call reactions now expire normally and
   cannot replace stronger awareness from sight, scent, or direct damage.
+- Prevent pack alerts from granting every member the hunter's live position.
+  Members that have not independently detected the hunter now follow or flee
+  from their pack leader; only independent detection enables attacks and kills.
 - Keep scrolled hunt lists aligned with mouse selection. Dinosaur rows were
   always drawn from the start of the list while clicks included the scroll
   offset, so selecting a visible late-roster creature could show or toggle a

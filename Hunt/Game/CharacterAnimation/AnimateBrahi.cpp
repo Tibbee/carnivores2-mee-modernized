@@ -65,6 +65,7 @@ TBEGIN:
 		const bool fixedPursuit = IsFixedHunterPursuit(cptr);
 		const bool fixedFlee = IsFixedHunterFlee(cptr);
 		const bool fixedReaction = fixedPursuit || fixedFlee;
+		const bool tracksHunter = TracksHunterExactly(cptr);
 		if (fixedPursuit) {
 			cptr->tgtime = 0;
 			if (ShotInvestigationComplete(cptr->AfraidTime, tdist * tdist)) {
@@ -86,7 +87,8 @@ TBEGIN:
 			else if (DinoInfo[cptr->CType].defensive && cptr->Health == DinoInfo[cptr->CType].Health0) fleeMode = true;
 			else if (DinoInfo[cptr->CType].fearShot && cptr->Health < DinoInfo[cptr->CType].Health0) fleeMode = true;
 			else if (cptr->hunterAwareness == HunterAwarenessState::FleeingFromShot) fleeMode = true;
-			else if (!fixedReaction && cptr->packId >= 0) Packs[cptr->packId].attack = true;
+			else if (!fixedReaction && tracksHunter && cptr->packId >= 0)
+				Packs[cptr->packId].attack = true;
 		}
 		if (fixedFlee) fleeMode = true;
 
@@ -102,20 +104,21 @@ TBEGIN:
 			}
 			else if (!fleeMode)
 			{
-				attacking = !fixedPursuit;
-				if (!fixedPursuit) {
+				attacking = !fixedPursuit && tracksHunter;
+				if (!fixedPursuit && (tracksHunter || cptr->packId < 0)) {
 					cptr->tgx = PlayerX;
 					cptr->tgz = PlayerZ;
 					cptr->tgtime = 0;
 				}
-				if (!fixedReaction && cptr->packId >= 0) {
+				else if (!fixedPursuit) SetPackLeaderTarget(cptr, false);
+				if (!fixedReaction && tracksHunter && cptr->packId >= 0) {
 					Packs[cptr->packId].alert = true;
 				}
 			}
 			else
 			{
 				attacking = false;
-				if (!fixedFlee) {
+				if (!fixedFlee && (tracksHunter || cptr->packId < 0)) {
 					nv.x = playerdx;
 					nv.z = playerdz;
 					nv.y = 0;
@@ -123,6 +126,7 @@ TBEGIN:
 					cptr->tgx = cptr->pos.x - nv.x;
 					cptr->tgz = cptr->pos.z - nv.z;
 				}
+				else if (!fixedFlee) SetPackLeaderTarget(cptr, true);
 				cptr->tgtime = 0;
 				if (!fixedReaction) cptr->AfraidTime -= TimeDt;
 
@@ -145,7 +149,8 @@ TBEGIN:
 			}
 		}
 
-		if (!fixedReaction && pdist < DinoInfo[cptr->CType].killDist
+		if (!fixedReaction && (tracksHunter || cptr->packId < 0)
+			&& pdist < DinoInfo[cptr->CType].killDist
 			&& DinoInfo[cptr->CType].killDist > 0) //killdist = 600
 			if (fabs(PlayerY - cptr->pos.y - 120) < 256)
 			{

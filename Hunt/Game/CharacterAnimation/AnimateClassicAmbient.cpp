@@ -74,6 +74,10 @@ TBEGIN:
 				if (pdistSq[pNo] < 2048.f * 2048.f) pdistMulti = true;
 			}
 			if (pdistMulti) {
+				if (pdistSq[0] < 2048.f * 2048.f) {
+					cptr->awareHunter = true;
+					cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
+				}
 				if (cptr->Clone == AI_GALL) cptr->State = 1;
 				cptr->AfraidTime = (5 + rRand(5)) * 1024;
 				if (cptr->packId >= 0) {
@@ -102,13 +106,16 @@ TBEGIN:
 		} else if (cptr->packId >= 0) Packs[cptr->packId].alert = true;
 
 
-		nv.x = playerdx[0];
-		nv.z = playerdz[0];
-		nv.y = 0;
-		NormVector(nv, 2048.f);
-		cptr->tgx = cptr->pos.x - nv.x;
-		cptr->tgz = cptr->pos.z - nv.z;
-		cptr->tgtime = 0;
+		if (TracksHunterExactly(cptr)) {
+			nv.x = playerdx[0];
+			nv.z = playerdz[0];
+			nv.y = 0;
+			NormVector(nv, 2048.f);
+			cptr->tgx = cptr->pos.x - nv.x;
+			cptr->tgz = cptr->pos.z - nv.z;
+			cptr->tgtime = 0;
+		}
+		else SetPackLeaderTarget(cptr, true);
 	}
 
 	// Step 4: Extend culling distance by 4 units (~1024 world units)

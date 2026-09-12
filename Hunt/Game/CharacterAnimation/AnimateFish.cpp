@@ -119,12 +119,12 @@ TBEGIN:
 			&& MyHealth && !ObservMode && !DEBUG;
 		if (g_GameMode == GameMode::SurvivalMode) attackmode = true;
 		if (attackmode)	cptr->AfraidTime = static_cast<int>((10.f)) * 1024;
-		if (cptr->packId >= 0 && MyHealth) {
-			if (attackmode) Packs[cptr->packId].alert = true;
-			if (Packs[cptr->packId]._alert) attackmode = true;
-		}
+		if (cptr->packId >= 0 && MyHealth && attackmode)
+			Packs[cptr->packId].alert = true;
 
 		if (attackmode) {
+			cptr->awareHunter = true;
+			cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
 			cptr->State = 1;
 			cptr->turny = 0;
 			cptr->lastTBeta = cptr->beta;
@@ -172,6 +172,7 @@ TBEGIN:
 
 	if (cptr->State)
 	{
+		const bool tracksHunter = TracksHunterExactly(cptr);
 		if (!fixedReaction && (pdistSq > attackDist * attackDist || !playerInWater))
 		{
 			cptr->AfraidTime -= TimeDt;
@@ -202,7 +203,8 @@ TBEGIN:
 		if (fixedPursuit) {
 			cptr->tgtime = 0;
 		}
-		else if (DinoInfo[cptr->CType].DangerFish || g_GameMode == GameMode::SurvivalMode) {
+		else if (tracksHunter
+			&& (DinoInfo[cptr->CType].DangerFish || g_GameMode == GameMode::SurvivalMode)) {
 			cptr->tgx = PlayerX;
 			cptr->tgz = PlayerZ;
 			cptr->tdepth = PlayerY;
@@ -223,7 +225,7 @@ TBEGIN:
 				}
 			}
 
-			if (!fixedReaction && cptr->packId >= 0) {
+			if (!fixedReaction && tracksHunter && cptr->packId >= 0) {
 				Packs[cptr->packId].alert = true;
 			}
 
@@ -243,7 +245,8 @@ TBEGIN:
 
 		cptr->tgtime = 0;
 
-		if (!fixedReaction && cptr->Phase != DinoInfo[cptr->CType].jumpAnim){
+		if (!fixedReaction && tracksHunter
+			&& cptr->Phase != DinoInfo[cptr->CType].jumpAnim){
 			if (AIInfo[cptr->Clone].jumper && DinoInfo[cptr->CType].DangerFish) {
 				if (cptr->depth > GetLandUpH(cptr->pos.x, cptr->pos.z) - (cptr->spcDepth * 0.95)){
 					float pUp = PlayerY - GetLandUpH(PlayerX, PlayerZ); //jump later if the player is on a low bridge, not at all if too high
@@ -274,7 +277,7 @@ TBEGIN:
 			}
 		}
 
-		if (!fixedReaction
+		if (!fixedReaction && tracksHunter
 			&& pdistSq < (DinoInfo[cptr->CType].killDist * cptr->scale)
 				* (DinoInfo[cptr->CType].killDist * cptr->scale)
 			&& DinoInfo[cptr->CType].killDist > 0) {

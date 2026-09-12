@@ -65,6 +65,7 @@ TBEGIN:
 		const bool fixedPursuit = IsFixedHunterPursuit(cptr);
 		const bool fixedFlee = IsFixedHunterFlee(cptr);
 		const bool fixedReaction = fixedPursuit || fixedFlee;
+		const bool tracksHunter = TracksHunterExactly(cptr);
 		if (fixedPursuit) {
 			cptr->tgtime = 0;
 			if (ShotInvestigationComplete(cptr->AfraidTime, tdistSq)) {
@@ -90,7 +91,8 @@ TBEGIN:
 			else if (DinoInfo[cptr->CType].defensive && cptr->Health == DinoInfo[cptr->CType].Health0) fleeMode = true;
 			else if (DinoInfo[cptr->CType].fearShot && cptr->Health < DinoInfo[cptr->CType].Health0) fleeMode = true;
 			else if (cptr->hunterAwareness == HunterAwarenessState::FleeingFromShot) fleeMode = true;
-			else if (!fixedReaction && cptr->packId >= 0) Packs[cptr->packId].attack = true;
+			else if (!fixedReaction && tracksHunter && cptr->packId >= 0)
+				Packs[cptr->packId].attack = true;
 		}
 		if (fixedFlee) fleeMode = true;
 
@@ -101,13 +103,14 @@ TBEGIN:
 
 		Vector3d tree;
 		cptr->gottaClimb = false;
-		if (!fixedReaction && pdistSq > 1000 * 1000 && !cptr->gliding) {
+		if (!fixedReaction && (tracksHunter || cptr->packId < 0)
+			&& pdistSq > 1000 * 1000 && !cptr->gliding) {
 			tree = LookForATree(cptr);
 			if (tree.x) cptr->gottaClimb = true;
 		}
 
 		if (fleeMode) {
-			if (!fixedFlee) {
+			if (!fixedFlee && (tracksHunter || cptr->packId < 0)) {
 				nv.x = playerdx;
 				nv.z = playerdz;
 				nv.y = 0;
@@ -115,6 +118,7 @@ TBEGIN:
 				cptr->tgx = cptr->pos.x - nv.x;
 				cptr->tgz = cptr->pos.z - nv.z;
 			}
+			else if (!fixedFlee) SetPackLeaderTarget(cptr, true);
 			cptr->tgtime = 0;
 			if (!fixedReaction) cptr->AfraidTime -= TimeDt;
 
@@ -138,6 +142,9 @@ TBEGIN:
 			if (fixedPursuit) {
 				cptr->tgtime = 0;
 			}
+			else if (!tracksHunter && cptr->packId >= 0) {
+				SetPackLeaderTarget(cptr, false);
+			}
 			else if (cptr->gottaClimb) {
 				cptr->tgx = tree.x * 256.f;
 				cptr->tgz = tree.z * 256.f;
@@ -149,7 +156,7 @@ TBEGIN:
 			cptr->tgtime = 0;
 
 
-			if (!fixedReaction && cptr->packId >= 0) {
+			if (!fixedReaction && tracksHunter && cptr->packId >= 0) {
 				Packs[cptr->packId].alert = true;
 			}
 
@@ -157,7 +164,8 @@ TBEGIN:
 
 
 
-		if (!fixedReaction && pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist && DinoInfo[cptr->CType].killDist > 0) {
+		if (!fixedReaction && (tracksHunter || cptr->packId < 0)
+			&& pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist && DinoInfo[cptr->CType].killDist > 0) {
 			int killAlt = DinoInfo[cptr->CType].waterLevel;
 			if (killAlt < 256) killAlt = 256;
 			if (fabs(PlayerY - cptr->pos.y) < killAlt + 20)

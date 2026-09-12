@@ -83,6 +83,7 @@ TBEGIN:
 		const bool fixedPursuit = IsFixedHunterPursuit(cptr);
 		const bool fixedFlee = IsFixedHunterFlee(cptr);
 		const bool fixedReaction = fixedPursuit || fixedFlee;
+		const bool tracksHunter = TracksHunterExactly(cptr);
 		if (fixedPursuit) {
 			cptr->tgtime = 0;
 			if (ShotInvestigationComplete(cptr->AfraidTime, tdistSq)) {
@@ -112,7 +113,8 @@ TBEGIN:
 			else if (DinoInfo[cptr->CType].defensive && cptr->Health == DinoInfo[cptr->CType].Health0) fleeMode = true;
 			else if (DinoInfo[cptr->CType].fearShot && cptr->Health < DinoInfo[cptr->CType].Health0) fleeMode = true;
 			else if (cptr->hunterAwareness == HunterAwarenessState::FleeingFromShot) fleeMode = true;
-			else if (!fixedReaction && cptr->packId >= 0) Packs[cptr->packId].attack = true;
+			else if (!fixedReaction && tracksHunter && cptr->packId >= 0)
+				Packs[cptr->packId].attack = true;
 		}
 		if (fixedFlee) fleeMode = true;
 
@@ -121,7 +123,7 @@ TBEGIN:
 		}
 
 		if (fleeMode) {
-			if (!fixedFlee) {
+			if (!fixedFlee && (tracksHunter || cptr->packId < 0)) {
 				nv.x = playerdx;
 				nv.z = playerdz;
 				nv.y = 0;
@@ -129,6 +131,7 @@ TBEGIN:
 				cptr->tgx = cptr->pos.x - nv.x;
 				cptr->tgz = cptr->pos.z - nv.z;
 			}
+			else if (!fixedFlee) SetPackLeaderTarget(cptr, true);
 			cptr->tgtime = 0;
 			if (AIInfo[cptr->Clone].carnivore && !fixedReaction)
 				cptr->AfraidTime -= TimeDt;
@@ -153,24 +156,26 @@ TBEGIN:
 		}
 		else
 		{
-			if (!fixedPursuit) {
+			if (!fixedPursuit && (tracksHunter || cptr->packId < 0)) {
 				cptr->tgx = PlayerX;
 				cptr->tgz = PlayerZ;
 				cptr->tgtime = 0;
 			}
-			if (!fixedReaction && cptr->packId >= 0 && AIInfo[cptr->Clone].carnivore) {
+			else if (!fixedPursuit) SetPackLeaderTarget(cptr, false);
+			if (!fixedReaction && tracksHunter && cptr->packId >= 0
+				&& AIInfo[cptr->Clone].carnivore) {
 				Packs[cptr->packId].alert = true;
 			}
 		}
 
-		if (!fixedReaction && AIInfo[cptr->Clone].jumper) {
+		if (!fixedReaction && (tracksHunter || cptr->packId < 0) && AIInfo[cptr->Clone].jumper) {
 			if (!(cptr->StateF & csONWATER))
 				if (pdistSq < (1324 * cptr->scale) * (1324 * cptr->scale) && pdistSq > (900 * cptr->scale) * (900 * cptr->scale))
 					if (AngleDifference(cptr->alpha, FindVectorAlpha(playerdx, playerdz)) < 0.2f)
 						cptr->Phase = DinoInfo[cptr->CType].jumpAnim;
 		}
 
-		if (!fixedReaction
+		if (!fixedReaction && (tracksHunter || cptr->packId < 0)
 			&& pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist
 			&& DinoInfo[cptr->CType].killDist > 0) {
 			int killAlt = DinoInfo[cptr->CType].waterLevel;

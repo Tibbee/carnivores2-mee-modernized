@@ -79,6 +79,31 @@ inline bool IsTimedHunterReaction(const TCharacter* cptr)
     return IsTimedHunterReactionState(cptr->hunterAwareness);
 }
 
+inline bool TracksHunterExactly(const TCharacter* cptr)
+{
+    return cptr->hunterAwareness == HunterAwarenessState::TrackingHunter;
+}
+
+inline void SetPackLeaderTarget(TCharacter* cptr, bool flee)
+{
+    if (cptr->packId < 0 || !Packs[cptr->packId].leader) return;
+
+    TCharacter* leader = Packs[cptr->packId].leader;
+    if (!flee) {
+        cptr->tgx = leader->pos.x;
+        cptr->tgz = leader->pos.z;
+        cptr->tgtime = 0;
+        return;
+    }
+
+    Vector3d away = SubVectors(cptr->pos, leader->pos);
+    away.y = 0.0f;
+    NormVector(away, 2048.0f);
+    cptr->tgx = cptr->pos.x + away.x;
+    cptr->tgz = cptr->pos.z + away.z;
+    cptr->tgtime = 0;
+}
+
 inline void ClearHunterReaction(TCharacter* cptr)
 {
     cptr->awareHunter = false;

@@ -32,7 +32,8 @@ TBEGIN:
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
 	float pdistSq = playerdx * playerdx + playerdz * playerdz;
 	const bool fixedPursuit = IsFixedHunterPursuit(cptr);
-	float responseAlpha = fixedPursuit
+	const bool tracksHunter = TracksHunterExactly(cptr);
+	float responseAlpha = fixedPursuit || !tracksHunter
 		? FindVectorAlpha(targetdx, targetdz)
 		: FindVectorAlpha(playerdx, playerdz);
 	//if (cptr->State==2) { NewPhase=true; cptr->State=1; }
@@ -50,14 +51,18 @@ TBEGIN:
 		cptr->State = 1;
 		cptr->Phase = DinoInfo[cptr->CType].walkAnim;
 		cptr->FTime = 0;
-		if (!fixedPursuit) {
+		if (!fixedPursuit && tracksHunter) {
 			cptr->tgx = PlayerX;
 			cptr->tgz = PlayerZ;
+		}
+		else if (!fixedPursuit) {
+			SetPackLeaderTarget(cptr, false);
+			cptr->AfraidTime = 1024;
 		}
 		goto TBEGIN;
 	}
 
-	if (cptr->State && !fixedPursuit && cptr->packId >= 0)
+	if (cptr->State && !fixedPursuit && tracksHunter && cptr->packId >= 0)
 		Packs[cptr->packId].alert = true;
 
 
@@ -85,9 +90,12 @@ TBEGIN:
 				goto TBEGIN;
 			}
 		} else {
-			cptr->tgx = PlayerX;
-			cptr->tgz = PlayerZ;
-			cptr->tgtime = 0;
+			if (tracksHunter) {
+				cptr->tgx = PlayerX;
+				cptr->tgz = PlayerZ;
+				cptr->tgtime = 0;
+			}
+			else SetPackLeaderTarget(cptr, false);
 			if (cptr->AfraidTime > 0) cptr->AfraidTime -= TimeDt;
 			if (!cptr->awareHunter && cptr->AfraidTime <= 0) {
 				cptr->State = 0;
@@ -130,7 +138,7 @@ TBEGIN:
 
 
 
-		if (!fixedPursuit
+		if (!fixedPursuit && tracksHunter
 			&& pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist
 			&& DinoInfo[cptr->CType].killDist > 0 && MyHealth)
 		{
