@@ -74,7 +74,7 @@ void AnimateMHunters() {
 				TSFX *shotFx = &fxGunShot[WeapInfo[weapon].SFXIndex];
 				AddVoice3d(shotFx->length, shotFx->lpData.data(), pos->x, pos->y, pos->z);//TODO XYZ NEEDS TO BE PLAYER -> SOUND VECTOR
 			}
-			MakeNoise(*pos, ctViewR * 200 * WeapInfo[weapon].Loud);
+			MakeNoise(*pos, GunshotNoiseRangeWorld(ctViewR, WeapInfo[weapon].Loud));
 		}
 
 		if (mHunterCall[c] != -1) {

@@ -61,6 +61,21 @@ inline int ViewOptToCtViewR(int opt)
     return 72 + ((opt - 127) * (kViewDistanceMax - 72)) / (kViewOptMax - 127);
 }
 
+// Extended rendering distance must not enlarge legacy gameplay perception.
+// Values below the old ceiling retain their original distance-dependent balance.
+inline int GameplayViewRadiusCells(int renderViewRadiusCells)
+{
+    if (renderViewRadiusCells > kViewDistanceDefault)
+        return kViewDistanceDefault;
+    return renderViewRadiusCells;
+}
+
+inline float GunshotNoiseRangeWorld(int renderViewRadiusCells, float weaponLoudness)
+{
+    return static_cast<float>(GameplayViewRadiusCells(renderViewRadiusCells))
+        * 200.0f * weaponLoudness;
+}
+
 // ===================== Object Detail (LOD) =====================
 
 inline constexpr int kObjectDetailMin = 24;

@@ -636,7 +636,8 @@ void MakeCall()
 	float dy = PlayerY - cptr->pos.y;
 	float dz = PlayerZ - cptr->pos.z;
 	float dSq = dx * dx + dy * dy + dz * dz;
-	float hearRange = (ctViewR * 400) * (DinoInfo[cptr->CType].HearK * 2);
+	float hearRange = (GameplayViewRadiusCells(ctViewR) * 400.0f)
+		* (DinoInfo[cptr->CType].HearK * 2);
 	bool canHear = dSq < hearRange * hearRange;
 
 	if (DinoInfo[cptr->CType].fearCall[TargetCall-10] && canHear

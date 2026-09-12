@@ -283,7 +283,8 @@ void ProcessShoot()
     v.x = PlayerX;
     v.y = PlayerY;
     v.z = PlayerZ;
-    if (!IsUnderwater()) MakeNoise(v, ctViewR*200 * WeapInfo[CurrentWeapon].Loud);
+    if (!IsUnderwater())
+      MakeNoise(v, GunshotNoiseRangeWorld(ctViewR, WeapInfo[CurrentWeapon].Loud));
     Chambered[CurrentWeapon]-=1;
 //	else if (WeapInfo[CurrentWeapon].Reload) {
 //		if (!Chambered[CurrentWeapon]) Chambered[CurrentWeapon] = WeapInfo[CurrentWeapon].Reload;
