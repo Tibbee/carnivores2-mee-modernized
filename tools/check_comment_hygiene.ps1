@@ -55,10 +55,34 @@ function Get-CommentText {
     return $s.Substring($i)
 }
 
-$docNames = @{}
-if ($DocRoot -and (Test-Path $DocRoot)) {
-    Get-ChildItem -Path $DocRoot -Recurse -File -Filter '*.md' -ErrorAction SilentlyContinue |
-        ForEach-Object { $docNames[$_.Name] = $_.FullName }
+# Use the workspace's canonical sibling checkout automatically when available.
+# Asset-free CI checks only repository-local rules because CarnivoresDoc is a
+# separate, unpublished repository.
+if ([string]::IsNullOrWhiteSpace($DocRoot)) {
+    $siblingDocRoot = Join-Path (Split-Path $RepoRoot -Parent) 'CarnivoresDoc'
+    if (Test-Path -LiteralPath $siblingDocRoot -PathType Container) {
+        $DocRoot = $siblingDocRoot
+    }
+}
+
+$docPaths = @{}
+$docBasenames = @{}
+if (-not [string]::IsNullOrWhiteSpace($DocRoot)) {
+    if (-not (Test-Path -LiteralPath $DocRoot -PathType Container)) {
+        throw "Documentation root not found: $DocRoot"
+    }
+
+    $resolvedDocRoot = [System.IO.Path]::GetFullPath((Resolve-Path -LiteralPath $DocRoot).Path)
+    $docPrefix = $resolvedDocRoot.TrimEnd([char[]]@('\', '/')) + [System.IO.Path]::DirectorySeparatorChar
+    Get-ChildItem -LiteralPath $resolvedDocRoot -Recurse -File -Filter '*.md' -ErrorAction Stop |
+        ForEach-Object {
+            $relative = $_.FullName.Substring($docPrefix.Length).Replace('\', '/')
+            $docPaths[$relative] = $_.FullName
+            if (-not $docBasenames.ContainsKey($_.Name)) {
+                $docBasenames[$_.Name] = @()
+            }
+            $docBasenames[$_.Name] += $relative
+        }
 }
 
 $tracked = & git -C $RepoRoot ls-files
@@ -103,9 +127,39 @@ foreach ($rel in $tracked) {
         # URLs are stripped first: a .md inside one is not a local reference.
         $search = $comment -replace 'https?://\S+', ''
         foreach ($ref in $mdRefRe.Matches($search)) {
-            $base = Split-Path -Leaf ($ref.Groups[1].Value -replace '\\', '/')
-            if ($docNames.Count -gt 0 -and -not $docNames.ContainsKey($base)) {
-                Write-Host ("{0}:{1}  missing doc: {2}" -f $rel, $lineNo, $base) -ForegroundColor Red
+            if ($docPaths.Count -eq 0) { continue }
+
+            $docRef = $ref.Groups[1].Value.Replace('\', '/')
+            # References may explicitly include the sibling repository name.
+            # Everything after CarnivoresDoc/ is relative to DocRoot.
+            $marker = 'CarnivoresDoc/'
+            $markerIndex = $docRef.IndexOf($marker, [System.StringComparison]::OrdinalIgnoreCase)
+            if ($markerIndex -ge 0) {
+                $docRef = $docRef.Substring($markerIndex + $marker.Length)
+            }
+            while ($docRef.StartsWith('./')) { $docRef = $docRef.Substring(2) }
+
+            $missing = $false
+            $ambiguous = $false
+            if ($docRef.Contains('/')) {
+                # A path-bearing reference must resolve as written. Do not
+                # silently accept a stale directory just because its basename
+                # exists somewhere else in the documentation tree.
+                $missing = -not $docPaths.ContainsKey($docRef)
+            }
+            else {
+                # A bare filename is accepted only when it identifies exactly
+                # one document; duplicate basenames require an explicit path.
+                $missing = -not $docBasenames.ContainsKey($docRef)
+                $ambiguous = -not $missing -and $docBasenames[$docRef].Count -ne 1
+            }
+
+            if ($missing) {
+                Write-Host ("{0}:{1}  missing doc: {2}" -f $rel, $lineNo, $docRef) -ForegroundColor Red
+                $errors++
+            }
+            elseif ($ambiguous) {
+                Write-Host ("{0}:{1}  ambiguous doc: {2} ({3})" -f $rel, $lineNo, $docRef, ($docBasenames[$docRef] -join ', ')) -ForegroundColor Red
                 $errors++
             }
         }
@@ -115,8 +169,8 @@ foreach ($rel in $tracked) {
 if (-not $Quiet) {
     Write-Host ''
     Write-Host ("scanned {0} files" -f $scanned)
-    if ($docNames.Count -gt 0) {
-        Write-Host ("doc tree: {0} files" -f $docNames.Count)
+    if ($docPaths.Count -gt 0) {
+        Write-Host ("doc tree: {0} files" -f $docPaths.Count)
     }
     else {
         Write-Host 'doc tree not set (pass -DocRoot or CARNIVORES_DOC_DIR); .md references not checked' -ForegroundColor Yellow
