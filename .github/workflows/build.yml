@@ -27,12 +27,8 @@ jobs:
     - name: Build
       run: cmake --build --preset ${{ matrix.preset }}
 
-    - name: Smoke Test (GL only)
-      if: matrix.preset == 'ogl-release'
-      shell: powershell
-      run: |
-        & ./tests/smoke_test.ps1 -ExePath build/ogl-release/bin/Carnivores1_GL.exe -Duration 10
-
+    # Deployed smoke tests require licensed HUNTDAT assets and are registered
+    # only when ENABLE_DEPLOYED_SMOKE_TEST is enabled on a developer machine.
     - name: Unit Tests (debug builds)
       if: matrix.preset == 'ogl-debug'
       shell: powershell
@@ -40,19 +36,11 @@ jobs:
         cd build/ogl-debug
         ctest --output-on-failure
 
-    - name: Memory Leak Report (debug)
-      if: matrix.preset == 'ogl-debug'
-      shell: powershell
-      run: |
-        & ./tests/smoke_test.ps1 -ExePath build/ogl-debug/bin/Carnivores1_GL.exe -Duration 10
-        Select-String -Path carnivor.log -Pattern "No memory leaks detected"
-        if ($LASTEXITCODE -ne 0) { throw "Memory leaks detected!" }
-
   comment-hygiene:
-    # Separate job so it runs once instead of once per preset. Catches the
-    # reference rot that creeps in when comments cite documents and paths.
-    # The doc tree lives in another repo, so the *.md check only runs when
-    # CARNIVORES_DOC_DIR points at a checkout.
+    # Separate job so it runs once instead of once per preset. CI checks rules
+    # that can be verified from this repository alone. External Markdown paths
+    # are additionally checked on developer machines that have the sibling
+    # CarnivoresDoc checkout or set CARNIVORES_DOC_DIR explicitly.
     runs-on: windows-latest
 
     steps:

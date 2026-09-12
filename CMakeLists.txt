@@ -23,6 +23,13 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 option(GL_PERF_HOOKS "Enable in-engine GL performance harness (Phase 0.1)" OFF)
 option(MEM_DEBUG "Enable game allocation tracking and leak reporting" OFF)
 
+# The deployed smoke test requires licensed game assets and a copied executable.
+# Keep it out of asset-free default CTest/CI runs and opt in on a developer
+# machine with -DENABLE_DEPLOYED_SMOKE_TEST=ON.
+option(ENABLE_DEPLOYED_SMOKE_TEST "Register the deployed game integration smoke test" OFF)
+set(CARNIVORES_LEGACY_DIR "" CACHE PATH
+    "Deployed C2 game directory used by the optional smoke test")
+
 # Renderer and game-only definitions are applied to the game target below;
 # keeping them target-scoped prevents the standalone menu from inheriting
 # _soft/_gl, GL_PERF_HOOKS, or MEM_DEBUG.
@@ -304,13 +311,23 @@ if(MSVC)
     target_link_libraries(Carnivores2UITests PRIVATE gtest_main gdi32)
     add_test(NAME Carnivores2Tests.UIText COMMAND Carnivores2UITests)
 
-    # SmokeTest only runs when a game executable is built (not menu-only)
-    if(TARGET Carnivores1)
+    # This integration test intentionally targets a deployed game directory
+    # containing licensed HUNTDAT assets. It is opt-in so asset-free CI runs
+    # only deterministic unit tests.
+    if(ENABLE_DEPLOYED_SMOKE_TEST AND TARGET Carnivores1)
         add_test(NAME SmokeTest
             COMMAND powershell -ExecutionPolicy Bypass -File
                 ${CMAKE_SOURCE_DIR}/tests/smoke_test.ps1
                 -Renderer ${RENDERER}
                 -Duration 5
         )
+        set_tests_properties(SmokeTest PROPERTIES
+            LABELS "integration;requires-game-assets"
+        )
+        if(CARNIVORES_LEGACY_DIR)
+            set_tests_properties(SmokeTest PROPERTIES
+                ENVIRONMENT "CARNIVORES_LEGACY_DIR=${CARNIVORES_LEGACY_DIR}"
+            )
+        endif()
     endif()
 endif()
