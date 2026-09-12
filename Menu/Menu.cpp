@@ -7,6 +7,7 @@
 */
 
 #include "Hunt.h"
+#include "ListMath.h"
 #include "SliderMath.h"
 #include "../Hunt/Core/ScoreMod.h"
 #include <cassert>
@@ -1651,9 +1652,8 @@ void DrawMenuHunt()
 
 	int32_t score = g_UserProfile.Score - g_ScoreDebit;
 
-	unsigned list_max = std::min(g_AreaInfo.size(), static_cast<size_t>(10));
-
-	for (unsigned ii = MenuHunt[0].Offset; ii < MenuHunt[0].Offset + list_max; ii++) {
+	for (unsigned ii = MenuHunt[0].Offset;
+		ii < HuntListVisibleEnd(MenuHunt[0].Offset, g_AreaInfo.size()); ii++) {
 		int i = ii - MenuHunt[0].Offset;
 		c = 0xB0B070;
 
@@ -1672,12 +1672,13 @@ void DrawMenuHunt()
 		DrawTextShadow(MenuHunt[0].Rect.right - 4, MenuHunt[0].Rect.top + (16 * i), sc.str(), c, DTA_RIGHT);
 	}
 
-	for (unsigned ii = MenuHunt[1].Offset; ii < MenuHunt[1].Offset + MenuHunt[1].Item.size(); ii++)
+	for (unsigned ii = MenuHunt[1].Offset;
+		ii < HuntListVisibleEnd(MenuHunt[1].Offset, MenuHunt[1].Item.size()); ii++)
 	{
 		int i = ii - MenuHunt[1].Offset;
 		uint32_t c = 0xB0B070;
 		try {
-			DinoInfo& di = g_DinoInfo.at(g_DinoList[i]);
+			DinoInfo& di = g_DinoInfo.at(g_DinoList[ii]);
 			std::string s = di.m_Name;
 			std::stringstream sc;
 
@@ -1696,7 +1697,7 @@ void DrawMenuHunt()
 				c = 0x707070;
 			}
 
-			if (MenuHunt[1].Item[i].second)
+			if (MenuHunt[1].Item[ii].second)
 			{
 				c = RGB(255, 255, 10);
 			}
@@ -1709,7 +1710,8 @@ void DrawMenuHunt()
 		}
 	}
 
-	for (unsigned ii = MenuHunt[2].Offset; ii < MenuHunt[2].Offset + MenuHunt[2].Item.size(); ii++)
+	for (unsigned ii = MenuHunt[2].Offset;
+		ii < HuntListVisibleEnd(MenuHunt[2].Offset, MenuHunt[2].Item.size()); ii++)
 	{
 		uint32_t c = 0xB0B070;
 		int i = ii - MenuHunt[2].Offset;
@@ -1731,7 +1733,8 @@ void DrawMenuHunt()
 		DrawTextShadow(MenuHunt[2].Rect.right - 4, MenuHunt[2].Rect.top + (16 * i), sc.str(), c, DTA_RIGHT);
 	}
 
-	for (unsigned ii = MenuHunt[3].Offset; ii < MenuHunt[3].Offset + MenuHunt[3].Item.size(); ii++)
+	for (unsigned ii = MenuHunt[3].Offset;
+		ii < HuntListVisibleEnd(MenuHunt[3].Offset, MenuHunt[3].Item.size()); ii++)
 	{
 		if (ii >= g_UtilInfo.size())
 			break;
@@ -2234,7 +2237,7 @@ void MenuEventInput(int32_t menu)
 			int32_t score = (g_UserProfile.Score - g_ScoreDebit) + scorea;
 			int yd = g_CursorPos.y - MenuHunt[0].Rect.top;
 
-			unsigned index = yd / 16;
+			unsigned index = HuntListDataIndex(yd / 16, MenuHunt[0].Offset);
 
 			if (index < g_AreaInfo.size())
 			{
@@ -2269,7 +2272,7 @@ void MenuEventInput(int32_t menu)
 			int yd = g_CursorPos.y - MenuHunt[1].Rect.top;
 
 			unsigned index = yd / 16;
-			unsigned dataIndex = index + MenuHunt[1].Offset; // Account for scroll offset
+			unsigned dataIndex = HuntListDataIndex(index, MenuHunt[1].Offset);
 
 			if (dataIndex < g_DinoList.size())
 			{
@@ -2303,7 +2306,7 @@ void MenuEventInput(int32_t menu)
 			int32_t score = g_UserProfile.Score - g_ScoreDebit;
 			int yd = g_CursorPos.y - MenuHunt[2].Rect.top;
 
-			unsigned index = yd / 16;
+			unsigned index = HuntListDataIndex(yd / 16, MenuHunt[2].Offset);
 
 			if (index < MenuHunt[2].Item.size())
 			{
@@ -2843,12 +2846,8 @@ void MenuMouseScrollEvent(int32_t menu, int32_t scroll)
 		{
 			if (IsPointInRect(g_CursorPos, MenuHunt[i].Rect) && MenuHunt[i].Item.size() > 10)
 			{
-				MenuHunt[i].Offset -= scroll;
-
-				if (MenuHunt[i].Offset < 0)
-					MenuHunt[i].Offset = 0;
-				else if (MenuHunt[i].Offset > MenuHunt[i].Item.size() - 10)
-					MenuHunt[i].Offset = MenuHunt[i].Item.size() - 10;
+				MenuHunt[i].Offset = static_cast<uint32_t>(ScrolledHuntListOffset(
+					MenuHunt[i].Offset, MenuHunt[i].Item.size(), scroll));
 			}
 		}
 	}

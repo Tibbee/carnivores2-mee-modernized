@@ -11,6 +11,10 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
 ## [Unreleased]
 
 ### Fixed
+- Keep scrolled hunt lists aligned with mouse selection. Dinosaur rows were
+  always drawn from the start of the list while clicks included the scroll
+  offset, so selecting a visible late-roster creature could show or toggle a
+  different creature. Mouse-wheel offsets now clamp without unsigned wrap.
 - Accept modded `_RES.TXT` name/file lines that v1.1.8 rejected. The script
   parser matched keys by searching the whole line for "file" or "name" and
   stripped the quotes in place, so a path containing "name"

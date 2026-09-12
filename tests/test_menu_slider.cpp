@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "ListMath.h"
 #include "SliderMath.h"
 
 namespace {
@@ -27,4 +28,21 @@ TEST(MenuSliderTest, ObjectDetailMaximumHasUsableHitArea)
                                       kDetailMin, kDetailMax, kDetailStep),
                   kDetailMax);
     }
+}
+
+TEST(MenuListTest, VisibleRowsUseScrolledDataIndices)
+{
+    EXPECT_EQ(HuntListDataIndex(0, 12), 12u);
+    EXPECT_EQ(HuntListDataIndex(9, 12), 21u);
+    EXPECT_EQ(HuntListVisibleEnd(12, 69), 22u);
+    EXPECT_EQ(HuntListVisibleEnd(64, 69), 69u);
+}
+
+TEST(MenuListTest, ScrollingClampsWithoutUnsignedWraparound)
+{
+    EXPECT_EQ(ScrolledHuntListOffset(0, 69, 1), 0u);
+    EXPECT_EQ(ScrolledHuntListOffset(0, 69, -1), 1u);
+    EXPECT_EQ(ScrolledHuntListOffset(59, 69, -1), 59u);
+    EXPECT_EQ(ScrolledHuntListOffset(59, 69, 1), 58u);
+    EXPECT_EQ(ScrolledHuntListOffset(0, 10, -1), 0u);
 }
