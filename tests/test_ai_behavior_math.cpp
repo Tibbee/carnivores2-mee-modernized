@@ -29,3 +29,18 @@ TEST(AIBehaviorMathTest, GunshotNoiseUsesTheLegacyGameplayCeiling)
     EXPECT_FLOAT_EQ(GunshotNoiseRangeWorld(196, shotgunLoudness), legacyShotgunRange);
     EXPECT_FLOAT_EQ(GunshotNoiseRangeWorld(230, shotgunLoudness), legacyShotgunRange);
 }
+
+TEST(AIBehaviorMathTest, NormalAwarenessRespectsAggressionRange)
+{
+    EXPECT_FALSE(OutsideNormalAggressionRange(99.0f, 100.0f, false));
+    EXPECT_TRUE(OutsideNormalAggressionRange(101.0f, 100.0f, false));
+    EXPECT_TRUE(OutsideNormalAggressionRangeSquared(101.0f * 101.0f,
+                                                    100.0f, false));
+}
+
+TEST(AIBehaviorMathTest, RecentDamageBypassesNormalAggressionRange)
+{
+    EXPECT_FALSE(OutsideNormalAggressionRange(1000.0f, 100.0f, true));
+    EXPECT_FALSE(OutsideNormalAggressionRangeSquared(1000.0f * 1000.0f,
+                                                     100.0f, true));
+}

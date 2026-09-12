@@ -76,6 +76,22 @@ inline float GunshotNoiseRangeWorld(int renderViewRadiusCells, float weaponLoudn
         * 200.0f * weaponLoudness;
 }
 
+// Recent direct damage is a stronger stimulus than passive detection. Species
+// fear and awareness rules are still evaluated after this range check.
+inline bool OutsideNormalAggressionRange(float distance, float aggressionRange,
+                                         bool recentlyDamaged)
+{
+    return !recentlyDamaged && distance > aggressionRange;
+}
+
+inline bool OutsideNormalAggressionRangeSquared(float distanceSquared,
+                                                float aggressionRange,
+                                                bool recentlyDamaged)
+{
+    return !recentlyDamaged
+        && distanceSquared > aggressionRange * aggressionRange;
+}
+
 // ===================== Object Detail (LOD) =====================
 
 inline constexpr int kObjectDetailMin = 24;

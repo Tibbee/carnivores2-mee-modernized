@@ -88,7 +88,8 @@ TBEGIN:
 
 		bool fleeMode = false;
 		if (g_GameMode != GameMode::SurvivalMode) {
-			if (pdistSq > aDist * aDist ||
+			const bool recentlyDamaged = cptr->BloodTTime > 0;
+			if (OutsideNormalAggressionRangeSquared(pdistSq, aDist, recentlyDamaged) ||
 				DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
 			}

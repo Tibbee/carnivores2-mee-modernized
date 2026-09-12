@@ -71,8 +71,10 @@ TBEGIN:
 		if (cptr->gliding) aDist *= 2;
 
 		if (g_GameMode != GameMode::SurvivalMode) {
-			if (pdist > aDist || ((PlayerY - cptr->pos.y > pdist) && cptr->gliding) ||
-				DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
+			const bool recentlyDamaged = cptr->BloodTTime > 0;
+			if (OutsideNormalAggressionRange(pdist, aDist, recentlyDamaged)
+				|| ((PlayerY - cptr->pos.y > pdist) && cptr->gliding)
+				|| DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
 			}
 			else if (DinoInfo[cptr->CType].defensive && cptr->Health == DinoInfo[cptr->CType].Health0) fleeMode = true;
