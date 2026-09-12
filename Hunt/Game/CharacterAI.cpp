@@ -52,6 +52,43 @@ void MakeNoise(Vector3d pos, float range)
 	}
 }
 
+void ReactToHunterCall(Vector3d pos, int callIndex)
+{
+	if (callIndex < 0 || callIndex >= 64) return;
+
+	for (int c = 0; c < ChCount; c++)
+	{
+		TCharacter* cptr = &Characters[c];
+		if (!cptr->Health) continue;
+		if (!DinoInfo[cptr->CType].fearCall[callIndex]) continue;
+		if (cptr->Clone == AI_DIMOR || cptr->Clone == AI_PTERA
+			|| cptr->Clone == AI_BRACH) continue;
+
+		const float distance = VectorLength(SubVectors(cptr->pos, pos));
+		const float hearingRange = GameplayViewRadiusCells(ctViewR) * 400.0f
+			* (DinoInfo[cptr->CType].HearK * 2.0f);
+		if (distance > hearingRange) continue;
+
+		// A call can refresh its own flee response, but it must not replace
+		// exact sight, scent, or direct-hit information.
+		if (cptr->awareHunter
+			&& cptr->hunterAwareness != HunterAwarenessState::FleeingFromCall)
+			continue;
+
+		Vector3d away = SubVectors(cptr->pos, pos);
+		away.y = 0.0f;
+		NormVector(away, 2048.0f);
+		cptr->tgx = cptr->pos.x + away.x;
+		cptr->tgz = cptr->pos.z + away.z;
+		cptr->tgtime = 0;
+		cptr->State = 2;
+		cptr->AfraidTime = (10 + rRand(5)) * 1024;
+		cptr->NoFindCnt = 0;
+		cptr->awareHunter = true;
+		cptr->hunterAwareness = HunterAwarenessState::FleeingFromCall;
+	}
+}
+
 
 void CheckAfraid()
 {

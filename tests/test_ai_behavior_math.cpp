@@ -72,6 +72,8 @@ TEST(AIBehaviorMathTest, AwarenessStatesDistinguishFixedReactions)
         HunterAwarenessState::FleeingFromShot));
     EXPECT_TRUE(IsFixedHunterFleeState(
         HunterAwarenessState::FleeingFromHit));
+    EXPECT_TRUE(IsFixedHunterFleeState(
+        HunterAwarenessState::FleeingFromCall));
     EXPECT_FALSE(IsTimedHunterReactionState(
         HunterAwarenessState::TrackingHunter));
     EXPECT_FALSE(IsTimedHunterReactionState(HunterAwarenessState::None));

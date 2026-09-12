@@ -104,6 +104,7 @@ void PlaceTrophy();
 void AnimateCharacters();
 void AnimateMHunters(); //multiplayer
 void MakeNoise(Vector3d, float);
+void ReactToHunterCall(Vector3d, int);
 void CheckAfraid();
 void CreateChMorphedModel(TCharacter* cptr);
 void CreateMorphedObject(TModel* mptr, TVTL &vtl, int FTime);

@@ -12,6 +12,7 @@ enum class HunterAwarenessState : std::uint8_t
     FleeingFromShot,
     RetaliatingHit,
     FleeingFromHit,
+    FleeingFromCall,
     TrackingHunter
 };
 
@@ -38,7 +39,8 @@ inline bool IsFixedHunterPursuitState(HunterAwarenessState state)
 inline bool IsFixedHunterFleeState(HunterAwarenessState state)
 {
     return state == HunterAwarenessState::FleeingFromShot
-        || state == HunterAwarenessState::FleeingFromHit;
+        || state == HunterAwarenessState::FleeingFromHit
+        || state == HunterAwarenessState::FleeingFromCall;
 }
 
 inline bool IsTimedHunterReactionState(HunterAwarenessState state)

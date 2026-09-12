@@ -622,6 +622,8 @@ void MakeCall()
   sendHunterCall = TargetCall - 10;
   sendHunterCallType = NextCall;
 
+  ReactToHunterCall(PlayerPos, TargetCall - 10);
+
   // NOTE: float-first arithmetic is load-bearing here. (512*256)^2 overflows
   // int32 (it is exactly 4*2^32 and wraps to 0), which made dSq<dminSq false
   // for every dino and silently disabled all call answers (issue #1).
@@ -639,14 +641,6 @@ void MakeCall()
 	float hearRange = (GameplayViewRadiusCells(ctViewR) * 400.0f)
 		* (DinoInfo[cptr->CType].HearK * 2);
 	bool canHear = dSq < hearRange * hearRange;
-
-	if (DinoInfo[cptr->CType].fearCall[TargetCall-10] && canHear
-		&& DinoInfo[cptr->CType].Clone != AI_DIMOR && DinoInfo[cptr->CType].Clone != AI_PTERA
-		&& DinoInfo[cptr->CType].Clone != AI_BRACH
-		) { //ai that cannot flee, state always 0
-		cptr->State = 2;
-		cptr->AfraidTime = (10 + rRand(5)) * 1024;
-	}
 
 	/*
     if (DinoInfo[AI_to_CIndex[TargetCall] ].DangerCall)
