@@ -29,10 +29,11 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
   file missing, too long, or malformed". Keys are now matched by assignment
   name, the value is read without editing the line, and spaces or `//`
   comments after the closing quote are ignored, matching
-  `reference/res-txt-format.md`. The halt message now names the offending
-  line.
-- Raise the `_RES.TXT` text fields from 48 to 96 bytes (`SCRIPT_TEXT_MAX` in
-  `Hunt/Core/GameTypes.h`). Mods ship model paths past the old field width
+  `reference/res-txt-format.md`. The game and standalone menu now share these
+  parsing rules, and the game halt message names the offending line.
+- Raise `_RES.TXT` asset-path fields from 48 to 96 bytes (`SCRIPT_PATH_MAX` in
+  `Hunt/Core/GameTypes.h`) while keeping display names at their legacy size.
+  Mods ship model paths past the old field width
   (`models/maphuntables/mauvev/_ostafrikosaurusNIGHTM.car` is 53 characters);
   v1.1.7 overflowed into the next struct member and v1.1.8 halted on the
   line. The `TDinoInfo`/`TWeapInfo` layout assertions and the

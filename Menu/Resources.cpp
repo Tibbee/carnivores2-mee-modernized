@@ -19,6 +19,7 @@
 #include <set>
 #include <vector>
 #include "Core/ConfigText.h"
+#include "Loaders/LoadValidate.h"
 
 
 class script_error : public std::exception
@@ -48,6 +49,15 @@ public:
 
 
 uint32_t g_ScriptLine = 0;
+
+static std::string ReadAssignedText(const char* value, const char* where)
+{
+	const char* text = nullptr;
+	size_t length = 0;
+	if (!FindQuotedValue(value, &text, &length))
+		throw script_error("Expected a quoted text value.", where, g_ScriptLine);
+	return std::string(text, length);
+}
 
 
 void ReadWeapons(FILE*);
@@ -243,23 +253,14 @@ void ReadWeapons(FILE* stream)
 				if (strstr(line, "price"))	wi.m_Price = atoi(value);
 				if (strstr(line, "rank"))	wi.m_Rank = atoi(value);
 
-				if (strstr(line, "name")) {
-					value = strstr(line, "'"); if (!value) throw std::runtime_error("Script loading error");
-					value[strlen(value) - 2] = 0;
-					wi.m_Name = &value[1];
-				}
+				if (ScriptKeyIs(line, "name"))
+					wi.m_Name = ReadAssignedText(value, "ReadWeapons()");
 
-				if (strstr(line, "file")) {
-					value = strstr(line, "'"); if (!value) throw std::runtime_error("Script loading error");
-					value[strlen(value) - 2] = 0;
-					wi.m_FilePath = &value[1];
-				}
+				if (ScriptKeyIs(line, "file"))
+					wi.m_FilePath = ReadAssignedText(value, "ReadWeapons()");
 
-				if (strstr(line, "pic")) {
-					value = strstr(line, "'"); if (!value) throw std::runtime_error("Script loading error");
-					value[strlen(value) - 2] = 0;
-					wi.m_BulletFilePath = &value[1];
-				}
+				if (ScriptKeyIs(line, "pic1"))
+					wi.m_BulletFilePath = ReadAssignedText(value, "ReadWeapons()");
 			}
 
 			spp << "huntdat/menu/pics/weapon" << (g_WeapInfo.size() + 1) << ".tga";
@@ -339,29 +340,14 @@ void ReadCharacters(FILE* stream)
 				if (strstr(line, "scaleA")) di.m_ScaleA = atoi(value);
 				if (strstr(line, "danger")) di.m_DangerCall = true;
 
-				if (strstr(line, "name"))
-				{
-					value = strstr(line, "'");
-					if (!value) throw std::runtime_error("Script loading error");
-					value[strlen(value) - 2] = 0;
-					di.m_Name = &value[1];
-				}
+				if (ScriptKeyIs(line, "name"))
+					di.m_Name = ReadAssignedText(value, "ReadCharacters()");
 
-				if (strstr(line, "file"))
-				{
-					value = strstr(line, "'");
-					if (!value) throw std::runtime_error("Script loading error");
-					value[strlen(value) - 2] = 0;
-					di.m_FilePath = &value[1];
-				}
+				if (ScriptKeyIs(line, "file"))
+					di.m_FilePath = ReadAssignedText(value, "ReadCharacters()");
 
-				if (strstr(line, "pic"))
-				{
-					value = strstr(line, "'");
-					if (!value) throw std::runtime_error("Script loading error");
-					value[strlen(value) - 2] = 0;
-					di.m_PicturePath = &value[1];
-				}
+				if (ScriptKeyIs(line, "pic"))
+					di.m_PicturePath = ReadAssignedText(value, "ReadCharacters()");
 			}
 
 			// Only add huntable dinosaurs (AI >= 10) to the menu list
@@ -411,29 +397,14 @@ void ReadAreas(FILE* stream)
 				if (strstr(line, "price")) area.m_Price = atoi(value);
 				if (strstr(line, "rank"))  area.m_Rank = atoi(value);
 
-				if (strstr(line, "name"))
-				{
-					value = strstr(line, "'");
-					if (!value) throw std::runtime_error("Script loading error");
-					value[strlen(value) - 2] = 0;
-					area.m_Name = &value[1];
-				}
+				if (ScriptKeyIs(line, "name"))
+					area.m_Name = ReadAssignedText(value, "ReadAreas()");
 
-				if (strstr(line, "pname"))
-				{
-					value = strstr(line, "'"); if (!value) throw std::runtime_error("Script loading error");
-					value[strlen(value) - 2] = 0;
-					area.m_ProjectName = &value[1];
-				}
+				if (ScriptKeyIs(line, "pname"))
+					area.m_ProjectName = ReadAssignedText(value, "ReadAreas()");
 
-				if (strstr(line, "thumbnail"))
-				{
-					value = strstr(line, "'");
-					if (!value) throw std::runtime_error("Script loading error");
-					value[strlen(value) - 2] = 0;
-					///TODO: Load TPicture
-					//strcpy(area.Thumbnail, &value[1]);
-				}
+				if (ScriptKeyIs(line, "thumbnail"))
+					(void)ReadAssignedText(value, "ReadAreas()"); // TODO: Load TPicture
 			}
 
 			g_AreaInfo.push_back(area);

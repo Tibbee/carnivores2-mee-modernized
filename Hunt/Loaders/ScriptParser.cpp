@@ -6,7 +6,7 @@
 #include "LoadValidate.h"
 
 // _RES.TXT string safety. Name/file fields are fixed char arrays
-// (WeapInfo/DinoInfo [SCRIPT_TEXT_MAX], GameTypes.h); an overlong modded
+// (WeapInfo/DinoInfo fixed arrays, GameTypes.h); an overlong modded
 // value previously overflowed via strcpy, and value[strlen(value)-2] indexed
 // before the buffer when the quoted value was shorter than ''. Halt loudly
 // instead. The offending line goes into the message as well: the field name
