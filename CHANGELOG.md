@@ -11,6 +11,13 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
 ## [Unreleased]
 
 ### Fixed
+- Decouple creature perception from graphical view distance. Ordinary hearing,
+  sight, aggression, flying, aquatic, and hunting-dog sensing retain the
+  legacy 72-cell gameplay ceiling while rendering can extend farther.
+- Replace live-position knowledge from distant shots with finite awareness
+  states. Creatures investigate or flee from the shot position, retaliate or
+  flee from a direct hit for 60 seconds, and acquire the hunter's current
+  position only through independent detection.
 - Make species that fear hunter calls flee from the call-time position instead
   of continuously tracking the hunter. Call reactions now expire normally and
   cannot replace stronger awareness from sight, scent, or direct damage.
