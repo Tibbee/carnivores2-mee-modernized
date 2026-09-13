@@ -386,6 +386,9 @@ void GLRenderer::RenderModelsList()
         GL_PERF_CPU_SCOPE("Models_Prepare");
         for (const Vector2di& object : m_objectList) {
             RenderMappedObject(object.x, object.y);
+            if (m_objectQueueMarks.size() == static_cast<size_t>(ctMapSize * ctMapSize)) {
+                m_objectQueueMarks[static_cast<size_t>(object.y) * ctMapSize + object.x] = 0;
+            }
         }
         m_objectList.clear();
     }
@@ -910,9 +913,19 @@ void GLRenderer::RenderObject(int x, int y)
     if (OMap[y][x] == 255 || !MODELS) {
         return;
     }
-    // Safety cap.  Each cell is visited at most once per frame by the
-    // 1x1 ring walk in CollectTerrainTile's caller.  Dense custom maps
-    // at max view distance may still push beyond 8K unique objects --
+
+    const size_t mapCellCount = static_cast<size_t>(ctMapSize) * ctMapSize;
+    if (m_objectQueueMarks.size() != mapCellCount) {
+        m_objectQueueMarks.assign(mapCellCount, 0);
+    }
+    const size_t mapIndex = static_cast<size_t>(y) * ctMapSize + x;
+    if (m_objectQueueMarks[mapIndex]) {
+        return;
+    }
+
+    // Safety cap. The map-cell marker keeps the terrain and oversized-object
+    // collectors from queuing a placement twice. Dense custom maps at max
+    // view distance may still push beyond 8K unique objects --
     // 32K is a generous upper bound (~256 KB in m_objectList, ~6 MB in
     // m_instanceData).
     if (m_objectList.size() >= 32768) {
@@ -925,6 +938,7 @@ void GLRenderer::RenderObject(int x, int y)
         return;
     }
 
+    m_objectQueueMarks[mapIndex] = 1;
     m_objectList.push_back({x, y});
 }
 
@@ -2164,6 +2178,7 @@ void GLRenderer::ShutdownModelPipeline()
     m_worldModelItems.clear();
     m_transparentModelItems.clear();
     m_objectList.clear();
+    m_objectQueueMarks.clear();
 }
 
 bool GLRenderer::InitializeModelPipeline()

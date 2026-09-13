@@ -798,6 +798,7 @@ void ReleaseCharacterInfo(TCharacterInfo &chinfo)
 
   chinfo.AniCount = 0;
   chinfo.SfxCount = 0;
+  chinfo.AnimationBoundRadius = 0.0f;
 }
 
 void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
@@ -867,6 +868,7 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
   //ApplyAlphaFlags(chinfo.mptr->lpTexture, 256*256);
   //ApplyAlphaFlags(chinfo.mptr->lpTexture2, 128*128);
 //============= read animations =============//
+  double maxAnimationRadiusSq = 0.0;
   for (int a=0; a<chinfo.AniCount; a++)
   {
     ReadModelExact(hfile, chinfo.Animation[a].aniName, 32, "animation name");
@@ -896,7 +898,24 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
     if (fileFrames == 1)
       memcpy(reinterpret_cast<BYTE*>(chinfo.Animation[a].aniData.get()) + fileAniBytes,
              chinfo.Animation[a].aniData.get(), fileAniBytes);
+
+    // Character morphing converts CAR coordinates to world units by dividing
+    // by eight and then applying the instance scale. Cache the largest source
+    // radius across every frame so frustum culling cannot discard a long model
+    // merely because its origin has moved off-screen.
+    const short int* coordinates = chinfo.Animation[a].aniData.get();
+    const size_t coordinateCount = fileAniBytes / sizeof(short int);
+    for (size_t coordinate = 0; coordinate + 2 < coordinateCount; coordinate += 3)
+    {
+      const double x = coordinates[coordinate + 0];
+      const double y = coordinates[coordinate + 1];
+      const double z = coordinates[coordinate + 2];
+      maxAnimationRadiusSq = (std::max)(maxAnimationRadiusSq,
+                                        x * x + y * y + z * z);
+    }
   }
+  chinfo.AnimationBoundRadius =
+      static_cast<float>(sqrt(maxAnimationRadiusSq) / 8.0);
 
 //============= read sound fx ==============//
   BYTE tmp[32];

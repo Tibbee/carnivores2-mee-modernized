@@ -20,6 +20,10 @@ struct TCharacterInfo
 {
   char ModelName[32];
   int AniCount,SfxCount;
+  // Conservative origin-centred sphere enclosing every animation frame at
+  // scale 1.0. The OpenGL renderer uses this instead of gameplay collision
+  // Radius when deciding whether part of a large character can enter the view.
+  float AnimationBoundRadius = 0.0f;
   // Phase 5B.2: mptr is now unique_obj_ptr<TModel>. The model is
   // freed (via ~TModel + _HeapFree) automatically when the
   // TCharacterInfo is destroyed or when mptr is reset. TModel now
@@ -731,7 +735,7 @@ static_assert(sizeof(TPackType)      == 532,  "TPackType size changed — pack t
 static_assert(sizeof(TPackMember)    == 8,    "TPackMember size changed — pack member");
 static_assert(sizeof(TPackMember2)   == 8,    "TPackMember2 size changed — pack member 2");
 #ifndef _DEBUG
-static_assert(sizeof(TWeapon)        == 88248,"TWeapon size changed — weapon instance (large arrays)");
+static_assert(sizeof(TWeapon)        == 88328,"TWeapon size changed — weapon instance (large arrays)");
 #endif
 static_assert(sizeof(TElement)       == 32,   "TElement size changed — world element");
 static_assert(sizeof(TSnowType)      == 28,   "TSnowType size changed — snow type");

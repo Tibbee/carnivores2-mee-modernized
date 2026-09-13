@@ -35,6 +35,44 @@ using PFNWGLCREATECONTEXTATTRIBSARBPROC = HGLRC (WINAPI *)(HDC, HGLRC, const int
 
 GLRenderer* g_GLRenderer = nullptr;
 
+float GLRenderer::CharacterCullRadius(const TCharacter& character) const
+{
+    const float gameplayRadius = DinoInfo[character.CType].Radius;
+    if (!character.pinfo) {
+        return gameplayRadius;
+    }
+
+    float animationRadius = character.pinfo->AnimationBoundRadius *
+                            std::fabs(character.scale);
+    // CharacterMorph's aquatic bend mixes Y/Z with a non-orthogonal matrix;
+    // its maximum possible expansion is sqrt(2). Normal character rotations
+    // preserve the cached animation sphere exactly.
+    if (character.bdepth != 0.0f) {
+        animationRadius *= 1.41421356237f;
+    }
+    return (std::max)(gameplayRadius, animationRadius);
+}
+
+bool GLRenderer::SphereOutsideView(const Vector3d& viewPosition, float radius) const
+{
+    if (viewPosition.z > BackViewR + radius) {
+        return true;
+    }
+
+    // Match BuildLegacyProjection rather than assuming a fixed 90-degree
+    // frustum. In particular, widescreen makes FOVK < 1 and exposes much more
+    // of the horizontal sides. For plane k*x + z = BackViewR, a sphere needs
+    // radius*length(k,1) padding in the unnormalised plane equation.
+    const float horizontalK = FOVK;
+    const float verticalK = VideoCY > 0 ? CameraH / static_cast<float>(VideoCY) : 1.0f;
+    const float horizontalLimit = -viewPosition.z + BackViewR +
+        radius * std::sqrt(horizontalK * horizontalK + 1.0f);
+    const float verticalLimit = -viewPosition.z + BackViewR +
+        radius * std::sqrt(verticalK * verticalK + 1.0f);
+    return std::fabs(viewPosition.x) * horizontalK > horizontalLimit ||
+           std::fabs(viewPosition.y) * verticalK > verticalLimit;
+}
+
 GLRenderer::GLRenderer() = default;
 
 GLRenderer::~GLRenderer()
@@ -555,32 +593,23 @@ void GLRenderer::Render3DHardwarePosts()
         cptr->rpos.y = cptr->pos.y - CameraY;
         cptr->rpos.z = cptr->pos.z - CameraZ;
 
-        float r = static_cast<float>((std::max)(fabs(cptr->rpos.x), fabs(cptr->rpos.z)));
-        int ri = -1 + static_cast<int>(r / 256.0f + 0.5f);
-        if (ri < 0) ri = 0;
-        if (ri > ctViewR) continue;
+        const float distanceSq = VectorLengthSq(cptr->rpos);
+        // Reject distant centres before the more expensive morph. Side-plane
+        // visibility below is extent-aware; distance fading intentionally
+        // remains based on the character's authored origin.
+        const float extendedViewR = ctViewR * 256.0f + 765.0f;
+        if (distanceSq > extendedViewR * extendedViewR) continue;
 
         cptr->rpos = RotateVector(cptr->rpos);
-
-        float br = BackViewR + DinoInfo[cptr->CType].Radius;
-        if (cptr->rpos.z > br) continue;
-        if (fabs(cptr->rpos.x) > -cptr->rpos.z + br) continue;
-        if (fabs(cptr->rpos.y) > -cptr->rpos.z + br) continue;
+        if (SphereOutsideView(cptr->rpos, CharacterCullRadius(*cptr))) continue;
 
         // Morph the character model
         CreateChMorphedModel(cptr);
 
-        float zs = sqrtf(cptr->rpos.x * cptr->rpos.x +
-                         cptr->rpos.y * cptr->rpos.y +
-                         cptr->rpos.z * cptr->rpos.z);
-        // Step 4: Extend culling distance to allow fade-out to complete
-        const float extendedViewR = ctViewR * 256.0f + 765.0f;
-        if (zs > extendedViewR) continue;
-
         // Use CalcTerrainAlpha for smoothstep model fade
         const float modelFadeStart = static_cast<float>((ctViewR - 8) << 8);
         const float modelFadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
-        m_modelDistanceAlpha = CalcTerrainAlpha(zs * zs, modelFadeStart,
+        m_modelDistanceAlpha = CalcTerrainAlpha(distanceSq, modelFadeStart,
                                                 modelFadeStart * modelFadeStart,
                                                 modelFadeEnd, m_isUnderwater);
         GlassL = 0;  // Legacy compatibility
@@ -610,31 +639,19 @@ void GLRenderer::Render3DHardwarePosts()
             cptr->rpos.y = cptr->pos.y - CameraY;
             cptr->rpos.z = cptr->pos.z - CameraZ;
 
-            float r = static_cast<float>((std::max)(fabs(cptr->rpos.x), fabs(cptr->rpos.z)));
-            int ri = -1 + static_cast<int>(r / 256.0f + 0.5f);
-            if (ri < 0) ri = 0;
-            if (ri > ctViewR) continue;
+            const float distanceSq = VectorLengthSq(cptr->rpos);
+            const float extendedViewR = ctViewR * 256.0f + 765.0f;
+            if (distanceSq > extendedViewR * extendedViewR) continue;
 
             cptr->rpos = RotateVector(cptr->rpos);
-
-            float br = BackViewR + DinoInfo[cptr->CType].Radius;
-            if (cptr->rpos.z > br) continue;
-            if (fabs(cptr->rpos.x) > -cptr->rpos.z + br) continue;
-            if (fabs(cptr->rpos.y) > -cptr->rpos.z + br) continue;
+            if (SphereOutsideView(cptr->rpos, CharacterCullRadius(*cptr))) continue;
 
             CreateChMorphedModel(cptr);
-
-            float zs = sqrtf(cptr->rpos.x * cptr->rpos.x +
-                             cptr->rpos.y * cptr->rpos.y +
-                             cptr->rpos.z * cptr->rpos.z);
-            // Step 4: Extend culling distance to allow fade-out to complete
-            const float extendedViewR = ctViewR * 256.0f + 765.0f;
-            if (zs > extendedViewR) continue;
 
             // Use CalcTerrainAlpha for smoothstep model fade
             const float modelFadeStart = static_cast<float>((ctViewR - 8) << 8);
             const float modelFadeEnd = 256.0f * static_cast<float>(ctViewR - 4);
-            m_modelDistanceAlpha = CalcTerrainAlpha(zs * zs, modelFadeStart,
+            m_modelDistanceAlpha = CalcTerrainAlpha(distanceSq, modelFadeStart,
                                                     modelFadeStart * modelFadeStart,
                                                     modelFadeEnd, m_isUnderwater);
             GlassL = 0;  // Legacy compatibility

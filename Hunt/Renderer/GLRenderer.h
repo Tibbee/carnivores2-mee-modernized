@@ -91,6 +91,9 @@ public:
     void RenderElements();
 
 private:
+    float CharacterCullRadius(const TCharacter& character) const;
+    bool SphereOutsideView(const Vector3d& viewPosition, float radius) const;
+
     // Packed terrain vertex (Phase 1.5). 32 bytes total (was 48).
     //   offset  0: vec3  aPos                    (12 bytes)  -- attribute 0, float
     //   offset 12: vec2  aTexCoord                ( 8 bytes)  -- attribute 1, float
@@ -331,6 +334,8 @@ private:
     // CollectTerrainTile calls when the block crosses a map/view-grid edge.
     void CollectTerrainChunk2x2(int x, int y,
                                 float fadeStart, float fadeStartSq, float fadeEnd);
+    void RebuildOversizedObjectPlacements();
+    void CollectOversizedMapObjects();
     // Phase 2: shared per-tile cull + emit (back-plane / 4-corner frustum /
     // distance / alpha-cull / texture emit / RenderObject).  The 4 EPoint
     // corners must already have .Fog finalised; fog colours and alphas must
@@ -531,6 +536,18 @@ private:
     std::vector<ModelDrawItem> m_worldModelItems;
     std::vector<const ModelDrawItem*> m_transparentModelItems;
     std::vector<Vector2di> m_objectList;
+    std::vector<uint8_t> m_objectQueueMarks;
+    // Terrain collection visits only a frustum-bounded set of origin cells.
+    // Keep unusually large/tall placements in coarse spatial blocks so
+    // geometry extending into the view cannot disappear merely because its
+    // origin cell was not part of that terrain sweep.
+    static constexpr int kOversizedObjectBlockShift = 5; // 32x32 map cells
+    static constexpr int kOversizedObjectBlockSize = 1 << kOversizedObjectBlockShift;
+    static constexpr int kOversizedObjectBlockDim =
+        (ctMapSize + kOversizedObjectBlockSize - 1) / kOversizedObjectBlockSize;
+    std::array<std::vector<Vector2di>,
+               kOversizedObjectBlockDim * kOversizedObjectBlockDim> m_oversizedObjectBlocks;
+    bool m_oversizedObjectPlacementsValid = false;
 
     static const int kTerrainMipLevels = 4;
     static const int kMaxTerrainTextureLayers = 1024;
@@ -699,7 +716,7 @@ private:
     int  m_dirtyRectCount = 0;
     int  m_prevDirtyRectCount = 0;
     bool m_hudNeedsFullUpload = true;  // set after texture (re)creation
-    bool m_hudNeedsFullClear  = false; // set after CopyHARDToDIB screenshot
+    bool m_hudNeedsFullClear  = false; // set after any full-DIB overwrite
 
 public:
     float GetSunLight() const { return m_sunLight; }

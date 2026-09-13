@@ -477,6 +477,13 @@ void GLRenderer::ClearLevelTextureCache()
     // reused when EnsureStaticMeshCapacity regrows the buffers.
     m_staticMeshCache.clear();
 
+    // OMap and MObjects are per-level. Rebuild the supplementary placement
+    // list lazily after the next level has finished loading them.
+    for (auto& block : m_oversizedObjectBlocks) {
+        block.clear();
+    }
+    m_oversizedObjectPlacementsValid = false;
+
     m_skyTextureDirty = true;
 }
 
@@ -874,6 +881,108 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
     }
 }
 
+void GLRenderer::RebuildOversizedObjectPlacements()
+{
+    for (auto& block : m_oversizedObjectBlocks) {
+        block.clear();
+    }
+
+    // RenderGround's row-range margin is three map cells. Placements whose
+    // horizontal or vertical extent exceeds it can reach into the viewport
+    // while their origin terrain cell remains outside the optimized sweep.
+    constexpr float kTerrainSweepMargin = 3.0f * 256.0f;
+    size_t placementCount = 0;
+    for (int y = 0; y < ctMapSize; ++y) {
+        for (int x = 0; x < ctMapSize; ++x) {
+            const int objectIndex = OMap[y][x];
+            if (objectIndex == 255 || !MObjects[objectIndex].model) {
+                continue;
+            }
+
+            const TObjInfo& info = MObjects[objectIndex].info;
+            const float verticalExtent = (std::max)(
+                std::fabs(static_cast<float>(info.YLo)),
+                std::fabs(static_cast<float>(info.YHi)));
+            if ((std::max)(info.BoundR, verticalExtent) > kTerrainSweepMargin) {
+                const int bx = x >> kOversizedObjectBlockShift;
+                const int by = y >> kOversizedObjectBlockShift;
+                m_oversizedObjectBlocks[by * kOversizedObjectBlockDim + bx].push_back({x, y});
+                ++placementCount;
+            }
+        }
+    }
+
+    m_oversizedObjectPlacementsValid = true;
+    LOG_INFO("Oversized map-object placements: %zu", placementCount);
+}
+
+void GLRenderer::CollectOversizedMapObjects()
+{
+    if (!MODELS) {
+        return;
+    }
+    if (!m_oversizedObjectPlacementsValid) {
+        RebuildOversizedObjectPlacements();
+    }
+
+    const float viewDistance = static_cast<float>(ctViewR * 256);
+    const float viewDistanceSq = viewDistance * viewDistance;
+    const int minX = (std::max)(0, CCX - ctViewR);
+    const int maxX = (std::min)(ctMapSize - 1, CCX + ctViewR);
+    const int minY = (std::max)(0, CCY - ctViewR);
+    const int maxY = (std::min)(ctMapSize - 1, CCY + ctViewR);
+    const int minBlockX = minX >> kOversizedObjectBlockShift;
+    const int maxBlockX = maxX >> kOversizedObjectBlockShift;
+    const int minBlockY = minY >> kOversizedObjectBlockShift;
+    const int maxBlockY = maxY >> kOversizedObjectBlockShift;
+
+    for (int by = minBlockY; by <= maxBlockY; ++by) {
+        for (int bx = minBlockX; bx <= maxBlockX; ++bx) {
+            const auto& placements =
+                m_oversizedObjectBlocks[by * kOversizedObjectBlockDim + bx];
+            for (const Vector2di& placement : placements) {
+                // Blocks overlap the square around the view disk; reject their
+                // slack and preserve the existing centre-distance fade limit.
+                if (placement.x < minX || placement.x > maxX ||
+                    placement.y < minY || placement.y > maxY) {
+                    continue;
+                }
+                const size_t mapIndex = static_cast<size_t>(placement.y) * ctMapSize + placement.x;
+                if (m_objectQueueMarks.size() == static_cast<size_t>(ctMapSize * ctMapSize) &&
+                    m_objectQueueMarks[mapIndex]) {
+                    continue;
+                }
+
+                Vector3d viewPosition;
+                viewPosition.x = placement.x * 256.0f + 128.0f - CameraX;
+                viewPosition.y = static_cast<float>(HMapO[placement.y][placement.x]) * ctHScale - CameraY;
+                viewPosition.z = placement.y * 256.0f + 128.0f - CameraZ;
+                if (VectorLengthSq(viewPosition) > viewDistanceSq) {
+                    continue;
+                }
+
+                const int objectIndex = OMap[placement.y][placement.x];
+                if (objectIndex == 255 || !MObjects[objectIndex].model) {
+                    continue;
+                }
+                const TObjInfo& info = MObjects[objectIndex].info;
+                const float verticalExtent = (std::max)(
+                    std::fabs(static_cast<float>(info.YLo)),
+                    std::fabs(static_cast<float>(info.YHi)));
+                const float cullRadius = std::sqrt(info.BoundR * info.BoundR +
+                                                   verticalExtent * verticalExtent);
+                if (SphereOutsideView(RotateVector(viewPosition), cullRadius)) {
+                    continue;
+                }
+
+                // RenderObject's map-cell marker remains the authoritative
+                // duplicate guard if collection paths change in the future.
+                RenderObject(placement.x, placement.y);
+            }
+        }
+    }
+}
+
 void GLRenderer::RenderGround()
 {
 #ifdef GL_PERF_HOOKS
@@ -887,6 +996,11 @@ void GLRenderer::RenderGround()
 #endif
     m_worldModelItems.clear();
     m_transparentModelItems.clear();
+    for (const Vector2di& object : m_objectList) {
+        if (m_objectQueueMarks.size() == static_cast<size_t>(ctMapSize * ctMapSize)) {
+            m_objectQueueMarks[static_cast<size_t>(object.y) * ctMapSize + object.x] = 0;
+        }
+    }
     m_objectList.clear();
     }
 
@@ -1072,6 +1186,12 @@ void GLRenderer::RenderGround()
                 }
             }
         }
+
+        // Terrain rows are bounded using ordinary tile dimensions. A large
+        // cave roof, cliff, or tall custom model can remain visible after its
+        // origin cell falls outside that range. Queue those sparse placements
+        // independently so OpenGL's clipper receives the complete model.
+        CollectOversizedMapObjects();
     }
 
     {
