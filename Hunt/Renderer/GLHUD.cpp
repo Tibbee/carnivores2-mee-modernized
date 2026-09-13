@@ -381,9 +381,10 @@ void GLRenderer::MarkDirtyRect(int x, int y, int w, int h)
     if (y + h > WinH) h = WinH - y;
     if (w <= 0 || h <= 0) return;
 
-    // If we already need a full upload (overflow, texture recreated, etc.),
-    // don't bother accumulating rects.
-    if (m_hudNeedsFullUpload) return;
+    // Keep tracking even when this frame needs a full upload. The current HUD
+    // pixels still have to become "previous" rects so frame-start clearing can
+    // erase them after an overlay (notably the map) closes. Dropping these
+    // rects strands whatever the full upload copied in the GPU HUD texture.
 
     // Check if this rect is already covered by an existing rect
     for (int i = 0; i < m_dirtyRectCount; i++) {
@@ -409,9 +410,8 @@ void GLRenderer::MarkDirtyRect(int x, int y, int w, int h)
 
 void GLRenderer::InvalidateHUDOverlay()
 {
-    // Called after CopyHARDToDIB writes the full 3D scene into lpVideoBuf.
-    // The next frame must do a full-buffer clear + full upload to erase
-    // the non-HUD scene pixels from the overlay texture.
+    // Called after a full-DIB overwrite. The next frame must do a full-buffer
+    // clear + full upload to erase stale pixels from the HUD overlay texture.
     m_hudNeedsFullClear = true;
     m_dirtyRectCount = 0;
     m_prevDirtyRectCount = 0;

@@ -11,6 +11,10 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
 ## [Unreleased]
 
 ### Fixed
+- Erase transient map-circle pixels reliably after closing the area map. HUD
+  dirty regions are retained even when a full texture upload is pending, the
+  midpoint circle's inclusive final row and column are tracked, and loading
+  cleanup clears the full runtime height instead of only 768 rows.
 - Keep large scenery and animated characters visible while their origins are
   outside the viewport. Oversized map placements now use a coarse per-level
   spatial index and extent-aware frustum checks instead of depending entirely

@@ -248,7 +248,12 @@ void StartLoading()
 
 void EndLoading()
 {
-  FillMemory(lpVideoBuf, VideoPitchB*768, 0);
+  // The HUD DIB follows the selected runtime resolution. Clearing only the
+  // legacy 768 rows leaves uninitialized/stale pixels below that line at
+  // 1080p and higher, which the first full HUD-texture upload can preserve
+  // for the whole hunt.
+  if (lpVideoBuf && VideoPitchB > 0 && WinH > 0)
+    FillMemory(lpVideoBuf, VideoPitchB * WinH, 0);
   LoadWall.lpImage.reset();
 }
 
