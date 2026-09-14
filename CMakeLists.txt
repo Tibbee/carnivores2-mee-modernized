@@ -91,6 +91,7 @@ if(RENDERER)
             Hunt/Renderer/IRenderer.h
             Hunt/Renderer/GLRenderer.h
             Hunt/Renderer/GLRenderer.cpp
+            Hunt/Renderer/SkyFogProjection.h
             Hunt/Renderer/GLUtils.cpp
             Hunt/Renderer/GLFog.cpp
             Hunt/Renderer/GLNight.cpp
@@ -279,6 +280,7 @@ if(MSVC)
         tests/test_menu_slider.cpp
         tests/test_projectile_math.cpp
         tests/test_score_mod.cpp
+        tests/test_sky_fog_projection.cpp
         tests/test_terrain_fog.cpp
         tests/test_water_color.cpp
         tests/test_water_object_visibility.cpp

@@ -15,6 +15,10 @@ uniform vec2 uVideoCenter;
 uniform vec3 uQ;
 uniform vec3 uP;
 uniform vec3 uR;
+uniform vec3 uFogReferenceQ;
+uniform vec3 uFogReferenceP;
+uniform vec3 uFogReferenceR;
+uniform float uFogReferenceZoom;
 uniform float uSkyTime;
 uniform vec2 uSunScreenPos;   // sun/moon screen pos (top-origin)
 uniform float uSunVisibility; // = m_skyTraceK
@@ -36,12 +40,18 @@ void main() {
    float q = sign(sxQ) * max(abs(sxQ), 0.001);
    float skyU = (uP.x * sx + uP.y * sy + uP.z) / q;
    float skyV = (uR.x * sx + uR.y * sy + uR.z) / q;
-   float leftQ = uQ.x * (-uVideoCenter.x) + uQ.y * sy + uQ.z;
-   float rightQ = uQ.x * uVideoCenter.x + uQ.y * sy + uQ.z;
-   float leftU = (uP.x * (-uVideoCenter.x) + uP.y * sy + uP.z) / max(abs(leftQ), 0.001);
-   float leftV = (uR.x * (-uVideoCenter.x) + uR.y * sy + uR.z) / max(abs(leftQ), 0.001);
-   float rightU = (uP.x * uVideoCenter.x + uP.y * sy + uP.z) / max(abs(rightQ), 0.001);
-   float rightV = (uR.x * uVideoCenter.x + uR.y * sy + uR.z) / max(abs(rightQ), 0.001);
+   // The legacy sky-fog proxy measures the UV span across a whole scanline.
+   // It must use a non-optic reference projection: otherwise changing only
+   // magnification changes atmospheric density. Dividing sy maps this pixel
+   // to the equivalent reference-FOV ray; uQ/uP/uR above still map the
+   // zoomed sky texture.
+   float fogSy = sy / max(uFogReferenceZoom, 1.0);
+   float leftQ = uFogReferenceQ.x * (-uVideoCenter.x) + uFogReferenceQ.y * fogSy + uFogReferenceQ.z;
+   float rightQ = uFogReferenceQ.x * uVideoCenter.x + uFogReferenceQ.y * fogSy + uFogReferenceQ.z;
+   float leftU = (uFogReferenceP.x * (-uVideoCenter.x) + uFogReferenceP.y * fogSy + uFogReferenceP.z) / max(abs(leftQ), 0.001);
+   float leftV = (uFogReferenceR.x * (-uVideoCenter.x) + uFogReferenceR.y * fogSy + uFogReferenceR.z) / max(abs(leftQ), 0.001);
+   float rightU = (uFogReferenceP.x * uVideoCenter.x + uFogReferenceP.y * fogSy + uFogReferenceP.z) / max(abs(rightQ), 0.001);
+   float rightV = (uFogReferenceR.x * uVideoCenter.x + uFogReferenceR.y * fogSy + uFogReferenceR.z) / max(abs(rightQ), 0.001);
    float dx = rightU - leftU;
    float dy = rightV - leftV;
    float dt = sqrt(dx*dx + dy*dy) / 96.0 - 6.0;

@@ -5,6 +5,7 @@
 #include "Hunt.h"
 #include "GLRenderer.h"
 #include "Renderer/GLUtils.h"
+#include "Renderer/SkyFogProjection.h"
 
 #ifdef _gl
 
@@ -70,23 +71,24 @@ void GLRenderer::RenderSkyPlane()
     const float ddx = vbase.x * tx.x + vbase.y * tx.y + vbase.z * tx.z;
     const float ddy = vbase.x * ty.x + vbase.y * ty.y + vbase.z * ty.z;
 
-    const float qx = CameraH * nv.x;
-    const float qy = CameraW * nv.y;
-    const float qz = CameraW * CameraH * nv.z;
+    const auto buildSkyProjection = [&](float cameraW, float cameraH) {
+        return skyfog::BuildProjectionCoefficients(nv, tx, ty, p, ddx, ddy,
+                                                    cameraW, cameraH);
+    };
+    const skyfog::ProjectionCoefficients skyProjection =
+        buildSkyProjection(CameraW, CameraH);
 
-    float px = p * CameraH * tx.x;
-    float py = p * CameraW * tx.y;
-    float pz = p * CameraW * CameraH * tx.z;
-    float rx = p * CameraH * ty.x;
-    float ry = p * CameraW * ty.y;
-    float rz = p * CameraW * CameraH * ty.z;
-
-    px -= ddx * qx;
-    py -= ddx * qy;
-    pz -= ddx * qz;
-    rx -= ddy * qx;
-    ry -= ddy * qy;
-    rz -= ddy * qz;
+    // The inherited sky fog is based on the texture span across a scanline,
+    // not a world-space distance. Controls.cpp multiplies CameraW/H for an
+    // optic, so evaluate that metric with the player's non-optic FOV instead.
+    // The shader reprojects its row by this same factor to preserve fog for
+    // the same world-space ray while the texture itself remains zoomed.
+    const float opticZoom = (std::max)(
+        1.0f, IsBinocularView() ? BinocularPower : ActiveWorldZoom());
+    const skyfog::ProjectionCoefficients fogReferenceProjection =
+        opticZoom > 1.0f
+            ? buildSkyProjection(CameraW / opticZoom, CameraH / opticZoom)
+            : skyProjection;
 
     // The sky's distance-fog color is global, not the color of the
     // fixed fog volume the camera is currently inside. Local volumes are
@@ -115,9 +117,16 @@ void GLRenderer::RenderSkyPlane()
     // used by this shader; the sky's underwater look comes from the
     // 3dfx fog formula plus the uUnderwaterDepth uniform, plus scissor
     // clipping below the water surface horizon.
-    glUniform3f(m_locSkyQ, qx, qy, qz);
-    glUniform3f(m_locSkyP, px, py, pz);
-    glUniform3f(m_locSkyR, rx, ry, rz);
+    glUniform3f(m_locSkyQ, skyProjection.q.x, skyProjection.q.y, skyProjection.q.z);
+    glUniform3f(m_locSkyP, skyProjection.p.x, skyProjection.p.y, skyProjection.p.z);
+    glUniform3f(m_locSkyR, skyProjection.r.x, skyProjection.r.y, skyProjection.r.z);
+    glUniform3f(m_locSkyFogReferenceQ, fogReferenceProjection.q.x,
+                fogReferenceProjection.q.y, fogReferenceProjection.q.z);
+    glUniform3f(m_locSkyFogReferenceP, fogReferenceProjection.p.x,
+                fogReferenceProjection.p.y, fogReferenceProjection.p.z);
+    glUniform3f(m_locSkyFogReferenceR, fogReferenceProjection.r.x,
+                fogReferenceProjection.r.y, fogReferenceProjection.r.z);
+    glUniform1f(m_locSkyFogReferenceZoom, opticZoom);
     // Reverted: original (non-wind) sky scroll.  The gradient,
     // sun glow and pocket fog below are unchanged.
     glUniform1f(m_locSkyTime, static_cast<float>(SKYDTime) / 256.0f);

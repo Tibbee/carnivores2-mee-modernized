@@ -332,6 +332,10 @@ bool GLRenderer::Initialize()
     m_locSkyQ            = glGetUniformLocation(m_skyShader.GetProgramID(), "uQ");
     m_locSkyP            = glGetUniformLocation(m_skyShader.GetProgramID(), "uP");
     m_locSkyR            = glGetUniformLocation(m_skyShader.GetProgramID(), "uR");
+    m_locSkyFogReferenceQ = glGetUniformLocation(m_skyShader.GetProgramID(), "uFogReferenceQ");
+    m_locSkyFogReferenceP = glGetUniformLocation(m_skyShader.GetProgramID(), "uFogReferenceP");
+    m_locSkyFogReferenceR = glGetUniformLocation(m_skyShader.GetProgramID(), "uFogReferenceR");
+    m_locSkyFogReferenceZoom = glGetUniformLocation(m_skyShader.GetProgramID(), "uFogReferenceZoom");
     m_locSkyTime         = glGetUniformLocation(m_skyShader.GetProgramID(), "uSkyTime");
     m_locSkyFogBase      = glGetUniformLocation(m_skyShader.GetProgramID(), "uFogBase");
     m_locSkyUnderwaterDepth = glGetUniformLocation(m_skyShader.GetProgramID(), "uUnderwaterDepth");

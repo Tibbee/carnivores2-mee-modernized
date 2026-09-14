@@ -499,6 +499,10 @@ private:
     int m_locSkyQ = -1;                // sky shader: uQ
     int m_locSkyP = -1;                // sky shader: uP
     int m_locSkyR = -1;                // sky shader: uR
+    int m_locSkyFogReferenceQ = -1;    // sky shader: uFogReferenceQ
+    int m_locSkyFogReferenceP = -1;    // sky shader: uFogReferenceP
+    int m_locSkyFogReferenceR = -1;    // sky shader: uFogReferenceR
+    int m_locSkyFogReferenceZoom = -1; // sky shader: uFogReferenceZoom
     int m_locSkyTime = -1;             // sky shader: uSkyTime
     int m_locSkyFogBase = -1;          // sky shader: uFogBase
     int m_locSkyUnderwaterDepth = -1;  // sky shader: uUnderwaterDepth
