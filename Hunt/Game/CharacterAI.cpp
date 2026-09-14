@@ -11,6 +11,9 @@ void MakeNoise(Vector3d pos, float range)
 	for (int c = 0; c < ChCount; c++)
 	{
 		TCharacter *cptr = &Characters[c];
+		// StateF == 0xFF marks static exhibits and carried bodies. Their State
+		// is not an AI state and must never be rewritten by awareness events.
+		if (cptr->StateF == 0xFF) continue;
 		if (!cptr->Health) continue;
 		if ((DinoInfo[cptr->CType].Aquatic && cptr->Clone != AI_TREX)
 			|| cptr->Clone == AI_HUNTDOG) continue;
@@ -59,6 +62,7 @@ void ReactToHunterCall(Vector3d pos, int callIndex)
 	for (int c = 0; c < ChCount; c++)
 	{
 		TCharacter* cptr = &Characters[c];
+		if (cptr->StateF == 0xFF) continue;
 		if (!cptr->Health) continue;
 		if (!DinoInfo[cptr->CType].fearCall[callIndex]) continue;
 		if (cptr->Clone == AI_DIMOR || cptr->Clone == AI_PTERA
