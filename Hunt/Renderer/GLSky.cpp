@@ -303,7 +303,8 @@ void GLRenderer::RenderSkyPlane()
     // is still active, so the sun is also clipped to above the water line.
     if (SunModel && shouldDrawSky) {
         m_sunLight = 0.0f;
-        Vector3d sunDir = {-2048.0f, 4048.0f, -2048.0f};
+        // Match the legacy D3D/3DFX source for dawn, day, and night.
+        Vector3d sunDir = Sun3dPos;
         sunDir = RotateVector(sunDir);
         if (sunDir.z < -2024.0f) {
             RenderSun(sunDir.x, sunDir.y, sunDir.z);
@@ -591,8 +592,8 @@ void GLRenderer::RenderSun(float x, float y, float z)
 
     // Sun-size modulation with haze/elevation.  The disc appears
     // larger through haze and at low sun, smaller on a clear high sun.
-    // NOTE: x/y/z are already the rotated sun direction (the caller rotates
-    // {-2048,4048,-2048} before calling RenderSun), so use them directly --
+    // NOTE: x/y/z are already the rotated per-time-of-day sun direction
+    // (the caller rotates Sun3dPos before calling RenderSun), so use them directly --
     // do NOT re-rotate here (that would double-rotate).
     float horizonFog = (m_skyTraceK < 0.8f) ? (1.0f - m_skyTraceK) * 0.6f : 0.0f;
     float altitude = (std::max)(0.0f, -CameraY / ctHScale);

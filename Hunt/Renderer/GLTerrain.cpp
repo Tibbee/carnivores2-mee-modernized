@@ -392,7 +392,8 @@ void GLRenderer::RenderTerrain()
             if (m_isUnderwater || GetSunLight() < 0.1f) {
                 glUniform1f(uScatter, 0.0f);
             } else {
-                Vector3d sunDir = {-2048.0f, 4048.0f, -2048.0f};
+                // Keep fog forward-scatter aligned with the rendered celestial body.
+                Vector3d sunDir = Sun3dPos;
                 sunDir = RotateVector(sunDir);
                 const float len = std::sqrt(sunDir.x * sunDir.x + sunDir.y * sunDir.y + sunDir.z * sunDir.z);
                 if (len > 1e-3f && uSunDir >= 0 && uSunVis >= 0) {
