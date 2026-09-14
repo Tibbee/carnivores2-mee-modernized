@@ -22,12 +22,18 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
 - Keep large scenery and animated characters visible while their origins are
   outside the viewport. Oversized map placements now use a coarse per-level
   spatial index and extent-aware frustum checks instead of depending entirely
-  on terrain-origin collection. Character files cache a conservative sphere
-  across every animation frame; OpenGL culling uses that scaled model extent,
+  on terrain-origin collection. Scenery extents include base geometry and all
+  map-object animation frames rather than trusting understated RSC height
+  metadata. Character files cache a conservative sphere across every animation
+  frame; OpenGL culling uses that scaled model extent,
   the configured FOV, and the authored gameplay radius as a minimum. The
   original engine used only the authored radius (for example, stock
   Brontosaurus specifies 400 despite an approximately 1,414-unit animation
   extent), which made long animals disappear at screen edges.
+- Keep terrain edge rows visible while strafing and crossing the renderer's
+  snapped camera grid. The optimized OpenGL row sweep now uses the camera's
+  exact residual position and expands its frustum half-planes before rejecting
+  a row, while retaining the existing per-tile culls and distance fade.
 - Decouple creature perception from graphical view distance. Ordinary hearing,
   sight, aggression, flying, aquatic, and hunting-dog sensing retain the
   legacy 72-cell gameplay ceiling while rendering can extend farther.

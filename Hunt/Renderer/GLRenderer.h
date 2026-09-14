@@ -551,6 +551,14 @@ private:
         (ctMapSize + kOversizedObjectBlockSize - 1) / kOversizedObjectBlockSize;
     std::array<std::vector<Vector2di>,
                kOversizedObjectBlockDim * kOversizedObjectBlockDim> m_oversizedObjectBlocks;
+    struct MapObjectCullExtent {
+        float horizontal = 0.0f;
+        float vertical = 0.0f;
+    };
+    // One renderer-only extent per MObjects slot. Some shipped RSC metadata
+    // understates YLo/YHi, and animated scenery can exceed its base mesh, so
+    // supplementary culling must use geometry and animation coordinates too.
+    std::array<MapObjectCullExtent, 256> m_mapObjectCullExtents{};
     bool m_oversizedObjectPlacementsValid = false;
 
     static const int kTerrainMipLevels = 4;
