@@ -118,6 +118,11 @@ void CheckAfraid()
 	for (int c = 0; c < ChCount; c++)
 	{
 		TCharacter *cptr = &Characters[c];
+		// Trophy mounts use State as their persistent exhibit slot. The room
+		// normally runs in GameMode::Normal, so CheckAfraid still executes;
+		// allowing a mount through perception can rewrite slot 0 to AI state 2
+		// and disconnect the first plaque from TrophyRoom2.Body[0].
+		if (cptr->StateF == 0xFF) continue;
 		if (!cptr->Health) continue;
 		if (!AIInfo[cptr->Clone].sniffer) continue;
 		//if (cptr->AfraidTime || cptr->State == 1) continue;

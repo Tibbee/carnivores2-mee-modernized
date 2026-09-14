@@ -11,6 +11,10 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
 ## [Unreleased]
 
 ### Fixed
+- Keep the first trophy-room plaque linked to body slot zero. Static mounts
+  are now excluded from hunter-perception updates, which previously rewrote
+  the first mount's slot-valued state from 0 to AI state 2 before plaque
+  lookup and consequently prevented both its information panel and removal.
 - Erase transient map-circle pixels reliably after closing the area map. HUD
   dirty regions are retained even when a full texture upload is pending, the
   midpoint circle's inclusive final row and column are tracked, and loading
