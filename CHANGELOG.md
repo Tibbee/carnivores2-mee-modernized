@@ -68,6 +68,26 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
   v1.1.7 overflowed into the next struct member and v1.1.8 halted on the
   line. The `TDinoInfo`/`TWeapInfo` layout assertions and the
   `dispSighting`/parser buffers that print those fields are updated.
+- Stop the projected sky's cloud pattern from aliasing into a woven band near
+  the horizon. The sky texture now generates a mip chain when it is uploaded,
+  so the extreme minification at low view elevation resolves to the texture's
+  local average instead of sampling the base level.
+
+### Added
+- Configure the sky cloud mapping from `config.cfg`. `sky_mode` selects the
+  legacy camera-coupled pitch offset (`0`), a world-level projected plane
+  (`1`, default), or a direction-based stereographic dome (`2`);
+  `sky_horizon_drop` (degrees, default 12) lowers the plane's compression
+  singularity below the true horizon the way the C1 offset did, and
+  `sky_dome_scale` (texels per radian at the horizon, default 384) sizes the
+  dome canopy. Values are parsed strictly (whole token, inclusive range); an
+  invalid entry keeps the default instead of silently selecting a valid mode.
+
+### Changed
+- The sky cloud plane is now level with the world instead of following camera
+  pitch, so cloud rows no longer lean while turning. Fog, pocket fog, and sun
+  glow are identical in every mode; `sky_mode 0` restores the previous
+  altitude-derived offset.
 
 ## [v1.1.8-modernized]
 
