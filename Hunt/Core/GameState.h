@@ -473,6 +473,39 @@ GLOBAL int OptDayNight, OptAgres, OptDens, OptSens, OptRes, OptViewR,
           OptMsSens, OptBrightness, OptSound, OptRender, OptObjectDetail,
           OptText, OptSys, WaitKey, OPT_ALPHA_COLORKEY;
 
+// ── Sky cloud-texture placement (config.cfg "sky_mode") ─────────────────
+// Selects how the legacy sky texture is mapped, so the C1-look variants can
+// be compared in-game without rebuilding. Default is the world-level
+// projected plane (set in InitEngine()).
+//   0 = legacy camera-coupled pitch offset (C2 dynamic 0.10..0.20 rad)
+//   1 = world-level projected plane (C1-look experiment, stashed default)
+//   2 = direction-based dome/cylinder sampling (shaders/sky.frag)
+enum SkyMappingMode : int {
+    kSkyModeLegacy = 0,
+    kSkyModeLevel  = 1,
+    kSkyModeDome   = 2,
+    kSkyModeCount  = 3,
+};
+GLOBAL int OptSkyMode;
+
+// Dome mode (sky_mode 2) canopy scale: texture texels per radian at the
+// horizon (the zenith is half that, so clouds are 2x larger overhead).
+// Tune via config.cfg "sky_dome_scale" without rebuilding.
+constexpr float kSkyDomeScaleDefault = 384.0f;
+constexpr float kSkyDomeScaleMin     = 32.0f;
+constexpr float kSkyDomeScaleMax     = 4096.0f;
+GLOBAL float OptSkyDomeScale;
+
+// Mode 1 (world-level plane) horizon drop, in degrees: lowers the plane's
+// compression singularity to a fixed elevation below the true horizon, the
+// way C1's fixed pitch offset did (~17 deg), but as a world-elevation shift
+// applied uniformly in azimuth -- so the cloud layer stays world-anchored
+// and never leans while turning.  0 disables the drop (plain level plane).
+constexpr float kSkyHorizonDropDefault = 12.0f;
+constexpr float kSkyHorizonDropMin     = 0.0f;
+constexpr float kSkyHorizonDropMax     = 30.0f;
+GLOBAL float OptSkyHorizonDrop;
+
 GLOBAL int  NightVisionKey;
 
 GLOBAL int  OptFov;

@@ -8,6 +8,7 @@
 #include <cerrno>
 #include <cstdlib>
 #include <fstream>
+#include "Core/ConfigParse.h"
 #include "Core/ConfigText.h"
 
 #ifdef _gl
@@ -464,6 +465,9 @@ void InitEngine()
   // default if the saved value is missing/out-of-range).
   OptFov = kFovDefault;
   g_gpuFeatures = kGpuFeaturesDefault;  // GPU-optimization kill-switch (see GameState.h)
+  OptSkyMode = kSkyModeLevel;           // sky cloud-texture placement (config.cfg sky_mode)
+  OptSkyDomeScale = kSkyDomeScaleDefault;
+  OptSkyHorizonDrop = kSkyHorizonDropDefault;
 
   OptViewR = kViewOptDefault;
   OptObjectDetail = kObjectDetailDefault;
@@ -773,6 +777,20 @@ static void CreateDefaultConfig()
     "# Display Mode video option.\r\n"
     "display_mode 2\r\n"
     "\r\n"
+    "# Sky cloud-texture placement: 0=legacy camera-coupled offset,\r\n"
+    "# 1=world-level projected plane (default), 2=direction-based dome.\r\n"
+    "sky_mode 1\r\n"
+    "\r\n"
+    "# sky_mode 1 horizon drop in degrees: lowers the projected plane's\r\n"
+    "# compression singularity below the true horizon (C1 used ~17 deg).\r\n"
+    "# 0 = plain level plane.\r\n"
+    "sky_horizon_drop 12\r\n"
+    "\r\n"
+    "# Dome (sky_mode 2) canopy scale: texture texels per radian at the\r\n"
+    "# horizon. Larger = smaller clouds (384: one 256-texel texture spans\r\n"
+    "# ~38 degrees; zenith clouds are 2x larger).\r\n"
+    "sky_dome_scale 384\r\n"
+    "\r\n"
     "# GPU features bitmask (default: all optimizations enabled)\r\n"
     "# Set to 0 to disable all GPU optimizations.\r\n"
     "gpufeatures %u\r\n"
@@ -800,6 +818,16 @@ static void CreateDefaultConfig()
     kObjectDetailDefault,
     kGpuFeaturesDefault
   );
+
+  // A truncated template would cut a key mid-line and silently drop the
+  // tail settings, so refuse to write and remove the placeholder file
+  // (otherwise the next launch sees a file and never retries).
+  if (len2 < 0 || static_cast<size_t>(len2) >= sizeof(buf)) {
+    PrintLog("Config: default template exceeds the write buffer; config.cfg not written.\n");
+    CloseHandle(hfile);
+    DeleteFileA(writePath);
+    return;
+  }
 
   DWORD written = 0;
   WriteFile(hfile, buf, (DWORD)len2, &written, nullptr);
@@ -904,6 +932,45 @@ static void LoadConfig()
           char msg[64];
           sprintf_s(msg, sizeof(msg), "Config: glperf_logging = %d\n", g_glperfLoggingEnabled ? 1 : 0);
           PrintLog(msg);
+        }
+      }
+      else if (_stricmp(key, "sky_horizon_drop") == 0) {
+        // Mode 1 horizon drop in degrees (see GameState.h).
+        float f = 0.0f;
+        if (ParseConfigFloat(keyval, kSkyHorizonDropMin, kSkyHorizonDropMax, f)) {
+          OptSkyHorizonDrop = f;
+          char msg[80];
+          sprintf_s(msg, sizeof(msg), "Config: sky_horizon_drop = %.1f deg\n", (double)f);
+          PrintLog(msg);
+        } else {
+          PrintLog("Config: sky_horizon_drop expects 0..30 degrees, ignoring.\n");
+        }
+      }
+      else if (_stricmp(key, "sky_dome_scale") == 0) {
+        // Dome canopy scale (sky_mode 2): texture texels per radian at the
+        // horizon. Float; see GameState.h for the valid range.
+        float f = 0.0f;
+        if (ParseConfigFloat(keyval, kSkyDomeScaleMin, kSkyDomeScaleMax, f)) {
+          OptSkyDomeScale = f;
+          char msg[80];
+          sprintf_s(msg, sizeof(msg), "Config: sky_dome_scale = %.1f\n", (double)f);
+          PrintLog(msg);
+        } else {
+          PrintLog("Config: sky_dome_scale expects 32..4096, ignoring.\n");
+        }
+      }
+      else if (_stricmp(key, "sky_mode") == 0) {
+        // Sky cloud-texture placement (see SkyMappingMode in GameState.h).
+        // 0=legacy offset, 1=world-level plane (default), 2=dome. Parsed
+        // strictly: "abc" must not silently mean 0 (legacy).
+        int mode = 0;
+        if (ParseConfigInt(keyval, kSkyModeLegacy, kSkyModeCount - 1, mode)) {
+          OptSkyMode = mode;
+          char msg[64];
+          sprintf_s(msg, sizeof(msg), "Config: sky_mode = %d\n", OptSkyMode);
+          PrintLog(msg);
+        } else {
+          PrintLog("Config: sky_mode must be 0 (legacy), 1 (level) or 2 (dome), ignoring.\n");
         }
       }
       else if (_stricmp(key, "resolution") == 0) {

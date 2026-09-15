@@ -38,21 +38,18 @@ float LegacySkyFogDt(const skyfog::ProjectionCoefficients& coefficients,
 
 skyfog::ProjectionCoefficients BuildProjection(float cameraW, float cameraH)
 {
-    // Camera yaw = pitch = 0 with the inherited -0.15-radian sky-plane
-    // offset. These values exercise non-zero q.z/r.z terms without requiring
-    // renderer globals or a GL context.
-    constexpr float kSinPitchOffset = 0.149438132f;
-    constexpr float kCosPitchOffset = 0.988771078f;
-    const Vector3d normal = {0.0f, -kCosPitchOffset, -kSinPitchOffset};
+    // Camera yaw = pitch = 0 with the world-level sky plane used by the GL
+    // renderer. This also exercises the true-horizon q == 0 case without
+    // requiring renderer globals or a GL context.
+    const Vector3d normal = {0.0f, -1.0f, 0.0f};
     const Vector3d tangentX = {0.004f, 0.0f, 0.0f};
-    const Vector3d tangentY = {0.0f, -0.004f * kSinPitchOffset,
-                                0.004f * kCosPitchOffset};
+    const Vector3d tangentY = {0.0f, 0.0f, 0.004f};
     constexpr float kPlaneP = -32768.0f;
     constexpr float kDdx = 0.0f;
-    const float ddy = 32768.0f * tangentY.y;
+    constexpr float kDdy = 0.0f;
 
     return skyfog::BuildProjectionCoefficients(normal, tangentX, tangentY,
-                                                kPlaneP, kDdx, ddy,
+                                                kPlaneP, kDdx, kDdy,
                                                 cameraW, cameraH);
 }
 

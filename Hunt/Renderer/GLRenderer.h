@@ -504,6 +504,12 @@ private:
     int m_locSkyFogReferenceR = -1;    // sky shader: uFogReferenceR
     int m_locSkyFogReferenceZoom = -1; // sky shader: uFogReferenceZoom
     int m_locSkyTime = -1;             // sky shader: uSkyTime
+    int m_locSkyVBias = -1;            // sky shader: uSkyVBias (cloud phase)
+    int m_locSkyMode = -1;             // sky shader: uSkyMode (0 legacy / 1 level / 2 dome)
+    int m_locSkyDomeScale = -1;        // sky shader: uSkyDomeScale (dome texels per radian)
+    int m_locSkyPlaneScale = -1;       // sky shader: uSkyPlaneScale (plane texel scale)
+    int m_locSkyPlaneDrop = -1;        // sky shader: uSkyPlaneDrop (horizon drop, sin)
+    int m_locSkyPlaneAnchor = -1;      // sky shader: uSkyPlaneAnchor (world phase, texels)
     int m_locSkyFogBase = -1;          // sky shader: uFogBase
     int m_locSkyUnderwaterDepth = -1;  // sky shader: uUnderwaterDepth
     int m_locSkyWaterLineY = -1;       // sky shader: uWaterLineY (screen Y from top)

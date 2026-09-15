@@ -32,16 +32,53 @@ void GLRenderer::RenderSkyPlane()
 
     SKYDTime = RealTime & ((1 << 16) - 1);
 
-    // Dynamic sky pitch offset.  Replace C2's fixed -0.15 rad offset
-    // with one that follows camera altitude: in deep valleys the sky sits
-    // "higher" (larger offset), on mountain peaks it sits lower (smaller
-    // offset).  Range 0.10..0.20 rad, centred on the original 0.15 default.
-    float heightAboveTerrain = (std::max)(0.0f, -CameraY);
-    float altitudeFactor = (std::clamp)(heightAboveTerrain / (200.0f * ctHScale), 0.0f, 1.0f);
-    float pitchOffset = 0.20f - altitudeFactor * 0.10f;
+    // Sky cloud-texture placement, selected by config.cfg "sky_mode" (see
+    // SkyMappingMode in GameState.h):
+    //   0 = legacy camera-coupled pitch offset (C2 dynamic 0.10..0.20 rad).
+    //       The offset is applied after yaw, so the plane's tilt direction
+    //       followed the camera and the cloud rows leaned by up to the full
+    //       offset while turning.
+    //   1 = world-level projected plane.  Level with the world (no
+    //       camera-coupled tilt); OptSkyHorizonDrop lowers the compression
+    //       singularity to a fixed elevation below the true horizon -- the
+    //       C1 offset's effect, but as a world-elevation shift applied in
+    //       the shader, so the canopy never leans while turning.  0 gives
+    //       the plain level plane.
+    //   2 = direction-based dome sampling in sky.frag (stereographic canopy,
+    //       scaled by OptSkyDomeScale).  The plane basis below still supplies
+    //       the legacy fog-proxy metric, so fog is identical in all modes.
+    // kSkyVBias is the cloud-phase knob (texels, 256 = one wrap): in modes
+    // 0/1 it selects which cloud band sits at the skyline.
+    constexpr float kSkyVBias = 0.0f;
 
-    const float skyPitchCos = std::cos(CameraBeta - pitchOffset);
-    const float skyPitchSin = std::sin(CameraBeta - pitchOffset);
+    const int skyMode = (OptSkyMode >= kSkyModeLegacy && OptSkyMode < kSkyModeCount)
+                            ? OptSkyMode
+                            : kSkyModeLevel;
+    const float domeScale = (OptSkyDomeScale >= kSkyDomeScaleMin &&
+                             OptSkyDomeScale <= kSkyDomeScaleMax)
+                                ? OptSkyDomeScale
+                                : kSkyDomeScaleDefault;
+    // Mode 1 horizon drop (config.cfg "sky_horizon_drop", degrees).
+    const float dropDeg = (OptSkyHorizonDrop >= kSkyHorizonDropMin &&
+                           OptSkyHorizonDrop <= kSkyHorizonDropMax)
+                              ? OptSkyHorizonDrop
+                              : kSkyHorizonDropDefault;
+    const float dropSin = std::sin(dropDeg * (3.14159265358979323846f / 180.0f));
+    // Legacy plane texture scale in texels: 0.004 texels per world unit at
+    // the inherited 4*512*16 plane height (131.072 texels per unit cot).
+    constexpr float kPlaneTexelScale = 0.004f * (4.0f * 512.0f * 16.0f);
+
+    // Legacy mode keeps the altitude-derived offset (valleys place the sky
+    // slightly higher, high terrain lower); the other modes use a plane
+    // level with the world.
+    float skyPitch = CameraBeta;
+    if (skyMode == kSkyModeLegacy) {
+        float heightAboveTerrain = (std::max)(0.0f, -CameraY);
+        float altitudeFactor = (std::clamp)(heightAboveTerrain / (200.0f * ctHScale), 0.0f, 1.0f);
+        skyPitch = CameraBeta - (0.20f - altitudeFactor * 0.10f);
+    }
+    const float skyPitchCos = std::cos(skyPitch);
+    const float skyPitchSin = std::sin(skyPitch);
 
     Vector3d tx = {0.004f, 0.0f, 0.0f};
     Vector3d ty = {0.0f, 0.0f, 0.004f};
@@ -51,7 +88,7 @@ void GLRenderer::RenderSkyPlane()
         // First rotate around Y axis (CameraAlpha)
         float x = v.x * localCa - v.z * localSa;
         float z = v.z * localCa + v.x * localSa;
-        // Then rotate around X axis (CameraBeta - 0.15)
+        // Then rotate around X axis (skyPitch)
         float y = v.y * skyPitchCos + z * skyPitchSin;
         float zz = z * skyPitchCos - v.y * skyPitchSin;
 
@@ -130,6 +167,15 @@ void GLRenderer::RenderSkyPlane()
     // Reverted: original (non-wind) sky scroll.  The gradient,
     // sun glow and pocket fog below are unchanged.
     glUniform1f(m_locSkyTime, static_cast<float>(SKYDTime) / 256.0f);
+    glUniform1f(m_locSkyVBias, kSkyVBias);
+    glUniform1i(m_locSkyMode, skyMode);
+    glUniform2f(m_locSkyDomeScale, domeScale, domeScale);
+    // World-level plane sampling constants (sky_mode 1).  The anchor keeps
+    // the canopy phased to world X/Z the way the legacy plane coefficients
+    // do (U = 0.004 * plane.x, V = -0.004 * plane.z).
+    glUniform1f(m_locSkyPlaneScale, kPlaneTexelScale);
+    glUniform1f(m_locSkyPlaneDrop, dropSin);
+    glUniform2f(m_locSkyPlaneAnchor, 0.004f * CameraX, -0.004f * CameraZ);
 
     // Sun glow on sky texture.  The sun's screen position (m_sunScrX/Y)
     // and visibility (m_skyTraceK) are members updated by RenderSun(), which
@@ -832,6 +878,12 @@ void GLRenderer::UploadSkyTexture()
 
     glBindTexture(GL_TEXTURE_2D, m_skyTexture);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 256, GL_RGBA, GL_UNSIGNED_BYTE, expanded.data());
+    // Regenerate mipmaps on every level's sky upload.  The projected-plane
+    // mapping minifies the texture by orders of magnitude toward the horizon;
+    // without mips the tiled cloud pattern aliases into the visible
+    // woven/moire band.  Mip filtering resolves that region to the texture's
+    // local average instead.
+    glGenerateMipmap(GL_TEXTURE_2D);
 }
 
 void GLRenderer::ShutdownSkyPipeline()
@@ -871,7 +923,7 @@ void GLRenderer::InitializeSkyPipeline()
     glBindTexture(GL_TEXTURE_2D, m_skyTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 256, 256, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     m_skyTextureDirty = true;
