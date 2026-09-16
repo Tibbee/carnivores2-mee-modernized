@@ -7,6 +7,19 @@
 // Forward declarations
 void PlaceHunter();
 
+static void ValidateWeaponAnimationReferences(int weaponIndex)
+{
+  const TCharacterInfo& character = Weapon.chinfo[weaponIndex];
+  if (AreWeaponAnimationReferencesValid(WeapInfo[weaponIndex], character.AniCount))
+    return;
+
+  char message[192];
+  sprintf_s(message, sizeof(message),
+            "Weapon %d animation index is outside its model animation count (%d).",
+            weaponIndex, character.AniCount);
+  DoHalt(message);
+}
+
 void LoadCharacters()
 {
   BOOL pres[DINOINFO_MAX];
@@ -53,6 +66,8 @@ void LoadCharacters()
         PrintLog(logt);
         PrintLog("\n");
       }
+
+      ValidateWeaponAnimationReferences(c);
 
 	  if (WeapInfo[c].bullet) {
 		  sprintf_s(logt, sizeof(logt), "HUNTDAT\\WEAPONS\\%s", WeapInfo[c].BLName);

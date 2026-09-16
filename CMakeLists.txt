@@ -199,6 +199,7 @@ set(CORE_FILES
     Hunt/Core/ConfigText.h
     Hunt/Core/Version.h
     Hunt/Core/CommandLineParse.h
+    Hunt/Loaders/ScriptValueParse.h
     Hunt/Renderer/RenderContext.h
     Hunt/Renderer/RenderContext.cpp
     Hunt/AppRes.h
@@ -273,6 +274,7 @@ if(MSVC)
         tests/test_command_line_parse.cpp
         tests/test_config_parse.cpp
         tests/test_config_text.cpp
+        tests/test_script_value_parse.cpp
         tests/test_game_mode.cpp
         tests/test_math.cpp
         tests/test_trophy_mode.cpp

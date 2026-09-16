@@ -3,7 +3,9 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "Core/CommandLineParse.h"
 #include "LoadValidate.h"
+#include "ScriptValueParse.h"
 
 // _RES.TXT string safety. Name/file fields are fixed char arrays
 // (WeapInfo/DinoInfo fixed arrays, GameTypes.h); an overlong modded
@@ -59,6 +61,64 @@ static void CopyProjectName(char* dst, const char* src)
   RewriteExternalProjectAlias(dst, 128);
 }
 
+static void ReadScriptCommandLineOptions(char projectName[128], int& timeOfDay,
+                                         int& dinSelect)
+{
+  projectName[0] = 0;
+  timeOfDay = 0;
+  dinSelect = 0;
+
+  for (int a = 0; a < __argc; a++)
+  {
+    const char* value = nullptr;
+    LPSTR argument = __argv[a];
+
+    if (CommandLineOptionValue(argument, "prj=", &value))
+    {
+      CopyProjectName(projectName, value);
+      continue;
+    }
+
+    if (CommandLineOptionValue(argument, "dtm=", &value))
+    {
+      int parsed = 0;
+      if (ParseCommandLineInt(value, parsed) && parsed >= 0 && parsed <= 2)
+        timeOfDay = parsed;
+      continue;
+    }
+
+    if (CommandLineOptionValue(argument, "din=", &value))
+    {
+      int parsed = 0;
+      if (ParseCommandLineInt(value, parsed) && parsed >= 0 && parsed <= 1023)
+        dinSelect = parsed * 1024;
+    }
+  }
+}
+
+static int ReadScriptIntField(const char* value, const char* line,
+                              const char* field)
+{
+  int parsed = 0;
+  if (!ParseScriptInt(value, parsed))
+    ScriptFieldFail(field, line);
+  return parsed;
+}
+
+static float ReadScriptFloatField(const char* value, const char* line,
+                                  const char* field)
+{
+  float parsed = 0.0f;
+  if (!ParseScriptFloat(value, parsed))
+    ScriptFieldFail(field, line);
+  return parsed;
+}
+
+static int ReadScriptInt(const char* value)
+{
+  return ReadScriptIntField(value, value, "script integer");
+}
+
 static void RequireScriptSlot(int index, int capacity, const char* what)
 {
   if (!IsValidIndex(index, capacity))
@@ -73,7 +133,7 @@ static void RequireScriptSlot(int index, int capacity, const char* what)
 
 static int ScriptIndex(const char* value, int capacity, const char* what)
 {
-  const int index = value ? atoi(value) : -1;
+  const int index = value ? ReadScriptInt(value) : -1;
   RequireScriptSlot(index, capacity, what);
   return index;
 }
@@ -173,20 +233,20 @@ void ReadTrophyTypeInfo(FILE *stream, int trophyGroup)
 		value++;
 
 
-		if (strstr(line, "tropPos")) trophyType[trophyTypeCount].trophyPos = atoi(value);
-		if (strstr(line, "alpha")) trophyType[trophyTypeCount].alpha = atoi(value);
-		if (strstr(line, "beta")) trophyType[trophyTypeCount].beta = atoi(value);
-		if (strstr(line, "gamma")) trophyType[trophyTypeCount].gamma = atoi(value);
-		if (strstr(line, "xoffset")) trophyType[trophyTypeCount].xoffset = atoi(value);
-		if (strstr(line, "yoffset")) trophyType[trophyTypeCount].yoffset = atoi(value);
-		if (strstr(line, "zoffset")) trophyType[trophyTypeCount].zoffset = atoi(value);
-		if (strstr(line, "xscale")) trophyType[trophyTypeCount].xoffsetScale = atoi(value);
-		if (strstr(line, "yscale")) trophyType[trophyTypeCount].yoffsetScale = atoi(value);
-		if (strstr(line, "zscale")) trophyType[trophyTypeCount].zoffsetScale = atoi(value);
-		if (strstr(line, "tropAnim")) trophyType[trophyTypeCount].anim = atoi(value);
-		if (strstr(line, "xdata")) trophyType[trophyTypeCount].xdata = atoi(value);
-		if (strstr(line, "ydata")) trophyType[trophyTypeCount].ydata = atoi(value);
-		if (strstr(line, "zdata")) trophyType[trophyTypeCount].zdata = atoi(value);
+		if (strstr(line, "tropPos")) trophyType[trophyTypeCount].trophyPos = ReadScriptIntField(value, line, "trophy tropPos");
+		if (strstr(line, "alpha")) trophyType[trophyTypeCount].alpha = ReadScriptIntField(value, line, "trophy alpha");
+		if (strstr(line, "beta")) trophyType[trophyTypeCount].beta = ReadScriptIntField(value, line, "trophy beta");
+		if (strstr(line, "gamma")) trophyType[trophyTypeCount].gamma = ReadScriptIntField(value, line, "trophy gamma");
+		if (strstr(line, "xoffset")) trophyType[trophyTypeCount].xoffset = ReadScriptIntField(value, line, "trophy xoffset");
+		if (strstr(line, "yoffset")) trophyType[trophyTypeCount].yoffset = ReadScriptIntField(value, line, "trophy yoffset");
+		if (strstr(line, "zoffset")) trophyType[trophyTypeCount].zoffset = ReadScriptIntField(value, line, "trophy zoffset");
+		if (strstr(line, "xscale")) trophyType[trophyTypeCount].xoffsetScale = ReadScriptIntField(value, line, "trophy xscale");
+		if (strstr(line, "yscale")) trophyType[trophyTypeCount].yoffsetScale = ReadScriptIntField(value, line, "trophy yscale");
+		if (strstr(line, "zscale")) trophyType[trophyTypeCount].zoffsetScale = ReadScriptIntField(value, line, "trophy zscale");
+		if (strstr(line, "tropAnim")) trophyType[trophyTypeCount].anim = ReadScriptIntField(value, line, "trophy tropAnim");
+		if (strstr(line, "xdata")) trophyType[trophyTypeCount].xdata = ReadScriptIntField(value, line, "trophy xdata");
+		if (strstr(line, "ydata")) trophyType[trophyTypeCount].ydata = ReadScriptIntField(value, line, "trophy ydata");
+		if (strstr(line, "zdata")) trophyType[trophyTypeCount].zdata = ReadScriptIntField(value, line, "trophy zdata");
 		if (strstr(line, "playAnim")) readBool(value, trophyType[trophyTypeCount].playAnim);
 
 
@@ -235,8 +295,8 @@ void ReadSpawnInfo(FILE *stream)
 		}
 		value++;
 
-		if (strstr(line, "spawnratio")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnRatio = static_cast<float>(atof(value));
-		if (strstr(line, "spawngroup")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnGroup = atoi(value);
+		if (strstr(line, "spawnratio")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnRatio = ReadScriptFloatField(value, line, "spawn ratio");
+		if (strstr(line, "spawngroup")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnGroup = ReadScriptIntField(value, line, "spawn group");
 		//if (strstr(line, "spawnmax")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnMax = atoi(value);
 	}
 }
@@ -275,8 +335,8 @@ void ReadSpawnInfoPack(FILE *stream)
 		}
 		value++;
 
-		if (strstr(line, "spawnratio")) packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnRatio = static_cast<float>(atof(value));
-		if (strstr(line, "spawngroup")) packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnGroup = atoi(value);
+		if (strstr(line, "spawnratio")) packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnRatio = ReadScriptFloatField(value, line, "pack spawn ratio");
+		if (strstr(line, "spawngroup")) packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnGroup = ReadScriptIntField(value, line, "pack spawn group");
 	}
 }
 
@@ -300,8 +360,8 @@ void ReadPackMember2(FILE *stream) {
 		}
 		value++;
 
-		if (strstr(line, "group")) DinoInfo[TotalC].packMember2[DinoInfo[TotalC].packMember2Ch].packGroup = atoi(value);
-		if (strstr(line, "ratio")) DinoInfo[TotalC].packMember2[DinoInfo[TotalC].packMember2Ch].ratio = static_cast<float>(atof(value));
+		if (strstr(line, "group")) DinoInfo[TotalC].packMember2[DinoInfo[TotalC].packMember2Ch].packGroup = ReadScriptIntField(value, line, "pack member group");
+		if (strstr(line, "ratio")) DinoInfo[TotalC].packMember2[DinoInfo[TotalC].packMember2Ch].ratio = ReadScriptFloatField(value, line, "pack member ratio");
 
 	}
 }
@@ -326,10 +386,10 @@ void ReadAvoid(FILE *stream)
 		}
 		value++;
 
-		if (strstr(line, "xmax")) spawnGroup[TotalSpawnGroup].avoidRegion[spawnGroup[TotalSpawnGroup].avoidRegionCh].XMax = atoi(value);
-		if (strstr(line, "xmin")) spawnGroup[TotalSpawnGroup].avoidRegion[spawnGroup[TotalSpawnGroup].avoidRegionCh].XMin = atoi(value);
-		if (strstr(line, "ymax")) spawnGroup[TotalSpawnGroup].avoidRegion[spawnGroup[TotalSpawnGroup].avoidRegionCh].YMax = atoi(value);
-		if (strstr(line, "ymin")) spawnGroup[TotalSpawnGroup].avoidRegion[spawnGroup[TotalSpawnGroup].avoidRegionCh].YMin = atoi(value);
+		if (strstr(line, "xmax")) spawnGroup[TotalSpawnGroup].avoidRegion[spawnGroup[TotalSpawnGroup].avoidRegionCh].XMax = ReadScriptIntField(value, line, "avoid xmax");
+		if (strstr(line, "xmin")) spawnGroup[TotalSpawnGroup].avoidRegion[spawnGroup[TotalSpawnGroup].avoidRegionCh].XMin = ReadScriptIntField(value, line, "avoid xmin");
+		if (strstr(line, "ymax")) spawnGroup[TotalSpawnGroup].avoidRegion[spawnGroup[TotalSpawnGroup].avoidRegionCh].YMax = ReadScriptIntField(value, line, "avoid ymax");
+		if (strstr(line, "ymin")) spawnGroup[TotalSpawnGroup].avoidRegion[spawnGroup[TotalSpawnGroup].avoidRegionCh].YMin = ReadScriptIntField(value, line, "avoid ymin");
 
 	}
 }
@@ -355,10 +415,10 @@ void ReadRegion(FILE *stream)
 		}
 		value++;
 
-		if (strstr(line, "xmax")) spawnGroup[TotalSpawnGroup].spawnRegion[spawnGroup[TotalSpawnGroup].spawnRegionCh].XMax = atoi(value);
-		if (strstr(line, "xmin")) spawnGroup[TotalSpawnGroup].spawnRegion[spawnGroup[TotalSpawnGroup].spawnRegionCh].XMin = atoi(value);
-		if (strstr(line, "ymax")) spawnGroup[TotalSpawnGroup].spawnRegion[spawnGroup[TotalSpawnGroup].spawnRegionCh].YMax = atoi(value);
-		if (strstr(line, "ymin")) spawnGroup[TotalSpawnGroup].spawnRegion[spawnGroup[TotalSpawnGroup].spawnRegionCh].YMin = atoi(value);
+		if (strstr(line, "xmax")) spawnGroup[TotalSpawnGroup].spawnRegion[spawnGroup[TotalSpawnGroup].spawnRegionCh].XMax = ReadScriptIntField(value, line, "region xmax");
+		if (strstr(line, "xmin")) spawnGroup[TotalSpawnGroup].spawnRegion[spawnGroup[TotalSpawnGroup].spawnRegionCh].XMin = ReadScriptIntField(value, line, "region xmin");
+		if (strstr(line, "ymax")) spawnGroup[TotalSpawnGroup].spawnRegion[spawnGroup[TotalSpawnGroup].spawnRegionCh].YMax = ReadScriptIntField(value, line, "region ymax");
+		if (strstr(line, "ymin")) spawnGroup[TotalSpawnGroup].spawnRegion[spawnGroup[TotalSpawnGroup].spawnRegionCh].YMin = ReadScriptIntField(value, line, "region ymin");
 
 	}
 }
@@ -417,11 +477,11 @@ void ReadSpawnTableLine(FILE *stream, char *_value, char line[256], bool &spawnO
 
 
 
-	if (strstr(line, "spawnrate")) spawnGroup[TotalSpawnGroup].SpawnRate = static_cast<float>(atof(value));
-	if (strstr(line, "spawnmax")) spawnGroup[TotalSpawnGroup].SpawnMax = atoi(value);
-	if (strstr(line, "spawnmin")) spawnGroup[TotalSpawnGroup].SpawnMin = atoi(value);
+	if (strstr(line, "spawnrate")) spawnGroup[TotalSpawnGroup].SpawnRate = ReadScriptFloatField(value, line, "spawn rate");
+	if (strstr(line, "spawnmax")) spawnGroup[TotalSpawnGroup].SpawnMax = ReadScriptIntField(value, line, "spawn max");
+	if (strstr(line, "spawnmin")) spawnGroup[TotalSpawnGroup].SpawnMin = ReadScriptIntField(value, line, "spawn min");
 
-	if (strstr(line, "densityMulti")) spawnGroup[TotalSpawnGroup].densityMulti = atoi(value);
+	if (strstr(line, "densityMulti")) spawnGroup[TotalSpawnGroup].densityMulti = ReadScriptIntField(value, line, "spawn density multiplier");
 	if (strstr(line, "moveForward")) readBool(value, spawnGroup[TotalSpawnGroup].moveForward);
 	if (strstr(line, "randomise")) readBool(value, spawnGroup[TotalSpawnGroup].Randomised);
 	if (strstr(line, "onlyActiveNearby")) readBool(value, spawnGroup[TotalSpawnGroup].OnlyActiveNearby);
@@ -436,18 +496,9 @@ void ReadSpawnGroup(FILE *stream, char line[256], int mode) {
 	RequireScriptSlot(TotalSpawnGroup, 256, "spawn groups");
 
 	//area
-	char tempProjectName[128];
-	int timeOfDay, dinSelect;
-	for (int a = 0; a < __argc; a++)
-	{
-		LPSTR s = __argv[a];
-		if (strstr(s, "prj="))
-		{
-			CopyProjectName(tempProjectName, (s + 4));
-		}
-		if (strstr(s, "dtm=")) timeOfDay = atoi(&s[4]);
-		if (strstr(s, "din=")) dinSelect = (atoi(&s[4]) * 1024);
-	}
+  char tempProjectName[128];
+  int timeOfDay, dinSelect;
+  ReadScriptCommandLineOptions(tempProjectName, timeOfDay, dinSelect);
 
 	//time
 	for (int a = 0; a < __argc; a++)
@@ -652,9 +703,9 @@ void ReadPackTableLine(FILE *stream, char *_value, char line[256], bool &spawnIO
 		ReadSpawnGroup(stream, line, 2);
 	}
 
-	if (strstr(line, "packMax")) packType[packTypeCount].packMax = atoi(value);
-	if (strstr(line, "packMin")) packType[packTypeCount].packMin = atoi(value);
-	if (strstr(line, "packDensity")) packType[packTypeCount].packDensity = static_cast<float>(atof(value));
+	if (strstr(line, "packMax")) packType[packTypeCount].packMax = ReadScriptIntField(value, line, "pack max");
+	if (strstr(line, "packMin")) packType[packTypeCount].packMin = ReadScriptIntField(value, line, "pack min");
+	if (strstr(line, "packDensity")) packType[packTypeCount].packDensity = ReadScriptFloatField(value, line, "pack density");
 	
 }
 
@@ -664,18 +715,9 @@ void ReadPackGroup(FILE *stream, char line[256], int mode) {
 	RequireScriptSlot(packTypeCount, 1024, "pack types");
 
 	//area
-	char tempProjectName[128];
-	int timeOfDay, dinSelect;
-	for (int a = 0; a < __argc; a++)
-	{
-		LPSTR s = __argv[a];
-		if (strstr(s, "prj="))
-		{
-			CopyProjectName(tempProjectName, (s + 4));
-		}
-		if (strstr(s, "dtm=")) timeOfDay = atoi(&s[4]);
-		if (strstr(s, "din=")) dinSelect = (atoi(&s[4]) * 1024);
-	}
+  char tempProjectName[128];
+  int timeOfDay, dinSelect;
+  ReadScriptCommandLineOptions(tempProjectName, timeOfDay, dinSelect);
 
 	//time
 	for (int a = 0; a < __argc; a++)
@@ -880,20 +922,20 @@ void ReadSnowType(FILE *stream)
 		}
 		value++;
 
-		if (strstr(line, "vSpd"))  SnowInfo[SnowCh].snow_vSpd = atoi(value);
-		if (strstr(line, "hSpd"))  SnowInfo[SnowCh].snow_hSpd = atoi(value);
+		if (strstr(line, "vSpd"))  SnowInfo[SnowCh].snow_vSpd = ReadScriptIntField(value, line, "snow vertical speed");
+		if (strstr(line, "hSpd"))  SnowInfo[SnowCh].snow_hSpd = ReadScriptIntField(value, line, "snow horizontal speed");
 		if (strstr(line, "dens")) {
-			const int density = atoi(value);
+			const int density = ReadScriptIntField(value, line, "snow density");
 			if (density < 0 || density > (1 << 20))
 				DoHalt("Script loading error: snow density out of range.");
 			SnowInfo[SnowCh].snow_dens = density;
 		}
 
-		if (strstr(line, "red"))  SnowInfo[SnowCh].snow_r = atoi(value);
-		if (strstr(line, "gre"))  SnowInfo[SnowCh].snow_g = atoi(value);
-		if (strstr(line, "blu"))  SnowInfo[SnowCh].snow_b = atoi(value);
-		if (strstr(line, "alp"))  SnowInfo[SnowCh].snow_a = atoi(value);
-		if (strstr(line, "rad"))  SnowInfo[SnowCh].snow_rad = atof(value);
+		if (strstr(line, "red"))  SnowInfo[SnowCh].snow_r = ReadScriptIntField(value, line, "snow red");
+		if (strstr(line, "gre"))  SnowInfo[SnowCh].snow_g = ReadScriptIntField(value, line, "snow green");
+		if (strstr(line, "blu"))  SnowInfo[SnowCh].snow_b = ReadScriptIntField(value, line, "snow blue");
+		if (strstr(line, "alp"))  SnowInfo[SnowCh].snow_a = ReadScriptIntField(value, line, "snow alpha");
+		if (strstr(line, "rad"))  SnowInfo[SnowCh].snow_rad = ReadScriptFloatField(value, line, "snow radius");
 
 	}
 }
@@ -960,13 +1002,13 @@ void ReadAreaTable (FILE *stream, int areaNumber)
 					if (strstr(line, "tree"))
 						TreeTable[ScriptIndex(value, 255, "tree table")] = true;
 
-					if (strstr(line, "survivalPlayerX")) SurvivalSpawnX = atoi(value);
-					if (strstr(line, "survivalPlayerY")) SurvivalSpawnZ = atoi(value);
-					if (strstr(line, "survivalPlayerA")) SurvivalSpawnA = atof(value);
-					if (strstr(line, "survivalDinoXMax")) SurvivalDinoSpawn.XMax = atoi(value);
-					if (strstr(line, "survivalDinoYMax")) SurvivalDinoSpawn.YMax = atoi(value);
-					if (strstr(line, "survivalDinoXMin")) SurvivalDinoSpawn.XMin = atoi(value);
-					if (strstr(line, "survivalDinoYMin")) SurvivalDinoSpawn.YMin = atoi(value);
+					if (strstr(line, "survivalPlayerX")) SurvivalSpawnX = ReadScriptIntField(value, line, "survival player X");
+					if (strstr(line, "survivalPlayerY")) SurvivalSpawnZ = ReadScriptIntField(value, line, "survival player Y");
+					if (strstr(line, "survivalPlayerA")) SurvivalSpawnA = ReadScriptFloatField(value, line, "survival player angle");
+					if (strstr(line, "survivalDinoXMax")) SurvivalDinoSpawn.XMax = ReadScriptIntField(value, line, "survival dino X max");
+					if (strstr(line, "survivalDinoYMax")) SurvivalDinoSpawn.YMax = ReadScriptIntField(value, line, "survival dino Y max");
+					if (strstr(line, "survivalDinoXMin")) SurvivalDinoSpawn.XMin = ReadScriptIntField(value, line, "survival dino X min");
+					if (strstr(line, "survivalDinoYMin")) SurvivalDinoSpawn.YMin = ReadScriptIntField(value, line, "survival dino Y min");
 
 				} else {
 					if (strstr(line, "snow")) SkipSector(stream);
@@ -983,25 +1025,25 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	RequireScriptSlot(TotalW, 10, "weapons");
 	char *value = _value;
 
-	if (strstr(line, "getAnim"))  WeapInfo[TotalW].getAnim = atoi(value);
-	if (strstr(line, "putAnim"))  WeapInfo[TotalW].putAnim = atoi(value);
-	if (strstr(line, "shtAnim"))  WeapInfo[TotalW].shtAnim = atoi(value);
-	if (strstr(line, "rldAnimFull"))  WeapInfo[TotalW].rldAnim = atoi(value);
-	if (strstr(line, "rldAnimPart"))  WeapInfo[TotalW].rldAnimPart = atoi(value);
-	if (strstr(line, "rckAnim"))  WeapInfo[TotalW].pmpAnim = atoi(value);
-	if (strstr(line, "modAnim"))  WeapInfo[TotalW].modAnim = atoi(value);
+	if (strstr(line, "getAnim"))  WeapInfo[TotalW].getAnim = ReadScriptIntField(value, line, "weapon getAnim");
+	if (strstr(line, "putAnim"))  WeapInfo[TotalW].putAnim = ReadScriptIntField(value, line, "weapon putAnim");
+	if (strstr(line, "shtAnim"))  WeapInfo[TotalW].shtAnim = ReadScriptIntField(value, line, "weapon shtAnim");
+	if (strstr(line, "rldAnimFull"))  WeapInfo[TotalW].rldAnim = ReadScriptIntField(value, line, "weapon rldAnimFull");
+	if (strstr(line, "rldAnimPart"))  WeapInfo[TotalW].rldAnimPart = ReadScriptIntField(value, line, "weapon rldAnimPart");
+	if (strstr(line, "rckAnim"))  WeapInfo[TotalW].pmpAnim = ReadScriptIntField(value, line, "weapon rckAnim");
+	if (strstr(line, "modAnim"))  WeapInfo[TotalW].modAnim = ReadScriptIntField(value, line, "weapon modAnim");
 
-	if (strstr(line, "emptyAnim")) WeapInfo[TotalW].emptyAnim = atoi(value);
-	if (strstr(line, "getEmpAnim")) WeapInfo[TotalW].getEmpAnim = atoi(value);
-	if (strstr(line, "putEmpAnim")) WeapInfo[TotalW].putEmpAnim = atoi(value);
+	if (strstr(line, "emptyAnim")) WeapInfo[TotalW].emptyAnim = ReadScriptIntField(value, line, "weapon emptyAnim");
+	if (strstr(line, "getEmpAnim")) WeapInfo[TotalW].getEmpAnim = ReadScriptIntField(value, line, "weapon getEmpAnim");
+	if (strstr(line, "putEmpAnim")) WeapInfo[TotalW].putEmpAnim = ReadScriptIntField(value, line, "weapon putEmpAnim");
 
-	if (strstr(line, "getAqSnd"))  WeapInfo[TotalW].getAqSnd = atoi(value);
-	if (strstr(line, "putAqSnd"))  WeapInfo[TotalW].putAqSnd = atoi(value);
-	if (strstr(line, "shtAqSnd"))  WeapInfo[TotalW].shtAqSnd = atoi(value);
-	if (strstr(line, "rldAqSndFull"))  WeapInfo[TotalW].rldAqSnd = atoi(value);
-	if (strstr(line, "rldAqSndPart"))  WeapInfo[TotalW].rldAqSndPart = atoi(value);
-	if (strstr(line, "rckAqSnd"))  WeapInfo[TotalW].pmpAqSnd = atoi(value);
-	if (strstr(line, "modAqSnd"))  WeapInfo[TotalW].modAqSnd = atoi(value);
+	if (strstr(line, "getAqSnd"))  WeapInfo[TotalW].getAqSnd = ReadScriptIntField(value, line, "weapon getAqSnd");
+	if (strstr(line, "putAqSnd"))  WeapInfo[TotalW].putAqSnd = ReadScriptIntField(value, line, "weapon putAqSnd");
+	if (strstr(line, "shtAqSnd"))  WeapInfo[TotalW].shtAqSnd = ReadScriptIntField(value, line, "weapon shtAqSnd");
+	if (strstr(line, "rldAqSndFull"))  WeapInfo[TotalW].rldAqSnd = ReadScriptIntField(value, line, "weapon rldAqSndFull");
+	if (strstr(line, "rldAqSndPart"))  WeapInfo[TotalW].rldAqSndPart = ReadScriptIntField(value, line, "weapon rldAqSndPart");
+	if (strstr(line, "rckAqSnd"))  WeapInfo[TotalW].pmpAqSnd = ReadScriptIntField(value, line, "weapon rckAqSnd");
+	if (strstr(line, "modAqSnd"))  WeapInfo[TotalW].modAqSnd = ReadScriptIntField(value, line, "weapon modAqSnd");
 
 	if (strstr(line, "mustRack")) readBool(value, WeapInfo[TotalW].mustPump);
 	if (strstr(line, "autoRack")) readBool(value, WeapInfo[TotalW].autoPump);
@@ -1014,22 +1056,22 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	if (strstr(line, "semiAuto")) readBool(value, WeapInfo[TotalW].semiauto);
 	if (strstr(line, "fullAuto")) readBool(value, WeapInfo[TotalW].fullauto);
 
-	if (strstr(line, "land_power"))  WeapInfo[TotalW].Power = static_cast<float>(atof(value));
-	if (strstr(line, "land_veloc"))  WeapInfo[TotalW].Veloc = static_cast<float>(atof(value));
-	if (strstr(line, "land_prec"))   WeapInfo[TotalW].Prec = static_cast<float>(atof(value));
-	if (strstr(line, "land_fall"))   WeapInfo[TotalW].Fall = static_cast<float>(atof(value));
+	if (strstr(line, "land_power"))  WeapInfo[TotalW].Power = ReadScriptFloatField(value, line, "weapon land_power");
+	if (strstr(line, "land_veloc"))  WeapInfo[TotalW].Veloc = ReadScriptFloatField(value, line, "weapon land_veloc");
+	if (strstr(line, "land_prec"))   WeapInfo[TotalW].Prec = ReadScriptFloatField(value, line, "weapon land_prec");
+	if (strstr(line, "land_fall"))   WeapInfo[TotalW].Fall = ReadScriptFloatField(value, line, "weapon land_fall");
 
-	if (strstr(line, "aqua_power"))  WeapInfo[TotalW].PowerAq = static_cast<float>(atof(value));
-	if (strstr(line, "aqua_veloc"))  WeapInfo[TotalW].VelocAq = static_cast<float>(atof(value));
-	if (strstr(line, "aqua_prec"))   WeapInfo[TotalW].PrecAq = static_cast<float>(atof(value));
-	if (strstr(line, "aqua_fall"))   WeapInfo[TotalW].FallAq = static_cast<float>(atof(value));
+	if (strstr(line, "aqua_power"))  WeapInfo[TotalW].PowerAq = ReadScriptFloatField(value, line, "weapon aqua_power");
+	if (strstr(line, "aqua_veloc"))  WeapInfo[TotalW].VelocAq = ReadScriptFloatField(value, line, "weapon aqua_veloc");
+	if (strstr(line, "aqua_prec"))   WeapInfo[TotalW].PrecAq = ReadScriptFloatField(value, line, "weapon aqua_prec");
+	if (strstr(line, "aqua_fall"))   WeapInfo[TotalW].FallAq = ReadScriptFloatField(value, line, "weapon aqua_fall");
 
-	if (strstr(line, "loud"))   WeapInfo[TotalW].Loud = static_cast<float>(atof(value));
-	if (strstr(line, "rate"))   WeapInfo[TotalW].Rate = static_cast<float>(atof(value));
-	if (strstr(line, "shots"))  WeapInfo[TotalW].Shots = atoi(value);
-	if (strstr(line, "reload")) WeapInfo[TotalW].Reload = atoi(value);
-	if (strstr(line, "trace"))  WeapInfo[TotalW].TraceC = atoi(value) - 1;
-	if (strstr(line, "optic"))  WeapInfo[TotalW].Optic = static_cast<float>(atof(value));
+	if (strstr(line, "loud"))   WeapInfo[TotalW].Loud = ReadScriptFloatField(value, line, "weapon loud");
+	if (strstr(line, "rate"))   WeapInfo[TotalW].Rate = ReadScriptFloatField(value, line, "weapon rate");
+	if (strstr(line, "shots"))  WeapInfo[TotalW].Shots = ReadScriptIntField(value, line, "weapon shots");
+	if (strstr(line, "reload")) WeapInfo[TotalW].Reload = ReadScriptIntField(value, line, "weapon reload");
+	if (strstr(line, "trace"))  WeapInfo[TotalW].TraceC = ReadScriptIntField(value, line, "weapon trace") - 1;
+	if (strstr(line, "optic"))  WeapInfo[TotalW].Optic = ReadScriptFloatField(value, line, "weapon optic");
 	//if (strstr(line, "price")) WeapInfo[TotalW].Price =        atoi(value);
 
 	if (strstr(line, "unzoom")) readBool(value, WeapInfo[TotalW].unzoom);
@@ -1038,22 +1080,22 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	if (strstr(line, "harpoon")) readBool(value, WeapInfo[TotalW].harpoon);
 
 	if (strstr(line, "cross")) readBool(value, WeapInfo[TotalW].cross);
-	if (strstr(line, "croR")) WeapInfo[TotalW].crossRed = atoi(value);
-	if (strstr(line, "croG")) WeapInfo[TotalW].crossGreen = atoi(value);
-	if (strstr(line, "croB")) WeapInfo[TotalW].crossBlue = atoi(value);
+	if (strstr(line, "croR")) WeapInfo[TotalW].crossRed = ReadScriptIntField(value, line, "weapon crosshair red");
+	if (strstr(line, "croG")) WeapInfo[TotalW].crossGreen = ReadScriptIntField(value, line, "weapon crosshair green");
+	if (strstr(line, "croB")) WeapInfo[TotalW].crossBlue = ReadScriptIntField(value, line, "weapon crosshair blue");
 
-	if (strstr(line, "shake"))   WeapInfo[TotalW].shake = static_cast<float>(atof(value));
+	if (strstr(line, "shake"))   WeapInfo[TotalW].shake = ReadScriptFloatField(value, line, "weapon shake");
 
 	if (strstr(line, "radar")) readBool(value, WeapInfo[TotalW].onRadar);
-	if (strstr(line, "radR")) WeapInfo[TotalW].radarRed = atoi(value);
-	if (strstr(line, "radG")) WeapInfo[TotalW].radarGreen = atoi(value);
-	if (strstr(line, "radB")) WeapInfo[TotalW].radarBlue = atoi(value);
-	if (strstr(line, "radTime"))  WeapInfo[TotalW].radarTime = atoi(value);
+	if (strstr(line, "radR")) WeapInfo[TotalW].radarRed = ReadScriptIntField(value, line, "weapon radar red");
+	if (strstr(line, "radG")) WeapInfo[TotalW].radarGreen = ReadScriptIntField(value, line, "weapon radar green");
+	if (strstr(line, "radB")) WeapInfo[TotalW].radarBlue = ReadScriptIntField(value, line, "weapon radar blue");
+	if (strstr(line, "radTime"))  WeapInfo[TotalW].radarTime = ReadScriptIntField(value, line, "weapon radar time");
 
 	if (strstr(line, "muzzflash")) readBool(value, WeapInfo[TotalW].MuzzFlash);
 	if (strstr(line, "chamflash")) readBool(value, WeapInfo[TotalW].ChamFlash);
 
-	if (strstr(line, "recoil"))  WeapInfo[TotalW].recoil = atoi(value);
+	if (strstr(line, "recoil"))  WeapInfo[TotalW].recoil = ReadScriptIntField(value, line, "weapon recoil");
 
 	if (strstr(line, "retrieve")) readBool(value, WeapInfo[TotalW].retrieve);
 
@@ -1100,18 +1142,9 @@ void ReadWeapons(FILE *stream)
 {
 
 	//area
-	char tempProjectName[128];
-	int timeOfDay, dinSelect;
-	for (int a = 0; a < __argc; a++)
-	{
-		LPSTR s = __argv[a];
-		if (strstr(s, "prj="))
-		{
-			CopyProjectName(tempProjectName, (s + 4));
-		}
-		if (strstr(s, "dtm=")) timeOfDay = atoi(&s[4]);
-		if (strstr(s, "din=")) dinSelect = (atoi(&s[4]) * 1024);
-	}
+  char tempProjectName[128];
+  int timeOfDay, dinSelect;
+  ReadScriptCommandLineOptions(tempProjectName, timeOfDay, dinSelect);
 
 	//time
 	for (int a = 0; a < __argc; a++)
@@ -1367,8 +1400,8 @@ void ReadIdleGroupInfo(FILE *stream)
 		}
 		value++;
 
-		if (strstr(line, "startChance")) DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].start = atof(value);
-		if (strstr(line, "endChance")) DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].end = atof(value);
+		if (strstr(line, "startChance")) DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].start = ReadScriptFloatField(value, line, "idle start chance");
+		if (strstr(line, "endChance")) DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].end = ReadScriptFloatField(value, line, "idle end chance");
 		if (strstr(line, "randomStarting")) readBool(value, DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].startOnAny);
 		if (strstr(line, "randomEnding")) readBool(value, DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].endOnAny);
 		if (strstr(line, "instantRepeat")) readBool(value, DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].instantRepeat);
@@ -1380,7 +1413,7 @@ void ReadIdleGroupInfo(FILE *stream)
 			//}
 			RequireScriptSlot(DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].count,
 			                  32, "idle-group animations");
-			DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].anim[DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].count] = atoi(value);
+			DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].anim[DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].count] = ReadScriptIntField(value, line, "idle-group animation");
 			DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].count++;
 		}
 
@@ -1407,8 +1440,8 @@ void ReadIdle2GroupInfo(FILE *stream)
 		}
 		value++;
 
-		if (strstr(line, "startChance")) DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].start = atof(value);
-		if (strstr(line, "endChance")) DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].end = atof(value);
+		if (strstr(line, "startChance")) DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].start = ReadScriptFloatField(value, line, "secondary idle start chance");
+		if (strstr(line, "endChance")) DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].end = ReadScriptFloatField(value, line, "secondary idle end chance");
 		if (strstr(line, "randomStarting")) readBool(value, DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].startOnAny);
 		if (strstr(line, "randomEnding")) readBool(value, DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].endOnAny);
 		if (strstr(line, "instantRepeat")) readBool(value, DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].instantRepeat);
@@ -1420,7 +1453,7 @@ void ReadIdle2GroupInfo(FILE *stream)
 			//}
 			RequireScriptSlot(DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].count,
 			                  32, "secondary idle-group animations");
-			DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].anim[DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].count] = atoi(value);
+			DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].anim[DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].count] = ReadScriptIntField(value, line, "secondary idle-group animation");
 			DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].count++;
 		}
 
@@ -1447,9 +1480,9 @@ void ReadDeathTypeInfo(FILE *stream)
 		}
 		value++;
 
-		if (strstr(line, "dieAnim")) DinoInfo[TotalC].deathType[DinoInfo[TotalC].deathTypeCount].die = atoi(value);
-		if (strstr(line, "sleepAnim")) DinoInfo[TotalC].deathType[DinoInfo[TotalC].deathTypeCount].sleep = atoi(value);
-		if (strstr(line, "fallAnim")) DinoInfo[TotalC].deathType[DinoInfo[TotalC].deathTypeCount].fall = atoi(value);
+		if (strstr(line, "dieAnim")) DinoInfo[TotalC].deathType[DinoInfo[TotalC].deathTypeCount].die = ReadScriptIntField(value, line, "death die animation");
+		if (strstr(line, "sleepAnim")) DinoInfo[TotalC].deathType[DinoInfo[TotalC].deathTypeCount].sleep = ReadScriptIntField(value, line, "death sleep animation");
+		if (strstr(line, "fallAnim")) DinoInfo[TotalC].deathType[DinoInfo[TotalC].deathTypeCount].fall = ReadScriptIntField(value, line, "death fall animation");
 		if (strstr(line, "noSleep")) readBool(value, DinoInfo[TotalC].deathType[DinoInfo[TotalC].deathTypeCount].nosleep);
 
 	}
@@ -1474,10 +1507,10 @@ void ReadKillTypeInfo(FILE *stream)
 		}
 		value++;
 
-		if (strstr(line, "hunterAnim")) DinoInfo[TotalC].killType[DinoInfo[TotalC].killTypeCount].hunteranim = atoi(value);
-		if (strstr(line, "hunterCarryAnim")) DinoInfo[TotalC].killType[DinoInfo[TotalC].killTypeCount].hunterswimanim = atoi(value);
-		if (strstr(line, "hunterOffset")) DinoInfo[TotalC].killType[DinoInfo[TotalC].killTypeCount].offset = atoi(value);
-		if (strstr(line, "eatAnim")) DinoInfo[TotalC].killType[DinoInfo[TotalC].killTypeCount].anim = atoi(value);
+		if (strstr(line, "hunterAnim")) DinoInfo[TotalC].killType[DinoInfo[TotalC].killTypeCount].hunteranim = ReadScriptIntField(value, line, "kill hunter animation");
+		if (strstr(line, "hunterCarryAnim")) DinoInfo[TotalC].killType[DinoInfo[TotalC].killTypeCount].hunterswimanim = ReadScriptIntField(value, line, "kill hunter-carry animation");
+		if (strstr(line, "hunterOffset")) DinoInfo[TotalC].killType[DinoInfo[TotalC].killTypeCount].offset = ReadScriptIntField(value, line, "kill hunter offset");
+		if (strstr(line, "eatAnim")) DinoInfo[TotalC].killType[DinoInfo[TotalC].killTypeCount].anim = ReadScriptIntField(value, line, "kill eat animation");
 		if (strstr(line, "hunterSync")) readBool(value, DinoInfo[TotalC].killType[DinoInfo[TotalC].killTypeCount].elevate);
 		if (strstr(line, "carryCorpse")) readBool(value, DinoInfo[TotalC].killType[DinoInfo[TotalC].killTypeCount].carryCorpse);
 		if (strstr(line, "dontloop")) readBool(value, DinoInfo[TotalC].killType[DinoInfo[TotalC].killTypeCount].dontloop);
@@ -1587,7 +1620,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	}
 
 	if (strstr(line, "tropgroup")) {						
-		int gr = atoi(value);
+		int gr = ReadScriptIntField(value, line, "trophy group");
 		for (int i = 0; i < trophyTypeCount; i++){
 			if (trophyType[i].group == gr) {
 				RequireScriptSlot(trophyType[i].ctypeCh, TROPHY2_COUNT,
@@ -1599,41 +1632,41 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 		}
 	}
 
-	if (strstr(line, "callNo")) DinoInfo[TotalC].menuDino = atoi(value);
+	if (strstr(line, "callNo")) DinoInfo[TotalC].menuDino = ReadScriptIntField(value, line, "call number");
 
-	if (strstr(line, "mass")) DinoInfo[TotalC].Mass = static_cast<float>(atof(value));
-	if (strstr(line, "length")) DinoInfo[TotalC].Length = static_cast<float>(atof(value));
-	if (strstr(line, "radius")) DinoInfo[TotalC].Radius = static_cast<float>(atof(value));
-	if (strstr(line, "health")) DinoInfo[TotalC].Health0 = atoi(value);
-	if (strstr(line, "basescore")) DinoInfo[TotalC].BaseScore = static_cast<float>(atof(value));
+	if (strstr(line, "mass")) DinoInfo[TotalC].Mass = ReadScriptFloatField(value, line, "character mass");
+	if (strstr(line, "length")) DinoInfo[TotalC].Length = ReadScriptFloatField(value, line, "character length");
+	if (strstr(line, "radius")) DinoInfo[TotalC].Radius = ReadScriptFloatField(value, line, "character radius");
+	if (strstr(line, "health")) DinoInfo[TotalC].Health0 = ReadScriptIntField(value, line, "character health");
+	if (strstr(line, "basescore")) DinoInfo[TotalC].BaseScore = ReadScriptFloatField(value, line, "character base score");
 
-	if (strstr(line, "ai")) DinoInfo[TotalC].Clone = atoi(value);
+	if (strstr(line, "ai")) DinoInfo[TotalC].Clone = ReadScriptIntField(value, line, "character AI");
 
-	if (strstr(line, "smellK")) DinoInfo[TotalC].SmellK = static_cast<float>(atof(value));
-	if (strstr(line, "hearK")) DinoInfo[TotalC].HearK = static_cast<float>(atof(value));
-	if (strstr(line, "lookK")) DinoInfo[TotalC].LookK = static_cast<float>(atof(value));
-	if (strstr(line, "shipdelta")) DinoInfo[TotalC].ShDelta = static_cast<float>(atof(value));
-	if (strstr(line, "scale0")) DinoInfo[TotalC].Scale0 = atoi(value);
-	if (strstr(line, "scaleA")) DinoInfo[TotalC].ScaleA = atoi(value);
+	if (strstr(line, "smellK")) DinoInfo[TotalC].SmellK = ReadScriptFloatField(value, line, "character smell factor");
+	if (strstr(line, "hearK")) DinoInfo[TotalC].HearK = ReadScriptFloatField(value, line, "character hearing factor");
+	if (strstr(line, "lookK")) DinoInfo[TotalC].LookK = ReadScriptFloatField(value, line, "character sight factor");
+	if (strstr(line, "shipdelta")) DinoInfo[TotalC].ShDelta = ReadScriptFloatField(value, line, "character ship delta");
+	if (strstr(line, "scale0")) DinoInfo[TotalC].Scale0 = ReadScriptIntField(value, line, "character scale0");
+	if (strstr(line, "scaleA")) DinoInfo[TotalC].ScaleA = ReadScriptIntField(value, line, "character scaleA");
 	if (strstr(line, "fearCall")) DinoInfo[TotalC].fearCall[ScriptIndex(value, 64, "fear-call table")] = true;
 	if (strstr(line, "dontFear")) DinoInfo[TotalC].fearCall[ScriptIndex(value, 64, "fear-call table")] = false;
-	if (strstr(line, "maxdepth")) DinoInfo[TotalC].maxDepth = atoi(value);
-	if (strstr(line, "maxalt")) DinoInfo[TotalC].maxDepth = atoi(value);
-	if (strstr(line, "mindepth")) DinoInfo[TotalC].minDepth = atoi(value);
-	if (strstr(line, "minalt")) DinoInfo[TotalC].minDepth = atoi(value);
-	if (strstr(line, "spcdepth")) DinoInfo[TotalC].spacingDepth = atoi(value);
-	if (strstr(line, "runspd")) DinoInfo[TotalC].runspd = static_cast<float>(atof(value));
-	if (strstr(line, "jmpspd")) DinoInfo[TotalC].jmpspd = static_cast<float>(atof(value));
-	if (strstr(line, "wlkspd")) DinoInfo[TotalC].wlkspd = static_cast<float>(atof(value));
-	if (strstr(line, "swmspd")) DinoInfo[TotalC].swmspd = static_cast<float>(atof(value));
-	if (strstr(line, "flyspd")) DinoInfo[TotalC].flyspd = static_cast<float>(atof(value));
-	if (strstr(line, "gldspd")) DinoInfo[TotalC].gldspd = static_cast<float>(atof(value));
-	if (strstr(line, "tkfspd")) DinoInfo[TotalC].tkfspd = static_cast<float>(atof(value));
-	if (strstr(line, "lndspd")) DinoInfo[TotalC].lndspd = static_cast<float>(atof(value));
-	if (strstr(line, "divspd")) DinoInfo[TotalC].divspd = static_cast<float>(atof(value));
-	if (strstr(line, "aggress")) DinoInfo[TotalC].aggress = atoi(value);
-	if (strstr(line, "flydist")) DinoInfo[TotalC].flyDist = atoi(value);
-	if (strstr(line, "killdist")) DinoInfo[TotalC].killDist = atoi(value);
+	if (strstr(line, "maxdepth")) DinoInfo[TotalC].maxDepth = ReadScriptIntField(value, line, "character max depth");
+	if (strstr(line, "maxalt")) DinoInfo[TotalC].maxDepth = ReadScriptIntField(value, line, "character max altitude");
+	if (strstr(line, "mindepth")) DinoInfo[TotalC].minDepth = ReadScriptIntField(value, line, "character min depth");
+	if (strstr(line, "minalt")) DinoInfo[TotalC].minDepth = ReadScriptIntField(value, line, "character min altitude");
+	if (strstr(line, "spcdepth")) DinoInfo[TotalC].spacingDepth = ReadScriptIntField(value, line, "character depth spacing");
+	if (strstr(line, "runspd")) DinoInfo[TotalC].runspd = ReadScriptFloatField(value, line, "character run speed");
+	if (strstr(line, "jmpspd")) DinoInfo[TotalC].jmpspd = ReadScriptFloatField(value, line, "character jump speed");
+	if (strstr(line, "wlkspd")) DinoInfo[TotalC].wlkspd = ReadScriptFloatField(value, line, "character walk speed");
+	if (strstr(line, "swmspd")) DinoInfo[TotalC].swmspd = ReadScriptFloatField(value, line, "character swim speed");
+	if (strstr(line, "flyspd")) DinoInfo[TotalC].flyspd = ReadScriptFloatField(value, line, "character fly speed");
+	if (strstr(line, "gldspd")) DinoInfo[TotalC].gldspd = ReadScriptFloatField(value, line, "character glide speed");
+	if (strstr(line, "tkfspd")) DinoInfo[TotalC].tkfspd = ReadScriptFloatField(value, line, "character takeoff speed");
+	if (strstr(line, "lndspd")) DinoInfo[TotalC].lndspd = ReadScriptFloatField(value, line, "character land speed");
+	if (strstr(line, "divspd")) DinoInfo[TotalC].divspd = ReadScriptFloatField(value, line, "character dive speed");
+	if (strstr(line, "aggress")) DinoInfo[TotalC].aggress = ReadScriptIntField(value, line, "character aggression");
+	if (strstr(line, "flydist")) DinoInfo[TotalC].flyDist = ReadScriptIntField(value, line, "character fly distance");
+	if (strstr(line, "killdist")) DinoInfo[TotalC].killDist = ReadScriptIntField(value, line, "character kill distance");
 	if (strstr(line, "radar")) readBool(value, DinoInfo[TotalC].onRadar);
 	if (strstr(line, "dontswimaway")) readBool(value, DinoInfo[TotalC].dontSwimAway);
 
@@ -1653,52 +1686,52 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	if (strstr(line, "fearShotHear")) readBool(value, DinoInfo[TotalC].fearHearShot);
 	if (strstr(line, "fearShotHit")) readBool(value, DinoInfo[TotalC].fearShot);
 
-	if (strstr(line, "weaveRange")) DinoInfo[TotalC].weaveRange = static_cast<float>(atof(value));
+	if (strstr(line, "weaveRange")) DinoInfo[TotalC].weaveRange = ReadScriptFloatField(value, line, "character weave range");
 	if (strstr(line, "dontWeave")) readBool(value, DinoInfo[TotalC].dontWeave);
 
 	//if (strstr(line, "noMoveNoRotate")) readBool(value, DinoInfo[TotalC].noMoveNoRot);
 
-	if (strstr(line, "radR")) DinoInfo[TotalC].radarRed = atoi(value);
-	if (strstr(line, "radG")) DinoInfo[TotalC].radarGreen = atoi(value);
-	if (strstr(line, "radB")) DinoInfo[TotalC].radarBlue = atoi(value);
+	if (strstr(line, "radR")) DinoInfo[TotalC].radarRed = ReadScriptIntField(value, line, "character radar red");
+	if (strstr(line, "radG")) DinoInfo[TotalC].radarGreen = ReadScriptIntField(value, line, "character radar green");
+	if (strstr(line, "radB")) DinoInfo[TotalC].radarBlue = ReadScriptIntField(value, line, "character radar blue");
 	
-	if (strstr(line, "bloR")) DinoInfo[TotalC].bloodRed = atoi(value);
-	if (strstr(line, "bloG")) DinoInfo[TotalC].bloodGreen = atoi(value);
-	if (strstr(line, "bloB")) DinoInfo[TotalC].bloodBlue = atoi(value);
+	if (strstr(line, "bloR")) DinoInfo[TotalC].bloodRed = ReadScriptIntField(value, line, "character blood red");
+	if (strstr(line, "bloG")) DinoInfo[TotalC].bloodGreen = ReadScriptIntField(value, line, "character blood green");
+	if (strstr(line, "bloB")) DinoInfo[TotalC].bloodBlue = ReadScriptIntField(value, line, "character blood blue");
 
-	if (strstr(line, "collisiondist")) DinoInfo[TotalC].maxGrad = atoi(value);
-	if (strstr(line, "runrotatespeed")) DinoInfo[TotalC].rotspdmulti = static_cast<float>(atof(value));
+	if (strstr(line, "collisiondist")) DinoInfo[TotalC].maxGrad = ReadScriptIntField(value, line, "character collision distance");
+	if (strstr(line, "runrotatespeed")) DinoInfo[TotalC].rotspdmulti = ReadScriptFloatField(value, line, "character rotation speed");
 
-	if (strstr(line, "waterLevel")) DinoInfo[TotalC].waterLevel = atoi(value);
+	if (strstr(line, "waterLevel")) DinoInfo[TotalC].waterLevel = ReadScriptIntField(value, line, "character water level");
 
 
-	if (strstr(line, "CamYLand")) DinoInfo[TotalC].camDemoPoint = static_cast<float>(atof(value));
-	if (strstr(line, "CamYWater")) DinoInfo[TotalC].camDemoPointWater = static_cast<float>(atof(value));
-	if (strstr(line, "CamBaseLand")) DinoInfo[TotalC].camBase = static_cast<float>(atof(value));
-	if (strstr(line, "CamBaseWater")) DinoInfo[TotalC].camBaseWater = static_cast<float>(atof(value));
+	if (strstr(line, "CamYLand")) DinoInfo[TotalC].camDemoPoint = ReadScriptFloatField(value, line, "character land camera height");
+	if (strstr(line, "CamYWater")) DinoInfo[TotalC].camDemoPointWater = ReadScriptFloatField(value, line, "character water camera height");
+	if (strstr(line, "CamBaseLand")) DinoInfo[TotalC].camBase = ReadScriptFloatField(value, line, "character land camera base");
+	if (strstr(line, "CamBaseWater")) DinoInfo[TotalC].camBaseWater = ReadScriptFloatField(value, line, "character water camera base");
 
 
 	if (strstr(line, "dogSmell")) readBool(value, DinoInfo[TotalC].dogSmell);
 
-	if (strstr(line, "climbDist")) DinoInfo[TotalC].climbDist = static_cast<float>(atof(value));
+	if (strstr(line, "climbDist")) DinoInfo[TotalC].climbDist = ReadScriptFloatField(value, line, "character climb distance");
 
 	if (strstr(line, "canswim")) readBool(value, DinoInfo[TotalC].canSwim); //check animate subroutines for what this includes. LandBrach needs this attribute, but maybe rename to wade? (and default to off for landbrach ai? maybe?)
 
-	if (strstr(line, "jumpPartFrame1")) DinoInfo[TotalC].partFrame1[CurrentJumpPartIndex()] = 1000 * atoi(value); // x1000
-	if (strstr(line, "jumpPartFrame2")) DinoInfo[TotalC].partFrame2[CurrentJumpPartIndex()] = 1000 * atoi(value); // x1000
-	if (strstr(line, "jumpPartDist")) DinoInfo[TotalC].partDist[CurrentJumpPartIndex()] = atoi(value);
-	if (strstr(line, "jumpPartCnt")) DinoInfo[TotalC].partCnt[CurrentJumpPartIndex()] = atoi(value);
-	if (strstr(line, "jumpPartMag")) DinoInfo[TotalC].partMag[CurrentJumpPartIndex()] = atoi(value);
-	if (strstr(line, "jumpPartOffset")) DinoInfo[TotalC].partOffset[CurrentJumpPartIndex()] = atoi(value);
+	if (strstr(line, "jumpPartFrame1")) DinoInfo[TotalC].partFrame1[CurrentJumpPartIndex()] = 1000 * ReadScriptIntField(value, line, "jump particle frame 1"); // x1000
+	if (strstr(line, "jumpPartFrame2")) DinoInfo[TotalC].partFrame2[CurrentJumpPartIndex()] = 1000 * ReadScriptIntField(value, line, "jump particle frame 2"); // x1000
+	if (strstr(line, "jumpPartDist")) DinoInfo[TotalC].partDist[CurrentJumpPartIndex()] = ReadScriptIntField(value, line, "jump particle distance");
+	if (strstr(line, "jumpPartCnt")) DinoInfo[TotalC].partCnt[CurrentJumpPartIndex()] = ReadScriptIntField(value, line, "jump particle count");
+	if (strstr(line, "jumpPartMag")) DinoInfo[TotalC].partMag[CurrentJumpPartIndex()] = ReadScriptIntField(value, line, "jump particle magnitude");
+	if (strstr(line, "jumpPartOffset")) DinoInfo[TotalC].partOffset[CurrentJumpPartIndex()] = ReadScriptIntField(value, line, "jump particle offset");
 	if (strstr(line, "jumpPartAngled")) readBool(value, DinoInfo[TotalC].partAngled[CurrentJumpPartIndex()]);
 	if (strstr(line, "jumpPartCircle")) readBool(value, DinoInfo[TotalC].partCircle[CurrentJumpPartIndex()]);
 
-	if (strstr(line, "idlePartFrame1")) DinoInfo[TotalC].partFrame1[CurrentIdlePartIndex()] = 1000 * atoi(value); // x1000
-	if (strstr(line, "idlePartFrame2")) DinoInfo[TotalC].partFrame2[CurrentIdlePartIndex()] = 1000 * atoi(value); // x1000
-	if (strstr(line, "idlePartDist")) DinoInfo[TotalC].partDist[CurrentIdlePartIndex()] = atoi(value);
-	if (strstr(line, "idlePartCnt")) DinoInfo[TotalC].partCnt[CurrentIdlePartIndex()] = atoi(value);
-	if (strstr(line, "idlePartMag")) DinoInfo[TotalC].partMag[CurrentIdlePartIndex()] = atoi(value);
-	if (strstr(line, "idlePartOffset")) DinoInfo[TotalC].partOffset[CurrentIdlePartIndex()] = atoi(value);
+	if (strstr(line, "idlePartFrame1")) DinoInfo[TotalC].partFrame1[CurrentIdlePartIndex()] = 1000 * ReadScriptIntField(value, line, "idle particle frame 1"); // x1000
+	if (strstr(line, "idlePartFrame2")) DinoInfo[TotalC].partFrame2[CurrentIdlePartIndex()] = 1000 * ReadScriptIntField(value, line, "idle particle frame 2"); // x1000
+	if (strstr(line, "idlePartDist")) DinoInfo[TotalC].partDist[CurrentIdlePartIndex()] = ReadScriptIntField(value, line, "idle particle distance");
+	if (strstr(line, "idlePartCnt")) DinoInfo[TotalC].partCnt[CurrentIdlePartIndex()] = ReadScriptIntField(value, line, "idle particle count");
+	if (strstr(line, "idlePartMag")) DinoInfo[TotalC].partMag[CurrentIdlePartIndex()] = ReadScriptIntField(value, line, "idle particle magnitude");
+	if (strstr(line, "idlePartOffset")) DinoInfo[TotalC].partOffset[CurrentIdlePartIndex()] = ReadScriptIntField(value, line, "idle particle offset");
 	if (strstr(line, "idlePartAngled")) readBool(value, DinoInfo[TotalC].partAngled[CurrentIdlePartIndex()]);
 	if (strstr(line, "idlePartCircle")) readBool(value, DinoInfo[TotalC].partCircle[CurrentIdlePartIndex()]);
 
@@ -1709,7 +1742,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	if (strstr(line, "Mystery")) readBool(value, DinoInfo[TotalC].Mystery);
 	if (strstr(line, "HideBinoc")) readBool(value, DinoInfo[TotalC].HideBinoc);
 
-	if (strstr(line, "JumpRange")) DinoInfo[TotalC].jumpRange = atoi(value);
+	if (strstr(line, "JumpRange")) DinoInfo[TotalC].jumpRange = ReadScriptIntField(value, line, "character jump range");
 
 	if (strstr(line, "Weapon")) {
 		DinoInfo[TotalC].Weapon = ScriptIndex(value, TotalW, "character weapon");
@@ -1718,21 +1751,21 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 			DinoInfo[TotalC].Reload = WeapInfo[DinoInfo[TotalC].Weapon].Reload;
 	}
 
-	if (strstr(line, "runAnim")) DinoInfo[TotalC].runAnim = atoi(value);
-	if (strstr(line, "jumpAnim")) DinoInfo[TotalC].jumpAnim = atoi(value);
-	if (strstr(line, "walkAnim")) DinoInfo[TotalC].walkAnim = atoi(value);
-	if (strstr(line, "swimAnim")) DinoInfo[TotalC].swimAnim = atoi(value);
-	if (strstr(line, "flyAnim")) DinoInfo[TotalC].flyAnim = atoi(value);
-	if (strstr(line, "diveAnim")) DinoInfo[TotalC].diveAnim = atoi(value);
-	if (strstr(line, "glideAnim")) DinoInfo[TotalC].glideAnim = atoi(value);
-	if (strstr(line, "takeoffAnim")) DinoInfo[TotalC].takeoffAnim = atoi(value);
-	if (strstr(line, "landAnim")) DinoInfo[TotalC].landAnim = atoi(value);
-	if (strstr(line, "slideAnim")) DinoInfo[TotalC].slideAnim = atoi(value);
-	if (strstr(line, "shakeLAnim")) DinoInfo[TotalC].shakeLandAnim = atoi(value);
-	if (strstr(line, "shakeWAnim")) DinoInfo[TotalC].shakeWaterAnim = atoi(value);
-	if (strstr(line, "climbAnim")) DinoInfo[TotalC].climbAnim = atoi(value);
-	if (strstr(line, "fireAnim")) DinoInfo[TotalC].fireAnim = atoi(value);
-	if (strstr(line, "reloadAnim")) DinoInfo[TotalC].reloadAnim = atoi(value);
+	if (strstr(line, "runAnim")) DinoInfo[TotalC].runAnim = ReadScriptIntField(value, line, "run animation");
+	if (strstr(line, "jumpAnim")) DinoInfo[TotalC].jumpAnim = ReadScriptIntField(value, line, "jump animation");
+	if (strstr(line, "walkAnim")) DinoInfo[TotalC].walkAnim = ReadScriptIntField(value, line, "walk animation");
+	if (strstr(line, "swimAnim")) DinoInfo[TotalC].swimAnim = ReadScriptIntField(value, line, "swim animation");
+	if (strstr(line, "flyAnim")) DinoInfo[TotalC].flyAnim = ReadScriptIntField(value, line, "fly animation");
+	if (strstr(line, "diveAnim")) DinoInfo[TotalC].diveAnim = ReadScriptIntField(value, line, "dive animation");
+	if (strstr(line, "glideAnim")) DinoInfo[TotalC].glideAnim = ReadScriptIntField(value, line, "glide animation");
+	if (strstr(line, "takeoffAnim")) DinoInfo[TotalC].takeoffAnim = ReadScriptIntField(value, line, "takeoff animation");
+	if (strstr(line, "landAnim")) DinoInfo[TotalC].landAnim = ReadScriptIntField(value, line, "land animation");
+	if (strstr(line, "slideAnim")) DinoInfo[TotalC].slideAnim = ReadScriptIntField(value, line, "slide animation");
+	if (strstr(line, "shakeLAnim")) DinoInfo[TotalC].shakeLandAnim = ReadScriptIntField(value, line, "shake-land animation");
+	if (strstr(line, "shakeWAnim")) DinoInfo[TotalC].shakeWaterAnim = ReadScriptIntField(value, line, "shake-water animation");
+	if (strstr(line, "climbAnim")) DinoInfo[TotalC].climbAnim = ReadScriptIntField(value, line, "climb animation");
+	if (strstr(line, "fireAnim")) DinoInfo[TotalC].fireAnim = ReadScriptIntField(value, line, "fire animation");
+	if (strstr(line, "reloadAnim")) DinoInfo[TotalC].reloadAnim = ReadScriptIntField(value, line, "reload animation");
 
 	
 	if (strstr(line, "lookAnim") || strstr(line, "fishIdleAnim")) {
@@ -1741,7 +1774,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 			idleOverwrite = false;
 		}
 		RequireScriptSlot(DinoInfo[TotalC].lookCount, 32, "look animations");
-		DinoInfo[TotalC].lookAnim[DinoInfo[TotalC].lookCount] = atoi(value);
+		DinoInfo[TotalC].lookAnim[DinoInfo[TotalC].lookCount] = ReadScriptIntField(value, line, "look animation");
 		DinoInfo[TotalC].lookCount++;
 	}
 
@@ -1751,7 +1784,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 			idle2Overwrite = false;
 		}
 		RequireScriptSlot(DinoInfo[TotalC].smellCount, 32, "smell animations");
-		DinoInfo[TotalC].smellAnim[DinoInfo[TotalC].smellCount] = atoi(value);
+		DinoInfo[TotalC].smellAnim[DinoInfo[TotalC].smellCount] = ReadScriptIntField(value, line, "smell animation");
 		DinoInfo[TotalC].smellCount++;
 	}
 	
@@ -1762,7 +1795,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 			roarOverwrite = false;
 		}
 		RequireScriptSlot(DinoInfo[TotalC].roarCount, 32, "roar animations");
-		DinoInfo[TotalC].roarAnim[DinoInfo[TotalC].roarCount] = atoi(value);
+		DinoInfo[TotalC].roarAnim[DinoInfo[TotalC].roarCount] = ReadScriptIntField(value, line, "roar animation");
 		DinoInfo[TotalC].roarCount++;
 	}
 
@@ -1772,7 +1805,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 			waterDieOverwrite = false;
 		}
 		RequireScriptSlot(DinoInfo[TotalC].waterDieCount, 32, "water-death animations");
-		DinoInfo[TotalC].waterDieAnim[DinoInfo[TotalC].waterDieCount] = atoi(value);
+		DinoInfo[TotalC].waterDieAnim[DinoInfo[TotalC].waterDieCount] = ReadScriptIntField(value, line, "water-death animation");
 		DinoInfo[TotalC].waterDieCount++;
 	}
 
@@ -1898,16 +1931,7 @@ void ReadCharacters(FILE *stream)
 	//area
 	char tempProjectName[128];
 	int timeOfDay, dinSelect;
-	for (int a = 0; a < __argc; a++)
-	{
-		LPSTR s = __argv[a];
-		if (strstr(s, "prj="))
-		{
-			CopyProjectName(tempProjectName, (s + 4));
-		}
-		if (strstr(s, "dtm=")) timeOfDay = atoi(&s[4]);
-		if (strstr(s, "din=")) dinSelect = (atoi(&s[4]) * 1024);
-	}
+	ReadScriptCommandLineOptions(tempProjectName, timeOfDay, dinSelect);
 
 	//time
 	for (int a = 0; a < __argc; a++)
@@ -2677,15 +2701,12 @@ void LoadResourcesScript()
   TotalMA = 0;
 
   char tempProjectName[128];
+  int timeOfDay, dinSelect;
+  ReadScriptCommandLineOptions(tempProjectName, timeOfDay, dinSelect);
   for (int a = 0; a < __argc; a++)
   {
-	  LPSTR s = __argv[a];
-	  if (strstr(s, "prj="))
-	  {
-		  CopyProjectName(tempProjectName, (s + 4));
-		  //break;
-	  }
-	  if (strstr(s, "-survival")) g_GameMode = GameMode::SurvivalMode;
+    if (_stricmp(__argv[a], "-survival") == 0)
+      g_GameMode = GameMode::SurvivalMode;
   }
   
 

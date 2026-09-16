@@ -20,6 +20,7 @@
 #include <vector>
 #include "Core/ConfigText.h"
 #include "Loaders/LoadValidate.h"
+#include "Loaders/ScriptValueParse.h"
 
 
 class script_error : public std::exception
@@ -49,6 +50,22 @@ public:
 
 
 uint32_t g_ScriptLine = 0;
+
+static int ReadScriptIntValue(const char* value, const char* where)
+{
+	int parsed = 0;
+	if (!ParseScriptInt(value, parsed))
+		throw script_error("Expected a valid integer value.", where, g_ScriptLine);
+	return parsed;
+}
+
+static float ReadScriptFloatValue(const char* value, const char* where)
+{
+	float parsed = 0.0f;
+	if (!ParseScriptFloat(value, parsed))
+		throw script_error("Expected a valid finite float value.", where, g_ScriptLine);
+	return parsed;
+}
 
 static std::string ReadAssignedText(const char* value, const char* where)
 {
@@ -241,17 +258,17 @@ void ReadWeapons(FILE* stream)
 					throw script_error("Was expecting member assignment.", "ReadWeapons()", g_ScriptLine);
 				value++;
 
-				if (strstr(line, "power"))  wi.m_Power = static_cast<float>(atof(value));
-				if (strstr(line, "prec"))   wi.m_Prec = static_cast<float>(atof(value));
-				if (strstr(line, "loud"))   wi.m_Loud = static_cast<float>(atof(value));
-				if (strstr(line, "rate"))   wi.m_Rate = static_cast<float>(atof(value));
-				if (strstr(line, "shots"))  wi.m_Shots = atoi(value);
-				if (strstr(line, "reload")) wi.m_Reload = atoi(value);
-				if (strstr(line, "trace"))  wi.m_TraceC = atoi(value) - 1;
-				if (strstr(line, "optic"))  wi.m_Optic = static_cast<float>(atof(value));
-				if (strstr(line, "fall"))   wi.m_Fall = atoi(value);
-				if (strstr(line, "price"))	wi.m_Price = atoi(value);
-				if (strstr(line, "rank"))	wi.m_Rank = atoi(value);
+				if (strstr(line, "power"))  wi.m_Power = ReadScriptFloatValue(value, "ReadWeapons power");
+				if (strstr(line, "prec"))   wi.m_Prec = ReadScriptFloatValue(value, "ReadWeapons precision");
+				if (strstr(line, "loud"))   wi.m_Loud = ReadScriptFloatValue(value, "ReadWeapons loudness");
+				if (strstr(line, "rate"))   wi.m_Rate = ReadScriptFloatValue(value, "ReadWeapons rate");
+				if (strstr(line, "shots"))  wi.m_Shots = ReadScriptIntValue(value, "ReadWeapons shots");
+				if (strstr(line, "reload")) wi.m_Reload = ReadScriptIntValue(value, "ReadWeapons reload");
+				if (strstr(line, "trace"))  wi.m_TraceC = ReadScriptIntValue(value, "ReadWeapons trace") - 1;
+				if (strstr(line, "optic"))  wi.m_Optic = ReadScriptFloatValue(value, "ReadWeapons optic");
+				if (strstr(line, "fall"))   wi.m_Fall = ReadScriptIntValue(value, "ReadWeapons fall");
+				if (strstr(line, "price"))	wi.m_Price = ReadScriptIntValue(value, "ReadWeapons price");
+				if (strstr(line, "rank"))	wi.m_Rank = ReadScriptIntValue(value, "ReadWeapons rank");
 
 				if (ScriptKeyIs(line, "name"))
 					wi.m_Name = ReadAssignedText(value, "ReadWeapons()");
@@ -321,23 +338,23 @@ void ReadCharacters(FILE* stream)
 					throw script_error("Was expecting member assignment.", "ReadCharacters()", g_ScriptLine);
 				value++;
 
-				if (strstr(line, "mass")) di.m_Mass = static_cast<float>(atof(value));
-				if (strstr(line, "length")) di.m_Length = static_cast<float>(atof(value));
-				if (strstr(line, "radius")) di.m_Radius = static_cast<float>(atof(value));
-				if (strstr(line, "health")) di.m_BaseHealth = atoi(value);
-				if (strstr(line, "basescore")) di.m_BaseScore = atoi(value);
-				if (strstr(line, "ai")) di.m_AI = atoi(value);
-				if (strstr(line, "smell")) di.m_SmellK = static_cast<float>(atof(value));
-				if (strstr(line, "hear")) di.m_HearK = static_cast<float>(atof(value));
-				if (strstr(line, "look")) di.m_LookK = static_cast<float>(atof(value));
+				if (strstr(line, "mass")) di.m_Mass = ReadScriptFloatValue(value, "ReadCharacters mass");
+				if (strstr(line, "length")) di.m_Length = ReadScriptFloatValue(value, "ReadCharacters length");
+				if (strstr(line, "radius")) di.m_Radius = ReadScriptFloatValue(value, "ReadCharacters radius");
+				if (strstr(line, "health")) di.m_BaseHealth = ReadScriptIntValue(value, "ReadCharacters health");
+				if (strstr(line, "basescore")) di.m_BaseScore = ReadScriptIntValue(value, "ReadCharacters base score");
+				if (strstr(line, "ai")) di.m_AI = ReadScriptIntValue(value, "ReadCharacters AI");
+				if (strstr(line, "smell")) di.m_SmellK = ReadScriptFloatValue(value, "ReadCharacters smell");
+				if (strstr(line, "hear")) di.m_HearK = ReadScriptFloatValue(value, "ReadCharacters hearing");
+				if (strstr(line, "look")) di.m_LookK = ReadScriptFloatValue(value, "ReadCharacters sight");
 				// -> Safety Check
-				if (strstr(line, "smellk")) di.m_SmellK = static_cast<float>(atof(value));
-				if (strstr(line, "heark")) di.m_HearK = static_cast<float>(atof(value));
-				if (strstr(line, "lookk")) di.m_LookK = static_cast<float>(atof(value));
+				if (strstr(line, "smellk")) di.m_SmellK = ReadScriptFloatValue(value, "ReadCharacters smell factor");
+				if (strstr(line, "heark")) di.m_HearK = ReadScriptFloatValue(value, "ReadCharacters hearing factor");
+				if (strstr(line, "lookk")) di.m_LookK = ReadScriptFloatValue(value, "ReadCharacters sight factor");
 				// <- End
-				if (strstr(line, "shipdelta")) di.m_ShDelta = static_cast<float>(atof(value));
-				if (strstr(line, "scale0")) di.m_BaseScale = atoi(value);
-				if (strstr(line, "scaleA")) di.m_ScaleA = atoi(value);
+				if (strstr(line, "shipdelta")) di.m_ShDelta = ReadScriptFloatValue(value, "ReadCharacters ship delta");
+				if (strstr(line, "scale0")) di.m_BaseScale = ReadScriptIntValue(value, "ReadCharacters scale0");
+				if (strstr(line, "scaleA")) di.m_ScaleA = ReadScriptIntValue(value, "ReadCharacters scaleA");
 				if (strstr(line, "danger")) di.m_DangerCall = true;
 
 				if (ScriptKeyIs(line, "name"))
@@ -394,8 +411,8 @@ void ReadAreas(FILE* stream)
 					throw std::runtime_error("Script loading error");
 				value++;
 
-				if (strstr(line, "price")) area.m_Price = atoi(value);
-				if (strstr(line, "rank"))  area.m_Rank = atoi(value);
+				if (strstr(line, "price")) area.m_Price = ReadScriptIntValue(value, "ReadAreas price");
+				if (strstr(line, "rank"))  area.m_Rank = ReadScriptIntValue(value, "ReadAreas rank");
 
 				if (ScriptKeyIs(line, "name"))
 					area.m_Name = ReadAssignedText(value, "ReadAreas()");
@@ -475,7 +492,7 @@ void ReadAccessories(FILE* stream)
 
 		if (value.empty()) continue;
 
-		float mod = static_cast<float>(atof(value.c_str()));
+		float mod = ReadScriptFloatValue(value.c_str(), "ReadAccessories value");
 		g_AccessoryScoreMods[key] = mod;
 		count++;
 		std::cout << "  accessory[" << key << "] = " << mod << std::endl;
@@ -540,25 +557,25 @@ void ReadPrices(FILE* stream)
 		//throw script_error("Was expecting member assignment.", "ReadPrices()", g_ScriptLine);
 
 		if (strstr(line, "start")) {
-                g_StartCredits = static_cast<int>(atoi(value));
+                g_StartCredits = ReadScriptIntValue(value, "ReadPrices start credits");
 		}
 		else if (strstr(line, "area")) {
 			CurA++;  // Area indices start at 1
-			g_AreaInfo.push_back(MakeOldAreaInfo(CurA, static_cast<int>(atoi(value))));
+			g_AreaInfo.push_back(MakeOldAreaInfo(CurA, ReadScriptIntValue(value, "ReadPrices area price")));
 			auto a = g_AreaInfo.end() - 1;
 			if (!a->m_Valid)
 				g_AreaInfo.pop_back();
 		}
 		else if (strstr(line, "dino")) {
-			g_DinoInfo[CurD].m_Price = static_cast<int>(atoi(value));
+			g_DinoInfo[CurD].m_Price = ReadScriptIntValue(value, "ReadPrices dinosaur price");
 			CurD++;
 		}
 		else if (strstr(line, "weapon")) {
-			g_WeapInfo[CurW].m_Price = static_cast<int>(atoi(value));
+			g_WeapInfo[CurW].m_Price = ReadScriptIntValue(value, "ReadPrices weapon price");
 			CurW++;
 		}
 		else if (strstr(line, "acces")) {
-			g_AccessoryPrices.push_back(static_cast<int32_t>(atoi(value)));
+			g_AccessoryPrices.push_back(static_cast<int32_t>(ReadScriptIntValue(value, "ReadPrices accessory price")));
 			CurU++;
 		}
 	}
@@ -675,10 +692,10 @@ void LoadC2Maps()
 			}
 
 			if (key == "price") {
-				area.m_Price = std::atoi(value.c_str());
+				area.m_Price = ReadScriptIntValue(value.c_str(), "LoadC2Maps price");
 			}
 			else if (key == "rank") {
-				area.m_Rank = std::atoi(value.c_str());
+				area.m_Rank = ReadScriptIntValue(value.c_str(), "LoadC2Maps rank");
 			}
 			else if (key == "name") {
 				area.m_Name = value;

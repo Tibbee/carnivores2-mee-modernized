@@ -203,11 +203,14 @@ void HideWeapon()
     }
     
 	if (IsUnderwater()) {
-		if (WeapInfo[CurrentWeapon].getAqSnd >= 0)
-			AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].getAqSnd].length,
-				wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].getAqSnd].lpData.data(), 256);
+		const int sound = FindWeaponSound(*wptr, CurrentWeapon,
+			WeapInfo[CurrentWeapon].getAqSnd);
+		if (sound >= 0)
+			AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[sound].length,
+				wptr->chinfo[CurrentWeapon].SoundFX[sound].lpData.data(), 256);
 	} else {
-		int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].getAnim];
+		const int fx = FindWeaponAnimationSound(*wptr, CurrentWeapon,
+			WeapInfo[CurrentWeapon].getAnim);
 		if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
 			wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
 	}
@@ -227,11 +230,14 @@ void HideWeapon()
 
   if (wptr->state!=2 || wptr->FTime!=0) return;
   if (IsUnderwater()) {
-	  if (WeapInfo[CurrentWeapon].putAqSnd >= 0)
-		  AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].putAqSnd].length,
-			  wptr->chinfo[CurrentWeapon].SoundFX[WeapInfo[CurrentWeapon].putAqSnd].lpData.data(), 256);
+	  const int sound = FindWeaponSound(*wptr, CurrentWeapon,
+		  WeapInfo[CurrentWeapon].putAqSnd);
+	  if (sound >= 0)
+		  AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[sound].length,
+			  wptr->chinfo[CurrentWeapon].SoundFX[sound].lpData.data(), 256);
   } else {
-	  int fx = wptr->chinfo[CurrentWeapon].Anifx[WeapInfo[CurrentWeapon].putAnim];
+	  const int fx = FindWeaponAnimationSound(*wptr, CurrentWeapon,
+		  WeapInfo[CurrentWeapon].putAnim);
 	  if (fx >= 0) AddVoicev(wptr->chinfo[CurrentWeapon].SoundFX[fx].length,
 		  wptr->chinfo[CurrentWeapon].SoundFX[fx].lpData.data(), 256);
   }

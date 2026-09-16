@@ -643,6 +643,64 @@ struct TWeapInfo
 
 };
 
+inline bool IsValidWeaponAnimationIndex(int index, int animationCount,
+                                        bool required)
+{
+  if (required)
+    return index >= 0 && index < animationCount;
+  return index == -1 || (index >= 0 && index < animationCount);
+}
+
+inline bool AreWeaponAnimationReferencesValid(const TWeapInfo& weapon,
+                                              int animationCount)
+{
+  if (animationCount <= 0)
+    return false;
+
+  return IsValidWeaponAnimationIndex(weapon.getAnim, animationCount, true) &&
+         IsValidWeaponAnimationIndex(weapon.shtAnim, animationCount, true) &&
+         IsValidWeaponAnimationIndex(weapon.putAnim, animationCount, true) &&
+         IsValidWeaponAnimationIndex(weapon.rldAnim, animationCount,
+                                     weapon.Reload > 0) &&
+         IsValidWeaponAnimationIndex(weapon.rldAnimPart, animationCount, false) &&
+         IsValidWeaponAnimationIndex(weapon.pmpAnim, animationCount, false) &&
+         IsValidWeaponAnimationIndex(weapon.modAnim, animationCount, false) &&
+         IsValidWeaponAnimationIndex(weapon.emptyAnim, animationCount, false) &&
+         IsValidWeaponAnimationIndex(weapon.getEmpAnim, animationCount, false) &&
+         IsValidWeaponAnimationIndex(weapon.putEmpAnim, animationCount, false);
+}
+
+inline TAni* FindWeaponAnimation(TWeapon& weapon, int weaponIndex,
+                                 int animationIndex)
+{
+  if (weaponIndex < 0 || weaponIndex >= 10)
+    return nullptr;
+  TCharacterInfo& character = weapon.chinfo[weaponIndex];
+  if (!IsValidWeaponAnimationIndex(animationIndex, character.AniCount, true))
+    return nullptr;
+  return &character.Animation[animationIndex];
+}
+
+inline int FindWeaponAnimationSound(const TWeapon& weapon, int weaponIndex,
+                                    int animationIndex)
+{
+  if (weaponIndex < 0 || weaponIndex >= 10)
+    return -1;
+  const TCharacterInfo& character = weapon.chinfo[weaponIndex];
+  if (!IsValidWeaponAnimationIndex(animationIndex, character.AniCount, true))
+    return -1;
+  const int soundIndex = character.Anifx[animationIndex];
+  return soundIndex >= 0 && soundIndex < character.SfxCount ? soundIndex : -1;
+}
+
+inline int FindWeaponSound(const TWeapon& weapon, int weaponIndex, int soundIndex)
+{
+  if (weaponIndex < 0 || weaponIndex >= 10)
+    return -1;
+  const TCharacterInfo& character = weapon.chinfo[weaponIndex];
+  return soundIndex >= 0 && soundIndex < character.SfxCount ? soundIndex : -1;
+}
+
 
 struct TWaterEntity
 {

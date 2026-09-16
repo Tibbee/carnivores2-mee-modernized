@@ -9,6 +9,7 @@
 
 #include <cstdio>
 
+#include "Core/GameTypes.h"
 #include "Loaders/LoadValidate.h"
 
 namespace {
@@ -57,6 +58,29 @@ TEST(LoadValidate, AnimationDurationIsPositiveAndChecked) {
     EXPECT_FALSE(CheckedAnimationDuration(20, -1, duration));
     EXPECT_FALSE(CheckedAnimationDuration(2, 3000, duration));
     EXPECT_FALSE(CheckedAnimationDuration((std::numeric_limits<int>::max)(), 1, duration));
+}
+
+TEST(LoadValidate, WeaponAnimationReferencesRespectModelCount) {
+    EXPECT_TRUE(IsValidWeaponAnimationIndex(0, 3, true));
+    EXPECT_TRUE(IsValidWeaponAnimationIndex(2, 3, false));
+    EXPECT_TRUE(IsValidWeaponAnimationIndex(-1, 3, false));
+    EXPECT_FALSE(IsValidWeaponAnimationIndex(-1, 3, true));
+    EXPECT_FALSE(IsValidWeaponAnimationIndex(-2, 3, false));
+    EXPECT_FALSE(IsValidWeaponAnimationIndex(3, 3, false));
+
+    TWeapInfo weapon{};
+    weapon.getAnim = 0;
+    weapon.shtAnim = 1;
+    weapon.putAnim = 2;
+    weapon.rldAnim = -1;
+    EXPECT_TRUE(AreWeaponAnimationReferencesValid(weapon, 3));
+
+    weapon.Reload = 1;
+    EXPECT_FALSE(AreWeaponAnimationReferencesValid(weapon, 3));
+    weapon.rldAnim = 2;
+    EXPECT_TRUE(AreWeaponAnimationReferencesValid(weapon, 3));
+    weapon.modAnim = 3;
+    EXPECT_FALSE(AreWeaponAnimationReferencesValid(weapon, 3));
 }
 
 TEST(LoadValidate, MorphFrameCalculationIsBoundedAndOverflowSafe) {
