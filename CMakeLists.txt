@@ -198,6 +198,7 @@ set(CORE_FILES
     Hunt/Core/GameMode.h
     Hunt/Core/ConfigText.h
     Hunt/Core/Version.h
+    Hunt/Core/CommandLineParse.h
     Hunt/Renderer/RenderContext.h
     Hunt/Renderer/RenderContext.cpp
     Hunt/AppRes.h
@@ -210,8 +211,8 @@ set(CORE_FILES
 if(MSVC AND CMAKE_BUILD_TYPE STREQUAL "Release")
     # /GL + /LTCG = Link-Time Optimization
     # /O2 = Maximize Speed, /Oi = Intrinsics, /Ot = Favor Fast Code, /Ob2 = Aggressive Inlining
-    # /Gw = Optimize Globals, /GS- = No Buffer Checks, /fp:fast = Fast Float, /arch:SSE2 = SSE2
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL /O2 /Oi /Ot /Ob2 /Gw /GS- /fp:fast /arch:SSE2 /Zc:inline")
+    # /Gw = Optimize Globals, /GS = Buffer Checks, /fp:fast = Fast Float, /arch:SSE2 = SSE2
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL /O2 /Oi /Ot /Ob2 /Gw /GS /fp:fast /arch:SSE2 /Zc:inline")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG")
 endif()
 
@@ -269,6 +270,7 @@ if(MSVC)
     add_executable(Carnivores2Tests
         tests/test_ai_behavior_math.cpp
         tests/test_billboard_math.cpp
+        tests/test_command_line_parse.cpp
         tests/test_config_parse.cpp
         tests/test_config_text.cpp
         tests/test_game_mode.cpp

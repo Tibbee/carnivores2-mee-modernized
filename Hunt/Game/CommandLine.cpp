@@ -3,6 +3,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "Core/CommandLineParse.h"
 #include "Core/ScoreMod.h"
 #include "Network/NetworkManager.h"
 
@@ -27,25 +28,16 @@ static bool equals_nocase(const char* lhs, const char* rhs)
   return _stricmp(lhs, rhs) == 0;
 }
 
-static bool starts_with_nocase(const char* text, const char* prefix)
+static void LogInvalidCommandLineOption(const char* option)
 {
-  return _strnicmp(text, prefix, strlen(prefix)) == 0;
+  char message[128];
+  sprintf_s(message, sizeof(message),
+            "Command line: ignoring invalid %s option value.\n", option);
+  PrintLog(message);
 }
 
 void ProcessCommandLine()
 {
-  auto parse_resolution = [&](const char* value, int& width, int& height) -> bool {
-    width = 0;
-    height = 0;
-    char sep = 0;
-    // Single case-insensitive WxH parse (matches EngineInit LoadConfig).
-    if (sscanf(value, "%d%c%d", &width, &sep, &height) != 3 ||
-        (sep != 'x' && sep != 'X')) {
-      return false;
-    }
-    return width > 0 && height > 0;
-  };
-
   auto sync_resolution_option = [](int width, int height) {
     for (int r = 0; r < ResCount; r++) {
       if (ResolutionList[r].w == width && ResolutionList[r].h == height) {
@@ -67,6 +59,7 @@ void ProcessCommandLine()
   for (int a=0; a<__argc; a++)
   {
     LPSTR s = __argv[a];
+    const char* value = nullptr;
 
     if (equals_nocase(s, "/nofullscreen") || equals_nocase(s, "-nofullscreen") ||
         equals_nocase(s, "/windowed") || equals_nocase(s, "-windowed")) {
@@ -99,63 +92,141 @@ void ProcessCommandLine()
     if (equals_nocase(s, "/vmode4")) { requestedWidth = 640; requestedHeight = 480; hasRequestedResolution = true; continue; }
     if (equals_nocase(s, "/vmode5")) { requestedWidth = 800; requestedHeight = 600; hasRequestedResolution = true; continue; }
 
-    if (starts_with_nocase(s, "/res=") || starts_with_nocase(s, "-res=")) {
+    if (CommandLineOptionValue(s, "/res=", &value) ||
+        CommandLineOptionValue(s, "-res=", &value)) {
       int width, height;
-      if (parse_resolution(strchr(s, '=') + 1, width, height)) {
+      if (ParseCommandLineResolution(value, width, height)) {
         requestedWidth = width;
         requestedHeight = height;
         hasRequestedResolution = true;
+      } else {
+        LogInvalidCommandLineOption("res=");
       }
       continue;
     }
 
-    if (strstr(s,"x="))
+    if (CommandLineOptionValue(s, "x=", &value))
     {
-      PlayerX = static_cast<float>(atof(&s[2]))*256.f;
-      LockLanding = true;
+      float coordinate = 0.0f;
+      if (ParseCommandLineFloat(value, coordinate)) {
+        const float scaled = coordinate * 256.f;
+        if (!std::isfinite(scaled)) {
+          LogInvalidCommandLineOption("x=");
+          continue;
+        }
+        PlayerX = scaled;
+        LockLanding = true;
+      } else {
+        LogInvalidCommandLineOption("x=");
+      }
+      continue;
     }
-    if (strstr(s,"y="))
+
+    if (CommandLineOptionValue(s, "y=", &value))
     {
-      PlayerZ = static_cast<float>(atof(&s[2]))*256.f;
-      LockLanding = true;
+      float coordinate = 0.0f;
+      if (ParseCommandLineFloat(value, coordinate)) {
+        const float scaled = coordinate * 256.f;
+        if (!std::isfinite(scaled)) {
+          LogInvalidCommandLineOption("y=");
+          continue;
+        }
+        PlayerZ = scaled;
+        LockLanding = true;
+      } else {
+        LogInvalidCommandLineOption("y=");
+      }
+      continue;
     }
 
-    if (strstr(s,"reg=")) TrophyRoom.RegNumber = atoi(&s[4]);
-    if (strstr(s,"prj=")) strcpy(ProjectName, (s+4));
-    if (strstr(s,"din=")) TargetDino = (atoi(&s[4])*1024);
-	if (strstr(s, "wep=")) WeaponPres = atoi(&s[4]);
-	if (strstr(s, "dtm=")) OptDayNight = atoi(&s[4]);
-    if (strstr(s, "server=")) strcpy(g_Network.m_serverAddress, (s + 7));
+    if (CommandLineOptionValue(s, "reg=", &value))
+    {
+      int registration = 0;
+      if (ParseCommandLineInt(value, registration))
+        TrophyRoom.RegNumber = registration;
+      else
+        LogInvalidCommandLineOption("reg=");
+      continue;
+    }
 
-    if (strstr(s,"-debug"))   DEBUG = true;
-    if (strstr(s,"-double"))  DoubleAmmo = true;
-	if (strstr(s, "-huntdog"))  g_GameMode = GameMode::DogMode;
-	if (strstr(s, "-nightvision")) { NightVisionMode = true; g_GameMode = GameMode::NightVision; }
-    if (strstr(s,"-radar"))   RadarMode = true;
-	if (strstr(s, "-survival"))  g_GameMode = GameMode::SurvivalMode;
-	if (strstr(s, "-sonar"))   { SonarMode = true; g_GameMode = GameMode::SonarMode; }
-	if (strstr(s, "-scanner"))   { ScannerMode = true; g_GameMode = GameMode::ScannerMode; }
-	if (strstr(s, "-scent"))   ScentMode = true;
-	if (strstr(s, "-camo"))   CamoMode = true;
-	if (strstr(s, "-multiplayer"))   Multiplayer = true;
-	if (strstr(s, "-host"))   Host = true;
-	if (strstr(s, "-cisk"))   CiskMode = true;
-    if (strstr(s,"-tranq")) Tranq = true;
-    if (strstr(s,"-observ")) ObservMode = true;
+    if (CommandLineOptionValue(s, "prj=", &value))
+    {
+      const CommandLineCopyResult result =
+          CopyCommandLineOption(ProjectName, sizeof(ProjectName), s, "prj=");
+      if (result == CommandLineCopyResult::Invalid)
+        LogInvalidCommandLineOption("prj=");
+      continue;
+    }
 
-	// smod=camo,radar,scent,double,tranq,observer. The order lives in
-	// Hunt/Core/ScoreMod.h and is shared with the Menu's assembly, so the two
-	// cannot drift apart. Modders can override these via the 'accessories {}'
-	// block in _RES.TXT (parsed by Menu/Resources.cpp ReadAccessories()).
-	if (strstr(s, "smod=")) {
-		float mods[kScoreModSlotCount] = {0};
-		const int got = ParseScoreModPayload(s + 5, mods);
-		for (int i = 0; i < got; ++i) {
-			const ScoreModSlot slot = kScoreModWireOrder[i];
-			float* target = ScoreModTarget(slot);
-			if (target) *target = mods[static_cast<int>(slot)];
-		}
-	}
+    if (CommandLineOptionValue(s, "din=", &value))
+    {
+      int dinoFlags = 0;
+      if (ParseCommandLineInt(value, dinoFlags) && dinoFlags >= 0 && dinoFlags <= 1023)
+        TargetDino = dinoFlags * 1024;
+      else
+        LogInvalidCommandLineOption("din=");
+      continue;
+    }
+
+    if (CommandLineOptionValue(s, "wep=", &value))
+    {
+      int weaponFlags = 0;
+      if (ParseCommandLineInt(value, weaponFlags) && weaponFlags >= 0 && weaponFlags <= 1023)
+        WeaponPres = weaponFlags;
+      else
+        LogInvalidCommandLineOption("wep=");
+      continue;
+    }
+
+    if (CommandLineOptionValue(s, "dtm=", &value))
+    {
+      int dayNight = 0;
+      if (ParseCommandLineInt(value, dayNight) && dayNight >= 0 && dayNight <= 2)
+        OptDayNight = dayNight;
+      else
+        LogInvalidCommandLineOption("dtm=");
+      continue;
+    }
+
+    if (CommandLineOptionValue(s, "server=", &value))
+    {
+      const CommandLineCopyResult result =
+          CopyCommandLineOption(g_Network.m_serverAddress,
+                                sizeof(g_Network.m_serverAddress), s, "server=");
+      if (result == CommandLineCopyResult::Invalid)
+        LogInvalidCommandLineOption("server=");
+      continue;
+    }
+
+    if (equals_nocase(s, "-debug"))   DEBUG = true;
+    if (equals_nocase(s, "-double"))  DoubleAmmo = true;
+    if (equals_nocase(s, "-huntdog"))  g_GameMode = GameMode::DogMode;
+    if (equals_nocase(s, "-nightvision")) { NightVisionMode = true; g_GameMode = GameMode::NightVision; }
+    if (equals_nocase(s, "-radar"))   RadarMode = true;
+    if (equals_nocase(s, "-survival"))  g_GameMode = GameMode::SurvivalMode;
+    if (equals_nocase(s, "-sonar"))   { SonarMode = true; g_GameMode = GameMode::SonarMode; }
+    if (equals_nocase(s, "-scanner"))   { ScannerMode = true; g_GameMode = GameMode::ScannerMode; }
+    if (equals_nocase(s, "-scent"))   ScentMode = true;
+    if (equals_nocase(s, "-camo"))   CamoMode = true;
+    if (equals_nocase(s, "-multiplayer"))   Multiplayer = true;
+    if (equals_nocase(s, "-host"))   Host = true;
+    if (equals_nocase(s, "-cisk"))   CiskMode = true;
+    if (equals_nocase(s, "-tranq")) Tranq = true;
+    if (equals_nocase(s, "-observ")) ObservMode = true;
+
+    // smod=camo,radar,scent,double,tranq,observer. The order lives in
+    // Hunt/Core/ScoreMod.h and is shared with the Menu's assembly, so the two
+    // cannot drift apart. Modders can override these via the 'accessories {}'
+    // block in _RES.TXT (parsed by Menu/Resources.cpp ReadAccessories()).
+    if (CommandLineOptionValue(s, "smod=", &value)) {
+      float mods[kScoreModSlotCount] = {0};
+      const int got = ParseScoreModPayload(value, mods);
+      for (int i = 0; i < got; ++i) {
+        const ScoreModSlot slot = kScoreModWireOrder[i];
+        float* target = ScoreModTarget(slot);
+        if (target) *target = mods[static_cast<int>(slot)];
+      }
+    }
 
   }
 
