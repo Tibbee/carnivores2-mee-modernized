@@ -68,64 +68,101 @@ void GLRenderer::RenderSkyPlane()
     // the inherited 4*512*16 plane height (131.072 texels per unit cot).
     constexpr float kPlaneTexelScale = 0.004f * (4.0f * 512.0f * 16.0f);
 
-    // Legacy mode keeps the altitude-derived offset (valleys place the sky
-    // slightly higher, high terrain lower); the other modes use a plane
-    // level with the world.
-    float skyPitch = CameraBeta;
-    if (skyMode == kSkyModeLegacy) {
-        float heightAboveTerrain = (std::max)(0.0f, -CameraY);
-        float altitudeFactor = (std::clamp)(heightAboveTerrain / (200.0f * ctHScale), 0.0f, 1.0f);
-        skyPitch = CameraBeta - (0.20f - altitudeFactor * 0.10f);
-    }
-    const float skyPitchCos = std::cos(skyPitch);
-    const float skyPitchSin = std::sin(skyPitch);
+    // Keep the legacy pitch calculation available in every mode. The
+    // projected texture is allowed to choose a different basis, but the
+    // inherited scanline-width fog proxy must not change when sky_mode is
+    // changed. This pitch is therefore the canonical fog basis as well as
+    // the texture basis for sky_mode 0.
+    const float heightAboveTerrain = (std::max)(0.0f, -CameraY);
+    const float altitudeFactor = (std::clamp)(
+        heightAboveTerrain / (200.0f * ctHScale), 0.0f, 1.0f);
+    const float legacySkyPitch =
+        CameraBeta - (0.20f - altitudeFactor * 0.10f);
+    const float skyPitch = (skyMode == kSkyModeLegacy)
+                               ? legacySkyPitch
+                               : CameraBeta;
 
-    Vector3d tx = {0.004f, 0.0f, 0.0f};
-    Vector3d ty = {0.0f, 0.0f, 0.004f};
-    Vector3d nv = {0.0f, -1.0f, 0.0f};
-
-    auto rotateSky = [&](Vector3d& v) {
-        // First rotate around Y axis (CameraAlpha)
-        float x = v.x * localCa - v.z * localSa;
-        float z = v.z * localCa + v.x * localSa;
-        // Then rotate around X axis (skyPitch)
-        float y = v.y * skyPitchCos + z * skyPitchSin;
-        float zz = z * skyPitchCos - v.y * skyPitchSin;
-
-        v.x = x;
-        v.y = y;
-        v.z = zz;
+    struct SkyProjectionBasis {
+        Vector3d tangentX;
+        Vector3d tangentY;
+        Vector3d normal;
+        float planeP;
+        float ddx;
+        float ddy;
     };
 
-    rotateSky(tx);
-    rotateSky(ty);
-    rotateSky(nv);
+    const auto buildSkyBasis = [&](float pitch) {
+        const float pitchCos = std::cos(pitch);
+        const float pitchSin = std::sin(pitch);
+        SkyProjectionBasis basis = {
+            {0.004f, 0.0f, 0.0f},
+            {0.0f, 0.0f, 0.004f},
+            {0.0f, -1.0f, 0.0f},
+            0.0f,
+            0.0f,
+            0.0f,
+        };
 
-    Vector3d vbase = {-CameraX, 4.0f * 512.0f * 16.0f, CameraZ};
-    rotateSky(vbase);
+        auto rotateSky = [&](Vector3d& v) {
+            // First rotate around Y axis (CameraAlpha).
+            float x = v.x * localCa - v.z * localSa;
+            float z = v.z * localCa + v.x * localSa;
+            // Then rotate around X axis (the selected sky pitch).
+            float y = v.y * pitchCos + z * pitchSin;
+            float zz = z * pitchCos - v.y * pitchSin;
 
-    const float p = nv.x * vbase.x + nv.y * vbase.y + nv.z * vbase.z;
-    const float ddx = vbase.x * tx.x + vbase.y * tx.y + vbase.z * tx.z;
-    const float ddy = vbase.x * ty.x + vbase.y * ty.y + vbase.z * ty.z;
+            v.x = x;
+            v.y = y;
+            v.z = zz;
+        };
 
-    const auto buildSkyProjection = [&](float cameraW, float cameraH) {
-        return skyfog::BuildProjectionCoefficients(nv, tx, ty, p, ddx, ddy,
-                                                    cameraW, cameraH);
+        rotateSky(basis.tangentX);
+        rotateSky(basis.tangentY);
+        rotateSky(basis.normal);
+
+        Vector3d vbase = {-CameraX, 4.0f * 512.0f * 16.0f, CameraZ};
+        rotateSky(vbase);
+
+        basis.planeP = basis.normal.x * vbase.x +
+                       basis.normal.y * vbase.y +
+                       basis.normal.z * vbase.z;
+        basis.ddx = vbase.x * basis.tangentX.x +
+                    vbase.y * basis.tangentX.y +
+                    vbase.z * basis.tangentX.z;
+        basis.ddy = vbase.x * basis.tangentY.x +
+                    vbase.y * basis.tangentY.y +
+                    vbase.z * basis.tangentY.z;
+        return basis;
+    };
+
+    const SkyProjectionBasis skyBasis = buildSkyBasis(skyPitch);
+    const SkyProjectionBasis fogBasis = buildSkyBasis(legacySkyPitch);
+    const auto buildProjection = [](const SkyProjectionBasis& basis,
+                                     float cameraW, float cameraH) {
+        return skyfog::BuildProjectionCoefficients(
+            basis.normal, basis.tangentX, basis.tangentY, basis.planeP,
+            basis.ddx, basis.ddy, cameraW, cameraH);
     };
     const skyfog::ProjectionCoefficients skyProjection =
-        buildSkyProjection(CameraW, CameraH);
+        buildProjection(skyBasis, CameraW, CameraH);
 
     // The inherited sky fog is based on the texture span across a scanline,
     // not a world-space distance. Controls.cpp multiplies CameraW/H for an
     // optic, so evaluate that metric with the player's non-optic FOV instead.
     // The shader reprojects its row by this same factor to preserve fog for
     // the same world-space ray while the texture itself remains zoomed.
+    //
+    // Important: use fogBasis, not skyBasis. This preserves the pre-change
+    // fog envelope in sky_mode 1/2 while still allowing their cloud mapping
+    // to use a level plane or dome.
     const float opticZoom = (std::max)(
         1.0f, IsBinocularView() ? BinocularPower : ActiveWorldZoom());
+    const skyfog::ProjectionCoefficients fogProjection =
+        buildProjection(fogBasis, CameraW, CameraH);
     const skyfog::ProjectionCoefficients fogReferenceProjection =
         opticZoom > 1.0f
-            ? buildSkyProjection(CameraW / opticZoom, CameraH / opticZoom)
-            : skyProjection;
+            ? buildProjection(fogBasis, CameraW / opticZoom, CameraH / opticZoom)
+            : fogProjection;
 
     // The sky's distance-fog color is global, not the color of the
     // fixed fog volume the camera is currently inside. Local volumes are
