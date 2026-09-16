@@ -108,7 +108,8 @@ Copy-Item $lgpl (Join-Path $PkgDir 'THIRD-PARTY-LICENSES\COPYING.OpenAL-Soft.txt
 # --- clean default config.cfg ------------------------------------------
 # Mirror Hunt/Game/EngineInit.cpp CreateDefaultConfig (fov 62 default,
 # object_detail 48 default, fps_limit 1, verbose_logging 0,
-# nightvision_key 78, glperf_logging 0, commented audio/hunt examples).
+# nightvision_key 78, sky_mode 1, sky_horizon_drop 12,
+# sky_dome_scale 384, glperf_logging 0, commented audio/hunt examples).
 # Keep this in sync with the source.
 @"
 # Carnivores 2 Modder's Engine - Configuration
@@ -145,6 +146,20 @@ nightvision_key 78
 # fullscreen (default: 2). The menu writes this when you change the
 # Display Mode video option.
 display_mode 2
+
+# Sky cloud-texture placement: 0=legacy camera-coupled offset,
+# 1=world-level projected plane (default), 2=direction-based dome.
+sky_mode 1
+
+# sky_mode 1 horizon drop in degrees: lowers the projected plane's
+# compression singularity below the true horizon (C1 used ~17 deg).
+# 0 = plain level plane.
+sky_horizon_drop 12
+
+# Dome (sky_mode 2) canopy scale: texture texels per radian at the
+# horizon. Larger = smaller clouds (384: one 256-texel texture spans
+# ~38 degrees; zenith clouds are 2x larger).
+sky_dome_scale 384
 
 # GPU features bitmask (default: all optimizations enabled)
 # Set to 0 to disable all GPU optimizations.
