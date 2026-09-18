@@ -1,11 +1,13 @@
-# tests/smoke_test.ps1 — Launch C2 game, run N seconds, verify clean exit
 param(
     [string]$ExePath = "",
     [string]$LogFile = "",
+    [ValidateRange(1, 2147483)]
     [int]$Duration = 5,
+    [switch]$AllowMissingLog,
     [string]$WorkingDir = "",
     [string]$Renderer = "GL",
     [string]$GameDir = "",
+    [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$GameArgs = @(
         "reg=0",
         "prj=huntdat\areas\area1",
@@ -15,6 +17,8 @@ param(
         "dtm=1"
     )
 )
+
+$ErrorActionPreference = 'Stop'
 
 if (-not $Renderer) {
     $Renderer = "GL"
@@ -43,15 +47,15 @@ if (-not $LogFile) {
     $LogFile = Join-Path $WorkingDir "carnivor.log"
 }
 
-if (-not (Test-Path $ExePath)) {
+if (-not (Test-Path -LiteralPath $ExePath -PathType Leaf)) {
     throw "Deployed game executable not found: $ExePath. Run the VS Code copy task first."
 }
-if (-not (Test-Path $WorkingDir)) {
+if (-not (Test-Path -LiteralPath $WorkingDir -PathType Container)) {
     throw "Game working directory not found: $WorkingDir. Run the deployment task first."
 }
 
 # Resolve ExePath
-$ExePath = Resolve-Path $ExePath -ErrorAction Stop
+$ExePath = (Resolve-Path -LiteralPath $ExePath -ErrorAction Stop).Path
 
 Write-Host "=== Smoke Test ==="
 Write-Host "  Exe:      $ExePath"
@@ -89,45 +93,62 @@ Write-Host "  PID: $($proc.Id)"
 Write-Host "  Waiting $($Duration) seconds..."
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
-$exitedEarly = $false
 
-while ($sw.Elapsed.TotalSeconds -lt $Duration) {
-    Start-Sleep -Milliseconds 200
-    if ($proc.HasExited) {
-        $exitedEarly = $true
-        break
+try {
+    $timedOut = $false
+    while ($sw.Elapsed.TotalSeconds -lt $Duration) {
+        Start-Sleep -Milliseconds 200
+        if ($proc.HasExited) {
+            break
+        }
+    }
+
+    if (-not $proc.HasExited) {
+        $timedOut = $true
+        Write-Host "Time's up - killing process..."
+        $proc.Kill()
+        $null = $proc.WaitForExit(2000)
+        Write-Host "Process terminated after the requested timeout"
+    }
+
+    if (-not $timedOut) {
+        $elapsed = $sw.Elapsed.TotalSeconds.ToString('F1')
+        $exitCode = $proc.ExitCode
+        throw "Game exited early after ${elapsed}s (exit code: $exitCode)"
     }
 }
-
-if ($exitedEarly) {
-    $elapsed = $sw.Elapsed.TotalSeconds.ToString('F1')
-    $exitCode = $proc.ExitCode
-    Write-Host "Game exited early after ${elapsed}s (exit code: $exitCode)"
-    if ($exitCode -ne 0 -and $exitCode -ne -1 -and $exitCode -ne 1) {
-        Write-Host "FAILED: Game exited with unexpected code $exitCode"
-        exit 1
+finally {
+    if ($proc -and -not $proc.HasExited) {
+        try {
+            $proc.Kill()
+            $null = $proc.WaitForExit(2000)
+        }
+        catch [System.InvalidOperationException] {
+            # The process can exit between HasExited and Kill.
+        }
     }
-} else {
-    Write-Host "Time's up - killing process..."
-    $proc.Kill()
-    Wait-Process -Id $proc.Id -ErrorAction SilentlyContinue
-    Write-Host "Process terminated (exit code undefined after kill)"
 }
 
 # Check log for errors
-if (Test-Path $LogFile) {
-    $logContent = Get-Content $LogFile -Raw
+if (Test-Path -LiteralPath $LogFile -PathType Leaf) {
+    $logContent = Get-Content -LiteralPath $LogFile -Raw
+    if ([string]::IsNullOrWhiteSpace($logContent)) {
+        throw "Log file is empty: $LogFile"
+    }
     $errorPattern = 'ABNORMAL_HALT|ERROR|FATAL|assertion'
     if ($logContent -match $errorPattern) {
-        Write-Host "FAILED: Found error markers in log:"
+        Write-Host "Found error markers in log:"
         $logContent | Select-String -Pattern $errorPattern | ForEach-Object { Write-Host "  $_" }
-        exit 1
+        throw "Smoke log contains error markers: $LogFile"
     }
     $logSize = (Get-Item $LogFile).Length
     Write-Host "  Log: $logSize bytes (no errors)"
 } else {
-    Write-Warning "No log file found at $LogFile"
+    if ($AllowMissingLog) {
+        Write-Warning "No log file found at $LogFile (allowed by -AllowMissingLog)"
+    } else {
+        throw "Required log file was not created: $LogFile"
+    }
 }
 
 Write-Host "=== Smoke Test PASSED ==="
-exit 0
