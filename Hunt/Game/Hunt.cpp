@@ -1025,8 +1025,7 @@ static GameMode DismissMenuRestore()
 {
   const GameMode saved = g_SavedOverlayMode;
   g_SavedOverlayMode = GameMode::Normal;
-  if (IsOverlayMode(saved)) return saved;
-  return GameMode::Normal;
+  return RestoreMenuState(saved);
 }
 
 // Centralized menu/mode transitions. Every mode-slot takeover that touches
@@ -1039,8 +1038,7 @@ static GameMode DismissMenuRestore()
 static void EnterMenuMode() // Escape from gameplay
 {
   if (!ExitTime) {
-    g_SavedOverlayMode = g_GameMode;
-    g_GameMode = GameMode::ExitCountdown;
+    g_GameMode = EnterMenuState(g_GameMode, g_SavedOverlayMode);
     CaptureMouse(true);
   }
   // else: the hunt is ending (evacuation countdown running) -- do not open

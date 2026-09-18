@@ -51,6 +51,16 @@ inline void EnterExitCountdownNoStash() {
 inline bool IsOverlayMode(GameMode m) {
   return m == GameMode::OpticScope || m == GameMode::Binocular || m == GameMode::MapMode;
 }
+// Pure state transitions used by the Escape/Pause menu paths. Keeping the
+// stash rules separate from mouse/window side effects makes the restoration
+// contract testable without a running Win32 game window.
+inline GameMode EnterMenuState(GameMode current, GameMode& saved) {
+  saved = current;
+  return GameMode::ExitCountdown;
+}
+inline GameMode RestoreMenuState(GameMode saved) {
+  return IsOverlayMode(saved) ? saved : GameMode::Normal;
+}
 // The only modes an underwater transition may silently overwrite. Every other
 // mode is an overlay the player opened deliberately (Tab -> map, Escape ->
 // exit prompt, Pause), and stomping on it every frame would make that overlay

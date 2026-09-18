@@ -62,4 +62,19 @@ TEST(GameModeTest, TheTwoPredicatesDoNotOverlap) {
     }
 }
 
+TEST(GameModeTest, MenuEntryStashesAndTakesOverTheCurrentMode) {
+    GameMode saved = GameMode::Normal;
+    EXPECT_EQ(EnterMenuState(GameMode::OpticScope, saved),
+              GameMode::ExitCountdown);
+    EXPECT_EQ(saved, GameMode::OpticScope);
+}
+
+TEST(GameModeTest, MenuDismissRestoresOnlyFullScreenOverlayModes) {
+    EXPECT_EQ(RestoreMenuState(GameMode::OpticScope), GameMode::OpticScope);
+    EXPECT_EQ(RestoreMenuState(GameMode::Binocular), GameMode::Binocular);
+    EXPECT_EQ(RestoreMenuState(GameMode::MapMode), GameMode::MapMode);
+    EXPECT_EQ(RestoreMenuState(GameMode::Paused), GameMode::Normal);
+    EXPECT_EQ(RestoreMenuState(GameMode::Normal), GameMode::Normal);
+}
+
 }  // namespace
