@@ -337,6 +337,19 @@ if(MSVC)
     target_link_libraries(Carnivores2UITests PRIVATE gtest_main gdi32)
     add_test(NAME Carnivores2Tests.UIText COMMAND Carnivores2UITests)
 
+    # Link the production WAV loader with a test halt seam so malformed/missing
+    # file failures exercise the real entry point instead of only helpers.
+    add_executable(Carnivores2LoaderContractTests
+        tests/test_sound_loader_entry.cpp
+        Hunt/Loaders/SoundLoader.cpp
+    )
+    target_include_directories(Carnivores2LoaderContractTests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt
+    )
+    target_link_libraries(Carnivores2LoaderContractTests PRIVATE gtest_main)
+    add_test(NAME Carnivores2Tests.LoaderContracts
+             COMMAND Carnivores2LoaderContractTests)
+
     # This integration test intentionally targets a deployed game directory
     # containing licensed HUNTDAT assets. It is opt-in so asset-free CI runs
     # only deterministic unit tests.
@@ -360,7 +373,7 @@ endif()
 
 # Apply the project warning policy only to project-owned targets. GoogleTest
 # and vendored loader targets retain their own upstream compiler settings.
-foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests)
+foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests Carnivores2LoaderContractTests)
     if(TARGET ${C2_TARGET})
         c2_apply_msvc_compile_policy(${C2_TARGET})
     endif()
