@@ -75,6 +75,14 @@
       }
     },
     {
+      "name": "clang-tidy",
+      "displayName": "OpenGL (clang-tidy database)",
+      "inherits": "ogl-debug",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
       "name": "ogl-pgo-instr",
       "displayName": "OpenGL PGO (Instrumented)",
       "inherits": "ogl-release",
@@ -115,6 +123,10 @@
     {
       "name": "menu-release",
       "configurePreset": "menu-release"
+    },
+    {
+      "name": "clang-tidy",
+      "configurePreset": "clang-tidy"
     },
     {
       "name": "ogl-pgo-instr",

@@ -49,3 +49,64 @@ jobs:
     - name: Check comment hygiene
       shell: powershell
       run: ./tools/check_comment_hygiene.ps1
+
+  clang-tidy:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up x86 MSVC toolchain
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x86
+
+    - name: Install LLVM
+      shell: powershell
+      run: choco install llvm --no-progress
+
+    - name: Configure clang-tidy database
+      shell: powershell
+      run: cmake --preset clang-tidy
+
+    - name: Analyze changed project sources
+      shell: powershell
+      run: |
+        $env:Path = "C:\Program Files\LLVM\bin;$env:Path"
+        if ($env:GITHUB_BASE_REF) {
+          $base = git merge-base HEAD "origin/$env:GITHUB_BASE_REF"
+        }
+        else {
+          $base = git rev-parse HEAD^
+        }
+        $files = @(git diff --name-only $base HEAD | Where-Object { $_ -match '\.(c|cc|cpp|cxx)$' })
+        if ($files.Count -eq 0) {
+          Write-Host 'No changed C/C++ translation units to analyze.'
+          exit 0
+        }
+        & ./tools/run_clang_tidy.ps1 -BuildDir build/clang-tidy -Files $files
+
+  runtime-contracts:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.x
+
+    - name: Build smoke fixture
+      shell: powershell
+      run: |
+        $output = Join-Path $env:RUNNER_TEMP 'c2-smoke-fixture'
+        dotnet build tests/smoke_fixture.csproj --configuration Release --output $output --nologo
+
+    - name: Run smoke-script contracts
+      shell: powershell
+      run: |
+        $fixture = Join-Path $env:RUNNER_TEMP 'c2-smoke-fixture/smoke_fixture.dll'
+        ./tests/test_smoke_script.ps1 -FixtureDll $fixture

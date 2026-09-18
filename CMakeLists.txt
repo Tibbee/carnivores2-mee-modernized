@@ -42,15 +42,12 @@ if(MSVC)
         message(WARNING "This project contains x86 inline assembly and MUST be compiled as 32-bit (x86).")
     endif()
 
-    # Relax compiler for legacy code
+    # Keep the legacy compiler mode while warning policy is migrated per target.
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
     add_definitions(-D_CRT_NONSTDC_NO_DEPRECATE)
     add_definitions(-D_WINSOCK_DEPRECATED_NO_WARNINGS)
     add_definitions(-DWIN32)
     add_definitions(-DNOMINMAX)
-
-    # Fix for some legacy headers and scoping
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /permissive")
 
     # Enable memory debugging for Debug builds by default, or explicitly for
     # any configuration through -DMEM_DEBUG=ON. Keep it game-target scoped;
@@ -59,6 +56,27 @@ if(MSVC)
         list(APPEND GAME_DEBUG_DEFINES MEM_DEBUG)
     endif()
 endif()
+
+option(C2_WARNINGS_AS_ERRORS
+       "Treat project-owned MSVC warnings as errors (legacy baseline must be clean)"
+       OFF)
+
+set(C2_MSVC_COMPILE_OPTIONS)
+if(MSVC)
+    # /permissive remains intentionally enabled until its legacy failures are
+    # catalogued and fixed. These options are target-scoped below so dependency
+    # targets do not inherit the project's warning policy.
+    list(APPEND C2_MSVC_COMPILE_OPTIONS /MP /permissive /W4)
+    if(C2_WARNINGS_AS_ERRORS)
+        list(APPEND C2_MSVC_COMPILE_OPTIONS /WX)
+    endif()
+endif()
+
+function(c2_apply_msvc_compile_policy target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE ${C2_MSVC_COMPILE_OPTIONS})
+    endif()
+endfunction()
 
 # Renderer-specific source and library configuration. Skipped entirely when
 # RENDERER is empty (menu-only builds).
@@ -338,3 +356,11 @@ if(MSVC)
         endif()
     endif()
 endif()
+
+# Apply the project warning policy only to project-owned targets. GoogleTest
+# and vendored loader targets retain their own upstream compiler settings.
+foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests)
+    if(TARGET ${C2_TARGET})
+        c2_apply_msvc_compile_policy(${C2_TARGET})
+    endif()
+endforeach()
