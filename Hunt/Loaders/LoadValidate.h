@@ -27,6 +27,14 @@ inline bool IsValidCount(int value, int capacity)
     return value >= 0 && value <= capacity;
 }
 
+// A configured minimum/maximum pair must fit its destination capacity and
+// retain the ordering expected by the spawning loops.
+inline bool IsValidOrderedRange(int minimum, int maximum, int capacity)
+{
+    return IsValidCount(minimum, capacity) &&
+           IsValidCount(maximum, capacity) && minimum <= maximum;
+}
+
 // File/script-derived array index must be strictly below capacity.
 inline bool IsValidIndex(int value, int capacity)
 {

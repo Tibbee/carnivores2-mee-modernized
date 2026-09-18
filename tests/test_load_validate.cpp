@@ -23,6 +23,15 @@ TEST(LoadValidate, CountsFitFixedArrays) {
     EXPECT_FALSE(IsValidCount(1025, 1024));  // gObj capacity
 }
 
+TEST(LoadValidate, OrderedSpawnRangesFitCapacity) {
+    EXPECT_TRUE(IsValidOrderedRange(0, 0, 256));
+    EXPECT_TRUE(IsValidOrderedRange(2, 13, 256));
+    EXPECT_TRUE(IsValidOrderedRange(0, 256, 256));
+    EXPECT_FALSE(IsValidOrderedRange(-1, 3, 256));
+    EXPECT_FALSE(IsValidOrderedRange(4, 3, 256));
+    EXPECT_FALSE(IsValidOrderedRange(0, 257, 256));
+}
+
 TEST(LoadValidate, CheckedSizesRejectWrap) {
     size_t out = 0;
     EXPECT_TRUE(CheckedBytes2(1989, 16, out));  // shipped max VCount * 16
@@ -138,6 +147,7 @@ TEST(LoadValidate, ScriptKeyMatchesAssignmentTokenOnly) {
     EXPECT_TRUE(ScriptKeyIs("file = 'para.car'", "file"));
     EXPECT_TRUE(ScriptKeyIs(" file    = 'models/main_hunt/para.car'", "file"));
     EXPECT_TRUE(ScriptKeyIs("name = 'Parasaurolophus'", "name"));
+    EXPECT_FALSE(ScriptKeyIs("name = 'Chilantaisaurus'", "ai"));
     EXPECT_TRUE(ScriptKeyIs("\tpicc = 'ammo/chamb1.tga'", "picc"));
     EXPECT_TRUE(ScriptKeyIs("bModel = 'Weapons/proj/b_pist.car'", "bModel"));
 

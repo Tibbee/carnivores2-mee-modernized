@@ -17,6 +17,15 @@ static void ModelLoadFail(const char* what, int value, int limit)
   DoHalt(sz);
 }
 
+// Mod character files use an explicit BLANK animation record as a positional
+// placeholder. It has no frame payload, but its slot must remain in the array
+// so later animation indices keep their file-defined meaning.
+static bool IsBlankAnimation(const char name[32])
+{
+  return strncmp(name, "BLANK", 5) == 0 &&
+         (name[5] == '\0' || name[5] == ' ');
+}
+
 static void ReadModelExact(HANDLE file, void* dst, DWORD bytes, const char* what)
 {
   if (!ReadExact(file, dst, bytes))
@@ -876,8 +885,16 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
     ReadModelExact(hfile, &chinfo.Animation[a].FramesCount, 4, "animation frame count");
     const int fileFrames = chinfo.Animation[a].FramesCount;
     constexpr int maxAnimationFrames = (std::numeric_limits<int>::max)() / 256;
-    if (fileFrames <= 0 || fileFrames > maxAnimationFrames)
+    const bool blankAnimation = IsBlankAnimation(chinfo.Animation[a].aniName);
+    if (fileFrames < 0 || fileFrames > maxAnimationFrames ||
+        (fileFrames == 0 && !blankAnimation))
       ModelLoadFail("animation frame count out of range", fileFrames, maxAnimationFrames);
+    if (blankAnimation && fileFrames == 0)
+    {
+      chinfo.Animation[a].AniTime = 0;
+      chinfo.Animation[a].aniData.reset();
+      continue;
+    }
     const int storageFrames = fileFrames == 1 ? 2 : fileFrames;
     size_t fileAniBytes = 0, storageAniBytes = 0;
     if (!CheckedBytes3((size_t)chinfo.mptr->VCount,

@@ -805,13 +805,8 @@ void LoadResources()
   SkyTG = TransRGB[OptDayNight][1];
   SkyTB = TransRGB[OptDayNight][2];
 
-  if (OptDayNight==2)
-  {
-    SkyR = 0;
-    SkyB = 0;
-    SkyTR = 0;
-    SkyTB = 0;
-  }
+  // Preserve the configured night RGB values. Night vision applies its green
+  // tint as a separate overlay and must not rewrite the scene fog colour.
 
   SkyTR = MIN(255,SkyTR * (OptBrightness + 128) / 256);
   SkyTG = MIN(255,SkyTG * (OptBrightness + 128) / 256);

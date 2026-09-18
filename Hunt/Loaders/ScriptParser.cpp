@@ -105,6 +105,15 @@ static int ReadScriptIntField(const char* value, const char* line,
   return parsed;
 }
 
+static int ReadScriptLegacyIntField(const char* value, const char* line,
+                                    const char* field)
+{
+  int parsed = 0;
+  if (!ParseScriptLegacyInt(value, parsed))
+    ScriptFieldFail(field, line);
+  return parsed;
+}
+
 static float ReadScriptFloatField(const char* value, const char* line,
                                   const char* field)
 {
@@ -127,6 +136,27 @@ static void RequireScriptSlot(int index, int capacity, const char* what)
     sprintf_s(sz, sizeof(sz),
               "Script loading error: %s capacity exceeded (index=%d, max=%d).",
               what, index, capacity - 1);
+    DoHalt(sz);
+  }
+}
+
+static int ReadScriptIndexField(const char* value, const char* line,
+                                const char* field, int capacity)
+{
+  const int parsed = ReadScriptIntField(value, line, field);
+  RequireScriptSlot(parsed, capacity, field);
+  return parsed;
+}
+
+static void RequireOrderedScriptRange(int minimum, int maximum, int capacity,
+                                      const char* what)
+{
+  if (!IsValidOrderedRange(minimum, maximum, capacity))
+  {
+    char sz[192];
+    sprintf_s(sz, sizeof(sz),
+              "Script loading error: invalid %s range (min=%d, max=%d, capacity=%d).",
+              what, minimum, maximum, capacity);
     DoHalt(sz);
   }
 }
@@ -296,7 +326,7 @@ void ReadSpawnInfo(FILE *stream)
 		value++;
 
 		if (strstr(line, "spawnratio")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnRatio = ReadScriptFloatField(value, line, "spawn ratio");
-		if (strstr(line, "spawngroup")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnGroup = ReadScriptIntField(value, line, "spawn group");
+		if (strstr(line, "spawngroup")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnGroup = ReadScriptIndexField(value, line, "spawn group", 256);
 		//if (strstr(line, "spawnmax")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnMax = atoi(value);
 	}
 }
@@ -336,7 +366,7 @@ void ReadSpawnInfoPack(FILE *stream)
 		value++;
 
 		if (strstr(line, "spawnratio")) packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnRatio = ReadScriptFloatField(value, line, "pack spawn ratio");
-		if (strstr(line, "spawngroup")) packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnGroup = ReadScriptIntField(value, line, "pack spawn group");
+		if (strstr(line, "spawngroup")) packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnGroup = ReadScriptIndexField(value, line, "pack spawn group", 256);
 	}
 }
 
@@ -360,7 +390,7 @@ void ReadPackMember2(FILE *stream) {
 		}
 		value++;
 
-		if (strstr(line, "group")) DinoInfo[TotalC].packMember2[DinoInfo[TotalC].packMember2Ch].packGroup = ReadScriptIntField(value, line, "pack member group");
+		if (strstr(line, "group")) DinoInfo[TotalC].packMember2[DinoInfo[TotalC].packMember2Ch].packGroup = ReadScriptIndexField(value, line, "pack member group", 1024);
 		if (strstr(line, "ratio")) DinoInfo[TotalC].packMember2[DinoInfo[TotalC].packMember2Ch].ratio = ReadScriptFloatField(value, line, "pack member ratio");
 
 	}
@@ -526,6 +556,9 @@ void ReadSpawnGroup(FILE *stream, char line[256], int mode) {
 				DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnGroup = TotalSpawnGroup;
 				DinoInfo[TotalC].SpawnInfoCh++;
 			}
+			RequireOrderedScriptRange(spawnGroup[TotalSpawnGroup].SpawnMin,
+			                          spawnGroup[TotalSpawnGroup].SpawnMax,
+			                          256, "spawn group limits");
 			TotalSpawnGroup++;
 			break;
 		}
@@ -737,6 +770,9 @@ void ReadPackGroup(FILE *stream, char line[256], int mode) {
 				DinoInfo[TotalC].packMember2[DinoInfo[TotalC].packMember2Ch].ratio = 1;
 				DinoInfo[TotalC].packMember2Ch++;
 			}
+			RequireOrderedScriptRange(packType[packTypeCount].packMin,
+			                          packType[packTypeCount].packMax,
+			                          256, "pack group limits");
 			packTypeCount++;
 			break;
 		}
@@ -1095,7 +1131,7 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	if (strstr(line, "muzzflash")) readBool(value, WeapInfo[TotalW].MuzzFlash);
 	if (strstr(line, "chamflash")) readBool(value, WeapInfo[TotalW].ChamFlash);
 
-	if (strstr(line, "recoil"))  WeapInfo[TotalW].recoil = ReadScriptIntField(value, line, "weapon recoil");
+	if (strstr(line, "recoil"))  WeapInfo[TotalW].recoil = ReadScriptFloatField(value, line, "weapon recoil");
 
 	if (strstr(line, "retrieve")) readBool(value, WeapInfo[TotalW].retrieve);
 
@@ -1637,10 +1673,10 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	if (strstr(line, "mass")) DinoInfo[TotalC].Mass = ReadScriptFloatField(value, line, "character mass");
 	if (strstr(line, "length")) DinoInfo[TotalC].Length = ReadScriptFloatField(value, line, "character length");
 	if (strstr(line, "radius")) DinoInfo[TotalC].Radius = ReadScriptFloatField(value, line, "character radius");
-	if (strstr(line, "health")) DinoInfo[TotalC].Health0 = ReadScriptIntField(value, line, "character health");
+	if (strstr(line, "health")) DinoInfo[TotalC].Health0 = ReadScriptLegacyIntField(value, line, "character health");
 	if (strstr(line, "basescore")) DinoInfo[TotalC].BaseScore = ReadScriptFloatField(value, line, "character base score");
 
-	if (strstr(line, "ai")) DinoInfo[TotalC].Clone = ReadScriptIntField(value, line, "character AI");
+	if (ScriptKeyIs(line, "ai")) DinoInfo[TotalC].Clone = ReadScriptIntField(value, line, "character AI");
 
 	if (strstr(line, "smellK")) DinoInfo[TotalC].SmellK = ReadScriptFloatField(value, line, "character smell factor");
 	if (strstr(line, "hearK")) DinoInfo[TotalC].HearK = ReadScriptFloatField(value, line, "character hearing factor");
@@ -1666,7 +1702,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	if (strstr(line, "divspd")) DinoInfo[TotalC].divspd = ReadScriptFloatField(value, line, "character dive speed");
 	if (strstr(line, "aggress")) DinoInfo[TotalC].aggress = ReadScriptIntField(value, line, "character aggression");
 	if (strstr(line, "flydist")) DinoInfo[TotalC].flyDist = ReadScriptIntField(value, line, "character fly distance");
-	if (strstr(line, "killdist")) DinoInfo[TotalC].killDist = ReadScriptIntField(value, line, "character kill distance");
+	if (strstr(line, "killdist")) DinoInfo[TotalC].killDist = ReadScriptLegacyIntField(value, line, "character kill distance");
 	if (strstr(line, "radar")) readBool(value, DinoInfo[TotalC].onRadar);
 	if (strstr(line, "dontswimaway")) readBool(value, DinoInfo[TotalC].dontSwimAway);
 

@@ -30,3 +30,13 @@ TEST(ScriptValueParse, RejectsPartialAndNonFiniteValues)
     EXPECT_FALSE(ParseScriptFloat("inf", decimal));
     EXPECT_FLOAT_EQ(decimal, 2.0f);
 }
+
+TEST(ScriptValueParse, PreservesLegacyDecimalToIntegerConversion)
+{
+    int integer = 0;
+    EXPECT_TRUE(ParseScriptLegacyInt("5.5\r\n", integer));
+    EXPECT_EQ(integer, 5);
+    EXPECT_TRUE(ParseScriptLegacyInt("13 // comment", integer));
+    EXPECT_EQ(integer, 13);
+    EXPECT_FALSE(ParseScriptLegacyInt("5.5oops", integer));
+}

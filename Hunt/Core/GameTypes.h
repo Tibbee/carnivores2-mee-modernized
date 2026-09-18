@@ -639,7 +639,7 @@ struct TWeapInfo
   unsigned char crossRed, crossGreen, crossBlue;
   WORD crossColour565, crossColour555;
 
-  int recoil;
+  float recoil;
 
 };
 
