@@ -7,6 +7,7 @@
 */
 
 #include "Hunt.h"
+#include "LaunchArgs.h"
 #include "ListMath.h"
 #include "SliderMath.h"
 #include "../Hunt/Core/ScoreMod.h"
@@ -2438,21 +2439,29 @@ void MenuEventInput(int32_t menu)
 						wep |= 1 << i;
 				}
 
-				// Initialise the command line parameters. For slot six, launch the
-				// basename whose files actually exist (m_MapFile): vanilla resolves
-				// external.map/.rsc, mods that ship area6.map/.rsc resolve there.
-				// m_ProjectName keeps the logical slot name "area6" for saved-hunt
-				// restore matching. The engine aliases external->area6 in its script
-				// area filtering, so either basename loads correctly.
-				std::stringstream params("");
+				// Initialise the command line parameters through the tested helper. For
+				// slot six, this uses the basename whose files actually exist.
+				if (MenuHunt[0].Selected < 0 ||
+					MenuHunt[0].Selected >= static_cast<int>(g_AreaInfo.size()))
+				{
+					ShowErrorMessage("The selected hunt is invalid.");
+					return;
+				}
 				const AreaInfo& launchArea = g_AreaInfo[MenuHunt[0].Selected];
-				const std::string& launchName =
-					(launchArea.m_MapFile == "external") ? std::string("external") : launchArea.m_ProjectName;
-				params << " reg=" << g_UserProfile.RegNumber;
-				params << " prj=huntdat/areas/" << launchName;
-				params << " din=" << din;
-				params << " wep=" << wep;
-				params << " dtm=" << g_TimeOfDay;
+				HuntLaunchRequest launchRequest;
+				launchRequest.projectName = launchArea.m_ProjectName;
+				launchRequest.mapFile = launchArea.m_MapFile;
+				launchRequest.registration = g_UserProfile.RegNumber;
+				launchRequest.dinoFlags = din;
+				launchRequest.weaponFlags = wep;
+				launchRequest.timeOfDay = g_TimeOfDay;
+				std::string launchArguments;
+				if (!BuildHuntLaunchArguments(launchRequest, launchArguments))
+				{
+					ShowErrorMessage("The selected hunt has invalid launch data.");
+					return;
+				}
+				std::stringstream params(launchArguments);
 
 #ifdef _iceage
 				// Ice Age resupply
@@ -2558,11 +2567,17 @@ void MenuEventInput(int32_t menu)
 				if (id == 1) { ChangeMenuState(MENU_HUNT); }
 				else if (id == 2) { ChangeMenuState(MENU_OPTIONS); }
 				else if (id == 3) {
-					std::stringstream params("");
-
-					params << "reg=" << g_UserProfile.RegNumber;
-					params << " prj=huntdat/areas/trophy";
-					params << " dtm=" << 1;
+					HuntLaunchRequest launchRequest;
+					launchRequest.projectName = "trophy";
+					launchRequest.registration = g_UserProfile.RegNumber;
+					launchRequest.timeOfDay = 1;
+					std::string launchArguments;
+					if (!BuildHuntLaunchArguments(launchRequest, launchArguments))
+					{
+						ShowErrorMessage("The trophy room has invalid launch data.");
+						return;
+					}
+					std::stringstream params(launchArguments);
 #ifdef _DEBUG
 					params << " -debug";
 #endif //_DEBUG
