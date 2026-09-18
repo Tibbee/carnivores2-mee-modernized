@@ -78,6 +78,15 @@ jobs:
         if ($env:GITHUB_BASE_REF) {
           $base = git merge-base HEAD "origin/$env:GITHUB_BASE_REF"
         }
+        elseif ($env:GITHUB_EVENT_NAME -eq 'push') {
+          # A push can contain several commits; analyze the complete push
+          # range instead of only comparing HEAD with its immediate parent.
+          $event = Get-Content -LiteralPath $env:GITHUB_EVENT_PATH -Raw | ConvertFrom-Json
+          $base = $event.before
+          if (-not $base -or $base -match '^0{40}$') {
+            $base = git rev-parse HEAD^
+          }
+        }
         else {
           $base = git rev-parse HEAD^
         }
