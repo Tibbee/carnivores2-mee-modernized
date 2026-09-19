@@ -1173,6 +1173,49 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	RequireScriptSlot(TotalW, 10, "weapons");
 	char *value = _value;
 
+	// Text fields are handled before the numeric/flag dispatch: their values
+	// are free-form, and a name or path can contain a numeric field key as a
+	// substring (a lowercase 'crossbow', a path like models/separated/...).
+	// Once such a line is recognized here it cannot reach a numeric reader.
+	if (ScriptKeyIs(line, "name"))
+	{
+		CopyScriptField(WeapInfo[TotalW].Name, sizeof(WeapInfo[TotalW].Name), value, "Weapons name", line);
+		return;
+	}
+
+	if (ScriptKeyIs(line, "file"))
+	{
+		CopyScriptField(WeapInfo[TotalW].FName, sizeof(WeapInfo[TotalW].FName), value, "Weapons file", line);
+		return;
+	}
+
+	if (ScriptKeyIs(line, "gunshot"))
+	{
+		CopyScriptField(WeapInfo[TotalW].SFXName, sizeof(WeapInfo[TotalW].SFXName), value, "Weapons gunshot", line);
+		WeapInfo[TotalW].MGSSound = true;
+		return;
+	}
+
+	if (ScriptKeyIs(line, "pic1"))
+	{
+		CopyScriptField(WeapInfo[TotalW].BFName, sizeof(WeapInfo[TotalW].BFName), value, "Weapons pic", line);
+		return;
+	}
+
+	if (ScriptKeyIs(line, "picc"))
+	{
+		CopyScriptField(WeapInfo[TotalW].CFName, sizeof(WeapInfo[TotalW].CFName), value, "Chamber pic", line);
+		WeapInfo[TotalW].picch = true;
+		return;
+	}
+
+	if (ScriptKeyIs(line, "bModel"))
+	{
+		CopyScriptField(WeapInfo[TotalW].BLName, sizeof(WeapInfo[TotalW].BLName), value, "Weapons bullet", line);
+		WeapInfo[TotalW].bullet = true;
+		return;
+	}
+
 	if (strstr(line, "getAnim"))  WeapInfo[TotalW].getAnim = ReadScriptIntField(value, line, "weapon getAnim");
 	if (strstr(line, "putAnim"))  WeapInfo[TotalW].putAnim = ReadScriptIntField(value, line, "weapon putAnim");
 	if (strstr(line, "shtAnim"))  WeapInfo[TotalW].shtAnim = ReadScriptIntField(value, line, "weapon shtAnim");
@@ -1246,42 +1289,6 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	if (strstr(line, "recoil"))  WeapInfo[TotalW].recoil = ReadScriptFloatField(value, line, "weapon recoil");
 
 	if (strstr(line, "retrieve")) readBool(value, WeapInfo[TotalW].retrieve);
-
-	if (ScriptKeyIs(line, "name"))
-	{
-		CopyScriptField(WeapInfo[TotalW].Name, sizeof(WeapInfo[TotalW].Name), value, "Weapons name", line);
-	}
-
-	if (ScriptKeyIs(line, "file"))
-	{
-		CopyScriptField(WeapInfo[TotalW].FName, sizeof(WeapInfo[TotalW].FName), value, "Weapons file", line);
-	}
-
-	if (ScriptKeyIs(line, "gunshot"))
-	{
-		CopyScriptField(WeapInfo[TotalW].SFXName, sizeof(WeapInfo[TotalW].SFXName), value, "Weapons gunshot", line);
-		WeapInfo[TotalW].MGSSound = true;
-	}
-
-
-	if (ScriptKeyIs(line, "pic1"))
-	{
-		CopyScriptField(WeapInfo[TotalW].BFName, sizeof(WeapInfo[TotalW].BFName), value, "Weapons pic", line);
-	}
-
-
-	if (ScriptKeyIs(line, "picc"))
-	{
-		CopyScriptField(WeapInfo[TotalW].CFName, sizeof(WeapInfo[TotalW].CFName), value, "Chamber pic", line);
-		WeapInfo[TotalW].picch = true;
-	}
-
-
-	if (ScriptKeyIs(line, "bModel"))
-	{
-		CopyScriptField(WeapInfo[TotalW].BLName, sizeof(WeapInfo[TotalW].BLName), value, "Weapons bullet", line);
-		WeapInfo[TotalW].bullet = true;
-	}
 
 }
 
@@ -1751,6 +1758,23 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	char *value = _value;
 //	bool overwrite = _overwrite;
 
+	// Text fields are handled before the numeric/flag dispatch and before the
+	// block openers: their values are free-form, and a name or path can contain
+	// a field key or a block name as a substring (a path like
+	// models/massive/... or models/spawninfo/...). Once such a line is
+	// recognized here it cannot select a numeric field or open a block.
+	if (ScriptKeyIs(line, "name"))
+	{
+		CopyScriptField(DinoInfo[TotalC].Name, sizeof(DinoInfo[TotalC].Name), value, "Characters name", line);
+		return;
+	}
+
+	if (ScriptKeyIs(line, "file"))
+	{
+		CopyScriptField(DinoInfo[TotalC].FName, sizeof(DinoInfo[TotalC].FName), value, "Characters file", line);
+		return;
+	}
+
 	if (strstr(line, "packinfo")) {
 		if (memberOverwrite) {
 			WipePackMembers2();
@@ -1981,17 +2005,6 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	}
 
 
-	if (ScriptKeyIs(line, "name"))
-	{
-		CopyScriptField(DinoInfo[TotalC].Name, sizeof(DinoInfo[TotalC].Name), value, "Characters name", line);
-	}
-
-	if (ScriptKeyIs(line, "file"))
-	{
-		CopyScriptField(DinoInfo[TotalC].FName, sizeof(DinoInfo[TotalC].FName), value, "Characters file", line);
-	}
-
-	
 	if (strstr(line, "killtype")) {
 
 		if (killOverwrite) {
