@@ -48,8 +48,13 @@ static void CopyScriptField(char* dst, size_t dstCap, const char* value,
 
 static void CopyProjectName(char* dst, const char* src)
 {
-  if (!CopyCapped(dst, 128, src))
-    DoHalt("Script loading error: project path too long.");
+  if (!CopyCapped(dst, 128, src)) {
+    // ProcessCommandLine() rejects the same option without changing the last
+    // valid value. Keep this second argv pass consistent so a malformed later
+    // token cannot turn an otherwise valid launch into an abnormal halt.
+    PrintLog("Script loading: ignoring overlong project path.\n");
+    return;
+  }
   // The vanilla sixth slot stores assets as external.map/.rsc; every other
   // slot is areaN. The legacy area-filter logic below reads the fixed path
   // offset that holds the area digit, which a bare "external" basename
@@ -64,7 +69,11 @@ static void CopyProjectName(char* dst, const char* src)
 static void ReadScriptCommandLineOptions(char projectName[128], int& timeOfDay,
                                          int& dinSelect)
 {
-  projectName[0] = 0;
+  memset(projectName, 0, 128);
+  // ProcessCommandLine() has already established the current global value.
+  // Start the second argv pass from that value so an overlong later token
+  // cannot erase an otherwise valid project selection.
+  CopyCapped(projectName, 128, ProjectName);
   timeOfDay = 0;
   dinSelect = 0;
 

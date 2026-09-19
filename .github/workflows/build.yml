@@ -27,6 +27,11 @@ jobs:
     - name: Build
       run: cmake --build --preset ${{ matrix.preset }}
 
+    - name: Check release stack protection
+      if: endsWith(matrix.preset, '-release')
+      shell: powershell
+      run: ./tools/check_release_flags.ps1 -BuildDir build/${{ matrix.preset }}
+
     # Deployed smoke tests require licensed HUNTDAT assets and are registered
     # only when ENABLE_DEPLOYED_SMOKE_TEST is enabled on a developer machine.
     - name: Unit Tests (debug builds)

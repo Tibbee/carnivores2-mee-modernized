@@ -37,6 +37,32 @@ TEST(SoundLoaderEntry, MissingWavUsesProductionFailurePath)
     EXPECT_THROW(LoadWav(missingPath, sound), LoaderHalt);
 }
 
+TEST(SoundLoaderEntry, ValidWavUsesProductionEntryPoint)
+{
+    const char* path = "__c2_loader_contract_valid__.wav";
+    unsigned char wav[48] = {};
+    const DWORD length = 4;
+    const short samples[2] = {123, -456};
+    memcpy(wav + 36, "data", 4);
+    memcpy(wav + 40, &length, sizeof(length));
+    memcpy(wav + 44, samples, sizeof(samples));
+
+    FILE* file = nullptr;
+    ASSERT_EQ(fopen_s(&file, path, "wb"), 0);
+    ASSERT_EQ(fwrite(wav, 1, sizeof(wav), file), sizeof(wav));
+    fclose(file);
+
+    char mutablePath[] = "__c2_loader_contract_valid__.wav";
+    TSFX sound{};
+    EXPECT_NO_THROW(LoadWav(mutablePath, sound));
+    EXPECT_EQ(sound.length, length);
+    ASSERT_EQ(sound.lpData.size(), 2u);
+    EXPECT_EQ(sound.lpData[0], samples[0]);
+    EXPECT_EQ(sound.lpData[1], samples[1]);
+
+    remove(path);
+}
+
 TEST(SoundLoaderEntry, TruncatedWavWithoutDataChunkUsesProductionFailurePath)
 {
     const char* path = "__c2_loader_contract_no_data__.wav";

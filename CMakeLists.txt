@@ -350,6 +350,35 @@ if(MSVC)
     add_test(NAME Carnivores2Tests.LoaderContracts
              COMMAND Carnivores2LoaderContractTests)
 
+    # Link the production BMP loader with the same narrow heap/halt seams used
+    # by the game. This keeps dimension and truncation checks on the real entry
+    # point rather than only testing LoadValidate helpers.
+    add_executable(Carnivores2PictureLoaderContractTests
+        tests/test_picture_loader_entry.cpp
+        Hunt/Loaders/PictureLoader.cpp
+    )
+    target_include_directories(Carnivores2PictureLoaderContractTests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt
+    )
+    target_link_libraries(Carnivores2PictureLoaderContractTests PRIVATE gtest_main)
+    add_test(NAME Carnivores2Tests.PictureLoaderContracts
+             COMMAND Carnivores2PictureLoaderContractTests)
+
+    # Link the production command-line implementation with the real global
+    # state definitions and a narrow log/heap seam. This verifies the bounded
+    # prj=/server= behavior through ProcessCommandLine(), not only helpers.
+    add_executable(Carnivores2CommandLineContractTests
+        tests/test_command_line_entry.cpp
+        Hunt/Game/CommandLine.cpp
+        Hunt/Core/StateDefs.cpp
+    )
+    target_include_directories(Carnivores2CommandLineContractTests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt
+    )
+    target_link_libraries(Carnivores2CommandLineContractTests PRIVATE gtest_main)
+    add_test(NAME Carnivores2Tests.CommandLineContracts
+             COMMAND Carnivores2CommandLineContractTests)
+
     # This integration test intentionally targets a deployed game directory
     # containing licensed HUNTDAT assets. It is opt-in so asset-free CI runs
     # only deterministic unit tests.
@@ -373,7 +402,7 @@ endif()
 
 # Apply the project warning policy only to project-owned targets. GoogleTest
 # and vendored loader targets retain their own upstream compiler settings.
-foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests Carnivores2LoaderContractTests)
+foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests Carnivores2LoaderContractTests Carnivores2PictureLoaderContractTests Carnivores2CommandLineContractTests)
     if(TARGET ${C2_TARGET})
         c2_apply_msvc_compile_policy(${C2_TARGET})
     endif()

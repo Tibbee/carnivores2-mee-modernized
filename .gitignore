@@ -24,3 +24,6 @@ tools/release/*
 !tools/c2_capture_README.md
 !tools/check_comment_hygiene.ps1
 !tools/comments.py
+!tools/run_clang_tidy.ps1
+!tools/clang-tidy.md
+!tools/check_release_flags.ps1
