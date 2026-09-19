@@ -27,10 +27,15 @@ redistributed here.
 
 ## Modernization license
 
-The modernization source code is © 2026 Tibor Harsányi (StriderTibe) and
-licensed under the
-MIT License - see `LICENSE`. The upstream MEE engine code retains its original
-authorship and license; the original game remains © Action Forms.
+The modernization source code is © 2026 Tibor Harsányi (StriderTibe) and is
+licensed under the MIT License - see [`LICENSE`](LICENSE).
+
+The MIT license in that file applies **only** to the modernization work in this
+repository, and to no other part of the project. It does not apply to the
+original Carnivores 2 game (© Action Forms), to the upstream Modder's Engine
+code (see "Upstream MEE heritage" above), or to any third-party component
+listed below. Original game assets are never included in this repository or in
+any release package.
 
 ## Third-party components
 
