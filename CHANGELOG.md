@@ -68,10 +68,60 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
   v1.1.7 overflowed into the next struct member and v1.1.8 halted on the
   line. The `TDinoInfo`/`TWeapInfo` layout assertions and the
   `dispSighting`/parser buffers that print those fields are updated.
+- Keep modded `_RES.TXT` text values away from the numeric and block
+  dispatch. The character and weapon line readers now recognize `name`,
+  `file`, `gunshot`, `pic1`, `picc`, and `bModel` before the numeric/flag
+  checks and before the spawn/trophy/kill/death/idle block openers, so a
+  value containing a field key or block name as a substring
+  (`models/massive/x.car`, `models/spawninfo/x.car`, `'crossbow'`) can no
+  longer halt with a numeric-format error or consume the rest of the
+  character section as a block body.
 - Stop the projected sky's cloud pattern from aliasing into a woven band near
   the horizon. The sky texture now generates a mip chain when it is uploaded,
   so the extreme minification at low view elevation resolves to the texture's
   local average instead of sampling the base level.
+- Stop the standalone menu from rejecting legacy `_RES.TXT` files it used to
+  load. The menu's character reader matched field keys by substring, so stock
+  values selected the wrong field: the `ai` check matched the
+  `file = 'models/main_hunt/para.car'` line ("main" contains "ai") and the
+  strict integer read rejected a decimal `health = 13.5`; both threw and
+  aborted the menu whenever no `_MENU.TXT` was present. Numeric and flag keys
+  are now matched by whole assignment key (letter case relaxed, with both the
+  `smell` and `smellK` spellings accepted) and `health` keeps the legacy
+  decimal truncation the engine already used.
+- Reject `_MENU.TXT`/legacy price blocks with more dinosaur or weapon entries
+  than the loaded roster. `ReadPrices` indexed `g_DinoInfo`/`g_WeapInfo` past
+  the end of the vectors on a malformed script; it now throws a script error
+  naming the line. Stock `_MENU.TXT` matches the roster exactly (10 dinos,
+  7 weapons), so shipped data is unaffected.
+- Keep a mod character file's explicit `BLANK` animation placeholder from
+  crashing the renderer. The loader accepts the zero-frame record so later
+  animation indices keep their file-defined meaning, but the morph path
+  dereferenced its empty frame buffer; a phase without payload now leaves the
+  model's current vertices alone, including a partial morph from or into a
+  blank phase.
+- Reject malformed or oversized launch values before they reach fixed engine
+  buffers: `prj=`/`server=` copies are bounded and logged, and `res=`,
+  `x=`/`y=`, `din=`, `wep=` and `dtm=` are parsed as whole values instead of
+  matching anywhere in the argument. Release builds enable `/GS` stack
+  protection again (`/GS-` had disabled it).
+- Parse `_RES.TXT` scalar values strictly. Indices, counts, weapon animation
+  references and spawn/pack references are validated against their fixed
+  arrays, an invalid value halts with the offending line instead of silently
+  reading as zero, and the legacy decimal spellings for `health` and
+  `killdist` are preserved. Weapon `recoil` is a float again, restoring the
+  stock X-Bow's `0.35`.
+- Preserve the configured night fog colours. Night mode no longer zeroes the
+  red/blue fog and sky channels; the night-vision tint is the separate
+  overlay.
+- Harden the loaders and spawn setup: animation/resource counts, character
+  morph bounds, and WAV/BMP/picture inputs are validated before use, and a
+  failed survival or pack spawn no longer publishes a partially written
+  character.
+- Replace the fixed-depth `{}` skipper in the game's `_RES.TXT` parser with a
+  nested-block parser that ignores braces inside quoted values and `//`
+  comments, so pack overrides containing a directly nested `region` block no
+  longer desynchronise the rest of the file.
 
 ### Added
 - Configure the sky cloud mapping from `config.cfg`. `sky_mode` selects the
@@ -82,12 +132,24 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
   `sky_dome_scale` (texels per radian at the horizon, default 384) sizes the
   dome canopy. Values are parsed strictly (whole token, inclusive range); an
   invalid entry keeps the default instead of silently selecting a valid mode.
+- Apply `_RES.TXT` `common {}` survival defaults for `-survival` launches:
+  `survivalArea` (1-10) selects the area, `survivalWeapon` (1-10, one-based)
+  selects the weapon, and `survivalDTM` (0-2) selects day/night. Explicit
+  command-line `prj=`, `wep=` and `dtm=` take precedence, and an out-of-range
+  value halts with a clear message instead of silently selecting a default.
 
 ### Changed
 - The sky cloud plane is now level with the world instead of following camera
   pitch, so cloud rows no longer lean while turning. Fog, pocket fog, and sun
   glow are identical in every mode; `sky_mode 0` restores the previous
   altitude-derived offset.
+- Survival spawns use the shared 40-cell safety radius instead of
+  `ctViewR + 1`. A large view-distance setting made the old radius exceed the
+  authored region, so every survival placement failed; ambients can now
+  appear closer to the hunter at the default view distance.
+- The standalone menu passes `din=0 wep=0` when launching the trophy room,
+  matching the creature/weapon selection it actually resolved. Previously the
+  engine kept its startup defaults for that launch.
 
 ## [v1.1.8-modernized]
 
