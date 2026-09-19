@@ -5,6 +5,7 @@ param(
     [int]$Duration = 5,
     [switch]$AllowMissingLog,
     [string]$WorkingDir = "",
+    [string]$Preset = "hunt",
     [string]$Renderer = "GL",
     [string]$GameDir = "",
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -26,6 +27,22 @@ if (-not $Renderer) {
 $Renderer = $Renderer.ToUpperInvariant()
 if ($Renderer -notin @("GL", "SOFT")) {
     throw "Unsupported renderer '$Renderer'. Expected GL or SOFT."
+}
+
+# Named launch shapes for the deployed-asset smoke tier. Explicit -GameArgs (or
+# trailing arguments) always win; a preset only replaces the defaults.
+if (-not $PSBoundParameters.ContainsKey('GameArgs')) {
+    switch ($Preset.ToLowerInvariant()) {
+        'hunt' { }
+        'trophy' {
+            # The trophy room is an observer-style loadout: no creatures and no
+            # weapons, which is what the standalone menu now emits.
+            $GameArgs = @("reg=0", "prj=huntdat/areas/trophy", "din=0", "wep=0", "dtm=1")
+        }
+        default {
+            throw "Unsupported preset '$Preset'. Expected hunt or trophy."
+        }
+    }
 }
 
 # By default smoke-test the deployed game, not the build artifact. The

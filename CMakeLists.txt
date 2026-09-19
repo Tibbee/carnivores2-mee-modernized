@@ -379,6 +379,39 @@ if(MSVC)
     add_test(NAME Carnivores2Tests.CommandLineContracts
              COMMAND Carnivores2CommandLineContractTests)
 
+    # Link the production menu resource readers with narrow global seams.
+    # The menu prefers _MENU.TXT and falls back to the legacy _RES.TXT; both
+    # grammars are driven through the real ReadCharacters()/ReadWeapons()
+    # entry points so a value can never select a different field.
+    add_executable(Carnivores2MenuResourceTests
+        tests/test_menu_resource_entry.cpp
+        tests/menu_resource_seams.cpp
+        Menu/Resources.cpp
+    )
+    target_include_directories(Carnivores2MenuResourceTests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Menu
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt
+    )
+    target_link_libraries(Carnivores2MenuResourceTests PRIVATE gtest_main)
+    add_test(NAME Carnivores2Tests.MenuResourceContracts
+             COMMAND Carnivores2MenuResourceTests)
+
+    # Link the production _RES.TXT line readers with the real global state and
+    # narrow log/heap seams. ReadWeaponLine()/ReadCharacterLine() must keep
+    # text values (name/file/gunshot/pic1/picc/bModel) away from the numeric
+    # dispatch and the block openers so a modded path cannot halt the load.
+    add_executable(Carnivores2ScriptParserContractTests
+        tests/test_script_parser_entry.cpp
+        Hunt/Loaders/ScriptParser.cpp
+        Hunt/Core/StateDefs.cpp
+    )
+    target_include_directories(Carnivores2ScriptParserContractTests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt
+    )
+    target_link_libraries(Carnivores2ScriptParserContractTests PRIVATE gtest_main)
+    add_test(NAME Carnivores2Tests.ScriptParserContracts
+             COMMAND Carnivores2ScriptParserContractTests)
+
     # This integration test intentionally targets a deployed game directory
     # containing licensed HUNTDAT assets. It is opt-in so asset-free CI runs
     # only deterministic unit tests.
@@ -392,8 +425,20 @@ if(MSVC)
         set_tests_properties(SmokeTest PROPERTIES
             LABELS "integration;requires-game-assets"
         )
+        # The trophy room is launched with din=0/wep=0 (observer-style loadout);
+        # run it against the deployed assets so that contract is exercised.
+        add_test(NAME TrophySmokeTest
+            COMMAND powershell -ExecutionPolicy Bypass -File
+                ${CMAKE_SOURCE_DIR}/tests/smoke_test.ps1
+                -Renderer ${RENDERER}
+                -Preset trophy
+                -Duration 5
+        )
+        set_tests_properties(TrophySmokeTest PROPERTIES
+            LABELS "integration;requires-game-assets"
+        )
         if(CARNIVORES_LEGACY_DIR)
-            set_tests_properties(SmokeTest PROPERTIES
+            set_tests_properties(SmokeTest TrophySmokeTest PROPERTIES
                 ENVIRONMENT "CARNIVORES_LEGACY_DIR=${CARNIVORES_LEGACY_DIR}"
             )
         endif()
@@ -402,7 +447,7 @@ endif()
 
 # Apply the project warning policy only to project-owned targets. GoogleTest
 # and vendored loader targets retain their own upstream compiler settings.
-foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests Carnivores2LoaderContractTests Carnivores2PictureLoaderContractTests Carnivores2CommandLineContractTests)
+foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests Carnivores2LoaderContractTests Carnivores2PictureLoaderContractTests Carnivores2CommandLineContractTests Carnivores2MenuResourceTests Carnivores2ScriptParserContractTests)
     if(TARGET ${C2_TARGET})
         c2_apply_msvc_compile_policy(${C2_TARGET})
     endif()
