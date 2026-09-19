@@ -5,6 +5,7 @@
 #include "Hunt.h"
 #include "Core/CommandLineParse.h"
 #include "LoadValidate.h"
+#include "ScriptBlockParse.h"
 #include "ScriptValueParse.h"
 
 // _RES.TXT string safety. Name/file fields are fixed char arrays
@@ -66,6 +67,131 @@ static void CopyProjectName(char* dst, const char* src)
   RewriteExternalProjectAlias(dst, 128);
 }
 
+struct ScriptCommonOptions
+{
+  bool hasSurvivalArea = false;
+  bool hasSurvivalWeapon = false;
+  bool hasSurvivalDayNight = false;
+  int survivalArea = 0;
+  int survivalWeapon = 0;
+  int survivalDayNight = 0;
+};
+
+static int ReadScriptIntField(const char* value, const char* line,
+                              const char* field);
+
+static bool HasCommandLineOption(const char* option)
+{
+  for (int a = 0; a < __argc; ++a)
+  {
+    if (_stricmp(__argv[a], option) == 0)
+      return true;
+  }
+  return false;
+}
+
+static bool HasCommandLineValue(const char* option)
+{
+  for (int a = 0; a < __argc; ++a)
+  {
+    const char* value = nullptr;
+    if (CommandLineOptionValue(__argv[a], option, &value))
+      return true;
+  }
+  return false;
+}
+
+static bool IsScriptBlockLine(const char* line, const char* name)
+{
+  while (*line == ' ' || *line == '\t')
+    ++line;
+
+  const size_t nameLength = strlen(name);
+  if (strncmp(line, name, nameLength) != 0)
+    return false;
+
+  line += nameLength;
+  while (*line == ' ' || *line == '\t')
+    ++line;
+  return *line == '{';
+}
+
+static void ReadCommonOptions(FILE* stream, ScriptCommonOptions& options)
+{
+  char line[256];
+  while (fgets(line, 255, stream))
+  {
+    if (strstr(line, "}"))
+      return;
+
+    char* value = strstr(line, "=");
+    if (!value)
+      DoHalt("Script loading error: common");
+    ++value;
+
+    if (ScriptKeyIs(line, "survivalArea"))
+    {
+      options.survivalArea = ReadScriptIntField(value, line, "survival area");
+      if (options.survivalArea < 1 || options.survivalArea > 10)
+        DoHalt("Script loading error: survival area out of range.");
+      options.hasSurvivalArea = true;
+    }
+    else if (ScriptKeyIs(line, "survivalWeapon"))
+    {
+      options.survivalWeapon = ReadScriptIntField(value, line, "survival weapon");
+      if (options.survivalWeapon < 1 || options.survivalWeapon > 10)
+        DoHalt("Script loading error: survival weapon out of range.");
+      options.hasSurvivalWeapon = true;
+    }
+    else if (ScriptKeyIs(line, "survivalDTM"))
+    {
+      options.survivalDayNight = ReadScriptIntField(value, line, "survival day/night");
+      if (options.survivalDayNight < 0 || options.survivalDayNight > 2)
+        DoHalt("Script loading error: survival day/night out of range.");
+      options.hasSurvivalDayNight = true;
+    }
+  }
+
+  DoHalt("Script loading error: unterminated common block.");
+}
+
+static void ReadCommonOptionsFromScript(FILE* stream, ScriptCommonOptions& options)
+{
+  char line[256];
+  while (fgets(line, 255, stream))
+  {
+    if (IsScriptBlockLine(line, "common"))
+    {
+      ReadCommonOptions(stream, options);
+      return;
+    }
+  }
+}
+
+static void ApplySurvivalCommonOptions(const ScriptCommonOptions& options)
+{
+  if (g_GameMode != GameMode::SurvivalMode)
+    return;
+
+  if (options.hasSurvivalArea && !HasCommandLineValue("prj="))
+  {
+    char projectName[128];
+    sprintf_s(projectName, sizeof(projectName), "huntdat/areas/area%d",
+              options.survivalArea);
+    CopyProjectName(ProjectName, projectName);
+  }
+
+  if (options.hasSurvivalWeapon && !HasCommandLineValue("wep="))
+  {
+    // _RES.TXT numbers the survival weapon from one, while WeaponPres is a
+    // zero-based bitmask. Stock data uses 8 for its eighth weapon.
+    WeaponPres = 1 << (options.survivalWeapon - 1);
+  }
+
+  if (options.hasSurvivalDayNight && !HasCommandLineValue("dtm="))
+    OptDayNight = options.survivalDayNight;
+}
+
 static void ReadScriptCommandLineOptions(char projectName[128], int& timeOfDay,
                                          int& dinSelect)
 {
@@ -74,7 +200,7 @@ static void ReadScriptCommandLineOptions(char projectName[128], int& timeOfDay,
   // Start the second argv pass from that value so an overlong later token
   // cannot erase an otherwise valid project selection.
   CopyCapped(projectName, 128, ProjectName);
-  timeOfDay = 0;
+  timeOfDay = OptDayNight;
   dinSelect = 0;
 
   for (int a = 0; a < __argc; a++)
@@ -205,39 +331,8 @@ void readBool(char *value, bool &out) {
 
 void SkipSector(FILE *stream)
 {
-	char line[256], *value;
-	while (fgets(line, 255, stream))
-	{
-		if (strstr(line, "}")) break;
-		if (strstr(line, "{"))
-			while (fgets(line, 255, stream)) {
-				if (strstr(line, "}")) break;
-				if (strstr(line, "{"))
-					while (fgets(line, 255, stream)) {
-						if (strstr(line, "}")) break;
-						if (strstr(line, "{"))
-							while (fgets(line, 255, stream)) {
-								if (strstr(line, "}")) break;
-								if (strstr(line, "{"))
-									while (fgets(line, 255, stream)) {
-										if (strstr(line, "}")) break;
-										if (strstr(line, "{"))
-											while (fgets(line, 255, stream)) {
-												if (strstr(line, "}")) break;
-												if (strstr(line, "{"))
-													while (fgets(line, 255, stream)) {
-														if (strstr(line, "}")) break;
-														if (strstr(line, "{"))
-															while (fgets(line, 255, stream)) {
-																if (strstr(line, "}")) break;
-															}
-													}
-											}
-									}
-							}
-					}
-			}
-	}
+  if (!ConsumeScriptBlockBody(stream))
+    DoHalt("Script loading error: unterminated block.");
 }
 
 void ReadTrophyTypeInfo(FILE *stream, int trophyGroup)
@@ -743,6 +838,14 @@ void ReadPackTableLine(FILE *stream, char *_value, char line[256], bool &spawnIO
 			spawnIOverwrite = false;
 		}
 		ReadSpawnGroup(stream, line, 2);
+	}
+
+	// Older _RES.TXT files may put region blocks directly in a pack override
+	// instead of wrapping them in spawngroup. They are not represented in the
+	// pack table, but their contents still need to be consumed as one sector.
+	if (IsScriptBlockLine(line, "region")) {
+		SkipSector(stream);
+		return;
 	}
 
 	if (strstr(line, "packMax")) packType[packTypeCount].packMax = ReadScriptIntField(value, line, "pack max");
@@ -2747,12 +2850,16 @@ void LoadResourcesScript()
 
   char tempProjectName[128];
   int timeOfDay, dinSelect;
+  if (HasCommandLineOption("-survival"))
+    g_GameMode = GameMode::SurvivalMode;
+
+  ScriptCommonOptions commonOptions;
+  rewind(stream);
+  ReadCommonOptionsFromScript(stream, commonOptions);
+  rewind(stream);
+  ApplySurvivalCommonOptions(commonOptions);
+
   ReadScriptCommandLineOptions(tempProjectName, timeOfDay, dinSelect);
-  for (int a = 0; a < __argc; a++)
-  {
-    if (_stricmp(__argv[a], "-survival") == 0)
-      g_GameMode = GameMode::SurvivalMode;
-  }
   
 
   int areaNumber = -1;

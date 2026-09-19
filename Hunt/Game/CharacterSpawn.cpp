@@ -211,7 +211,7 @@ replace2:
 }
 */
 
-void spawnMapAmbient(int &tr, int leader, bool moveForward) {
+[[nodiscard]] bool spawnMapAmbient(int &tr, int leader, bool moveForward) {
 
  replaceSMA:
 	RequireCharacterSlot();
@@ -248,17 +248,18 @@ void spawnMapAmbient(int &tr, int leader, bool moveForward) {
 	float wy = GetLandUpH(Characters[ChCount].pos.x,
 		Characters[ChCount].pos.z) - Characters[ChCount].pos.y;
 	tr++;
-	if (tr > 10240) return;
+	if (tr > 10240) return false;
 
 
+	// Survival regions are authored around the hunter. A large view-distance
+	// setting can exceed the entire region, so it cannot be used as a spawn
+	// exclusion radius here; the shared 40-cell safety check still applies.
 	int mindist = 40;
-	if (g_GameMode == GameMode::SurvivalMode) {
-		mindist = ctViewR + 1;
-	}
 
 	if (fabs(Characters[ChCount].pos.x - PlayerX) +
-		fabs(Characters[ChCount].pos.z - PlayerZ) < 256 * mindist)
+		fabs(Characters[ChCount].pos.z - PlayerZ) < 256 * mindist) {
 		goto replaceSMA;
+	}
 
 	if (DinoInfo[Characters[ChCount].CType].Clone == AI_BRACH ||
 		DinoInfo[Characters[ChCount].CType].Clone == AI_BRACHDANGER ||
@@ -330,8 +331,7 @@ void spawnMapAmbient(int &tr, int leader, bool moveForward) {
 	}
 
 	ResetCharacter(&Characters[ChCount]);
-
-
+	return true;
 }
 
 
@@ -575,7 +575,8 @@ void PlaceCharactersSurvival()
 			Characters[ChCount].CType = SurvivalIndex[dinoIndex];
 			Characters[ChCount].SpawnGroupType = 0;
 			Characters[ChCount].packId = -1;
-			spawnMapAmbient(tr, -1, false);
+			if (!spawnMapAmbient(tr, -1, false))
+				DoHalt("Character placement error: survival region has no valid spawn point.");
 			Characters[ChCount].State = 2;
 			ChCount++;
 			waveTotal -= dinoCost;
@@ -781,7 +782,8 @@ void PlaceCharacters()
 				
 				int leaderIndex = ChCount;
 				// pack leaders
-				spawnMapAmbient(tr, -1, spawnGroup[sg].moveForward);
+				if (!spawnMapAmbient(tr, -1, spawnGroup[sg].moveForward))
+					break;
 
 				//pack size
 				if (spawnGroup[sg].moveForward) {
@@ -815,6 +817,7 @@ void PlaceCharacters()
 						Packs[PackCount]._attack = false;
 						Characters[leaderIndex].packId = PackCount;
 
+						int placedFollowers = 0;
 						for (int packN = 0; packN < packNo - 1; packN++) {
 							RequireCharacterSlot();
 							Characters[ChCount].packId = PackCount;
@@ -835,10 +838,17 @@ void PlaceCharacters()
 							//Characters[ChCount].CType = packType[packInd].packMember[rRand(packType[packInd].packMemberCh - 1)].ctype;//Characters[leaderIndex].CType;
 							Characters[ChCount].SpawnGroupType = sg;
 							Characters[ChCount].packDensity = Characters[leaderIndex].packDensity;
-							spawnMapAmbient(tr, leaderIndex, false);
+							if (!spawnMapAmbient(tr, leaderIndex, false))
+								break;
 							ChCount++;
+							placedFollowers++;
 						}
-						PackCount++;
+						if (placedFollowers > 0) {
+							PackCount++;
+						}
+						else {
+							Characters[leaderIndex].packId = -1;
+						}
 					}
 					else Characters[leaderIndex].packId = -1;
 
