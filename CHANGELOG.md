@@ -94,6 +94,15 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
   the end of the vectors on a malformed script; it now throws a script error
   naming the line. Stock `_MENU.TXT` matches the roster exactly (10 dinos,
   7 weapons), so shipped data is unaffected.
+- Stop the standalone menu from launching hunts and trophy rooms with a
+  corrupted command line. The base `reg=/prj=/din=/wep=/dtm=` arguments were
+  used to construct a `std::stringstream`, and the accessory, score-mod, and
+  display-mode appends then overwrote that prefix from position 0 while
+  `.str()` kept the old length; the surviving tail replaced the project
+  argument, so every menu-launched hunt halted with "Error opening resource
+  file .rsc" regardless of the mod. The base arguments are now written into
+  an empty stream through `MakeLaunchParamStream()`, with a regression test
+  for the append contract.
 - Keep a mod character file's explicit `BLANK` animation placeholder from
   crashing the renderer. The loader accepts the zero-frame record so later
   animation indices keep their file-defined meaning, but the morph path

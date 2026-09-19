@@ -2461,7 +2461,9 @@ void MenuEventInput(int32_t menu)
 					ShowErrorMessage("The selected hunt has invalid launch data.");
 					return;
 				}
-				std::stringstream params(launchArguments);
+				// The base arguments must be the first write into an empty stream;
+				// MakeLaunchParamStream owns that contract.
+				std::stringstream params = MakeLaunchParamStream(launchArguments);
 
 #ifdef _iceage
 				// Ice Age resupply
@@ -2577,7 +2579,7 @@ void MenuEventInput(int32_t menu)
 						ShowErrorMessage("The trophy room has invalid launch data.");
 						return;
 					}
-					std::stringstream params(launchArguments);
+					std::stringstream params = MakeLaunchParamStream(launchArguments);
 #ifdef _DEBUG
 					params << " -debug";
 #endif //_DEBUG

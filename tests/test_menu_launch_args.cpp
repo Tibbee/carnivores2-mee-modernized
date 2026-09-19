@@ -49,6 +49,30 @@ TEST(MenuLaunchArgs, UsesResolvedExternalBasename)
     EXPECT_EQ(output.find("area6"), std::string::npos);
 }
 
+TEST(MenuLaunchArgs, LaunchParamStreamKeepsTheBaseArguments)
+{
+    HuntLaunchRequest request;
+    request.projectName = "area3";
+    request.dinoFlags = 31;
+    request.weaponFlags = 57;
+    request.timeOfDay = 1;
+
+    std::string output;
+    ASSERT_TRUE(BuildHuntLaunchArguments(request, output));
+
+    std::stringstream params = MakeLaunchParamStream(output);
+    params << " smod=0.85,0.7,0.8,1,1.25,1";
+    params << " -borderless";
+
+    // The full prefix must survive the appends. Constructing the stream from
+    // the base string instead of writing it in leaves the put pointer at
+    // position 0; the appends then overwrite the prefix and throw away the
+    // project argument, which is the regression this test guards.
+    EXPECT_EQ(params.str(),
+              output + " smod=0.85,0.7,0.8,1,1.25,1 -borderless");
+    EXPECT_NE(params.str().find("prj=huntdat/areas/area3"), std::string::npos);
+}
+
 TEST(MenuLaunchArgs, RejectsMalformedRequests)
 {
     HuntLaunchRequest request;

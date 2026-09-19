@@ -43,3 +43,18 @@ inline bool BuildHuntLaunchArguments(const HuntLaunchRequest& request,
     output = params.str();
     return true;
 }
+
+// The menu builds the full command line by appending accessories, score mods,
+// and the display-mode flag to the base arguments. Those appends must go into
+// an empty stream that takes the base arguments as its first write: a
+// stringstream constructed from an existing string leaves the put pointer at
+// position 0, so later appends overwrite the "reg=/prj=/din=/wep=" prefix
+// while .str() keeps the old length. The surviving tail then silently replaces
+// the project argument and the game halts with "Error opening resource file
+// .rsc". This factory owns that contract for both launch paths.
+inline std::stringstream MakeLaunchParamStream(const std::string& launchArguments)
+{
+    std::stringstream params;
+    params << launchArguments;
+    return params;
+}
