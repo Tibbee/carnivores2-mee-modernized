@@ -75,6 +75,28 @@ TEST(AIBehaviorMathTest, DirectHitDoesNotDowngradeExactTracking)
               HunterAwarenessState::RetaliatingHit);
 }
 
+TEST(AIBehaviorMathTest, TRexHitRestartsPursuitOnlyWhenNotAlreadyEngaged)
+{
+    EXPECT_TRUE(ShouldRestartTRexHitPursuit(HunterAwarenessState::None));
+    EXPECT_TRUE(ShouldRestartTRexHitPursuit(
+        HunterAwarenessState::InvestigatingShot));
+    EXPECT_FALSE(ShouldRestartTRexHitPursuit(
+        HunterAwarenessState::RetaliatingHit));
+    EXPECT_FALSE(ShouldRestartTRexHitPursuit(
+        HunterAwarenessState::TrackingHunter));
+}
+
+TEST(AIBehaviorMathTest, NoticeAnimationIsSuppressedDuringShotReactions)
+{
+    EXPECT_FALSE(ShouldScheduleNoticeAnimation(
+        HunterAwarenessState::InvestigatingShot));
+    EXPECT_FALSE(ShouldScheduleNoticeAnimation(
+        HunterAwarenessState::RetaliatingHit));
+    EXPECT_TRUE(ShouldScheduleNoticeAnimation(HunterAwarenessState::None));
+    EXPECT_TRUE(ShouldScheduleNoticeAnimation(
+        HunterAwarenessState::TrackingHunter));
+}
+
 TEST(AIBehaviorMathTest, DirectHitAlertOnlyStartsOnFirstAwareness)
 {
     EXPECT_TRUE(ShouldInitializeDirectHitAlert(true, false));

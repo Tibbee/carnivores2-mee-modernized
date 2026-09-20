@@ -214,13 +214,18 @@ void CheckAfraid()
 			//MESSAGE REMOVED
 
 			kRes = MIN(kRes, kR);
+			const HunterAwarenessState priorAwareness = cptr->hunterAwareness;
 			cptr->AfraidTime = static_cast<int>((1.0 / (kRes + 0.1) * 10.f * 1000.f));
 			if (cptr->State==0) {
 				cptr->State = 2;
 			}
 			cptr->awareHunter = true;
 			cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
-			if (cptr->Clone == AI_TREX) //===== T-Rex
+			// A T-Rex that already heard a shot or took a hit keeps charging.
+			// Its awareness still upgrades to exact tracking above; only the
+			// look/smell notice animation is suppressed.
+			if (cptr->Clone == AI_TREX //===== T-Rex
+				&& ShouldScheduleNoticeAnimation(priorAwareness))
 				if (kALook > kASmell) cptr->State = 3;
 			cptr->NoFindCnt = 0;
 		}

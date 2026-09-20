@@ -78,3 +78,19 @@ inline bool ShouldSkipTRexPerception(bool hasReactionTime,
     return (hasReactionTime || isStateOne)
         && !IsTimedHunterReactionState(awareness);
 }
+
+// A direct hit must cancel any pending look/roar notice and start the charge.
+// Repeated hits during an active retaliation or exact tracking keep the
+// current pursuit instead of restarting it.
+inline bool ShouldRestartTRexHitPursuit(HunterAwarenessState priorAwareness)
+{
+    return priorAwareness != HunterAwarenessState::RetaliatingHit
+        && priorAwareness != HunterAwarenessState::TrackingHunter;
+}
+
+// The look/smell notice animation must not interrupt a timed shot or hit
+// reaction; awareness still upgrades to exact tracking independently.
+inline bool ShouldScheduleNoticeAnimation(HunterAwarenessState awareness)
+{
+    return !IsTimedHunterReactionState(awareness);
+}

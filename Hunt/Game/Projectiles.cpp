@@ -401,6 +401,7 @@ void registerDamage(int Dino, bool enemyBullet, const Vector3d& hunterPosition) 
 	const TDinoInfo& info = DinoInfo[character.CType];
 	const bool wasAware = character.awareHunter;
 	const bool wasTrackingHunter = TracksHunterExactly(&character);
+	const HunterAwarenessState previousAwareness = character.hunterAwareness;
 
 	if (!character.Health)
 	{
@@ -459,8 +460,12 @@ void registerDamage(int Dino, bool enemyBullet, const Vector3d& hunterPosition) 
 		character.BloodTTime += 90000;
 	}
 
-	if (character.Clone == AI_TREX
-		&& ShouldInitializeDirectHitAlert(character.Health != 0, wasAware))
+	// A T-Rex that heard the shot may already be playing its look/roar
+	// notice. A direct hit cancels that and charges immediately; repeated
+	// hits during an active retaliation or exact tracking keep the current
+	// pursuit instead of restarting it.
+	if (character.Clone == AI_TREX && character.Health
+		&& ShouldRestartTRexHitPursuit(previousAwareness))
 		character.State = character.State ? 5 : 1;
 
 }
