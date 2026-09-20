@@ -5,12 +5,20 @@ are listed here.
 Based on [Keep a Changelog](https://keepachangelog.com/).
 
 Upstream Modder's Engine v1.11 is the base, not the modernization release
-number. ModDB V1/V2/V3/V4/V5 correspond to GitHub v1.1.4/v1.1.5/v1.1.6/v1.1.7/v1.1.8-modernized.
-Windows executable resources use major.minor.patch.0 (currently 1.1.8.0).
+number. ModDB V1 through V6 correspond to GitHub v1.1.4-modernized
+through v1.1.9-modernized.
+Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
 
 ## [Unreleased]
 
+## [v1.1.9-modernized] - 2026-09-20
+
+ModDB label: V6. Changes since the published v1.1.8-modernized release.
+
 ### Fixed
+- Disable the hunting map in the trophy room. Map availability now follows
+  stable trophy-room session identity rather than the replaceable game-mode
+  slot, and rendering also rejects a stale map mode defensively.
 - Keep the first trophy-room plaque linked to body slot zero. Static mounts
   are now excluded from hunter-perception updates, which previously rewrote
   the first mount's slot-valued state from 0 to AI state 2 before plaque

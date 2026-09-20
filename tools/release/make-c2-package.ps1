@@ -195,7 +195,7 @@ glperf_logging 0
 VERSIONING
   Project release Modernized v$Version = GitHub v$Version-modernized.
   Upstream Modder's Engine v1.11 is the base; modernization releases
-  are numbered separately. V5 is only the ModDB download label.
+  are numbered separately. V6 is only the ModDB download label.
   Windows executable version: $Version.0
 
 WHAT'S INCLUDED
@@ -204,7 +204,7 @@ WHAT'S INCLUDED
   v_soft.ren          - Software renderer (launched by menu)
   shaders/            - GL shader programs
   config.cfg          - Default configuration
-  CHANGELOG.md        - Full V5 and previous release notes
+  CHANGELOG.md        - Full V6 and previous release notes
   OpenAL32.dll        - OpenAL Soft runtime (audio)
   alsoft.ini          - OpenAL configuration for this game
   LICENSE, NOTICE.md, THIRD-PARTY-LICENSES/ - legal texts
@@ -248,22 +248,21 @@ UPSTREAM CREDITS
   https://github.com/carnivores-cpe/Carnivores-CPE/tree/Map-Amb-Demo-2
   See NOTICE.md for this fork's exact base snapshot and menu credits.
 
-MODERNIZED v$Version HIGHLIGHTS (since v1.1.7; ModDB label V5)
-  - Trophy room finished: kills mount as static exhibits, collisions
-    and hunt-info plaques restored, removal and exit handling fixed.
-  - Default Run key works on fresh saves (side-aware modifier keys);
-    toggle actions no longer retrigger on key auto-repeat.
-  - config.cfg NUL padding no longer truncates settings: the chosen
-    FPS limit now applies and effective values are logged at startup.
-  - World depth stays coherent under viewmodels; unity-magnification
-    red-dot sights no longer trigger the scope-mask treatment.
-  - Menu: area6.map fallback for the sixth slot; ambient music keeps
-    playing across submenus.
-  See CHANGELOG.md for full notes and audio tuning limitations.
+MODERNIZED v$Version HIGHLIGHTS (since v1.1.8; ModDB label V6)
+  - Hardened resource, model, sound, picture, map, and command-line
+    loading against malformed or oversized mod data.
+  - Fixed menu launch arguments and legacy resource fallback parsing.
+  - Kept oversized scenery and animated creatures visible near screen
+    edges, with corrected terrain-edge collection while moving.
+  - Added configurable projected/dome sky mapping with mipmapped clouds.
+  - Improved finite creature awareness for shots, hits, calls, and packs.
+  - Added survival defaults and safer spawning; disabled the hunting map
+    in the trophy room.
+  See CHANGELOG.md for complete release notes.
 
 REPORTING ISSUES
   https://github.com/Tibbee/carnivores2-mee-modernized/issues
-  Include Modernized v$Version (ModDB V5), your mod/map, renderer,
+  Include Modernized v$Version (ModDB V6), your mod/map, renderer,
   and reproduction steps.
 "@ | Set-Content -Path (Join-Path $PkgDir 'README.txt') -Encoding Ascii
 
