@@ -150,4 +150,7 @@ extern char ProjectName[128]; // set once from the prj= command line (GameState.
 inline bool InTrophyRoomMap() { return strstr(ProjectName, "trophy") != nullptr; }
 // Session semantics must survive movement and overlay changes to the mode slot.
 inline bool InTrophyRoom() { return IsTrophyMode() || InTrophyRoomMap(); }
+// The trophy room has no usable hunting map. Base this on session identity,
+// not only TrophyMode, because movement and overlays can replace that mode.
+inline bool CanUseMap() { return !InTrophyRoom(); }
 inline bool IsSurvivalMode()  { return g_GameMode == GameMode::SurvivalMode; }

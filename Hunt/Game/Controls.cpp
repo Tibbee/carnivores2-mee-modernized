@@ -120,6 +120,7 @@ void ToggleCrouchMode()
 
 void ToggleMapMode()
 {
+  if (!CanUseMap()) return;
   if (!MyHealth) return;
   if (g_GameMode == GameMode::Binocular) return;
   if (Weapon.state) return;

@@ -1376,7 +1376,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 //	case VK_DOWN:
 
     case VK_TAB:
-      if (g_GameMode != GameMode::TrophyMode) ToggleMapMode();
+      ToggleMapMode();
       break;
 
     case VK_PAUSE:
@@ -1731,8 +1731,7 @@ void ProcessGame()
   DrawScene();
 #endif
 
-  if (g_GameMode != GameMode::TrophyMode)
-    if (g_GameMode == GameMode::MapMode) DrawHMap();
+  if (CanUseMap() && g_GameMode == GameMode::MapMode) DrawHMap();
 
   DrawPostObjects();
 
