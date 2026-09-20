@@ -81,15 +81,38 @@ TEST(AIBehaviorMathTest, AwarenessStatesDistinguishFixedReactions)
 
 TEST(AIBehaviorMathTest, NormalAwarenessRespectsAggressionRange)
 {
-    EXPECT_FALSE(OutsideNormalAggressionRange(99.0f, 100.0f, false));
-    EXPECT_TRUE(OutsideNormalAggressionRange(101.0f, 100.0f, false));
+    EXPECT_FALSE(OutsideNormalAggressionRange(99.0f, 100.0f));
+    EXPECT_TRUE(OutsideNormalAggressionRange(101.0f, 100.0f));
     EXPECT_TRUE(OutsideNormalAggressionRangeSquared(101.0f * 101.0f,
-                                                    100.0f, false));
+                                                    100.0f));
 }
 
-TEST(AIBehaviorMathTest, RecentDamageBypassesNormalAggressionRange)
+TEST(AIBehaviorMathTest, AwarenessEventsRespectAuthoredAggressionRange)
 {
-    EXPECT_FALSE(OutsideNormalAggressionRange(1000.0f, 100.0f, true));
-    EXPECT_FALSE(OutsideNormalAggressionRangeSquared(1000.0f * 1000.0f,
-                                                     100.0f, true));
+    EXPECT_FALSE(ShouldFleeFromAwarenessEvent(99.0f, 100.0f, 1, false));
+    EXPECT_FALSE(ShouldFleeFromAwarenessEvent(100.0f, 100.0f, 1, false));
+    EXPECT_TRUE(ShouldFleeFromAwarenessEvent(101.0f, 100.0f, 1, false));
+}
+
+TEST(AIBehaviorMathTest, LowAndHighAggressionProduceDifferentEventReactions)
+{
+    constexpr float eventDistance = 1000.0f;
+    EXPECT_TRUE(ShouldFleeFromAwarenessEvent(
+        eventDistance, 72.0f * 1.0f, 1, false));
+    EXPECT_FALSE(ShouldFleeFromAwarenessEvent(
+        eventDistance, 72.0f * 200.0f, 200, false));
+}
+
+TEST(AIBehaviorMathTest, PassiveAndFearfulSpeciesFleeAwarenessEvents)
+{
+    EXPECT_TRUE(ShouldFleeFromAwarenessEvent(10.0f, 100.0f, 0, false));
+    EXPECT_TRUE(ShouldFleeFromAwarenessEvent(10.0f, 100.0f, -1, false));
+    EXPECT_TRUE(ShouldFleeFromAwarenessEvent(10.0f, 100.0f, 100, true));
+}
+
+TEST(AIBehaviorMathTest, RecentDamageDoesNotBypassAggressionRange)
+{
+    EXPECT_TRUE(OutsideNormalAggressionRange(1000.0f, 100.0f));
+    EXPECT_TRUE(OutsideNormalAggressionRangeSquared(1000.0f * 1000.0f,
+                                                    100.0f));
 }

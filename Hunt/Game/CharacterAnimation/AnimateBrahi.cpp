@@ -32,7 +32,7 @@ TBEGIN:
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
 	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
 
-	int attackDist = 128 * DinoInfo[cptr->CType].aggress + OptAgres / 8; //agress = 56
+	const float attackDist = GetCharacterAggressionRange(cptr);
 
 	bool playerAttackable = ((GetLandUpH(PlayerX, PlayerZ) - GetLandH(PlayerX, PlayerZ)) <= 550);
 	bool attacking = false;
@@ -77,9 +77,8 @@ TBEGIN:
 
 		bool fleeMode = false;
 		if (g_GameMode != GameMode::SurvivalMode) {
-			const bool recentlyDamaged = cptr->BloodTTime > 0;
 			if ((!fixedPursuit
-				&& (OutsideNormalAggressionRange(pdist, static_cast<float>(attackDist), recentlyDamaged)
+				&& (OutsideNormalAggressionRange(pdist, attackDist)
 					|| !playerAttackable))
 				|| DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;

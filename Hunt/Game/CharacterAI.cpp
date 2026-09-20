@@ -36,10 +36,16 @@ void MakeNoise(Vector3d pos, float range)
 		cptr->awareHunter = true;
 		if (!cptr->State) cptr->State = 2;
 
-		const bool fleesShot = DinoInfo[cptr->CType].fearHearShot
-			|| DinoInfo[cptr->CType].aggress <= 0
-			|| (DinoInfo[cptr->CType].defensive
-				&& cptr->Health == DinoInfo[cptr->CType].Health0);
+		const TDinoInfo& dino = DinoInfo[cptr->CType];
+		const bool fearsShot = dino.fearHearShot
+			|| (dino.defensive && cptr->Health == dino.Health0);
+		const float eventDx = cptr->pos.x - pos.x;
+		const float eventDz = cptr->pos.z - pos.z;
+		const float eventDistance = static_cast<float>(
+			sqrt(eventDx * eventDx + eventDz * eventDz));
+		const bool fleesShot = ShouldFleeFromAwarenessEvent(
+			eventDistance, GetCharacterAggressionRange(cptr),
+			dino.aggress, fearsShot);
 		cptr->hunterAwareness = HeardShotReactionState(fleesShot);
 		if (fleesShot) {
 			Vector3d away = SubVectors(cptr->pos, pos);

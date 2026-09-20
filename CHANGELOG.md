@@ -11,6 +11,15 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
 
 ## [Unreleased]
 
+### Fixed
+- Restore the authored `aggress` range when creatures react to gunshots and
+  direct hits. A low positive value no longer behaves like maximum aggression:
+  creatures investigate or retaliate only when the event source is within
+  their normal engagement range, otherwise they flee from the stored event
+  position. Recent damage no longer bypasses that range, while sight, scent,
+  fear flags, finite reactions, and non-omniscient event positions remain
+  unchanged.
+
 ## [v1.1.9-modernized] - 2026-09-20
 
 ModDB label: V6. Changes since the published v1.1.8-modernized release.

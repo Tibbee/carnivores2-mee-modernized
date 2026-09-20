@@ -104,20 +104,15 @@ inline bool ShotInvestigationComplete(int remainingTime, float targetDistanceSqu
             * kShotInvestigationArrivalRadius;
 }
 
-// Recent direct damage is a stronger stimulus than passive detection. Species
-// fear and awareness rules are still evaluated after this range check.
-inline bool OutsideNormalAggressionRange(float distance, float aggressionRange,
-                                         bool recentlyDamaged)
+inline bool OutsideNormalAggressionRange(float distance, float aggressionRange)
 {
-    return !recentlyDamaged && distance > aggressionRange;
+    return distance > aggressionRange;
 }
 
 inline bool OutsideNormalAggressionRangeSquared(float distanceSquared,
-                                                float aggressionRange,
-                                                bool recentlyDamaged)
+                                                float aggressionRange)
 {
-    return !recentlyDamaged
-        && distanceSquared > aggressionRange * aggressionRange;
+    return distanceSquared > aggressionRange * aggressionRange;
 }
 
 // ===================== Object Detail (LOD) =====================

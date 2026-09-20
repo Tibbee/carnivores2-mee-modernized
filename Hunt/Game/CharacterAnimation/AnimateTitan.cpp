@@ -79,15 +79,11 @@ TBEGIN:
 			}
 		}
 
-		float aDist;
-		aDist = GameplayViewRadiusCells(ctViewR) * DinoInfo[cptr->CType].aggress
-			+ OptAgres / AIInfo[cptr->Clone].agressMulti;
-		if (cptr->gliding) aDist *= 2;
+		const float aDist = GetCharacterAggressionRange(cptr);
 
 		if (g_GameMode != GameMode::SurvivalMode) {
-			const bool recentlyDamaged = cptr->BloodTTime > 0;
 			if ((!fixedPursuit
-				&& (OutsideNormalAggressionRange(pdist, aDist, recentlyDamaged)
+				&& (OutsideNormalAggressionRange(pdist, aDist)
 					|| ((PlayerY - cptr->pos.y > pdist) && cptr->gliding)))
 				|| DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;

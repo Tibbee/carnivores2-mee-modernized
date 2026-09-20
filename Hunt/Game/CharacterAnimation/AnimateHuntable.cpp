@@ -93,20 +93,16 @@ TBEGIN:
 			}
 		}
 
-		float aDist;
-		if (AIInfo[cptr->Clone].carnivore && (!AIInfo[cptr->Clone].iceAge || cptr->Clone == AI_WOLF)) {
-			aDist = GameplayViewRadiusCells(ctViewR) * DinoInfo[cptr->CType].aggress
-				+ OptAgres / AIInfo[cptr->Clone].agressMulti;
-		} else {
-			aDist = AIInfo[cptr->Clone].agressMulti * DinoInfo[cptr->CType].aggress + OptAgres / 8;
+		const float aDist = GetCharacterAggressionRange(cptr);
+		if (!(AIInfo[cptr->Clone].carnivore
+			&& (!AIInfo[cptr->Clone].iceAge || cptr->Clone == AI_WOLF))) {
 			if (pdistSq < 6000 * 6000 && cptr->Clone != AI_DEER) cptr->AfraidTime = 8000;
 		}
 
 		bool fleeMode = false;
 		if (g_GameMode != GameMode::SurvivalMode) {
-			const bool recentlyDamaged = cptr->BloodTTime > 0;
 			if ((!fixedPursuit
-				&& OutsideNormalAggressionRangeSquared(pdistSq, aDist, recentlyDamaged))
+				&& OutsideNormalAggressionRangeSquared(pdistSq, aDist))
 				|| DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
 			}

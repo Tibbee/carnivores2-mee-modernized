@@ -107,10 +107,7 @@ TBEGIN:
 	//============================================//
 	if (!MyHealth) cptr->State = 0;
 
-	int ao = 0;
-	if (DinoInfo[cptr->CType].DangerFish)ao = OptAgres;
-	float attackDist = GameplayViewRadiusCells(ctViewR) * DinoInfo[cptr->CType].aggress
-		+ ao / AIInfo[cptr->Clone].agressMulti;
+	const float attackDist = GetCharacterAggressionRange(cptr);
 
 	if (!cptr->State)
 	{

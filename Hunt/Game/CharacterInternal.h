@@ -59,6 +59,31 @@ float CorrectedAlpha(float a, float b);
 // Inline helpers
 inline float GetAngleDifference(float a, float b) { return AngleDifference(a, b); }
 
+// Keep normal tracking and fixed event reactions on the same authored range.
+inline float GetCharacterAggressionRange(const TCharacter* cptr)
+{
+    const TDinoInfo& dino = DinoInfo[cptr->CType];
+    const TAIInfo& behavior = AIInfo[cptr->Clone];
+    float aggressionRange;
+
+    if (cptr->Clone == AI_BRACH) {
+        aggressionRange = 128.0f * dino.aggress + OptAgres / 8.0f;
+    } else if (dino.Aquatic && cptr->Clone != AI_TREX) {
+        const int optionAggression = dino.DangerFish ? OptAgres : 0;
+        aggressionRange = GameplayViewRadiusCells(ctViewR) * dino.aggress
+            + optionAggression / static_cast<float>(behavior.agressMulti);
+    } else if (behavior.carnivore
+               && (!behavior.iceAge || cptr->Clone == AI_WOLF)) {
+        aggressionRange = GameplayViewRadiusCells(ctViewR) * dino.aggress
+            + OptAgres / static_cast<float>(behavior.agressMulti);
+    } else {
+        aggressionRange = behavior.agressMulti * dino.aggress
+            + OptAgres / 8.0f;
+    }
+
+    return cptr->gliding ? aggressionRange * 2.0f : aggressionRange;
+}
+
 inline bool IsInvestigatingShot(const TCharacter* cptr)
 {
     return cptr->hunterAwareness == HunterAwarenessState::InvestigatingShot;

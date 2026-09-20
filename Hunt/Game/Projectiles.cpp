@@ -5,6 +5,7 @@
 
 #include "Hunt.h"
 #include "Core/ProjectileMath.h"
+#include "Game/CharacterInternal.h"
 
 DWORD ColorSum(DWORD C1, DWORD C2)
 {
@@ -412,10 +413,16 @@ void registerDamage(int Dino, bool enemyBullet, const Vector3d& hunterPosition) 
 	}
 	else
 	{
-		const bool fleesHit = character.Clone != AI_TREX
-			&& (info.aggress <= 0
-				|| (info.defensive && character.Health == info.Health0)
+		const float sourceDx = character.pos.x - hunterPosition.x;
+		const float sourceDz = character.pos.z - hunterPosition.z;
+		const float sourceDistance = static_cast<float>(
+			sqrt(sourceDx * sourceDx + sourceDz * sourceDz));
+		const bool fearsHit = character.Clone != AI_TREX
+			&& ((info.defensive && character.Health == info.Health0)
 				|| (info.fearShot && character.Health < info.Health0));
+		const bool fleesHit = ShouldFleeFromAwarenessEvent(
+			sourceDistance, GetCharacterAggressionRange(&character),
+			info.aggress, fearsHit);
 
 		character.awareHunter = true;
 		character.hunterAwareness = DirectHitReactionState(fleesHit);
