@@ -62,6 +62,26 @@ TEST(AIBehaviorMathTest, AwarenessEventsSelectSpeciesReaction)
               HunterAwarenessState::FleeingFromHit);
 }
 
+TEST(AIBehaviorMathTest, DirectHitDoesNotDowngradeExactTracking)
+{
+    EXPECT_EQ(UpdatedDirectHitAwarenessState(
+                  HunterAwarenessState::TrackingHunter, false),
+              HunterAwarenessState::TrackingHunter);
+    EXPECT_EQ(UpdatedDirectHitAwarenessState(
+                  HunterAwarenessState::TrackingHunter, true),
+              HunterAwarenessState::FleeingFromHit);
+    EXPECT_EQ(UpdatedDirectHitAwarenessState(
+                  HunterAwarenessState::InvestigatingShot, false),
+              HunterAwarenessState::RetaliatingHit);
+}
+
+TEST(AIBehaviorMathTest, TRexHitAlertOnlyStartsOnFirstAwareness)
+{
+    EXPECT_TRUE(ShouldInitializeTRexHitAlert(true, false));
+    EXPECT_FALSE(ShouldInitializeTRexHitAlert(true, true));
+    EXPECT_FALSE(ShouldInitializeTRexHitAlert(false, false));
+}
+
 TEST(AIBehaviorMathTest, AwarenessStatesDistinguishFixedReactions)
 {
     EXPECT_TRUE(IsFixedHunterPursuitState(

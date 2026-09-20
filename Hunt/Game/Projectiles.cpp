@@ -399,6 +399,8 @@ void registerDamage(int Dino, bool enemyBullet, const Vector3d& hunterPosition) 
 
 	TCharacter& character = Characters[Dino];
 	const TDinoInfo& info = DinoInfo[character.CType];
+	const bool wasAware = character.awareHunter;
+	const bool wasTrackingHunter = TracksHunterExactly(&character);
 
 	if (!character.Health)
 	{
@@ -424,35 +426,42 @@ void registerDamage(int Dino, bool enemyBullet, const Vector3d& hunterPosition) 
 		const bool fleesHit = ShouldFleeFromAwarenessEvent(
 			sourceDistance, GetCharacterAggressionRange(&character),
 			info.aggress, fearsHit, character.Clone == AI_TREX);
+		const bool preservesExactTracking = wasTrackingHunter && !fleesHit;
 
 		character.awareHunter = true;
-		character.hunterAwareness = DirectHitReactionState(fleesHit);
+		character.hunterAwareness = UpdatedDirectHitAwarenessState(
+			character.hunterAwareness, fleesHit);
 		character.AfraidTime = 60 * 1000;
-		if (character.Clone != AI_TREX || character.State == 0)
-			character.State = 2;
 
-		if (fleesHit) {
-			Vector3d away;
-			away.x = character.pos.x - hunterPosition.x;
-			away.y = 0.0f;
-			away.z = character.pos.z - hunterPosition.z;
-			NormVector(away, 2048.0f);
-			character.tgx = character.pos.x + away.x;
-			character.tgz = character.pos.z + away.z;
-		} else {
-			character.tgx = hunterPosition.x;
-			character.tgz = hunterPosition.z;
-			if (info.Aquatic) character.tdepth = hunterPosition.y;
+		// Exact sight or scent awareness is stronger than another aggressive hit.
+		// Keep tracking the moving hunter instead of restarting an alert animation
+		// or downgrading to a fixed retaliation target on every bullet. Authored
+		// fear responses can still replace tracking with a flee reaction.
+		if (!preservesExactTracking) {
+			if (character.Clone != AI_TREX || character.State == 0)
+				character.State = 2;
+
+			if (fleesHit) {
+				Vector3d away;
+				away.x = character.pos.x - hunterPosition.x;
+				away.y = 0.0f;
+				away.z = character.pos.z - hunterPosition.z;
+				NormVector(away, 2048.0f);
+				character.tgx = character.pos.x + away.x;
+				character.tgz = character.pos.z + away.z;
+			} else {
+				character.tgx = hunterPosition.x;
+				character.tgz = hunterPosition.z;
+				if (info.Aquatic) character.tdepth = hunterPosition.y;
+			}
+			character.tgtime = 0;
 		}
-		character.tgtime = 0;
 		character.BloodTTime += 90000;
 	}
 
-	if (character.Clone == AI_TREX)
-		if (character.State)
-			character.State = 5;
-		else
-			character.State = 1;
+	if (character.Clone == AI_TREX
+		&& ShouldInitializeTRexHitAlert(character.Health != 0, wasAware))
+		character.State = character.State ? 5 : 1;
 
 }
 void RemoveCharacter(int index)

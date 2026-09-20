@@ -30,6 +30,19 @@ inline HunterAwarenessState DirectHitReactionState(bool flees)
         : HunterAwarenessState::RetaliatingHit;
 }
 
+inline HunterAwarenessState UpdatedDirectHitAwarenessState(
+    HunterAwarenessState current, bool flees)
+{
+    return current == HunterAwarenessState::TrackingHunter && !flees
+        ? current
+        : DirectHitReactionState(flees);
+}
+
+inline bool ShouldInitializeTRexHitAlert(bool survived, bool wasAware)
+{
+    return survived && !wasAware;
+}
+
 inline bool ShouldFleeFromAwarenessEvent(float eventDistance,
                                          float aggressionRange,
                                          int aggression,
