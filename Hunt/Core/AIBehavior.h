@@ -57,3 +57,11 @@ inline bool IsTimedHunterReactionState(HunterAwarenessState state)
 {
     return IsFixedHunterPursuitState(state) || IsFixedHunterFleeState(state);
 }
+
+inline bool ShouldSkipTRexPerception(bool hasReactionTime,
+                                     bool isStateOne,
+                                     HunterAwarenessState awareness)
+{
+    return (hasReactionTime || isStateOne)
+        && !IsTimedHunterReactionState(awareness);
+}

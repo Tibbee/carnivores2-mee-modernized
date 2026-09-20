@@ -139,7 +139,12 @@ void CheckAfraid()
 		if (!AIInfo[cptr->Clone].sniffer) continue;
 		//if (cptr->AfraidTime || cptr->State == 1) continue;
 
-		if (cptr->Clone == AI_TREX && (cptr->AfraidTime || cptr->State == 1)) continue; //here to check if hunter detected once it starts running from fear call, trex doesn't like it tho
+		// Preserve the T-Rex's established pursuit lock, but keep checking while
+		// it follows a fixed shot or hit position. Actual sight or scent can then
+		// upgrade that positional reaction to continuous hunter tracking.
+		if (cptr->Clone == AI_TREX
+			&& ShouldSkipTRexPerception(cptr->AfraidTime != 0, cptr->State == 1,
+				cptr->hunterAwareness)) continue;
 
 		if (g_GameMode == GameMode::SurvivalMode) goto isAfraid;
 

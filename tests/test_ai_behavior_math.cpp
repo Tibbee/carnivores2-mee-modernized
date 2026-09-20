@@ -79,6 +79,18 @@ TEST(AIBehaviorMathTest, AwarenessStatesDistinguishFixedReactions)
     EXPECT_FALSE(IsTimedHunterReactionState(HunterAwarenessState::None));
 }
 
+TEST(AIBehaviorMathTest, TRexCanUpgradeFixedReactionToExactTracking)
+{
+    EXPECT_FALSE(ShouldSkipTRexPerception(
+        true, true, HunterAwarenessState::InvestigatingShot));
+    EXPECT_FALSE(ShouldSkipTRexPerception(
+        true, true, HunterAwarenessState::RetaliatingHit));
+    EXPECT_TRUE(ShouldSkipTRexPerception(
+        true, true, HunterAwarenessState::TrackingHunter));
+    EXPECT_FALSE(ShouldSkipTRexPerception(
+        false, false, HunterAwarenessState::TrackingHunter));
+}
+
 TEST(AIBehaviorMathTest, NormalAwarenessRespectsAggressionRange)
 {
     EXPECT_FALSE(OutsideNormalAggressionRange(99.0f, 100.0f));

@@ -26,6 +26,8 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
 - Preserve the T-Rex's dedicated aggressive response to audible shots and
   direct hits. Its intentionally omitted `aggress` value no longer puts its
   specialized, non-fleeing state machine into an unsupported flee reaction.
+  A T-Rex following the fixed source of a shot or hit can now upgrade to
+  continuous hunter tracking when it actually sees or smells the hunter.
 - Accept the legacy `l`/`L` suffix on integer-backed decimal fields such as
   character health, without restoring unrestricted numeric-prefix parsing.
 
