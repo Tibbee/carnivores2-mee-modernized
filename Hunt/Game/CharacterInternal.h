@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <cmath>
+
 #include "Core/GameTypes.h"
 
 // Collision / placement checks
@@ -138,6 +140,32 @@ inline void ClearHunterReaction(TCharacter* cptr)
     cptr->tgx = cptr->pos.x;
     cptr->tgz = cptr->pos.z;
     cptr->tgtime = 0;
+}
+
+// A fixed flee reaction stores one point rather than a direction. Once the
+// creature reaches it, the target sits behind it and it turns back, which
+// looks like circling. Extend the point along the flee direction so the
+// creature keeps running while the reaction lasts.
+inline void ExtendFixedFleeTarget(TCharacter* cptr)
+{
+    const float dx = cptr->tgx - cptr->pos.x;
+    const float dz = cptr->tgz - cptr->pos.z;
+    const float distanceSq = dx * dx + dz * dz;
+    if (distanceSq >= 512.0f * 512.0f)
+        return;
+
+    float nx;
+    float nz;
+    if (distanceSq > 1.0f) {
+        const float inv = 1.0f / sqrt(distanceSq);
+        nx = dx * inv;
+        nz = dz * inv;
+    } else {
+        nx = cptr->lookx;
+        nz = cptr->lookz;
+    }
+    cptr->tgx = cptr->pos.x + nx * 2048.0f;
+    cptr->tgz = cptr->pos.z + nz * 2048.0f;
 }
 
 // Pack following helpers

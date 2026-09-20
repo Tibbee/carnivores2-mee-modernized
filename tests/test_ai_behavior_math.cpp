@@ -164,6 +164,19 @@ TEST(AIBehaviorMathTest, PassiveAndFearfulSpeciesFleeAwarenessEvents)
     EXPECT_TRUE(ShouldFleeFromAwarenessEvent(10.0f, 100.0f, 100, true));
 }
 
+TEST(AIBehaviorMathTest, HeardShotsAreInvestigatedUnlessTheSpeciesFearsThem)
+{
+    // A Carnotaurus-style predator investigates a gunshot at any heard range.
+    EXPECT_FALSE(ShouldFleeFromHeardShot(200, false));
+    // Passive species still flee from shot noise.
+    EXPECT_TRUE(ShouldFleeFromHeardShot(0, false));
+    EXPECT_TRUE(ShouldFleeFromHeardShot(-1, false));
+    // An authored fear of shot noise wins.
+    EXPECT_TRUE(ShouldFleeFromHeardShot(200, true));
+    // The T-Rex has no flee state and always investigates.
+    EXPECT_FALSE(ShouldFleeFromHeardShot(0, true, true));
+}
+
 TEST(AIBehaviorMathTest, DedicatedPredatorWithoutFleeStateRespondsAggressively)
 {
     constexpr bool alwaysRespondAggressively = true;

@@ -53,6 +53,15 @@ inline bool ShouldFleeFromAwarenessEvent(float eventDistance,
         && (fearsEvent || aggression <= 0 || eventDistance > aggressionRange);
 }
 
+// A gunshot is only a sound: a creature investigates it unless it has an
+// authored fear of shot noise or is otherwise passive. The authored aggress
+// range still governs sight- and scent-based engagement and direct hits.
+inline bool ShouldFleeFromHeardShot(int aggression, bool fearsEvent,
+                                    bool alwaysRespondAggressively = false)
+{
+    return !alwaysRespondAggressively && (fearsEvent || aggression <= 0);
+}
+
 inline bool IsFixedHunterPursuitState(HunterAwarenessState state)
 {
     return state == HunterAwarenessState::InvestigatingShot

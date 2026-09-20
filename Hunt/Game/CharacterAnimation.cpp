@@ -225,6 +225,11 @@ void AnimateCharacters()
 
 		if (IsTimedHunterReaction(cptr)) {
 			cptr->tgtime = 0;
+			// A fixed flee target is a point, not a direction. Once reached,
+			// it sits behind the creature and it turns back; extend it so the
+			// creature keeps running while the reaction lasts.
+			if (IsFixedHunterFlee(cptr))
+				ExtendFixedFleeTarget(cptr);
 			cptr->AfraidTime -= TimeDt;
 			if (cptr->AfraidTime <= 0)
 				ClearHunterReaction(cptr);

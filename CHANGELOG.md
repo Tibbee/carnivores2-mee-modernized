@@ -12,13 +12,20 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
 ## [Unreleased]
 
 ### Fixed
-- Restore the authored `aggress` range when creatures react to gunshots and
-  direct hits. A low positive value no longer behaves like maximum aggression:
-  creatures investigate or retaliate only when the event source is within
-  their normal engagement range, otherwise they flee from the stored event
-  position. Recent damage no longer bypasses that range, while sight, scent,
-  fear flags, finite reactions, and non-omniscient event positions remain
-  unchanged.
+- Restore the authored `aggress` range when creatures retaliate after direct
+  hits. A low positive value no longer behaves like maximum aggression:
+  creatures retaliate only when the hit source is within their normal
+  engagement range, otherwise they flee from the stored hit position. Recent
+  damage does not bypass that range, while sight, scent, fear flags, finite
+  reactions, and non-omniscient event positions remain unchanged.
+- Heard gunshots no longer compare against the engagement range. A shot is
+  only a sound: creatures investigate the shot position unless the species has
+  `fearHearShot`, is defensive at full health, or is passive (`aggress <= 0`).
+  This restores the legacy behavior where a predator such as the Carnotaurus
+  walks to the shot instead of fleeing.
+- Keep fixed flee reactions moving. A flee target is a single point, so a
+  creature that reached it turned back and circled; the target now extends
+  along the flee direction while the reaction lasts.
 - Permit zero-weight pack members used by legacy mods for leader-only creature
   types. Zero-ratio entries are excluded when positive follower weights exist;
   all-zero packs retain the legacy first-member follower fallback. Negative and

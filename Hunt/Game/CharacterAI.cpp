@@ -39,14 +39,11 @@ void MakeNoise(Vector3d pos, float range)
 		const TDinoInfo& dino = DinoInfo[cptr->CType];
 		const bool fearsShot = dino.fearHearShot
 			|| (dino.defensive && cptr->Health == dino.Health0);
-		const float eventDx = cptr->pos.x - pos.x;
-		const float eventDz = cptr->pos.z - pos.z;
-		const float eventDistance = static_cast<float>(
-			sqrt(eventDx * eventDx + eventDz * eventDz));
-		// T-Rex has no authored aggression value and its dedicated animator has
-		// no flee state. Preserve its legacy behavior: investigate audible shots.
-		const bool fleesShot = ShouldFleeFromAwarenessEvent(
-			eventDistance, GetCharacterAggressionRange(cptr),
+		// A gunshot is only a sound, so it is investigated unless the species
+		// has an authored fear of shot noise or is otherwise passive. The
+		// aggress range still governs sight/scent engagement and direct hits.
+		// T-Rex has no flee state and always investigates audible shots.
+		const bool fleesShot = ShouldFleeFromHeardShot(
 			dino.aggress, fearsShot, isTRex);
 		cptr->hunterAwareness = HeardShotReactionState(fleesShot);
 		if (fleesShot) {
