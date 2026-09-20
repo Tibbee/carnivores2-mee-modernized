@@ -40,8 +40,11 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   that tracking and no longer restart its notice/roar sequence on every bullet.
   Repeated hits likewise avoid reinitializing alert animations for other
   dinosaurs that are already aware of the hunter.
-- Accept the legacy `l`/`L` suffix on integer-backed decimal fields such as
-  character health, without restoring unrestricted numeric-prefix parsing.
+- Parse `_RES.TXT` scalars with legacy `atoi`/`atof` semantics again: a
+  valid numeric prefix wins and trailing text is ignored, so decimal literals
+  on integer fields (`scale0 = 1000.0`), C-style suffixes (`runspd = 1.5f`),
+  and stray trailing tokens load instead of aborting the hunt. Non-numeric,
+  overflowing, and non-finite values are still rejected.
 - Allow zero-weight spawn-group entries and skip pack groups with no members.
   Legacy mods disable a spawn entry with `spawnratio = 0`, and unused
   "template" pack groups may reference spawn groups without defining members;

@@ -40,15 +40,33 @@ TEST(ScriptValueParse, AcceptsLineEndingAndCommentTails)
     EXPECT_FLOAT_EQ(decimal, 1.25f);
 }
 
-TEST(ScriptValueParse, RejectsPartialAndNonFiniteValues)
+TEST(ScriptValueParse, PreservesLegacyNumericPrefixParsing)
+{
+    // atoi/atof semantics: a valid numeric prefix wins and trailing text is
+    // ignored, so legacy mod values such as `1.5f`, `1000.0`, or `4oops`
+    // still load instead of aborting the hunt.
+    int integer = 99;
+    EXPECT_TRUE(ParseScriptInt("4oops", integer));
+    EXPECT_EQ(integer, 4);
+    EXPECT_TRUE(ParseScriptInt("1000.0", integer));
+    EXPECT_EQ(integer, 1000);
+
+    float decimal = 2.0f;
+    EXPECT_TRUE(ParseScriptFloat("1.5oops", decimal));
+    EXPECT_FLOAT_EQ(decimal, 1.5f);
+    EXPECT_TRUE(ParseScriptFloat("1.0f", decimal));
+    EXPECT_FLOAT_EQ(decimal, 1.0f);
+}
+
+TEST(ScriptValueParse, RejectsNonNumericAndNonFiniteValues)
 {
     int integer = 99;
-    EXPECT_FALSE(ParseScriptInt("4oops", integer));
+    EXPECT_FALSE(ParseScriptInt("oops", integer));
     EXPECT_FALSE(ParseScriptInt("99999999999999999999", integer));
     EXPECT_EQ(integer, 99);
 
     float decimal = 2.0f;
-    EXPECT_FALSE(ParseScriptFloat("1.5oops", decimal));
+    EXPECT_FALSE(ParseScriptFloat("oops", decimal));
     EXPECT_FALSE(ParseScriptFloat("nan", decimal));
     EXPECT_FALSE(ParseScriptFloat("inf", decimal));
     EXPECT_FLOAT_EQ(decimal, 2.0f);
@@ -65,8 +83,11 @@ TEST(ScriptValueParse, PreservesLegacyDecimalToIntegerConversion)
     EXPECT_EQ(integer, 1);
     EXPECT_TRUE(ParseScriptLegacyInt("7L // legacy suffix", integer));
     EXPECT_EQ(integer, 7);
-    EXPECT_FALSE(ParseScriptLegacyInt("5.5oops", integer));
-    EXPECT_FALSE(ParseScriptLegacyInt("1ll", integer));
+    EXPECT_TRUE(ParseScriptLegacyInt("5.5oops", integer));
+    EXPECT_EQ(integer, 5);
+    EXPECT_TRUE(ParseScriptLegacyInt("1ll", integer));
+    EXPECT_EQ(integer, 1);
+    EXPECT_FALSE(ParseScriptLegacyInt("oops", integer));
 }
 
 TEST(ScriptBlockParse, ConsumesNestedBodyAndLeavesFollowingField)
