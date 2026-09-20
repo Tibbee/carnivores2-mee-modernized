@@ -80,6 +80,19 @@ inline constexpr int kShotInvestigationMinTime = 10 * 1024;
 inline constexpr int kShotInvestigationMaxTime = 30 * 1024;
 inline constexpr int kTRexShotInvestigationMaxTime = 60 * 1024;
 inline constexpr float kShotInvestigationArrivalRadius = 512.0f;
+// Once a fixed reaction reaches the stored event position, the creature keeps
+// searching the area around it (instead of running past it or dropping
+// straight to normal wander) until the reaction timer expires.
+inline constexpr float kShotSearchRadius = 2048.0f;
+
+// A hunter event (heard shot or direct hit) is a stronger stimulus than
+// passive detection, so the event reaction uses the species' authored
+// aggression range multiplied by this scale. A predator with a large range
+// (Carnotaurus) covers any shot it can hear; a low-aggression herbivore
+// (Pachycephalosaurus, aggress 60) still flees from a genuinely distant event
+// instead of charging the source. Tune this single value to change how far
+// events carry: raise it for more pursuit, lower it for more flight.
+inline constexpr float kHunterEventRangeScale = 2.5f;
 
 inline int ShotInvestigationTime(float distance, float hearingRange, bool isTRex)
 {
@@ -104,15 +117,41 @@ inline bool ShotInvestigationComplete(int remainingTime, float targetDistanceSqu
             * kShotInvestigationArrivalRadius;
 }
 
-inline bool OutsideNormalAggressionRange(float distance, float aggressionRange)
+// The proximity-based reaction time gets shorter the farther the event was,
+// which can expire before a slow creature has walked to the stored position.
+// Extend it to cover the travel plus a search window, capped so no event
+// reaction outlives the longest authored investigation.
+inline constexpr int kShotInvestigationTravelCap = 60 * 1024;
+
+inline int ShotInvestigationTimeForTravel(int baseTime, float distance,
+                                          float travelSpeed)
 {
-    return distance > aggressionRange;
+    if (travelSpeed <= 0.0f)
+        return baseTime;
+
+    const int travelTime = static_cast<int>(distance / travelSpeed);
+    const int needed = travelTime + kShotInvestigationMinTime;
+    int result = baseTime > needed ? baseTime : needed;
+    if (result > kShotInvestigationTravelCap)
+        result = kShotInvestigationTravelCap;
+    return result;
+}
+
+// Recent direct damage is a stronger stimulus than passive detection. Species
+// fear and awareness rules are still evaluated after this range check, so a
+// wounded creature keeps engaging beyond its normal acquisition range.
+inline bool OutsideNormalAggressionRange(float distance, float aggressionRange,
+                                         bool recentlyDamaged)
+{
+    return !recentlyDamaged && distance > aggressionRange;
 }
 
 inline bool OutsideNormalAggressionRangeSquared(float distanceSquared,
-                                                float aggressionRange)
+                                                float aggressionRange,
+                                                bool recentlyDamaged)
 {
-    return distanceSquared > aggressionRange * aggressionRange;
+    return !recentlyDamaged
+        && distanceSquared > aggressionRange * aggressionRange;
 }
 
 // ===================== Object Detail (LOD) =====================

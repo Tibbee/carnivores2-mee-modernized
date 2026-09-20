@@ -135,58 +135,79 @@ TEST(AIBehaviorMathTest, TRexCanUpgradeFixedReactionToExactTracking)
 
 TEST(AIBehaviorMathTest, NormalAwarenessRespectsAggressionRange)
 {
-    EXPECT_FALSE(OutsideNormalAggressionRange(99.0f, 100.0f));
-    EXPECT_TRUE(OutsideNormalAggressionRange(101.0f, 100.0f));
+    EXPECT_FALSE(OutsideNormalAggressionRange(99.0f, 100.0f, false));
+    EXPECT_TRUE(OutsideNormalAggressionRange(101.0f, 100.0f, false));
     EXPECT_TRUE(OutsideNormalAggressionRangeSquared(101.0f * 101.0f,
-                                                    100.0f));
+                                                    100.0f, false));
 }
 
-TEST(AIBehaviorMathTest, AwarenessEventsRespectAuthoredAggressionRange)
+TEST(AIBehaviorMathTest, RecentDamageBypassesNormalAggressionRange)
 {
-    EXPECT_FALSE(ShouldFleeFromAwarenessEvent(99.0f, 100.0f, 1, false));
-    EXPECT_FALSE(ShouldFleeFromAwarenessEvent(100.0f, 100.0f, 1, false));
-    EXPECT_TRUE(ShouldFleeFromAwarenessEvent(101.0f, 100.0f, 1, false));
+    // A creature that was just shot keeps engaging beyond its authored
+    // acquisition range; the pre-622e50b reaction model relied on this.
+    EXPECT_FALSE(OutsideNormalAggressionRange(1000.0f, 100.0f, true));
+    EXPECT_FALSE(OutsideNormalAggressionRangeSquared(1000.0f * 1000.0f,
+                                                     100.0f, true));
+    EXPECT_TRUE(OutsideNormalAggressionRange(1000.0f, 100.0f, false));
+    EXPECT_TRUE(OutsideNormalAggressionRangeSquared(1000.0f * 1000.0f,
+                                                    100.0f, false));
 }
 
-TEST(AIBehaviorMathTest, LowAndHighAggressionProduceDifferentEventReactions)
+TEST(AIBehaviorMathTest, HunterEventsUseTheScaledAggressionRange)
 {
-    constexpr float eventDistance = 1000.0f;
-    EXPECT_TRUE(ShouldFleeFromAwarenessEvent(
-        eventDistance, 72.0f * 1.0f, 1, false));
-    EXPECT_FALSE(ShouldFleeFromAwarenessEvent(
-        eventDistance, 72.0f * 200.0f, 200, false));
+    // Event ranges are the authored aggression range scaled by
+    // kHunterEventRangeScale. Carnotaurus: 72 * 200 * 2.5.
+    constexpr float carnoEventRange =
+        72.0f * 200.0f * kHunterEventRangeScale;
+    // Pachycephalosaurus: 72 * 60 * 2.5 -- a low-aggression herbivore, even
+    // though it reuses the Allosaurus AI clone.
+    constexpr float pachyEventRange =
+        72.0f * 60.0f * kHunterEventRangeScale;
+
+    // A predator's scaled range covers any shot it can hear.
+    EXPECT_FALSE(ShouldFleeFromHunterEvent(200, false, 25000.0f,
+                                           carnoEventRange));
+    // The same distant event makes a low-aggression herbivore flee...
+    EXPECT_TRUE(ShouldFleeFromHunterEvent(60, false, 25000.0f,
+                                          pachyEventRange));
+    // ...while an event inside its scaled range still provokes a reaction.
+    EXPECT_FALSE(ShouldFleeFromHunterEvent(60, false, 5000.0f,
+                                           pachyEventRange));
 }
 
-TEST(AIBehaviorMathTest, PassiveAndFearfulSpeciesFleeAwarenessEvents)
+TEST(AIBehaviorMathTest, AuthoredFearAndPassivityAlwaysFleeHunterEvents)
 {
-    EXPECT_TRUE(ShouldFleeFromAwarenessEvent(10.0f, 100.0f, 0, false));
-    EXPECT_TRUE(ShouldFleeFromAwarenessEvent(10.0f, 100.0f, -1, false));
-    EXPECT_TRUE(ShouldFleeFromAwarenessEvent(10.0f, 100.0f, 100, true));
-}
-
-TEST(AIBehaviorMathTest, HeardShotsAreInvestigatedUnlessTheSpeciesFearsThem)
-{
-    // A Carnotaurus-style predator investigates a gunshot at any heard range.
-    EXPECT_FALSE(ShouldFleeFromHeardShot(200, false));
-    // Passive species still flee from shot noise.
-    EXPECT_TRUE(ShouldFleeFromHeardShot(0, false));
-    EXPECT_TRUE(ShouldFleeFromHeardShot(-1, false));
-    // An authored fear of shot noise wins.
-    EXPECT_TRUE(ShouldFleeFromHeardShot(200, true));
-    // The T-Rex has no flee state and always investigates.
-    EXPECT_FALSE(ShouldFleeFromHeardShot(0, true, true));
+    constexpr float eventRange = 40000.0f;
+    EXPECT_TRUE(ShouldFleeFromHunterEvent(200, true, 10.0f, eventRange));
+    EXPECT_TRUE(ShouldFleeFromHunterEvent(0, false, 10.0f, eventRange));
+    EXPECT_TRUE(ShouldFleeFromHunterEvent(-1, false, 10.0f, eventRange));
+    EXPECT_FALSE(ShouldFleeFromHunterEvent(200, false, 10.0f, eventRange));
 }
 
 TEST(AIBehaviorMathTest, DedicatedPredatorWithoutFleeStateRespondsAggressively)
 {
     constexpr bool alwaysRespondAggressively = true;
-    EXPECT_FALSE(ShouldFleeFromAwarenessEvent(
-        1000.0f, 0.0f, 0, true, alwaysRespondAggressively));
+    // The T-Rex has no authored aggress value and no flee path.
+    EXPECT_FALSE(ShouldFleeFromHunterEvent(0, true, 25000.0f, 0.0f,
+                                           alwaysRespondAggressively));
 }
 
-TEST(AIBehaviorMathTest, RecentDamageDoesNotBypassAggressionRange)
+TEST(AIBehaviorMathTest, DistantReactionsGetEnoughTravelTime)
 {
-    EXPECT_TRUE(OutsideNormalAggressionRange(1000.0f, 100.0f));
-    EXPECT_TRUE(OutsideNormalAggressionRangeSquared(1000.0f * 1000.0f,
-                                                    100.0f));
+    // A slow creature at the edge of hearing gets the travel time plus the
+    // minimum search window instead of the proximity-only minimum.
+    const int base = ShotInvestigationTime(1000.0f, 1000.0f, false);
+    EXPECT_EQ(base, kShotInvestigationMinTime);
+    const int extended = ShotInvestigationTimeForTravel(base, 5000.0f, 1.0f);
+    EXPECT_EQ(extended, 5000 + kShotInvestigationMinTime);
+    // A fast creature only needs the travel floor when it exceeds the base.
+    EXPECT_EQ(ShotInvestigationTimeForTravel(base, 5000.0f, 100.0f),
+              50 + kShotInvestigationMinTime);
+    // A long proximity-based reaction is never shortened.
+    const int longBase = ShotInvestigationTime(0.0f, 1000.0f, false);
+    EXPECT_EQ(ShotInvestigationTimeForTravel(longBase, 5000.0f, 100.0f),
+              longBase);
+    // The floor is capped so an event reaction stays finite.
+    EXPECT_EQ(ShotInvestigationTimeForTravel(base, 1.0e7f, 1.0f),
+              kShotInvestigationTravelCap);
 }

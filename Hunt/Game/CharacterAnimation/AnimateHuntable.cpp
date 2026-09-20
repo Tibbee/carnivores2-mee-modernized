@@ -87,8 +87,14 @@ TBEGIN:
 		if (fixedPursuit) {
 			cptr->tgtime = 0;
 			if (ShotInvestigationComplete(cptr->AfraidTime, tdistSq)) {
-				ClearHunterReaction(cptr);
-				SetNewTargetPlace(cptr, AIInfo[cptr->Clone].targetDistance);
+				if (cptr->AfraidTime > 0) {
+					// Stay alert and search the area around the event instead
+					// of running past it or dropping to normal wander.
+					SetNewTargetPlace(cptr, kShotSearchRadius);
+				} else {
+					ClearHunterReaction(cptr);
+					SetNewTargetPlace(cptr, AIInfo[cptr->Clone].targetDistance);
+				}
 				goto TBEGIN;
 			}
 		}
@@ -101,8 +107,9 @@ TBEGIN:
 
 		bool fleeMode = false;
 		if (g_GameMode != GameMode::SurvivalMode) {
+			const bool recentlyDamaged = cptr->BloodTTime > 0;
 			if ((!fixedPursuit
-				&& OutsideNormalAggressionRangeSquared(pdistSq, aDist))
+				&& OutsideNormalAggressionRangeSquared(pdistSq, aDist, recentlyDamaged))
 				|| DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
 			}

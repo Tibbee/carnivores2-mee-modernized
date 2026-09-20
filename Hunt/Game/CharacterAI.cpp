@@ -30,7 +30,12 @@ void MakeNoise(Vector3d pos, float range)
 			continue;
 
 		const bool isTRex = cptr->Clone == AI_TREX;
-		const int reactionTime = ShotInvestigationTime(l, r, isTRex);
+		// Give a slow creature enough time to reach a distant event; the
+		// remaining time then funds the local area search around it.
+		const float travelSpeed =
+			DinoInfo[cptr->CType].runspd * cptr->scale;
+		const int reactionTime = ShotInvestigationTimeForTravel(
+			ShotInvestigationTime(l, r, isTRex), l, travelSpeed);
 		cptr->AfraidTime = reactionTime;
 		cptr->NoFindCnt = 0;
 		cptr->awareHunter = true;
@@ -39,22 +44,25 @@ void MakeNoise(Vector3d pos, float range)
 		const TDinoInfo& dino = DinoInfo[cptr->CType];
 		const bool fearsShot = dino.fearHearShot
 			|| (dino.defensive && cptr->Health == dino.Health0);
-		// A gunshot is only a sound, so it is investigated unless the species
-		// has an authored fear of shot noise or is otherwise passive. The
-		// aggress range still governs sight/scent engagement and direct hits.
+		// A gunshot is a sound: species whose authored (event-scaled) range
+		// covers it investigate the position, while low-aggression species
+		// flee from it. Authored fear and passivity always flee, and the
 		// T-Rex has no flee state and always investigates audible shots.
-		const bool fleesShot = ShouldFleeFromHeardShot(
-			dino.aggress, fearsShot, isTRex);
+		const bool fleesShot = ShouldFleeFromHunterEvent(
+			dino.aggress, fearsShot, l, GetCharacterHunterEventRange(cptr),
+			isTRex);
 		cptr->hunterAwareness = HeardShotReactionState(fleesShot);
 		if (fleesShot) {
 			Vector3d away = SubVectors(cptr->pos, pos);
 			away.y = 0.0f;
 			NormVector(away, 2048.0f);
-			cptr->tgx = cptr->pos.x + away.x;
-			cptr->tgz = cptr->pos.z + away.z;
+			cptr->tgx = ClampCharacterTargetCoordinate(
+				cptr->pos.x + away.x);
+			cptr->tgz = ClampCharacterTargetCoordinate(
+				cptr->pos.z + away.z);
 		} else {
-			cptr->tgx = pos.x;
-			cptr->tgz = pos.z;
+			cptr->tgx = ClampCharacterTargetCoordinate(pos.x);
+			cptr->tgz = ClampCharacterTargetCoordinate(pos.z);
 		}
 		cptr->tgtime = 0;
 	}
@@ -87,8 +95,8 @@ void ReactToHunterCall(Vector3d pos, int callIndex)
 		Vector3d away = SubVectors(cptr->pos, pos);
 		away.y = 0.0f;
 		NormVector(away, 2048.0f);
-		cptr->tgx = cptr->pos.x + away.x;
-		cptr->tgz = cptr->pos.z + away.z;
+		cptr->tgx = ClampCharacterTargetCoordinate(cptr->pos.x + away.x);
+		cptr->tgz = ClampCharacterTargetCoordinate(cptr->pos.z + away.z);
 		cptr->tgtime = 0;
 		cptr->State = 2;
 		cptr->AfraidTime = (10 + rRand(5)) * 1024;

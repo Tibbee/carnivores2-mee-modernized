@@ -199,6 +199,17 @@ TBEGIN:
 
 		if (fixedPursuit) {
 			cptr->tgtime = 0;
+			if (ShotInvestigationComplete(cptr->AfraidTime, tdist2Sq)) {
+				if (cptr->AfraidTime > 0) {
+					// Stay alert and search the area around the event instead
+					// of running past it or dropping to normal wander.
+					SetNewTargetPlaceFish(cptr, kShotSearchRadius);
+				} else {
+					ClearHunterReaction(cptr);
+					SetNewTargetPlaceFish(cptr, tv);
+				}
+				goto TBEGIN;
+			}
 		}
 		else if (tracksHunter
 			&& (DinoInfo[cptr->CType].DangerFish || g_GameMode == GameMode::SurvivalMode)) {

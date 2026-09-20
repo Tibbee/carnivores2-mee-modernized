@@ -12,20 +12,27 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
 ## [Unreleased]
 
 ### Fixed
-- Restore the authored `aggress` range when creatures retaliate after direct
-  hits. A low positive value no longer behaves like maximum aggression:
-  creatures retaliate only when the hit source is within their normal
-  engagement range, otherwise they flee from the stored hit position. Recent
-  damage does not bypass that range, while sight, scent, fear flags, finite
-  reactions, and non-omniscient event positions remain unchanged.
-- Heard gunshots no longer compare against the engagement range. A shot is
-  only a sound: creatures investigate the shot position unless the species has
-  `fearHearShot`, is defensive at full health, or is passive (`aggress <= 0`).
-  This restores the legacy behavior where a predator such as the Carnotaurus
-  walks to the shot instead of fleeing.
-- Keep fixed flee reactions moving. A flee target is a single point, so a
-  creature that reached it turned back and circled; the target now extends
-  along the flee direction while the reaction lasts.
+- Hunter events (heard shots and direct hits) now use the species' authored
+  aggression range scaled by `kHunterEventRangeScale` (2.5) instead of the
+  binary rules that preceded it. A predator whose range covers the event
+  (Carnotaurus, 72 x 200) charges it at any distance it can hear, while a
+  low-aggression species (Pachycephalosaurus, 72 x 60 -- which reuses the
+  Allosaurus AI clone) still flees from a genuinely distant event instead of
+  charging the source. Authored `fearHearShot`/`fearShot`/`defensive` and
+  passivity always flee. The scale is a single documented tuning value.
+- Restore the recent-damage bypass on the ordinary acquisition range: a
+  creature that was just shot keeps engaging beyond its normal range for 90
+  seconds instead of immediately fleeing once the hunter moves out of range.
+- Fixed reactions no longer run past the stored event position. When a
+  pursuit reaches the event area without detecting the hunter, it stays alert
+  and searches locally (`kShotSearchRadius`, 2048) until the reaction timer
+  expires instead of sprinting forward or dropping straight to normal wander.
+  Flee and search targets are clamped to the map so an extension cannot park a
+  creature against the world edge.
+- Give distant shot reactions enough time to reach the stored position. The
+  proximity-based investigation time is floored at the species travel time
+  plus the minimum search window (capped at 60 seconds), so a slow creature
+  no longer times out mid-route and starts wandering far from the event.
 - Permit zero-weight pack members used by legacy mods for leader-only creature
   types. Zero-ratio entries are excluded when positive follower weights exist;
   all-zero packs retain the legacy first-member follower fallback. Negative and

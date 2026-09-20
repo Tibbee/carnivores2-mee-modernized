@@ -86,6 +86,14 @@ inline float GetCharacterAggressionRange(const TCharacter* cptr)
     return cptr->gliding ? aggressionRange * 2.0f : aggressionRange;
 }
 
+// A hunter event is a stronger stimulus than passive detection, so the event
+// reaction uses a scaled copy of the authored aggression range (see
+// kHunterEventRangeScale in Constants.h).
+inline float GetCharacterHunterEventRange(const TCharacter* cptr)
+{
+    return GetCharacterAggressionRange(cptr) * kHunterEventRangeScale;
+}
+
 inline bool IsInvestigatingShot(const TCharacter* cptr)
 {
     return cptr->hunterAwareness == HunterAwarenessState::InvestigatingShot;
@@ -131,6 +139,18 @@ inline void SetPackLeaderTarget(TCharacter* cptr, bool flee)
     cptr->tgtime = 0;
 }
 
+// Character targets must stay inside the playable map; the legacy target
+// pickers clamp to these bounds and an unbounded flee/search extension can
+// otherwise park a creature against the world edge.
+inline float ClampCharacterTargetCoordinate(float value)
+{
+    constexpr float kTargetMin = 512.0f;
+    constexpr float kTargetMax = 1018.0f * 256.0f;
+    if (value < kTargetMin) return kTargetMin;
+    if (value > kTargetMax) return kTargetMax;
+    return value;
+}
+
 inline void ClearHunterReaction(TCharacter* cptr)
 {
     cptr->awareHunter = false;
@@ -164,8 +184,8 @@ inline void ExtendFixedFleeTarget(TCharacter* cptr)
         nx = cptr->lookx;
         nz = cptr->lookz;
     }
-    cptr->tgx = cptr->pos.x + nx * 2048.0f;
-    cptr->tgz = cptr->pos.z + nz * 2048.0f;
+    cptr->tgx = ClampCharacterTargetCoordinate(cptr->pos.x + nx * 2048.0f);
+    cptr->tgz = ClampCharacterTargetCoordinate(cptr->pos.z + nz * 2048.0f);
 }
 
 // Pack following helpers

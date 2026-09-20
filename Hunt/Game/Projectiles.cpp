@@ -423,10 +423,14 @@ void registerDamage(int Dino, bool enemyBullet, const Vector3d& hunterPosition) 
 		const bool fearsHit = character.Clone != AI_TREX
 			&& ((info.defensive && character.Health == info.Health0)
 				|| (info.fearShot && character.Health < info.Health0));
-		// T-Rex uses a dedicated retaliation state machine and has no flee path.
-		const bool fleesHit = ShouldFleeFromAwarenessEvent(
-			sourceDistance, GetCharacterAggressionRange(&character),
-			info.aggress, fearsHit, character.Clone == AI_TREX);
+		// A direct hit is a stronger stimulus than passive detection:
+		// species whose authored (event-scaled) range covers the source
+		// retaliate, while low-aggression species flee from it. Authored
+		// fear and passivity always flee; the T-Rex has no flee path.
+		const bool fleesHit = ShouldFleeFromHunterEvent(
+			info.aggress, fearsHit, sourceDistance,
+			GetCharacterHunterEventRange(&character),
+			character.Clone == AI_TREX);
 		const bool preservesExactTracking = wasTrackingHunter && !fleesHit;
 
 		character.awareHunter = true;
@@ -448,11 +452,15 @@ void registerDamage(int Dino, bool enemyBullet, const Vector3d& hunterPosition) 
 				away.y = 0.0f;
 				away.z = character.pos.z - hunterPosition.z;
 				NormVector(away, 2048.0f);
-				character.tgx = character.pos.x + away.x;
-				character.tgz = character.pos.z + away.z;
+				character.tgx = ClampCharacterTargetCoordinate(
+					character.pos.x + away.x);
+				character.tgz = ClampCharacterTargetCoordinate(
+					character.pos.z + away.z);
 			} else {
-				character.tgx = hunterPosition.x;
-				character.tgz = hunterPosition.z;
+				character.tgx = ClampCharacterTargetCoordinate(
+					hunterPosition.x);
+				character.tgz = ClampCharacterTargetCoordinate(
+					hunterPosition.z);
 				if (info.Aquatic) character.tdepth = hunterPosition.y;
 			}
 			character.tgtime = 0;

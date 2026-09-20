@@ -69,16 +69,23 @@ TBEGIN:
 		if (fixedPursuit) {
 			cptr->tgtime = 0;
 			if (ShotInvestigationComplete(cptr->AfraidTime, tdist * tdist)) {
-				ClearHunterReaction(cptr);
-				SetNewTargetPlace_Brahi(cptr, 2048.0f);
+				if (cptr->AfraidTime > 0) {
+					// Stay alert and search the area around the event instead
+					// of running past it or dropping to normal wander.
+					SetNewTargetPlace_Brahi(cptr, kShotSearchRadius);
+				} else {
+					ClearHunterReaction(cptr);
+					SetNewTargetPlace_Brahi(cptr, 2048.0f);
+				}
 				goto TBEGIN;
 			}
 		}
 
 		bool fleeMode = false;
 		if (g_GameMode != GameMode::SurvivalMode) {
+			const bool recentlyDamaged = cptr->BloodTTime > 0;
 			if ((!fixedPursuit
-				&& (OutsideNormalAggressionRange(pdist, attackDist)
+				&& (OutsideNormalAggressionRange(pdist, attackDist, recentlyDamaged)
 					|| !playerAttackable))
 				|| DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
 				fleeMode = true;
