@@ -33,9 +33,11 @@ inline HunterAwarenessState DirectHitReactionState(bool flees)
 inline bool ShouldFleeFromAwarenessEvent(float eventDistance,
                                          float aggressionRange,
                                          int aggression,
-                                         bool fearsEvent)
+                                         bool fearsEvent,
+                                         bool alwaysRespondAggressively = false)
 {
-    return fearsEvent || aggression <= 0 || eventDistance > aggressionRange;
+    return !alwaysRespondAggressively
+        && (fearsEvent || aggression <= 0 || eventDistance > aggressionRange);
 }
 
 inline bool IsFixedHunterPursuitState(HunterAwarenessState state)

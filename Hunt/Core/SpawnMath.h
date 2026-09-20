@@ -7,8 +7,9 @@ inline bool IsValidSelectionRatio(float ratio)
     return std::isfinite(ratio) && ratio >= 0.0f;
 }
 
-// Ratios of zero deliberately exclude an entry from weighted selection. The
-// final positive entry is a rounding-safe fallback when selector equals total.
+// Ratios of zero exclude an entry when any positive weight exists. Legacy
+// all-zero packs fall back to the first member, which was the old spawn code's
+// initialized follower type. The final positive entry is rounding-safe.
 inline int SelectWeightedRatioIndex(const float* ratios, int count,
                                     float selector)
 {
@@ -33,5 +34,5 @@ inline int SelectWeightedRatioIndex(const float* ratios, int count,
         selector -= ratio;
     }
 
-    return lastPositive;
+    return lastPositive >= 0 ? lastPositive : 0;
 }

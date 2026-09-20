@@ -20,12 +20,17 @@ TEST(SpawnMathTest, PositiveRatiosRetainWeightedSelection)
     EXPECT_EQ(SelectWeightedRatioIndex(ratios, 2, 3.0f), 1);
 }
 
-TEST(SpawnMathTest, InvalidOrAllZeroRatiosCannotSelectAMember)
+TEST(SpawnMathTest, AllZeroRatiosUseLegacyFirstMemberFallback)
 {
     const float allZero[] = {0.0f, 0.0f};
+
+    EXPECT_EQ(SelectWeightedRatioIndex(allZero, 2, 0.0f), 0);
+}
+
+TEST(SpawnMathTest, InvalidRatiosCannotSelectAMember)
+{
     const float negative[] = {1.0f, -1.0f};
 
-    EXPECT_EQ(SelectWeightedRatioIndex(allZero, 2, 0.0f), -1);
     EXPECT_EQ(SelectWeightedRatioIndex(negative, 2, 0.5f), -1);
     EXPECT_FALSE(IsValidSelectionRatio(-1.0f));
 }

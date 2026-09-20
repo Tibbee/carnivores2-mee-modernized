@@ -420,9 +420,10 @@ void registerDamage(int Dino, bool enemyBullet, const Vector3d& hunterPosition) 
 		const bool fearsHit = character.Clone != AI_TREX
 			&& ((info.defensive && character.Health == info.Health0)
 				|| (info.fearShot && character.Health < info.Health0));
+		// T-Rex uses a dedicated retaliation state machine and has no flee path.
 		const bool fleesHit = ShouldFleeFromAwarenessEvent(
 			sourceDistance, GetCharacterAggressionRange(&character),
-			info.aggress, fearsHit);
+			info.aggress, fearsHit, character.Clone == AI_TREX);
 
 		character.awareHunter = true;
 		character.hunterAwareness = DirectHitReactionState(fleesHit);

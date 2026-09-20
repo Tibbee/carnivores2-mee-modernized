@@ -61,7 +61,12 @@ TEST(ScriptValueParse, PreservesLegacyDecimalToIntegerConversion)
     EXPECT_EQ(integer, 5);
     EXPECT_TRUE(ParseScriptLegacyInt("13 // comment", integer));
     EXPECT_EQ(integer, 13);
+    EXPECT_TRUE(ParseScriptLegacyInt("1l\r\n", integer));
+    EXPECT_EQ(integer, 1);
+    EXPECT_TRUE(ParseScriptLegacyInt("7L // legacy suffix", integer));
+    EXPECT_EQ(integer, 7);
     EXPECT_FALSE(ParseScriptLegacyInt("5.5oops", integer));
+    EXPECT_FALSE(ParseScriptLegacyInt("1ll", integer));
 }
 
 TEST(ScriptBlockParse, ConsumesNestedBodyAndLeavesFollowingField)

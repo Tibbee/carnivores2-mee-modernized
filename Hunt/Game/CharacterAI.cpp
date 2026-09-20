@@ -43,9 +43,11 @@ void MakeNoise(Vector3d pos, float range)
 		const float eventDz = cptr->pos.z - pos.z;
 		const float eventDistance = static_cast<float>(
 			sqrt(eventDx * eventDx + eventDz * eventDz));
+		// T-Rex has no authored aggression value and its dedicated animator has
+		// no flee state. Preserve its legacy behavior: investigate audible shots.
 		const bool fleesShot = ShouldFleeFromAwarenessEvent(
 			eventDistance, GetCharacterAggressionRange(cptr),
-			dino.aggress, fearsShot);
+			dino.aggress, fearsShot, isTRex);
 		cptr->hunterAwareness = HeardShotReactionState(fleesShot);
 		if (fleesShot) {
 			Vector3d away = SubVectors(cptr->pos, pos);

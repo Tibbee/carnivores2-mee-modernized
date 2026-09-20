@@ -110,6 +110,13 @@ TEST(AIBehaviorMathTest, PassiveAndFearfulSpeciesFleeAwarenessEvents)
     EXPECT_TRUE(ShouldFleeFromAwarenessEvent(10.0f, 100.0f, 100, true));
 }
 
+TEST(AIBehaviorMathTest, DedicatedPredatorWithoutFleeStateRespondsAggressively)
+{
+    constexpr bool alwaysRespondAggressively = true;
+    EXPECT_FALSE(ShouldFleeFromAwarenessEvent(
+        1000.0f, 0.0f, 0, true, alwaysRespondAggressively));
+}
+
 TEST(AIBehaviorMathTest, RecentDamageDoesNotBypassAggressionRange)
 {
     EXPECT_TRUE(OutsideNormalAggressionRange(1000.0f, 100.0f));

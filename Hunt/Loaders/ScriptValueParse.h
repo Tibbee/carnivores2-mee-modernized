@@ -52,8 +52,8 @@ inline bool ParseScriptFloat(const char* text, float& out)
 }
 
 // A few legacy integer-backed gameplay fields were authored with decimal
-// literals. The old atoi path truncated those values; preserve that behavior
-// explicitly without weakening ParseScriptInt for indices and counts.
+// literals or a C-style long suffix. The old atoi path accepted those values;
+// preserve only those known forms without weakening indices and counts.
 inline bool ParseScriptLegacyInt(const char* text, int& out)
 {
     if (!text)
@@ -62,6 +62,8 @@ inline bool ParseScriptLegacyInt(const char* text, int& out)
     char* end = nullptr;
     errno = 0;
     const double value = strtod(text, &end);
+    if (end != text && (*end == 'l' || *end == 'L'))
+        ++end;
     if (end == text || errno == ERANGE || !ScriptNumericTailIsValid(end) ||
         !std::isfinite(value) ||
         value < static_cast<double>((std::numeric_limits<int>::min)()) ||

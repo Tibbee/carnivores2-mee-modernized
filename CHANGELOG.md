@@ -20,8 +20,14 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   fear flags, finite reactions, and non-omniscient event positions remain
   unchanged.
 - Permit zero-weight pack members used by legacy mods for leader-only creature
-  types. Zero-ratio entries are excluded from follower selection, while
-  negative ratios and packs with no selectable followers remain rejected.
+  types. Zero-ratio entries are excluded when positive follower weights exist;
+  all-zero packs retain the legacy first-member follower fallback. Negative and
+  non-finite ratios remain rejected.
+- Preserve the T-Rex's dedicated aggressive response to audible shots and
+  direct hits. Its intentionally omitted `aggress` value no longer puts its
+  specialized, non-fleeing state machine into an unsupported flee reaction.
+- Accept the legacy `l`/`L` suffix on integer-backed decimal fields such as
+  character health, without restoring unrestricted numeric-prefix parsing.
 
 ## [v1.1.9-modernized] - 2026-09-20
 

@@ -118,6 +118,22 @@ TEST(MenuResourceEntry, MenuTxtAcceptsBothSensitivityKeySpellings)
     EXPECT_FLOAT_EQ(dino.m_LookK, 0.5f);
 }
 
+TEST(MenuResourceEntry, LegacyHealthAcceptsLongSuffix)
+{
+    ResetMenuState();
+    TempScript script(
+        "{\n"
+        " name = 'Dsungaripterus'\n"
+        " ai = 3\n"
+        " health = 1l\n"
+        "}\n"
+        "}\n");
+    ASSERT_NE(script.stream, nullptr);
+
+    EXPECT_NO_THROW(ReadCharacters(script.stream));
+    EXPECT_TRUE(g_DinoInfo.empty());  // Ambient AI is parsed but not listed.
+}
+
 TEST(MenuResourceEntry, WeaponValuesDoNotSelectOtherFields)
 {
     ResetMenuState();

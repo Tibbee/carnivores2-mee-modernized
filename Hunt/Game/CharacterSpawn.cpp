@@ -754,8 +754,6 @@ void PlaceCharacters()
 				}
 				if (!std::isfinite(memberRatio))
 					DoHalt("Character placement error: pack member ratio total is invalid.");
-				if (packType[packInd].packMax > 1 && !(memberRatio > 0.0f))
-					DoHalt("Character placement error: pack members have no positive total.");
 
 				/*
 				std::list<int> spawnList;
