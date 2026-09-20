@@ -29,7 +29,8 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   A T-Rex following the fixed source of a shot or hit can now upgrade to
   continuous hunter tracking when it actually sees or smells the hunter.
   Additional hits preserve that tracking and no longer restart its notice/roar
-  sequence on every bullet.
+  sequence on every bullet. Repeated hits likewise avoid reinitializing alert
+  animations for other dinosaurs that are already aware of the hunter.
 - Accept the legacy `l`/`L` suffix on integer-backed decimal fields such as
   character health, without restoring unrestricted numeric-prefix parsing.
 

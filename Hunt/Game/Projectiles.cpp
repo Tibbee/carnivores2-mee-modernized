@@ -438,7 +438,7 @@ void registerDamage(int Dino, bool enemyBullet, const Vector3d& hunterPosition) 
 		// or downgrading to a fixed retaliation target on every bullet. Authored
 		// fear responses can still replace tracking with a flee reaction.
 		if (!preservesExactTracking) {
-			if (character.Clone != AI_TREX || character.State == 0)
+			if (ShouldInitializeDirectHitAlert(true, wasAware))
 				character.State = 2;
 
 			if (fleesHit) {
@@ -460,7 +460,7 @@ void registerDamage(int Dino, bool enemyBullet, const Vector3d& hunterPosition) 
 	}
 
 	if (character.Clone == AI_TREX
-		&& ShouldInitializeTRexHitAlert(character.Health != 0, wasAware))
+		&& ShouldInitializeDirectHitAlert(character.Health != 0, wasAware))
 		character.State = character.State ? 5 : 1;
 
 }

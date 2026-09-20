@@ -75,11 +75,11 @@ TEST(AIBehaviorMathTest, DirectHitDoesNotDowngradeExactTracking)
               HunterAwarenessState::RetaliatingHit);
 }
 
-TEST(AIBehaviorMathTest, TRexHitAlertOnlyStartsOnFirstAwareness)
+TEST(AIBehaviorMathTest, DirectHitAlertOnlyStartsOnFirstAwareness)
 {
-    EXPECT_TRUE(ShouldInitializeTRexHitAlert(true, false));
-    EXPECT_FALSE(ShouldInitializeTRexHitAlert(true, true));
-    EXPECT_FALSE(ShouldInitializeTRexHitAlert(false, false));
+    EXPECT_TRUE(ShouldInitializeDirectHitAlert(true, false));
+    EXPECT_FALSE(ShouldInitializeDirectHitAlert(true, true));
+    EXPECT_FALSE(ShouldInitializeDirectHitAlert(false, false));
 }
 
 TEST(AIBehaviorMathTest, AwarenessStatesDistinguishFixedReactions)

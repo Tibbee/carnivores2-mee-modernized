@@ -38,7 +38,7 @@ inline HunterAwarenessState UpdatedDirectHitAwarenessState(
         : DirectHitReactionState(flees);
 }
 
-inline bool ShouldInitializeTRexHitAlert(bool survived, bool wasAware)
+inline bool ShouldInitializeDirectHitAlert(bool survived, bool wasAware)
 {
     return survived && !wasAware;
 }
