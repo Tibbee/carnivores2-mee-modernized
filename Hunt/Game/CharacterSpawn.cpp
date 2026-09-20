@@ -4,6 +4,7 @@
 // Extracted from Characters.cpp.
 
 #include "Hunt.h"
+#include "Core/SpawnMath.h"
 #include "Game/CharacterInternal.h"
 
 namespace {
@@ -742,14 +743,18 @@ void PlaceCharacters()
 				if (packType[packInd].packMemberCh <= 0)
 					DoHalt("Character placement error: selected pack has no members.");
 
+				float memberRatios[kPackMemberCapacity];
 				float memberRatio = 0.0f;
 				for (int pm = 0; pm < packType[packInd].packMemberCh; pm++) {
 					const float ratio = packType[packInd].packMember[pm].ratio;
-					if (!(ratio > 0.0f))
-						DoHalt("Character placement error: pack member ratios must be positive.");
+					if (!IsValidSelectionRatio(ratio))
+						DoHalt("Character placement error: pack member ratios must be non-negative.");
+					memberRatios[pm] = ratio;
 					memberRatio += ratio;
 				}
-				if (!(memberRatio > 0.0f))
+				if (!std::isfinite(memberRatio))
+					DoHalt("Character placement error: pack member ratio total is invalid.");
+				if (packType[packInd].packMax > 1 && !(memberRatio > 0.0f))
 					DoHalt("Character placement error: pack members have no positive total.");
 
 				/*
@@ -822,18 +827,16 @@ void PlaceCharacters()
 							RequireCharacterSlot();
 							Characters[ChCount].packId = PackCount;
 
-							Characters[ChCount].CType = packType[packInd].packMember[0].ctype; //failsafe
-
 							float memberSelector = rRand(30000);
 							memberSelector /= 30000;
 							memberSelector *= memberRatio;
-							for (int pm = 0; pm < packType[packInd].packMemberCh; pm++) {
-								if (memberSelector <= packType[packInd].packMember[pm].ratio) {
-									Characters[ChCount].CType = packType[packInd].packMember[pm].ctype;
-									break;
-								}
-								else memberSelector -= packType[packInd].packMember[pm].ratio;
-							}
+							const int memberIndex = SelectWeightedRatioIndex(
+								memberRatios, packType[packInd].packMemberCh,
+								memberSelector);
+							RequireSpawnCapacity(memberIndex,
+								packType[packInd].packMemberCh, "selected pack member");
+							Characters[ChCount].CType =
+								packType[packInd].packMember[memberIndex].ctype;
 
 							//Characters[ChCount].CType = packType[packInd].packMember[rRand(packType[packInd].packMemberCh - 1)].ctype;//Characters[leaderIndex].CType;
 							Characters[ChCount].SpawnGroupType = sg;

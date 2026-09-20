@@ -19,6 +19,9 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   position. Recent damage no longer bypasses that range, while sight, scent,
   fear flags, finite reactions, and non-omniscient event positions remain
   unchanged.
+- Permit zero-weight pack members used by legacy mods for leader-only creature
+  types. Zero-ratio entries are excluded from follower selection, while
+  negative ratios and packs with no selectable followers remain rejected.
 
 ## [v1.1.9-modernized] - 2026-09-20
 
