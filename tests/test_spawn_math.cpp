@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <limits>
+
 #include "SpawnMath.h"
 
 TEST(SpawnMathTest, ZeroRatioLeaderIsSkippedForFollowerSelection)
@@ -25,6 +27,15 @@ TEST(SpawnMathTest, AllZeroRatiosUseLegacyFirstMemberFallback)
     const float allZero[] = {0.0f, 0.0f};
 
     EXPECT_EQ(SelectWeightedRatioIndex(allZero, 2, 0.0f), 0);
+}
+
+TEST(SpawnMathTest, ZeroRatioIsValidForDisabledEntries)
+{
+    EXPECT_TRUE(IsValidSelectionRatio(0.0f));
+    EXPECT_TRUE(IsValidSelectionRatio(0.5f));
+    EXPECT_FALSE(IsValidSelectionRatio(-0.5f));
+    EXPECT_FALSE(IsValidSelectionRatio(
+        std::numeric_limits<float>::infinity()));
 }
 
 TEST(SpawnMathTest, InvalidRatiosCannotSelectAMember)

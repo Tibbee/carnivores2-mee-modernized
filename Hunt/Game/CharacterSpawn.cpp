@@ -653,6 +653,16 @@ void PlaceCharacters()
 
 		for (int p = 0; p < packTypeCount; p++) {
 			if (packType[p].SpawnInfoCh){
+				// A pack type with no members cannot place anything. Unused
+				// "template" pack groups in legacy mods reference spawn groups
+				// without defining members; skip them instead of aborting.
+				if (packType[p].packMemberCh <= 0) {
+					char packSkip[128];
+					sprintf_s(packSkip, sizeof(packSkip),
+						"Character placement: skipping pack type %d with no members.\n", p);
+					PrintLog(packSkip);
+					continue;
+				}
 				for (int si = 0; si < packType[p].SpawnInfoCh; si++) {
 					const int spawnGroupIndex = packType[p].SpawnInfo[si].spawnGroup;
 					RequireSpawnCapacity(spawnGroupIndex, TotalSpawnGroup,
@@ -698,13 +708,12 @@ void PlaceCharacters()
 				ratioScores[c] = 0.f;
 				//counter[c] = 0;
 				const float ratio = packType[spawnGroup[sg].packIndex[c]].SpawnInfo[spawnGroup[sg].spawnInfoIndex[c]].spawnRatio;
-				if (!(ratio > 0.0f))
-					DoHalt("Character placement error: spawn ratios must be positive.");
+				if (!IsValidSelectionRatio(ratio))
+					DoHalt("Character placement error: spawn ratios must be non-negative.");
 				totalRatio += ratio;
-				            //DinoInfo[spawnGroup[sg].dinoIndex[c]].SpawnInfo[spawnGroup[sg].spawnInfoIndex[c]].spawnRatio;
 			}
-			if (!(totalRatio > 0.0f))
-				DoHalt("Character placement error: spawn ratios have no positive total.");
+			if (!std::isfinite(totalRatio))
+				DoHalt("Character placement error: spawn ratio total is invalid.");
 			int posi = 0;
 			tr = 0;
 
@@ -713,17 +722,29 @@ void PlaceCharacters()
 
 				int packInd = -1;
 
-				// select ctype accounting for spawn ratio
-				if (spawnGroup[sg].Randomised) {
+				// select ctype accounting for spawn ratio. Zero ratios
+				// disable an entry; an all-zero group keeps the legacy
+				// first-entry fallback used by pack-member selection.
+				if (!(totalRatio > 0.0f)) {
+					packInd = spawnGroup[sg].packIndex[0];
+				}
+				else if (spawnGroup[sg].Randomised) {
 					float selector = rRand(30000);
 					selector /= 30000;
 					selector *= totalRatio;
+					int lastPositive = 0;
 					for (int ch = 0; ch < spawnGroup[sg].packIndexCh; ch++) {
-						if (selector <= packType[spawnGroup[sg].packIndex[ch]].SpawnInfo[spawnGroup[sg].spawnInfoIndex[ch]].spawnRatio) {
+						const float ratio = packType[spawnGroup[sg].packIndex[ch]].SpawnInfo[spawnGroup[sg].spawnInfoIndex[ch]].spawnRatio;
+						if (!(ratio > 0.0f)) continue;
+						lastPositive = ch;
+						if (selector <= ratio) {
 							packInd = spawnGroup[sg].packIndex[ch];
 							break;
-						} else selector -= packType[spawnGroup[sg].packIndex[ch]].SpawnInfo[spawnGroup[sg].spawnInfoIndex[ch]].spawnRatio;
+						}
+						selector -= ratio;
 					}
+					if (packInd == -1)
+						packInd = spawnGroup[sg].packIndex[lastPositive];
 				} else {
 					while (packInd == -1) {
 						int post = posi % spawnGroup[sg].packIndexCh;
@@ -740,8 +761,10 @@ void PlaceCharacters()
 				RequireSpawnCapacity(packInd, packTypeCount, "selected pack type");
 				RequireSpawnCount(packType[packInd].packMemberCh,
 					kPackMemberCapacity, "pack member");
+				// Memberless pack types are excluded when linking, so this is
+				// a defensive guard: never abort a hunt over an empty pack.
 				if (packType[packInd].packMemberCh <= 0)
-					DoHalt("Character placement error: selected pack has no members.");
+					continue;
 
 				float memberRatios[kPackMemberCapacity];
 				float memberRatio = 0.0f;

@@ -35,6 +35,12 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   dinosaurs that are already aware of the hunter.
 - Accept the legacy `l`/`L` suffix on integer-backed decimal fields such as
   character health, without restoring unrestricted numeric-prefix parsing.
+- Allow zero-weight spawn-group entries and skip pack groups with no members.
+  Legacy mods disable a spawn entry with `spawnratio = 0`, and unused
+  "template" pack groups may reference spawn groups without defining members;
+  both now behave as no-ops instead of aborting the hunt. All-zero spawn
+  groups keep the first-entry fallback, and negative or non-finite ratios
+  remain rejected.
 
 ## [v1.1.9-modernized] - 2026-09-20
 
