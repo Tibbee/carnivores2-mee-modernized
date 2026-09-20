@@ -19,6 +19,7 @@
 #include <set>
 #include <vector>
 #include "Core/ConfigText.h"
+#include "ListMath.h"
 #include "Loaders/LoadValidate.h"
 #include "Loaders/ScriptValueParse.h"
 
@@ -407,12 +408,21 @@ void ReadCharacters(FILE* stream)
 			// Only add huntable dinosaurs (AI >= 10) to the menu list
 			if (di.m_AI >= 10)
 			{
-				std::stringstream spp;
-				spp << "huntdat/menu/pics/dino" << (di.m_AI - 9) << ".tga";
-				LoadPicture(di.m_Thumbnail, spp.str());
+				// Presentation assets follow the list position; an explicit
+				// `pic` line overrides the default thumbnail. The resolved
+				// path is kept on the entry so callers (and tests) can see
+				// which picture the slot actually uses.
+				const std::size_t menuSlot = HuntableMenuSlot(g_DinoInfo.size());
+				if (di.m_PicturePath.empty())
+				{
+					std::stringstream spp;
+					spp << "huntdat/menu/pics/dino" << menuSlot << ".tga";
+					di.m_PicturePath = spp.str();
+				}
+				LoadPicture(di.m_Thumbnail, di.m_PicturePath);
 
-				spp.str(""); spp.clear();
-				spp << "huntdat/menu/pics/dino" << (di.m_AI - 9) << "no.tga";
+				std::stringstream spp;
+				spp << "huntdat/menu/pics/dino" << menuSlot << "no.tga";
 				if (!LoadPicture(di.m_ThumbnailHidden, spp.str()))
 				{
 					di.m_ThumbnailHidden = di.m_Thumbnail;

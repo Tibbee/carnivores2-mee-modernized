@@ -1246,15 +1246,17 @@ void MenuEventStart(int32_t menu_state)
 
 			if (dino.m_AI >= 10)//&& dino.m_Rank <= g_UserProfile.Rank)
 			{
-				// Add to a list
+				// Add to a list. Presentation assets follow the list position
+				// (see ListMath.h); compute the slot before the push so the text
+				// number matches the thumbnail loaded in ReadCharacters().
+				const std::size_t menuSlot = HuntableMenuSlot(g_DinoList.size());
 				g_DinoList.push_back(i);
 				MenuHunt[1].Item.push_back(std::make_pair(dino.m_Name, false));
 
 				std::stringstream spp;
 
 				// Load appropriate text
-
-				spp << "huntdat/menu/txt/dino" << (dino.m_AI - 9);
+				spp << "huntdat/menu/txt/dino" << menuSlot;
 				if (g_Options.OptSys)
 					spp << ".txu";
 				else

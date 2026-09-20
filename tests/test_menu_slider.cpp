@@ -46,3 +46,14 @@ TEST(MenuListTest, ScrollingClampsWithoutUnsignedWraparound)
     EXPECT_EQ(ScrolledHuntListOffset(59, 69, 1), 58u);
     EXPECT_EQ(ScrolledHuntListOffset(0, 10, -1), 0u);
 }
+
+TEST(MenuListTest, HuntablePresentationSlotIgnoresDuplicateAiSlots)
+{
+    // The stock roster's AI values are not unique: Iguanodon and Carnotaurus
+    // both use 17 and T-Rex uses 18. The presentation number must stay the
+    // 1-based list position so each keeps its own picture and description
+    // (Carnotaurus -> dino9, Tyrannosaurus Rex -> dino10).
+    EXPECT_EQ(HuntableMenuSlot(7), 8u);   // Iguanodon
+    EXPECT_EQ(HuntableMenuSlot(8), 9u);   // Carnotaurus, also AI 17
+    EXPECT_EQ(HuntableMenuSlot(9), 10u);  // Tyrannosaurus Rex
+}

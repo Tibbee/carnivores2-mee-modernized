@@ -58,6 +58,12 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   both now behave as no-ops instead of aborting the hunt. All-zero spawn
   groups keep the first-entry fallback, and negative or non-finite ratios
   remain rejected.
+- Number hunt-submenu dinosaur pictures and descriptions by list position
+  instead of the AI slot. The stock `_MENU.TXT` roster gives Iguanodon and
+  Carnotaurus the same AI (17), so the old `ai - 9` lookup showed Carnotaurus
+  the Iguanodon picture and T-Rex the Carnotaurus picture (and the matching
+  INFO text). Each entry now resolves to its own `dinoN` asset, and an
+  explicit `pic` line overrides the default thumbnail.
 
 ## [v1.1.9-modernized] - 2026-09-20
 

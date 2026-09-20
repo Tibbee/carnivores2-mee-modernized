@@ -17,6 +17,16 @@ inline std::size_t HuntListDataIndex(std::size_t visibleRow,
     return visibleRow + offset;
 }
 
+// Menu presentation assets (pics/dinoN.tga, txt/dinoN.txm) are numbered by
+// the huntable's 1-based position in the menu list, not by its AI slot. The
+// stock roster gives Iguanodon and Carnotaurus the same AI (17), so an
+// AI-derived number would show each of the last species its predecessor's
+// asset (T-Rex displaying the Carnotaurus picture).
+inline std::size_t HuntableMenuSlot(std::size_t huntableIndex)
+{
+    return huntableIndex + 1;
+}
+
 inline std::size_t ScrolledHuntListOffset(std::size_t currentOffset,
                                           std::size_t itemCount,
                                           int wheelSteps)

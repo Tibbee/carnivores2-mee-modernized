@@ -240,3 +240,49 @@ TEST(MenuResourceEntry, MalformedNumericValuesStillFail)
     // Exact key matching must not weaken the value validation itself.
     EXPECT_THROW(ReadCharacters(script.stream), std::exception);
 }
+
+TEST(MenuResourceEntry, HuntableThumbnailFollowsListPositionNotAiSlot)
+{
+    ResetMenuState();
+    // The stock _MENU.TXT roster: ten huntables whose AI values are not
+    // unique (Iguanodon and Carnotaurus both use 17, T-Rex uses 18). Each
+    // entry must resolve to its own numbered picture, not its predecessor's.
+    TempScript script(
+        "{\n name = 'Parasaurolophus'\n ai = 10\n}\n"
+        "{\n name = 'Pachycephalosaurus'\n ai = 11\n}\n"
+        "{\n name = 'Stegosaurus'\n ai = 12\n}\n"
+        "{\n name = 'Allosaurus'\n ai = 13\n}\n"
+        "{\n name = 'Triceratops'\n ai = 14\n}\n"
+        "{\n name = 'Velociraptor'\n ai = 15\n}\n"
+        "{\n name = 'Dilophosaurus'\n ai = 16\n}\n"
+        "{\n name = 'Iguanodon'\n ai = 17\n}\n"
+        "{\n name = 'Carnotaurus'\n ai = 17\n}\n"
+        "{\n name = 'Tyrannosaurus Rex'\n ai = 18\n}\n"
+        "}\n");
+    ASSERT_NE(script.stream, nullptr);
+
+    EXPECT_NO_THROW(ReadCharacters(script.stream));
+
+    ASSERT_EQ(g_DinoInfo.size(), 10u);
+    EXPECT_EQ(g_DinoInfo[7].m_PicturePath, "huntdat/menu/pics/dino8.tga");
+    EXPECT_EQ(g_DinoInfo[8].m_PicturePath, "huntdat/menu/pics/dino9.tga");
+    EXPECT_EQ(g_DinoInfo[9].m_PicturePath, "huntdat/menu/pics/dino10.tga");
+}
+
+TEST(MenuResourceEntry, ExplicitPicturePathOverridesTheDefaultThumbnail)
+{
+    ResetMenuState();
+    TempScript script(
+        "{\n"
+        " name = 'Custom'\n"
+        " ai = 10\n"
+        " pic = 'huntdat/menu/pics/custom.tga'\n"
+        "}\n"
+        "}\n");
+    ASSERT_NE(script.stream, nullptr);
+
+    EXPECT_NO_THROW(ReadCharacters(script.stream));
+
+    ASSERT_EQ(g_DinoInfo.size(), 1u);
+    EXPECT_EQ(g_DinoInfo[0].m_PicturePath, "huntdat/menu/pics/custom.tga");
+}
