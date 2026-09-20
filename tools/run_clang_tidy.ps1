@@ -6,13 +6,16 @@ param(
 
     [switch]$AllProjectFiles,
 
-    [string]$RepoRoot = (Split-Path $PSScriptRoot -Parent)
+    [string]$RepoRoot = ''
 )
 
 $ErrorActionPreference = 'Stop'
 
-$repoPath = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd([char[]]@('\', '/'))
-$buildPath = [System.IO.Path]::GetFullPath($BuildDir)
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $RepoRoot = Split-Path $PSScriptRoot -Parent
+}
+$repoPath = (Resolve-Path -LiteralPath $RepoRoot -ErrorAction Stop).Path.TrimEnd([char[]]@('\', '/'))
+$buildPath = (Resolve-Path -LiteralPath $BuildDir -ErrorAction Stop).Path
 $databasePath = Join-Path $buildPath 'compile_commands.json'
 $configPath = Join-Path $repoPath '.clang-tidy'
 
@@ -35,7 +38,10 @@ function Get-RepoRelativePath {
     if (-not [System.IO.Path]::IsPathRooted($pathToResolve)) {
         $pathToResolve = Join-Path $repoPath $pathToResolve
     }
-    $fullPath = [System.IO.Path]::GetFullPath($pathToResolve)
+    if (-not (Test-Path -LiteralPath $pathToResolve -PathType Leaf)) {
+        return $null
+    }
+    $fullPath = (Resolve-Path -LiteralPath $pathToResolve -ErrorAction Stop).Path
     $prefix = $repoPath + [System.IO.Path]::DirectorySeparatorChar
     if (-not $fullPath.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
         return $null
@@ -67,7 +73,8 @@ $compileByPath = @{}
 foreach ($entry in $compileEntries) {
     $relativePath = Get-RepoRelativePath -Path $entry.file
     if (Test-ProjectSource -RelativePath $relativePath) {
-        $compileByPath[[System.IO.Path]::GetFullPath($entry.file)] = $entry.file
+        $fullPath = (Resolve-Path -LiteralPath $entry.file -ErrorAction Stop).Path
+        $compileByPath[$fullPath] = $entry.file
     }
 }
 
@@ -79,7 +86,7 @@ elseif ($Files.Count -gt 0) {
     foreach ($file in $Files) {
         $relativePath = Get-RepoRelativePath -Path $file
         if (Test-ProjectSource -RelativePath $relativePath) {
-            $fullPath = [System.IO.Path]::GetFullPath((Join-Path $repoPath $relativePath))
+            $fullPath = (Resolve-Path -LiteralPath (Join-Path $repoPath $relativePath) -ErrorAction Stop).Path
             if ($compileByPath.ContainsKey($fullPath)) {
                 $requestedFiles += $compileByPath[$fullPath]
             }
