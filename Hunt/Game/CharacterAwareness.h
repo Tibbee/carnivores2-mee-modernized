@@ -36,3 +36,11 @@ struct THunterStimulus
 // Resolves one stimulus for one creature. Returns true when the creature was
 // eligible for this stimulus type, whether or not its awareness changed.
 bool ApplyHunterStimulus(TCharacter& character, const THunterStimulus& stimulus);
+
+// The single owner of hunter-directed navigation. Called once per creature per
+// frame after the reaction timers have been applied: a fixed flee reaction
+// keeps running along its stored direction, and a fixed pursuit that reached
+// its stored event position searches the area around it. Live tracking and
+// live flee targets still live in the animators until the flee/pursue decision
+// moves here; wandering and pack movement stay with the animators.
+void UpdateHunterNavigation(TCharacter& character);

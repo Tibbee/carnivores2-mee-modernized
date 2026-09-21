@@ -84,21 +84,6 @@ TBEGIN:
 		const bool fixedFlee = IsFixedHunterFlee(cptr);
 		const bool fixedReaction = fixedPursuit || fixedFlee;
 		const bool tracksHunter = TracksHunterExactly(cptr);
-		if (fixedPursuit) {
-			cptr->tgtime = 0;
-			if (ShotInvestigationComplete(cptr->AfraidTime, tdistSq)) {
-				if (cptr->AfraidTime > 0) {
-					// Stay alert and search the area around the event instead
-					// of running past it or dropping to normal wander.
-					SetNewTargetPlace(cptr, kShotSearchRadius);
-				} else {
-					ClearHunterReaction(cptr);
-					SetNewTargetPlace(cptr, AIInfo[cptr->Clone].targetDistance);
-				}
-				goto TBEGIN;
-			}
-		}
-
 		const float aDist = GetCharacterAggressionRange(cptr);
 		if (!(AIInfo[cptr->Clone].carnivore
 			&& (!AIInfo[cptr->Clone].iceAge || cptr->Clone == AI_WOLF))) {

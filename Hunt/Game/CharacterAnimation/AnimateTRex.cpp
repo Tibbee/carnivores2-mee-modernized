@@ -82,20 +82,7 @@ TBEGIN:
 
 		cptr->currentIdleGroup = -1;
 
-		if (fixedPursuit) {
-			cptr->tgtime = 0;
-			if (ShotInvestigationComplete(cptr->AfraidTime, tdistSq)) {
-				if (cptr->AfraidTime > 0) {
-					// Stay alert and search the area around the event instead
-					// of running past it or dropping to normal wander.
-					SetNewTargetPlace(cptr, kShotSearchRadius);
-				} else {
-					ClearHunterReaction(cptr);
-					SetNewTargetPlace(cptr, 8048.0f);
-				}
-				goto TBEGIN;
-			}
-		} else {
+		if (!fixedPursuit) {
 			if (tracksHunter) {
 				cptr->tgx = PlayerX;
 				cptr->tgz = PlayerZ;

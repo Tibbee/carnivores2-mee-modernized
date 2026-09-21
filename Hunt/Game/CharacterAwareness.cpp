@@ -175,6 +175,28 @@ bool ApplyDirectHit(TCharacter& character, const THunterStimulus& stimulus)
 	return true;
 }
 
+void SelectHunterSearchTarget(TCharacter* cptr)
+{
+	// The local area search after a fixed pursuit reaches its stored event
+	// position uses the same family-specific target picker as ordinary
+	// wandering.
+	switch (cptr->Clone)
+	{
+	case AI_BRACH:
+	case AI_BRACHDANGER:
+	case AI_LANDBRACH:
+		SetNewTargetPlace_Brahi(cptr, kShotSearchRadius);
+		break;
+	case AI_MOSA:
+	case AI_FISH:
+		SetNewTargetPlaceFish(cptr, kShotSearchRadius);
+		break;
+	default:
+		SetNewTargetPlace(cptr, kShotSearchRadius);
+		break;
+	}
+}
+
 } // namespace
 
 bool ApplyHunterStimulus(TCharacter& character, const THunterStimulus& stimulus)
@@ -189,4 +211,35 @@ bool ApplyHunterStimulus(TCharacter& character, const THunterStimulus& stimulus)
 		return ApplyHunterCall(character, stimulus);
 	}
 	return false;
+}
+
+void UpdateHunterNavigation(TCharacter& character)
+{
+	if (!character.Health)
+		return;
+
+	TCharacter* cptr = &character;
+
+	// Fixed flee: the stored point is behind the creature once reached, so the
+	// flee direction is extended and the creature keeps running instead of
+	// turning back and circling.
+	if (IsFixedHunterFlee(cptr)) {
+		ExtendFixedFleeTarget(cptr);
+		return;
+	}
+
+	// Fixed pursuit: once the creature reaches the stored event position with
+	// time left on the reaction, it searches the area around it instead of
+	// running past it or dropping straight to normal wander. An expired
+	// reaction was already cleared by the central tick, so only the remaining
+	// time case reaches this check.
+	if (IsFixedHunterPursuit(cptr) && cptr->AfraidTime > 0) {
+		const float dx = cptr->tgx - cptr->pos.x;
+		const float dz = cptr->tgz - cptr->pos.z;
+		if (dx * dx + dz * dz
+			<= kShotInvestigationArrivalRadius
+				* kShotInvestigationArrivalRadius) {
+			SelectHunterSearchTarget(cptr);
+		}
+	}
 }

@@ -3,6 +3,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "CharacterAwareness.h"
 #include "CharacterInternal.h"
 
 // Forward declaration from AnimateHuntDead.cpp
@@ -242,11 +243,6 @@ void AnimateCharacters()
 
 		if (IsTimedHunterReaction(cptr)) {
 			cptr->tgtime = 0;
-			// A fixed flee target is a point, not a direction. Once reached,
-			// it sits behind the creature and it turns back; extend it so the
-			// creature keeps running while the reaction lasts.
-			if (IsFixedHunterFlee(cptr))
-				ExtendFixedFleeTarget(cptr);
 			cptr->AfraidTime -= TimeDt;
 			if (cptr->AfraidTime <= 0)
 				ClearHunterReaction(cptr);
@@ -257,6 +253,12 @@ void AnimateCharacters()
 			if (cptr->hunterAwareness == HunterAwarenessState::TrackingHunter)
 				cptr->hunterAwareness = HunterAwarenessState::None;
 		}
+
+		// The awareness core owns hunter-directed destinations: fixed flee
+		// extension and the local search after a fixed pursuit reaches its
+		// stored event position. Wandering and pack movement stay with the
+		// animators.
+		UpdateHunterNavigation(*cptr);
 
 		
 

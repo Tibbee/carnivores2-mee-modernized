@@ -119,19 +119,8 @@ TBEGIN:
 			// Fixed event reactions keep the stored event position (approach
 			// or flee) instead of being overwritten with a pack-relative
 			// target, which made investigating pack members flee the leader.
+			// The arrival search is owned by UpdateHunterNavigation.
 			cptr->tgtime = 0;
-			if (IsFixedHunterPursuit(cptr)
-				&& ShotInvestigationComplete(cptr->AfraidTime, tdistSq)) {
-				if (cptr->AfraidTime > 0) {
-					// Stay alert and search the area around the event instead
-					// of running past it or dropping to normal wander.
-					SetNewTargetPlace(cptr, kShotSearchRadius);
-				} else {
-					ClearHunterReaction(cptr);
-					SetNewTargetPlace(cptr, 2048.f);
-				}
-				goto TBEGIN;
-			}
 		}
 		else SetPackLeaderTarget(cptr, true);
 	}
