@@ -13,6 +13,21 @@
 namespace
 {
 
+// Opt-in diagnostic trace (verbose_logging 1): one line per awareness
+// event with the numbers that decided it and the stored destination.
+void TraceHunterEvent(const TCharacter* cptr, const char* kind, float distance,
+                      float eventRange, float hearingRange)
+{
+	if (!g_VerboseLogging) return;
+	char buf[256];
+	sprintf_s(buf, sizeof(buf),
+		"[AI] %s clone=%d dist=%.0f eventR=%.0f hearR=%.0f -> %s target=(%.0f,%.0f) pos=(%.0f,%.0f) afraid=%d\n",
+		kind, cptr->Clone, distance, eventRange, hearingRange,
+		HunterAwarenessStateName(cptr->hunterAwareness),
+		cptr->tgx, cptr->tgz, cptr->pos.x, cptr->pos.z, cptr->AfraidTime);
+	PrintLogVerbose(buf);
+}
+
 bool ApplyGunshotHeard(TCharacter& character, const THunterStimulus& stimulus)
 {
 	TCharacter* cptr = &character;
@@ -70,6 +85,8 @@ bool ApplyGunshotHeard(TCharacter& character, const THunterStimulus& stimulus)
 		cptr->tgz = ClampCharacterTargetCoordinate(position.z);
 	}
 	cptr->tgtime = 0;
+	TraceHunterEvent(cptr, "shot", distance, GetCharacterHunterEventRange(cptr),
+		hearingRange);
 	return true;
 }
 
@@ -106,6 +123,8 @@ bool ApplyHunterCall(TCharacter& character, const THunterStimulus& stimulus)
 	cptr->AfraidTime = (10 + rRand(5)) * 1024;
 	cptr->NoFindCnt = 0;
 	cptr->hunterAwareness = HunterAwarenessState::FleeingFromCall;
+	TraceHunterEvent(cptr, "call", distance, GetCharacterHunterEventRange(cptr),
+		hearingRange);
 	return true;
 }
 
@@ -169,6 +188,8 @@ bool ApplyDirectHit(TCharacter& character, const THunterStimulus& stimulus)
 	if (cptr->Clone == AI_TREX && cptr->Health
 		&& ShouldRestartTRexHitPursuit(previousAwareness))
 		cptr->State = cptr->State ? 5 : 1;
+	TraceHunterEvent(cptr, "hit", sourceDistance,
+		GetCharacterHunterEventRange(cptr), 0.0f);
 	return true;
 }
 
@@ -191,6 +212,11 @@ bool ApplyContact(TCharacter& character, const THunterStimulus& stimulus)
 	cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
 	cptr->AfraidTime = kCloseRangeAwarenessTime;
 	cptr->NoFindCnt = 0;
+	const float contactDx = cptr->pos.x - stimulus.position.x;
+	const float contactDz = cptr->pos.z - stimulus.position.z;
+	TraceHunterEvent(cptr, "contact",
+		static_cast<float>(sqrt(contactDx * contactDx + contactDz * contactDz)),
+		GetCharacterHunterEventRange(cptr), 0.0f);
 	return true;
 }
 
@@ -511,6 +537,14 @@ void UpdateHunterNavigation(TCharacter& character)
 		if (dx * dx + dz * dz
 			<= kShotInvestigationArrivalRadius
 				* kShotInvestigationArrivalRadius) {
+			if (g_VerboseLogging) {
+				char buf[256];
+				sprintf_s(buf, sizeof(buf),
+					"[AI] search clone=%d state=%s pos=(%.0f,%.0f) oldTarget=(%.0f,%.0f)\n",
+					cptr->Clone, HunterAwarenessStateName(cptr->hunterAwareness),
+					cptr->pos.x, cptr->pos.z, cptr->tgx, cptr->tgz);
+				PrintLogVerbose(buf);
+			}
 			SelectHunterSearchTarget(cptr);
 		}
 	}

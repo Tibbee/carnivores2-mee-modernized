@@ -25,6 +25,21 @@ inline HunterAwarenessState HeardShotReactionState(bool flees)
         : HunterAwarenessState::InvestigatingShot;
 }
 
+inline const char* HunterAwarenessStateName(HunterAwarenessState state)
+{
+    switch (state)
+    {
+    case HunterAwarenessState::None: return "None";
+    case HunterAwarenessState::InvestigatingShot: return "InvestigatingShot";
+    case HunterAwarenessState::FleeingFromShot: return "FleeingFromShot";
+    case HunterAwarenessState::RetaliatingHit: return "RetaliatingHit";
+    case HunterAwarenessState::FleeingFromHit: return "FleeingFromHit";
+    case HunterAwarenessState::FleeingFromCall: return "FleeingFromCall";
+    case HunterAwarenessState::TrackingHunter: return "TrackingHunter";
+    }
+    return "?";
+}
+
 inline HunterAwarenessState DirectHitReactionState(bool flees)
 {
     return flees
