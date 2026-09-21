@@ -29,6 +29,11 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   name and id, state, position, stored destination, live hunter distance
   and remaining reaction time, so flee/pursue decisions can be diagnosed
   from a playtest without a debugger.
+- A per-species `agressMulti` override in `_RES.TXT` for the AI-family
+  aggression multiplier. The code-side clone table stays the default; an
+  authored value replaces it for that species only, so a mod can retune an
+  aggression range without a new clone. The Brachiosaurus legacy formula is
+  not affected, and non-positive values keep the default.
 
 ### Changed
 - `_RES.TXT` and legacy `_MENU.TXT` recovery: malformed scalars now keep a
@@ -51,6 +56,10 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   returns to ordinary behavior when its reaction time runs out instead of
   chasing the live position indefinitely; its reaction time is refreshed
   normally while sight or scent keeps working.
+- Route hunter-stimulus eligibility through one `THunterCapabilities` lookup
+  (`HunterHearsShots`, `HunterHearsCalls`, `sniffs`) instead of repeating the
+  aquatic/hunt-dog, flying-family and sniffer checks in every handler. Adding
+  a stimulus or a clone family now touches one table.
 
 ### Removed
 - The legacy `awareHunter` boolean. `hunterAwareness` is the single awareness
@@ -171,6 +180,11 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   (including the leader) follow a fresh anchor before falling back to the
   leader position. The anchor is a packmate's position, never the hunter's,
   so no coordinates, tracking grants or kill authority are shared.
+- Restore the generic fish idle wander radius. `AnimateFish` fell through
+  from its `AI_FISH` case into the `AI_MOSA` case, so every stock fish clone
+  (Bananogmius, Pleuroceras, Ichthyosaurus, Squalicorax, Atractosteus)
+  wandered with the 5,024-unit Mosasaurus radius instead of the authored
+  1,024-unit fish radius.
 
 ## [v1.1.9-modernized] - 2026-09-20
 
