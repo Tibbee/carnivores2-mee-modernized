@@ -241,13 +241,14 @@ void AnimateCharacters()
 			cptr->tgtime = 0;
 			cptr->AfraidTime -= TimeDt;
 			if (cptr->AfraidTime <= 0) {
-				if (g_VerboseLogging) {
+				if (IsAILoggingEnabled()) {
 					char buf[256];
 					sprintf_s(buf, sizeof(buf),
-						"[AI] expired clone=%d state=%s pos=(%.0f,%.0f)\n",
-						cptr->Clone, HunterAwarenessStateName(cptr->hunterAwareness),
+						"[AI] expired clone=%d ctype=%d species=%s state=%s pos=(%.0f,%.0f)\n",
+						cptr->Clone, cptr->CType, DinoInfo[cptr->CType].Name,
+						HunterAwarenessStateName(cptr->hunterAwareness),
 						cptr->pos.x, cptr->pos.z);
-					PrintLogVerbose(buf);
+					PrintLogAI(buf);
 				}
 				ClearHunterReaction(cptr);
 			}
@@ -264,18 +265,23 @@ void AnimateCharacters()
 		// animators.
 		UpdateHunterNavigation(*cptr);
 
-		// Opt-in AI trace (verbose_logging 1): roughly once per second, show
-		// where a reacting creature is and where it is heading. Paired with the
-		// event lines from the awareness core this shows whether it is walking
-		// toward the stored point, searching, or blocked.
-		if (g_VerboseLogging && cptr->hunterAwareness != HunterAwarenessState::None
+		// Opt-in AI trace (ai_logging 1 in config.cfg, or verbose_logging 1):
+		// roughly once per second, show where a reacting creature is and where it
+		// is heading, plus the live hunter distance so an escape can be told from
+		// a standstill or a return. Paired with the event lines from the
+		// awareness core this shows whether it is walking toward the stored
+		// point, searching, or blocked.
+		if (IsAILoggingEnabled() && cptr->hunterAwareness != HunterAwarenessState::None
 			&& (RealTime & 1023) < TimeDt) {
+			const THunterGeometry hunter = GetHunterGeometry(cptr);
 			char aiTrace[256];
 			sprintf_s(aiTrace, sizeof(aiTrace),
-				"[AI] trace clone=%d state=%s pos=(%.0f,%.0f) target=(%.0f,%.0f) afraid=%d\n",
-				cptr->Clone, HunterAwarenessStateName(cptr->hunterAwareness),
-				cptr->pos.x, cptr->pos.z, cptr->tgx, cptr->tgz, cptr->AfraidTime);
-			PrintLogVerbose(aiTrace);
+				"[AI] trace clone=%d ctype=%d species=%s state=%s pos=(%.0f,%.0f) target=(%.0f,%.0f) dist=%.0f afraid=%d\n",
+				cptr->Clone, cptr->CType, DinoInfo[cptr->CType].Name,
+				HunterAwarenessStateName(cptr->hunterAwareness),
+				cptr->pos.x, cptr->pos.z, cptr->tgx, cptr->tgz,
+				hunter.distance, cptr->AfraidTime);
+			PrintLogAI(aiTrace);
 		}
 
 		

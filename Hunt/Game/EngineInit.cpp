@@ -793,6 +793,11 @@ static void CreateDefaultConfig()
     "# Verbose logging: 0=off, 1=on (default: 0)\r\n"
     "verbose_logging 0\r\n"
     "\r\n"
+    "# AI awareness trace: 0=off, 1=on (default: 0). One line per hunter\r\n"
+    "# event and a per-second state line per reacting creature, written to\r\n"
+    "# render.log. Independent of verbose_logging, which also enables it.\r\n"
+    "ai_logging 0\r\n"
+    "\r\n"
     "# Nightvision key VK code (default: 78 = 'N')\r\n"
     "nightvision_key 78\r\n"
     "\r\n"
@@ -939,6 +944,12 @@ static void LoadConfig()
       }
       else if (_stricmp(key, "verbose_logging") == 0) {
         g_VerboseLogging = (value != 0);
+      }
+      else if (_stricmp(key, "ai_logging") == 0) {
+        g_AILogging = (value != 0);
+        char msg[64];
+        sprintf_s(msg, sizeof(msg), "Config: ai_logging = %d\n", g_AILogging ? 1 : 0);
+        PrintLog(msg);
       }
       else if (_stricmp(key, "nightvision_key") == 0) {
         NightVisionKey = value;

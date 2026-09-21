@@ -18,14 +18,15 @@ namespace
 void TraceHunterEvent(const TCharacter* cptr, const char* kind, float distance,
                       float eventRange, float hearingRange)
 {
-	if (!g_VerboseLogging) return;
+	if (!IsAILoggingEnabled()) return;
 	char buf[256];
 	sprintf_s(buf, sizeof(buf),
-		"[AI] %s clone=%d dist=%.0f eventR=%.0f hearR=%.0f -> %s target=(%.0f,%.0f) pos=(%.0f,%.0f) afraid=%d\n",
-		kind, cptr->Clone, distance, eventRange, hearingRange,
+		"[AI] %s clone=%d ctype=%d species=%s dist=%.0f eventR=%.0f hearR=%.0f -> %s target=(%.0f,%.0f) pos=(%.0f,%.0f) afraid=%d\n",
+		kind, cptr->Clone, cptr->CType, DinoInfo[cptr->CType].Name,
+		distance, eventRange, hearingRange,
 		HunterAwarenessStateName(cptr->hunterAwareness),
 		cptr->tgx, cptr->tgz, cptr->pos.x, cptr->pos.z, cptr->AfraidTime);
-	PrintLogVerbose(buf);
+	PrintLogAI(buf);
 }
 
 // The ideal flee point is directly away from the source, but that ray can
@@ -574,13 +575,13 @@ void UpdateHunterNavigation(TCharacter& character)
 		if (dx * dx + dz * dz
 			<= kShotInvestigationArrivalRadius
 				* kShotInvestigationArrivalRadius) {
-			if (g_VerboseLogging) {
+			if (IsAILoggingEnabled()) {
 				char buf[256];
 				sprintf_s(buf, sizeof(buf),
-					"[AI] search clone=%d state=%s pos=(%.0f,%.0f) oldTarget=(%.0f,%.0f)\n",
-					cptr->Clone, HunterAwarenessStateName(cptr->hunterAwareness),
+					"[AI] search clone=%d ctype=%d state=%s pos=(%.0f,%.0f) oldTarget=(%.0f,%.0f)\n",
+					cptr->Clone, cptr->CType, HunterAwarenessStateName(cptr->hunterAwareness),
 					cptr->pos.x, cptr->pos.z, cptr->tgx, cptr->tgz);
-				PrintLogVerbose(buf);
+				PrintLogAI(buf);
 			}
 			SelectHunterSearchTarget(cptr);
 		}

@@ -107,7 +107,7 @@ Copy-Item $lgpl (Join-Path $PkgDir 'THIRD-PARTY-LICENSES\COPYING.OpenAL-Soft.txt
 
 # --- clean default config.cfg ------------------------------------------
 # Mirror Hunt/Game/EngineInit.cpp CreateDefaultConfig (fov 62 default,
-# object_detail 48 default, fps_limit 1, verbose_logging 0,
+# object_detail 48 default, fps_limit 1, verbose_logging 0, ai_logging 0,
 # nightvision_key 78, sky_mode 1, sky_horizon_drop 12,
 # sky_dome_scale 384, glperf_logging 0, commented audio/hunt examples).
 # Keep this in sync with the source.
@@ -133,6 +133,11 @@ fps_limit 1
 
 # Verbose logging: 0=off, 1=on (default: 0)
 verbose_logging 0
+
+# AI awareness trace: 0=off, 1=on (default: 0). One line per hunter
+# event and a per-second state line per reacting creature, written to
+# render.log. Independent of verbose_logging, which also enables it.
+ai_logging 0
 
 # Nightvision key VK code (default: 78 = 'N')
 nightvision_key 78

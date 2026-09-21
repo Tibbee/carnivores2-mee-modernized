@@ -562,6 +562,12 @@ extern char cheatcode[16];
 
 GLOBAL bool g_VerboseLogging;
 
+// Opt-in AI awareness trace (set via config.cfg "ai_logging 1"). Independent
+// of g_VerboseLogging, which also enables it so existing debug setups keep
+// working. It writes one line per hunter event plus a roughly per-second state
+// line for every reacting creature to render.log.
+GLOBAL bool g_AILogging;
+
 // Runtime toggle for GL perf logging (set via config.cfg "glperf_logging 1").
 // Only effective when GL_PERF_HOOKS is compiled in.
 GLOBAL bool g_glperfLoggingEnabled;

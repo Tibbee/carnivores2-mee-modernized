@@ -337,6 +337,11 @@ void AnimateProcesses();
 void CreateLog();
 void PrintLog(LPSTR l);
 void PrintLogVerbose(LPSTR l);
+// AI awareness trace. Enabled by config.cfg "ai_logging 1" or, for existing
+// debug setups, by verbose_logging. The gate is checked at the call sites so
+// nothing is formatted while the trace is off.
+bool IsAILoggingEnabled();
+void PrintLogAI(LPSTR l);
 void CloseLog();
 
 

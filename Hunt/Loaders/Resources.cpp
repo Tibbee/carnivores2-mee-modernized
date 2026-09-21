@@ -1255,6 +1255,17 @@ void PrintLogVerbose(LPSTR l)
   PrintLog(l);
 }
 
+bool IsAILoggingEnabled()
+{
+  return g_AILogging || g_VerboseLogging;
+}
+
+void PrintLogAI(LPSTR l)
+{
+  if (!IsAILoggingEnabled()) return;
+  PrintLog(l);
+}
+
 void CloseLog()
 {
   CloseHandle(hlog);
