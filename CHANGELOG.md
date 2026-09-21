@@ -163,6 +163,14 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   scatter) and publishes no hunter coordinates. The pack leader also no
   longer takes a leader-relative target, which previously let an alarm from
   a packmate freeze it on its own position.
+- Let a pack follow the member that finds the hunter. The follow target was
+  always the formal leader, so when a follower noticed the hunter the rest of
+  the pack converged on the leader -- who had no signal and kept wandering --
+  while only the detector engaged. A tracking member now publishes its own
+  position as the pack's hunt anchor for two seconds, and packmates
+  (including the leader) follow a fresh anchor before falling back to the
+  leader position. The anchor is a packmate's position, never the hunter's,
+  so no coordinates, tracking grants or kill authority are shared.
 
 ## [v1.1.9-modernized] - 2026-09-20
 
