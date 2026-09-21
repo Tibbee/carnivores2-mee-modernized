@@ -87,12 +87,16 @@ inline int TickUntimedReaction(int afraidTime, int elapsed)
     return afraidTime > elapsed ? afraidTime - elapsed : 0;
 }
 
-// Only exact tracking (or the contact-range promotion that grants it)
-// authorizes a kill. A fixed reaction -- shot investigation, retaliation or
-// flee -- and an expired lock never do.
+// A kill always requires the hunter to be physically inside the attack
+// reach; nothing authorizes a kill at a distance. Exact tracking authorizes
+// it during a chase. A fixed flee reaction also authorizes it at contact:
+// a huge body crossing the hunter's position crushes them (trample) even
+// though the creature has no intent to attack. Fixed pursuits are not listed
+// because contact-range awareness promotes them to tracking first.
 inline bool HunterAwarenessAllowsKill(HunterAwarenessState state)
 {
-    return state == HunterAwarenessState::TrackingHunter;
+    return state == HunterAwarenessState::TrackingHunter
+        || IsFixedHunterFleeState(state);
 }
 
 inline bool IsWithinSquaredReach(float distanceSquared, float reach)

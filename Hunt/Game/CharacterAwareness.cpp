@@ -398,7 +398,7 @@ THunterGeometry GetHunterGeometry(const TCharacter* cptr)
 bool CanKillHunter(const TCharacter& character, const THunterGeometry& hunter)
 {
 	const TCharacter* cptr = &character;
-	if (!MyHealth || !cptr->Health || cptr->StateF == 0xFF)
+	if (!MyHealth || !cptr->Health || cptr->StateF == 0xFF || ObservMode)
 		return false;
 	if (!HunterAwarenessAllowsKill(cptr->hunterAwareness))
 		return false;

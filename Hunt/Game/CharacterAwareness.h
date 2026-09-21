@@ -52,9 +52,11 @@ struct THunterGeometry
 THunterGeometry GetHunterGeometry(const TCharacter* cptr);
 
 // The single kill gate for the hunter-directed animators. The player must be
-// alive, the creature must be tracking the hunter exactly (a fixed reaction
-// or an expired lock never authorizes a kill) and the hunter must be inside
-// the family's attack reach. Each animator only plays its own kill animation.
+// alive (and not a detached observer), the creature must be tracking the
+// hunter exactly or fleeing at contact range, and the hunter must be inside
+// the family's attack reach. A fixed pursuit promotes to tracking before it
+// can kill, and an expired lock never authorizes anything. Each animator only
+// plays its own kill animation.
 bool CanKillHunter(const TCharacter& character, const THunterGeometry& hunter);
 
 // The authored flee/pursue decision for the standard predator family

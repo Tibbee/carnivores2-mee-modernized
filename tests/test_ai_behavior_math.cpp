@@ -278,15 +278,17 @@ TEST(AIBehaviorMathTest, HunterLookOffsetMatchesTheAnimatorTable)
     EXPECT_FLOAT_EQ(HunterLookOffset(AI_MAMM, 1.0f, false), 0.0f);
 }
 
-TEST(AIBehaviorMathTest, OnlyExactTrackingAllowsAKill)
+TEST(AIBehaviorMathTest, TrackingOrContactFleeAllowsAKill)
 {
     EXPECT_TRUE(HunterAwarenessAllowsKill(HunterAwarenessState::TrackingHunter));
+    // A fixed flee reaction may still crush a hunter at contact range; the
+    // reach check in CanKillHunter keeps it non-lethal at a distance.
+    EXPECT_TRUE(HunterAwarenessAllowsKill(HunterAwarenessState::FleeingFromShot));
+    EXPECT_TRUE(HunterAwarenessAllowsKill(HunterAwarenessState::FleeingFromHit));
+    EXPECT_TRUE(HunterAwarenessAllowsKill(HunterAwarenessState::FleeingFromCall));
     EXPECT_FALSE(HunterAwarenessAllowsKill(HunterAwarenessState::None));
     EXPECT_FALSE(HunterAwarenessAllowsKill(HunterAwarenessState::InvestigatingShot));
-    EXPECT_FALSE(HunterAwarenessAllowsKill(HunterAwarenessState::FleeingFromShot));
     EXPECT_FALSE(HunterAwarenessAllowsKill(HunterAwarenessState::RetaliatingHit));
-    EXPECT_FALSE(HunterAwarenessAllowsKill(HunterAwarenessState::FleeingFromHit));
-    EXPECT_FALSE(HunterAwarenessAllowsKill(HunterAwarenessState::FleeingFromCall));
 }
 
 TEST(AIBehaviorMathTest, AttackReachBoundaries)
