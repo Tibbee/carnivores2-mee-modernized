@@ -4,106 +4,29 @@
 // Extracted from Characters.cpp.
 
 #include "Hunt.h"
+#include "Game/CharacterAwareness.h"
 #include "Game/CharacterInternal.h"
 
 void MakeNoise(Vector3d pos, float range)
 {
+	THunterStimulus stimulus;
+	stimulus.kind = HunterStimulusKind::GunshotHeard;
+	stimulus.position = pos;
+	stimulus.soundRange = range;
 	for (int c = 0; c < ChCount; c++)
-	{
-		TCharacter *cptr = &Characters[c];
-		// StateF == 0xFF marks static exhibits and carried bodies. Their State
-		// is not an AI state and must never be rewritten by awareness events.
-		if (cptr->StateF == 0xFF) continue;
-		if (!cptr->Health) continue;
-		if ((DinoInfo[cptr->CType].Aquatic && cptr->Clone != AI_TREX)
-			|| cptr->Clone == AI_HUNTDOG) continue;
-
-		float l = VectorLength(SubVectors(cptr->pos, pos));
-		float r = range * (DinoInfo[cptr->CType].HearK * 2);
-		if (l > r) continue;
-
-		// Do not replace exact awareness from sight or direct damage with the
-		// less precise information supplied by a subsequent gunshot.
-		if (cptr->awareHunter
-			&& cptr->hunterAwareness != HunterAwarenessState::InvestigatingShot
-			&& cptr->hunterAwareness != HunterAwarenessState::FleeingFromShot)
-			continue;
-
-		const bool isTRex = cptr->Clone == AI_TREX;
-		// Give a slow creature enough time to reach a distant event; the
-		// remaining time then funds the local area search around it.
-		const float travelSpeed =
-			DinoInfo[cptr->CType].runspd * cptr->scale;
-		const int reactionTime = ShotInvestigationTimeForTravel(
-			ShotInvestigationTime(l, r, isTRex), l, travelSpeed);
-		cptr->AfraidTime = reactionTime;
-		cptr->NoFindCnt = 0;
-		cptr->awareHunter = true;
-		if (!cptr->State) cptr->State = 2;
-
-		const TDinoInfo& dino = DinoInfo[cptr->CType];
-		const bool fearsShot = dino.fearHearShot
-			|| (dino.defensive && cptr->Health == dino.Health0);
-		// A gunshot is a sound: species whose authored (event-scaled) range
-		// covers it investigate the position, while low-aggression species
-		// flee from it. Authored fear and passivity always flee, and the
-		// T-Rex has no flee state and always investigates audible shots.
-		const bool fleesShot = ShouldFleeFromHunterEvent(
-			dino.aggress, fearsShot, l, GetCharacterHunterEventRange(cptr),
-			isTRex);
-		cptr->hunterAwareness = HeardShotReactionState(fleesShot);
-		if (fleesShot) {
-			Vector3d away = SubVectors(cptr->pos, pos);
-			away.y = 0.0f;
-			NormVector(away, 2048.0f);
-			cptr->tgx = ClampCharacterTargetCoordinate(
-				cptr->pos.x + away.x);
-			cptr->tgz = ClampCharacterTargetCoordinate(
-				cptr->pos.z + away.z);
-		} else {
-			cptr->tgx = ClampCharacterTargetCoordinate(pos.x);
-			cptr->tgz = ClampCharacterTargetCoordinate(pos.z);
-		}
-		cptr->tgtime = 0;
-	}
+		ApplyHunterStimulus(Characters[c], stimulus);
 }
 
 void ReactToHunterCall(Vector3d pos, int callIndex)
 {
 	if (callIndex < 0 || callIndex >= 64) return;
 
+	THunterStimulus stimulus;
+	stimulus.kind = HunterStimulusKind::HunterCall;
+	stimulus.position = pos;
+	stimulus.callIndex = callIndex;
 	for (int c = 0; c < ChCount; c++)
-	{
-		TCharacter* cptr = &Characters[c];
-		if (cptr->StateF == 0xFF) continue;
-		if (!cptr->Health) continue;
-		if (!DinoInfo[cptr->CType].fearCall[callIndex]) continue;
-		if (cptr->Clone == AI_DIMOR || cptr->Clone == AI_PTERA
-			|| cptr->Clone == AI_BRACH) continue;
-
-		const float distance = VectorLength(SubVectors(cptr->pos, pos));
-		const float hearingRange = GameplayViewRadiusCells(ctViewR) * 400.0f
-			* (DinoInfo[cptr->CType].HearK * 2.0f);
-		if (distance > hearingRange) continue;
-
-		// A call can refresh its own flee response, but it must not replace
-		// exact sight, scent, or direct-hit information.
-		if (cptr->awareHunter
-			&& cptr->hunterAwareness != HunterAwarenessState::FleeingFromCall)
-			continue;
-
-		Vector3d away = SubVectors(cptr->pos, pos);
-		away.y = 0.0f;
-		NormVector(away, 2048.0f);
-		cptr->tgx = ClampCharacterTargetCoordinate(cptr->pos.x + away.x);
-		cptr->tgz = ClampCharacterTargetCoordinate(cptr->pos.z + away.z);
-		cptr->tgtime = 0;
-		cptr->State = 2;
-		cptr->AfraidTime = (10 + rRand(5)) * 1024;
-		cptr->NoFindCnt = 0;
-		cptr->awareHunter = true;
-		cptr->hunterAwareness = HunterAwarenessState::FleeingFromCall;
-	}
+		ApplyHunterStimulus(Characters[c], stimulus);
 }
 
 

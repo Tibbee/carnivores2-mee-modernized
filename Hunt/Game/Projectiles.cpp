@@ -5,6 +5,7 @@
 
 #include "Hunt.h"
 #include "Core/ProjectileMath.h"
+#include "Game/CharacterAwareness.h"
 #include "Game/CharacterInternal.h"
 
 DWORD ColorSum(DWORD C1, DWORD C2)
@@ -399,9 +400,6 @@ void registerDamage(int Dino, bool enemyBullet, const Vector3d& hunterPosition) 
 
 	TCharacter& character = Characters[Dino];
 	const TDinoInfo& info = DinoInfo[character.CType];
-	const bool wasAware = character.awareHunter;
-	const bool wasTrackingHunter = TracksHunterExactly(&character);
-	const HunterAwarenessState previousAwareness = character.hunterAwareness;
 
 	if (!character.Health)
 	{
@@ -416,66 +414,11 @@ void registerDamage(int Dino, bool enemyBullet, const Vector3d& hunterPosition) 
 	}
 	else
 	{
-		const float sourceDx = character.pos.x - hunterPosition.x;
-		const float sourceDz = character.pos.z - hunterPosition.z;
-		const float sourceDistance = static_cast<float>(
-			sqrt(sourceDx * sourceDx + sourceDz * sourceDz));
-		const bool fearsHit = character.Clone != AI_TREX
-			&& ((info.defensive && character.Health == info.Health0)
-				|| (info.fearShot && character.Health < info.Health0));
-		// A direct hit is a stronger stimulus than passive detection:
-		// species whose authored (event-scaled) range covers the source
-		// retaliate, while low-aggression species flee from it. Authored
-		// fear and passivity always flee; the T-Rex has no flee path.
-		const bool fleesHit = ShouldFleeFromHunterEvent(
-			info.aggress, fearsHit, sourceDistance,
-			GetCharacterHunterEventRange(&character),
-			character.Clone == AI_TREX);
-		const bool preservesExactTracking = wasTrackingHunter && !fleesHit;
-
-		character.awareHunter = true;
-		character.hunterAwareness = UpdatedDirectHitAwarenessState(
-			character.hunterAwareness, fleesHit);
-		character.AfraidTime = 60 * 1000;
-
-		// Exact sight or scent awareness is stronger than another aggressive hit.
-		// Keep tracking the moving hunter instead of restarting an alert animation
-		// or downgrading to a fixed retaliation target on every bullet. Authored
-		// fear responses can still replace tracking with a flee reaction.
-		if (!preservesExactTracking) {
-			if (ShouldInitializeDirectHitAlert(true, wasAware))
-				character.State = 2;
-
-			if (fleesHit) {
-				Vector3d away;
-				away.x = character.pos.x - hunterPosition.x;
-				away.y = 0.0f;
-				away.z = character.pos.z - hunterPosition.z;
-				NormVector(away, 2048.0f);
-				character.tgx = ClampCharacterTargetCoordinate(
-					character.pos.x + away.x);
-				character.tgz = ClampCharacterTargetCoordinate(
-					character.pos.z + away.z);
-			} else {
-				character.tgx = ClampCharacterTargetCoordinate(
-					hunterPosition.x);
-				character.tgz = ClampCharacterTargetCoordinate(
-					hunterPosition.z);
-				if (info.Aquatic) character.tdepth = hunterPosition.y;
-			}
-			character.tgtime = 0;
-		}
-		character.BloodTTime += 90000;
+		THunterStimulus stimulus;
+		stimulus.kind = HunterStimulusKind::DirectHit;
+		stimulus.position = hunterPosition;
+		ApplyHunterStimulus(character, stimulus);
 	}
-
-	// A T-Rex that heard the shot may already be playing its look/roar
-	// notice. A direct hit cancels that and charges immediately; repeated
-	// hits during an active retaliation or exact tracking keep the current
-	// pursuit instead of restarting it.
-	if (character.Clone == AI_TREX && character.Health
-		&& ShouldRestartTRexHitPursuit(previousAwareness))
-		character.State = character.State ? 5 : 1;
-
 }
 void RemoveCharacter(int index)
 {

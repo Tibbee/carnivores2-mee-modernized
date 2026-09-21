@@ -153,6 +153,7 @@ set(CORE_FILES
     Hunt/Game/CharacterMorph.cpp
     Hunt/Game/CharacterSpawn.cpp
     Hunt/Game/CharacterAI.cpp
+    Hunt/Game/CharacterAwareness.cpp
     Hunt/Game/CharacterTracking.cpp
     Hunt/Game/CharacterAnimation.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Game/CharacterAnimation/AnimateHuntDead.cpp
