@@ -32,6 +32,12 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   so save compatibility is unchanged.
 
 ### Fixed
+- Let a fleeing creature crush the hunter at contact range. A huge sauropod
+  that panics and runs over the player no longer passes through harmlessly:
+  the kill gate accepts a fixed flee reaction at the species' authored
+  attack reach, while the reach check keeps a remembered event point from
+  ever authorizing a kill at a distance. The detached observer camera stays
+  exempt; debug mode is still lethal.
 - Restore the threat of species that have no active sight or scent. A
   creature in a fixed pursuit (shot investigation or hit retaliation) now
   treats a hunter who physically enters its authored attack reach as detected
