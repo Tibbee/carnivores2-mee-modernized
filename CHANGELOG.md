@@ -141,6 +141,13 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   panicked creature no longer runs into a lake or cliff and follows its
   edge in circles. The ideal away point remains the fallback when no
   heading is placeable.
+- Re-aim a reached fixed-flee leg away from the hunter instead of along the
+  creature's current heading. A creature that had overshot its flee point was
+  turning back toward the hunter, and the heading-based extension then sent
+  the next leg sideways or straight back at the player, so a fleeing animal
+  could loop into its own acquisition range. The new leg goes through the
+  same placement check as the initial flee point, and the reaction state,
+  timer and kill rules are unchanged.
 
 ## [v1.1.9-modernized] - 2026-09-20
 
