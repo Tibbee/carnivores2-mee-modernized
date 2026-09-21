@@ -317,6 +317,10 @@ private:
                             bool disableFog,
                             bool clippedVariant,
                             bool additive) const;
+    // tintByFogColor marks an additive weapon effect overlay (phong/env-map).
+    // The shader uses it to attenuate the overlay with the camera-in-fog
+    // envelope instead of mixing the fog colour into it a second time -- the
+    // body pass underneath already carries that blend (see shaders/model.frag).
     void DrawModelVertices(GLuint texture,
                            const std::vector<ModelVertex>& vertices,
                            const std::array<float, 16>& projection,

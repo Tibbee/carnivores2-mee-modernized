@@ -51,6 +51,13 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   so save compatibility is unchanged.
 
 ### Fixed
+- Fog the weapon viewmodel's phong/env-map overlays once. The camera-in-fog
+  envelope mixed the fog colour into both the additive reflection pass and
+  the body it is drawn over, so inside a pocket-fog volume the specular
+  highlights picked up roughly twice the fog tint of the rest of the weapon
+  and read as a colour seam between its sections. The overlays now attenuate
+  with the envelope instead and leave the fog colour to the body pass; base
+  viewmodel and world-model rendering are unchanged.
 - Let a fleeing creature crush the hunter at contact range. A huge sauropod
   that panics and runs over the player no longer passes through harmlessly:
   the kill gate accepts a fixed flee reaction at the species' authored
