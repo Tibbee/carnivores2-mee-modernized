@@ -4,6 +4,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "../CharacterAwareness.h"
 #include "../CharacterInternal.h"
 
 // Global state imported from StateDefs.cpp
@@ -31,8 +32,7 @@ TBEGIN:
 	float playerdx = PlayerX - cptr->pos.x - cptr->lookx * 108;
 	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
 	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
-
-	const float attackDist = GetCharacterAggressionRange(cptr);
+	const float pdistSq = playerdx * playerdx + playerdz * playerdz;
 
 	bool playerAttackable = ((GetLandUpH(PlayerX, PlayerZ) - GetLandH(PlayerX, PlayerZ)) <= 550);
 	bool attacking = false;
@@ -66,26 +66,9 @@ TBEGIN:
 		const bool fixedFlee = IsFixedHunterFlee(cptr);
 		const bool fixedReaction = fixedPursuit || fixedFlee;
 		const bool tracksHunter = TracksHunterExactly(cptr);
-		bool fleeMode = false;
-		if (g_GameMode != GameMode::SurvivalMode) {
-			const bool recentlyDamaged = cptr->BloodTTime > 0;
-			if ((!fixedPursuit
-				&& (OutsideNormalAggressionRange(pdist, attackDist, recentlyDamaged)
-					|| !playerAttackable))
-				|| DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
-				fleeMode = true;
-			}
-			else if (DinoInfo[cptr->CType].defensive && cptr->Health == DinoInfo[cptr->CType].Health0) fleeMode = true;
-			else if (DinoInfo[cptr->CType].fearShot && cptr->Health < DinoInfo[cptr->CType].Health0) fleeMode = true;
-			else if (cptr->hunterAwareness == HunterAwarenessState::FleeingFromShot) fleeMode = true;
-			else if (!fixedReaction && tracksHunter && cptr->packId >= 0)
-				Packs[cptr->packId].attack = true;
-		}
-		if (fixedFlee) fleeMode = true;
-
-		if (cptr->packId >= 0) {
-			if (Packs[cptr->packId]._attack && !fixedReaction) fleeMode = false;
-		}
+		// The authored flee/pursue rule lives in the awareness core;
+		// hunterAttackable carries the Brahi altitude rule.
+		const bool fleeMode = ShouldFleeHunter(*cptr, pdistSq, playerAttackable);
 
 		if (!autoCorrect) {
 			if (GetLandUpH(cptr->pos.x, cptr->pos.z) - GetLandH(cptr->pos.x, cptr->pos.z) > 550) {

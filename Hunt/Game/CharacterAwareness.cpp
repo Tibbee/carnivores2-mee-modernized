@@ -213,6 +213,44 @@ bool ApplyHunterStimulus(TCharacter& character, const THunterStimulus& stimulus)
 	return false;
 }
 
+bool ShouldFleeHunter(const TCharacter& character, float hunterDistanceSquared,
+                      bool hunterAttackable)
+{
+	const TCharacter* cptr = &character;
+	const TDinoInfo& dino = DinoInfo[cptr->CType];
+	const bool fixedPursuit = IsFixedHunterPursuit(cptr);
+	const bool fixedFlee = IsFixedHunterFlee(cptr);
+	const bool fixedReaction = fixedPursuit || fixedFlee;
+	const bool tracksHunter = TracksHunterExactly(cptr);
+	const bool packAttackOverride = cptr->packId >= 0
+		&& Packs[cptr->packId]._attack && !fixedReaction;
+
+	bool flee = false;
+	if (g_GameMode != GameMode::SurvivalMode) {
+		const bool recentlyDamaged = cptr->BloodTTime > 0;
+		const bool outsideRange = !fixedPursuit
+			&& (OutsideNormalAggressionRangeSquared(hunterDistanceSquared,
+					GetCharacterAggressionRange(cptr), recentlyDamaged)
+				|| !hunterAttackable);
+		const bool authoredFlee = ShouldFleeFromAuthoredThreat(
+			outsideRange, dino.aggress <= 0, cptr->awareHunter,
+			dino.defensive && cptr->Health == dino.Health0,
+			dino.fearShot && cptr->Health < dino.Health0,
+			cptr->hunterAwareness == HunterAwarenessState::FleeingFromShot);
+		if (authoredFlee) {
+			flee = true;
+		}
+		else if (!fixedReaction && tracksHunter && cptr->packId >= 0) {
+			Packs[cptr->packId].attack = true;
+		}
+	}
+	if (fixedFlee)
+		flee = true;
+	if (packAttackOverride)
+		flee = false;
+	return flee;
+}
+
 void UpdateHunterNavigation(TCharacter& character)
 {
 	if (!character.Health)

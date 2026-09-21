@@ -236,3 +236,25 @@ TEST(AIBehaviorMathTest, ContactRangePromotesFixedPursuitToTracking)
     // Species without an authored attack reach never promote this way.
     EXPECT_FALSE(ShouldPromotePursuitToTracking(true, true, 10.0f, 0.0f));
 }
+
+TEST(AIBehaviorMathTest, AuthoredThreatFleesForEveryAuthoredReason)
+{
+    // No authored reason: pursue.
+    EXPECT_FALSE(ShouldFleeFromAuthoredThreat(
+        false, false, true, false, false, false));
+    // Outside the aggression range, passive, or unaware of the hunter.
+    EXPECT_TRUE(ShouldFleeFromAuthoredThreat(
+        true, false, true, false, false, false));
+    EXPECT_TRUE(ShouldFleeFromAuthoredThreat(
+        false, true, true, false, false, false));
+    EXPECT_TRUE(ShouldFleeFromAuthoredThreat(
+        false, false, false, false, false, false));
+    // Authored fear responses: defensive at full health, injured and fearing
+    // shots, or already fleeing the shot.
+    EXPECT_TRUE(ShouldFleeFromAuthoredThreat(
+        false, false, true, true, false, false));
+    EXPECT_TRUE(ShouldFleeFromAuthoredThreat(
+        false, false, true, false, true, false));
+    EXPECT_TRUE(ShouldFleeFromAuthoredThreat(
+        false, false, true, false, false, true));
+}

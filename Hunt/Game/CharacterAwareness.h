@@ -37,6 +37,14 @@ struct THunterStimulus
 // eligible for this stimulus type, whether or not its awareness changed.
 bool ApplyHunterStimulus(TCharacter& character, const THunterStimulus& stimulus);
 
+// The authored flee/pursue decision for the standard predator family
+// (AnimateHuntable, AnimateBrahi and their disabled copies). hunterDistanceSquared
+// is the family's hunter distance; hunterAttackable carries the Brahi altitude
+// rule (always true for the Huntable family). A fixed flee always wins, and the
+// pack attack flag can cancel a live flee but never a fixed reaction.
+bool ShouldFleeHunter(const TCharacter& character, float hunterDistanceSquared,
+                      bool hunterAttackable);
+
 // The single owner of hunter-directed navigation. Called once per creature per
 // frame after the reaction timers have been applied: a fixed flee reaction
 // keeps running along its stored direction, and a fixed pursuit that reached

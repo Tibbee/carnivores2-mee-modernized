@@ -4,6 +4,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "../CharacterAwareness.h"
 #include "../CharacterInternal.h"
 
 // Global state imported from StateDefs.cpp
@@ -84,31 +85,15 @@ TBEGIN:
 		const bool fixedFlee = IsFixedHunterFlee(cptr);
 		const bool fixedReaction = fixedPursuit || fixedFlee;
 		const bool tracksHunter = TracksHunterExactly(cptr);
-		const float aDist = GetCharacterAggressionRange(cptr);
 		if (!(AIInfo[cptr->Clone].carnivore
 			&& (!AIInfo[cptr->Clone].iceAge || cptr->Clone == AI_WOLF))) {
 			if (pdistSq < 6000 * 6000 && cptr->Clone != AI_DEER) cptr->AfraidTime = 8000;
 		}
 
-		bool fleeMode = false;
-		if (g_GameMode != GameMode::SurvivalMode) {
-			const bool recentlyDamaged = cptr->BloodTTime > 0;
-			if ((!fixedPursuit
-				&& OutsideNormalAggressionRangeSquared(pdistSq, aDist, recentlyDamaged))
-				|| DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
-				fleeMode = true;
-			}
-			else if (DinoInfo[cptr->CType].defensive && cptr->Health == DinoInfo[cptr->CType].Health0) fleeMode = true;
-			else if (DinoInfo[cptr->CType].fearShot && cptr->Health < DinoInfo[cptr->CType].Health0) fleeMode = true;
-			else if (cptr->hunterAwareness == HunterAwarenessState::FleeingFromShot) fleeMode = true;
-			else if (!fixedReaction && tracksHunter && cptr->packId >= 0)
-				Packs[cptr->packId].attack = true;
-		}
-		if (fixedFlee) fleeMode = true;
-
-		if (cptr->packId >= 0) {
-			if (Packs[cptr->packId]._attack && !fixedReaction) fleeMode = false;
-		}
+		// The authored flee/pursue rule lives in the awareness core; this
+		// animator only supplies the family distance (the hunter is always
+		// attackable for this family).
+		const bool fleeMode = ShouldFleeHunter(*cptr, pdistSq, true);
 
 		if (fleeMode) {
 			if (!fixedFlee && (tracksHunter || cptr->packId < 0)) {

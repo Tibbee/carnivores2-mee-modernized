@@ -100,6 +100,23 @@ inline bool ShouldScheduleNoticeAnimation(HunterAwarenessState awareness)
     return !IsTimedHunterReactionState(awareness);
 }
 
+// The authored flee/pursue rule shared by the standard predator family
+// (AnimateHuntable, AnimateBrahi). The engine wrapper derives the inputs from
+// the species flags and the current reaction, so the rule itself stays a pure,
+// testable predicate instead of a per-animator if-chain. Any authored fear
+// response -- a defensive species at full health, a shot-fearing species that
+// is already hurt, or a creature told to flee the shot -- overrides aggression.
+inline bool ShouldFleeFromAuthoredThreat(bool outsideAggressionRange,
+                                         bool passive,
+                                         bool aware,
+                                         bool defensiveAtFullHealth,
+                                         bool injuredAndFearsShot,
+                                         bool fleeingFromShot)
+{
+    return outsideAggressionRange || passive || !aware
+        || defensiveAtFullHealth || injuredAndFearsShot || fleeingFromShot;
+}
+
 // A creature following a remembered event position (shot investigation or hit
 // retaliation) still notices a hunter who physically enters its attack reach.
 // Contact-range presence is stronger evidence than the stored event point, so
