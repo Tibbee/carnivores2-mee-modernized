@@ -122,34 +122,25 @@ TBEGIN:
 
 
 
-		if (!fixedPursuit && tracksHunter
-			&& hunter.distanceSquared < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist
-			&& DinoInfo[cptr->CType].killDist > 0 && MyHealth)
-		{
-			int killAlt = DinoInfo[cptr->CType].waterLevel;
-			if (killAlt < 256) killAlt = 256;
-			if (fabs(PlayerY - cptr->pos.y) < killAlt + 20)
-			{
-				if (DinoInfo[cptr->CType].killTypeCount > 0) {
+		if (CanKillHunter(*cptr, hunter)) {
+			if (DinoInfo[cptr->CType].killTypeCount > 0) {
 
-					if (!(cptr->StateF & csONWATER))
-					{
-						cptr->vspeed /= 8.0f;
-						cptr->State = 1;
-						cptr->Phase = DinoInfo[cptr->CType].killType[cptr->killType].anim;
-						if (DinoInfo[cptr->CType].killType[cptr->killType].dontloop) cptr->FTime = 0;
-						AddDeadBody(cptr,
-							DinoInfo[cptr->CType].killType[cptr->killType].hunteranim,
-							DinoInfo[cptr->CType].killType[cptr->killType].scream);
-					}
-					else AddDeadBody(cptr, HUNT_EAT, true);
-
+				if (!(cptr->StateF & csONWATER))
+				{
+					cptr->vspeed /= 8.0f;
+					cptr->State = 1;
+					cptr->Phase = DinoInfo[cptr->CType].killType[cptr->killType].anim;
+					if (DinoInfo[cptr->CType].killType[cptr->killType].dontloop) cptr->FTime = 0;
+					AddDeadBody(cptr,
+						DinoInfo[cptr->CType].killType[cptr->killType].hunteranim,
+						DinoInfo[cptr->CType].killType[cptr->killType].scream);
 				}
-				else {
-					AddDeadBody(cptr, HUNT_EAT, true);
-					cptr->State = 0;
-				}
+				else AddDeadBody(cptr, HUNT_EAT, true);
 
+			}
+			else {
+				AddDeadBody(cptr, HUNT_EAT, true);
+				cptr->State = 0;
 			}
 		}
 

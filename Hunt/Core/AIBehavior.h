@@ -78,6 +78,29 @@ inline bool IsTimedHunterReactionState(HunterAwarenessState state)
     return IsFixedHunterPursuitState(state) || IsFixedHunterFleeState(state);
 }
 
+// Only exact tracking (or the contact-range promotion that grants it)
+// authorizes a kill. A fixed reaction -- shot investigation, retaliation or
+// flee -- and an expired lock never do.
+inline bool HunterAwarenessAllowsKill(HunterAwarenessState state)
+{
+    return state == HunterAwarenessState::TrackingHunter;
+}
+
+inline bool IsWithinSquaredReach(float distanceSquared, float reach)
+{
+    return reach > 0.0f && distanceSquared < reach * reach;
+}
+
+inline bool IsWithinLinearReach(float distance, float reach)
+{
+    return reach > 0.0f && distance < reach;
+}
+
+inline bool IsWithinKillAltitude(float verticalDifference, float verticalReach)
+{
+    return verticalDifference < verticalReach;
+}
+
 inline bool ShouldSkipTRexPerception(bool hasReactionTime,
                                      bool isStateOne,
                                      HunterAwarenessState awareness)

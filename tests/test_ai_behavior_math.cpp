@@ -277,3 +277,30 @@ TEST(AIBehaviorMathTest, HunterLookOffsetMatchesTheAnimatorTable)
     EXPECT_FLOAT_EQ(HunterLookOffset(AI_DEER, 1.0f, false), 0.0f);
     EXPECT_FLOAT_EQ(HunterLookOffset(AI_MAMM, 1.0f, false), 0.0f);
 }
+
+TEST(AIBehaviorMathTest, OnlyExactTrackingAllowsAKill)
+{
+    EXPECT_TRUE(HunterAwarenessAllowsKill(HunterAwarenessState::TrackingHunter));
+    EXPECT_FALSE(HunterAwarenessAllowsKill(HunterAwarenessState::None));
+    EXPECT_FALSE(HunterAwarenessAllowsKill(HunterAwarenessState::InvestigatingShot));
+    EXPECT_FALSE(HunterAwarenessAllowsKill(HunterAwarenessState::FleeingFromShot));
+    EXPECT_FALSE(HunterAwarenessAllowsKill(HunterAwarenessState::RetaliatingHit));
+    EXPECT_FALSE(HunterAwarenessAllowsKill(HunterAwarenessState::FleeingFromHit));
+    EXPECT_FALSE(HunterAwarenessAllowsKill(HunterAwarenessState::FleeingFromCall));
+}
+
+TEST(AIBehaviorMathTest, AttackReachBoundaries)
+{
+    // The hunter must be strictly inside the authored reach.
+    EXPECT_TRUE(IsWithinSquaredReach(99.0f * 99.0f, 100.0f));
+    EXPECT_FALSE(IsWithinSquaredReach(100.0f * 100.0f, 100.0f));
+    EXPECT_TRUE(IsWithinLinearReach(99.0f, 100.0f));
+    EXPECT_FALSE(IsWithinLinearReach(100.0f, 100.0f));
+
+    // A species without an authored attack reach never kills.
+    EXPECT_FALSE(IsWithinSquaredReach(1.0f, 0.0f));
+    EXPECT_FALSE(IsWithinLinearReach(1.0f, 0.0f));
+
+    EXPECT_TRUE(IsWithinKillAltitude(255.0f, 256.0f));
+    EXPECT_FALSE(IsWithinKillAltitude(256.0f, 256.0f));
+}

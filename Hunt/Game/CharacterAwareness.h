@@ -50,6 +50,12 @@ struct THunterGeometry
 
 THunterGeometry GetHunterGeometry(const TCharacter* cptr);
 
+// The single kill gate for the hunter-directed animators. The player must be
+// alive, the creature must be tracking the hunter exactly (a fixed reaction
+// or an expired lock never authorizes a kill) and the hunter must be inside
+// the family's attack reach. Each animator only plays its own kill animation.
+bool CanKillHunter(const TCharacter& character, const THunterGeometry& hunter);
+
 // The authored flee/pursue decision for the standard predator family
 // (AnimateHuntable, AnimateBrahi and their disabled copies). hunterDistanceSquared
 // is the family's hunter distance; hunterAttackable carries the Brahi altitude

@@ -374,6 +374,47 @@ THunterGeometry GetHunterGeometry(const TCharacter* cptr)
 	return geometry;
 }
 
+bool CanKillHunter(const TCharacter& character, const THunterGeometry& hunter)
+{
+	const TCharacter* cptr = &character;
+	if (!MyHealth || !cptr->Health || cptr->StateF == 0xFF)
+		return false;
+	if (!HunterAwarenessAllowsKill(cptr->hunterAwareness))
+		return false;
+
+	const TDinoInfo& dino = DinoInfo[cptr->CType];
+	const float verticalDifference = static_cast<float>(fabs(PlayerY - cptr->pos.y));
+
+	// Family-specific attack reach: the horizontal metric and the vertical
+	// allowance mirror the animator kill checks that were unified here.
+	switch (GetHunterAIFamily(cptr))
+	{
+	case HunterAIFamily::Brahi:
+		return IsWithinLinearReach(hunter.distance, dino.killDist)
+			&& IsWithinKillAltitude(
+				static_cast<float>(fabs(PlayerY - cptr->pos.y - 120.0f)), 256.0f);
+	case HunterAIFamily::Fish: {
+		float killAlt = static_cast<float>(cptr->spcDepth);
+		if (killAlt < 256.0f) killAlt = 256.0f;
+		if (AIInfo[cptr->Clone].jumper && cptr->Phase == dino.jumpAnim)
+			killAlt += 80.0f;
+		return IsWithinSquaredReach(hunter.distanceSquared,
+				dino.killDist * cptr->scale)
+			&& IsWithinKillAltitude(verticalDifference,
+				killAlt + 20.0f * cptr->scale);
+	}
+	case HunterAIFamily::Standard:
+	case HunterAIFamily::TRex: {
+		float killAlt = static_cast<float>(dino.waterLevel);
+		if (killAlt < 256.0f) killAlt = 256.0f;
+		return IsWithinSquaredReach(hunter.distanceSquared, dino.killDist)
+			&& IsWithinKillAltitude(verticalDifference, killAlt + 20.0f);
+	}
+	default:
+		return false;
+	}
+}
+
 bool ShouldFleeHunter(const TCharacter& character, float hunterDistanceSquared,
                       bool hunterAttackable)
 {

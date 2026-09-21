@@ -113,34 +113,29 @@ TBEGIN:
 			}
 		}
 
-		if (!fixedReaction && (tracksHunter || cptr->packId < 0)
-			&& hunter.distance < DinoInfo[cptr->CType].killDist
-			&& DinoInfo[cptr->CType].killDist > 0) //killdist = 600
-			if (fabs(PlayerY - cptr->pos.y - 120) < 256)
-			{
+		if (CanKillHunter(*cptr, hunter)) {
+			if (DinoInfo[cptr->CType].killTypeCount > 0) {
 
-				if (DinoInfo[cptr->CType].killTypeCount > 0) {
-
-					if (!(cptr->StateF & csONWATER))
-					{
-						cptr->vspeed /= 8.0f;
-						cptr->State = 1;
-						cptr->Phase = DinoInfo[cptr->CType].killType[cptr->killType].anim;
-						if (DinoInfo[cptr->CType].killType[cptr->killType].dontloop) cptr->FTime = 0;
-						AddDeadBody(cptr,
-							DinoInfo[cptr->CType].killType[cptr->killType].hunteranim,
-							DinoInfo[cptr->CType].killType[cptr->killType].scream);
-					}
-					else AddDeadBody(cptr, HUNT_EAT, true);
-
+				if (!(cptr->StateF & csONWATER))
+				{
+					cptr->vspeed /= 8.0f;
+					cptr->State = 1;
+					cptr->Phase = DinoInfo[cptr->CType].killType[cptr->killType].anim;
+					if (DinoInfo[cptr->CType].killType[cptr->killType].dontloop) cptr->FTime = 0;
+					AddDeadBody(cptr,
+						DinoInfo[cptr->CType].killType[cptr->killType].hunteranim,
+						DinoInfo[cptr->CType].killType[cptr->killType].scream);
 				}
-				else {
-					AddDeadBody(cptr, HUNT_EAT, true);
-					cptr->State = 0;
-				}
-
+				else AddDeadBody(cptr, HUNT_EAT, true);
 
 			}
+			else {
+				AddDeadBody(cptr, HUNT_EAT, true);
+				cptr->State = 0;
+			}
+
+
+		}
 	}
 
 	// Step 4: Extend culling distance by 4 units (~1024 world units)

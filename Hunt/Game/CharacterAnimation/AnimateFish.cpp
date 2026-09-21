@@ -258,35 +258,24 @@ TBEGIN:
 			}
 		}
 
-		if (!fixedReaction && tracksHunter
-			&& hunter.distanceSquared < (DinoInfo[cptr->CType].killDist * cptr->scale)
-				* (DinoInfo[cptr->CType].killDist * cptr->scale)
-			&& DinoInfo[cptr->CType].killDist > 0) {
-			float killAlt = cptr->spcDepth;
-			if (killAlt < 256) killAlt = 256;
-			if (AIInfo[cptr->Clone].jumper && cptr->Phase == DinoInfo[cptr->CType].jumpAnim) killAlt += 80;
-			if (fabs(PlayerY - cptr->pos.y) < killAlt + 20 * cptr->scale)
-			{
+		if (CanKillHunter(*cptr, hunter)) {
+			if (DinoInfo[cptr->CType].killTypeCount > 0) {
 
-				if (DinoInfo[cptr->CType].killTypeCount > 0) {
-
-					cptr->vspeed /= 8.0f;
-					cptr->State = 1;
-					cptr->Phase = DinoInfo[cptr->CType].killType[cptr->killType].anim;
-					if (DinoInfo[cptr->CType].killType[cptr->killType].dontloop) cptr->FTime = 0;
-					//cptr->FTime = 0;
-					AddDeadBody(cptr,
-						DinoInfo[cptr->CType].killType[cptr->killType].hunteranim,
-						DinoInfo[cptr->CType].killType[cptr->killType].scream);
-				}
-				else {
-					AddDeadBody(cptr, HUNT_EAT, true);
-					cptr->State = 0;
-				}
-
-				cptr->aquaticIdle = false;
-
+				cptr->vspeed /= 8.0f;
+				cptr->State = 1;
+				cptr->Phase = DinoInfo[cptr->CType].killType[cptr->killType].anim;
+				if (DinoInfo[cptr->CType].killType[cptr->killType].dontloop) cptr->FTime = 0;
+				//cptr->FTime = 0;
+				AddDeadBody(cptr,
+					DinoInfo[cptr->CType].killType[cptr->killType].hunteranim,
+					DinoInfo[cptr->CType].killType[cptr->killType].scream);
 			}
+			else {
+				AddDeadBody(cptr, HUNT_EAT, true);
+				cptr->State = 0;
+			}
+
+			cptr->aquaticIdle = false;
 		}
 		
 
