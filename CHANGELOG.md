@@ -122,6 +122,12 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   the Iguanodon picture and T-Rex the Carnotaurus picture (and the matching
   INFO text). Each entry now resolves to its own `dinoN` asset, and an
   explicit `pic` line overrides the default thumbnail.
+- Keep a fixed flee reaction running straight. A flee destination is a
+  point, and once reached the leg is extended along the creature's current
+  heading. Extending along the bearing back to the reached point re-anchored
+  behind or beside a creature that had overshot it, so a shot animal could
+  swing around the point instead of escaping; the heading extension leaves
+  no steering error for the run to turn on.
 
 ## [v1.1.9-modernized] - 2026-09-20
 
