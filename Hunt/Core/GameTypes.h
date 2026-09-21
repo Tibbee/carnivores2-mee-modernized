@@ -153,7 +153,6 @@ struct TCharacter
 
   int dogPrey; // used by dog only. The dino currently being tracked
 
-  bool awareHunter;
   // Fixed reactions keep their event-time destination in tgx/tgz.
   HunterAwarenessState hunterAwareness = HunterAwarenessState::None;
 

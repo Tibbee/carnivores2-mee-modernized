@@ -245,7 +245,6 @@ void AnimateCharacters()
 		}
 
 		if (cptr->AfraidTime <= 0 && !IsTimedHunterReaction(cptr)) {
-			cptr->awareHunter = false;
 			if (cptr->hunterAwareness == HunterAwarenessState::TrackingHunter)
 				cptr->hunterAwareness = HunterAwarenessState::None;
 		}

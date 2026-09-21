@@ -80,7 +80,7 @@ TBEGIN:
 
 		if (!fixedPursuit) {
 			// The navigator owns the live tracking / pack-leader target.
-			if (!cptr->awareHunter && cptr->AfraidTime <= 0) {
+			if (!IsHunterAware(cptr) && cptr->AfraidTime <= 0) {
 				cptr->State = 0;
 				SetNewTargetPlace(cptr, 8048.0f);
 				goto TBEGIN;

@@ -32,7 +32,7 @@ bool ApplyGunshotHeard(TCharacter& character, const THunterStimulus& stimulus)
 
 	// Do not replace exact awareness from sight or direct damage with the
 	// less precise information supplied by a subsequent gunshot.
-	if (cptr->awareHunter
+	if (IsHunterAware(cptr)
 		&& cptr->hunterAwareness != HunterAwarenessState::InvestigatingShot
 		&& cptr->hunterAwareness != HunterAwarenessState::FleeingFromShot)
 		return false;
@@ -46,7 +46,6 @@ bool ApplyGunshotHeard(TCharacter& character, const THunterStimulus& stimulus)
 		travelSpeed);
 	cptr->AfraidTime = reactionTime;
 	cptr->NoFindCnt = 0;
-	cptr->awareHunter = true;
 	if (!cptr->State) cptr->State = 2;
 
 	const TDinoInfo& dino = DinoInfo[cptr->CType];
@@ -93,7 +92,7 @@ bool ApplyHunterCall(TCharacter& character, const THunterStimulus& stimulus)
 
 	// A call can refresh its own flee response, but it must not replace
 	// exact sight, scent, or direct-hit information.
-	if (cptr->awareHunter
+	if (IsHunterAware(cptr)
 		&& cptr->hunterAwareness != HunterAwarenessState::FleeingFromCall)
 		return false;
 
@@ -106,7 +105,6 @@ bool ApplyHunterCall(TCharacter& character, const THunterStimulus& stimulus)
 	cptr->State = 2;
 	cptr->AfraidTime = (10 + rRand(5)) * 1024;
 	cptr->NoFindCnt = 0;
-	cptr->awareHunter = true;
 	cptr->hunterAwareness = HunterAwarenessState::FleeingFromCall;
 	return true;
 }
@@ -115,7 +113,7 @@ bool ApplyDirectHit(TCharacter& character, const THunterStimulus& stimulus)
 {
 	TCharacter* cptr = &character;
 	const TDinoInfo& info = DinoInfo[cptr->CType];
-	const bool wasAware = cptr->awareHunter;
+	const bool wasAware = IsHunterAware(cptr);
 	const bool wasTrackingHunter = TracksHunterExactly(cptr);
 	const HunterAwarenessState previousAwareness = cptr->hunterAwareness;
 
@@ -135,7 +133,6 @@ bool ApplyDirectHit(TCharacter& character, const THunterStimulus& stimulus)
 		GetCharacterHunterEventRange(cptr), cptr->Clone == AI_TREX);
 	const bool preservesExactTracking = wasTrackingHunter && !fleesHit;
 
-	cptr->awareHunter = true;
 	cptr->hunterAwareness = UpdatedDirectHitAwarenessState(
 		cptr->hunterAwareness, fleesHit);
 	cptr->AfraidTime = 60 * 1000;
@@ -191,7 +188,6 @@ bool ApplyContact(TCharacter& character, const THunterStimulus& stimulus)
 	if (!ShouldPromoteFixedPursuitToTracking(cptr, stimulus.position))
 		return false;
 
-	cptr->awareHunter = true;
 	cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
 	cptr->AfraidTime = kCloseRangeAwarenessTime;
 	cptr->NoFindCnt = 0;
@@ -460,7 +456,7 @@ bool ShouldFleeHunter(const TCharacter& character, float hunterDistanceSquared,
 					GetCharacterAggressionRange(cptr), recentlyDamaged)
 				|| !hunterAttackable);
 		const bool authoredFlee = ShouldFleeFromAuthoredThreat(
-			outsideRange, dino.aggress <= 0, cptr->awareHunter,
+			outsideRange, dino.aggress <= 0, IsHunterAware(cptr),
 			dino.defensive && cptr->Health == dino.Health0,
 			dino.fearShot && cptr->Health < dino.Health0,
 			cptr->hunterAwareness == HunterAwarenessState::FleeingFromShot);

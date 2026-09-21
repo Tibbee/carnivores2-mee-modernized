@@ -147,7 +147,6 @@ void CheckAfraid()
 			if (cptr->State==0) {
 				cptr->State = 2;
 			}
-			cptr->awareHunter = true;
 			cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
 			// A T-Rex that already heard a shot or took a hit keeps charging.
 			// Its awareness still upgrades to exact tracking above; only the

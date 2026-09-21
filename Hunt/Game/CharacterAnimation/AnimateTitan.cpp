@@ -92,7 +92,7 @@ TBEGIN:
 			if ((!fixedPursuit
 				&& (OutsideNormalAggressionRange(pdist, aDist, recentlyDamaged)
 					|| ((PlayerY - cptr->pos.y > pdist) && cptr->gliding)))
-				|| DinoInfo[cptr->CType].aggress <= 0 || !cptr->awareHunter) {
+				|| DinoInfo[cptr->CType].aggress <= 0 || !IsHunterAware(cptr)) {
 				fleeMode = true;
 			}
 			else if (DinoInfo[cptr->CType].defensive && cptr->Health == DinoInfo[cptr->CType].Health0) fleeMode = true;

@@ -119,6 +119,14 @@ inline bool TracksHunterExactly(const TCharacter* cptr)
     return cptr->hunterAwareness == HunterAwarenessState::TrackingHunter;
 }
 
+// The single awareness state: the hunter is relevant to this creature while
+// any reaction is active. Replaces the legacy awareHunter boolean, which was
+// always written in lockstep with hunterAwareness.
+inline bool IsHunterAware(const TCharacter* cptr)
+{
+    return cptr->hunterAwareness != HunterAwarenessState::None;
+}
+
 // Contact-range awareness: while a creature follows a remembered event
 // position it still notices a hunter who physically enters its attack reach.
 // The horizontal reach is the authored attack distance (scaled, matching the
@@ -186,7 +194,6 @@ inline float ClampCharacterTargetCoordinate(float value)
 
 inline void ClearHunterReaction(TCharacter* cptr)
 {
-    cptr->awareHunter = false;
     cptr->hunterAwareness = HunterAwarenessState::None;
     cptr->AfraidTime = 0;
     cptr->State = 0;

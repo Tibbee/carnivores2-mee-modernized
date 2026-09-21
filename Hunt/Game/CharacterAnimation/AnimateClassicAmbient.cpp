@@ -73,7 +73,6 @@ TBEGIN:
 			}
 			if (pdistMulti) {
 				if (pdistSq[0] < 2048.f * 2048.f) {
-					cptr->awareHunter = true;
 					cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
 				}
 				if (cptr->Clone == AI_GALL) cptr->State = 1;
