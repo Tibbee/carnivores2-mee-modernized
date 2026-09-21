@@ -11,6 +11,26 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
 
 ## [Unreleased]
 
+### Changed
+- Route all hunter awareness through one resolver and navigator
+  (`Hunt/Game/CharacterAwareness.*`). Heard shots, direct hits, hunter calls
+  and contact-range promotion share one eligibility, priority and timer path;
+  the navigator owns every hunter-directed destination and the single
+  reaction timer, and animators only read the response.
+- Unify the hunter attack geometry (per-family look offsets) and the kill
+  gate. Every kill now requires exact tracking and the family attack reach;
+  fixed reactions, remembered event positions, awareness-less proximity and
+  expired locks never authorize a kill.
+- Tracking timers always expire now. A creature that loses the hunter
+  returns to ordinary behavior when its reaction time runs out instead of
+  chasing the live position indefinitely; its reaction time is refreshed
+  normally while sight or scent keeps working.
+
+### Removed
+- The legacy `awareHunter` boolean. `hunterAwareness` is the single awareness
+  state and `IsHunterAware()` derives from it; `TCharacter` remains 344 bytes,
+  so save compatibility is unchanged.
+
 ### Fixed
 - Restore the threat of species that have no active sight or scent. A
   creature in a fixed pursuit (shot investigation or hit retaliation) now
