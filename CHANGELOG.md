@@ -155,6 +155,14 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   could loop into its own acquisition range. The new leg goes through the
   same placement check as the initial flee point, and the reaction state,
   timer and kill rules are unchanged.
+- Wake a pack when one of its members starts a fixed shot or hit reaction.
+  The per-animator alarm writes are guarded by `!fixedReaction`, so an
+  investigating or retaliating member used to leave its packmates wandering
+  while it moved alone; the navigator now raises the alarm for fixed
+  reactions too. The alarm remains coordination only (leader-follow or
+  scatter) and publishes no hunter coordinates. The pack leader also no
+  longer takes a leader-relative target, which previously let an alarm from
+  a packmate freeze it on its own position.
 
 ## [v1.1.9-modernized] - 2026-09-20
 
