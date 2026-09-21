@@ -549,11 +549,17 @@ void UpdateHunterNavigation(TCharacter& character)
 	if (!IsTimedHunterReaction(cptr))
 		cptr->AfraidTime = TickUntimedReaction(cptr->AfraidTime, TimeDt);
 
-	// Fixed flee: once the stored point is reached, extend the leg along the
-	// creature's heading so the escape keeps running instead of orbiting the
-	// point (extending along the bearing turned overshooting creatures back).
+	// Fixed flee: once the stored point is reached, re-aim the next leg
+	// directly away from the live hunter through the placement check. The
+	// creature's own heading cannot be trusted here: after an overshoot it
+	// points back toward the hunter, which used to make the escape march
+	// sideways or return into the hunter's acquisition range.
 	if (IsFixedHunterFlee(cptr)) {
-		ExtendFixedFleeTarget(cptr);
+		if (FleeDestinationReached(cptr->pos.x, cptr->pos.z,
+				cptr->tgx, cptr->tgz, kShotInvestigationArrivalRadius)) {
+			const THunterGeometry hunter = GetHunterGeometry(cptr);
+			SetHunterFleeTarget(cptr, hunter.dx, hunter.dz);
+		}
 		return;
 	}
 

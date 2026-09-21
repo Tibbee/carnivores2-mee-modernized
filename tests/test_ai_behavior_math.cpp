@@ -331,44 +331,13 @@ TEST(AIBehaviorMathTest, EveryAwarenessStateHasAName)
         EXPECT_STRNE("?", HunterAwarenessStateName(state));
 }
 
-TEST(AIBehaviorMathTest, FixedFleeKeepsItsDestinationUntilItIsReached)
+TEST(AIBehaviorMathTest, FixedFleeReroutesOnlyAfterReachingItsDestination)
 {
-    float x = 12000.0f;
-    float z = -4000.0f;
-
-    EXPECT_FALSE(ExtendFleeDestination(1000.0f, 1000.0f, 0.0f, 1.0f,
-        512.0f, 2048.0f, x, z));
-    EXPECT_FLOAT_EQ(12000.0f, x);
-    EXPECT_FLOAT_EQ(-4000.0f, z);
-}
-
-TEST(AIBehaviorMathTest, FixedFleeExtendsAlongTheHeadingNotTheBearing)
-{
-    // Overshoot frame from a real escape: the creature is 100 units north of
-    // its destination and still running north. The bearing back to the point
-    // points south; the extended leg must follow the heading instead, or the
-    // run-away turns into an orbit around the reached point.
-    float x = 0.0f;
-    float z = -100.0f;
-
-    ASSERT_TRUE(ExtendFleeDestination(0.0f, 0.0f, 0.0f, 1.0f,
-        512.0f, 2048.0f, x, z));
-    EXPECT_FLOAT_EQ(0.0f, x);
-    EXPECT_FLOAT_EQ(2048.0f, z);
-}
-
-TEST(AIBehaviorMathTest, FixedFleeExtendsOnlyInsideTheArrivalRadius)
-{
-    float x = 511.0f;
-    float z = 0.0f;
-    EXPECT_TRUE(ExtendFleeDestination(0.0f, 0.0f, 1.0f, 0.0f,
-        512.0f, 2048.0f, x, z));
-    EXPECT_FLOAT_EQ(2048.0f, x);
-
-    x = 512.0f;
-    z = 0.0f;
-    EXPECT_FALSE(ExtendFleeDestination(0.0f, 0.0f, 1.0f, 0.0f,
-        512.0f, 2048.0f, x, z));
-    EXPECT_FLOAT_EQ(512.0f, x);
-    EXPECT_FLOAT_EQ(0.0f, z);
+    // Far away: the stored point stands and the creature keeps running at it.
+    EXPECT_FALSE(FleeDestinationReached(0.0f, 0.0f, 0.0f, 2048.0f, 512.0f));
+    // Exactly on the arrival radius: still approaching.
+    EXPECT_FALSE(FleeDestinationReached(0.0f, 0.0f, 512.0f, 0.0f, 512.0f));
+    // Inside the radius: the caller re-aims the next leg away from the hunter.
+    EXPECT_TRUE(FleeDestinationReached(0.0f, 0.0f, 511.0f, 0.0f, 512.0f));
+    EXPECT_TRUE(FleeDestinationReached(100.0f, -40.0f, 120.0f, -40.0f, 512.0f));
 }

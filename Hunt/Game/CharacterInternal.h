@@ -206,20 +206,6 @@ inline void ClearHunterReaction(TCharacter* cptr)
 // creature reaches it, the target sits behind it and it turns back, which
 // looks like circling. Extend the point along the flee direction so the
 // creature keeps running while the reaction lasts.
-// Fixed flee reactions store a destination point; once the creature reaches
-// it, extend the leg along the creature's own heading so the escape keeps
-// running instead of orbiting the reached point (see ExtendFleeDestination).
-inline void ExtendFixedFleeTarget(TCharacter* cptr)
-{
-    if (!ExtendFleeDestination(cptr->pos.x, cptr->pos.z,
-            cptr->lookx, cptr->lookz, kShotInvestigationArrivalRadius,
-            2048.0f, cptr->tgx, cptr->tgz))
-        return;
-
-    cptr->tgx = ClampCharacterTargetCoordinate(cptr->tgx);
-    cptr->tgz = ClampCharacterTargetCoordinate(cptr->tgz);
-}
-
 // Pack following helpers
 // Called from animation functions to maintain pack formation
 inline void AnimatePackFollow(TCharacter* cptr, float leaderDist)

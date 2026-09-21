@@ -69,8 +69,9 @@ bool ShouldFleeHunter(const TCharacter& character, float hunterDistanceSquared,
 
 // The single owner of hunter-directed navigation and reaction time. Called
 // once per creature per frame after the reaction timers have been applied. It
-// owns the fixed flee direction, the local search after a fixed pursuit, the
-// live tracking / live flee destinations, and the untimed reaction timer
-// (exact tracking and morale); wandering and pack movement stay with the
-// animators, which only read the response.
+// owns the fixed flee legs (each new leg re-aimed away from the hunter through
+// the placement check), the local search after a fixed pursuit, the live
+// tracking / live flee destinations, and the untimed reaction timer (exact
+// tracking and morale); wandering and pack movement stay with the animators,
+// which only read the response.
 void UpdateHunterNavigation(TCharacter& character);
