@@ -22,6 +22,13 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
 - Differential scalar tests pin every recovered value to the legacy
   `atoi`/`atof` result (`tests/test_legacy_scalar_differential.cpp`), so a
   future strictness rule fails in CI before it can reach a mod.
+- A permanent AI awareness trace with its own `ai_logging` switch in
+  `config.cfg` (default 0; `verbose_logging 1` still enables it for existing
+  debug setups). It writes one line per hunter event and a roughly
+  per-second state line per reacting creature to `render.log`, with species
+  name and id, state, position, stored destination, live hunter distance
+  and remaining reaction time, so flee/pursue decisions can be diagnosed
+  from a playtest without a debugger.
 
 ### Changed
 - `_RES.TXT` and legacy `_MENU.TXT` recovery: malformed scalars now keep a
