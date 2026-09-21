@@ -20,6 +20,7 @@
 #include <vector>
 #include "Core/ConfigText.h"
 #include "ListMath.h"
+#include "Loaders/LoadDiagnostics.h"
 #include "Loaders/LoadValidate.h"
 #include "Loaders/ScriptValueParse.h"
 
@@ -54,18 +55,28 @@ uint32_t g_ScriptLine = 0;
 
 static int ReadScriptIntValue(const char* value, const char* where)
 {
-	int parsed = 0;
-	if (!ParseScriptInt(value, parsed))
+	const ScriptIntResult result = ParseScriptIntStatus(value, 0);
+	if (result.status == ScriptScalarStatus::Ok)
+		return result.value;
+
+	const char* reason = ScriptScalarStatusReason(result.status);
+	LoadDiagnostics::Instance().Report("MenuResource", where, reason, nullptr);
+	if (LoadDiagnostics::Instance().Strict())
 		throw script_error("Expected a valid integer value.", where, g_ScriptLine);
-	return parsed;
+	return result.value;
 }
 
 static float ReadScriptFloatValue(const char* value, const char* where)
 {
-	float parsed = 0.0f;
-	if (!ParseScriptFloat(value, parsed))
+	const ScriptFloatResult result = ParseScriptFloatStatus(value, 0.0f);
+	if (result.status == ScriptScalarStatus::Ok)
+		return result.value;
+
+	const char* reason = ScriptScalarStatusReason(result.status);
+	LoadDiagnostics::Instance().Report("MenuResource", where, reason, nullptr);
+	if (LoadDiagnostics::Instance().Strict())
 		throw script_error("Expected a valid finite float value.", where, g_ScriptLine);
-	return parsed;
+	return result.value;
 }
 
 // Legacy integer-backed fields (health) were authored with decimal literals in
@@ -73,10 +84,15 @@ static float ReadScriptFloatValue(const char* value, const char* where)
 // behaviour here instead of rejecting the line outright.
 static int ReadScriptLegacyIntValue(const char* value, const char* where)
 {
-	int parsed = 0;
-	if (!ParseScriptLegacyInt(value, parsed))
+	const ScriptIntResult result = ParseScriptLegacyIntStatus(value, 0);
+	if (result.status == ScriptScalarStatus::Ok)
+		return result.value;
+
+	const char* reason = ScriptScalarStatusReason(result.status);
+	LoadDiagnostics::Instance().Report("MenuResource", where, reason, nullptr);
+	if (LoadDiagnostics::Instance().Strict())
 		throw script_error("Expected a valid integer value.", where, g_ScriptLine);
-	return parsed;
+	return result.value;
 }
 
 // The menu reads both _MENU.TXT and the legacy _RES.TXT, and their key
@@ -862,8 +878,28 @@ void LoadC2Maps()
 }
 
 
+static std::string GetConfigPath();
+
+// The menu parses _MENU.TXT/_RES.TXT before its own LoadConfig() runs, so the
+// load policy is applied here from config.cfg (`load_mode`) with the
+// C2_STRICT_DATA environment override. Default is lenient.
+static void InitMenuLoadPolicy()
+{
+	std::string configPath = GetConfigPath();
+	std::ifstream fs(configPath);
+	if (fs.is_open()) {
+		std::string whole;
+		size_t nulBytes = 0;
+		if (ReadConfigText(fs, whole, nulBytes))
+			InitLoadPolicyFromConfigText(whole.c_str());
+	}
+	InitLoadPolicyFromEnvironment();
+}
+
 void LoadResourcesScript()
 {
+	InitMenuLoadPolicy();
+
 	FILE* file;
 	char line[256];
 
@@ -946,6 +982,14 @@ void LoadResourcesScript()
 	// We do this AFTER the main script load so script-defined entries
 	// take precedence on duplicate project names.
 	LoadC2Maps();
+
+	// Report values recovered by the lenient load policy (see
+	// Loaders/LoadDiagnostics.h). Strict mode throws before reaching here.
+	LoadDiagnostics& diagnostics = LoadDiagnostics::Instance();
+	if (diagnostics.Count() > 0) {
+		std::cout << diagnostics.Summary();
+		diagnostics.Clear();
+	}
 }
 
 

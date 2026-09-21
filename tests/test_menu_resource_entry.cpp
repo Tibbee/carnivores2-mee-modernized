@@ -13,6 +13,7 @@
 #include <exception>
 
 #include "Hunt.h"
+#include "Loaders/LoadDiagnostics.h"
 
 // Production entry points defined in Menu/Resources.cpp.
 void ReadCharacters(FILE* stream);
@@ -227,9 +228,11 @@ TEST(MenuResourceEntry, ExcessWeaponPricesAreRejected)
     EXPECT_THROW(ReadPrices(script.stream), std::exception);
 }
 
-TEST(MenuResourceEntry, MalformedNumericValuesStillFail)
+TEST(MenuResourceEntry, MalformedNumericValuesFailInStrictMode)
 {
     ResetMenuState();
+    LoadDiagnostics::Instance().Clear();
+    LoadDiagnostics::Instance().SetMode(LoadMode::Strict);
     TempScript script(
         "{\n"
         " ai = ten\n"
@@ -237,8 +240,30 @@ TEST(MenuResourceEntry, MalformedNumericValuesStillFail)
         "}\n");
     ASSERT_NE(script.stream, nullptr);
 
-    // Exact key matching must not weaken the value validation itself.
+    // Exact key matching must not weaken the value validation itself: strict
+    // mode (CI / mod authoring) still stops at the first bad value.
     EXPECT_THROW(ReadCharacters(script.stream), std::exception);
+
+    LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+    LoadDiagnostics::Instance().Clear();
+}
+
+TEST(MenuResourceEntry, MalformedNumericValuesRecoverInLenientMode)
+{
+    ResetMenuState();
+    LoadDiagnostics::Instance().Clear();
+    TempScript script(
+        "{\n"
+        " ai = ten\n"
+        "}\n"
+        "}\n");
+    ASSERT_NE(script.stream, nullptr);
+
+    // The player default accepts the file, falls back to 0 for the bad value
+    // and records a diagnostic instead of aborting the menu.
+    EXPECT_NO_THROW(ReadCharacters(script.stream));
+    EXPECT_GE(LoadDiagnostics::Instance().Count(), 1u);
+    LoadDiagnostics::Instance().Clear();
 }
 
 TEST(MenuResourceEntry, HuntableThumbnailFollowsListPositionNotAiSlot)

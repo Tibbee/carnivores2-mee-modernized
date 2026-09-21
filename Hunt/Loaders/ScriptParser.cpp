@@ -4,17 +4,45 @@
 
 #include "Hunt.h"
 #include "Core/CommandLineParse.h"
+#include "LoadDiagnostics.h"
 #include "LoadValidate.h"
 #include "ScriptBlockParse.h"
 #include "ScriptValueParse.h"
 
+// All diagnostics recorded while a script is parsed are reported through one
+// policy (LoadDiagnostics.h): lenient recovers and logs, strict halts. Keep
+// the group name stable so CI/tests can filter it.
+static const char* kScriptLoadGroup = "ScriptParser";
+
+static void ReportScriptRecovery(const char* field, const char* reason,
+                                 const char* line)
+{
+  LoadDiagnostics::Instance().Report(kScriptLoadGroup, field, reason, line);
+}
+
+// Write the recovered-value summary to the hunt log once per full script
+// parse and clear it, so repeated parses do not repeat old entries. Strict
+// mode never reaches this point with entries: it halts on the first one.
+static void FlushScriptDiagnostics()
+{
+  LoadDiagnostics& diagnostics = LoadDiagnostics::Instance();
+  if (diagnostics.Count() == 0)
+    return;
+
+  std::string summary = diagnostics.Summary();
+  PrintLog(const_cast<char*>(summary.c_str()));
+  diagnostics.Clear();
+}
+
 // _RES.TXT string safety. Name/file fields are fixed char arrays
 // (WeapInfo/DinoInfo fixed arrays, GameTypes.h); an overlong modded
 // value previously overflowed via strcpy, and value[strlen(value)-2] indexed
-// before the buffer when the quoted value was shorter than ''. Halt loudly
-// instead. The offending line goes into the message as well: the field name
+// before the buffer when the quoted value was shorter than ''. In lenient
+// mode the value is truncated to the field with a diagnostic; strict mode
+// halts. The offending line goes into the message as well: the field name
 // alone left modders hunting through the whole script for the bad entry.
-static void ScriptFieldFail(const char* what, const char* line)
+static void ScriptFieldFail(const char* what, const char* line,
+                            const char* reason = nullptr)
 {
   char bad[256];
   bad[0] = 0;
@@ -24,12 +52,22 @@ static void ScriptFieldFail(const char* what, const char* line)
   while (len > 0 && (bad[len - 1] == '\n' || bad[len - 1] == '\r'))
     bad[--len] = 0;
 
+  const bool hasReason = reason && reason[0] != 0;
   char sz[512];
-  if (bad[0])
+  if (bad[0] && hasReason)
+    sprintf_s(sz, sizeof(sz),
+              "Script loading error: %s missing, too long, or malformed (%s).\n"
+              "Line: %s",
+              what, reason, bad);
+  else if (bad[0])
     sprintf_s(sz, sizeof(sz),
               "Script loading error: %s missing, too long, or malformed.\n"
               "Line: %s",
               what, bad);
+  else if (hasReason)
+    sprintf_s(sz, sizeof(sz),
+              "Script loading error: %s missing, too long, or malformed (%s).",
+              what, reason);
   else
     sprintf_s(sz, sizeof(sz),
               "Script loading error: %s missing, too long, or malformed.", what);
@@ -39,12 +77,37 @@ static void ScriptFieldFail(const char* what, const char* line)
 // Read the quoted value out of `value` (the text after '='). The line is
 // never modified, so a second field on the same line still parses, and the
 // key is matched by name (ScriptKeyIs) instead of by searching the line for
-// a substring.
+// a substring. Recovery policy: a missing/unclosed quote leaves the field
+// empty (and is fatal in strict mode); an overlong value is truncated in
+// lenient mode instead of halting the whole hunt.
 static void CopyScriptField(char* dst, size_t dstCap, const char* value,
                             const char* what, const char* line)
 {
-  if (!CopyQuotedValue(dst, dstCap, value))
-    ScriptFieldFail(what, line);
+  const char* quoted = nullptr;
+  size_t length = 0;
+  if (!dst || dstCap == 0)
+    ScriptFieldFail(what, line, "invalid destination field");
+  if (!FindQuotedValue(value, &quoted, &length))
+  {
+    ReportScriptRecovery(what, "missing or unclosed quoted value", line);
+    if (LoadDiagnostics::Instance().Strict())
+      ScriptFieldFail(what, line, "missing or unclosed quoted value");
+    dst[0] = 0;
+    return;
+  }
+  if (length >= dstCap)
+  {
+    char reason[96];
+    sprintf_s(reason, sizeof(reason),
+              "value longer than the %u-byte field; truncated",
+              static_cast<unsigned>(dstCap));
+    ReportScriptRecovery(what, reason, line);
+    if (LoadDiagnostics::Instance().Strict())
+      ScriptFieldFail(what, line, reason);
+    length = dstCap - 1;
+  }
+  memcpy(dst, quoted, length);
+  dst[length] = 0;
 }
 
 static void CopyProjectName(char* dst, const char* src)
@@ -79,6 +142,8 @@ struct ScriptCommonOptions
 
 static int ReadScriptIntField(const char* value, const char* line,
                               const char* field);
+static int RecoverScriptRange(int value, int minimum, int maximum,
+                              const char* what, const char* line);
 
 static bool HasCommandLineOption(const char* option)
 {
@@ -131,23 +196,23 @@ static void ReadCommonOptions(FILE* stream, ScriptCommonOptions& options)
 
     if (ScriptKeyIs(line, "survivalArea"))
     {
-      options.survivalArea = ReadScriptIntField(value, line, "survival area");
-      if (options.survivalArea < 1 || options.survivalArea > 10)
-        DoHalt("Script loading error: survival area out of range.");
+      options.survivalArea = RecoverScriptRange(
+          ReadScriptIntField(value, line, "survival area"), 1, 10,
+          "survival area", line);
       options.hasSurvivalArea = true;
     }
     else if (ScriptKeyIs(line, "survivalWeapon"))
     {
-      options.survivalWeapon = ReadScriptIntField(value, line, "survival weapon");
-      if (options.survivalWeapon < 1 || options.survivalWeapon > 10)
-        DoHalt("Script loading error: survival weapon out of range.");
+      options.survivalWeapon = RecoverScriptRange(
+          ReadScriptIntField(value, line, "survival weapon"), 1, 10,
+          "survival weapon", line);
       options.hasSurvivalWeapon = true;
     }
     else if (ScriptKeyIs(line, "survivalDTM"))
     {
-      options.survivalDayNight = ReadScriptIntField(value, line, "survival day/night");
-      if (options.survivalDayNight < 0 || options.survivalDayNight > 2)
-        DoHalt("Script loading error: survival day/night out of range.");
+      options.survivalDayNight = RecoverScriptRange(
+          ReadScriptIntField(value, line, "survival day/night"), 0, 2,
+          "survival day/night", line);
       options.hasSurvivalDayNight = true;
     }
   }
@@ -231,31 +296,54 @@ static void ReadScriptCommandLineOptions(char projectName[128], int& timeOfDay,
   }
 }
 
+// One recovery path for every scalar field. Ok returns immediately; any
+// other status records a diagnostic and, in lenient mode, returns the
+// memory-safe recovered value (fallback or clamp). Strict mode halts with
+// the same reason the log would have carried.
+static int RecoverScriptIntResult(const ScriptIntResult& parsed,
+                                  const char* field, const char* line)
+{
+  if (parsed.status == ScriptScalarStatus::Ok)
+    return parsed.value;
+
+  const char* reason = ScriptScalarStatusReason(parsed.status);
+  ReportScriptRecovery(field, reason, line);
+  if (LoadDiagnostics::Instance().Strict())
+    ScriptFieldFail(field, line, reason);
+  return parsed.value;
+}
+
+static float RecoverScriptFloatResult(const ScriptFloatResult& parsed,
+                                      const char* field, const char* line)
+{
+  if (parsed.status == ScriptScalarStatus::Ok)
+    return parsed.value;
+
+  const char* reason = ScriptScalarStatusReason(parsed.status);
+  ReportScriptRecovery(field, reason, line);
+  if (LoadDiagnostics::Instance().Strict())
+    ScriptFieldFail(field, line, reason);
+  return parsed.value;
+}
+
 static int ReadScriptIntField(const char* value, const char* line,
                               const char* field)
 {
-  int parsed = 0;
-  if (!ParseScriptInt(value, parsed))
-    ScriptFieldFail(field, line);
-  return parsed;
+  return RecoverScriptIntResult(ParseScriptIntStatus(value, 0), field, line);
 }
 
 static int ReadScriptLegacyIntField(const char* value, const char* line,
                                     const char* field)
 {
-  int parsed = 0;
-  if (!ParseScriptLegacyInt(value, parsed))
-    ScriptFieldFail(field, line);
-  return parsed;
+  return RecoverScriptIntResult(ParseScriptLegacyIntStatus(value, 0), field,
+                                line);
 }
 
 static float ReadScriptFloatField(const char* value, const char* line,
                                   const char* field)
 {
-  float parsed = 0.0f;
-  if (!ParseScriptFloat(value, parsed))
-    ScriptFieldFail(field, line);
-  return parsed;
+  return RecoverScriptFloatResult(ParseScriptFloatStatus(value, 0.0f), field,
+                                  line);
 }
 
 static int ReadScriptInt(const char* value)
@@ -275,32 +363,105 @@ static void RequireScriptSlot(int index, int capacity, const char* what)
   }
 }
 
+static int RecoverScriptIndex(int index, int capacity, const char* what,
+                              const char* line);
+
 static int ReadScriptIndexField(const char* value, const char* line,
                                 const char* field, int capacity)
 {
   const int parsed = ReadScriptIntField(value, line, field);
-  RequireScriptSlot(parsed, capacity, field);
-  return parsed;
+  return RecoverScriptIndex(parsed, capacity, field, line);
 }
 
-static void RequireOrderedScriptRange(int minimum, int maximum, int capacity,
-                                      const char* what)
+// Value-derived indices recover by clamping into the fixed array in lenient
+// mode (0 or capacity-1), so a bad mod value can neither abort the hunt nor
+// touch memory out of bounds. Count guards (RequireScriptSlot at a capacity)
+// stay fatal in both modes: there is no value to clamp, the section itself
+// does not fit.
+static int RecoverScriptIndex(int index, int capacity, const char* what,
+                              const char* line)
 {
-  if (!IsValidOrderedRange(minimum, maximum, capacity))
+  if (IsValidIndex(index, capacity))
+    return index;
+
+  char reason[96];
+  sprintf_s(reason, sizeof(reason), "index out of range [0..%d]", capacity - 1);
+  ReportScriptRecovery(what, reason, line);
+  if (LoadDiagnostics::Instance().Strict())
   {
-    char sz[192];
-    sprintf_s(sz, sizeof(sz),
-              "Script loading error: invalid %s range (min=%d, max=%d, capacity=%d).",
-              what, minimum, maximum, capacity);
+    char bad[192];
+    bad[0] = 0;
+    if (line && !CopyCapped(bad, sizeof(bad), line))
+      bad[0] = 0;
+    size_t len = strlen(bad);
+    while (len > 0 && (bad[len - 1] == '\n' || bad[len - 1] == '\r'))
+      bad[--len] = 0;
+
+    char sz[320];
+    if (bad[0])
+      sprintf_s(sz, sizeof(sz),
+                "Script loading error: %s index out of range (index=%d, max=%d).\n"
+                "Line: %s",
+                what, index, capacity - 1, bad);
+    else
+      sprintf_s(sz, sizeof(sz),
+                "Script loading error: %s index out of range (index=%d, max=%d).",
+                what, index, capacity - 1);
     DoHalt(sz);
+  }
+  return index < 0 ? 0 : capacity - 1;
+}
+
+// Clamp a value into an inclusive range. Used by the survival defaults and
+// other settings whose out-of-range handling used to halt a hunt (v1.1.9).
+static int RecoverScriptRange(int value, int minimum, int maximum,
+                              const char* what, const char* line)
+{
+  if (value >= minimum && value <= maximum)
+    return value;
+
+  char reason[96];
+  sprintf_s(reason, sizeof(reason), "expected %d..%d, got %d", minimum,
+            maximum, value);
+  ReportScriptRecovery(what, reason, line);
+  if (LoadDiagnostics::Instance().Strict())
+    ScriptFieldFail(what, line, reason);
+  return value < minimum ? minimum : maximum;
+}
+
+// A configured minimum/maximum pair must fit its destination capacity and
+// retain the ordering expected by the spawning loops. Lenient mode clamps
+// both ends into [0, capacity] and orders the pair; strict mode halts.
+static void RecoverOrderedScriptRange(int& minimum, int& maximum, int capacity,
+                                      const char* what, const char* line)
+{
+  if (IsValidOrderedRange(minimum, maximum, capacity))
+    return;
+
+  char reason[128];
+  sprintf_s(reason, sizeof(reason),
+            "invalid range (min=%d, max=%d, capacity=%d)", minimum, maximum,
+            capacity);
+  ReportScriptRecovery(what, reason, line);
+  if (LoadDiagnostics::Instance().Strict())
+    ScriptFieldFail(what, line, reason);
+
+  if (minimum < 0) minimum = 0;
+  if (minimum > capacity) minimum = capacity;
+  if (maximum < 0) maximum = 0;
+  if (maximum > capacity) maximum = capacity;
+  if (minimum > maximum)
+  {
+    const int swap = minimum;
+    minimum = maximum;
+    maximum = swap;
   }
 }
 
 static int ScriptIndex(const char* value, int capacity, const char* what)
 {
   const int index = value ? ReadScriptInt(value) : -1;
-  RequireScriptSlot(index, capacity, what);
-  return index;
+  return RecoverScriptIndex(index, capacity, what, value);
 }
 
 static int CurrentJumpPartIndex()
@@ -313,7 +474,15 @@ static int CurrentJumpPartIndex()
 static int CurrentIdlePartIndex()
 {
   if (DinoInfo[TotalC].lookCount <= 0)
-    DoHalt("Script loading error: idle particle data has no preceding look animation.");
+  {
+    ReportScriptRecovery("idle particle animation",
+                         "no preceding look animation", nullptr);
+    if (LoadDiagnostics::Instance().Strict())
+      DoHalt("Script loading error: idle particle data has no preceding look animation.");
+    // Attach the particle data to animation slot 0 instead of aborting the
+    // whole hunt; the diagnostic names the missing look animation.
+    return 0;
+  }
   const int index = DinoInfo[TotalC].lookAnim[DinoInfo[TotalC].lookCount - 1];
   RequireScriptSlot(index, 50, "idle particle animation");
   return index;
@@ -660,9 +829,9 @@ void ReadSpawnGroup(FILE *stream, char line[256], int mode) {
 				DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnGroup = TotalSpawnGroup;
 				DinoInfo[TotalC].SpawnInfoCh++;
 			}
-			RequireOrderedScriptRange(spawnGroup[TotalSpawnGroup].SpawnMin,
+			RecoverOrderedScriptRange(spawnGroup[TotalSpawnGroup].SpawnMin,
 			                          spawnGroup[TotalSpawnGroup].SpawnMax,
-			                          256, "spawn group limits");
+			                          256, "spawn group limits", line);
 			TotalSpawnGroup++;
 			break;
 		}
@@ -882,9 +1051,9 @@ void ReadPackGroup(FILE *stream, char line[256], int mode) {
 				DinoInfo[TotalC].packMember2[DinoInfo[TotalC].packMember2Ch].ratio = 1;
 				DinoInfo[TotalC].packMember2Ch++;
 			}
-			RequireOrderedScriptRange(packType[packTypeCount].packMin,
+			RecoverOrderedScriptRange(packType[packTypeCount].packMin,
 			                          packType[packTypeCount].packMax,
-			                          256, "pack group limits");
+			                          256, "pack group limits", line);
 			packTypeCount++;
 			break;
 		}
@@ -1073,10 +1242,9 @@ void ReadSnowType(FILE *stream)
 		if (strstr(line, "vSpd"))  SnowInfo[SnowCh].snow_vSpd = ReadScriptIntField(value, line, "snow vertical speed");
 		if (strstr(line, "hSpd"))  SnowInfo[SnowCh].snow_hSpd = ReadScriptIntField(value, line, "snow horizontal speed");
 		if (strstr(line, "dens")) {
-			const int density = ReadScriptIntField(value, line, "snow density");
-			if (density < 0 || density > (1 << 20))
-				DoHalt("Script loading error: snow density out of range.");
-			SnowInfo[SnowCh].snow_dens = density;
+			SnowInfo[SnowCh].snow_dens = RecoverScriptRange(
+			    ReadScriptIntField(value, line, "snow density"), 0, (1 << 20),
+			    "snow density", line);
 		}
 
 		if (strstr(line, "red"))  SnowInfo[SnowCh].snow_r = ReadScriptIntField(value, line, "snow red");
@@ -2939,4 +3107,6 @@ void LoadResourcesScript()
   }
 
   fclose (stream);
+
+  FlushScriptDiagnostics();
 }

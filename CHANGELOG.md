@@ -11,7 +11,26 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
 
 ## [Unreleased]
 
+### Added
+- Data-load policy and recovery diagnostics
+  (`Hunt/Loaders/LoadDiagnostics.h`). Lenient (default) accepts legacy/mod
+  data, recovers to a memory-safe value (clamp/truncate/default) and records
+  one diagnostic per distinct problem; strict mode (`load_mode strict` in
+  config.cfg or `C2_STRICT_DATA=1`) halts on the first recoverable problem
+  for CI and mod authoring. Structurally malformed files and values that
+  cannot be made safe stay fatal in both modes.
+- Differential scalar tests pin every recovered value to the legacy
+  `atoi`/`atof` result (`tests/test_legacy_scalar_differential.cpp`), so a
+  future strictness rule fails in CI before it can reach a mod.
+
 ### Changed
+- `_RES.TXT` and legacy `_MENU.TXT` recovery: malformed scalars now keep a
+  fallback, out-of-range indices clamp, overlong text fields truncate, and
+  invalid min/max ranges clamp and order, each with a logged diagnostic
+  naming the offending line. Strict mode preserves the v1.1.9 halt behavior.
+- `load_mode` documents the policy in config.cfg; the engine applies it
+  before `_RES.TXT` is parsed, so the policy is known before any script
+  data is validated.
 - Route all hunter awareness through one resolver and navigator
   (`Hunt/Game/CharacterAwareness.*`). Heard shots, direct hits, hunter calls
   and contact-range promotion share one eligibility, priority and timer path;

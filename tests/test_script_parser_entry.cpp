@@ -11,11 +11,13 @@
 
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 #include "Hunt.h"
+#include "Loaders/LoadDiagnostics.h"
 
 // Production entry points defined in Hunt/Loaders/ScriptParser.cpp.
 void ReadWeaponLine(FILE* stream, char* _value, char line[256]);
@@ -257,4 +259,139 @@ TEST(ScriptParserEntry, CharacterNumericDispatchIsUnchanged)
     EXPECT_EQ(DinoInfo[0].Clone, 10);
     EXPECT_FLOAT_EQ(DinoInfo[0].Mass, 120.5f);
     EXPECT_FLOAT_EQ(DinoInfo[0].SmellK, 0.8f);
+}
+
+namespace {
+
+// Policy tests: the same legacy corpus that must keep loading in lenient mode
+// (the player default) must be rejected by strict mode (CI / mod authoring).
+class ScriptPolicyTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        LoadDiagnostics::Instance().Clear();
+        LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+    }
+
+    void TearDown() override
+    {
+        LoadDiagnostics::Instance().Clear();
+        LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+    }
+};
+
+}  // namespace
+
+TEST_F(ScriptPolicyTest, LegacyScalarCorpusLoadsWithoutDiagnostics)
+{
+    ResetCharacter();
+    TempScript stream("");
+    ASSERT_NE(stream.stream, nullptr);
+
+    EXPECT_NO_THROW(CallCharacterLine(stream.stream, "health = 13.5"));
+    EXPECT_NO_THROW(CallCharacterLine(stream.stream, "scale0 = 1000.0"));
+    EXPECT_NO_THROW(CallCharacterLine(stream.stream, "mass = 120.5"));
+    EXPECT_NO_THROW(CallCharacterLine(stream.stream, "smellK = 0.8"));
+    EXPECT_NO_THROW(CallCharacterLine(stream.stream, "ai = 10"));
+
+    EXPECT_EQ(DinoInfo[0].Health0, 13);
+    EXPECT_EQ(DinoInfo[0].Scale0, 1000);
+    EXPECT_FLOAT_EQ(DinoInfo[0].Mass, 120.5f);
+    EXPECT_FLOAT_EQ(DinoInfo[0].SmellK, 0.8f);
+    EXPECT_EQ(DinoInfo[0].Clone, 10);
+    EXPECT_EQ(LoadDiagnostics::Instance().Count(), 0u);
+}
+
+TEST_F(ScriptPolicyTest, MalformedScalarsRecoverWithDiagnostics)
+{
+    ResetCharacter();
+    TempScript stream("");
+    ASSERT_NE(stream.stream, nullptr);
+
+    EXPECT_NO_THROW(CallCharacterLine(stream.stream, "health = oops"));
+    EXPECT_EQ(DinoInfo[0].Health0, 0);
+    EXPECT_GE(LoadDiagnostics::Instance().Count(), 1u);
+
+    const std::size_t afterFirst = LoadDiagnostics::Instance().Count();
+    EXPECT_NO_THROW(CallCharacterLine(stream.stream, "mass = nan"));
+    EXPECT_FLOAT_EQ(DinoInfo[0].Mass, 0.0f);
+    EXPECT_GT(LoadDiagnostics::Instance().Count(), afterFirst);
+
+    EXPECT_NO_THROW(CallCharacterLine(
+        stream.stream, "ai = 99999999999999999999"));
+    EXPECT_EQ(DinoInfo[0].Clone, (std::numeric_limits<int>::max)());
+}
+
+TEST_F(ScriptPolicyTest, OverlongTextFieldTruncatesWithDiagnostic)
+{
+    ResetWeapon();
+    TempScript stream("");
+    ASSERT_NE(stream.stream, nullptr);
+
+    const std::string longPath(120, 'a');
+    const std::string line = "file = '" + longPath + "'";
+
+    EXPECT_NO_THROW(CallWeaponLine(stream.stream, line.c_str()));
+    EXPECT_EQ(std::strlen(WeapInfo[0].FName), sizeof(WeapInfo[0].FName) - 1);
+    EXPECT_GE(LoadDiagnostics::Instance().Count(), 1u);
+}
+
+TEST_F(ScriptPolicyTest, MissingQuotedValueClearsFieldWithDiagnostic)
+{
+    ResetWeapon();
+    TempScript stream("");
+    ASSERT_NE(stream.stream, nullptr);
+
+    EXPECT_NO_THROW(CallWeaponLine(stream.stream, "name = unquoted"));
+    EXPECT_STREQ(WeapInfo[0].Name, "");
+    EXPECT_GE(LoadDiagnostics::Instance().Count(), 1u);
+}
+
+TEST_F(ScriptPolicyTest, OutOfRangeIndexClampsWithDiagnostic)
+{
+    ResetCharacter();
+    TempScript stream("");
+    ASSERT_NE(stream.stream, nullptr);
+
+    EXPECT_NO_THROW(CallCharacterLine(stream.stream, "fearCall = 999"));
+    EXPECT_TRUE(DinoInfo[0].fearCall[63]);
+    EXPECT_GE(LoadDiagnostics::Instance().Count(), 1u);
+}
+
+TEST_F(ScriptPolicyTest, StrictModeHaltsOnRecoverableValues)
+{
+    LoadDiagnostics::Instance().SetMode(LoadMode::Strict);
+    ResetCharacter();
+    TempScript stream("");
+    ASSERT_NE(stream.stream, nullptr);
+
+    EXPECT_THROW(CallCharacterLine(stream.stream, "health = oops"),
+                 std::runtime_error);
+    EXPECT_THROW(CallCharacterLine(stream.stream, "mass = nan"),
+                 std::runtime_error);
+    EXPECT_THROW(CallCharacterLine(
+                     stream.stream, "ai = 99999999999999999999"),
+                 std::runtime_error);
+    EXPECT_THROW(CallCharacterLine(stream.stream, "fearCall = 999"),
+                 std::runtime_error);
+
+    ResetWeapon();
+    EXPECT_THROW(CallWeaponLine(stream.stream, "file = unquoted"),
+                 std::runtime_error);
+}
+
+TEST_F(ScriptPolicyTest, StrictModeStillAcceptsLegacyForms)
+{
+    LoadDiagnostics::Instance().SetMode(LoadMode::Strict);
+    ResetCharacter();
+    TempScript stream("");
+    ASSERT_NE(stream.stream, nullptr);
+
+    EXPECT_NO_THROW(CallCharacterLine(stream.stream, "health = 13.5"));
+    EXPECT_NO_THROW(CallCharacterLine(stream.stream, "scale0 = 1000.0"));
+    EXPECT_NO_THROW(CallCharacterLine(stream.stream, "mass = 120.5"));
+    EXPECT_EQ(DinoInfo[0].Health0, 13);
+    EXPECT_EQ(DinoInfo[0].Scale0, 1000);
+    EXPECT_EQ(LoadDiagnostics::Instance().Count(), 0u);
 }

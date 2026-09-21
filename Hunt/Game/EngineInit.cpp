@@ -10,6 +10,7 @@
 #include <fstream>
 #include "Core/ConfigParse.h"
 #include "Core/ConfigText.h"
+#include "Loaders/LoadDiagnostics.h"
 
 #ifdef _gl
 #include "Renderer/GLPerf.h"
@@ -281,6 +282,27 @@ void InitGameInfo()
 
 static void CreateDefaultConfig();
 static void LoadConfig();
+static void GetConfigPath(char* buf, size_t bufsz);
+
+// The load policy must be known before InitGameInfo() parses _RES.TXT.
+// config.cfg is re-read here for just this key (the full LoadConfig() runs
+// later in InitEngine); C2_STRICT_DATA overrides it for CI/mod authoring.
+static void LoadLoadPolicy()
+{
+  char configPath[MAX_PATH];
+  GetConfigPath(configPath, sizeof(configPath));
+
+  std::ifstream input(configPath, std::ios::binary);
+  if (input)
+  {
+    std::string text;
+    size_t nulBytes = 0;
+    if (ReadConfigText(input, text, nulBytes))
+      InitLoadPolicyFromConfigText(text.c_str());
+  }
+  InitLoadPolicyFromEnvironment();
+}
+
 void InitEngine()
 {
   FULLSCREEN   = true;
@@ -421,6 +443,7 @@ void InitEngine()
   WeaponPres = 1;
   MessageList.timeleft = 0;
 
+  LoadLoadPolicy();
   InitGameInfo();
 
   CreateFadeTab();

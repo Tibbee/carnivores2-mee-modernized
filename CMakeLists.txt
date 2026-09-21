@@ -293,6 +293,8 @@ if(MSVC)
         tests/test_command_line_parse.cpp
         tests/test_config_parse.cpp
         tests/test_config_text.cpp
+        tests/test_legacy_scalar_differential.cpp
+        tests/test_load_diagnostics.cpp
         tests/test_script_value_parse.cpp
         tests/test_game_mode.cpp
         tests/test_math.cpp
