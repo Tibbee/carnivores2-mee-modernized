@@ -85,6 +85,13 @@ inline constexpr float kShotInvestigationArrivalRadius = 512.0f;
 // straight to normal wander) until the reaction timer expires.
 inline constexpr float kShotSearchRadius = 2048.0f;
 
+// Contact-range awareness (see ShouldPromotePursuitToTracking): a creature
+// following a remembered event position notices the hunter when the hunter is
+// physically inside its attack reach, and keeps tracking for this long.
+// Matches the direct-hit reaction window so defending a contact-range
+// intrusion lasts as long as an authored hit response.
+inline constexpr int kCloseRangeAwarenessTime = 60 * 1000;
+
 // A hunter event (heard shot or direct hit) is a stronger stimulus than
 // passive detection, so the event reaction uses the species' authored
 // aggression range multiplied by this scale. A predator with a large range

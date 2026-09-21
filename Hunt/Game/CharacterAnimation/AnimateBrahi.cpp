@@ -111,6 +111,12 @@ TBEGIN:
 			else if (!fleeMode)
 			{
 				attacking = !fixedPursuit && tracksHunter;
+				// A creature promoted by contact-range awareness must be able to
+				// calm down again. This animator only decrements the fear timer
+				// while fleeing, so an active tracking lock needs its own tick;
+				// otherwise the promoted pursuit never expires.
+				if (tracksHunter && cptr->AfraidTime > 0)
+					cptr->AfraidTime -= TimeDt;
 				if (!fixedPursuit && (tracksHunter || cptr->packId < 0)) {
 					cptr->tgx = PlayerX;
 					cptr->tgz = PlayerZ;

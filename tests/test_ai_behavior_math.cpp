@@ -211,3 +211,28 @@ TEST(AIBehaviorMathTest, DistantReactionsGetEnoughTravelTime)
     EXPECT_EQ(ShotInvestigationTimeForTravel(base, 1.0e7f, 1.0f),
               kShotInvestigationTravelCap);
 }
+
+TEST(AIBehaviorMathTest, ContactRangePromotesFixedPursuitToTracking)
+{
+    constexpr float reach = 400.0f;
+    constexpr float reachSquared = reach * reach;
+
+    // A hunter inside the reach of an investigating or retaliating creature
+    // is treated as detected, so species without sight/scent stay dangerous.
+    EXPECT_TRUE(ShouldPromotePursuitToTracking(
+        true, true, 399.0f * 399.0f, reachSquared));
+    // Exactly at the reach still counts as contact.
+    EXPECT_TRUE(ShouldPromotePursuitToTracking(
+        true, true, reachSquared, reachSquared));
+    // Outside the reach, a remembered event point still never kills.
+    EXPECT_FALSE(ShouldPromotePursuitToTracking(
+        true, true, 401.0f * 401.0f, reachSquared));
+    // Vertical separation (a hunter below a cliff) blocks contact awareness.
+    EXPECT_FALSE(ShouldPromotePursuitToTracking(
+        true, false, 10.0f, reachSquared));
+    // Flee reactions keep their stored direction and stay non-lethal.
+    EXPECT_FALSE(ShouldPromotePursuitToTracking(
+        false, true, 10.0f, reachSquared));
+    // Species without an authored attack reach never promote this way.
+    EXPECT_FALSE(ShouldPromotePursuitToTracking(true, true, 10.0f, 0.0f));
+}

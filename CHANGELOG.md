@@ -12,6 +12,19 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
 ## [Unreleased]
 
 ### Fixed
+- Restore the threat of species that have no active sight or scent. A
+  creature in a fixed pursuit (shot investigation or hit retaliation) now
+  treats a hunter who physically enters its authored attack reach as detected
+  and promotes the reaction to exact tracking for 60 seconds. Defending
+  sauropods (Amphicoelias, Brontosaurus) and wounded aquatic predators are
+  dangerous again without gaining perception they were not authored to have; a
+  remembered event position at a distance still never authorizes a kill, and
+  flee reactions remain non-lethal.
+- Let a reacting dangerous fish (Mosasaurus, Lacunepa) use its ordinary
+  in-water proximity sense during a shot or hit reaction instead of only while
+  idle. A wounded aquatic predator no longer loses the ability to hunt a
+  hunter it can sense, and re-shooting it no longer refreshes a harmless
+  pursuit instead of a real one.
 - Hunter events (heard shots and direct hits) now use the species' authored
   aggression range scaled by `kHunterEventRangeScale` (2.5) instead of the
   binary rules that preceded it. A predator whose range covers the event

@@ -99,3 +99,19 @@ inline bool ShouldScheduleNoticeAnimation(HunterAwarenessState awareness)
 {
     return !IsTimedHunterReactionState(awareness);
 }
+
+// A creature following a remembered event position (shot investigation or hit
+// retaliation) still notices a hunter who physically enters its attack reach.
+// Contact-range presence is stronger evidence than the stored event point, so
+// the fixed pursuit upgrades to exact tracking. The stored point alone never
+// authorizes a kill at a distance, and flee reactions are not affected. This
+// grants no active sight or smell: a species authored not to look or smell for
+// the hunter still ignores it while idle.
+inline bool ShouldPromotePursuitToTracking(bool isFixedPursuit,
+                                           bool verticalInRange,
+                                           float hunterDistanceSquared,
+                                           float attackReachSquared)
+{
+    return isFixedPursuit && verticalInRange && attackReachSquared > 0.0f
+        && hunterDistanceSquared <= attackReachSquared;
+}

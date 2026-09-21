@@ -166,6 +166,25 @@ TBEGIN:
 			}
 		}
 	}
+	else if (IsFixedHunterPursuit(cptr))
+	{
+		// A reacting aquatic predator keeps using its ordinary in-water
+		// proximity sense. Promote the fixed pursuit to exact tracking when
+		// the hunter is back in the water at attack range instead of forcing
+		// the creature to wait for bite range or the reaction timer. The
+		// debug/observer exemptions match the idle acquisition rule; contact
+		// range still promotes through the central check.
+		const bool aquaticAttack = pdistSq <= attackDist * attackDist
+			&& playerInWater && !DinoInfo[cptr->CType].dontSwimAway
+			&& MyHealth && !ObservMode && !DEBUG;
+		if (aquaticAttack || g_GameMode == GameMode::SurvivalMode) {
+			cptr->awareHunter = true;
+			cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
+			cptr->AfraidTime = static_cast<int>((10.f)) * 1024;
+			cptr->turny = 0;
+			cptr->lastTBeta = cptr->beta;
+		}
+	}
 
 	if (cptr->State)
 	{

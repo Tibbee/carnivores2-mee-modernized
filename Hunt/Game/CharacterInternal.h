@@ -119,6 +119,39 @@ inline bool TracksHunterExactly(const TCharacter* cptr)
     return cptr->hunterAwareness == HunterAwarenessState::TrackingHunter;
 }
 
+// Contact-range awareness: while a creature follows a remembered event
+// position it still notices a hunter who physically enters its attack reach.
+// The horizontal reach is the authored attack distance (scaled, matching the
+// aquatic kill check); the vertical tolerance mirrors the animator kill
+// branches (at least 256 units of altitude difference, or the species water
+// depth, plus the aquatic jumping allowance) so a creature on a cliff does not
+// notice a hunter standing far below. This grants no active sight or smell.
+inline bool ShouldPromoteFixedPursuitToTracking(const TCharacter* cptr,
+                                                const Vector3d& hunterPosition)
+{
+    const TDinoInfo& dino = DinoInfo[cptr->CType];
+    const float attackReach = dino.killDist * cptr->scale;
+    if (attackReach <= 0.0f)
+        return false;
+
+    float verticalReach = dino.Aquatic
+        ? static_cast<float>(cptr->spcDepth)
+        : static_cast<float>(dino.waterLevel);
+    if (verticalReach < 256.0f)
+        verticalReach = 256.0f;
+    if (dino.Aquatic && AIInfo[cptr->Clone].jumper
+        && cptr->Phase == dino.jumpAnim)
+        verticalReach += 80.0f;
+
+    const float dx = hunterPosition.x - cptr->pos.x;
+    const float dz = hunterPosition.z - cptr->pos.z;
+
+    return ShouldPromotePursuitToTracking(
+        IsFixedHunterPursuit(cptr),
+        fabs(hunterPosition.y - cptr->pos.y) <= verticalReach + 20.0f,
+        dx * dx + dz * dz, attackReach * attackReach);
+}
+
 inline void SetPackLeaderTarget(TCharacter* cptr, bool flee)
 {
     if (cptr->packId < 0 || !Packs[cptr->packId].leader) return;
