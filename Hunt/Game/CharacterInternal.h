@@ -206,26 +206,18 @@ inline void ClearHunterReaction(TCharacter* cptr)
 // creature reaches it, the target sits behind it and it turns back, which
 // looks like circling. Extend the point along the flee direction so the
 // creature keeps running while the reaction lasts.
+// Fixed flee reactions store a destination point; once the creature reaches
+// it, extend the leg along the creature's own heading so the escape keeps
+// running instead of orbiting the reached point (see ExtendFleeDestination).
 inline void ExtendFixedFleeTarget(TCharacter* cptr)
 {
-    const float dx = cptr->tgx - cptr->pos.x;
-    const float dz = cptr->tgz - cptr->pos.z;
-    const float distanceSq = dx * dx + dz * dz;
-    if (distanceSq >= 512.0f * 512.0f)
+    if (!ExtendFleeDestination(cptr->pos.x, cptr->pos.z,
+            cptr->lookx, cptr->lookz, kShotInvestigationArrivalRadius,
+            2048.0f, cptr->tgx, cptr->tgz))
         return;
 
-    float nx;
-    float nz;
-    if (distanceSq > 1.0f) {
-        const float inv = 1.0f / sqrt(distanceSq);
-        nx = dx * inv;
-        nz = dz * inv;
-    } else {
-        nx = cptr->lookx;
-        nz = cptr->lookz;
-    }
-    cptr->tgx = ClampCharacterTargetCoordinate(cptr->pos.x + nx * 2048.0f);
-    cptr->tgz = ClampCharacterTargetCoordinate(cptr->pos.z + nz * 2048.0f);
+    cptr->tgx = ClampCharacterTargetCoordinate(cptr->tgx);
+    cptr->tgz = ClampCharacterTargetCoordinate(cptr->tgz);
 }
 
 // Pack following helpers

@@ -214,3 +214,27 @@ inline bool ShouldPromotePursuitToTracking(bool isFixedPursuit,
     return isFixedPursuit && verticalInRange && attackReachSquared > 0.0f
         && hunterDistanceSquared <= attackReachSquared;
 }
+
+// A fixed flee reaction stores a destination point, not a direction. When the
+// creature reaches it the reaction must continue along the direction the
+// creature is already running: extending along the bearing from the creature
+// to the reached point re-anchors ahead of any creature that overshot or
+// swung wide of it, which turns the escape into a local orbit around the
+// point. The engine turns and moves a creature along its facing, so the unit
+// look vector is its travel direction; extending along it keeps the run
+// straight and leaves no steering error to turn on. Returns true when the leg
+// was extended.
+inline bool ExtendFleeDestination(float positionX, float positionZ,
+                                  float lookX, float lookZ,
+                                  float arrivalRadius, float legLength,
+                                  float& destinationX, float& destinationZ)
+{
+    const float dx = destinationX - positionX;
+    const float dz = destinationZ - positionZ;
+    if (dx * dx + dz * dz >= arrivalRadius * arrivalRadius)
+        return false;
+
+    destinationX = positionX + lookX * legLength;
+    destinationZ = positionZ + lookZ * legLength;
+    return true;
+}

@@ -518,9 +518,9 @@ void UpdateHunterNavigation(TCharacter& character)
 	if (!IsTimedHunterReaction(cptr))
 		cptr->AfraidTime = TickUntimedReaction(cptr->AfraidTime, TimeDt);
 
-	// Fixed flee: the stored point is behind the creature once reached, so the
-	// flee direction is extended and the creature keeps running instead of
-	// turning back and circling.
+	// Fixed flee: once the stored point is reached, extend the leg along the
+	// creature's heading so the escape keeps running instead of orbiting the
+	// point (extending along the bearing turned overshooting creatures back).
 	if (IsFixedHunterFlee(cptr)) {
 		ExtendFixedFleeTarget(cptr);
 		return;
