@@ -66,6 +66,11 @@ inline float GetCharacterAggressionRange(const TCharacter* cptr)
 {
     const TDinoInfo& dino = DinoInfo[cptr->CType];
     const TAIInfo& behavior = AIInfo[cptr->Clone];
+    // A species-level "agressMulti" override replaces the clone table value;
+    // absent (0) keeps the legacy AI-family default. The Brachiosaurus branch
+    // is a legacy formula and is not affected by this override.
+    const int aggressMulti = EffectiveAggressMulti(
+        DinoAggressMulti[cptr->CType], behavior.agressMulti);
     float aggressionRange;
 
     if (cptr->Clone == AI_BRACH) {
@@ -73,13 +78,13 @@ inline float GetCharacterAggressionRange(const TCharacter* cptr)
     } else if (dino.Aquatic && cptr->Clone != AI_TREX) {
         const int optionAggression = dino.DangerFish ? OptAgres : 0;
         aggressionRange = GameplayViewRadiusCells(ctViewR) * dino.aggress
-            + optionAggression / static_cast<float>(behavior.agressMulti);
+            + optionAggression / static_cast<float>(aggressMulti);
     } else if (behavior.carnivore
                && (!behavior.iceAge || cptr->Clone == AI_WOLF)) {
         aggressionRange = GameplayViewRadiusCells(ctViewR) * dino.aggress
-            + OptAgres / static_cast<float>(behavior.agressMulti);
+            + OptAgres / static_cast<float>(aggressMulti);
     } else {
-        aggressionRange = behavior.agressMulti * dino.aggress
+        aggressionRange = aggressMulti * dino.aggress
             + OptAgres / 8.0f;
     }
 

@@ -240,6 +240,12 @@ GLOBAL unique_obj_ptr<TModel> Binocular;
 
 GLOBAL TDinoInfo DinoInfo[DINOINFO_MAX];
 
+// Optional per-species override of the AI-family aggression multiplier
+// (AIInfo[].agressMulti), set by the _RES.TXT key "agressMulti". 0 means the
+// clone table default applies. Kept beside DinoInfo because TDinoInfo is
+// size-locked.
+GLOBAL int DinoAggressMulti[DINOINFO_MAX];
+
 GLOBAL TMenuDinoInfo MenuDinoInfo[16];
 
 GLOBAL int sendGunShot;

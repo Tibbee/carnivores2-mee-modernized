@@ -120,6 +120,15 @@ inline bool HunterHearsCalls(int clone)
     return clone != AI_DIMOR && clone != AI_PTERA && clone != AI_BRACH;
 }
 
+// A species-level override of the AI-family aggression multiplier wins when
+// authored in _RES.TXT ("agressMulti"); otherwise the clone table default
+// applies. Values below 1 count as absent, so a bad mod value cannot divide
+// by zero or invert the formula.
+inline int EffectiveAggressMulti(int speciesOverride, int cloneDefault)
+{
+    return speciesOverride >= 1 ? speciesOverride : cloneDefault;
+}
+
 // A tracking pack member publishes its own position as the pack's hunt
 // anchor. The anchor is fresh while the tracker keeps reporting; once it goes
 // stale the pack falls back to the leader position. reportedAt == 0 means no

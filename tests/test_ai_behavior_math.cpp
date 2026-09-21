@@ -327,6 +327,14 @@ TEST(AIBehaviorMathTest, FixedReactionsAlarmThePack)
     EXPECT_FALSE(ShouldAlarmPack(HunterAwarenessState::None));
 }
 
+TEST(AIBehaviorMathTest, SpeciesAggressMultiOverrideWinsWhenPresent)
+{
+    EXPECT_EQ(EffectiveAggressMulti(2, 8), 2);
+    EXPECT_EQ(EffectiveAggressMulti(8, 8), 8);
+    EXPECT_EQ(EffectiveAggressMulti(0, 8), 8);
+    EXPECT_EQ(EffectiveAggressMulti(-4, 8), 8);
+}
+
 TEST(AIBehaviorMathTest, HunterStimulusEligibilityRules)
 {
     // Gunshots: aquatic species ignore them, except the T-Rex; the hunt dog

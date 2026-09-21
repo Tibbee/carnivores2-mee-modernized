@@ -2005,6 +2005,10 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	if (strstr(line, "lndspd")) DinoInfo[TotalC].lndspd = ReadScriptFloatField(value, line, "character land speed");
 	if (strstr(line, "divspd")) DinoInfo[TotalC].divspd = ReadScriptFloatField(value, line, "character dive speed");
 	if (strstr(line, "aggress")) DinoInfo[TotalC].aggress = ReadScriptIntField(value, line, "character aggression");
+	// Per-species override of the AI-family aggression multiplier; absent or
+	// non-positive keeps the clone table default (AIInfo[].agressMulti).
+	if (strstr(line, "agressMulti"))
+		DinoAggressMulti[TotalC] = ReadScriptIntField(value, line, "character aggression multiplier");
 	if (strstr(line, "flydist")) DinoInfo[TotalC].flyDist = ReadScriptIntField(value, line, "character fly distance");
 	if (strstr(line, "killdist")) DinoInfo[TotalC].killDist = ReadScriptLegacyIntField(value, line, "character kill distance");
 	if (strstr(line, "radar")) readBool(value, DinoInfo[TotalC].onRadar);
