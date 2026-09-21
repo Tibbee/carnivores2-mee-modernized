@@ -128,6 +128,12 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   behind or beside a creature that had overshot it, so a shot animal could
   swing around the point instead of escaping; the heading extension leaves
   no steering error for the run to turn on.
+- Pick walkable flee destinations. The flee point is validated against the
+  placement map (water, blocked cells, steep slopes) and the direction is
+  rotated in 15-degree steps until a crossable point is found, so a
+  panicked creature no longer runs into a lake or cliff and follows its
+  edge in circles. The ideal away point remains the fallback when no
+  heading is placeable.
 
 ## [v1.1.9-modernized] - 2026-09-20
 
