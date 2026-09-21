@@ -47,23 +47,9 @@ TBEGIN:
 
 	float tdistSq = targetdx * targetdx + targetdz * targetdz;
 
-	float playerdx, playerdz;
-	if (cptr->Clone == AI_ALLO) {
-		playerdx = PlayerX - cptr->pos.x - cptr->lookx * 100 * cptr->scale;
-		playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 100 * cptr->scale;
-	} else if (cptr->Clone == AI_CHASM || cptr->Clone == AI_HOG || cptr->Clone == AI_BRONT || cptr->Clone == AI_BEAR ||
-		cptr->Clone == AI_WOLF || cptr->Clone == AI_RHINO || cptr->Clone == AI_SMILO) {
-		playerdx = PlayerX - cptr->pos.x - cptr->lookx * 300 * cptr->scale;
-		playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 300 * cptr->scale;
-	} else if (AIInfo[cptr->Clone].carnivore) {
-		playerdx = PlayerX - cptr->pos.x - cptr->lookx * 108;
-		playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
-	} else {
-		playerdx = PlayerX - cptr->pos.x;
-		playerdz = PlayerZ - cptr->pos.z;
-	}
-
-	float pdistSq = playerdx * playerdx + playerdz * playerdz;
+	// One shared geometry function keeps every family's hunter distance and
+	// flee direction identical to the awareness core's copy.
+	const THunterGeometry hunter = GetHunterGeometry(cptr);
 
 	
 
@@ -87,24 +73,17 @@ TBEGIN:
 		const bool tracksHunter = TracksHunterExactly(cptr);
 		if (!(AIInfo[cptr->Clone].carnivore
 			&& (!AIInfo[cptr->Clone].iceAge || cptr->Clone == AI_WOLF))) {
-			if (pdistSq < 6000 * 6000 && cptr->Clone != AI_DEER) cptr->AfraidTime = 8000;
+			if (hunter.distanceSquared < 6000 * 6000 && cptr->Clone != AI_DEER) cptr->AfraidTime = 8000;
 		}
 
 		// The authored flee/pursue rule lives in the awareness core; this
 		// animator only supplies the family distance (the hunter is always
 		// attackable for this family).
-		const bool fleeMode = ShouldFleeHunter(*cptr, pdistSq, true);
+		const bool fleeMode = ShouldFleeHunter(*cptr, hunter.distanceSquared, true);
 
 		if (fleeMode) {
-			if (!fixedFlee && (tracksHunter || cptr->packId < 0)) {
-				nv.x = playerdx;
-				nv.z = playerdz;
-				nv.y = 0;
-				NormVector(nv, 2048.f);
-				cptr->tgx = cptr->pos.x - nv.x;
-				cptr->tgz = cptr->pos.z - nv.z;
-			}
-			else if (!fixedFlee) SetPackLeaderTarget(cptr, true);
+			// The navigator owns the flee destination; only the reaction
+			// bookkeeping stays in the animator.
 			cptr->tgtime = 0;
 			if (AIInfo[cptr->Clone].carnivore && !fixedReaction)
 				cptr->AfraidTime -= TimeDt;
@@ -129,12 +108,8 @@ TBEGIN:
 		}
 		else
 		{
-			if (!fixedPursuit && (tracksHunter || cptr->packId < 0)) {
-				cptr->tgx = PlayerX;
-				cptr->tgz = PlayerZ;
-				cptr->tgtime = 0;
-			}
-			else if (!fixedPursuit) SetPackLeaderTarget(cptr, false);
+			// The navigator owns the live tracking destination / pack-leader
+			// follow target; the animator only raises the pack alert.
 			if (!fixedReaction && tracksHunter && cptr->packId >= 0
 				&& AIInfo[cptr->Clone].carnivore) {
 				Packs[cptr->packId].alert = true;
@@ -143,13 +118,13 @@ TBEGIN:
 
 		if (!fixedReaction && (tracksHunter || cptr->packId < 0) && AIInfo[cptr->Clone].jumper) {
 			if (!(cptr->StateF & csONWATER))
-				if (pdistSq < (1324 * cptr->scale) * (1324 * cptr->scale) && pdistSq > (900 * cptr->scale) * (900 * cptr->scale))
-					if (AngleDifference(cptr->alpha, FindVectorAlpha(playerdx, playerdz)) < 0.2f)
+				if (hunter.distanceSquared < (1324 * cptr->scale) * (1324 * cptr->scale) && hunter.distanceSquared > (900 * cptr->scale) * (900 * cptr->scale))
+					if (AngleDifference(cptr->alpha, FindVectorAlpha(hunter.dx, hunter.dz)) < 0.2f)
 						cptr->Phase = DinoInfo[cptr->CType].jumpAnim;
 		}
 
 		if (!fixedReaction && (tracksHunter || cptr->packId < 0)
-			&& pdistSq < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist
+			&& hunter.distanceSquared < DinoInfo[cptr->CType].killDist * DinoInfo[cptr->CType].killDist
 			&& DinoInfo[cptr->CType].killDist > 0) {
 			int killAlt = DinoInfo[cptr->CType].waterLevel;
 			if (killAlt < 256) killAlt = 256;
@@ -185,7 +160,7 @@ TBEGIN:
 
 	// Step 4: Extend culling distance by 4 units (~1024 world units)
 	// to allow smoothstep fade-out to complete
-	if (pdistSq > ((charViewR + 20 + 4) * 256) * ((charViewR + 20 + 4) * 256))
+	if (hunter.distanceSquared > ((charViewR + 20 + 4) * 256) * ((charViewR + 20 + 4) * 256))
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 
@@ -193,7 +168,7 @@ TBEGIN:
 	{
 		if (cptr->Clone == AI_VELO || cptr->Clone == AI_CERAT || !AIInfo[cptr->Clone].carnivore) cptr->AfraidTime = 0;
 
-		if (pdistSq < 1024.f * 1024.f && cptr->Clone == AI_DEER && !ObservMode && !DEBUG) {
+		if (hunter.distanceSquared < 1024.f * 1024.f && cptr->Clone == AI_DEER && !ObservMode && !DEBUG) {
 			cptr->State = 1;
 			cptr->AfraidTime = (6 + rRand(8)) * 1024;
 			cptr->Phase = DinoInfo[cptr->CType].runAnim;
@@ -238,7 +213,7 @@ TBEGIN:
 	}
 
 NOTHINK:
-	if (pdistSq < AIInfo[cptr->Clone].pWMin * AIInfo[cptr->Clone].pWMin && (AIInfo[cptr->Clone].carnivore || AIInfo[cptr->Clone].iceAge)) cptr->NoFindCnt = 0;
+	if (hunter.distanceSquared < AIInfo[cptr->Clone].pWMin * AIInfo[cptr->Clone].pWMin && (AIInfo[cptr->Clone].carnivore || AIInfo[cptr->Clone].iceAge)) cptr->NoFindCnt = 0;
 	if (cptr->NoFindCnt) cptr->NoFindCnt--;
 	else
 	{
@@ -250,7 +225,7 @@ NOTHINK:
 
 		//if (!AIInfo[cptr->Clone].carnivore || AIInfo[cptr->Clone].iceAge) weaveCondition = weaveCondition && cptr->AfraidTime;
 
-		if (cptr->State && pdistSq > DinoInfo[cptr->CType].weaveRange * DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
+		if (cptr->State && hunter.distanceSquared > DinoInfo[cptr->CType].weaveRange * DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
 		{
 			float rTD;
 			if (AIInfo[cptr->Clone].carnivore && !AIInfo[cptr->Clone].iceAge) {

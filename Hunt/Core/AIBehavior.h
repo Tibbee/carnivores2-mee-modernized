@@ -5,6 +5,8 @@
 
 #include <cstdint>
 
+#include "Constants.h"
+
 enum class HunterAwarenessState : std::uint8_t
 {
     None,
@@ -98,6 +100,35 @@ inline bool ShouldRestartTRexHitPursuit(HunterAwarenessState priorAwareness)
 inline bool ShouldScheduleNoticeAnimation(HunterAwarenessState awareness)
 {
     return !IsTimedHunterReactionState(awareness);
+}
+
+// The authored look offset moves the hunter distance to the creature's
+// reaction point (snout or head) for a few families. Kept as a pure table so
+// the shared hunter-geometry function and the animators cannot drift. Pass
+// AIInfo[clone].carnivore for the fallback rule.
+inline float HunterLookOffset(int clone, float scale, bool carnivore)
+{
+    switch (clone)
+    {
+    case AI_ALLO:
+    case AI_MOSA:
+    case AI_FISH:
+        return 100.0f * scale;
+    case AI_CHASM:
+    case AI_HOG:
+    case AI_BRONT:
+    case AI_BEAR:
+    case AI_WOLF:
+    case AI_RHINO:
+    case AI_SMILO:
+        return 300.0f * scale;
+    case AI_BRACHDANGER:
+    case AI_LANDBRACH:
+    case AI_TREX:
+        return 108.0f;
+    default:
+        return carnivore ? 108.0f : 0.0f;
+    }
 }
 
 // The authored flee/pursue rule shared by the standard predator family

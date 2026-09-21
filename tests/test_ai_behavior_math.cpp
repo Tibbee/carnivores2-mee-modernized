@@ -258,3 +258,22 @@ TEST(AIBehaviorMathTest, AuthoredThreatFleesForEveryAuthoredReason)
     EXPECT_TRUE(ShouldFleeFromAuthoredThreat(
         false, false, true, false, false, true));
 }
+
+TEST(AIBehaviorMathTest, HunterLookOffsetMatchesTheAnimatorTable)
+{
+    // 100 x scale: Allosaurus and the aquatic predators.
+    EXPECT_FLOAT_EQ(HunterLookOffset(AI_ALLO, 2.0f, false), 200.0f);
+    EXPECT_FLOAT_EQ(HunterLookOffset(AI_MOSA, 1.5f, true), 150.0f);
+    EXPECT_FLOAT_EQ(HunterLookOffset(AI_FISH, 1.0f, true), 100.0f);
+    // 300 x scale: the large-bodied Huntable species.
+    EXPECT_FLOAT_EQ(HunterLookOffset(AI_CHASM, 1.5f, false), 450.0f);
+    EXPECT_FLOAT_EQ(HunterLookOffset(AI_BRONT, 2.0f, false), 600.0f);
+    // Fixed head offset for the predators and the Brachiosaurus family.
+    EXPECT_FLOAT_EQ(HunterLookOffset(AI_TREX, 1.0f, true), 108.0f);
+    EXPECT_FLOAT_EQ(HunterLookOffset(AI_BRACHDANGER, 1.0f, false), 108.0f);
+    EXPECT_FLOAT_EQ(HunterLookOffset(AI_LANDBRACH, 1.0f, false), 108.0f);
+    EXPECT_FLOAT_EQ(HunterLookOffset(AI_VELO, 1.0f, true), 108.0f);
+    // No authored head offset: herbivores and herd animals.
+    EXPECT_FLOAT_EQ(HunterLookOffset(AI_DEER, 1.0f, false), 0.0f);
+    EXPECT_FLOAT_EQ(HunterLookOffset(AI_MAMM, 1.0f, false), 0.0f);
+}

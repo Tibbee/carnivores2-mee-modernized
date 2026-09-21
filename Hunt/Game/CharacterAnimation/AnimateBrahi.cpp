@@ -29,10 +29,7 @@ TBEGIN:
 
 	float tdist = static_cast<float>(sqrt(targetdx * targetdx + targetdz * targetdz));
 
-	float playerdx = PlayerX - cptr->pos.x - cptr->lookx * 108;
-	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 108;
-	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
-	const float pdistSq = playerdx * playerdx + playerdz * playerdz;
+	const THunterGeometry hunter = GetHunterGeometry(cptr);
 
 	bool playerAttackable = ((GetLandUpH(PlayerX, PlayerZ) - GetLandH(PlayerX, PlayerZ)) <= 550);
 	bool attacking = false;
@@ -68,7 +65,7 @@ TBEGIN:
 		const bool tracksHunter = TracksHunterExactly(cptr);
 		// The authored flee/pursue rule lives in the awareness core;
 		// hunterAttackable carries the Brahi altitude rule.
-		const bool fleeMode = ShouldFleeHunter(*cptr, pdistSq, playerAttackable);
+		const bool fleeMode = ShouldFleeHunter(*cptr, hunter.distanceSquared, playerAttackable);
 
 		if (!autoCorrect) {
 			if (GetLandUpH(cptr->pos.x, cptr->pos.z) - GetLandH(cptr->pos.x, cptr->pos.z) > 550) {
@@ -85,12 +82,7 @@ TBEGIN:
 				// otherwise the promoted pursuit never expires.
 				if (tracksHunter && cptr->AfraidTime > 0)
 					cptr->AfraidTime -= TimeDt;
-				if (!fixedPursuit && (tracksHunter || cptr->packId < 0)) {
-					cptr->tgx = PlayerX;
-					cptr->tgz = PlayerZ;
-					cptr->tgtime = 0;
-				}
-				else if (!fixedPursuit) SetPackLeaderTarget(cptr, false);
+				// The navigator owns the live tracking / pack-leader target.
 				if (!fixedReaction && tracksHunter && cptr->packId >= 0) {
 					Packs[cptr->packId].alert = true;
 				}
@@ -98,15 +90,7 @@ TBEGIN:
 			else
 			{
 				attacking = false;
-				if (!fixedFlee && (tracksHunter || cptr->packId < 0)) {
-					nv.x = playerdx;
-					nv.z = playerdz;
-					nv.y = 0;
-					NormVector(nv, 2048.f);
-					cptr->tgx = cptr->pos.x - nv.x;
-					cptr->tgz = cptr->pos.z - nv.z;
-				}
-				else if (!fixedFlee) SetPackLeaderTarget(cptr, true);
+				// The navigator owns the flee destination.
 				cptr->tgtime = 0;
 				if (!fixedReaction) cptr->AfraidTime -= TimeDt;
 
@@ -130,7 +114,7 @@ TBEGIN:
 		}
 
 		if (!fixedReaction && (tracksHunter || cptr->packId < 0)
-			&& pdist < DinoInfo[cptr->CType].killDist
+			&& hunter.distance < DinoInfo[cptr->CType].killDist
 			&& DinoInfo[cptr->CType].killDist > 0) //killdist = 600
 			if (fabs(PlayerY - cptr->pos.y - 120) < 256)
 			{
@@ -161,7 +145,7 @@ TBEGIN:
 
 	// Step 4: Extend culling distance by 4 units (~1024 world units)
 	// to allow smoothstep fade-out to complete
-	if (pdist > (charViewR + 20 + 4) * 256)
+	if (hunter.distance > (charViewR + 20 + 4) * 256)
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 	if (!cptr->State)
@@ -206,13 +190,13 @@ TBEGIN:
 NOTHINK:
 	
 	if ((cptr->Clone == AI_LANDBRACH || cptr->State) && !autoCorrect) {
-		if (pdist < 2048) cptr->NoFindCnt = 0;
+		if (hunter.distance < 2048) cptr->NoFindCnt = 0;
 		if (cptr->NoFindCnt) cptr->NoFindCnt--;
 		else
 		{
 			cptr->tgalpha = CorrectedAlpha(FindVectorAlpha(targetdx, targetdz), cptr->alpha);//FindVectorAlpha(targetdx, targetdz);
 
-			if (cptr->State && pdist > DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
+			if (cptr->State && hunter.distance > DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
 			{
 				cptr->tgalpha += static_cast<float>(sin(RealTime / 824.f)) / 4.f;
 				if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
@@ -238,7 +222,7 @@ NOTHINK:
 	} else {
 		cptr->tgalpha = FindVectorAlpha(targetdx, targetdz);
 
-		if (cptr->State && pdist > DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
+		if (cptr->State && hunter.distance > DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
 		{
 			cptr->tgalpha += static_cast<float>(sin(RealTime / 824.f)) / 4.f;
 			if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;

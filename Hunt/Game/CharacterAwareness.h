@@ -37,6 +37,19 @@ struct THunterStimulus
 // eligible for this stimulus type, whether or not its awareness changed.
 bool ApplyHunterStimulus(TCharacter& character, const THunterStimulus& stimulus);
 
+// Hunter position relative to the creature's reaction point. The look-offset
+// table lives in HunterLookOffset, so every animator and the navigator measure
+// the same distance and flee direction for the same species.
+struct THunterGeometry
+{
+    float dx = 0.0f;
+    float dz = 0.0f;
+    float distanceSquared = 0.0f;
+    float distance = 0.0f;
+};
+
+THunterGeometry GetHunterGeometry(const TCharacter* cptr);
+
 // The authored flee/pursue decision for the standard predator family
 // (AnimateHuntable, AnimateBrahi and their disabled copies). hunterDistanceSquared
 // is the family's hunter distance; hunterAttackable carries the Brahi altitude
@@ -46,9 +59,8 @@ bool ShouldFleeHunter(const TCharacter& character, float hunterDistanceSquared,
                       bool hunterAttackable);
 
 // The single owner of hunter-directed navigation. Called once per creature per
-// frame after the reaction timers have been applied: a fixed flee reaction
-// keeps running along its stored direction, and a fixed pursuit that reached
-// its stored event position searches the area around it. Live tracking and
-// live flee targets still live in the animators until the flee/pursue decision
-// moves here; wandering and pack movement stay with the animators.
+// frame after the reaction timers have been applied. It owns the fixed flee
+// direction, the local search after a fixed pursuit, and the live tracking /
+// live flee destinations for the reacting families. Wandering and pack
+// movement stay with the animators; they only read the response.
 void UpdateHunterNavigation(TCharacter& character);

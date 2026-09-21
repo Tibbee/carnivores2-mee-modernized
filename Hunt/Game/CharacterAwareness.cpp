@@ -197,6 +197,155 @@ void SelectHunterSearchTarget(TCharacter* cptr)
 	}
 }
 
+enum class HunterAIFamily
+{
+	None,
+	Standard,
+	Brahi,
+	TRex,
+	Fish
+};
+
+// The animator a species belongs to decides which live-target policy applies.
+// The clone lists mirror the animator dispatch in CharacterAnimation.cpp.
+HunterAIFamily GetHunterAIFamily(const TCharacter* cptr)
+{
+	switch (cptr->Clone)
+	{
+	case AI_PARA:
+	case AI_ANKY:
+	case AI_PACH:
+	case AI_STEGO:
+	case AI_ALLO:
+	case AI_CHASM:
+	case AI_VELO:
+	case AI_SPINO:
+	case AI_CERAT:
+	case AI_BRONT:
+	case AI_HOG:
+	case AI_WOLF:
+	case AI_RHINO:
+	case AI_DEER:
+	case AI_SMILO:
+	case AI_MAMM:
+	case AI_BEAR:
+		return HunterAIFamily::Standard;
+	case AI_BRACHDANGER:
+	case AI_LANDBRACH:
+		return HunterAIFamily::Brahi;
+	case AI_TREX:
+		return HunterAIFamily::TRex;
+	case AI_MOSA:
+	case AI_FISH:
+		return HunterAIFamily::Fish;
+	default:
+		return HunterAIFamily::None;
+	}
+}
+
+void SetHunterPlayerTarget(TCharacter* cptr)
+{
+	cptr->tgx = PlayerX;
+	cptr->tgz = PlayerZ;
+	cptr->tgtime = 0;
+}
+
+void SetHunterFleeTarget(TCharacter* cptr, float hunterDx, float hunterDz)
+{
+	Vector3d away;
+	away.x = hunterDx;
+	away.y = 0.0f;
+	away.z = hunterDz;
+	NormVector(away, 2048.0f);
+	cptr->tgx = cptr->pos.x - away.x;
+	cptr->tgz = cptr->pos.z - away.z;
+	cptr->tgtime = 0;
+}
+
+// Live hunter targets belong to an active response; idle and wandering
+// creatures keep their own destinations. A pack member can be woken by the
+// pack alert before its own State rises (the animators' alertInit block), so
+// that frame is included here as well; the guard mirrors the per-family
+// alertInit conditions. Fish acquire in their own idle block, so a fish
+// acquisition frame still lands its live target on the following frame.
+void UpdateLiveHunterNavigation(TCharacter* cptr, HunterAIFamily family)
+{
+	const bool packWake = cptr->State == 0
+		&& (family == HunterAIFamily::Standard
+			|| family == HunterAIFamily::Brahi
+			|| family == HunterAIFamily::TRex)
+		&& cptr->packId >= 0 && Packs[cptr->packId]._alert
+		&& (family == HunterAIFamily::Brahi
+			|| family == HunterAIFamily::TRex
+			|| MyHealth || AIInfo[cptr->Clone].carnivore);
+	if (cptr->State == 0 && !packWake)
+		return;
+
+	const bool fixedPursuit = IsFixedHunterPursuit(cptr);
+	const bool fixedFlee = IsFixedHunterFlee(cptr);
+	const bool tracksHunter = TracksHunterExactly(cptr);
+
+	switch (family)
+	{
+	case HunterAIFamily::Standard:
+	case HunterAIFamily::Brahi: {
+		const THunterGeometry hunter = GetHunterGeometry(cptr);
+		const bool hunterAttackable = family != HunterAIFamily::Brahi
+			|| (GetLandUpH(PlayerX, PlayerZ) - GetLandH(PlayerX, PlayerZ)) <= 550.0f;
+		if (ShouldFleeHunter(*cptr, hunter.distanceSquared, hunterAttackable)) {
+			if (!fixedFlee) {
+				if (tracksHunter || cptr->packId < 0)
+					SetHunterFleeTarget(cptr, hunter.dx, hunter.dz);
+				else
+					SetPackLeaderTarget(cptr, true);
+			}
+		}
+		else if (!fixedPursuit) {
+			if (tracksHunter || cptr->packId < 0)
+				SetHunterPlayerTarget(cptr);
+			else
+				SetPackLeaderTarget(cptr, false);
+		}
+		break;
+	}
+	case HunterAIFamily::TRex:
+		if (!fixedPursuit) {
+			if (tracksHunter)
+				SetHunterPlayerTarget(cptr);
+			else
+				SetPackLeaderTarget(cptr, false);
+		}
+		break;
+	case HunterAIFamily::Fish: {
+		const THunterGeometry hunter = GetHunterGeometry(cptr);
+		if (!fixedPursuit && tracksHunter
+			&& (DinoInfo[cptr->CType].DangerFish
+				|| g_GameMode == GameMode::SurvivalMode)) {
+			SetHunterPlayerTarget(cptr);
+			cptr->tdepth = PlayerY;
+
+			// Mosa target depth failsafes (kept from AnimateFish).
+			if (cptr->tdepth > GetLandUpH(cptr->tgx, cptr->tgz) - (cptr->spcDepth * 0.75)) {
+				cptr->tdepth = GetLandUpH(cptr->pos.x, cptr->pos.z) - (cptr->spcDepth * 0.75);
+			}
+
+			// Target above the player so the fish can reach jumping depth in time.
+			if (AIInfo[cptr->Clone].jumper && cptr->depth < cptr->tdepth) {
+				cptr->tdepth += (cptr->tdepth - cptr->depth) * 3;
+			}
+		}
+		else if (!fixedPursuit && !fixedFlee) {
+			SetHunterFleeTarget(cptr, hunter.dx, hunter.dz);
+			cptr->tdepth = GetLandH(cptr->pos.x, cptr->pos.z) +
+				((GetLandUpH(cptr->pos.x, cptr->pos.z) - GetLandH(cptr->pos.x, cptr->pos.z)) / 2);
+		}
+		break;
+	}
+	default:
+		break;
+	}
+}
+
 } // namespace
 
 bool ApplyHunterStimulus(TCharacter& character, const THunterStimulus& stimulus)
@@ -211,6 +360,18 @@ bool ApplyHunterStimulus(TCharacter& character, const THunterStimulus& stimulus)
 		return ApplyHunterCall(character, stimulus);
 	}
 	return false;
+}
+
+THunterGeometry GetHunterGeometry(const TCharacter* cptr)
+{
+	const float offset = HunterLookOffset(cptr->Clone, cptr->scale,
+		AIInfo[cptr->Clone].carnivore);
+	THunterGeometry geometry;
+	geometry.dx = PlayerX - cptr->pos.x - cptr->lookx * offset;
+	geometry.dz = PlayerZ - cptr->pos.z - cptr->lookz * offset;
+	geometry.distanceSquared = geometry.dx * geometry.dx + geometry.dz * geometry.dz;
+	geometry.distance = static_cast<float>(sqrt(geometry.distanceSquared));
+	return geometry;
 }
 
 bool ShouldFleeHunter(const TCharacter& character, float hunterDistanceSquared,
@@ -258,6 +419,9 @@ void UpdateHunterNavigation(TCharacter& character)
 
 	TCharacter* cptr = &character;
 
+	if (cptr->StateF == 0xFF)
+		return;
+
 	// Fixed flee: the stored point is behind the creature once reached, so the
 	// flee direction is extended and the creature keeps running instead of
 	// turning back and circling.
@@ -280,4 +444,6 @@ void UpdateHunterNavigation(TCharacter& character)
 			SelectHunterSearchTarget(cptr);
 		}
 	}
+
+	UpdateLiveHunterNavigation(cptr, GetHunterAIFamily(cptr));
 }

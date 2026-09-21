@@ -4,6 +4,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "../CharacterAwareness.h"
 #include "../CharacterInternal.h"
 
 // Global state imported from StateDefs.cpp
@@ -35,16 +36,14 @@ TBEGIN:
 	//	attackDist = DinoInfo[cptr->CType].aggress;
 	//}
 
-	float playerdx = PlayerX - cptr->pos.x - cptr->lookx * 100 *cptr->scale;
-	float playerdz = PlayerZ - cptr->pos.z - cptr->lookz * 100 *cptr->scale;
-	float pdistSq = playerdx * playerdx + playerdz * playerdz;
+	const THunterGeometry hunter = GetHunterGeometry(cptr);
 	const bool fixedPursuit = IsFixedHunterPursuit(cptr);
 	const bool fixedFlee = IsFixedHunterFlee(cptr);
 	const bool fixedReaction = fixedPursuit || fixedFlee;
 
 	// Step 4: Extend culling distance by 4 units (~1024 world units)
 	// to allow smoothstep fade-out to complete
-	if (pdistSq > ((charViewR + 20 + 4) * 256) * ((charViewR + 20 + 4) * 256)) {
+	if (hunter.distanceSquared > ((charViewR + 20 + 4) * 256) * ((charViewR + 20 + 4) * 256)) {
 		if (ReplaceCharacterForward(cptr)) {
 			goto TBEGIN;
 		}
@@ -70,7 +69,7 @@ TBEGIN:
 	// int32 above ctViewR 161 (wraps negative, killing all fish particles at high
 	// view distance). Same bug class as the MakeCall dminSq overflow (issue #1).
 	const float particleRange = static_cast<float>(ctViewR + 20) * 256.f;
-	if (pdistSq < particleRange * particleRange) {	//Only create particles within player render distance
+	if (hunter.distanceSquared < particleRange * particleRange) {	//Only create particles within player render distance
 		if (DinoInfo[cptr->CType].partCnt[cptr->Phase]) {
 			if (cptr->FTime > DinoInfo[cptr->CType].partFrame1[cptr->Phase] / cptr->pinfo->Animation[cptr->Phase].aniKPS
 				&& cptr->FTime < DinoInfo[cptr->CType].partFrame2[cptr->Phase] / cptr->pinfo->Animation[cptr->Phase].aniKPS) {
@@ -112,7 +111,7 @@ TBEGIN:
 	if (!cptr->State)
 	{
 
-		bool attackmode = pdistSq <= attackDist * attackDist && playerInWater && !DinoInfo[cptr->CType].dontSwimAway
+		bool attackmode = hunter.distanceSquared <= attackDist * attackDist && playerInWater && !DinoInfo[cptr->CType].dontSwimAway
 			&& MyHealth && !ObservMode && !DEBUG;
 		if (g_GameMode == GameMode::SurvivalMode) attackmode = true;
 		if (attackmode)	cptr->AfraidTime = static_cast<int>((10.f)) * 1024;
@@ -174,7 +173,7 @@ TBEGIN:
 		// the creature to wait for bite range or the reaction timer. The
 		// debug/observer exemptions match the idle acquisition rule; contact
 		// range still promotes through the central check.
-		const bool aquaticAttack = pdistSq <= attackDist * attackDist
+		const bool aquaticAttack = hunter.distanceSquared <= attackDist * attackDist
 			&& playerInWater && !DinoInfo[cptr->CType].dontSwimAway
 			&& MyHealth && !ObservMode && !DEBUG;
 		if (aquaticAttack || g_GameMode == GameMode::SurvivalMode) {
@@ -189,7 +188,7 @@ TBEGIN:
 	if (cptr->State)
 	{
 		const bool tracksHunter = TracksHunterExactly(cptr);
-		if (!fixedReaction && (pdistSq > attackDist * attackDist || !playerInWater))
+		if (!fixedReaction && (hunter.distanceSquared > attackDist * attackDist || !playerInWater))
 		{
 			cptr->AfraidTime -= TimeDt;
 
@@ -218,42 +217,11 @@ TBEGIN:
 
 		if (!fixedPursuit && tracksHunter
 			&& (DinoInfo[cptr->CType].DangerFish || g_GameMode == GameMode::SurvivalMode)) {
-			cptr->tgx = PlayerX;
-			cptr->tgz = PlayerZ;
-			cptr->tdepth = PlayerY;
-			cptr->tgtime = 0;
-
-
-			// Mosa Target Depth Failsafes
-			if (cptr->tdepth > GetLandUpH(cptr->tgx, cptr->tgz) - (cptr->spcDepth * 0.75)) {
-				cptr->tdepth = GetLandUpH(cptr->pos.x, cptr->pos.z) - (cptr->spcDepth * 0.75);
-			}
-
-			//Target above the player so it can get to jumping depth in time.
-			if (AIInfo[cptr->Clone].jumper) {
-				if (cptr->depth < cptr->tdepth) {
-					cptr->tdepth += (cptr->tdepth - cptr->depth) * 3;
-					//float haw = (GetLandUpH(cptr->tgx, cptr->tgz) - GetLandH(cptr->tgx, cptr->tgz));
-					//if (haw) cptr->tdepth *= (cptr->tdepth - GetLandH(cptr->tgx, cptr->tgz)) / haw;
-				}
-			}
-
-			if (!fixedReaction && tracksHunter && cptr->packId >= 0) {
+			// The navigator owns the live tracking target, its depth failsafes
+			// and the flee destination; only the pack alert stays here.
+			if (!fixedReaction && cptr->packId >= 0) {
 				Packs[cptr->packId].alert = true;
 			}
-
-		}
-		else if (!fixedPursuit && !fixedFlee)
-		{
-			nv.x = playerdx;
-			nv.z = playerdz;
-			nv.y = 0;
-			NormVector(nv, 2048.f);
-			cptr->tgx = cptr->pos.x - nv.x;
-			cptr->tgz = cptr->pos.z - nv.z;
-
-			cptr->tdepth = GetLandH(cptr->pos.x, cptr->pos.z) +
-				((GetLandUpH(cptr->pos.x, cptr->pos.z) - GetLandH(cptr->pos.x, cptr->pos.z)) / 2);
 		}
 
 		cptr->tgtime = 0;
@@ -266,8 +234,8 @@ TBEGIN:
 					if (pUp < 0) pUp = 0;
 					float md = ((DinoInfo[cptr->CType].jumpRange * DinoInfo[cptr->CType].jmpspd) - (pUp * 1.3)) * cptr->scale;
 					float jumpMin = md - 200;
-					if (pdistSq < md * md && (jumpMin <= 0 || pdistSq > jumpMin * jumpMin))//1200
-						if (AngleDifference(cptr->alpha, FindVectorAlpha(playerdx, playerdz)) < 0.2f) {
+					if (hunter.distanceSquared < md * md && (jumpMin <= 0 || hunter.distanceSquared > jumpMin * jumpMin))//1200
+						if (AngleDifference(cptr->alpha, FindVectorAlpha(hunter.dx, hunter.dz)) < 0.2f) {
 
 							Vector3d pv;
 							pv.x = PlayerX;
@@ -291,7 +259,7 @@ TBEGIN:
 		}
 
 		if (!fixedReaction && tracksHunter
-			&& pdistSq < (DinoInfo[cptr->CType].killDist * cptr->scale)
+			&& hunter.distanceSquared < (DinoInfo[cptr->CType].killDist * cptr->scale)
 				* (DinoInfo[cptr->CType].killDist * cptr->scale)
 			&& DinoInfo[cptr->CType].killDist > 0) {
 			float killAlt = cptr->spcDepth;
@@ -326,13 +294,13 @@ TBEGIN:
 
 
 NOTHINK:
-	if (pdistSq < 2048 * 2048) cptr->NoFindCnt = 0;
+	if (hunter.distanceSquared < 2048 * 2048) cptr->NoFindCnt = 0;
 	if (cptr->NoFindCnt) cptr->NoFindCnt--;
 	else
 	{
 		cptr->tgalpha = CorrectedAlpha(FindVectorAlpha(targetdx, targetdz), cptr->alpha);//FindVectorAlpha(targetdx, targetdz);
 		
-		if (cptr->State && pdistSq > DinoInfo[cptr->CType].weaveRange * DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
+		if (cptr->State && hunter.distanceSquared > DinoInfo[cptr->CType].weaveRange * DinoInfo[cptr->CType].weaveRange && !DinoInfo[cptr->CType].dontWeave)
 		{
 			cptr->tgalpha += static_cast<float>(sin(RealTime / 824.f)) / 2.f;
 			if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
