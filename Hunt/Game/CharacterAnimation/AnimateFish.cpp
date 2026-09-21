@@ -58,7 +58,7 @@ TBEGIN:
 
 	float tv;
 	switch (cptr->Clone) {
-	 case AI_FISH: tv = 1024.f;
+	 case AI_FISH: tv = 1024.f; break;
 	 case AI_MOSA: tv = 5024.f;
 	}
 
