@@ -64,7 +64,7 @@ void CheckAfraid()
 		// and disconnect the first plaque from TrophyRoom2.Body[0].
 		if (cptr->StateF == 0xFF) continue;
 		if (!cptr->Health) continue;
-		if (!AIInfo[cptr->Clone].sniffer) continue;
+		if (!GetHunterCapabilities(*cptr).sniffs) continue;
 		//if (cptr->AfraidTime || cptr->State == 1) continue;
 
 		// Preserve the T-Rex's established pursuit lock, but keep checking while

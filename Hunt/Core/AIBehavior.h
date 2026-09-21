@@ -103,6 +103,23 @@ inline bool ShouldAlarmPack(HunterAwarenessState state)
     return IsFixedHunterPursuitState(state) || IsFixedHunterFleeState(state);
 }
 
+// Hunter-stimulus eligibility. The handlers used to repeat these clone and
+// species checks; they live here as pure rules so the matrix is testable and
+// each caller stays one line.
+//
+// Gunshots: aquatic species cannot react to them on land, except the T-Rex
+// (which swims and hunts); the hunt dog follows its own search logic instead.
+inline bool HunterHearsShots(int clone, bool aquatic)
+{
+    return (!aquatic || clone == AI_TREX) && clone != AI_HUNTDOG;
+}
+
+// Hunter calls are ignored by the flying families and by Brachiosaurus.
+inline bool HunterHearsCalls(int clone)
+{
+    return clone != AI_DIMOR && clone != AI_PTERA && clone != AI_BRACH;
+}
+
 // A tracking pack member publishes its own position as the pack's hunt
 // anchor. The anchor is fresh while the tracker keeps reporting; once it goes
 // stale the pack falls back to the leader position. reportedAt == 0 means no

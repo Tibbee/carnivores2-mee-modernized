@@ -51,6 +51,18 @@ struct THunterGeometry
 
 THunterGeometry GetHunterGeometry(const TCharacter* cptr);
 
+// Per-creature hunter-stimulus eligibility, derived once instead of a clone
+// or species check in every handler. hearsShots and hearsCalls gate the
+// resolver; sniffs gates passive sight/scent acquisition in CheckAfraid.
+struct THunterCapabilities
+{
+    bool hearsShots = false;
+    bool hearsCalls = false;
+    bool sniffs = false;
+};
+
+THunterCapabilities GetHunterCapabilities(const TCharacter& character);
+
 // The single kill gate for the hunter-directed animators. The player must be
 // alive (and not a detached observer), the creature must be tracking the
 // hunter exactly or fleeing at contact range, and the hunter must be inside

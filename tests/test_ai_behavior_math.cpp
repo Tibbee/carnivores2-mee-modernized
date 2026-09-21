@@ -327,6 +327,23 @@ TEST(AIBehaviorMathTest, FixedReactionsAlarmThePack)
     EXPECT_FALSE(ShouldAlarmPack(HunterAwarenessState::None));
 }
 
+TEST(AIBehaviorMathTest, HunterStimulusEligibilityRules)
+{
+    // Gunshots: aquatic species ignore them, except the T-Rex; the hunt dog
+    // never reacts to them.
+    EXPECT_TRUE(HunterHearsShots(AI_ALLO, false));
+    EXPECT_TRUE(HunterHearsShots(AI_TREX, true));
+    EXPECT_FALSE(HunterHearsShots(AI_MOSA, true));
+    EXPECT_FALSE(HunterHearsShots(AI_HUNTDOG, false));
+
+    // Calls: the flying families and Brachiosaurus ignore hunter calls.
+    EXPECT_TRUE(HunterHearsCalls(AI_ALLO));
+    EXPECT_TRUE(HunterHearsCalls(AI_MOSA));
+    EXPECT_FALSE(HunterHearsCalls(AI_DIMOR));
+    EXPECT_FALSE(HunterHearsCalls(AI_PTERA));
+    EXPECT_FALSE(HunterHearsCalls(AI_BRACH));
+}
+
 TEST(AIBehaviorMathTest, PackHuntAnchorExpiresWhenTheTrackerStopsReporting)
 {
     constexpr int kMaxAge = 2048;

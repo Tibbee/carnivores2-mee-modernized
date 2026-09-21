@@ -83,8 +83,7 @@ bool ApplyGunshotHeard(TCharacter& character, const THunterStimulus& stimulus)
 	// is not an AI state and must never be rewritten by awareness events.
 	if (cptr->StateF == 0xFF) return false;
 	if (!cptr->Health) return false;
-	if ((DinoInfo[cptr->CType].Aquatic && cptr->Clone != AI_TREX)
-		|| cptr->Clone == AI_HUNTDOG) return false;
+	if (!GetHunterCapabilities(character).hearsShots) return false;
 
 	Vector3d position = stimulus.position;
 	const float distance = VectorLength(SubVectors(cptr->pos, position));
@@ -142,8 +141,7 @@ bool ApplyHunterCall(TCharacter& character, const THunterStimulus& stimulus)
 	if (cptr->StateF == 0xFF) return false;
 	if (!cptr->Health) return false;
 	if (!DinoInfo[cptr->CType].fearCall[stimulus.callIndex]) return false;
-	if (cptr->Clone == AI_DIMOR || cptr->Clone == AI_PTERA
-		|| cptr->Clone == AI_BRACH) return false;
+	if (!GetHunterCapabilities(character).hearsCalls) return false;
 
 	Vector3d position = stimulus.position;
 	const float distance = VectorLength(SubVectors(cptr->pos, position));
@@ -439,6 +437,17 @@ bool ApplyHunterStimulus(TCharacter& character, const THunterStimulus& stimulus)
 		return ApplyContact(character, stimulus);
 	}
 	return false;
+}
+
+THunterCapabilities GetHunterCapabilities(const TCharacter& character)
+{
+	const TCharacter* cptr = &character;
+	THunterCapabilities capabilities;
+	capabilities.hearsShots = HunterHearsShots(
+		cptr->Clone, DinoInfo[cptr->CType].Aquatic);
+	capabilities.hearsCalls = HunterHearsCalls(cptr->Clone);
+	capabilities.sniffs = AIInfo[cptr->Clone].sniffer;
+	return capabilities;
 }
 
 THunterGeometry GetHunterGeometry(const TCharacter* cptr)
