@@ -841,6 +841,7 @@ void PlaceCharacters()
 						Packs[PackCount].attack = false;
 						Packs[PackCount]._alert = false;
 						Packs[PackCount]._attack = false;
+						PackHuntTime[PackCount] = 0;
 						Characters[leaderIndex].packId = PackCount;
 
 						int placedFollowers = 0;
@@ -1024,6 +1025,7 @@ void PlaceCharacters()
 					Packs[PackCount].attack = false;
 					Packs[PackCount]._alert = false;
 					Packs[PackCount]._attack = false;
+					PackHuntTime[PackCount] = 0;
 					Characters[leaderIndex].packId = PackCount;
 					for (int packN = 0; packN < packNo - 1; packN++) {
 						Characters[ChCount].packId = PackCount;
@@ -1097,6 +1099,7 @@ void PlaceCharacters()
 			Packs[PackCount].attack = false;
 			Packs[PackCount]._alert = false;
 			Packs[PackCount]._attack = false;
+			PackHuntTime[PackCount] = 0;
 			Characters[leaderIndex].packId = PackCount;
 			for (int packN = 0; packN < packNo - 1; packN++) {
 				Characters[ChCount].packId = PackCount;

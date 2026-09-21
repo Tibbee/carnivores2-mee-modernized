@@ -92,6 +92,12 @@ inline constexpr float kShotSearchRadius = 2048.0f;
 // intrusion lasts as long as an authored hit response.
 inline constexpr int kCloseRangeAwarenessTime = 60 * 1000;
 
+// A tracking pack member republishes its own position as the pack's hunt
+// anchor every frame; the anchor expires this soon after it stops reporting,
+// so packmates do not chase a stale position once the tracker loses the
+// hunter.
+inline constexpr int kPackHuntAnchorTime = 2 * 1024;
+
 // A hunter event (heard shot or direct hit) is a stronger stimulus than
 // passive detection, so the event reaction uses the species' authored
 // aggression range multiplied by this scale. A predator with a large range

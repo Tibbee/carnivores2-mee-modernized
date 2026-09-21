@@ -315,6 +315,16 @@ GLOBAL TCharacterInfo HitBoxModel;
 
 GLOBAL TPack          Packs[256];
 
+// Pack hunt anchor: the live position of the packmate that is currently
+// tracking the hunter, published every frame and consumed by
+// SetPackLeaderTarget. Kept beside Packs instead of inside TPack because the
+// pack record is size-locked (8 bytes). A fresh anchor replaces the leader
+// position as the follow target; PackHuntTime == 0 means no member has
+// reported since the pack was created.
+GLOBAL float          PackHuntX[256];
+GLOBAL float          PackHuntZ[256];
+GLOBAL int            PackHuntTime[256];
+
 GLOBAL int PackCount;
 
 GLOBAL TCharacter     Characters[256];

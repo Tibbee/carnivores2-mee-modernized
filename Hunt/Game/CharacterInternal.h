@@ -160,26 +160,35 @@ inline bool ShouldPromoteFixedPursuitToTracking(const TCharacter* cptr,
         dx * dx + dz * dz, attackReach * attackReach);
 }
 
-// A pack member without its own tracking follows the leader's live position,
-// or flees radially away from the leader. The leader itself never takes a
-// leader-relative target: when a pack mate raises the alarm, the leader must
-// keep its own event or wander destination instead of freezing on its own
-// position.
+// A pack member without its own tracking follows the pack's hunt anchor --
+// the position of the packmate that is currently tracking the hunter, while
+// it is fresh -- and falls back to the leader's live position; when afraid it
+// flees radially away from that point. The leader itself only follows a fresh
+// anchor: without one it keeps its own event or wander destination instead of
+// freezing on its own position. The anchor is a packmate's position, never
+// the hunter's.
 inline void SetPackLeaderTarget(TCharacter* cptr, bool flee)
 {
     if (cptr->packId < 0 || !Packs[cptr->packId].leader) return;
 
-    TCharacter* leader = Packs[cptr->packId].leader;
-    if (leader == cptr) return;
+    const TPack& pack = Packs[cptr->packId];
+    const bool anchorFresh = IsPackHuntAnchorFresh(
+        RealTime, PackHuntTime[cptr->packId], kPackHuntAnchorTime);
+    if (!ShouldFollowPackTarget(anchorFresh, pack.leader == cptr)) return;
+
+    const float targetX = anchorFresh ? PackHuntX[cptr->packId] : pack.leader->pos.x;
+    const float targetZ = anchorFresh ? PackHuntZ[cptr->packId] : pack.leader->pos.z;
     if (!flee) {
-        cptr->tgx = leader->pos.x;
-        cptr->tgz = leader->pos.z;
+        cptr->tgx = targetX;
+        cptr->tgz = targetZ;
         cptr->tgtime = 0;
         return;
     }
 
-    Vector3d away = SubVectors(cptr->pos, leader->pos);
+    Vector3d away;
+    away.x = cptr->pos.x - targetX;
     away.y = 0.0f;
+    away.z = cptr->pos.z - targetZ;
     NormVector(away, 2048.0f);
     cptr->tgx = cptr->pos.x + away.x;
     cptr->tgz = cptr->pos.z + away.z;

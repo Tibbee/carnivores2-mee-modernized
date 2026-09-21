@@ -327,6 +327,24 @@ TEST(AIBehaviorMathTest, FixedReactionsAlarmThePack)
     EXPECT_FALSE(ShouldAlarmPack(HunterAwarenessState::None));
 }
 
+TEST(AIBehaviorMathTest, PackHuntAnchorExpiresWhenTheTrackerStopsReporting)
+{
+    constexpr int kMaxAge = 2048;
+    EXPECT_FALSE(IsPackHuntAnchorFresh(10000, 0, kMaxAge));        // never reported
+    EXPECT_TRUE(IsPackHuntAnchorFresh(10000, 9000, kMaxAge));      // fresh
+    EXPECT_TRUE(IsPackHuntAnchorFresh(10000, 10000 - 2047, kMaxAge));
+    EXPECT_FALSE(IsPackHuntAnchorFresh(10000, 10000 - 2048, kMaxAge)); // just stale
+    EXPECT_FALSE(IsPackHuntAnchorFresh(10000, 7000, kMaxAge));     // stale
+}
+
+TEST(AIBehaviorMathTest, PackLeaderFollowsOnlyAFreshHuntAnchor)
+{
+    EXPECT_TRUE(ShouldFollowPackTarget(true, false));   // follower, anchor
+    EXPECT_TRUE(ShouldFollowPackTarget(true, true));    // leader, anchor
+    EXPECT_TRUE(ShouldFollowPackTarget(false, false));  // follower, leader fallback
+    EXPECT_FALSE(ShouldFollowPackTarget(false, true));  // leader keeps its own target
+}
+
 TEST(AIBehaviorMathTest, EveryAwarenessStateHasAName)
 {
     const HunterAwarenessState states[] = {

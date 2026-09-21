@@ -103,6 +103,24 @@ inline bool ShouldAlarmPack(HunterAwarenessState state)
     return IsFixedHunterPursuitState(state) || IsFixedHunterFleeState(state);
 }
 
+// A tracking pack member publishes its own position as the pack's hunt
+// anchor. The anchor is fresh while the tracker keeps reporting; once it goes
+// stale the pack falls back to the leader position. reportedAt == 0 means no
+// member has reported since the pack was created.
+inline bool IsPackHuntAnchorFresh(int now, int reportedAt, int maxAge)
+{
+    return reportedAt != 0 && now - reportedAt < maxAge;
+}
+
+// The pack follows a fresh hunt anchor -- the position of the member that
+// found the hunter -- and falls back to the leader position without one. The
+// leader itself only follows an anchor: it never takes a leader-relative
+// target, or it would freeze on its own position.
+inline bool ShouldFollowPackTarget(bool anchorFresh, bool isLeader)
+{
+    return anchorFresh || !isLeader;
+}
+
 // The single owner of the untimed reaction timers (exact tracking and the
 // morale timer). Timed fixed reactions keep their dedicated central tick so
 // they can clear the awareness state on expiry; everything else ticks exactly

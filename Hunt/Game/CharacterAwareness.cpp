@@ -542,6 +542,16 @@ void UpdateHunterNavigation(TCharacter& character)
 	if (cptr->StateF == 0xFF)
 		return;
 
+	// Pack hunt anchor: a tracking member republishes its own position every
+	// frame, so the rest of the pack follows the member that found the hunter
+	// instead of the formal leader. The anchor is a packmate's position, never
+	// the hunter's, so no coordinates or kill authority are shared.
+	if (cptr->packId >= 0 && TracksHunterExactly(cptr)) {
+		PackHuntX[cptr->packId] = cptr->pos.x;
+		PackHuntZ[cptr->packId] = cptr->pos.z;
+		PackHuntTime[cptr->packId] = RealTime;
+	}
+
 	// Pack alarm: a member following a remembered shot or hit position, or
 	// fleeing from one, wakes its pack exactly like a live flee or a tracking
 	// member does. The per-animator alarm writes are guarded by
