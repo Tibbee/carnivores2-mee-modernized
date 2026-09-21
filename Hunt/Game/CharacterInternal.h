@@ -160,11 +160,17 @@ inline bool ShouldPromoteFixedPursuitToTracking(const TCharacter* cptr,
         dx * dx + dz * dz, attackReach * attackReach);
 }
 
+// A pack member without its own tracking follows the leader's live position,
+// or flees radially away from the leader. The leader itself never takes a
+// leader-relative target: when a pack mate raises the alarm, the leader must
+// keep its own event or wander destination instead of freezing on its own
+// position.
 inline void SetPackLeaderTarget(TCharacter* cptr, bool flee)
 {
     if (cptr->packId < 0 || !Packs[cptr->packId].leader) return;
 
     TCharacter* leader = Packs[cptr->packId].leader;
+    if (leader == cptr) return;
     if (!flee) {
         cptr->tgx = leader->pos.x;
         cptr->tgz = leader->pos.z;

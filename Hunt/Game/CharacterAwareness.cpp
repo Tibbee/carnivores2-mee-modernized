@@ -542,6 +542,16 @@ void UpdateHunterNavigation(TCharacter& character)
 	if (cptr->StateF == 0xFF)
 		return;
 
+	// Pack alarm: a member following a remembered shot or hit position, or
+	// fleeing from one, wakes its pack exactly like a live flee or a tracking
+	// member does. The per-animator alarm writes are guarded by
+	// !fixedReaction, so an investigating or retaliating member used to leave
+	// its packmates wandering instead of moving with it. The alarm is
+	// coordination only -- leader-follow or scatter -- and publishes no hunter
+	// coordinates and grants no tracking or kill authority.
+	if (cptr->packId >= 0 && ShouldAlarmPack(cptr->hunterAwareness))
+		Packs[cptr->packId].alert = true;
+
 	// Single timer owner: the timed fixed reactions were already decremented
 	// and cleared by the central tick; every other reaction timer (exact
 	// tracking and morale) ticks here, exactly once per frame. This replaces

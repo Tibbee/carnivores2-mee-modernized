@@ -316,6 +316,17 @@ TEST(AIBehaviorMathTest, UntimedReactionTicksOnceAndClamps)
     EXPECT_EQ(TickUntimedReaction(1000, 0), 1000);
 }
 
+TEST(AIBehaviorMathTest, FixedReactionsAlarmThePack)
+{
+    EXPECT_TRUE(ShouldAlarmPack(HunterAwarenessState::InvestigatingShot));
+    EXPECT_TRUE(ShouldAlarmPack(HunterAwarenessState::RetaliatingHit));
+    EXPECT_TRUE(ShouldAlarmPack(HunterAwarenessState::FleeingFromShot));
+    EXPECT_TRUE(ShouldAlarmPack(HunterAwarenessState::FleeingFromHit));
+    EXPECT_TRUE(ShouldAlarmPack(HunterAwarenessState::FleeingFromCall));
+    EXPECT_FALSE(ShouldAlarmPack(HunterAwarenessState::TrackingHunter));
+    EXPECT_FALSE(ShouldAlarmPack(HunterAwarenessState::None));
+}
+
 TEST(AIBehaviorMathTest, EveryAwarenessStateHasAName)
 {
     const HunterAwarenessState states[] = {

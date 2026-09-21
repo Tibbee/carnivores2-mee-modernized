@@ -93,6 +93,16 @@ inline bool IsTimedHunterReactionState(HunterAwarenessState state)
     return IsFixedHunterPursuitState(state) || IsFixedHunterFleeState(state);
 }
 
+// A member in a fixed shot or hit reaction alarms its pack the same way a
+// live flee or a tracking member does. The per-animator alarm writes are
+// guarded by !fixedReaction, so the navigator owns this case; the alarm only
+// wakes packmates (leader-follow or scatter) and never publishes hunter
+// coordinates or kill authority.
+inline bool ShouldAlarmPack(HunterAwarenessState state)
+{
+    return IsFixedHunterPursuitState(state) || IsFixedHunterFleeState(state);
+}
+
 // The single owner of the untimed reaction timers (exact tracking and the
 // morale timer). Timed fixed reactions keep their dedicated central tick so
 // they can clear the awareness state on expiry; everything else ticks exactly
