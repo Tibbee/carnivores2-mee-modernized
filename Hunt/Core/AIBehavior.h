@@ -78,6 +78,15 @@ inline bool IsTimedHunterReactionState(HunterAwarenessState state)
     return IsFixedHunterPursuitState(state) || IsFixedHunterFleeState(state);
 }
 
+// The single owner of the untimed reaction timers (exact tracking and the
+// morale timer). Timed fixed reactions keep their dedicated central tick so
+// they can clear the awareness state on expiry; everything else ticks exactly
+// once per frame here, so no tracking lock can live forever.
+inline int TickUntimedReaction(int afraidTime, int elapsed)
+{
+    return afraidTime > elapsed ? afraidTime - elapsed : 0;
+}
+
 // Only exact tracking (or the contact-range promotion that grants it)
 // authorizes a kill. A fixed reaction -- shot investigation, retaliation or
 // flee -- and an expired lock never do.

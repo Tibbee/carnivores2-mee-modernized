@@ -118,7 +118,6 @@ TBEGIN:
 			}
 			else if (!fixedFlee) SetPackLeaderTarget(cptr, true);
 			cptr->tgtime = 0;
-			if (!fixedReaction) cptr->AfraidTime -= TimeDt;
 
 			if (cptr->packId >= 0) {
 				if (cptr->AfraidTime <= 0)

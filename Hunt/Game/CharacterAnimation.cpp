@@ -226,19 +226,15 @@ void AnimateCharacters()
 
 		// Contact-range awareness: a creature following a remembered event
 		// position still notices a hunter who physically enters its attack
-		// reach. Promote the fixed pursuit to exact tracking instead of letting
-		// the stored point keep the creature harmless; the stored point alone
-		// still never authorizes a kill at a distance, and flee reactions keep
-		// their stored direction. This restores the threat of species without
-		// active sight or scent (defending sauropods, wounded aquatic
-		// predators) without granting them perception they were not authored
-		// to have. The detached observer camera is exempt.
-		if (MyHealth && cptr->Health && !ObservMode
-			&& ShouldPromoteFixedPursuitToTracking(cptr, PlayerPos)) {
-			cptr->awareHunter = true;
-			cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
-			cptr->AfraidTime = kCloseRangeAwarenessTime;
-			cptr->NoFindCnt = 0;
+		// reach. The resolver owns the eligibility (fixed pursuit, attack reach,
+		// live player, not detached observer) and the promotion to exact
+		// tracking; the stored point alone still never authorizes a kill at a
+		// distance, and flee reactions keep their stored direction.
+		{
+			THunterStimulus contact;
+			contact.kind = HunterStimulusKind::Contact;
+			contact.position = PlayerPos;
+			ApplyHunterStimulus(*cptr, contact);
 		}
 
 		if (IsTimedHunterReaction(cptr)) {

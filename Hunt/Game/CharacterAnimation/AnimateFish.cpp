@@ -190,8 +190,6 @@ TBEGIN:
 		const bool tracksHunter = TracksHunterExactly(cptr);
 		if (!fixedReaction && (hunter.distanceSquared > attackDist * attackDist || !playerInWater))
 		{
-			cptr->AfraidTime -= TimeDt;
-
 			if (cptr->packId >= 0) {
 				if (cptr->AfraidTime <= 0) {
 

@@ -19,7 +19,8 @@ enum class HunterStimulusKind
 {
     GunshotHeard,
     DirectHit,
-    HunterCall
+    HunterCall,
+    Contact
 };
 
 struct THunterStimulus
@@ -64,9 +65,10 @@ bool CanKillHunter(const TCharacter& character, const THunterGeometry& hunter);
 bool ShouldFleeHunter(const TCharacter& character, float hunterDistanceSquared,
                       bool hunterAttackable);
 
-// The single owner of hunter-directed navigation. Called once per creature per
-// frame after the reaction timers have been applied. It owns the fixed flee
-// direction, the local search after a fixed pursuit, and the live tracking /
-// live flee destinations for the reacting families. Wandering and pack
-// movement stay with the animators; they only read the response.
+// The single owner of hunter-directed navigation and reaction time. Called
+// once per creature per frame after the reaction timers have been applied. It
+// owns the fixed flee direction, the local search after a fixed pursuit, the
+// live tracking / live flee destinations, and the untimed reaction timer
+// (exact tracking and morale); wandering and pack movement stay with the
+// animators, which only read the response.
 void UpdateHunterNavigation(TCharacter& character);

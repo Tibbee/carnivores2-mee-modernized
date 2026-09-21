@@ -304,3 +304,12 @@ TEST(AIBehaviorMathTest, AttackReachBoundaries)
     EXPECT_TRUE(IsWithinKillAltitude(255.0f, 256.0f));
     EXPECT_FALSE(IsWithinKillAltitude(256.0f, 256.0f));
 }
+
+TEST(AIBehaviorMathTest, UntimedReactionTicksOnceAndClamps)
+{
+    EXPECT_EQ(TickUntimedReaction(1000, 16), 984);
+    EXPECT_EQ(TickUntimedReaction(16, 16), 0);
+    EXPECT_EQ(TickUntimedReaction(15, 16), 0);
+    EXPECT_EQ(TickUntimedReaction(0, 16), 0);
+    EXPECT_EQ(TickUntimedReaction(1000, 0), 1000);
+}

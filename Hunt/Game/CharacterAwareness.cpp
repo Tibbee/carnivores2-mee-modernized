@@ -175,6 +175,29 @@ bool ApplyDirectHit(TCharacter& character, const THunterStimulus& stimulus)
 	return true;
 }
 
+bool ApplyContact(TCharacter& character, const THunterStimulus& stimulus)
+{
+	TCharacter* cptr = &character;
+
+	// A creature following a remembered event position still notices a hunter
+	// who physically enters its attack reach. The promotion grants exact
+	// tracking, never a kill at the stored point; flee reactions keep their
+	// direction because they are not fixed pursuits. The detached observer
+	// camera is exempt, debug mode is not.
+	if (!MyHealth || !cptr->Health || cptr->StateF == 0xFF)
+		return false;
+	if (ObservMode)
+		return false;
+	if (!ShouldPromoteFixedPursuitToTracking(cptr, stimulus.position))
+		return false;
+
+	cptr->awareHunter = true;
+	cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
+	cptr->AfraidTime = kCloseRangeAwarenessTime;
+	cptr->NoFindCnt = 0;
+	return true;
+}
+
 void SelectHunterSearchTarget(TCharacter* cptr)
 {
 	// The local area search after a fixed pursuit reaches its stored event
@@ -358,6 +381,8 @@ bool ApplyHunterStimulus(TCharacter& character, const THunterStimulus& stimulus)
 		return ApplyDirectHit(character, stimulus);
 	case HunterStimulusKind::HunterCall:
 		return ApplyHunterCall(character, stimulus);
+	case HunterStimulusKind::Contact:
+		return ApplyContact(character, stimulus);
 	}
 	return false;
 }
@@ -462,6 +487,14 @@ void UpdateHunterNavigation(TCharacter& character)
 
 	if (cptr->StateF == 0xFF)
 		return;
+
+	// Single timer owner: the timed fixed reactions were already decremented
+	// and cleared by the central tick; every other reaction timer (exact
+	// tracking and morale) ticks here, exactly once per frame. This replaces
+	// the per-animator decrements, including the special tick that contact
+	// promotion used to need, and guarantees that a tracking lock expires.
+	if (!IsTimedHunterReaction(cptr))
+		cptr->AfraidTime = TickUntimedReaction(cptr->AfraidTime, TimeDt);
 
 	// Fixed flee: the stored point is behind the creature once reached, so the
 	// flee direction is extended and the creature keeps running instead of

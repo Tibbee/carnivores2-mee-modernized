@@ -17,9 +17,6 @@ void AnimateHuntable(TCharacter *cptr)
 	int _Phase = cptr->Phase;
 	int _FTime = cptr->FTime;
 	float _tgalpha = cptr->tgalpha;
-	if ((!AIInfo[cptr->Clone].carnivore || AIInfo[cptr->Clone].iceAge)
-		&& cptr->AfraidTime && !IsTimedHunterReaction(cptr))
-		cptr->AfraidTime = MAX(0, cptr->AfraidTime - TimeDt);
 
 	bool alertInit = false;
 	if (cptr->State == 2) alertInit = true;
@@ -85,8 +82,6 @@ TBEGIN:
 			// The navigator owns the flee destination; only the reaction
 			// bookkeeping stays in the animator.
 			cptr->tgtime = 0;
-			if (AIInfo[cptr->Clone].carnivore && !fixedReaction)
-				cptr->AfraidTime -= TimeDt;
 
 			if (cptr->packId >= 0) {
 				if (cptr->AfraidTime <= 0)

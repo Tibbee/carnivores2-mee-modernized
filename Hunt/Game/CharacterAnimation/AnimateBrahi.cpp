@@ -76,12 +76,6 @@ TBEGIN:
 			else if (!fleeMode)
 			{
 				attacking = !fixedPursuit && tracksHunter;
-				// A creature promoted by contact-range awareness must be able to
-				// calm down again. This animator only decrements the fear timer
-				// while fleeing, so an active tracking lock needs its own tick;
-				// otherwise the promoted pursuit never expires.
-				if (tracksHunter && cptr->AfraidTime > 0)
-					cptr->AfraidTime -= TimeDt;
 				// The navigator owns the live tracking / pack-leader target.
 				if (!fixedReaction && tracksHunter && cptr->packId >= 0) {
 					Packs[cptr->packId].alert = true;
@@ -92,8 +86,6 @@ TBEGIN:
 				attacking = false;
 				// The navigator owns the flee destination.
 				cptr->tgtime = 0;
-				if (!fixedReaction) cptr->AfraidTime -= TimeDt;
-
 
 				if (cptr->packId >= 0) {
 					if (cptr->AfraidTime <= 0)
