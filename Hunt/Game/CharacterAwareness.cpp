@@ -28,6 +28,52 @@ void TraceHunterEvent(const TCharacter* cptr, const char* kind, float distance,
 	PrintLogVerbose(buf);
 }
 
+// The ideal flee point is directly away from the source, but that ray can
+// land in water, on a blocked cell, or on a cliff face. A creature sent to an
+// unreachable point presses into the obstacle and runs along it, which reads
+// as circling instead of fleeing. Try the away heading first, then rotations
+// to either side in 15-degree steps, and take the first point that passes the
+// placement check. Falls back to the ideal point when no heading is placeable
+// (for example, a creature on a small island).
+void SetHunterFleeTargetAway(TCharacter* cptr, float awayDx, float awayDz)
+{
+	const float length = sqrt(awayDx * awayDx + awayDz * awayDz);
+	float baseX;
+	float baseZ;
+	if (length > 0.0f) {
+		baseX = awayDx / length;
+		baseZ = awayDz / length;
+	} else {
+		baseX = cptr->lookx;
+		baseZ = cptr->lookz;
+	}
+	const float baseAngle = static_cast<float>(atan2(baseZ, baseX));
+	const float step = static_cast<float>(pi) / 12.0f;
+
+	for (int index = 0; index <= 6; ++index) {
+		const float offset = step * index;
+		for (int side = 0; side < (index == 0 ? 1 : 2); ++side) {
+			const float angle = baseAngle + (side == 0 ? offset : -offset);
+			Vector3d p;
+			p.x = ClampCharacterTargetCoordinate(
+				cptr->pos.x + static_cast<float>(cos(angle)) * 2048.0f);
+			p.z = ClampCharacterTargetCoordinate(
+				cptr->pos.z + static_cast<float>(sin(angle)) * 2048.0f);
+			p.y = 0.0f;
+			if (!CheckPlaceCollisionP(p, cptr->cpcpAquatic)) {
+				cptr->tgx = p.x;
+				cptr->tgz = p.z;
+				cptr->tgtime = 0;
+				return;
+			}
+		}
+	}
+
+	cptr->tgx = ClampCharacterTargetCoordinate(cptr->pos.x + baseX * 2048.0f);
+	cptr->tgz = ClampCharacterTargetCoordinate(cptr->pos.z + baseZ * 2048.0f);
+	cptr->tgtime = 0;
+}
+
 bool ApplyGunshotHeard(TCharacter& character, const THunterStimulus& stimulus)
 {
 	TCharacter* cptr = &character;
@@ -75,11 +121,8 @@ bool ApplyGunshotHeard(TCharacter& character, const THunterStimulus& stimulus)
 		GetCharacterHunterEventRange(cptr), isTRex);
 	cptr->hunterAwareness = HeardShotReactionState(fleesShot);
 	if (fleesShot) {
-		Vector3d away = SubVectors(cptr->pos, position);
-		away.y = 0.0f;
-		NormVector(away, 2048.0f);
-		cptr->tgx = ClampCharacterTargetCoordinate(cptr->pos.x + away.x);
-		cptr->tgz = ClampCharacterTargetCoordinate(cptr->pos.z + away.z);
+		SetHunterFleeTargetAway(cptr, cptr->pos.x - position.x,
+			cptr->pos.z - position.z);
 	} else {
 		cptr->tgx = ClampCharacterTargetCoordinate(position.x);
 		cptr->tgz = ClampCharacterTargetCoordinate(position.z);
@@ -113,12 +156,8 @@ bool ApplyHunterCall(TCharacter& character, const THunterStimulus& stimulus)
 		&& cptr->hunterAwareness != HunterAwarenessState::FleeingFromCall)
 		return false;
 
-	Vector3d away = SubVectors(cptr->pos, position);
-	away.y = 0.0f;
-	NormVector(away, 2048.0f);
-	cptr->tgx = ClampCharacterTargetCoordinate(cptr->pos.x + away.x);
-	cptr->tgz = ClampCharacterTargetCoordinate(cptr->pos.z + away.z);
-	cptr->tgtime = 0;
+	SetHunterFleeTargetAway(cptr, cptr->pos.x - position.x,
+		cptr->pos.z - position.z);
 	cptr->State = 2;
 	cptr->AfraidTime = (10 + rRand(5)) * 1024;
 	cptr->NoFindCnt = 0;
@@ -165,13 +204,8 @@ bool ApplyDirectHit(TCharacter& character, const THunterStimulus& stimulus)
 			cptr->State = 2;
 
 		if (fleesHit) {
-			Vector3d away;
-			away.x = cptr->pos.x - stimulus.position.x;
-			away.y = 0.0f;
-			away.z = cptr->pos.z - stimulus.position.z;
-			NormVector(away, 2048.0f);
-			cptr->tgx = ClampCharacterTargetCoordinate(cptr->pos.x + away.x);
-			cptr->tgz = ClampCharacterTargetCoordinate(cptr->pos.z + away.z);
+			SetHunterFleeTargetAway(cptr, cptr->pos.x - stimulus.position.x,
+				cptr->pos.z - stimulus.position.z);
 		} else {
 			cptr->tgx = ClampCharacterTargetCoordinate(stimulus.position.x);
 			cptr->tgz = ClampCharacterTargetCoordinate(stimulus.position.z);
@@ -295,16 +329,13 @@ void SetHunterPlayerTarget(TCharacter* cptr)
 	cptr->tgtime = 0;
 }
 
+// Live flee destinations go through the same walkability check as the event
+// reactions, so a creature that sees the hunter does not target water or a
+// cliff either.
 void SetHunterFleeTarget(TCharacter* cptr, float hunterDx, float hunterDz)
 {
-	Vector3d away;
-	away.x = hunterDx;
-	away.y = 0.0f;
-	away.z = hunterDz;
-	NormVector(away, 2048.0f);
-	cptr->tgx = cptr->pos.x - away.x;
-	cptr->tgz = cptr->pos.z - away.z;
-	cptr->tgtime = 0;
+	// The hunter direction points at the threat; the flee ray points away.
+	SetHunterFleeTargetAway(cptr, -hunterDx, -hunterDz);
 }
 
 // Live hunter targets belong to an active response; idle and wandering
