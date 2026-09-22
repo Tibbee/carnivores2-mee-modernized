@@ -136,6 +136,12 @@ void PlaceTrophy()
 		// mount's display pose (tropAnim) and FTime stays frozen at 0.
 		Characters[ChCount].StateF = 0xFF;
 
+		// Mounts are inert exhibits: Health 0 keeps them out of the bullet
+		// damage path. Without it the array slot kept whatever Health the last
+		// hunt left there, so shooting a mount could damage it, rewrite its
+		// exhibit slot through registerDamage, or even submit a trophy score.
+		Characters[ChCount].Health = 0;
+
 		//DinoInfo[Characters[ChCount].CType].tCounter++;
 		ChCount++;
 	}
