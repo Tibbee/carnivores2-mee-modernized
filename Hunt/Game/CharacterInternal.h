@@ -33,6 +33,11 @@ void Characters_AddSecondaryOne(TCharacter *cptr);
 void LookForAWay(TCharacter *cptr, BOOL wc, BOOL mc);
 
 // AI helpers
+// Diagnostic event line for the AI trace (ai_logging 1): one call per
+// awareness acquisition or stimulus, with the numbers that decided it.
+// Kinds in use: shot, hit, call, contact, sight, scent, startle, proximity.
+void TraceHunterEvent(const TCharacter *cptr, const char *kind, float distance,
+                      float eventRange, float hearingRange);
 void SetNewTargetPlace(TCharacter *cptr, float R);
 void SetNewTargetPlaceVanilla(TCharacter *cptr, float R);
 void SetNewTargetPlaceRegion(TCharacter *cptr, float R);

@@ -163,6 +163,7 @@ TBEGIN:
 			// as the classic-ambient proximity scare). Without the lock its
 			// scatter had no awareness state and kept its stale wander target.
 			cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
+			TraceHunterEvent(cptr, "startle", hunter.distance, 0.0f, 0.0f);
 			cptr->AfraidTime = (6 + rRand(8)) * 1024;
 			cptr->Phase = DinoInfo[cptr->CType].runAnim;
 			goto TBEGIN;

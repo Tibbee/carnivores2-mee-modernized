@@ -10,11 +10,10 @@
 #include "Game/CharacterAwareness.h"
 #include "Game/CharacterInternal.h"
 
-namespace
-{
-
-// Opt-in diagnostic trace (verbose_logging 1): one line per awareness
-// event with the numbers that decided it and the stored destination.
+// Opt-in diagnostic trace (ai_logging 1): one line per awareness event with
+// the numbers that decided it and the stored destination. Declared in
+// CharacterInternal.h so every acquisition site (sight, scent, startles,
+// aquatic proximity) can log the spark, not only the stimulus handlers.
 void TraceHunterEvent(const TCharacter* cptr, const char* kind, float distance,
                       float eventRange, float hearingRange)
 {
@@ -28,6 +27,9 @@ void TraceHunterEvent(const TCharacter* cptr, const char* kind, float distance,
 		cptr->tgx, cptr->tgz, cptr->pos.x, cptr->pos.z, cptr->AfraidTime);
 	PrintLogAI(buf);
 }
+
+namespace
+{
 
 // The ideal flee point is directly away from the source, but that ray can
 // land in water, on a blocked cell, or on a cliff face. A creature sent to an

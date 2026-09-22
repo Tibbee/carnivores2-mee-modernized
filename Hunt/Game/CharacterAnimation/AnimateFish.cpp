@@ -119,6 +119,8 @@ TBEGIN:
 			Packs[cptr->packId].alert = true;
 
 		if (attackmode) {
+			if (cptr->hunterAwareness != HunterAwarenessState::TrackingHunter)
+				TraceHunterEvent(cptr, "proximity", hunter.distance, attackDist, 0.0f);
 			cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
 			cptr->State = 1;
 			cptr->turny = 0;
@@ -176,6 +178,8 @@ TBEGIN:
 			&& playerInWater && !DinoInfo[cptr->CType].dontSwimAway
 			&& MyHealth && !ObservMode && !DEBUG;
 		if (aquaticAttack || g_GameMode == GameMode::SurvivalMode) {
+			if (cptr->hunterAwareness != HunterAwarenessState::TrackingHunter)
+				TraceHunterEvent(cptr, "proximity", hunter.distance, attackDist, 0.0f);
 			cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
 			cptr->AfraidTime = static_cast<int>((10.f)) * 1024;
 			cptr->turny = 0;

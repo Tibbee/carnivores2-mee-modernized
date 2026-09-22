@@ -155,6 +155,16 @@ void CheckAfraid()
 				cptr->State = 2;
 			}
 			cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
+			// Sight and scent acquisitions are awareness events as well: the
+			// trace shows the spark, not only the reaction. Re-perception
+			// refreshes stay silent; a fresh acquisition or promotion logs.
+			if (priorAwareness != HunterAwarenessState::TrackingHunter) {
+				const float senseDx = cptr->pos.x - PlayerX;
+				const float senseDz = cptr->pos.z - PlayerZ;
+				TraceHunterEvent(cptr, kALook < kASmell ? "sight" : "scent",
+					static_cast<float>(sqrt(senseDx * senseDx + senseDz * senseDz)),
+					0.0f, 0.0f);
+			}
 			// A T-Rex with any active reaction keeps charging. Its awareness
 			// still refreshes or upgrades above; only a brand-new detection
 			// plays the look/smell notice.
