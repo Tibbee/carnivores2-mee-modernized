@@ -34,9 +34,14 @@ void TraceHunterEvent(const TCharacter* cptr, const char* kind, float distance,
 // unreachable point presses into the obstacle and runs along it, which reads
 // as circling instead of fleeing. Try the away heading first, then rotations
 // to either side in 15-degree steps, and take the first point that passes the
-// placement check. Falls back to the ideal point when no heading is placeable
-// (for example, a creature on a small island).
-void SetHunterFleeTargetAway(TCharacter* cptr, float awayDx, float awayDz)
+// placement check. The midpoint is checked too, so a standable point across
+// an inlet or a cliff gap is rejected before the creature walks into the gap.
+// A stuck re-aim supplies a rotation bias (FleeLegStuckRotationAngle) so the
+// fan-out does not re-pick the direction it just failed to walk. Falls back
+// to the ideal point when no heading is placeable (for example, a creature on
+// a small island).
+void SetHunterFleeTargetAway(TCharacter* cptr, float awayDx, float awayDz,
+                             float baseAngleBias = 0.0f)
 {
 	const float length = sqrt(awayDx * awayDx + awayDz * awayDz);
 	float baseX;
@@ -48,7 +53,8 @@ void SetHunterFleeTargetAway(TCharacter* cptr, float awayDx, float awayDz)
 		baseX = cptr->lookx;
 		baseZ = cptr->lookz;
 	}
-	const float baseAngle = static_cast<float>(atan2(baseZ, baseX));
+	const float baseAngle =
+		static_cast<float>(atan2(baseZ, baseX)) + baseAngleBias;
 	const float step = static_cast<float>(pi) / 12.0f;
 
 	for (int index = 0; index <= 6; ++index) {
@@ -61,7 +67,12 @@ void SetHunterFleeTargetAway(TCharacter* cptr, float awayDx, float awayDz)
 			p.z = ClampCharacterTargetCoordinate(
 				cptr->pos.z + static_cast<float>(sin(angle)) * 2048.0f);
 			p.y = 0.0f;
-			if (!CheckPlaceCollisionP(p, cptr->cpcpAquatic)) {
+			Vector3d mid;
+			mid.x = ClampCharacterTargetCoordinate((cptr->pos.x + p.x) * 0.5f);
+			mid.z = ClampCharacterTargetCoordinate((cptr->pos.z + p.z) * 0.5f);
+			mid.y = 0.0f;
+			if (!CheckPlaceCollisionP(p, cptr->cpcpAquatic)
+				&& !CheckPlaceCollisionP(mid, cptr->cpcpAquatic)) {
 				cptr->tgx = p.x;
 				cptr->tgz = p.z;
 				cptr->tgtime = 0;
@@ -346,10 +357,11 @@ void SetHunterPlayerTarget(TCharacter* cptr)
 // Live flee destinations go through the same walkability check as the event
 // reactions, so a creature that sees the hunter does not target water or a
 // cliff either.
-void SetHunterFleeTarget(TCharacter* cptr, float hunterDx, float hunterDz)
+void SetHunterFleeTarget(TCharacter* cptr, float hunterDx, float hunterDz,
+                         float baseAngleBias = 0.0f)
 {
 	// The hunter direction points at the threat; the flee ray points away.
-	SetHunterFleeTargetAway(cptr, -hunterDx, -hunterDz);
+	SetHunterFleeTargetAway(cptr, -hunterDx, -hunterDz, baseAngleBias);
 }
 
 // Live hunter targets belong to an active response; idle and wandering
@@ -609,10 +621,27 @@ void UpdateHunterNavigation(TCharacter& character)
 	// points back toward the hunter, which used to make the escape march
 	// sideways or return into the hunter's acquisition range.
 	if (IsFixedHunterFlee(cptr)) {
+		// A leg is a direction, not a destination: "reached" is half a leg.
+		// Requiring the tighter investigation radius left an escaping animal
+		// orbiting a point its walk could never close on (Pachycephalosaurus
+		// repro: 689-1330 units around its leg for nine seconds). A leg that
+		// cannot be closed at all is abandoned after kFleeLegStuckMs and the
+		// re-aim rotates further around so the same blocked heading is not
+		// picked again.
 		if (FleeDestinationReached(cptr->pos.x, cptr->pos.z,
-				cptr->tgx, cptr->tgz, kShotInvestigationArrivalRadius)) {
+				cptr->tgx, cptr->tgz, kFleeLegArrivalRadius)) {
 			const THunterGeometry hunter = GetHunterGeometry(cptr);
 			SetHunterFleeTarget(cptr, hunter.dx, hunter.dz);
+		}
+		else {
+			cptr->tgtime += TimeDt;
+			if (cptr->tgtime >= kFleeLegStuckMs) {
+				const int attempt = cptr->tgtime / kFleeLegStuckMs;
+				const THunterGeometry hunter = GetHunterGeometry(cptr);
+				SetHunterFleeTarget(cptr, hunter.dx, hunter.dz,
+					FleeLegStuckRotationAngle(attempt));
+				cptr->tgtime = attempt * kFleeLegStuckMs;
+			}
 		}
 		return;
 	}

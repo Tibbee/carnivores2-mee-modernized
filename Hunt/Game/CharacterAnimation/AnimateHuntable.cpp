@@ -82,9 +82,8 @@ TBEGIN:
 		const bool fleeMode = ShouldFleeHunter(*cptr, hunter.distanceSquared, true);
 
 		if (fleeMode) {
-			// The navigator owns the flee destination; only the reaction
-			// bookkeeping stays in the animator.
-			cptr->tgtime = 0;
+			// The navigator owns the flee destination and the per-leg tgtime
+			// clock; only the reaction bookkeeping stays in the animator.
 
 			if (cptr->packId >= 0) {
 				if (cptr->AfraidTime <= 0)

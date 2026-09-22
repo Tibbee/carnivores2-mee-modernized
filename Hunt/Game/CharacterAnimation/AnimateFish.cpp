@@ -232,8 +232,6 @@ TBEGIN:
 			}
 		}
 
-		cptr->tgtime = 0;
-
 		if (!fixedReaction && tracksHunter
 			&& cptr->Phase != DinoInfo[cptr->CType].jumpAnim){
 			if (AIInfo[cptr->Clone].jumper && DinoInfo[cptr->CType].DangerFish) {

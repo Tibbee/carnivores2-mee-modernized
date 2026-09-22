@@ -406,3 +406,33 @@ TEST(AIBehaviorMathTest, FixedFleeReroutesOnlyAfterReachingItsDestination)
     EXPECT_TRUE(FleeDestinationReached(0.0f, 0.0f, 511.0f, 0.0f, 512.0f));
     EXPECT_TRUE(FleeDestinationReached(100.0f, -40.0f, 120.0f, -40.0f, 512.0f));
 }
+
+TEST(AIBehaviorMathTest, FleeLegRadiusTreatsALegAsADirection)
+{
+    // A flee leg only has to carry the creature away; the last stretch toward
+    // an unreachable point must not be required before re-aiming.
+    EXPECT_FALSE(FleeDestinationReached(0.0f, 0.0f, 900.0f, 0.0f,
+        kShotInvestigationArrivalRadius));
+    EXPECT_TRUE(FleeDestinationReached(0.0f, 0.0f, 900.0f, 0.0f,
+        kFleeLegArrivalRadius));
+    EXPECT_FALSE(FleeDestinationReached(0.0f, 0.0f, 1100.0f, 0.0f,
+        kFleeLegArrivalRadius));
+}
+
+TEST(AIBehaviorMathTest, StuckFleeReaimsSweepSidesWithoutTurningBack)
+{
+    const float quarterPi = 3.14159265f / 2.0f;
+    const float sixtyDegrees = 3.14159265f / 3.0f;
+    EXPECT_NEAR(FleeLegStuckRotationAngle(1), sixtyDegrees, 1e-4f);
+    EXPECT_NEAR(FleeLegStuckRotationAngle(2), -sixtyDegrees, 1e-4f);
+    EXPECT_NEAR(FleeLegStuckRotationAngle(3), quarterPi, 1e-4f);
+    EXPECT_NEAR(FleeLegStuckRotationAngle(4), -quarterPi, 1e-4f);
+    EXPECT_NEAR(FleeLegStuckRotationAngle(9), quarterPi, 1e-4f);
+    for (int attempt = 1; attempt <= 12; ++attempt)
+    {
+        const float angle = FleeLegStuckRotationAngle(attempt);
+        const float magnitude = angle < 0.0f ? -angle : angle;
+        EXPECT_LE(magnitude, quarterPi + 1e-4f);
+        EXPECT_GE(magnitude, 1e-4f);
+    }
+}

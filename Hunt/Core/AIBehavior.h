@@ -295,3 +295,15 @@ inline bool FleeDestinationReached(float positionX, float positionZ,
     const float dz = destinationZ - positionZ;
     return dx * dx + dz * dz < arrivalRadius * arrivalRadius;
 }
+
+// Rotation bias, in radians, for the Nth stuck flee re-aim (1-based):
+// alternately left and right in 60-degree steps, capped at 90 degrees so a
+// retry can never turn the escape ray back toward the hunter.
+inline float FleeLegStuckRotationAngle(int attempt)
+{
+    if (attempt < 1) attempt = 1;
+    const int tier = (attempt + 1) / 2;
+    const float degrees = (tier * 60.0f > 90.0f) ? 90.0f : tier * 60.0f;
+    const float radians = degrees * 3.14159265f / 180.0f;
+    return (attempt % 2) ? radians : -radians;
+}

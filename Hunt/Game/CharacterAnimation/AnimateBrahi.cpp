@@ -84,8 +84,7 @@ TBEGIN:
 			else
 			{
 				attacking = false;
-				// The navigator owns the flee destination.
-				cptr->tgtime = 0;
+				// The navigator owns the flee destination and the tgtime clock.
 
 				if (cptr->packId >= 0) {
 					if (cptr->AfraidTime <= 0)

@@ -85,6 +85,20 @@ inline constexpr float kShotInvestigationArrivalRadius = 512.0f;
 // straight to normal wander) until the reaction timer expires.
 inline constexpr float kShotSearchRadius = 2048.0f;
 
+// A flee leg is a direction, not a destination: it only has to carry the
+// creature away before the next leg is aimed. The last stretch toward a leg
+// point is often untraversable (shoreline, rocks, trees), and an escaping
+// animal that must close to the investigation radius before re-aiming ends up
+// orbiting the unreachable point for the rest of its reaction. Half a leg is
+// close enough.
+inline constexpr float kFleeLegArrivalRadius = 1024.0f;
+// Fallback clock for a leg that cannot be closed at all (for example a point
+// across an inlet): after this long without reaching it, the flee ray is
+// re-aimed with a rotated heading so the same unreachable direction is not
+// picked again. Accumulated in ms on TCharacter::tgtime, which doubles as the
+// per-leg clock (reset to 0 whenever a target is set).
+inline constexpr int kFleeLegStuckMs = 4000;
+
 // Contact-range awareness (see ShouldPromotePursuitToTracking): a creature
 // following a remembered event position notices the hunter when the hunter is
 // physically inside its attack reach, and keeps tracking for this long.
