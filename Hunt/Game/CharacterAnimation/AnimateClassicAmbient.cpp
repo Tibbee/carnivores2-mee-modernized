@@ -139,6 +139,12 @@ TBEGIN:
 		if (pdistMulti)
 		{
 			cptr->State = 1;
+			// A proximity scatter is a detection (the same rule as the 2048-unit
+			// refresh above): the creature knows where the hunter is and may use
+			// the live position. Without the lock a solo scatter kept its stale
+			// wander target and could run towards the hunter it just fled.
+			if (pdistSq[0] < 812.f * 812.f)
+				cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
 			cptr->AfraidTime = (5 + rRand(5)) * 1024;
 			cptr->Phase = DinoInfo[cptr->CType].runAnim;
 			goto TBEGIN;

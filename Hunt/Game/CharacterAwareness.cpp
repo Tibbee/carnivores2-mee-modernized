@@ -110,8 +110,13 @@ bool ApplyGunshotHeard(TCharacter& character, const THunterStimulus& stimulus)
 	if (!cptr->State) cptr->State = 2;
 
 	const TDinoInfo& dino = DinoInfo[cptr->CType];
-	const bool fearsShot = dino.fearHearShot
-		|| (dino.defensive && cptr->Health == dino.Health0);
+	// One authored-fear rule with the per-frame flee decision and the direct
+	// hit channel: authored fear of shot sounds, defensive at full health, or
+	// injured and fearing being shot.
+	const bool fearsShot = FearsHunterEvent(
+		dino.fearHearShot,
+		dino.defensive && cptr->Health == dino.Health0,
+		dino.fearShot && cptr->Health < dino.Health0);
 	// A gunshot is a sound: species whose authored (event-scaled) range
 	// covers it investigate the position, while low-aggression species
 	// flee from it. Authored fear and passivity always flee, and the
@@ -169,6 +174,12 @@ bool ApplyHunterCall(TCharacter& character, const THunterStimulus& stimulus)
 bool ApplyDirectHit(TCharacter& character, const THunterStimulus& stimulus)
 {
 	TCharacter* cptr = &character;
+	// Static exhibits and carried bodies (StateF == 0xFF) use State as their
+	// persistent exhibit slot; awareness events must never rewrite it (the
+	// same guard the other three channels already carry). A dead body cannot
+	// react either.
+	if (cptr->StateF == 0xFF) return false;
+	if (!cptr->Health) return false;
 	const TDinoInfo& info = DinoInfo[cptr->CType];
 	const bool wasAware = IsHunterAware(cptr);
 	const bool wasTrackingHunter = TracksHunterExactly(cptr);
@@ -179,8 +190,9 @@ bool ApplyDirectHit(TCharacter& character, const THunterStimulus& stimulus)
 	const float sourceDistance = static_cast<float>(
 		sqrt(sourceDx * sourceDx + sourceDz * sourceDz));
 	const bool fearsHit = cptr->Clone != AI_TREX
-		&& ((info.defensive && cptr->Health == info.Health0)
-			|| (info.fearShot && cptr->Health < info.Health0));
+		&& FearsHunterEvent(false,
+			info.defensive && cptr->Health == info.Health0,
+			info.fearShot && cptr->Health < info.Health0);
 	// A direct hit is a stronger stimulus than passive detection: species
 	// whose authored (event-scaled) range covers the source retaliate, while
 	// low-aggression species flee from it. Authored fear and passivity always
@@ -269,6 +281,9 @@ void SelectHunterSearchTarget(TCharacter* cptr)
 	case AI_FISH:
 		SetNewTargetPlaceFish(cptr, kShotSearchRadius);
 		break;
+	case AI_ICTH:
+		SetNewTargetPlace_Icth(cptr, kShotSearchRadius);
+		break;
 	default:
 		SetNewTargetPlace(cptr, kShotSearchRadius);
 		break;
@@ -345,6 +360,15 @@ void SetHunterFleeTarget(TCharacter* cptr, float hunterDx, float hunterDz)
 // acquisition frame still lands its live target on the following frame.
 void UpdateLiveHunterNavigation(TCharacter* cptr, HunterAIFamily family)
 {
+	// A fixed event reaction never receives live-derived coordinates: its
+	// stored event point, arrival search and fixed flee legs are owned by
+	// UpdateHunterNavigation before this point. Only exact tracking (and the
+	// uninformed pack-follow case) may write hunter-directed targets here.
+	// This keeps the "remembered position" promise structural instead of
+	// relying on every per-frame flee rule agreeing with the event rule.
+	if (IsFixedHunterPursuit(cptr))
+		return;
+
 	const bool packWake = cptr->State == 0
 		&& (family == HunterAIFamily::Standard
 			|| family == HunterAIFamily::Brahi

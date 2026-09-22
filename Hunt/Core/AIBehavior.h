@@ -60,6 +60,20 @@ inline bool ShouldInitializeDirectHitAlert(bool survived, bool wasAware)
     return survived && !wasAware;
 }
 
+// One authored-fear rule shared by the hunter-event classifiers and the
+// per-frame flee decision (structural issue S1 in hunter-awareness-review.md):
+// a defensive species at full health, a species that fears injury once hurt,
+// and a species that fears shot sounds always flee from the stimulus instead
+// of investigating or retaliating. Evaluating the same inputs at event time
+// and per frame keeps the two decisions from disagreeing -- a disagreement
+// used to leave an injured fearShotHit species fleeing from the live hunter
+// coordinates while its state said "fixed shot investigation".
+inline bool FearsHunterEvent(bool fearsShotSound, bool defensiveAtFullHealth,
+                             bool injuredAndFearsShot)
+{
+    return fearsShotSound || defensiveAtFullHealth || injuredAndFearsShot;
+}
+
 // A hunter event (heard shot or direct hit) is a stronger stimulus than
 // passive detection: the species' authored aggression range is scaled up for
 // the reaction (see GetCharacterHunterEventRange). Authored fear and
@@ -183,14 +197,6 @@ inline bool IsWithinKillAltitude(float verticalDifference, float verticalReach)
     return verticalDifference < verticalReach;
 }
 
-inline bool ShouldSkipTRexPerception(bool hasReactionTime,
-                                     bool isStateOne,
-                                     HunterAwarenessState awareness)
-{
-    return (hasReactionTime || isStateOne)
-        && !IsTimedHunterReactionState(awareness);
-}
-
 // A direct hit must cancel any pending look/roar notice and start the charge.
 // Repeated hits during an active retaliation or exact tracking keep the
 // current pursuit instead of restarting it.
@@ -200,11 +206,15 @@ inline bool ShouldRestartTRexHitPursuit(HunterAwarenessState priorAwareness)
         && priorAwareness != HunterAwarenessState::TrackingHunter;
 }
 
-// The look/smell notice animation must not interrupt a timed shot or hit
-// reaction; awareness still upgrades to exact tracking independently.
+// The look/smell notice animation plays only for a new detection. Any active
+// reaction -- a timed shot/hit response or an established tracking lock -- must
+// not be interrupted by a replay of the notice; the awareness upgrade or the
+// timer refresh still happens underneath. This is what lets the T-Rex keep
+// re-perceiving (and so refresh its tracking lock) mid-pursuit without
+// stopping to roar at the hunter it is already chasing.
 inline bool ShouldScheduleNoticeAnimation(HunterAwarenessState awareness)
 {
-    return !IsTimedHunterReactionState(awareness);
+    return awareness == HunterAwarenessState::None;
 }
 
 // The authored look offset moves the hunter distance to the creature's

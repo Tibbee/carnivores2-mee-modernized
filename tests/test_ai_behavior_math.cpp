@@ -86,14 +86,23 @@ TEST(AIBehaviorMathTest, TRexHitRestartsPursuitOnlyWhenNotAlreadyEngaged)
         HunterAwarenessState::TrackingHunter));
 }
 
-TEST(AIBehaviorMathTest, NoticeAnimationIsSuppressedDuringShotReactions)
+TEST(AIBehaviorMathTest, NoticeAnimationOnlyPlaysForANewDetection)
 {
+    // An active reaction must never be interrupted by a replayed notice:
+    // this is what lets a tracking T-Rex keep perceiving (and so refresh its
+    // lock) mid-pursuit without stopping to roar at the hunter it chases.
+    EXPECT_TRUE(ShouldScheduleNoticeAnimation(HunterAwarenessState::None));
     EXPECT_FALSE(ShouldScheduleNoticeAnimation(
         HunterAwarenessState::InvestigatingShot));
     EXPECT_FALSE(ShouldScheduleNoticeAnimation(
         HunterAwarenessState::RetaliatingHit));
-    EXPECT_TRUE(ShouldScheduleNoticeAnimation(HunterAwarenessState::None));
-    EXPECT_TRUE(ShouldScheduleNoticeAnimation(
+    EXPECT_FALSE(ShouldScheduleNoticeAnimation(
+        HunterAwarenessState::FleeingFromShot));
+    EXPECT_FALSE(ShouldScheduleNoticeAnimation(
+        HunterAwarenessState::FleeingFromHit));
+    EXPECT_FALSE(ShouldScheduleNoticeAnimation(
+        HunterAwarenessState::FleeingFromCall));
+    EXPECT_FALSE(ShouldScheduleNoticeAnimation(
         HunterAwarenessState::TrackingHunter));
 }
 
@@ -119,18 +128,6 @@ TEST(AIBehaviorMathTest, AwarenessStatesDistinguishFixedReactions)
     EXPECT_FALSE(IsTimedHunterReactionState(
         HunterAwarenessState::TrackingHunter));
     EXPECT_FALSE(IsTimedHunterReactionState(HunterAwarenessState::None));
-}
-
-TEST(AIBehaviorMathTest, TRexCanUpgradeFixedReactionToExactTracking)
-{
-    EXPECT_FALSE(ShouldSkipTRexPerception(
-        true, true, HunterAwarenessState::InvestigatingShot));
-    EXPECT_FALSE(ShouldSkipTRexPerception(
-        true, true, HunterAwarenessState::RetaliatingHit));
-    EXPECT_TRUE(ShouldSkipTRexPerception(
-        true, true, HunterAwarenessState::TrackingHunter));
-    EXPECT_FALSE(ShouldSkipTRexPerception(
-        false, false, HunterAwarenessState::TrackingHunter));
 }
 
 TEST(AIBehaviorMathTest, NormalAwarenessRespectsAggressionRange)
@@ -182,6 +179,20 @@ TEST(AIBehaviorMathTest, AuthoredFearAndPassivityAlwaysFleeHunterEvents)
     EXPECT_TRUE(ShouldFleeFromHunterEvent(0, false, 10.0f, eventRange));
     EXPECT_TRUE(ShouldFleeFromHunterEvent(-1, false, 10.0f, eventRange));
     EXPECT_FALSE(ShouldFleeFromHunterEvent(200, false, 10.0f, eventRange));
+}
+
+TEST(AIBehaviorMathTest, EventFearMatchesThePerFrameFleeReasons)
+{
+    // The event-time classifier and the per-frame flee decision share one
+    // authored-fear rule (S1 in the hunter-awareness review), so an injured
+    // fearShotHit species hears a shot and flees from it instead of entering
+    // a fixed investigation its per-frame rule immediately overrode with a
+    // live flee.
+    EXPECT_FALSE(FearsHunterEvent(false, false, false));
+    EXPECT_TRUE(FearsHunterEvent(true, false, false));   // fears shot sounds
+    EXPECT_TRUE(FearsHunterEvent(false, true, false));   // defensive at full health
+    EXPECT_TRUE(FearsHunterEvent(false, false, true));   // injured and fears being shot
+    EXPECT_TRUE(FearsHunterEvent(true, true, true));
 }
 
 TEST(AIBehaviorMathTest, DedicatedPredatorWithoutFleeStateRespondsAggressively)

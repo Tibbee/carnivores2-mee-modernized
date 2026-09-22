@@ -46,7 +46,7 @@ void CheckAfraid()
 
 	wlook = Wind.nv;
 
-	float kR, kwind, klook, kstand;
+	float kR = 1.0f, kwind = 0.0f, klook = 0.0f, kstand = 1.0f;
 
 	float kmask = 1.0f;
 	float kskill = 1.0f;
@@ -67,12 +67,19 @@ void CheckAfraid()
 		if (!GetHunterCapabilities(*cptr).sniffs) continue;
 		//if (cptr->AfraidTime || cptr->State == 1) continue;
 
-		// Preserve the T-Rex's established pursuit lock, but keep checking while
-		// it follows a fixed shot or hit position. Actual sight or scent can then
-		// upgrade that positional reaction to continuous hunter tracking.
-		if (cptr->Clone == AI_TREX
-			&& ShouldSkipTRexPerception(cptr->AfraidTime != 0, cptr->State == 1,
-				cptr->hunterAwareness)) continue;
+		// Perception keeps running for every creature, including the T-Rex
+		// mid-pursuit: a successful check refreshes the tracking lock, which is
+		// the documented "expires unless sight or scent keeps working" rule.
+		// The notice animation is separately gated below so the refresh never
+		// replays the look/roar sequence of an active chase.
+
+		// The neutral values cover the survival path, which jumps straight to
+		// the reaction with no perception math (waves always detect the
+		// hunter). They also keep the goto from skipping the initializers of
+		// the locals declared below it.
+		float kALook = 1.0f;
+		float kASmell = 1.0f;
+		float kRes = 1.0f;
 
 		if (g_GameMode == GameMode::SurvivalMode) goto isAfraid;
 
@@ -98,7 +105,7 @@ void CheckAfraid()
 
 		//============= reasons ==============//
 
-		float kALook = kR * ((klook + 3.f) / 3.f) * kstand * kmask;
+		kALook = kR * ((klook + 3.f) / 3.f) * kstand * kmask;
 		if (klook > 0.3) kALook *= 2.0;
 		if (klook > 0.8) kALook *= 2.0;
 		kALook /= DinoInfo[cptr->CType].LookK;
@@ -120,11 +127,11 @@ void CheckAfraid()
 		  }
 		  */
 
-		float kASmell = kR * ((kwind + 2.0f) / 2.0F) * ((klook + 3.f) / 3.f) * kscent;
+		kASmell = kR * ((kwind + 2.0f) / 2.0F) * ((klook + 3.f) / 3.f) * kscent;
 		if (kwind > 0) kASmell *= 2.0;
 		kASmell /= DinoInfo[cptr->CType].SmellK;
 
-		float kRes = MIN(kALook, kASmell);
+		kRes = MIN(kALook, kASmell);
 
 		if (kRes < 1.0)
 		{
@@ -148,9 +155,9 @@ void CheckAfraid()
 				cptr->State = 2;
 			}
 			cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
-			// A T-Rex that already heard a shot or took a hit keeps charging.
-			// Its awareness still upgrades to exact tracking above; only the
-			// look/smell notice animation is suppressed.
+			// A T-Rex with any active reaction keeps charging. Its awareness
+			// still refreshes or upgrades above; only a brand-new detection
+			// plays the look/smell notice.
 			if (cptr->Clone == AI_TREX //===== T-Rex
 				&& ShouldScheduleNoticeAnimation(priorAwareness))
 				if (kALook > kASmell) cptr->State = 3;

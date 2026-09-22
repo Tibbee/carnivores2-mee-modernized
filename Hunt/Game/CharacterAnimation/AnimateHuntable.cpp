@@ -68,10 +68,13 @@ TBEGIN:
 		const bool fixedFlee = IsFixedHunterFlee(cptr);
 		const bool fixedReaction = fixedPursuit || fixedFlee;
 		const bool tracksHunter = TracksHunterExactly(cptr);
-		if (!(AIInfo[cptr->Clone].carnivore
-			&& (!AIInfo[cptr->Clone].iceAge || cptr->Clone == AI_WOLF))) {
-			if (hunter.distanceSquared < 6000 * 6000 && cptr->Clone != AI_DEER) cptr->AfraidTime = 8000;
-		}
+		// Legacy note: the non-carnivore families used to force `AfraidTime =
+		// 8000` whenever the hunter was within 6000 units. That overwrite
+		// clobbered finite shot/hit/call reaction timers and kept expiring
+		// tracking locks alive without any perception, so a spooked herbivore
+		// fled from the live hunter position even after breaking contact. The
+		// tracking lock is now only refreshed by real detection (CheckAfraid),
+		// and a pack response is held by the pack alert, not this timer.
 
 		// The authored flee/pursue rule lives in the awareness core; this
 		// animator only supplies the family distance (the hunter is always
@@ -156,6 +159,11 @@ TBEGIN:
 
 		if (hunter.distanceSquared < 1024.f * 1024.f && cptr->Clone == AI_DEER && !ObservMode && !DEBUG) {
 			cptr->State = 1;
+			// A proximity scatter is a detection: the deer knows where the
+			// hunter is, so it may flee from the live position (the same rule
+			// as the classic-ambient proximity scare). Without the lock its
+			// scatter had no awareness state and kept its stale wander target.
+			cptr->hunterAwareness = HunterAwarenessState::TrackingHunter;
 			cptr->AfraidTime = (6 + rRand(8)) * 1024;
 			cptr->Phase = DinoInfo[cptr->CType].runAnim;
 			goto TBEGIN;

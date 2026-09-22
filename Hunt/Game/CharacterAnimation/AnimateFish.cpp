@@ -213,6 +213,18 @@ TBEGIN:
 
 		if (!fixedPursuit && tracksHunter
 			&& (DinoInfo[cptr->CType].DangerFish || g_GameMode == GameMode::SurvivalMode)) {
+			// The in-water proximity sense is this family's perception: while it
+			// holds, it refreshes the tracking lock the same way CheckAfraid
+			// does for sniffers. Without the refresh the 10-second lock ran out
+			// mid-attack, the navigator read the fish as an unengaged flee, and
+			// a hunting predator swam away from its prey until it left its own
+			// attack range.
+			const bool aquaticAttack = hunter.distanceSquared <= attackDist * attackDist
+				&& playerInWater && !DinoInfo[cptr->CType].dontSwimAway
+				&& MyHealth && !ObservMode && !DEBUG;
+			if (aquaticAttack || g_GameMode == GameMode::SurvivalMode)
+				cptr->AfraidTime = static_cast<int>((10.f)) * 1024;
+
 			// The navigator owns the live tracking target, its depth failsafes
 			// and the flee destination; only the pack alert stays here.
 			if (!fixedReaction && cptr->packId >= 0) {
