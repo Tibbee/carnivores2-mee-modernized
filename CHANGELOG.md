@@ -28,7 +28,10 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   per-second state line per reacting creature to `render.log`, with species
   name and id, state, position, stored destination, live hunter distance
   and remaining reaction time, so flee/pursue decisions can be diagnosed
-  from a playtest without a debugger.
+  from a playtest without a debugger. Every awareness acquisition is
+  traced: sight, scent, aquatic proximity and startle scatters join the
+  shot/hit/call/contact event lines, so a reaction's trigger is always
+  visible; perception refreshes stay silent.
 - A per-species `agressMulti` override in `_RES.TXT` for the AI-family
   aggression multiplier. The code-side clone table stays the default; an
   authored value replaces it for that species only, so a mod can retune an
