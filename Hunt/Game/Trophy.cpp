@@ -315,7 +315,7 @@ void AnimateProcesses()
 
       if (MyHealth) SaveTrophy();
       else LoadTrophy();
-      DoHalt("");
+      DoQuit("trophy room exit");
     }
   }
 }

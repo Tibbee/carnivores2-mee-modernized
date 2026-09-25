@@ -72,18 +72,10 @@ void PrintText(LPSTR s, int x, int y, int rgb)
   SelectObject(hdcCMain,hbmpOld);
 }
 
-void DoHalt(LPSTR Mess)
+// Teardown shared by the fault path (DoHalt) and normal session exits
+// (DoQuit), which differ only in what they log.
+[[noreturn]] static void ShutdownSession()
 {
-
-	LOG_ERROR("ABNORMAL_HALT: %s", Mess ? Mess : "");
-	if (strlen(Mess))
-	{
-		PrintLog("ABNORMAL_HALT: ");
-		PrintLog(Mess);
-		PrintLog("\n");
-		MessageBox(nullptr, Mess, "Carnivores Termination", IDOK | MB_SYSTEMMODAL | MB_ICONEXCLAMATION);
-	}
-
 	if (Multiplayer) {
 		if (Host) {
 			ShutDownServer();
@@ -104,16 +96,51 @@ void DoHalt(LPSTR Mess)
   TerminateProcess(GetCurrentProcess(), 0);
 }
 
+void DoHalt(LPSTR Mess)
+{
+
+	// A halt with no text is a call-site mistake, not an empty message: say so
+	// instead of emitting a bare "ABNORMAL_HALT:" line that reads as a crash.
+	bool hasMessage = Mess && *Mess;
+	LOG_ERROR("ABNORMAL_HALT: %s", hasMessage ? Mess : "(no message)");
+	if (hasMessage)
+	{
+		PrintLog("ABNORMAL_HALT: ");
+		PrintLog(Mess);
+		PrintLog("\n");
+		MessageBox(nullptr, Mess, "Carnivores Termination", IDOK | MB_SYSTEMMODAL | MB_ICONEXCLAMATION);
+	}
+
+	ShutdownSession();
+}
+
+// Normal end of a session: leaving the trophy room, quitting a hunt with F9,
+// or the end-of-hunt exit that follows the death cinematic. Nothing went
+// wrong, so it must not be logged as a fault -- but it does name the path,
+// which is what makes a session log readable when a player reports "it just
+// closed".
+void DoQuit(LPSTR Reason)
+{
+	bool hasReason = Reason && *Reason;
+	LOG_INFO("SESSION_EXIT: %s", hasReason ? Reason : "(unspecified)");
+	PrintLog("SESSION_EXIT: ");
+	if (hasReason)
+		PrintLog(Reason);
+	PrintLog("\n");
+
+	ShutdownSession();
+}
+
 //For stopping the program before audio/3d hardware startup
 void DoHalt2(LPSTR Mess)
 {
-	LOG_ERROR("ABNORMAL_HALT: %s", Mess ? Mess : "");
+	LOG_ERROR("ABNORMAL_HALT: %s", Mess ? Mess : "(no message)");
 //	AudioStop();
 //	Audio_Shutdown();
 
 //	ShutDown3DHardware();
 	EnableWindow(hwndMain, false);
-	if (strlen(Mess))
+	if (Mess && *Mess)
 	{
 		PrintLog("ABNORMAL_HALT: ");
 		PrintLog(Mess);

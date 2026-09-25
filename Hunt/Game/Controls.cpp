@@ -166,7 +166,7 @@ void ProcessDemoMovement()
     //ResetMousePos();
     //DemoPoint.DemoTime = 0;
     //LoadTrophy();
-    DoHalt("");
+    DoQuit("hunt ended (death cinematic)");
     return;
   }
 

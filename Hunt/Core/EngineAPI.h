@@ -165,7 +165,8 @@ int  conv_xGx(int);
 void conv_pic(TPicture &pic);
 void LoadPicture(TPicture &pic, LPSTR pname, MemoryTag tag = MemoryTag::Global);
 void LoadPictureTGA(TPicture &pic, LPSTR pname, MemoryTag tag = MemoryTag::Global);
-void LoadCharacterInfo(TCharacterInfo&, char*, MemoryTag tag = MemoryTag::Global);
+void LoadCharacterInfo(TCharacterInfo&, char*, MemoryTag tag = MemoryTag::Global,
+                       const char* source = nullptr);
 void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName, MemoryTag tag = MemoryTag::Global);
 void LoadModel(unique_obj_ptr<TModel> &mptr, MemoryTag tag = MemoryTag::Level);
 void LoadResources();
@@ -333,6 +334,11 @@ void AddWCircle(float, float, float);
 void AnimateProcesses();
 [[noreturn]] void DoHalt(LPSTR);
 [[noreturn]] void DoHalt2(LPSTR);
+// Normal end of a session (leaving the trophy room, quitting a hunt with F9,
+// or the end-of-hunt exit after the death cinematic). Logged as SESSION_EXIT
+// at INFO level and never shows a message box; reserve DoHalt for real
+// failures so a log's ERROR lines stay meaningful.
+[[noreturn]] void DoQuit(LPSTR);
 
 void CreateLog();
 void PrintLog(LPSTR l);

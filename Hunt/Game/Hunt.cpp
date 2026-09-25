@@ -1448,9 +1448,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       break;
 
     case VK_F9:
-      ShutDown3DHardware();
-      AudioStop();
-      DoHalt("");
+      DoQuit("hunt exit (F9)");
       break;
 
     case VK_F12:
