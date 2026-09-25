@@ -35,8 +35,10 @@ void LoadCharacters()
 
       if (!ChInfo[c].mptr)
       {
+        char src[192];
+        sprintf_s(src, sizeof(src), "_RES.TXT character '%s'", DinoInfo[c].Name);
         sprintf_s(logt, sizeof(logt), "HUNTDAT\\%s", DinoInfo[c].FName);
-        LoadCharacterInfo(ChInfo[c], logt);
+        LoadCharacterInfo(ChInfo[c], logt, MemoryTag::Global, src);
         PrintLog("Loading: ");
         PrintLog(logt);
         PrintLog("\n");
@@ -60,8 +62,10 @@ void LoadCharacters()
     {
       if (!Weapon.chinfo[c].mptr)
       {
+        char src[192];
+        sprintf_s(src, sizeof(src), "_RES.TXT weapon '%s'", WeapInfo[c].Name);
         sprintf_s(logt, sizeof(logt), "HUNTDAT\\WEAPONS\\%s", WeapInfo[c].FName);
-        LoadCharacterInfo(Weapon.chinfo[c], logt);
+        LoadCharacterInfo(Weapon.chinfo[c], logt, MemoryTag::Global, src);
         PrintLog("Loading: ");
         PrintLog(logt);
         PrintLog("\n");
@@ -70,8 +74,10 @@ void LoadCharacters()
       ValidateWeaponAnimationReferences(c);
 
 	  if (WeapInfo[c].bullet) {
+		  char src[192];
+		  sprintf_s(src, sizeof(src), "_RES.TXT weapon '%s' (bullet model)", WeapInfo[c].Name);
 		  sprintf_s(logt, sizeof(logt), "HUNTDAT\\WEAPONS\\%s", WeapInfo[c].BLName);
-		  LoadCharacterInfo(Weapon.Bullet[c], logt);
+		  LoadCharacterInfo(Weapon.Bullet[c], logt, MemoryTag::Global, src);
 		  PrintLog("Loading: ");
 		  PrintLog(logt);
 		  PrintLog("\n");

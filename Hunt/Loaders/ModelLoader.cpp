@@ -810,7 +810,7 @@ void ReleaseCharacterInfo(TCharacterInfo &chinfo)
   chinfo.AnimationBoundRadius = 0.0f;
 }
 
-void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
+void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag, const char* source)
 {
   ReleaseCharacterInfo(chinfo);
 
@@ -821,7 +821,17 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag)
   if (hfile==INVALID_HANDLE_VALUE)
   {
     char sz[512];
-    sprintf_s(sz, sizeof(sz), "Error opening character file:\n%s.", FName );
+    // Naming the entry that asked for the file is what turns "the game says a
+    // path is missing" into "this line of _RES.TXT is wrong" -- the path alone
+    // does not say which of the hundreds of entries produced it.
+    if (source && *source)
+      sprintf_s(sz, sizeof(sz),
+                "Error opening character file:\n%s.\n\n"
+                "Referenced by %s.\n"
+                "Fix that entry or restore the missing file in the game folder.",
+                FName, source);
+    else
+      sprintf_s(sz, sizeof(sz), "Error opening character file:\n%s.", FName );
     DoHalt(sz);
   }
 

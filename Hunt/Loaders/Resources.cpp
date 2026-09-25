@@ -782,8 +782,17 @@ void LoadResources()
 
   if (hfile==INVALID_HANDLE_VALUE)
   {
+    // Both filenames come from one project string, so a missing .rsc means the
+    // area's data pair is incomplete -- the .map is usually still there, which
+    // is what makes this read as "the whole game is broken" instead of "this
+    // one area is". Name the pair and the fix.
     char sz[512];
-    sprintf_s(sz, sizeof(sz), "Error opening resource file\n%s.", RscName );
+    sprintf_s(sz, sizeof(sz),
+              "Error opening resource file\n%s.\n\n"
+              "This area's data is incomplete: an area needs %s and its .rsc "
+              "file with the same basename.\n"
+              "Restore the missing file from your game data, or remove the area.",
+              RscName, MapName);
     DoHalt(sz);
     return;
   }
