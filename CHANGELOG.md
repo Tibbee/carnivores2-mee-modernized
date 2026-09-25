@@ -199,6 +199,16 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   (Bananogmius, Pleuroceras, Ichthyosaurus, Squalicorax, Atractosteus)
   wandered with the 5,024-unit Mosasaurus radius instead of the authored
   1,024-unit fish radius.
+- Let the trophy room render at the configured view distance. `LoadResources`
+  forced `ctViewR` (and with it `charViewR`) to 60 whenever the project name
+  contained `trophy`, running after `InitEngine` had already derived the value
+  from the profile's view-distance setting, so the room's fog range, far
+  plane, model fade and shadow radii ignored the menu slider and the far end
+  of the hall washed out -- at the top of the range (OptViewR 242 -> ctViewR
+  214) fog closed at 15,360 units instead of 54,784. The room now keeps the
+  engine values and matches a hunt at the same setting; only the room mode is
+  set there. Its spawn point and the menu's forced daytime launch are
+  unchanged.
 
 ## [v1.1.9-modernized] - 2026-09-20
 
