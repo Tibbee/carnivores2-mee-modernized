@@ -7,9 +7,21 @@ Based on [Keep a Changelog](https://keepachangelog.com/).
 Upstream Modder's Engine v1.11 is the base, not the modernization release
 number. ModDB V1 through V6 correspond to GitHub v1.1.4-modernized
 through v1.1.9-modernized.
-Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
+Windows executable resources use major.minor.patch.build (v1.1.9.1 package
+candidate: 1.1.9.1). The v1.1.9.1 package is a local build, not a published
+release; no GitHub tag or ModDB label has been assigned.
+Copy-paste release summaries are in `release-notes/`.
 
-## [Unreleased]
+## [Unreleased] (proposed v1.1.9.1-modernized)
+
+Draft changes on local `main` after `origin/main` (`9db51ec`); not part of
+the published v1.1.9 tag or its refreshed archive. This is a follow-up
+compatibility/gameplay package candidate, not an already published hotfix.
+
+### Summary
+- Restore legacy/mod script tolerance with a lenient-by-default load policy,
+  repair finite creature-awareness edge cases and pack/flee behavior, and
+  correct fish wandering, weapon fog overlays, and trophy-exhibit damage.
 
 ### Added
 - Data-load policy and recovery diagnostics
@@ -51,10 +63,11 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   and contact-range promotion share one eligibility, priority and timer path;
   the navigator owns every hunter-directed destination and the single
   reaction timer, and animators only read the response.
-- Unify the hunter attack geometry (per-family look offsets) and the kill
-  gate. Every kill now requires exact tracking and the family attack reach;
-  fixed reactions, remembered event positions, awareness-less proximity and
-  expired locks never authorize a kill.
+- Unify hunter attack geometry (per-family look offsets) and the kill gate.
+  Kills require family attack reach and either exact tracking or a fixed flee
+  reaction at contact (a fleeing giant can crush the hunter). Remembered event
+  positions at a distance, expired locks and awareness-less proximity do not
+  authorize a kill.
 - Tracking timers always expire now. A creature that loses the hunter
   returns to ordinary behavior when its reaction time runs out instead of
   chasing the live position indefinitely; its reaction time is refreshed
@@ -107,64 +120,10 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
   idle. A wounded aquatic predator no longer loses the ability to hunt a
   hunter it can sense, and re-shooting it no longer refreshes a harmless
   pursuit instead of a real one.
-- Hunter events (heard shots and direct hits) now use the species' authored
-  aggression range scaled by `kHunterEventRangeScale` (2.5) instead of the
-  binary rules that preceded it. A predator whose range covers the event
-  (Carnotaurus, 72 x 200) charges it at any distance it can hear, while a
-  low-aggression species (Pachycephalosaurus, 72 x 60 -- which reuses the
-  Allosaurus AI clone) still flees from a genuinely distant event instead of
-  charging the source. Authored `fearHearShot`/`fearShot`/`defensive` and
-  passivity always flee. The scale is a single documented tuning value.
-- Restore the recent-damage bypass on the ordinary acquisition range: a
-  creature that was just shot keeps engaging beyond its normal range for 90
-  seconds instead of immediately fleeing once the hunter moves out of range.
-- Fixed reactions no longer run past the stored event position. When a
-  pursuit reaches the event area without detecting the hunter, it stays alert
-  and searches locally (`kShotSearchRadius`, 2048) until the reaction timer
-  expires instead of sprinting forward or dropping straight to normal wander.
-  Flee and search targets are clamped to the map so an extension cannot park a
-  creature against the world edge.
-- Give distant shot reactions enough time to reach the stored position. The
-  proximity-based investigation time is floored at the species travel time
-  plus the minimum search window (capped at 60 seconds), so a slow creature
-  no longer times out mid-route and starts wandering far from the event.
-- Permit zero-weight pack members used by legacy mods for leader-only creature
-  types. Zero-ratio entries are excluded when positive follower weights exist;
-  all-zero packs retain the legacy first-member follower fallback. Negative and
-  non-finite ratios remain rejected.
-- Preserve the T-Rex's dedicated aggressive response to audible shots and
-  direct hits. Its intentionally omitted `aggress` value no longer puts its
-  specialized, non-fleeing state machine into an unsupported flee reaction.
-  A T-Rex following the fixed source of a shot or hit can now upgrade to
-  continuous hunter tracking when it actually sees or smells the hunter.
-  A direct hit cancels any pending look/roar notice and starts the charge
-  immediately, matching the original game's response. Additional hits preserve
-  that tracking and no longer restart its notice/roar sequence on every bullet.
-  Repeated hits likewise avoid reinitializing alert animations for other
-  dinosaurs that are already aware of the hunter.
-- Parse `_RES.TXT` scalars with legacy `atoi`/`atof` semantics again: a
-  valid numeric prefix wins and trailing text is ignored, so decimal literals
-  on integer fields (`scale0 = 1000.0`), C-style suffixes (`runspd = 1.5f`),
-  and stray trailing tokens load instead of aborting the hunt. Non-numeric,
-  overflowing, and non-finite values are still rejected.
-- Allow zero-weight spawn-group entries and skip pack groups with no members.
-  Legacy mods disable a spawn entry with `spawnratio = 0`, and unused
-  "template" pack groups may reference spawn groups without defining members;
-  both now behave as no-ops instead of aborting the hunt. All-zero spawn
-  groups keep the first-entry fallback, and negative or non-finite ratios
-  remain rejected.
-- Number hunt-submenu dinosaur pictures and descriptions by list position
-  instead of the AI slot. The stock `_MENU.TXT` roster gives Iguanodon and
-  Carnotaurus the same AI (17), so the old `ai - 9` lookup showed Carnotaurus
-  the Iguanodon picture and T-Rex the Carnotaurus picture (and the matching
-  INFO text). Each entry now resolves to its own `dinoN` asset, and an
-  explicit `pic` line overrides the default thumbnail.
-- Keep a fixed flee reaction running straight. A flee destination is a
-  point, and once reached the leg is extended along the creature's current
-  heading. Extending along the bearing back to the reached point re-anchored
-  behind or beside a creature that had overshot it, so a shot animal could
-  swing around the point instead of escaping; the heading extension leaves
-  no steering error for the run to turn on.
+- Fix the original flee-leg overshoot: extending toward a point already
+  passed made escaping animals loop back. The initial heading-based extension
+  (`a87a278`) was later superseded by hunter-away re-aiming (`a2f6f22`) and
+  the blocked-leg recovery described above (`3a67fbf`).
 - Pick walkable flee destinations. The flee point is validated against the
   placement map (water, blocked cells, steep slopes) and the direction is
   rotated in 15-degree steps until a crossable point is found, so a
@@ -212,7 +171,30 @@ Windows executable resources use major.minor.patch.0 (currently 1.1.9.0).
 
 ## [v1.1.9-modernized] - 2026-09-20
 
-ModDB label: V6. Changes since the published v1.1.8-modernized release.
+ModDB label: V6. Changes since the published v1.1.8-modernized release
+(`362eecd`). The published tag is `8ff8b70`; the refreshed v1.1.9 archive
+also contains the post-tag fixes through `9db51ec`. Those fixes are **not**
+part of the tag. See `release-notes/v1.1.9-modernized.md` for short-form notes.
+
+### Summary
+- Fix menu-launched hunts, improve mod compatibility and data validation,
+  correct trophy-room and rendering issues, introduce finite creature
+  awareness, and add configurable sky mapping.
+
+### Hotfixed (after the tag; through `9db51ec`)
+- Scale heard-shot and direct-hit reactions by authored aggression, restore
+  the recent-damage range bypass, and search near the remembered event rather
+  than running past it (`622e50b`, `c0e7299`, `927aa03`).
+- Accept legacy numeric prefixes, C-style suffixes, and trailing tokens in
+  `_RES.TXT` without accepting non-numeric or unsafe values (`de84813`).
+- Correct hunt-submenu dinosaur pictures and descriptions for list entries
+  sharing an AI slot (`9db51ec`).
+- Accept zero-weight pack leaders and disabled/empty spawn data used by mods
+  without accepting negative or non-finite weights (`91421cb`, `ea8ded5`,
+  `91fe861`).
+- Restore T-Rex shot/hit pursuit and sight/scent promotion, immediate charge
+  on hit, and avoid repeated alert-animation resets (`ea8ded5`, `946b6b7`,
+  `5fb1e23`, `ac1ad1e`, `30c01ad`).
 
 ### Fixed
 - Disable the hunting map in the trophy room. Map availability now follows

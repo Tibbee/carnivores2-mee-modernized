@@ -61,6 +61,8 @@ void CreateLog()
 	std::cout << " Version: " << VERSION_MAJOR << "." << VERSION_MINOR;
 	if (VERSION_REVISION)
 		std::cout << "." << VERSION_REVISION;
+	if (VERSION_BUILD)
+		std::cout << "." << VERSION_BUILD;
 	std::cout << " ";
 
 #ifdef _DEBUG
