@@ -416,6 +416,12 @@ if(MSVC)
     add_test(NAME Carnivores2Tests.ScriptParserContracts
              COMMAND Carnivores2ScriptParserContractTests)
 
+    # Asset-free fixtures for the support validator: bare model filenames and
+    # the menu's _RES.TXT price fallback must not be missed.
+    add_test(NAME Carnivores2Tests.HuntdatValidator
+             COMMAND powershell -ExecutionPolicy Bypass -File
+                 ${CMAKE_SOURCE_DIR}/tests/test_check_huntdat.ps1)
+
     # This integration test intentionally targets a deployed game directory
     # containing licensed HUNTDAT assets. It is opt-in so asset-free CI runs
     # only deterministic unit tests.
