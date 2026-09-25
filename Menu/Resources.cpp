@@ -143,6 +143,37 @@ void LoadC2Maps();
 
 
 /*
+ * Path of the missing half of an area's <basename>.map/.rsc pair, or an empty
+ * string when the pair is complete. The engine opens both files from the single
+ * "prj=" token the menu passes (LaunchArgs.h -> Hunt/Loaders/Resources.cpp), so
+ * a .map without its .rsc is a guaranteed halt with "Error opening resource
+ * file". Checking the pair here is therefore the same test the launch runs, not
+ * a stricter rule. The .map is reported first so callers can tell "no area at
+ * all" from "half an area".
+ */
+std::string MissingAreaFile(const std::string& base)
+{
+	if (base.empty())
+		return std::string();
+
+	std::ifstream f;
+	const std::string stem = "huntdat/areas/" + base;
+
+	f.open(stem + ".map", std::ios::binary);
+	if (!f.is_open())
+		return stem + ".map";
+	f.close();
+
+	f.open(stem + ".rsc", std::ios::binary);
+	if (!f.is_open())
+		return stem + ".rsc";
+	f.close();
+
+	return std::string();
+}
+
+
+/*
 ! DEPRECATED !
 This function is deprecated and set for removal in future versions
 ! WARNING !
@@ -217,7 +248,25 @@ AreaInfo MakeOldAreaInfo(int index, int price)
 	// filtering (0xC0000005); ScriptParser.cpp now aliases external->area6, so the
 	// resolved basename is always launchable.
 	std::string mapName;
+
+	// A complete pair settles the sixth slot up front: the engine opens both
+	// <basename>.map and <basename>.rsc from that one name, so whichever
+	// basename has both halves is the launchable one.
+	std::string completePair;
 	if (index == 6) {
+		if (MissingAreaFile("external").empty())
+			completePair = "external";
+		else if (MissingAreaFile("area6").empty())
+			completePair = "area6";
+	}
+
+	if (!completePair.empty()) {
+		a.m_Valid = true;
+		a.m_MapFile = completePair;
+		mapName = "huntdat/areas/" + completePair + ".map";
+		std::cout << "  Map:   " << mapName << " -> OK" << std::endl;
+	}
+	else if (index == 6) {
 		mapName = "huntdat/areas/external.map";
 		std::cout << "  Map:   " << mapName;
 		f.open(mapName.c_str());
@@ -247,8 +296,17 @@ AreaInfo MakeOldAreaInfo(int index, int price)
 	}
 
 	std::cout << "  Result: " << (a.m_Valid ? "VALID" : "INVALID (will be skipped)") << std::endl;
-	if (a.m_Valid && !a.m_MapFile.empty())
+	if (a.m_Valid && !a.m_MapFile.empty()) {
+		// The menu used to validate the .map alone, so a half-copied or
+		// half-exported area looked playable and then halted the game. Name the
+		// missing half here and let the launch paths refuse with that path in
+		// the message.
+		std::string missingHalf = MissingAreaFile(a.m_MapFile);
+		if (!missingHalf.empty())
+			std::cout << "  Missing: " << missingHalf
+			          << " (incomplete area pair; the launch is refused)" << std::endl;
 		std::cout << "  Launch: huntdat/areas/" << a.m_MapFile << std::endl;
+	}
 
 	return a;
 }
@@ -861,6 +919,12 @@ void LoadC2Maps()
 			continue;
 		}
 
+		// The launch prefixes the project stem with huntdat/areas (LaunchArgs.h),
+		// so the pair that matters is <stem>.map/.rsc. A descriptor whose files
+		// live anywhere else validates here but cannot launch; report the half
+		// that is missing instead of letting the game halt on the path.
+		std::string missingHalf = MissingAreaFile(area.m_ProjectName);
+
 		area.m_Valid = true;
 		g_AreaInfo.push_back(area);
 		loaded++;
@@ -868,6 +932,11 @@ void LoadC2Maps()
 		          << "' (map=" << usedMap
 		          << ", price=" << area.m_Price
 		          << ", rank=" << area.m_Rank << ")" << std::endl;
+		if (!missingHalf.empty())
+			std::cout << "LoadC2Maps: '" << area.m_Name
+			          << "' launches as huntdat/areas/" << area.m_ProjectName
+			          << " but " << missingHalf
+			          << " is missing (the launch is refused)" << std::endl;
 	}
 
 	std::cout << "LoadC2Maps: discovered=" << discovered

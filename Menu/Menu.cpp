@@ -2457,6 +2457,24 @@ void MenuEventInput(int32_t menu)
 				launchRequest.dinoFlags = din;
 				launchRequest.weaponFlags = wep;
 				launchRequest.timeOfDay = g_TimeOfDay;
+
+				// The engine opens <basename>.map and <basename>.rsc from this one
+				// name, so refuse here with the missing path named rather than
+				// launching into "Error opening resource file".
+				{
+					const std::string launchBase = launchRequest.mapFile.empty()
+						? launchRequest.projectName
+						: launchRequest.mapFile;
+					const std::string missingFile = MissingAreaFile(launchBase);
+					if (!missingFile.empty())
+					{
+						ShowErrorMessage("This area cannot be played: " + missingFile +
+							" is missing.\r\n\r\nAn area loads from a pair with the same "
+							"basename: huntdat/areas/" + launchBase + ".map and .rsc.\r\n"
+							"Restore the missing file from your game data, or remove the area.");
+						return;
+					}
+				}
 				std::string launchArguments;
 				if (!BuildHuntLaunchArguments(launchRequest, launchArguments))
 				{
@@ -2571,6 +2589,17 @@ void MenuEventInput(int32_t menu)
 				if (id == 1) { ChangeMenuState(MENU_HUNT); }
 				else if (id == 2) { ChangeMenuState(MENU_OPTIONS); }
 				else if (id == 3) {
+					// The room is a project like any other: it opens
+					// huntdat/areas/trophy.map/.rsc, so a missing half is reported
+					// here instead of halting the game on the path.
+					const std::string trophyMissing = MissingAreaFile("trophy");
+					if (!trophyMissing.empty())
+					{
+						ShowErrorMessage("The trophy room cannot be opened: " + trophyMissing +
+							" is missing.\r\n\r\nThe room needs huntdat/areas/trophy.map "
+							"and trophy.rsc in the game folder.");
+						return;
+					}
 					HuntLaunchRequest launchRequest;
 					launchRequest.projectName = "trophy";
 					launchRequest.registration = g_UserProfile.RegNumber;
