@@ -756,9 +756,12 @@ void LoadResources()
   HeapAllocated=0;
   if (strstr(ProjectName, "trophy"))
   {
+    // Only the mode is set here. The legacy engine also forced
+    // ctViewR/charViewR to 60 for the room, which overrode the user's
+    // view-distance setting (and its fog range and far plane, all derived
+    // from ctViewR) and fogged out the far end of the hall. Keep the
+    // InitEngine values so the room matches the configured hunt settings.
     g_GameMode = GameMode::TrophyMode;
-    ctViewR = 60;
-    charViewR = ctViewR;
   }
   {
     // Permanent breadcrumb: which map booted and whether the room was
