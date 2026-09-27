@@ -168,6 +168,14 @@ compatibility/gameplay package candidate, not an already published hotfix.
   engine values and matches a hunt at the same setting; only the room mode is
   set there. Its spawn point and the menu's forced daytime launch are
   unchanged.
+- Play land footsteps on a bridge or any other object above water. The
+  land/water footstep selector (`ONWATER` in `ProcessControls`) was the legacy
+  `GetLandUpH > GetLandH` test at the player's position, which is true for
+  every flooded tile; a deck above the water therefore took the water footstep
+  set (`fxStepW`) and spawned a ripple circle on the water surface below the
+  player. The water level is now also compared against the player's feet, so
+  the deck plays `fxStep`; wading in shallow water and surface swimming are
+  unchanged (feet still below the surface).
 
 ## [v1.1.9-modernized] - 2026-09-20
 

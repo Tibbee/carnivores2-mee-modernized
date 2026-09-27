@@ -460,7 +460,15 @@ SKIPYMOVE:
 
 
 //==================== SWIM & UNDERWATER =========================//
-  ONWATER = GetLandUpH(CameraX, CameraZ) > GetLandH(CameraX, CameraZ);
+  // "Standing in water" requires the feet to be at or below the water
+  // surface, not merely a flooded tile underneath. The legacy test (water
+  // level > terrain height) is true for every flooded tile, so walking on an
+  // object above water -- a bridge/causeway deck over a river -- played the
+  // water footstep set and spawned ripple circles on the water surface below
+  // the player. Sampling the water at the feet position keeps shallow-water
+  // wading and surface swimming on the water footsteps (feet below the
+  // surface) and gives land footsteps on a deck above it.
+  ONWATER = (hwater > GetLandH(PlayerX, PlayerZ)) && (PlayerY <= hwater);
 
   // Only GameMode states that represent in-world movement should be silently
   // overwritten by an underwater transition. Anything else (MapMode,
