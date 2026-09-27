@@ -87,7 +87,8 @@
       "displayName": "OpenGL PGO (Instrumented)",
       "inherits": "ogl-release",
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS_RELEASE": "/GL /O2 /Ob2 /DNDEBUG /GENPROFILE"
+        "C2_PGO_MODE": "INSTRUMENT",
+        "C2_PGO_PGD_FILE": "${sourceDir}/build/ogl-pgo-instr/bin/Carnivores1_GL.pgd"
       }
     },
     {
@@ -95,7 +96,8 @@
       "displayName": "OpenGL PGO (Optimized)",
       "inherits": "ogl-release",
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS_RELEASE": "/GL /O2 /Ob2 /DNDEBUG /USEPROFILE"
+        "C2_PGO_MODE": "OPTIMIZE",
+        "C2_PGO_PGD_FILE": "${sourceDir}/build/ogl-pgo-instr/bin/Carnivores1_GL.pgd"
       }
     }
   ],

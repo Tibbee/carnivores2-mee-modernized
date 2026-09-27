@@ -10,7 +10,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(RENDERER "" CACHE STRING "Select the renderer: SOFT or GL. Leave empty to build the menu only.")
 set_property(CACHE RENDERER PROPERTY STRINGS SOFT GL "")
 
-# Enable LTO for Release builds (cross-module inlining, ~5-15% CPU gain)
+# Enable LTO for Release builds; CMake supplies MSVC /GL and /LTCG.
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 
 # Phase 0.1 in-engine GL perf harness. Defaults OFF. The ogl-release
@@ -225,15 +225,27 @@ set(CORE_FILES
 )
 
 
-# ============================================================
-# Performance: Optimization flags for Release builds
-# ============================================================
+# MSVC Release already supplies /O2 (including /Oi, /Ot, /Ob2). IPO above
+# supplies /GL and /LTCG; keep only the project-specific choices here.
 if(MSVC AND CMAKE_BUILD_TYPE STREQUAL "Release")
-    # /GL + /LTCG = Link-Time Optimization
-    # /O2 = Maximize Speed, /Oi = Intrinsics, /Ot = Favor Fast Code, /Ob2 = Aggressive Inlining
-    # /Gw = Optimize Globals, /GS = Buffer Checks, /fp:fast = Fast Float, /arch:SSE2 = SSE2
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL /O2 /Oi /Ot /Ob2 /Gw /GS /fp:fast /arch:SSE2 /Zc:inline")
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Gw /GS /fp:fast /arch:SSE2 /Zc:inline")
+endif()
+
+# PGO is a linker operation. Keep it on the GL game only, not the menu,
+# tests, or vendored dependencies. Both presets point at the same PGD file.
+set(C2_PGO_MODE "" CACHE STRING "GL game PGO mode: INSTRUMENT, OPTIMIZE, or empty")
+set_property(CACHE C2_PGO_MODE PROPERTY STRINGS "" INSTRUMENT OPTIMIZE)
+set(C2_PGO_PGD_FILE "" CACHE FILEPATH "Shared MSVC PGO database path")
+if(C2_PGO_MODE)
+    if(NOT MSVC OR NOT RENDERER STREQUAL "GL" OR NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+        message(FATAL_ERROR "C2_PGO_MODE requires an MSVC GL Release build")
+    endif()
+    if(NOT C2_PGO_MODE STREQUAL "INSTRUMENT" AND NOT C2_PGO_MODE STREQUAL "OPTIMIZE")
+        message(FATAL_ERROR "C2_PGO_MODE must be INSTRUMENT or OPTIMIZE")
+    endif()
+    if(NOT C2_PGO_PGD_FILE)
+        message(FATAL_ERROR "C2_PGO_PGD_FILE must point to the shared .pgd file")
+    endif()
 endif()
 
 # Menu subdirectory (always built - renderer-agnostic)
@@ -242,6 +254,12 @@ add_subdirectory(Menu)
 # Game executable (only when a renderer is selected)
 if(RENDERER)
     add_executable(Carnivores1 WIN32 ${CORE_FILES} ${RENDER_SRC})
+
+    if(C2_PGO_MODE STREQUAL "INSTRUMENT")
+        target_link_options(Carnivores1 PRIVATE "/GENPROFILE:PGD=${C2_PGO_PGD_FILE}")
+    elseif(C2_PGO_MODE STREQUAL "OPTIMIZE")
+        target_link_options(Carnivores1 PRIVATE "/USEPROFILE:PGD=${C2_PGO_PGD_FILE}")
+    endif()
 
     target_compile_definitions(Carnivores1 PRIVATE
         ${RENDER_DEFINES}

@@ -68,6 +68,49 @@ cmake --build build/ogl-release --config Release
 # Other presets: soft-release, ogl-debug, soft-debug, menu-release, ogl-release-shipping, ogl-pgo-instr/opt
 ```
 
+### Optional MSVC profile-guided optimization (OpenGL game)
+
+**Handoff (2026-09-27, local working tree):** Both PGO presets configured and
+`ogl-pgo-instr` built successfully with MSVC x86. Its `.pgd` exists but is
+**untrained**: no gameplay `.pgc` was collected or merged. `ogl-pgo-opt` was
+configured but **not built, tested, benchmarked, or shipped**. The normal
+`ogl-release-shipping` build succeeded and its 9 CTest tests passed; that is
+not evidence of a PGO speedup. Recheck these claims against source and build
+artifacts when resuming. The PGO flags are game-linker-only in `CMakeLists.txt`
+and both presets name the same PGD in `CMakePresets.json`.
+
+From a PowerShell prompt in the repo root:
+
+```powershell
+cmake --preset ogl-pgo-instr
+cmake --build --preset ogl-pgo-instr --target Carnivores1
+```
+
+Deploy `build/ogl-pgo-instr/bin/Carnivores1_GL.exe` to a game installation
+with the licensed assets (the engine needs `HUNTDAT`), play representative
+stock and dense-map sessions, then exit normally. Do not treat a brief startup
+smoke test as representative training. Find the newly generated `.pgc` files
+in the game directory and merge **each** one into the PGD created by the
+instrumented link (substitute each actual filename):
+
+```powershell
+pgomgr /merge 'E:/Games/CarnivoresLegacy/NAME.pgc' 'build/ogl-pgo-instr/bin/Carnivores1_GL.pgd'
+# Check that the database contains nonzero run counts before optimizing.
+pgomgr /summary 'build/ogl-pgo-instr/bin/Carnivores1_GL.pgd'
+cmake --preset ogl-pgo-opt
+cmake --build --preset ogl-pgo-opt --target Carnivores1
+```
+
+Both presets use that same PGD; keep the instrumented build and collected
+profiles until the optimized link finishes. Rebuilding the instrumented game
+or deleting its PGD may require training again. They inherit
+`GL_PERF_HOOKS=ON` from `ogl-release`. For a hooks-off PGO build, configure
+**both** presets with `-DGL_PERF_HOOKS=OFF` before building. Run the existing
+unit tests and deployed-game smoke tests, then compare CPU/frame times across
+repeated matched scenarios against a non-PGO Release build before considering
+PGO for shipping. The GLPerf CSV capture workflow measures performance; it
+does **not** create MSVC `.pgc` training data. No speedup is guaranteed.
+
 The executables will be at:
 - `build/ogl-release/bin/Carnivores1_GL.exe` (game engine)
 - `build/ogl-release/bin/Carnivores2Menu.exe` (standalone menu)
