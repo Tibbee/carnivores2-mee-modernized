@@ -49,13 +49,20 @@ void ShowControlElements()
     STTextOut(VideoCX - GetTextW(hdcMain, buf)/2, y, buf, 0x0060C0D0);
     sprintf_s(buf, sizeof(buf),"%d seconds left.", 1 + ExitTime / 1000);
     STTextOut(VideoCX - GetTextW(hdcMain, buf)/2, y + 18, buf, 0x0060C0D0);
-  }
-
-  if (WaveNoteTime)
-  {
-	  int y = WinH / 3;
+    // Reserve the countdown's two lines so a note drawn below cannot land on
+    // them. Survival mode can raise both flags in the same frame.
+    y += 36;
+    if (WaveNoteTime)
+    {
 	  sprintf_s(buf, sizeof(buf), "Waves Survived: %i", SurvivalWave - 1);
 	  STTextOut(VideoCX - GetTextW(hdcCMain, buf) / 2, y, buf, 0x0060C0D0);
+    }
+  }
+  else if (WaveNoteTime)
+  {
+	int y = WinH / 3;
+	sprintf_s(buf, sizeof(buf), "Waves Survived: %i", SurvivalWave - 1);
+	STTextOut(VideoCX - GetTextW(hdcCMain, buf) / 2, y, buf, 0x0060C0D0);
   }
 
   SelectObject(hdcCMain, hbmpOld);

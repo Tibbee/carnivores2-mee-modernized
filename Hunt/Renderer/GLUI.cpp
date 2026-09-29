@@ -976,9 +976,17 @@ void ShowControlElements()
         textOut(VideoCX - GetTextW(hdcMain, buf) / 2, yline + 18, buf, 0x0060C0D0);
         // 2 lines centered, ~300px wide
         if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(VideoCX - 150, yline - 1, 300, 36);
+        // Reserve the countdown's two lines so a note drawn below cannot land
+        // on them. Survival mode can raise both flags in the same frame.
+        yline += 36;
+        if (WaveNoteTime)
+        {
+            sprintf_s(buf, sizeof(buf), "Waves Survived: %i", SurvivalWave - 1);
+            textOut(VideoCX - GetTextW(hdcMain, buf) / 2, yline, buf, 0x0060C0D0);
+            if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(VideoCX - 120, yline - 1, 240, 18);
+        }
     }
-
-    if (WaveNoteTime)
+    else if (WaveNoteTime)
     {
         int yline = WinH / 3;
         sprintf_s(buf, sizeof(buf), "Waves Survived: %i", SurvivalWave - 1);
