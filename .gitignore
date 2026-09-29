@@ -21,6 +21,7 @@ tools/release/*
 !tools/release/make-c2-package.ps1
 !tools/c2_capture_matrix.ps1
 !tools/c2_capture_manifest.json
+!tools/c2_capture_sky_modes.ps1
 !tools/c2_capture_README.md
 !tools/check_comment_hygiene.ps1
 !tools/check_huntdat.ps1
