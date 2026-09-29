@@ -523,6 +523,14 @@ static_assert(static_cast<int>(kSkyModeDome) == skyl::kModeDome, "SkyMappingMode
 static_assert(static_cast<int>(kSkyModeCount) == skyl::kModeCount, "SkyMappingMode drifted from SkyModeMapping.h");
 GLOBAL int OptSkyMode;
 
+// Software renderer only, mirroring OptSkyMode (config.cfg sky_mode_soft).
+// Both renderers read the same config.cfg but want different defaults:
+// OpenGL resolves the level plane cleanly with its mip chain, while the
+// software sky has none and bands on it. A separate key lets each ship
+// its preferred default at the same time, and stops a sky_mode tuned for
+// OpenGL from silently degrading the software renderer's sky.
+GLOBAL int OptSkyModeSoft;
+
 // Dome mode (sky_mode 2) canopy scale: texture texels per radian at the
 // horizon (the zenith is half that, so clouds are 2x larger overhead).
 // Tune via config.cfg "sky_dome_scale" without rebuilding.

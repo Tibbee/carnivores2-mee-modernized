@@ -49,6 +49,12 @@ TEST(SkyModeMappingTest, SoftwareResolvesLegacyAndLevelButNotDome)
     // Out-of-range and negative requests are also refused, not clamped up.
     EXPECT_EQ(ResolveSoftwareSkyMode(3), kModeLegacy);
     EXPECT_EQ(ResolveSoftwareSkyMode(-1), kModeLegacy);
+
+    // The software renderer defaults to the legacy plane (config.cfg
+    // sky_mode_soft, initialised to kSkyModeLegacy in EngineInit.cpp). That
+    // is the one value here that is guaranteed to look right without a mip
+    // chain, so it is the default rather than a coincidence.
+    EXPECT_EQ(ResolveSoftwareSkyMode(kModeLegacy), kModeLegacy);
 }
 
 TEST(SkyModeMappingTest, LegacyPitchOffsetShrinksWithAltitude)

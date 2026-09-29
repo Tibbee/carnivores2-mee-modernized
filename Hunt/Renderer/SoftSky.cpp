@@ -56,8 +56,10 @@ void RenderSkyPlane()
   if (scry<0) return;
   if (scry>WinEY) scry = WinEY;
 
-  // Sky cloud-texture placement, selected by config.cfg "sky_mode" (see
-  // Core/SkyModeMapping.h, which both renderers share):
+  // Sky cloud-texture placement, selected by config.cfg "sky_mode_soft" (see
+  // Core/SkyModeMapping.h, which both renderers share). This is deliberately
+  // NOT "sky_mode": that key configures the OpenGL renderer, and a value
+  // tuned for OpenGL's mip-filtered level plane bands badly here.
   //   0 = legacy camera-coupled pitch offset. The offset is applied after
   //       yaw, so the plane's tilt direction followed the camera and the
   //       cloud rows leaned by up to the full offset while turning.
@@ -65,14 +67,15 @@ void RenderSkyPlane()
   //       camera-coupled tilt); sky_horizon_drop lowers the compression
   //       singularity to a fixed elevation below the true horizon -- the C1
   //       offset's effect, but as a world-elevation shift, so the canopy
-  //       never leans while turning.
+  //       never leans while turning. Implemented, but banded: there is no
+  //       software sky mip chain, so the canopy aliases near the horizon.
   //   2 = dome sampling. OpenGL only; the software renderer falls back to
   //       the legacy plane and warns, so config.cfg never claims an effect
   //       this renderer does not have.
   //
   // The plane basis below is ALWAYS built from the legacy pitch, in every
   // mode, because the inherited sky fog is a scanline-width proxy: its
-  // coefficients are the fog basis, not the texture basis. Changing sky_mode
+  // coefficients are the fog basis, not the texture basis. Changing the mode
   // must not change atmospheric density. Only the texture coordinate is
   // mode-dependent, so mode 1 derives it from the world view ray while the
   // fog continues to use the legacy fxa/fya computed here.
@@ -81,7 +84,7 @@ void RenderSkyPlane()
   // the 0.20..0.10 altitude ramp OpenGL uses. With no mip chain, the steeper
   // ground-level tilt resolves into hard cloud banding instead of a soft
   // gradient. See ComputeSoftwareLegacySkyPitch.
-  const int skyMode = skyl::ResolveSoftwareSkyMode(OptSkyMode);
+  const int skyMode = skyl::ResolveSoftwareSkyMode(OptSkyModeSoft);
 
   const float legacyPitch = skyl::ComputeSoftwareLegacySkyPitch(CameraBeta);
   cb = static_cast<float>(cos(legacyPitch));

@@ -507,6 +507,8 @@ void InitEngine()
 #else
   OptSkyMode = kSkyModeLevel;           // sky cloud-texture placement (config.cfg sky_mode)
 #endif
+  // sky_mode_soft: software-only, always defaulting to the legacy plane.
+  OptSkyModeSoft = kSkyModeLegacy;
   OptSkyDomeScale = kSkyDomeScaleDefault;
   OptSkyHorizonDrop = kSkyHorizonDropDefault;
   OptTerrainMaxMipLevel = kTerrainMaxMipDefault; // config.cfg terrain_mip_level
@@ -832,9 +834,14 @@ static void CreateDefaultConfig()
     "\r\n"
     "# Sky cloud-texture placement: 0=legacy camera-coupled offset,\r\n"
     "# 1=world-level projected plane, 2=direction-based dome.\r\n"
-    "# 1 is the OpenGL default. The software renderer implements 0 and 1\r\n"
-    "# but bands on 1, so it defaults to 0; set 0 to match in software.\r\n"
+    "# 1 is the OpenGL default. The software renderer has its own key,\r\n"
+    "# because both read this file and it bands on 1; see sky_mode_soft.\r\n"
     "sky_mode 1\r\n"
+    "\r\n"
+    "# Software renderer only (v_soft.ren): same 0/1/2 values, separate\r\n"
+    "# key because both renderers read this file and want different\r\n"
+    "# defaults. Mode 1 bands in software, so this defaults to 0.\r\n"
+    "sky_mode_soft 0\r\n"
     "\r\n"
     "# sky_mode 1 horizon drop in degrees: lowers the projected plane's\r\n"
     "# compression singularity below the true horizon (C1 used ~17 deg).\r\n"
@@ -1094,16 +1101,35 @@ static void LoadConfig()
           sprintf_s(msg, sizeof(msg), "Config: sky_mode = %d\n", OptSkyMode);
           PrintLog(msg);
 #ifdef _soft
-          // The software renderer implements modes 0 and 1 (Core/SkyModeMapping.h).
-          // The dome mode is a sky.frag feature, so say so rather than let
-          // config.cfg imply an effect this renderer does not have.
-          if (OptSkyMode == kSkyModeDome) {
-            OptSkyMode = kSkyModeLegacy;
-            PrintLog("Config: sky_mode 2 (dome) is OpenGL-only; using the legacy plane in the software renderer.\n");
-          }
+          // sky_mode configures the OpenGL renderer. The software renderer
+          // reads sky_mode_soft, so this must not be left looking effective
+          // here while changing nothing.
+          PrintLog("Config: sky_mode applies to the OpenGL renderer; the software renderer uses sky_mode_soft.\n");
 #endif
         } else {
           PrintLog("Config: sky_mode must be 0 (legacy), 1 (level) or 2 (dome), ignoring.\n");
+        }
+      }
+      else if (_stricmp(key, "sky_mode_soft") == 0) {
+        // Software renderer only (see OptSkyModeSoft). Same strict parsing
+        // and range as sky_mode, but an independent value: both renderers
+        // share one config.cfg and want different defaults.
+        int mode = 0;
+        if (ParseConfigInt(keyval, kSkyModeLegacy, kSkyModeCount - 1, mode)) {
+#ifdef _soft
+          OptSkyModeSoft = mode;
+          char msg[64];
+          sprintf_s(msg, sizeof(msg), "Config: sky_mode_soft = %d\n", OptSkyModeSoft);
+          PrintLog(msg);
+          if (OptSkyModeSoft == kSkyModeDome) {
+            OptSkyModeSoft = kSkyModeLegacy;
+            PrintLog("Config: sky_mode_soft 2 (dome) is OpenGL-only; using the legacy plane.\n");
+          }
+#else
+          PrintLog("Config: sky_mode_soft applies to the software renderer; ignored by OpenGL.\n");
+#endif
+        } else {
+          PrintLog("Config: sky_mode_soft must be 0 (legacy) or 1 (level), ignoring.\n");
         }
       }
       else if (_stricmp(key, "resolution") == 0) {
