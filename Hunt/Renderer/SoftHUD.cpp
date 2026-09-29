@@ -18,6 +18,80 @@ void STTextOut(int x, int y, LPSTR t, int color)
   TextOut(hdcCMain, x, y, t, strlen(t));
 }
 
+// F10 debug menu, ported from GLUI.cpp :: ShowControlElements.
+//
+// The menu input has always been shared engine code (Hunt.cpp handles VK_F10
+// in WM_SYSKEYDOWN and the arrows/PgUp/PgDn/D keys in WM_KEYDOWN, with no
+// #ifdef around either), but only GLUI.cpp ever DREW it. In software mode the
+// keys therefore mutated live parameters -- including the water wave
+// amplitudes -- with nothing on screen showing it, which made F10 look broken
+// while it was silently changing state.
+//
+// Keeping the two copies in sync: both must list the same parameters in the
+// same order, because UnderwaterDebugSelected indexes these arrays positionally.
+static void DrawUnderwaterDebugMenu()
+{
+  int dx = 10;
+  int dy = 40;
+  const int lineH = 16;
+  const int selected = UnderwaterDebugSelected;
+
+  const char* tabName = (UnderwaterDebugTab == 0) ? "FOG"
+                      : (UnderwaterDebugTab == 1) ? "WAVES" : "SUN";
+  char header[128];
+  sprintf_s(header, sizeof(header), "=== %s DEBUG (F10=close, PgUp/PgDn=tab, D=dump) ===", tabName);
+  STTextOut(dx, dy, header, 0x00FFFFFF);
+  dy += lineH + 4;
+
+  const char* names[7] = { nullptr };
+  float values[7] = { 0.0f };
+  const char* descs[7] = { nullptr };
+  int count = 0;
+
+  if (UnderwaterDebugTab == 0) {
+    // ── Fog tab ──
+    static const char* fogNames[] = { "BaseDensity", "CamDepthMult", "VertRange", "VertStrength", "CurveExp", "CapBase", "CapCamBoost" };
+    static const char* fogDescs[] = { "(1.0=normal)", "(Beer-Lambert)", "(units)", "(fog units)", "(exponent)", "(added to FLimit)", "(camera boost)" };
+    const float fogValues[] = { UWFog_BaseDensityMult, UWFog_CameraDepthMult, UWFog_VertRange, UWFog_VertStrength, UWFog_CurveExp, UWFog_CapBase, UWFog_CapCameraBoost };
+    count = 7;
+    for (int i = 0; i < count; ++i) { names[i] = fogNames[i]; values[i] = fogValues[i]; descs[i] = fogDescs[i]; }
+  } else if (UnderwaterDebugTab == 1) {
+    // ── Waves tab ──
+    static const char* waveNames[] = { "Wave1Amp", "Wave2Amp", "Wave3Amp", "WaveSpeed" };
+    static const char* waveDescs[] = { "(primary swell)", "(cross-wave)", "(fine detail)", "(time mult)" };
+    const float waveValues[] = { WWave1Amp, WWave2Amp, WWave3Amp, WWaveSpeed };
+    count = 4;
+    for (int i = 0; i < count; ++i) { names[i] = waveNames[i]; values[i] = waveValues[i]; descs[i] = waveDescs[i]; }
+  } else {
+    // ── Sun tab ──
+    static const char* sunNames[] = { "GlareMaster", "GlareDisc" };
+    static const char* sunDescs[] = { "(blinding, 0=off)", "(sun/moon disc)" };
+    const float sunValues[] = { SunGlare_Master, SunGlare_Disc };
+    count = 2;
+    for (int i = 0; i < count; ++i) { names[i] = sunNames[i]; values[i] = sunValues[i]; descs[i] = sunDescs[i]; }
+  }
+
+  for (int i = 0; i < count; i++)
+  {
+    char line[128];
+    sprintf_s(line, sizeof(line), "%s = %.2f  %s", names[i], values[i], descs[i]);
+    const int color = (i == selected) ? 0x0000FFFF : 0x00C0C0C0;
+    if (i == selected) {
+      char selLine[132];
+      sprintf_s(selLine, sizeof(selLine), "> %s", line);
+      STTextOut(dx, dy, selLine, color);
+    } else {
+      STTextOut(dx + 10, dy, line, color);
+    }
+    dy += lineH;
+  }
+
+  dy += 4;
+  char hint[64];
+  sprintf_s(hint, sizeof(hint), "Arrows: select +/-: adjust");
+  STTextOut(dx, dy, hint, 0x00808080);
+}
+
 void ShowControlElements()
 {
 
@@ -64,6 +138,8 @@ void ShowControlElements()
 	sprintf_s(buf, sizeof(buf), "Waves Survived: %i", SurvivalWave - 1);
 	STTextOut(VideoCX - GetTextW(hdcCMain, buf) / 2, y, buf, 0x0060C0D0);
   }
+
+  if (UnderwaterDebugMenu) DrawUnderwaterDebugMenu();
 
   SelectObject(hdcCMain, hbmpOld);
 
