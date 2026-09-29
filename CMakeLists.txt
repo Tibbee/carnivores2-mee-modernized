@@ -326,6 +326,7 @@ if(MSVC)
         tests/test_projectile_math.cpp
         tests/test_score_mod.cpp
         tests/test_sky_fog_projection.cpp
+        tests/test_sky_mode_mapping.cpp
         tests/test_spawn_math.cpp
         tests/test_terrain_fog.cpp
         tests/test_terrain_mip.cpp

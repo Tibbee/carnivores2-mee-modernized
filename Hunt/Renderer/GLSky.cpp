@@ -63,21 +63,19 @@ void GLRenderer::RenderSkyPlane()
                            OptSkyHorizonDrop <= kSkyHorizonDropMax)
                               ? OptSkyHorizonDrop
                               : kSkyHorizonDropDefault;
-    const float dropSin = std::sin(dropDeg * (3.14159265358979323846f / 180.0f));
+    const float dropSin = skyl::HorizonDropSine(dropDeg);
     // Legacy plane texture scale in texels: 0.004 texels per world unit at
-    // the inherited 4*512*16 plane height (131.072 texels per unit cot).
-    constexpr float kPlaneTexelScale = 0.004f * (4.0f * 512.0f * 16.0f);
+    // the inherited 4*512*16 plane height. Shared with the software renderer.
+    const float planeTexelScale = skyl::kPlaneTexelScale;
 
     // Keep the legacy pitch calculation available in every mode. The
     // projected texture is allowed to choose a different basis, but the
     // inherited scanline-width fog proxy must not change when sky_mode is
     // changed. This pitch is therefore the canonical fog basis as well as
-    // the texture basis for sky_mode 0.
-    const float heightAboveTerrain = (std::max)(0.0f, -CameraY);
-    const float altitudeFactor = (std::clamp)(
-        heightAboveTerrain / (200.0f * ctHScale), 0.0f, 1.0f);
+    // the texture basis for sky_mode 0. Shared with the software renderer
+    // via Core/SkyModeMapping.h so the two cannot drift.
     const float legacySkyPitch =
-        CameraBeta - (0.20f - altitudeFactor * 0.10f);
+        skyl::ComputeLegacySkyPitch(CameraBeta, CameraY, ctHScale);
     const float skyPitch = (skyMode == kSkyModeLegacy)
                                ? legacySkyPitch
                                : CameraBeta;
@@ -210,7 +208,7 @@ void GLRenderer::RenderSkyPlane()
     // World-level plane sampling constants (sky_mode 1).  The anchor keeps
     // the canopy phased to world X/Z the way the legacy plane coefficients
     // do (U = 0.004 * plane.x, V = -0.004 * plane.z).
-    glUniform1f(m_locSkyPlaneScale, kPlaneTexelScale);
+    glUniform1f(m_locSkyPlaneScale, planeTexelScale);
     glUniform1f(m_locSkyPlaneDrop, dropSin);
     glUniform2f(m_locSkyPlaneAnchor, 0.004f * CameraX, -0.004f * CameraZ);
 
@@ -241,18 +239,12 @@ void GLRenderer::RenderSkyPlane()
     // review that misread RotateVector as view->world; that broke the gradient
     // under combined yaw+pitch and was reverted.)
     {
-        const float camCa = std::cos(CameraAlpha);
-        const float camSa = std::sin(CameraAlpha);
-        const float camCb = std::cos(CameraBeta);
-        const float camSb = std::sin(CameraBeta);
-        const Vector3d camRight   = { camCa, 0.0f, camSa };                 // R^(-1)*(1,0,0)
-        const Vector3d camUp      = { camSb * camSa, camCb, -camSb * camCa }; // R^(-1)*(0,1,0)
-        const Vector3d camForward = { camCb * camSa, -camSb, -camCb * camCa }; // R^(-1)*(0,0,-1)
+        const skyl::CameraBasis basis = skyl::ComputeCameraBasis(CameraAlpha, CameraBeta);
         const float tanX = (CameraW > 1e-3f) ? VideoCX / CameraW : 1.0f;
         const float tanY = (CameraH > 1e-3f) ? VideoCY / CameraH : 1.0f;
-        glUniform3f(m_locSkyCamRight,   camRight.x * tanX,   camRight.y * tanX,   camRight.z * tanX);
-        glUniform3f(m_locSkyCamUp,      camUp.x * tanY,      camUp.y * tanY,      camUp.z * tanY);
-        glUniform3f(m_locSkyCamForward, camForward.x,        camForward.y,        camForward.z);
+        glUniform3f(m_locSkyCamRight,   basis.right.x * tanX,   basis.right.y * tanX,   basis.right.z * tanX);
+        glUniform3f(m_locSkyCamUp,      basis.up.x * tanY,      basis.up.y * tanY,      basis.up.z * tanY);
+        glUniform3f(m_locSkyCamForward, basis.forward.x,        basis.forward.y,        basis.forward.z);
     }
 
     // Per-pixel pocket fog on the sky.  Sample CalcFogLevel at the

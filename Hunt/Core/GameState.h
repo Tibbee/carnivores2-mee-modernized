@@ -16,6 +16,7 @@
 #include "Memory.h"
 #include "Core/Constants.h"
 #include "Core/MathTypes.h"
+#include "Core/SkyModeMapping.h"
 #include "Core/AudioTypes.h"
 #include "Core/RenderTypes.h"
 #include "Core/ModelTypes.h"
@@ -513,6 +514,13 @@ enum SkyMappingMode : int {
     kSkyModeDome   = 2,
     kSkyModeCount  = 3,
 };
+// The shared, renderer-agnostic implementation lives in Core/SkyModeMapping.h
+// so the software renderer can implement the same modes on the CPU. These
+// enumerators must keep agreeing with it.
+static_assert(static_cast<int>(kSkyModeLegacy) == skyl::kModeLegacy, "SkyMappingMode drifted from SkyModeMapping.h");
+static_assert(static_cast<int>(kSkyModeLevel) == skyl::kModeLevel, "SkyMappingMode drifted from SkyModeMapping.h");
+static_assert(static_cast<int>(kSkyModeDome) == skyl::kModeDome, "SkyMappingMode drifted from SkyModeMapping.h");
+static_assert(static_cast<int>(kSkyModeCount) == skyl::kModeCount, "SkyMappingMode drifted from SkyModeMapping.h");
 GLOBAL int OptSkyMode;
 
 // Dome mode (sky_mode 2) canopy scale: texture texels per radian at the

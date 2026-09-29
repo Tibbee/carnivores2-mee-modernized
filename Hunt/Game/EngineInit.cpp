@@ -1061,6 +1061,12 @@ static void LoadConfig()
           char msg[80];
           sprintf_s(msg, sizeof(msg), "Config: sky_dome_scale = %.1f\n", (double)f);
           PrintLog(msg);
+#ifdef _soft
+          // Only the OpenGL dome mode consumes this. The software renderer
+          // has no dome, so the value parses and validates but is inert --
+          // say so instead of logging it as if it were effective.
+          PrintLog("Config: sky_dome_scale has no effect in the software renderer (dome mode is OpenGL-only).\n");
+#endif
         } else {
           PrintLog("Config: sky_dome_scale expects 32..4096, ignoring.\n");
         }
@@ -1075,6 +1081,15 @@ static void LoadConfig()
           char msg[64];
           sprintf_s(msg, sizeof(msg), "Config: sky_mode = %d\n", OptSkyMode);
           PrintLog(msg);
+#ifdef _soft
+          // The software renderer implements modes 0 and 1 (Core/SkyModeMapping.h).
+          // The dome mode is a sky.frag feature, so say so rather than let
+          // config.cfg imply an effect this renderer does not have.
+          if (OptSkyMode == kSkyModeDome) {
+            OptSkyMode = kSkyModeLegacy;
+            PrintLog("Config: sky_mode 2 (dome) is OpenGL-only; using the legacy plane in the software renderer.\n");
+          }
+#endif
         } else {
           PrintLog("Config: sky_mode must be 0 (legacy), 1 (level) or 2 (dome), ignoring.\n");
         }
