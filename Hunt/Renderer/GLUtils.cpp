@@ -158,6 +158,16 @@ int GetFogIndexForMapPoint(int mapX, int mapY)
 
 Vector2df DecodeLegacyFaceUV(float tx, float ty, int texHeight)
 {
+    // Legacy integer pixel coordinates are texel EDGES, not centers:
+    //  - the original D3D path (fp_conv -> i / 256) and the Glide path
+    //    (raw texel units) both address edges;
+    //  - the shipped data uses V = textureHeight for the bottom edge
+    //    (icth30.car, U 0..32 / V 224..256);
+    //  - the community editor c3dit renders and exports as i / 256 too.
+    // The software renderer is the outlier: CorrectModel adds a half-texel
+    // offset ((i << 16) + 0x8000) and masks V to 8 bits, which wraps
+    // V = textureHeight back to row 0 instead of the bottom edge.
+    // Match the hardware/data convention here.
     const float h = static_cast<float>((texHeight > 1) ? texHeight : 1);
     return { tx / 256.0f, ty / h };
 }
