@@ -1,16 +1,18 @@
 <#
 .SYNOPSIS
-Capture reproducible C2 OpenGL performance scenarios.
+Capture reproducible C2 OpenGL and software performance scenarios.
 
 .EXAMPLE
 powershell -NoProfile -File tools/c2_capture_matrix.ps1 -Scenario area1_spawn -Resolution 1024x768
-powershell -NoProfile -File tools/c2_capture_matrix.ps1 -Scenario area4_spawn -Resolution 2560x1440 -Repeats 5
+powershell -NoProfile -File tools/c2_capture_matrix.ps1 -Renderer soft -Scenario area1_spawn -Resolution 1024x768
 powershell -NoProfile -File tools/c2_capture_matrix.ps1 -All -Repeats 3
 #>
 [CmdletBinding()]
 param(
     [string]$Scenario = "area1_spawn",
     [string]$Resolution = "1024x768",
+    [ValidateSet("gl", "soft")]
+    [string]$Renderer = "gl",
     [switch]$All,
     [ValidateRange(1, 20)][int]$Repeats = 1,
     [ValidateRange(1, 120)][int]$WarmupSeconds = 10,
@@ -26,10 +28,23 @@ param(
 $ErrorActionPreference = "Stop"
 $Invariant = [System.Globalization.CultureInfo]::InvariantCulture
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+
+# Renderer selection. C2 picks its renderer at compile time, not from
+# config.cfg, so the executable identity is authoritative; the config key is
+# written only to keep captured settings self-describing. Everything
+# GLPerf/ReShade/shader-specific is gated on $isGl below. A software run
+# still produces frame.png plus the runtime logs, which is what the sky and
+# water work needs for repeatable before/after comparison.
+$isGl = $Renderer -eq "gl"
+$buildPreset = if ($isGl) { "ogl-release" } else { "soft-release" }
+$buildExeName = if ($isGl) { "Carnivores1_GL.exe" } else { "Carnivores1_SOFT.exe" }
+$rendererConfigValue = if ($isGl) { 1 } else { 0 }
+$rendererLabel = if ($isGl) { "OpenGL 3.3" } else { "Software (1998 rasteriser)" }
+
 if (-not $GameDir) { $GameDir = "E:/Games/CarnivoresLegacy" }
 $GameDir = (Resolve-Path -LiteralPath $GameDir).Path
 if (-not [System.IO.Path]::IsPathRooted($OutDir)) { $OutDir = Join-Path $repoRoot $OutDir }
-if (-not $BuildExe) { $BuildExe = Join-Path $repoRoot "build/ogl-release/bin/Carnivores1_GL.exe" }
+if (-not $BuildExe) { $BuildExe = Join-Path $repoRoot "build/$buildPreset/bin/$buildExeName" }
 
 $manifestPath = Join-Path $repoRoot "tools/c2_capture_manifest.json"
 $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
@@ -160,13 +175,17 @@ function Assert-X86Pe {
 }
 
 function Assert-PerfBuild {
-    $cache = Join-Path $repoRoot "build/ogl-release/CMakeCache.txt"
-    if (-not (Test-Path -LiteralPath $cache -PathType Leaf)) { throw "Missing ogl-release CMake cache." }
+    # The PE check applies to every renderer; the GLPerf hook requirement is
+    # specific to the GL build, since the software build has no GLPerf
+    # harness and no per-frame CSV.
+    Assert-X86Pe $BuildExe
+    if (-not $isGl) { return }
+    $cache = Join-Path $repoRoot "build/$buildPreset/CMakeCache.txt"
+    if (-not (Test-Path -LiteralPath $cache -PathType Leaf)) { throw "Missing $buildPreset CMake cache." }
     $cacheText = Get-Content -Raw -LiteralPath $cache
     if ($cacheText -notmatch '(?m)^GL_PERF_HOOKS:BOOL=ON\s*$') {
-        throw "build/ogl-release does not have GL_PERF_HOOKS=ON."
+        throw "build/$buildPreset does not have GL_PERF_HOOKS=ON."
     }
-    Assert-X86Pe $BuildExe
 }
 
 function Assert-ShadersMatch {
@@ -510,20 +529,22 @@ function Run-Capture {
         # then override only the controlled measurement keys.
         [System.IO.File]::WriteAllBytes($configPath, [System.IO.File]::ReadAllBytes($deployedConfigPath))
         Set-ConfigValues $configPath @{
-            renderer = 1
+            renderer = $rendererConfigValue
             fov = [int]$manifest.settings.fov
             object_detail = [int]$manifest.settings.object_detail
             fps_limit = [int]$manifest.settings.fps_limit
             resolution = $resolutionId
             display_mode = $displayMode
             gpufeatures = [string]$manifest.settings.gpufeatures
-            glperf_logging = 1
         }
+        # glperf_logging is an OpenGL-harness key; the software build has no
+        # consumer, so writing it would assert a setting that does nothing.
+        if ($isGl) { Set-ConfigValues $configPath @{ glperf_logging = 1 } }
         Set-TrophyViewOption $trophyPath ([int]$manifest.settings.view_option)
         # The deployed opengl32.dll is ReShade's proxy. Removing it only for
         # this run forces the system OpenGL ICD; the exact original bytes are
-        # restored in finally.
-        Remove-Item -LiteralPath $localOpenGLWrapper -Force -ErrorAction SilentlyContinue
+        # restored in finally. The software renderer never loads it.
+        if ($isGl) { Remove-Item -LiteralPath $localOpenGLWrapper -Force -ErrorAction SilentlyContinue }
         Remove-Item -LiteralPath (Join-Path $GameDir 'render.log'), (Join-Path $GameDir 'carnivor.log') -Force -ErrorAction SilentlyContinue
         $effectiveConfigHash = Get-Sha256 $configPath
         $effectiveTrophyHash = Get-Sha256 $trophyPath
@@ -537,10 +558,12 @@ function Run-Capture {
         Start-Sleep -Seconds $WarmupSeconds
         if ($process.HasExited) { throw "Game exited during warm-up (exit $($process.ExitCode))." }
         Assert-CaptureWindowSize $hwnd $width $height
-        $openglModule = Assert-ReShadeDisabled $process
+        if ($isGl) { $openglModule = Assert-ReShadeDisabled $process }
 
-        Trigger-GLPerfCapture $hwnd
-        $null = Wait-GLPerfCapture $beforeGLPerf $process
+        if ($isGl) {
+            Trigger-GLPerfCapture $hwnd
+            $null = Wait-GLPerfCapture $beforeGLPerf $process
+        }
         if ($PostCaptureSeconds -gt 0) { Start-Sleep -Seconds $PostCaptureSeconds }
         Capture-GameClientPng $hwnd $png $width $height
         Stop-CaptureProcess $process
@@ -548,25 +571,30 @@ function Run-Capture {
         $changed = @(Get-ChangedGLPerfFiles $beforeGLPerf)
         $allLogs = @($changed | Where-Object { $_.Name -like 'glperf-*.log' })
         $csvs = @($changed | Where-Object { $_.Name -like 'glperf-capture-*.csv' })
+        if (-not $isGl -and $changed.Count -gt 0) {
+            throw "A software run must not produce GLPerf files, but found $($changed.Count)."
+        }
         # A slow area load can initialize GLPerf twice and both logs may
         # accumulate rolling frames. The latest log belongs to the renderer
         # window that reached its final requested size and produced the CSV;
         # preserve any earlier initialization logs separately.
         $logs = @($allLogs | Sort-Object Name -Descending | Select-Object -First 1)
-        if ($allLogs.Count -lt 1 -or $logs.Count -ne 1 -or $csvs.Count -ne 1) {
+        if ($isGl -and ($allLogs.Count -lt 1 -or $logs.Count -ne 1 -or $csvs.Count -ne 1)) {
             throw "Expected at least one attributable GLPerf log and exactly one CSV; found total logs=$($allLogs.Count), selected logs=$($logs.Count), csvs=$($csvs.Count)."
         }
-        $logCopy = Join-Path $runDir 'glperf.log'
-        $csvCopy = Join-Path $runDir 'capture.csv'
-        Copy-Item -LiteralPath $logs[0].FullName -Destination $logCopy
-        Copy-Item -LiteralPath $csvs[0].FullName -Destination $csvCopy
-        $startupLogCopies = @()
-        $startupIndex = 0
-        foreach ($startupLog in @($allLogs | Where-Object { $_.FullName -ne $logs[0].FullName })) {
-            $startupIndex++
-            $startupCopy = Join-Path $runDir ('glperf-startup-{0:D2}.log' -f $startupIndex)
-            Copy-Item -LiteralPath $startupLog.FullName -Destination $startupCopy
-            $startupLogCopies += $startupCopy
+        $logCopy = $null; $csvCopy = $null; $startupLogCopies = @()
+        if ($isGl) {
+            $logCopy = Join-Path $runDir 'glperf.log'
+            $csvCopy = Join-Path $runDir 'capture.csv'
+            Copy-Item -LiteralPath $logs[0].FullName -Destination $logCopy
+            Copy-Item -LiteralPath $csvs[0].FullName -Destination $csvCopy
+            $startupIndex = 0
+            foreach ($startupLog in @($allLogs | Where-Object { $_.FullName -ne $logs[0].FullName })) {
+                $startupIndex++
+                $startupCopy = Join-Path $runDir ('glperf-startup-{0:D2}.log' -f $startupIndex)
+                Copy-Item -LiteralPath $startupLog.FullName -Destination $startupCopy
+                $startupLogCopies += $startupCopy
+            }
         }
         foreach ($runtimeName in @('render.log','carnivor.log')) {
             $runtimePath = Join-Path $GameDir $runtimeName
@@ -581,12 +609,24 @@ function Run-Capture {
         if ($runtimeText -match 'ABNORMAL_HALT') { throw "Runtime logs report ABNORMAL_HALT." }
         if ($runtimeText -notmatch 'Game normal shutdown') { throw "Runtime logs do not confirm normal shutdown." }
 
-        Assert-GpuLog $logCopy
-        $summary = Test-AndSummarizeCsv $csvCopy
-        $summary | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $summaryPath -Encoding UTF8
+        if ($isGl) {
+            Assert-GpuLog $logCopy
+            $summary = Test-AndSummarizeCsv $csvCopy
+            $summary | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $summaryPath -Encoding UTF8
+        } else {
+            # No per-frame counters exist for the software renderer, so the
+            # summary records the frame geometry instead of fabricating zeros.
+            [ordered]@{
+                renderer = $rendererLabel
+                frame = [ordered]@{ width = $width; height = $height }
+                note = "Software renderer has no GLPerf harness. This run is a visual/evidence capture only; the required assertions are non-black frame, no ABNORMAL_HALT, and normal shutdown."
+            } | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $summaryPath -Encoding UTF8
+        }
 
         $artifacts = [ordered]@{}
-        foreach ($artifact in @($png,$logCopy,$csvCopy,$summaryPath,(Join-Path $runDir 'render.log'),(Join-Path $runDir 'carnivor.log')) + $startupLogCopies) {
+        $artifactList = @($png, $summaryPath, (Join-Path $runDir 'render.log'), (Join-Path $runDir 'carnivor.log'))
+        if ($isGl) { $artifactList = @($png, $logCopy, $csvCopy, $summaryPath, (Join-Path $runDir 'render.log'), (Join-Path $runDir 'carnivor.log')) + $startupLogCopies }
+        foreach ($artifact in $artifactList) {
             if (Test-Path -LiteralPath $artifact -PathType Leaf) {
                 $artifacts[[System.IO.Path]::GetFileName($artifact)] = [ordered]@{
                     sha256 = Get-Sha256 $artifact
@@ -604,7 +644,10 @@ function Run-Capture {
             build_input_diff_sha256 = $sourceDiffHash
             build_exe = $BuildExe
             build_exe_sha256 = $buildExeHash
-            build_preset = $manifest.build_preset
+            build_preset = $buildPreset
+            renderer = $rendererLabel
+            renderer_config = $rendererConfigValue
+            glperf = $isGl
             scenario = $ScenarioEntry.id
             scenario_name = $ScenarioEntry.name
             project = $ScenarioEntry.project
@@ -628,8 +671,8 @@ function Run-Capture {
             config_effective = $effectiveConfig
             config_effective_path = $configPath
             config_effective_sha256 = $effectiveConfigHash
-            reshade_wrapper_removed_for_run = $states[5].Existed
-            reshade_wrapper_sha256 = $reshadeWrapperHash
+            reshade_wrapper_removed_for_run = if ($isGl) { $states[5].Existed } else { $false }
+            reshade_wrapper_sha256 = if ($isGl) { $reshadeWrapperHash } else { $null }
             trophy_effective_sha256 = $effectiveTrophyHash
             executable_opengl_module = $openglModule
             scenario_assets = $assets
@@ -668,18 +711,20 @@ $missing = @($required | Where-Object { -not (Test-Path -LiteralPath $_ -PathTyp
 if ($missing.Count) { throw "Missing capture prerequisites:`n  $($missing -join "`n  ")" }
 Assert-CleanBuildInputs
 if (-not $SkipBuild) {
-    & cmake --build --preset ogl-release
-    if ($LASTEXITCODE -ne 0) { throw "ogl-release build failed." }
+    & cmake --build --preset $buildPreset
+    if ($LASTEXITCODE -ne 0) { throw "$buildPreset build failed." }
 }
 $BuildExe = (Resolve-Path -LiteralPath $BuildExe).Path
 $configPath = Join-Path (Split-Path -Parent $BuildExe) 'config.cfg'
 Assert-PerfBuild
-Assert-ShadersMatch
+# The software renderer has no shader stage, so deployed/build shader parity
+# is only a meaningful check for the GL build.
+if ($isGl) { Assert-ShadersMatch }
 $sourceSha = Get-SourceSha
 $buildExeHash = Get-Sha256 $BuildExe
 $systemMetadata = Get-SystemMetadata
 $sessionStamp = (Get-Date).ToUniversalTime().ToString('yyyyMMdd-HHmmssZ')
-$sessionDir = Join-Path $OutDir ("session-{0}-{1}" -f $sessionStamp, $sourceSha.Substring(0, 7))
+$sessionDir = Join-Path $OutDir ("session-{0}-{1}-{2}" -f $sessionStamp, $Renderer, $sourceSha.Substring(0, 7))
 New-Item -ItemType Directory -Path $sessionDir -Force | Out-Null
 Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $sessionDir 'manifest.json')
 $sourceDiffHash = $null
@@ -704,6 +749,7 @@ if ($All) {
 
 Write-Host "C2 capture session: $sessionDir"
 Write-Host "Build: $sourceSha ($buildExeHash)"
+Write-Host "Renderer: $rendererLabel ($buildPreset)"
 Write-Host "Settings: ReShade off, FPS unlimited, FOV $($manifest.settings.fov), object detail $($manifest.settings.object_detail), view option $($manifest.settings.view_option)"
 foreach ($scenarioEntry in $selectedScenarios) {
     foreach ($resolutionEntry in $selectedResolutions) {

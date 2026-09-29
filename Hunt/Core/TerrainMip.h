@@ -48,11 +48,14 @@ inline int SelectRasterMipLevel(int texelSize)
 // Highest level the GL terrain/water sampler may select, as a
 // config.cfg "terrain_mip_level" value.
 //
-// Default 1 (DataA + DataB only) is the stock behaviour: the D3D/3DFX
-// renderers only ever sampled DataA and DataB, and the GL port kept that cap
-// when the 2x2 geometry-LOD system was removed (e4cdd32). 3 exposes the whole
-// chain; 0 disables mip filtering. See architecture/terrain-rendering.md.
-inline constexpr int kTerrainMaxMipDefault = 1;
+// Default 3 exposes the whole chain. Levels 2-3 (DataC 32x32, DataD 16x16)
+// were always uploaded by the loader, so raising the cap costs no memory; the
+// owner reviewed the four-level result and accepted it on 2026-09-21. The
+// stock D3D/3DFX renderers only ever sampled DataA and DataB, which is why
+// the GL port inherited a cap of 1 when the 2x2 geometry-LOD system was
+// removed (e4cdd32) -- 1 is no longer the interesting default. 0 disables
+// mip filtering. See architecture/terrain-rendering.md.
+inline constexpr int kTerrainMaxMipDefault = 3;
 inline constexpr int kTerrainMaxMipMin = 0;
 inline constexpr int kTerrainMaxMipMax = kTerrainMipLevelCount - 1;
 

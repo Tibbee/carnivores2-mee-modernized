@@ -54,14 +54,17 @@ TEST(TerrainMipTest, RasterLevelThresholdsMatchLegacy)
 	EXPECT_LT(SelectRasterMipLevel(1), kTerrainRasterMipLevels);
 }
 
-TEST(TerrainMipTest, MaxLevelDefaultsToStockAndClamps)
+TEST(TerrainMipTest, MaxLevelDefaultsToFullChainAndClamps)
 {
-	// 1 is the shipped D3D/3DFX behaviour: DataA and DataB only.
-	EXPECT_EQ(kTerrainMaxMipDefault, 1);
+	// 3 is the owner-reviewed default: the whole DataA/B/C/D chain, all of
+	// which the loader already uploads.
+	EXPECT_EQ(kTerrainMaxMipDefault, 3);
 	EXPECT_EQ(kTerrainMaxMipMin, 0);
 	EXPECT_EQ(kTerrainMaxMipMax, 3);
-	EXPECT_EQ(ClampTerrainMaxMipLevel(kTerrainMaxMipDefault), 1);
-	// 3 exposes the whole uploaded chain; 0 disables mip filtering.
+	EXPECT_EQ(ClampTerrainMaxMipLevel(kTerrainMaxMipDefault), 3);
+	// 1 remains reachable and is the stock D3D/3DFX cap; 0 disables mip
+	// filtering.
+	EXPECT_EQ(ClampTerrainMaxMipLevel(1), 1);
 	EXPECT_EQ(ClampTerrainMaxMipLevel(3), 3);
 	EXPECT_EQ(ClampTerrainMaxMipLevel(0), 0);
 	// A hand-edited config must not index past the allocated levels.

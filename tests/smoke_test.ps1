@@ -8,6 +8,10 @@ param(
     [string]$Preset = "hunt",
     [string]$Renderer = "GL",
     [string]$GameDir = "",
+    [switch]$SkipFrameCheck,
+    [string]$FrameDir = "",
+    [ValidateRange(0, 255)]
+    [double]$MinMeanLuminance = 1.0,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$GameArgs = @(
         "reg=0",
@@ -79,6 +83,7 @@ Write-Host "  Exe:      $ExePath"
 Write-Host "  Duration: $($Duration)s"
 Write-Host "  Log:      $LogFile"
 Write-Host "  WorkDir:  $WorkingDir"
+Write-Host "  Renderer: $Renderer"
 
 # A game instance that is already running holds carnivor.log open and keeps
 # writing to it. This test would then delete the file out from under it, read
@@ -91,6 +96,194 @@ $aliases = @(
 $running = Get-Process -Name $aliases -ErrorAction SilentlyContinue
 if ($running) {
     throw "A game instance is already running (PID $(($running.Id) -join ', ')). Close it and re-run - this test needs carnivor.log to itself."
+}
+
+# ---------------------------------------------------------------------------
+# Framebuffer assertions
+#
+# Log inspection alone is not enough. The software reload black screen
+# produced a completely clean carnivor.log, so the historical smoke test
+# passed it: the renderer was destroyed and never recreated, and nothing
+# complained. The only symptom was a black window, so it has to be asserted
+# on the pixels.
+#
+# This uses the same window discovery and client capture as
+# tools/c2_capture_matrix.ps1, so both agree on what the engine client is.
+# ---------------------------------------------------------------------------
+
+Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class C2SmokeNative {
+    public delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
+    [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
+    [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
+    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr hwnd, StringBuilder className, int maxCount);
+    [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr hwnd, out RECT rect);
+    [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr hwnd, ref POINT point);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hwnd, int command);
+    [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hwnd);
+    [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
+    public static IntPtr FindHuntWindowForProcess(int processId) {
+        IntPtr found = IntPtr.Zero;
+        EnumWindows(delegate(IntPtr hwnd, IntPtr ignored) {
+            uint owner; GetWindowThreadProcessId(hwnd, out owner);
+            if (owner != (uint)processId) return true;
+            StringBuilder name = new StringBuilder(128); GetClassName(hwnd, name, name.Capacity);
+            if (name.ToString() != "HuntRenderWindow") return true;
+            found = hwnd; return false;
+        }, IntPtr.Zero);
+        return found;
+    }
+}
+"@
+try { [C2SmokeNative]::SetProcessDpiAwarenessContext([IntPtr]::new(-4)) | Out-Null } catch { }
+
+$SW_MINIMIZE = 6
+$SW_RESTORE = 9
+
+function Resolve-RenderHwnd {
+    param([System.Diagnostics.Process]$Process)
+    # C2 keeps a separate loading/progress window that can also be
+    # MainWindowHandle. Only the renderer class owned by this process counts.
+    return [C2SmokeNative]::FindHuntWindowForProcess($Process.Id)
+}
+
+function Wait-RenderHwnd {
+    param([System.Diagnostics.Process]$Process, [int]$TimeoutSeconds)
+    $timer = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($timer.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
+        if ($Process.HasExited) { throw "Game exited before its renderer window appeared (exit $($Process.ExitCode))." }
+        $hwnd = Resolve-RenderHwnd $Process
+        if ($hwnd -ne [IntPtr]::Zero) {
+            $rect = New-Object C2SmokeNative+RECT
+            if ([C2SmokeNative]::GetClientRect($hwnd, [ref]$rect) -and ($rect.R - $rect.L) -gt 1 -and ($rect.B - $rect.T) -gt 1) {
+                return [pscustomobject]@{ Hwnd = $hwnd; Width = $rect.R - $rect.L; Height = $rect.B - $rect.T }
+            }
+        }
+        Start-Sleep -Milliseconds 250
+    }
+    throw "Process-owned HuntRenderWindow did not become usable within $TimeoutSeconds seconds."
+}
+
+function Get-ClientLuminance {
+    <#
+      Grabs the engine client and reduces it to mean/max luminance. A
+      destroyed renderer reads as a solid black client, which is exactly the
+      failure this exists to catch.
+    #>
+    param([IntPtr]$Hwnd, [int]$Width, [int]$Height, [string]$OutPng = "")
+    $origin = New-Object C2SmokeNative+POINT
+    if (-not [C2SmokeNative]::ClientToScreen($Hwnd, [ref]$origin)) { throw "ClientToScreen failed." }
+    $screen = [System.Windows.Forms.SystemInformation]::VirtualScreen
+    if ($origin.X -lt $screen.Left -or $origin.Y -lt $screen.Top -or
+        ($origin.X + $Width) -gt $screen.Right -or ($origin.Y + $Height) -gt $screen.Bottom) {
+        throw "The ${Width}x${Height} client is not fully visible on the virtual desktop; a screen grab would capture something other than the game."
+    }
+    $bitmap = New-Object System.Drawing.Bitmap $Width, $Height
+    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+    try {
+        $graphics.CopyFromScreen($origin.X, $origin.Y, 0, 0,
+            [System.Drawing.Size]::new($Width, $Height),
+            [System.Drawing.CopyPixelOperation]::SourceCopy)
+        if ($OutPng) { $bitmap.Save($OutPng, [System.Drawing.Imaging.ImageFormat]::Png) }
+        # Sample on a grid; a full per-pixel pass is needlessly slow for a
+        # black/not-black test and the client is large.
+        $sum = 0L; $max = 0.0; $samples = 0
+        $stepX = [Math]::Max(1, [int]($Width / 160))
+        $stepY = [Math]::Max(1, [int]($Height / 120))
+        for ($y = 0; $y -lt $Height; $y += $stepY) {
+            for ($x = 0; $x -lt $Width; $x += $stepX) {
+                $c = $bitmap.GetPixel($x, $y)
+                $l = 0.2126 * $c.R + 0.7152 * $c.G + 0.0722 * $c.B
+                $sum += $l
+                if ($l -gt $max) { $max = $l }
+                $samples++
+            }
+        }
+        if ($samples -eq 0) { throw "No pixels were sampled from the ${Width}x${Height} client." }
+        return [pscustomobject]@{ Mean = $sum / $samples; Max = $max; Samples = $samples }
+    } finally {
+        $graphics.Dispose(); $bitmap.Dispose()
+    }
+}
+
+function Assert-FrameNotBlack {
+    # The default threshold is a deliberate near-zero: a black client is 0.0,
+    # and a legitimately dark frame is orders of magnitude above 1.0, so
+    # night scenes will not trip it. Raised only by -MinMeanLuminance, which
+    # exists so the assertion can be proven able to fail.
+    param($Window, [string]$Label, [string]$OutDir, [double]$Threshold = 1.0)
+    $png = if ($OutDir) { Join-Path $OutDir ("frame-$Label.png") } else { "" }
+    $stats = Get-ClientLuminance $Window.Hwnd $Window.Width $Window.Height $png
+    $where = if ($png) { " (saved $png)" } else { "" }
+    Write-Host ("  {0,-12} mean luminance {1,7:F2}  max {2,6:F1}{3}" -f $Label, $stats.Mean, $stats.Max, $where)
+    if ($stats.Mean -lt $Threshold) {
+        throw "Framebuffer is black after $Label (mean luminance $($stats.Mean.ToString('F3'))/255, required $Threshold)$where. The renderer window exists but is not drawing."
+    }
+    return $stats
+}
+
+function Wait-ForLogCount {
+    param([string]$Path, [string]$Pattern, [int]$Target, [int]$TimeoutSeconds, [System.Diagnostics.Process]$Process)
+    $timer = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($timer.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
+        if ($Process.HasExited) { throw "Game exited while waiting for '$Pattern' (exit $($Process.ExitCode))." }
+        if (Test-Path -LiteralPath $Path -PathType Leaf) {
+            $count = @(Select-String -LiteralPath $Path -Pattern $Pattern -SimpleMatch -ErrorAction SilentlyContinue).Count
+            if ($count -ge $Target) { return $count }
+        }
+        Start-Sleep -Milliseconds 250
+    }
+    return -1
+}
+
+function Invoke-FrameChecks {
+    <#
+      Boot, then a full renderer teardown/recreate, asserting non-black
+      pixels after each.
+
+      The restart is driven by the window losing and regaining activation:
+      MainWndProc recomputes `A = (GetActiveWindow() == hWnd)` on every
+      message, and on the transition it calls ShutDown3DHardware() and sets
+      NeedRVM, which routes through Activate3DHardware() -- the same
+      shutdown/recreate path as a gameplay reload, and the one that used to
+      leave the software renderer destroyed. Unlike the in-game reload (the
+      'R' key) it needs no particular game state, so it is deterministic
+      here.
+    #>
+    param([System.Diagnostics.Process]$Process, [string]$LogPath, [string]$OutDir, [int]$BudgetSeconds, [double]$Threshold = 1.0)
+
+    $window = Wait-RenderHwnd $Process ([Math]::Max(5, [int]($BudgetSeconds * 0.5)))
+    Write-Host "  Renderer client: $($window.Width)x$($window.Height)"
+    [C2SmokeNative]::SetForegroundWindow($window.Hwnd) | Out-Null
+    # Let the first world frame land before judging it.
+    Start-Sleep -Seconds 2
+    $null = Assert-FrameNotBlack $window 'boot' $OutDir $Threshold
+
+    $before = Wait-ForLogCount $LogPath 'Activate3DHardware' 1 10 $Process
+    Write-Host "  Driving a renderer restart (minimize/restore)..."
+    [C2SmokeNative]::ShowWindow($window.Hwnd, $SW_MINIMIZE) | Out-Null
+    Start-Sleep -Milliseconds 1200
+    [C2SmokeNative]::ShowWindow($window.Hwnd, $SW_RESTORE) | Out-Null
+    [C2SmokeNative]::SetForegroundWindow($window.Hwnd) | Out-Null
+
+    $after = Wait-ForLogCount $LogPath 'Activate3DHardware' ($before + 1) 20 $Process
+    if ($after -lt 0) {
+        # Do not degrade silently: a post-reload assertion that never ran
+        # would report the boot result as if it covered the reload.
+        throw "The renderer restart never ran (no second 'Activate3DHardware' in $LogPath within 20s), so the post-reload frame was never actually verified."
+    }
+    Write-Host "  Restart confirmed in log; settling..."
+    Start-Sleep -Seconds 2
+    $window = Wait-RenderHwnd $Process 10
+    [C2SmokeNative]::SetForegroundWindow($window.Hwnd) | Out-Null
+    $null = Assert-FrameNotBlack $window 'reload' $OutDir $Threshold
 }
 
 # Clean previous log
@@ -113,6 +306,20 @@ $sw = [System.Diagnostics.Stopwatch]::StartNew()
 
 try {
     $timedOut = $false
+    # The framebuffer assertions need the process alive and its window up, so
+    # they run inside the lifetime window rather than after the kill. Their
+    # cost comes out of the requested duration.
+    if (-not $SkipFrameCheck) {
+        if (-not $FrameDir) {
+            $FrameDir = Join-Path $WorkingDir "smoke-frames"
+        }
+        New-Item -ItemType Directory -Path $FrameDir -Force | Out-Null
+        Write-Host "Frame checks enabled (frames -> $FrameDir)"
+        Invoke-FrameChecks $proc $LogFile $FrameDir ([Math]::Max(10, $Duration)) $MinMeanLuminance
+    } else {
+        Write-Host "Frame checks skipped (-SkipFrameCheck)"
+    }
+
     while ($sw.Elapsed.TotalSeconds -lt $Duration) {
         Start-Sleep -Milliseconds 200
         if ($proc.HasExited) {
