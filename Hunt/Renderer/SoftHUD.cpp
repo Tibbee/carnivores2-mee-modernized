@@ -514,6 +514,27 @@ void Activate3DHardware()
 {
   SetVideoMode(WinW, WinH);
 
+  // Mirror the OpenGL path (GLUI.cpp :: Activate3DHardware). A restart calls
+  // ShutDown3DHardware(), which deletes g_SoftRenderer and nulls it; the game
+  // loop then dispatches through the null-guarded
+  // `if (g_SoftRenderer) g_SoftRenderer->DrawFrame(ctx)` (Hunt.cpp), so a
+  // renderer that is never re-created silently skips ALL 3D drawing -- no
+  // terrain, sky, water or models -- and the scene stays black after a
+  // reload, while the GDI HUD text (drawn on the window DC, not the DirectDraw
+  // surface) keeps appearing normally. GL already re-creates here for exactly
+  // this reason; the software path did not, which is why only v_soft showed it.
+  if (!g_SoftRenderer)
+  {
+    g_SoftRenderer = new SoftRenderer();
+    if (!g_SoftRenderer->Initialize())
+    {
+      delete g_SoftRenderer;
+      g_SoftRenderer = nullptr;
+      DoHalt("Software renderer initialization failed.");
+    }
+    PrintLog("Activate3DHardware: re-created g_SoftRenderer after shutdown\n");
+  }
+
   DWORD cl = DDSCL_EXCLUSIVE|DDSCL_FULLSCREEN;
   if (!FULLSCREEN)
     cl = DDSCL_NORMAL;
