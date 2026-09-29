@@ -3,6 +3,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "Core/WaterWaveFade.h"
 #include <array>
 #include <cmath>
 
@@ -188,13 +189,22 @@ void PreCashGroundModel()
         // lookup; this change completes that fix.
         float wdelta = waveCache[yy & 31][xx & 31];
 
-        if ( (FMap[yy][xx] & fmWater) && (r < ctViewR-4))
+        // Wave displacement. The legacy gate was a hard cutoff (r < ctViewR-4),
+        // which stepped straight from full amplitude to zero and left a seam
+        // where the last displaced ring met flat water. WaterWaveFade ramps the
+        // amplitude to zero across OptWaterWaveFadeRings rings before that
+        // boundary instead; at 0 rings it reproduces the legacy gate exactly.
+        // Shared engine state -- VMap2 feeds the OpenGL and software renderers
+        // alike, so this affects both.
+        const float waveFade = WaterWaveFade(r, ctViewR, OptWaterWaveFadeRings);
+
+        if ( (FMap[yy][xx] & fmWater) && waveFade > 0.0f)
         {
-          // Multi-component wave displacement from cache
+          // Multi-component wave displacement from cache, faded by distance.
           const WaveCacheEntry& wc = waveCacheSurface[yy & 31][xx & 31];
-          rv.x += wc.wx[0] + wc.wx[1] + wc.wx[2];
-          rv.y += wc.wy[0] + wc.wy[1] + wc.wy[2];
-          rv.z += wc.wz[0] + wc.wz[1] + wc.wz[2];
+          rv.x += (wc.wx[0] + wc.wx[1] + wc.wx[2]) * waveFade;
+          rv.y += (wc.wy[0] + wc.wy[1] + wc.wy[2]) * waveFade;
+          rv.z += (wc.wz[0] + wc.wz[1] + wc.wz[2]) * waveFade;
         }
 
         rv = rotateCached(rv);

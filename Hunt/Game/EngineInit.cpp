@@ -10,6 +10,8 @@
 #include <fstream>
 #include "Core/ConfigParse.h"
 #include "Core/ConfigText.h"
+#include "Core/TerrainMip.h"
+#include "Core/WaterWaveFade.h"
 #include "Loaders/LoadDiagnostics.h"
 
 #ifdef _gl
@@ -497,6 +499,9 @@ void InitEngine()
   OptSkyMode = kSkyModeLevel;           // sky cloud-texture placement (config.cfg sky_mode)
   OptSkyDomeScale = kSkyDomeScaleDefault;
   OptSkyHorizonDrop = kSkyHorizonDropDefault;
+  OptTerrainMaxMipLevel = kTerrainMaxMipDefault; // config.cfg terrain_mip_level
+  OptWaterMipmap = 1;                           // config.cfg water_mipmap
+  OptWaterWaveFadeRings = kWaterWaveFadeDefault; // config.cfg water_wave_fade_rings
 
   OptViewR = kViewOptDefault;
   OptObjectDetail = kObjectDetailDefault;
@@ -829,6 +834,20 @@ static void CreateDefaultConfig()
     "# ~38 degrees; zenith clouds are 2x larger).\r\n"
     "sky_dome_scale 384\r\n"
     "\r\n"
+    "# Highest mip level the OpenGL terrain/water sampler may select from\r\n"
+    "# the DataA 128 / DataB 64 / DataC 32 / DataD 16 chain: 0..3.\r\n"
+    "# 1 = stock D3D/3DFX behaviour (128 + 64 only). 3 = whole chain.\r\n"
+    "terrain_mip_level 1\r\n"
+    "\r\n"
+    "# Software renderer only: 1 = water rasterises from the distance mip\r\n"
+    "# level, 0 = legacy full-resolution water (always the 128 level).\r\n"
+    "water_mipmap 1\r\n"
+    "\r\n"
+    "# Rings over which the water wave displacement fades to zero before\r\n"
+    "# the legacy cutoff (the outermost 4 rings are never displaced).\r\n"
+    "# 0 = legacy hard cutoff. Larger = gradual, seam-free falloff.\r\n"
+    "water_wave_fade_rings 8\r\n"
+    "\r\n"
     "# GPU features bitmask (default: all optimizations enabled)\r\n"
     "# Set to 0 to disable all GPU optimizations.\r\n"
     "gpufeatures %u\r\n"
@@ -957,6 +976,48 @@ static void LoadConfig()
       }
       else if (_stricmp(key, "nightvision_key") == 0) {
         NightVisionKey = value;
+      }
+      else if (_stricmp(key, "terrain_mip_level") == 0) {
+        // Highest mip level the GL terrain/water sampler may select from the
+        // DataA/B/C/D chain (see Core/TerrainMip.h). 1 = stock D3D/3DFX
+        // behaviour (DataA 128 + DataB 64); 3 = whole chain (adds DataC 32
+        // and DataD 16). Parsed strictly so "abc" cannot silently mean 0.
+        int level = kTerrainMaxMipDefault;
+        if (ParseConfigInt(keyval, kTerrainMaxMipMin, kTerrainMaxMipMax, level)) {
+          OptTerrainMaxMipLevel = level;
+          char msg[72];
+          sprintf_s(msg, sizeof(msg), "Config: terrain_mip_level = %d\n", level);
+          PrintLog(msg);
+        } else {
+          PrintLog("Config: terrain_mip_level must be 0..3, ignoring.\n");
+        }
+      }
+      else if (_stricmp(key, "water_mipmap") == 0) {
+        // Software renderer only: 1 = water rasterises from the distance
+        // mip level (DataA/B/C), 0 = legacy full-resolution water.
+        int enabled = 1;
+        if (ParseConfigInt(keyval, 0, 1, enabled)) {
+          OptWaterMipmap = enabled;
+          char msg[64];
+          sprintf_s(msg, sizeof(msg), "Config: water_mipmap = %d\n", enabled);
+          PrintLog(msg);
+        } else {
+          PrintLog("Config: water_mipmap must be 0 or 1, ignoring.\n");
+        }
+      }
+      else if (_stricmp(key, "water_wave_fade_rings") == 0) {
+        // Number of rings over which the water wave displacement fades to
+        // zero before the legacy cutoff (see Core/WaterWaveFade.h). 0 = the
+        // legacy hard cutoff; larger = a gradual, seam-free falloff.
+        int rings = kWaterWaveFadeDefault;
+        if (ParseConfigInt(keyval, kWaterWaveFadeMin, kWaterWaveFadeMax, rings)) {
+          OptWaterWaveFadeRings = rings;
+          char msg[72];
+          sprintf_s(msg, sizeof(msg), "Config: water_wave_fade_rings = %d\n", rings);
+          PrintLog(msg);
+        } else {
+          PrintLog("Config: water_wave_fade_rings must be 0..64, ignoring.\n");
+        }
       }
       else if (_stricmp(key, "gpufeatures") == 0) {
         // Runtime GPU-optimization kill-switch bitmask (see GpuFeature in GameState.h).

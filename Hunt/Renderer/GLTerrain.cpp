@@ -254,13 +254,15 @@ void GLRenderer::EnsureTerrainTextureArray()
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
-    // The original D3D/3DFX terrain/water renderers only ever sampled
-    // DataA (128x128) and DataB (64x64).  DataC/DataD were generated
-    // for the software renderer's very-far fallback, but using them in
-    // the GL path made distant LOD tiles look oddly blurry / differently
-    // textured.  Cap the array at mip level 1 to match the hardware
-    // renderers.
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 1);
+    // Highest level the sampler may select: 1 (default) is the stock D3D/3DFX
+    // behaviour, which only ever sampled DataA (128x128) and DataB (64x64).
+    // The original note blamed 2x2 geometry-LOD tiles reading "oddly blurry
+    // / differently textured"; that system is gone (e4cdd32), so levels 2-3
+    // are now reachable through config.cfg "terrain_mip_level 3" for the owner
+    // to A/B. Levels are uploaded either way (kTerrainMipLevelCount), so this
+    // costs nothing until it is raised.
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL,
+                    ClampTerrainMaxMipLevel(OptTerrainMaxMipLevel));
 
     // Step 7: Enable anisotropic filtering for smoother texture LOD
     // transitions at oblique angles (one-time setup, zero per-frame cost)
@@ -274,7 +276,7 @@ void GLRenderer::EnsureTerrainTextureArray()
     }
 
     int size = 128;
-    for (int level = 0; level < kTerrainMipLevels; ++level) {
+    for (int level = 0; level < kTerrainMipLevelCount; ++level) {
         glTexImage3D(GL_TEXTURE_2D_ARRAY, level, GL_RGBA8, size, size, kMaxTerrainTextureLayers, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         const int nextSize = size / 2;
         size = nextSize < 1 ? 1 : nextSize;
@@ -290,7 +292,7 @@ void GLRenderer::UploadTerrainLayer(int layer, const TEXTURE& texture)
     EnsureTerrainTextureArray();
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_terrainTextureArray);
 
-    const WORD* mipSources[kTerrainMipLevels] = {
+    const WORD* mipSources[kTerrainMipLevelCount] = {
         texture.DataA,
         texture.DataB,
         texture.DataC,
@@ -298,7 +300,7 @@ void GLRenderer::UploadTerrainLayer(int layer, const TEXTURE& texture)
     };
 
     int mipSize = 128;
-    for (int level = 0; level < kTerrainMipLevels; ++level) {
+    for (int level = 0; level < kTerrainMipLevelCount; ++level) {
         std::vector<unsigned int> expanded(mipSize * mipSize);
         for (int i = 0; i < mipSize * mipSize; ++i) {
             expanded[i] = Expand1555to8888(mipSources[level][i]);

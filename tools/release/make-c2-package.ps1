@@ -130,7 +130,8 @@ Copy-Item $lgpl (Join-Path $PkgDir 'THIRD-PARTY-LICENSES\COPYING.OpenAL-Soft.txt
 # Mirror Hunt/Game/EngineInit.cpp CreateDefaultConfig (fov 62 default,
 # object_detail 48 default, fps_limit 1, verbose_logging 0, ai_logging 0,
 # load_mode lenient, nightvision_key 78, sky_mode 1, sky_horizon_drop 12,
-# sky_dome_scale 384, glperf_logging 0, commented audio/hunt examples).
+# sky_dome_scale 384, terrain_mip_level 1, water_mipmap 1,
+# water_wave_fade_rings 8, glperf_logging 0, commented audio/hunt examples).
 # Keep this in sync with the source.
 @"
 # Carnivores 2 Modder's Engine - Configuration
@@ -190,6 +191,20 @@ sky_horizon_drop 12
 # horizon. Larger = smaller clouds (384: one 256-texel texture spans
 # ~38 degrees; zenith clouds are 2x larger).
 sky_dome_scale 384
+
+# Highest mip level the OpenGL terrain/water sampler may select from
+# the DataA 128 / DataB 64 / DataC 32 / DataD 16 chain: 0..3.
+# 1 = stock D3D/3DFX behaviour (128 + 64 only). 3 = whole chain.
+terrain_mip_level 1
+
+# Software renderer only: 1 = water rasterises from the distance mip
+# level, 0 = legacy full-resolution water (always the 128 level).
+water_mipmap 1
+
+# Rings over which the water wave displacement fades to zero before
+# the legacy cutoff (the outermost 4 rings are never displaced).
+# 0 = legacy hard cutoff. Larger = gradual, seam-free falloff.
+water_wave_fade_rings 8
 
 # GPU features bitmask (default: all optimizations enabled)
 # Set to 0 to disable all GPU optimizations.

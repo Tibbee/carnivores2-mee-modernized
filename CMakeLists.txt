@@ -328,8 +328,10 @@ if(MSVC)
         tests/test_sky_fog_projection.cpp
         tests/test_spawn_math.cpp
         tests/test_terrain_fog.cpp
+        tests/test_terrain_mip.cpp
         tests/test_water_color.cpp
         tests/test_water_object_visibility.cpp
+        tests/test_water_wave_fade.cpp
     )
     target_include_directories(Carnivores2Tests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Hunt

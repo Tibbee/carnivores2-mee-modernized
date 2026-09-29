@@ -526,6 +526,29 @@ GLOBAL int  NightVisionKey;
 
 GLOBAL int  OptFov;
 
+// ── Terrain/water mip chain (see Core/TerrainMip.h) ──
+// Highest mip level the OpenGL terrain/water sampler may select from the
+// GL_TEXTURE_2D_ARRAY chain (0 = DataA 128, 1 = DataB 64, 2 = DataC 32,
+// 3 = DataD 16). Tune via config.cfg "terrain_mip_level" without rebuilding.
+GLOBAL int  OptTerrainMaxMipLevel;
+
+// Software-renderer water mipmapping. The legacy source computed the water
+// mip level and then discarded it (ProcessMapW's unconditional "ts = 128"),
+// so water always rasterised from DataA at full resolution; the terrain path
+// beside it always honoured the result. 1 = honour the computed level (the
+// fix), 0 = legacy full-resolution water. config.cfg "water_mipmap".
+GLOBAL int  OptWaterMipmap;
+
+// Rings over which the water wave displacement fades to zero before the
+// legacy cutoff. Shared by both renderers: PreCashGroundModel writes the
+// displaced vertices into VMap2 before either draws. 0 = legacy hard cutoff
+// (seam where the last displaced ring meets flat water). config.cfg
+// "water_wave_fade_rings"; see Core/WaterWaveFade.h.
+constexpr int kWaterWaveFadeDefault = 8;
+constexpr int kWaterWaveFadeMin     = 0;
+constexpr int kWaterWaveFadeMax     = 64;
+GLOBAL int  OptWaterWaveFadeRings;
+
 // ── GPU performance-optimization feature flags (global runtime kill-switch) ──
 // Single bitmask read by each new GPU optimization. Set the mask to 0 in
 // config.cfg ("gpufeatures 0") to disable ALL new GPU optimizations at once;

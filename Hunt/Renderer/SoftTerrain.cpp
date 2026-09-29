@@ -6,6 +6,7 @@
 
 #include "Hunt.h"
 #include "SoftInternal.h"
+#include "Core/TerrainMip.h"
 
 #ifdef _soft
 void _RenderObject(int x, int y)
@@ -205,23 +206,26 @@ void ProcessMap2(int x, int y, int r)
   zs = static_cast<int>(sqrt(distanceSq));
   GlassL = 0;
 
-  if (MIPMAP) ts = static_cast<int>(CameraW) * 4 * 128 / zs;
+  // ComputeMipTexelSize clamps zs: the tile the camera stands in can have its
+  // centre a fraction of a unit from the eye, and the legacy expression
+  // divided by it unguarded (integer divide-by-zero -> #DE).
+  if (MIPMAP) ts = ComputeMipTexelSize(CameraW, zs);
   else ts = 128;
 
-  if (ts>=128)
+  switch (SelectRasterMipLevel(ts))
   {
+  case 0:
     lpTextureAddr = &(Textures[t1]->DataA[0]);
     HLineT = (void*) HLineTxGOURAUD;
-  }
-  else if (ts>=64)
-  {
+    break;
+  case 1:
     lpTextureAddr = &(Textures[t1]->DataB[0]);
     HLineT = (void*) HLineTxB;
-  }
-  else
-  {
+    break;
+  default:
     lpTextureAddr = &(Textures[t1]->DataC[0]);
     HLineT = (void*) HLineTxC;
+    break;
   }
 
   if (zs > 256 * (ctViewR-4))
@@ -348,23 +352,24 @@ void ProcessMap(int x, int y, int r)
   GlassL = 0;
 
 
-  if (MIPMAP) ts = static_cast<int>(CameraW) * 4 * 128 / zs;
+  // See ProcessMap2: ComputeMipTexelSize guards the zs divide.
+  if (MIPMAP) ts = ComputeMipTexelSize(CameraW, zs);
   else ts = 128;
 
-  if (ts>=128)
+  switch (SelectRasterMipLevel(ts))
   {
+  case 0:
     lpTextureAddr = &(Textures[t1]->DataA[0]);
     HLineT = (void*) HLineTxGOURAUD;
-  }
-  else if (ts>=64)
-  {
+    break;
+  case 1:
     lpTextureAddr = &(Textures[t1]->DataB[0]);
     HLineT = (void*) HLineTxB;
-  }
-  else
-  {
+    break;
+  default:
     lpTextureAddr = &(Textures[t1]->DataC[0]);
     HLineT = (void*) HLineTxC;
+    break;
   }
 
   if (!IsUnderwater())

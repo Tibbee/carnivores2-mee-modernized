@@ -6,6 +6,7 @@
 
 #include "Hunt.h"
 #include "SoftInternal.h"
+#include "Core/TerrainMip.h"
 
 #ifdef _soft
 
@@ -138,25 +139,33 @@ void ProcessMapW(int x, int y, int r)
 
   GlassL = 0;
 
-  if (MIPMAP) ts = static_cast<int>(CameraW) * 4 * 128 / zs;
+  // The legacy source computed this level and then threw it away with an
+  // unconditional "ts = 128" on the next line, so ProcessMapW always
+  // rasterised water from DataA at full resolution while the terrain path
+  // beside it honoured the result. Water is seen at grazing incidence --
+  // exactly the case mipmapping exists for -- so honour the level now.
+  //
+  // Safe with respect to model LOD: Hunt.cpp draws RenderGround() (terrain
+  // and every RenderObject) before RenderWater(), and the model rasteriser
+  // reuses this same ts global, so nothing reads a water-derived value
+  // before RenderGround reassigns it next frame.
+  if (MIPMAP && OptWaterMipmap) ts = ComputeMipTexelSize(CameraW, zs);
   else ts = 128;
 
-  ts = 128;
-
-  if (ts>=128)
+  switch (SelectRasterMipLevel(ts))
   {
+  case 0:
     lpTextureAddr = &(Textures[t1]->DataA[0]);
     HLineT = (void*) HLineTxGOURAUD;
-  }
-  else if (ts>=64)
-  {
+    break;
+  case 1:
     lpTextureAddr = &(Textures[t1]->DataB[0]);
     HLineT = (void*) HLineTxB;
-  }
-  else
-  {
+    break;
+  default:
     lpTextureAddr = &(Textures[t1]->DataC[0]);
     HLineT = (void*) HLineTxC;
+    break;
   }
 
   WATERREVERSE = IsUnderwater();
@@ -201,6 +210,13 @@ S2:
 void ProcessMapW2(int x, int y, int r)
 {
   //if (RunMode) return;
+
+  // UNREACHABLE since e4cdd32 ("drop 2x2 terrain LOD, use 1x1 tiles
+  // everywhere"): the only caller was ProcessMap2, and RenderGround walks
+  // ProcessMap alone. Kept in step with the software renderer in case the
+  // 2x2 far-LOD system ever returns. Note this function never consumed the
+  // mip level in the legacy source either -- it draws at a fixed LOD -- so
+  // no ts is computed here.
   if (x >= ctMapSize - 2 || y >= ctMapSize - 2 || x < 0 || y < 0) return;
 
   if (!( (FMap[y  ][x  ] & fmWaterA) &&
@@ -245,12 +261,21 @@ void ProcessMapW2(int x, int y, int r)
 
   GlassL = 0;
 
-  if (MIPMAP) ts = static_cast<int>(CameraW) * 4 * 128 / zs;
-  else ts = 128;
 
-
-  lpTextureAddr = &(Textures[t1]->DataC[0]);
-  HLineT = (void*) HLineTxC;
+  // Legacy behaviour, restored: seen from underwater the surface blends 25%
+  // glass over the scene from DataB; from above it is opaque from DataC.
+  // The modernization dropped this branch (keeping only WATERREVERSE), so
+  // swimming left far water drawn opaque from the 32x32 level.
+  if (IsUnderwater())
+  {
+    lpTextureAddr = &(Textures[t1]->DataB[0]);
+    HLineT = (void*) HLineTBGlass25;
+  }
+  else
+  {
+    lpTextureAddr = &(Textures[t1]->DataC[0]);
+    HLineT = (void*) HLineTxC;
+  }
 
   WATERREVERSE = IsUnderwater();
 
