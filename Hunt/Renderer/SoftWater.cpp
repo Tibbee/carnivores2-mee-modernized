@@ -138,6 +138,7 @@ void ProcessMapW(int x, int y, int r)
   zs = static_cast<int>(sqrt(distanceSq));
 
   GlassL = 0;
+  WaterTileDraw = 1;
 
   // The legacy source computed this level and then threw it away with an
   // unconditional "ts = 128" on the next line, so ProcessMapW always
@@ -204,6 +205,7 @@ S1:
   DrawTPlaneClip(true);
 S2:
   WATERREVERSE = false;
+  WaterTileDraw = 0;
 }
 
 

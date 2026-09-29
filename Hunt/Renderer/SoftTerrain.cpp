@@ -546,7 +546,17 @@ void DrawTPlaneClip(BOOL SECONT)
 {
   int n;
 
-  if (!WATERREVERSE)
+  // Water surface tiles skip the backface rejection. Wave displacement moves
+  // each of a tile's four corners by its own offset, so the quad is
+  // non-planar and the two triangles can end up with opposing normals; at
+  // grazing angles one then gets rejected and, with no depth buffer to hide
+  // it, the terrain behind shows through as a diagonal tear. Confirmed by
+  // zeroing the wave amplitudes, which removes the artifact.
+  //
+  // This is safe, and matches OpenGL, which culls nothing at all. The water
+  // pass already walks its rings far-to-near (RenderWater), which is the
+  // correct painter's order for an opaque surface.
+  if (!WATERREVERSE && !WaterTileDraw)
   {
     MulVectorsVect(SubVectors(ev[1].v, ev[0].v), SubVectors(ev[2].v, ev[0].v), nv);
     if (nv.x*ev[0].v.x  +  nv.y*ev[0].v.y  +  nv.z*ev[0].v.z<0) return;

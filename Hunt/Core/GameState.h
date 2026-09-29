@@ -381,6 +381,17 @@ GLOBAL   BOOL LoDetailSky;
 
 GLOBAL   int  WinW,WinH,WinEX,WinEY,VideoCX,VideoCY,VideoPitch,VideoPitchB,iBytesPerLine,ts,r,MapMinY;
 
+// Set by the water tile rasterisers (SoftWater.cpp :: ProcessMapW) while a
+// water surface tile is being drawn. DrawTPlaneClip uses it to skip the
+// per-triangle backface rejection: wave displacement gives the four corners
+// of a tile different offsets, so the quad is non-planar and its two
+// triangles can end up with opposing normals. At grazing angles the
+// rejection then drops one half, and with no depth buffer anywhere in the
+// software rasteriser nothing redraws it -- the terrain behind shows through
+// as a diagonal tear. GL has no equivalent problem because it culls nothing
+// (glDisable(GL_CULL_FACE), GLRenderer.cpp).
+GLOBAL   int  WaterTileDraw;
+
 GLOBAL   float CameraW,CameraH,Soft_Persp_K, stepdy, stepdd, SunShadowK, FOVK;
 
 GLOBAL   CLIPPLANE ClipA,ClipB,ClipC,ClipD,ClipZ,ClipW;
