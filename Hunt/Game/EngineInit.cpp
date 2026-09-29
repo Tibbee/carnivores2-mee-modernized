@@ -496,7 +496,17 @@ void InitEngine()
   // default if the saved value is missing/out-of-range).
   OptFov = kFovDefault;
   g_gpuFeatures = kGpuFeaturesDefault;  // GPU-optimization kill-switch (see GameState.h)
+#ifdef _soft
+  // The software renderer defaults to the legacy camera-coupled plane. Mode 1
+  // is implemented and selectable here, but it is banded rather than smooth:
+  // the software sky point-samples one texel per pixel with no mip chain, and
+  // the level plane minifies far harder than the legacy one. OpenGL's default
+  // stays the level plane, where trilinear mip filtering resolves the same
+  // geometry cleanly.
+  OptSkyMode = kSkyModeLegacy;
+#else
   OptSkyMode = kSkyModeLevel;           // sky cloud-texture placement (config.cfg sky_mode)
+#endif
   OptSkyDomeScale = kSkyDomeScaleDefault;
   OptSkyHorizonDrop = kSkyHorizonDropDefault;
   OptTerrainMaxMipLevel = kTerrainMaxMipDefault; // config.cfg terrain_mip_level
@@ -821,7 +831,9 @@ static void CreateDefaultConfig()
     "display_mode 2\r\n"
     "\r\n"
     "# Sky cloud-texture placement: 0=legacy camera-coupled offset,\r\n"
-    "# 1=world-level projected plane (default), 2=direction-based dome.\r\n"
+    "# 1=world-level projected plane, 2=direction-based dome.\r\n"
+    "# 1 is the OpenGL default. The software renderer implements 0 and 1\r\n"
+    "# but bands on 1, so it defaults to 0; set 0 to match in software.\r\n"
     "sky_mode 1\r\n"
     "\r\n"
     "# sky_mode 1 horizon drop in degrees: lowers the projected plane's\r\n"

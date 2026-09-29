@@ -179,7 +179,10 @@ nightvision_key 78
 display_mode 2
 
 # Sky cloud-texture placement: 0=legacy camera-coupled offset,
-# 1=world-level projected plane (default), 2=direction-based dome.
+# 1=world-level projected plane, 2=direction-based dome.
+# 1 is the OpenGL default. The software renderer also implements 0 and 1
+# but defaults to 0: it has no sky mip chain, so mode 1 bands there.
+# Set 0 for a smooth sky in the software renderer (v_soft.ren).
 sky_mode 1
 
 # sky_mode 1 horizon drop in degrees: lowers the projected plane's
