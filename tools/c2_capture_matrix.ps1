@@ -681,7 +681,7 @@ function Run-Capture {
             notes = $ScenarioEntry.notes
         }
         $metadata | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $metaPath -Encoding UTF8
-        Remove-Item -LiteralPath @($changed.FullName) -Force
+        if ($changed.Count -gt 0) { Remove-Item -LiteralPath @($changed.FullName) -Force }
         Write-Host "[$baseName] complete -> $runDir"
     } catch {
         $runError = $_
@@ -697,7 +697,7 @@ function Run-Capture {
             Copy-Item -LiteralPath $failureArtifact.FullName -Destination (Join-Path $runDir ("failure-" + $failureArtifact.Name)) -Force
         }
         if ($failureGLPerf.Count) {
-            Remove-Item -LiteralPath @($failureGLPerf.FullName) -Force
+            if ($failureGLPerf.Count -gt 0) { Remove-Item -LiteralPath @($failureGLPerf.FullName) -Force }
         }
     } finally {
         try { Stop-CaptureProcess $process } catch { if (-not $runError) { $runError = $_ } }

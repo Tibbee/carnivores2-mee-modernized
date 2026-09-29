@@ -1,10 +1,36 @@
-# C2 OpenGL performance capture matrix
+# C2 performance capture matrix
 
-`c2_capture_matrix.ps1` runs fixed C2 scenarios through the in-engine GLPerf
+`c2_capture_matrix.ps1` runs fixed C2 scenarios through a renderer capture
 harness and preserves a self-contained evidence set for each run. It is based
 on C1's proven capture runner, adapted for C2's configuration, trophy layout,
 asset roster, executable names, native-resolution target, and stricter output
 validation.
+
+## Renderers
+
+`-Renderer gl` (the default) is the original OpenGL 3.3 performance matrix and
+behaves exactly as it always has. `-Renderer soft` reuses the same scenarios,
+resolutions, landing coordinates, window discovery, and client capture against
+`build/soft-release`, producing `frame.png` plus the runtime logs.
+
+C2 selects its renderer **at compile time**, not from `config.cfg`, so the
+executable identity is authoritative; the `renderer` key is written into the
+seeded config only to keep the captured settings self-describing. A `soft` run
+deliberately omits the GL-only machinery rather than emitting zeros for it:
+
+| | `gl` | `soft` |
+|---|---|---|
+| Preset / executable | `ogl-release` / `Carnivores1_GL.exe` | `soft-release` / `Carnivores1_SOFT.exe` |
+| `GL_PERF_HOOKS=ON` required | yes | no |
+| F11 capture, 120-frame CSV, `glperf.log` | yes | no — and a stray GLPerf file is a run failure |
+| ReShade/`opengl32.dll` removal + module check | yes | no |
+| Deployed/build shader parity | yes | no (no shader stage) |
+| `summary.json` | CPU distribution + counters | frame geometry and renderer label only |
+
+Session directories are suffixed `-gl-` / `-soft-` so the two never mix. This
+exists because the software renderer work (sky modes, water mipmapping, wave
+falloff) needs repeatable before/after frames, and the matrix previously
+pinned `renderer = 1` and could not produce them.
 
 ## Measurement policy
 
@@ -34,10 +60,10 @@ claims rather than expecting byte-identical screenshots.
 ## Requirements
 
 - x86 `build/ogl-release`, generated from the `ogl-release` preset
-- `GL_PERF_HOOKS:BOOL=ON` in its CMake cache
+- `GL_PERF_HOOKS:BOOL=ON` in its CMake cache (GL runs only)
 - legally obtained C2 deployment, defaulting to
   `E:/Games/CarnivoresLegacy`
-- deployed shaders byte-identical to `build/ogl-release/bin/shaders`
+- deployed shaders byte-identical to `build/ogl-release/bin/shaders` (GL only)
 - no changed or untracked engine/build inputs
 - game and standalone menu closed before starting
 
@@ -56,13 +82,14 @@ From the C2 repository root:
 
 ```bat
 powershell -NoProfile -File tools/c2_capture_matrix.ps1 -Scenario area1_spawn -Resolution 1024x768
-powershell -NoProfile -File tools/c2_capture_matrix.ps1 -Scenario area4_spawn -Resolution 2560x1440 -Repeats 5
+powershell -NoProfile -File tools/c2_capture_matrix.ps1 -Renderer soft -Scenario area1_spawn -Resolution 1024x768
 powershell -NoProfile -File tools/c2_capture_matrix.ps1 -All -Repeats 3
 ```
 
 Useful controls:
 
 ```text
+-Renderer gl|soft
 -WarmupSeconds N
 -PostCaptureSeconds N
 -Repeats N
@@ -121,7 +148,7 @@ settings, loaded OpenGL module, machine/driver identity, scenario-asset hashes,
 and artifact hashes. `summary.json` contains CPU distribution, counter means,
 and per-scope CPU summaries.
 
-For every successful run, the runner requires:
+For every successful **GL** run, the runner requires:
 
 1. exactly 120 CSV rows numbered 0–119;
 2. the expected counter columns and intentional `-1` GPU sentinels;
@@ -129,6 +156,10 @@ For every successful run, the runner requires:
 4. `gpu_drop=0` throughout the run;
 5. no `ABNORMAL_HALT`; and
 6. `Game normal shutdown` after `WM_CLOSE`.
+
+Items 1–4 are GL-only. Items 5 and 6 apply to **both** renderers, and a
+`soft` run additionally fails if it produced any GLPerf file at all, which
+would mean the wrong executable or a stale harness was picked up.
 
 The original executable-local `config.cfg`, deployed `trophy00.sav`,
 `trophy00.sab`, `opengl32.dll`, `render.log`, and `carnivor.log` bytes are
