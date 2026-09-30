@@ -444,6 +444,9 @@ if(MSVC)
     add_test(NAME Carnivores2Tests.HuntdatValidator
              COMMAND powershell -ExecutionPolicy Bypass -File
                  ${CMAKE_SOURCE_DIR}/tests/test_check_huntdat.ps1)
+    add_test(NAME Carnivores2Tests.ShopAssetValidator
+             COMMAND powershell -ExecutionPolicy Bypass -File
+                 ${CMAKE_SOURCE_DIR}/tests/test_check_mod_assets.ps1)
 
     # This integration test intentionally targets a deployed game directory
     # containing licensed HUNTDAT assets. It is opt-in so asset-free CI runs
