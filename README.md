@@ -1,213 +1,187 @@
-# Carnivores 2 - Modder's Engine v1.11 (Modernized v1.1.9)
+# Carnivores 2 - Modder's Engine v1.11 (Modernized)
 
-> **Original release:** 2000 (Action Forms)
-> **Base:** Carnivores 2 Modder's Engine v1.11 (community revival)
-> **Project release:** Modernized v1.1.9 — GitHub `v1.1.9-modernized`
-> **ModDB download label:** V6
-> **Versioning:** upstream MEE v1.11 is the base; modernization releases are numbered separately
-> **Modernization:** OpenGL 3.3, OpenAL audio, memory arena, full codebase restructuring
+A maintained fork of the community Modder's Engine for Carnivores 2, with the
+old rendering and audio backends replaced and a lot of the engine's behaviour
+cleaned up. It still reads the same `HUNTDAT` scripts an MEE install uses, and
+drops into the same directory layout.
 
-## Release Numbering
+Release history lives in [CHANGELOG.md](CHANGELOG.md). The current source tree
+is `1.1.9.1`, which is a local package candidate and has not been published.
 
-| ModDB release | GitHub tag |
-|---------------|------------|
-| V1 | `v1.1.4-modernized` |
-| V2 | `v1.1.5-modernized` |
-| V3 | `v1.1.6-modernized` |
-| V4 | `v1.1.7-modernized` |
-| V5 | `v1.1.8-modernized` |
-| **V6** | **`v1.1.9-modernized`** |
+## What you need to run it
 
-The project title retains **Modder's Engine v1.11** to identify the upstream
-base. **Modernized v1.1.9** identifies this fork's release; **V6** is only
-its ModDB download label, not an engine version. This identifies the base,
-not a guarantee that every mod or newer upstream feature is supported.
-Windows executable version resources identify the project release as `1.1.9.0`.
-These labels do not change save formats or the upstream engine version.
-See [CHANGELOG.md](CHANGELOG.md) for changes since Modernized v1.1.8.
+A Carnivores 2 Modder's Engine v1.11 data set: the `HUNTDAT` directory from an
+MEE install, or a mod built on one. Not a stock retail copy of Carnivores 2.
+The engine reads MEE's extended script and menu blocks, survival options, shop
+accessories, the per-species aggression override, so the data set it expects is
+the one MEE ships, not the one the 2000 CD installed.
 
-## Overview
+None of that is bundled here and none of it ever will be, which is the cleanest
+way to distribute this engine. The engine opens `HUNTDAT` from the directory it
+runs in, exactly like the original did, so the data set goes next to the
+executables. Everything else in this repository is source.
 
-This is a comprehensive modernization of Carnivores 2 Modder's Engine, featuring:
-- **Native OpenGL 3.3 renderer** - no Glide/D3D wrappers needed
-- **External shader files** - `shaders/*.vert/.frag` editable at runtime
-- **Modern audio** - OpenAL with EFX reverb via DLL loader
-- **Memory safety** - arena allocators, smart pointers, leak detection
-- **Clean architecture** - restructured from monolithic files into modular directories
-- **Standalone menu** - dedicated `Carnivores2Menu.exe` for settings
-- **Expanded gameplay** - new creatures, survival mode, night vision, fog system
+Owning Carnivores 2 is a separate matter and a licensing one rather than a
+technical one. See [NOTICE.md](NOTICE.md).
 
-## Upstream Credits
+The renderer is picked when you compile, not at runtime, so you get one engine
+executable per backend. The menu launches them under their classic names,
+`v_gl.ren` and `v_soft.ren`.
 
-This modernization builds on **Carnivores 2 Modder's Edition Engine** by
-**[Ornithomimid1 (Oli)](https://github.com/Ornithomimid1)** and the upstream
-community. Please credit and visit the original project:
+## Written for this fork
 
-**[Carnivores-CPE — Map-Amb-Demo-2](https://github.com/carnivores-cpe/Carnivores-CPE/tree/Map-Amb-Demo-2)**
+The rendering and audio stack is the biggest change:
 
-The inherited engine and modding foundation are their work; this repository
-adds the modernization described above. The linked branch continues to evolve
-independently and does not imply that all its latest changes are included here.
-See [NOTICE.md](NOTICE.md) for the exact base snapshot, standalone-menu
-heritage, and third-party credits. The original Carnivores 2 game is by
-**Action Forms**.
+- **Native OpenGL 3.3 renderer.** The base engine's Glide and Direct3D backends
+  are gone, along with the need to install either. Software rendering is also
+  still there and was reworked rather than replaced. It is a real fallback, not
+  a stub.
+- **Shaders live on disk** in `shaders/`, twelve files. You can edit fog, water
+  or sky behaviour without recompiling.
+- **OpenAL audio** loaded by name at runtime, so swapping the DLL is enough.
+  Reverb presets are tunable per environment from `config.cfg`.
+- **Memory arena** with leak attribution that tells you which subsystem
+  allocated the block that leaked.
 
-## Quick Start
+Then the parts that were about making the game look and behave better:
+
+- Pocket fog with per-tile colour blending, a floor that follows terrain relief,
+  sun forward-scatter through it, and a camera-inside-the-volume envelope so
+  standing in fog doesn't look like a flat wall of grey.
+- Underwater rendering as its own system: per-water-body colour, depth-dependent
+  density, vertical gradients, and a full-screen overlay while submerged.
+- Three sky modes, cloud placement that doesn't swim when you move, and a
+  night sky that keeps its fog colours.
+- Water with three summed wave components, wavelength attenuation underwater,
+  Fresnel from below, and a fade so displacement reaches zero without a seam at
+  the shore.
+- A flashlight you can buy in the shop, and night vision gear. Both are
+  accessories you select at hunt setup.
+- Breath-hold scope zoom and a proper crouch stance.
+- Terrain mip policy in one place, with a config key for people who want the
+  old aggressive filtering back.
+
+The AI work is mostly about making the behaviour legible and finite:
+
+- Every hunter reaction now routes through one awareness resolver and one
+  navigator instead of a dozen handlers each with their own idea of what a
+  creature knows. A creature reacts to where it *heard* something, not to where
+  the hunter currently is, and tracking locks expire on a timer.
+- A per-species aggression multiplier you can set in `_RES.TXT`, so a mod can
+  retune a species without inventing a clone.
+- An awareness trace you can turn on without a debugger (see below).
+
+Data loading is deliberately forgiving. Old and modded scripts parse the way the
+original `atoi`/`atof` did, broken values recover to something safe with a
+diagnostic, and there is a strict mode for when you actually want it to stop.
+
+## Building and running
 
 ### Prerequisites
-- CMake 3.20+
-- Visual Studio 2019/2022 (or MSVC build tools)
-- Python 3.8+
 
-### Building
-```bash
-# OpenGL release build
-cmake -S . -B build/ogl-release --preset ogl-release
-cmake --build build/ogl-release --config Release
+- CMake 3.15 or newer. The presets are written against 3.15 and the project
+  declares the same minimum.
+- Visual Studio 2019/2022 or the MSVC build tools.
+- **32-bit x86.** `Hunt/Renderer/renderasm.cpp` contains inline x86 assembly, so
+  there is no x64 build. If your toolset is 64-bit-only you need the x86
+  cross-tools installed.
+- Ninja, if you want to use the presets as written. They select the Ninja
+  generator; override it if you'd rather use Visual Studio.
+- 7-Zip, but only for `make-c2-package.ps1`. It refuses to run without `7z.exe`.
 
-# Other presets: soft-release, ogl-debug, soft-debug, menu-release, ogl-release-shipping, ogl-pgo-instr/opt
-```
-
-### Optional MSVC profile-guided optimization (OpenGL game)
-
-**Handoff (2026-09-27, local working tree):** Both PGO presets configured and
-`ogl-pgo-instr` built successfully with MSVC x86. Its `.pgd` exists but is
-**untrained**: no gameplay `.pgc` was collected or merged. `ogl-pgo-opt` was
-configured but **not built, tested, benchmarked, or shipped**. The normal
-`ogl-release-shipping` build succeeded and its 9 CTest tests passed; that is
-not evidence of a PGO speedup. Recheck these claims against source and build
-artifacts when resuming. The PGO flags are game-linker-only in `CMakeLists.txt`
-and both presets name the same PGD in `CMakePresets.json`.
-
-From a PowerShell prompt in the repo root:
+### Build
 
 ```powershell
-cmake --preset ogl-pgo-instr
-cmake --build --preset ogl-pgo-instr --target Carnivores1
+cmake --preset ogl-release-shipping
+cmake --build build/ogl-release-shipping
 ```
 
-Deploy `build/ogl-pgo-instr/bin/Carnivores1_GL.exe` to a game installation
-with the licensed assets (the engine needs `HUNTDAT`), play representative
-stock and dense-map sessions, then exit normally. Do not treat a brief startup
-smoke test as representative training. Find the newly generated `.pgc` files
-in the game directory and merge **each** one into the PGD created by the
-instrumented link (substitute each actual filename):
+That gives you the OpenGL engine, and it's the preset the packaging script
+builds from. For the software renderer, `soft-release`; for the menu on its own,
+`menu-release`, which is the fastest thing to build.
+
+Want the in-engine performance counters? Build `ogl-release` instead. It is the
+same thing with `GL_PERF_HOOKS` compiled in, which is what `F11` and
+`glperf_logging 1` need.
+
+`docs/BUILDING.md` lists all of them and explains what the rest are for.
+
+Built executables land in `build/<preset>/bin/`:
+
+| File | What it is |
+|---|---|
+| `Carnivores1_GL.exe` | OpenGL 3.3 engine |
+| `Carnivores1_SOFT.exe` | software engine |
+| `Carnivores2Menu.exe` | launcher and settings menu |
+
+### Package
+
+`tools/release/make-c2-package.ps1` turns binaries you've already built into a
+playable folder in `pkg/`, including the renaming:
 
 ```powershell
-pgomgr /merge 'E:/Games/CarnivoresLegacy/NAME.pgc' 'build/ogl-pgo-instr/bin/Carnivores1_GL.pgd'
-# Check that the database contains nonzero run counts before optimizing.
-pgomgr /summary 'build/ogl-pgo-instr/bin/Carnivores1_GL.pgd'
-cmake --preset ogl-pgo-opt
-cmake --build --preset ogl-pgo-opt --target Carnivores1
+pwsh tools/release/make-c2-package.ps1 `
+  -OpenAlDir E:/Games/CarnivoresLegacy `
+  -ReleaseNotesPath ./release-notes.md
 ```
 
-Both presets use that same PGD; keep the instrumented build and collected
-profiles until the optimized link finishes. Rebuilding the instrumented game
-or deleting its PGD may require training again. They inherit
-`GL_PERF_HOOKS=ON` from `ogl-release`. For a hooks-off PGO build, configure
-**both** presets with `-DGL_PERF_HOOKS=OFF` before building. Run the existing
-unit tests and deployed-game smoke tests, then compare CPU/frame times across
-repeated matched scenarios against a non-PGO Release build before considering
-PGO for shipping. The GLPerf CSV capture workflow measures performance; it
-does **not** create MSVC `.pgc` training data. No speedup is guaranteed.
+It renames `Carnivores1_GL.exe` to `v_gl.ren` and `Carnivores1_SOFT.exe` to
+`v_soft.ren` so the menu can find them, copies the shaders across, and writes a
+clean `config.cfg`. Both arguments are required: `-OpenAlDir` points at a folder
+with `OpenAL32.dll` and `alsoft.ini`, and `-ReleaseNotesPath` is a markdown file
+shipped as `RELEASE-NOTES.md`.
 
-The executables will be at:
-- `build/ogl-release/bin/Carnivores1_GL.exe` (game engine)
-- `build/ogl-release/bin/Carnivores2Menu.exe` (standalone menu)
-- `build/ogl-release/bin/shaders/` (GLSL shaders, copied automatically)
+If you're assembling a folder by hand instead, the `.ren` names are the part
+that matters: the menu looks for exactly those two and nothing else.
 
-> **Release packaging note:** the standalone menu launches the renderer engines
-> by their classic MEE names. For a playable release, ship the menu exe as
-> `Carnivores2Menu.exe` and copy the built game engine to `v_gl.ren`
-> (OpenGL) or `v_soft.ren` (software) in the same folder - the menu resolves
-> them from the exe directory or PATH. The `.ren` files are the actual game
-> executables under a legacy extension.
+## Keys and logs worth knowing
 
-### Data Files
-Place your Carnivores 2 `HUNTDAT` directory next to the executable, or configure the path in `config.cfg`. The game reads all assets via relative paths at runtime; no original game data is bundled with or distributed by this project.
+| Key | |
+|---|---|
+| `F10` | Debug menu. Three tabs (fog, waves, sun); arrows to pick a value, `+`/`-` to change it, `D` to dump what you settled on. |
+| `F11` | One second of per-frame performance data to a CSV. OpenGL builds only. |
+| `F12` | Screenshot. |
+| `F9` | Quit cleanly, which is the polite way to end a session. |
 
-## Project Structure
+Logs are written next to the executable: `carnivor.log` for the structured
+runtime log, `render.log` for the older channel and the AI trace, and
+`glperf-*.log` when performance logging is enabled.
 
-```
-Hunt/                         ← headers + subdirectories
-├── Hunt.h                    ← God header (core structs, globals, declarations)
-├── Audio/                    ← OpenAL audio via DLL loader
-├── Core/                     ← GameTypes, GameState, EngineAPI
-├── Debug/                    ← Logging
-├── Game/                     ← All game logic
-│   ├── Hunt.cpp              ← WinMain, game loop, drawing
-│   ├── Config.cpp            ← config.cfg loading
-│   ├── Characters.cpp        ← Character lifecycle
-│   ├── CharacterAI.cpp       ← AI behavior
-│   ├── CharacterAnimation/   ← Per-dino animation functions (18 files)
-│   ├── CharacterCollision.cpp← Placement and collision checks
-│   ├── CharacterMovement.cpp ← Movement functions
-│   ├── CharacterSpawn.cpp    ← Spawning logic
-│   ├── CharacterTargeting.cpp← Target placement
-│   ├── CharacterTracking.cpp ← Character tracking
-│   ├── Controls.cpp          ← Input handling
-│   ├── Effects.cpp           ← Visual effects
-│   ├── EngineInit.cpp        ← Engine initialization
-│   ├── Interface.cpp         ← Menu/HUD interface
-│   ├── PlayerMovement.cpp    ← Player movement
-│   ├── Projectiles.cpp       ← Bullets and projectiles
-│   ├── Ships.cpp             ← Ship animations
-│   ├── Trophy.cpp            ← Trophy display
-│   └── ... (TerrainQueries, Ship, etc.)
-├── Loaders/                  ← Resource loaders
-├── Math/                     ← Vector math, tracing, lighting
-├── Network/                  ← Multiplayer support
-└── Renderer/                 ← All renderers
-    ├── GLRenderer.cpp/h      ← OpenGL 3.3 renderer
-    ├── GLShader.cpp/h        ← GLSL shader manager + uniform caching
-    ├── GLHUD.cpp             ← HUD overlay
-    ├── GLModel.cpp           ← 3D model rendering
-    ├── GLNight.cpp           ← Night vision post-processing
-    ├── GLPerf.cpp/h          ← Performance metrics
-    ├── GLShadow.cpp          ← Shadow rendering
-    ├── GLSky.cpp             ← Sky rendering
-    ├── GLTerrain.cpp         ← Terrain rendering
-    ├── GLUtils.cpp/h         ← GL utilities
-    ├── GLWater.cpp           ← Water surface rendering
-    ├── GLUI.cpp              ← Legacy-to-GL bridge
-    └── renderasm.cpp         ← x86 assembly helpers
+If you are chasing a creature that does something you didn't expect, turn on
+`ai_logging 1` in `config.cfg` first. It writes one line per hunter event plus a
+per-second state line for every reacting animal: species, position, where it
+thinks you're going, how far away you actually are, and how much reaction time
+it has left. Most AI questions get answered from that file.
 
-shaders/                      ← External GLSL shader files
-├── terrain.vert/frag         ← Terrain shaders
-├── model.vert/frag           ← Model shaders
-├── instanced_model.vert/frag ← Instanced model shaders
-├── ui.vert/frag              ← UI/HUD shaders
-├── night_desat.vert/frag     ← Night vision desaturation
-└── sky.vert/frag             ← Sky sphere shaders
-
-Menu/                         ← Standalone settings menu (Carnivores2Menu.exe)
-```
-
-## Refactoring History
-
-The codebase was originally a single `Hunt/` directory with 13 monolithic files. Major restructuring:
-
-| Task | Original | After |
-|:-----|:---------|:------|
-| Character animation | 1 file, 6,360 lines | 18 per-dino files + dispatcher |
-| Characters.cpp | 8,303 lines | 584 lines (+ 3 extracted files) |
-| Game.cpp | 3,080 lines | 164 lines (+ 4 extracted files) |
-| GL shaders | Inline C++ strings | External .vert/.frag files |
-| Old renderers | Hunt/ root | Hunt/Renderer/ |
-| GL files | Hunt/ root | Hunt/Renderer/ |
+`docs/DEBUGGING.md` has the full key list, every `config.cfg` option, and the
+data validation tools worth using before filing a bug.
 
 ## Documentation
 
-- [Changelog](CHANGELOG.md) - user-facing release history
-- [`NOTICE.md`](NOTICE.md) - copyrights, upstream MEE heritage, third-party notices
+- [CHANGELOG.md](CHANGELOG.md): what changed in each release
+- [docs/BUILDING.md](docs/BUILDING.md): presets, packaging, PGO, deployment
+- [docs/DEBUGGING.md](docs/DEBUGGING.md): keys, logs, config, data validation
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): source layout and how it got
+  that way
+- [NOTICE.md](NOTICE.md): upstream credits, base commit, third-party licences
 
-The full architecture and development documentation corpus lives in a
-separate (private) workspace repository and is not part of this public
-source release.
+## Credits and licence
 
-## License
+Carnivores 2 and its assets are © 2000 Action Forms / WizardWorks /
+Infogrames. This repository contains none of them.
 
-Carnivores 2 © 2000 Action Forms. Modder's Engine v1.11 © community maintainers
-(see `NOTICE.md`). The modernization source in this repository is © 2026
-Tibor Harsányi (StriderTibe), licensed under the MIT License (see `LICENSE`).
-No original game assets are included.
+The engine this fork is based on is the **Carnivores 2 Modder's Edition
+Engine** by [Ornithomimid1 (Oli)](https://github.com/Ornithomimid1) and the
+upstream community, whose work is the whole modding foundation this project
+stands on. The standalone menu comes from
+[Carn2-Menu](https://github.com/carnivores-cpe/Carn2-Menu). Please credit them
+and point people at the upstream project:
+[carnivores-cpe/Carnivores-CPE](https://github.com/carnivores-cpe/Carnivores-CPE/tree/Map-Amb-Demo-2).
+That branch is still evolving on its own; this fork is not tracking it and
+shouldn't be assumed to contain anything new from it.
+
+The modernization work in this repository is © 2026 Tibor Harsányi
+(StriderTibe) and is MIT licensed, see [LICENSE](LICENSE). That licence covers
+the modernization only. It does not extend to the original game, to the
+upstream engine code, or to the third-party components listed in
+[NOTICE.md](NOTICE.md).
