@@ -727,6 +727,16 @@ EXTERNAL UtilInfo				g_TranqInfo, g_ObserverInfo;
 EXTERNAL std::map<std::string, float> g_AccessoryScoreMods; // populated by ReadAccessories()
 EXTERNAL std::map<std::string, std::string> g_AccessoryIcons; // populated by ReadAccessoryIcons(): accessory key -> shop icon path
 EXTERNAL std::vector<int32_t> g_AccessoryPrices; // parsed from 'acces' lines in _MENU.TXT prices block
+// Built-in shop blurb for the flashlight, used only when the loaded HUNTDAT
+// ships no huntdat/menu/txt/flashlight.nfo. Defined in Menu/Resources.cpp (not
+// Hunt2.cpp) so the menu resource test target can read it without linking the
+// Win32 menu against it. See tests/test_menu_resource_entry.cpp for the width
+// contract its lines have to satisfy.
+EXTERNAL const std::vector<std::string> kFlashlightDescription;
+// Loads an accessory description: tries the mod-supplied .nfo first and only
+// falls back to builtinDesc when that file is absent.
+void LoadAccessoryDescription(std::vector<std::string>& txt, const std::string& descFile,
+                              const std::vector<std::string>* builtinDesc);
 EXTERNAL std::vector<unsigned int> g_DinoList;
 EXTERNAL uint32_t				g_ProfileIndex;
 EXTERNAL uint32_t				g_HiliteProfileIndex;

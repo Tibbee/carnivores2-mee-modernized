@@ -285,6 +285,17 @@ NIGHT VISION (modders)
     HUNTDAT/menu/txt/nightvis.nfo    - description text
   When present they are used automatically.
 
+FLASHLIGHT (modders)
+  The flashlight is added by this modernization and works on every
+  game/mod data set for the OpenGL renderer. With no flashlight art
+  the shop row shows without an icon and uses a built-in
+  description. To add your own art/description, drop these into
+  your HUNTDAT:
+    HUNTDAT/menu/pics/equip_fl.tga   - shop icon (16-bit TGA)
+    HUNTDAT/menu/txt/flashlight.nfo  - description text
+  When present they are used automatically. Keep .nfo lines under
+  about 48 characters: the info panel draws them unwrapped.
+
 LEGAL
   This package contains MODIFIED EXECUTABLES and supporting
   libraries. It does NOT include any original game assets. You

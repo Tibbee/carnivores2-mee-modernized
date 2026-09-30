@@ -11,6 +11,7 @@
 
 #include <cstdio>
 #include <exception>
+#include <fstream>
 
 #include "Hunt.h"
 #include "Loaders/LoadDiagnostics.h"
@@ -19,6 +20,7 @@
 void ReadCharacters(FILE* stream);
 void ReadWeapons(FILE* stream);
 void ReadPrices(FILE* stream);
+bool LoadText(std::vector<std::string>& txt, const std::string& path);
 
 namespace {
 
@@ -292,6 +294,97 @@ TEST(MenuResourceEntry, HuntableThumbnailFollowsListPositionNotAiSlot)
     EXPECT_EQ(g_DinoInfo[7].m_PicturePath, "huntdat/menu/pics/dino8.tga");
     EXPECT_EQ(g_DinoInfo[8].m_PicturePath, "huntdat/menu/pics/dino9.tga");
     EXPECT_EQ(g_DinoInfo[9].m_PicturePath, "huntdat/menu/pics/dino10.tga");
+}
+
+TEST(MenuResourceEntry, AccessoryDescriptionPrefersTheShippedFile)
+{
+    // The rule every optional row goes through: a .nfo in the user's HUNTDAT
+    // replaces the built-in blurb outright, so a mod can reword the row.
+    const char* path = "node_such_dir_but_exists.nfo";
+    std::ofstream out(path, std::ios::binary);
+    ASSERT_TRUE(out.is_open());
+    out << "Mod-supplied blurb.\r\n";
+    out.close();
+
+    const std::vector<std::string> builtin{ "built-in blurb" };
+    std::vector<std::string> lines;
+    LoadAccessoryDescription(lines, path, &builtin);
+    std::remove(path);
+
+    ASSERT_FALSE(lines.empty());
+    EXPECT_EQ(lines[0], "Mod-supplied blurb.");
+}
+
+TEST(MenuResourceEntry, AccessoryDescriptionFallsBackOnlyWhenTheFileIsMissing)
+{
+    const std::vector<std::string> builtin{ "built-in blurb", "second line" };
+    std::vector<std::string> lines;
+    LoadAccessoryDescription(lines, "huntdat/menu/txt/no_such_accessory.nfo", &builtin);
+    EXPECT_EQ(lines, builtin);
+
+    std::vector<std::string> noFallback;
+    LoadAccessoryDescription(noFallback, "huntdat/menu/txt/no_such_accessory.nfo", nullptr);
+    EXPECT_TRUE(noFallback.empty());
+}
+
+TEST(MenuResourceEntry, ExistingDescriptionFileSuppliesTheLines)
+{
+    // The other half of the same branch: when the mod does ship a .nfo its
+    // text is what reaches the panel, overriding nothing but replacing the
+    // built-in blurb entirely.
+    const char* path = "node_such_dir_but_exists.nfo";
+    std::ofstream out(path, std::ios::binary);
+    ASSERT_TRUE(out.is_open());
+    out << "Accessory : Something Else\r\n"
+        << "\r\n"
+        << "Mod-supplied text.\r\n";
+    out.close();
+
+    std::vector<std::string> lines;
+    EXPECT_TRUE(LoadText(lines, path));
+    std::remove(path);
+
+    // CRLF terminators are stripped by the text-mode stream, so no line may
+    // carry a trailing '\r' into TextOut (which would draw a junk glyph).
+    ASSERT_GE(lines.size(), 2u);
+    EXPECT_EQ(lines[0], "Accessory : Something Else");
+    for (const std::string& line : lines) {
+        EXPECT_EQ(line.find('\r'), std::string::npos);
+    }
+}
+
+TEST(MenuResourceEntry, MissingDescriptionFileIsReportedAndAppendsNothing)
+{
+    // Every accessory blurb comes from HUNTDAT via LoadText(); modernization
+    // accessories rely on its false branch to fall back to a built-in
+    // description, so that path has to stay a real, detectable failure.
+    std::vector<std::string> lines{ "untouched" };
+    EXPECT_FALSE(LoadText(lines, "huntdat/menu/txt/no_such_accessory.nfo"));
+    ASSERT_EQ(lines.size(), 1u);
+    EXPECT_EQ(lines[0], "untouched");
+}
+
+TEST(MenuResourceEntry, BuiltInFlashlightBlurbFitsTheShopPanel)
+{
+    // The accessory panel draws each line unwrapped at x=424 in the 800-wide
+    // menu buffer with a ~7px-per-character font, so roughly 48 characters is
+    // the safe ceiling -- the widest line in any stock .nfo is 48. Nothing in
+    // the draw path measures or wraps, so an over-long line silently runs off
+    // the panel edge instead of failing.
+    ASSERT_FALSE(kFlashlightDescription.empty());
+    EXPECT_EQ(kFlashlightDescription.front(), "Accessory : Flashlight");
+    for (const std::string& line : kFlashlightDescription) {
+        EXPECT_LE(line.size(), 48u) << "shop panel would clip: " << line;
+    }
+    // It must also state the two things the row otherwise leaves unknown: how
+    // the beam is switched on, and that the accessory is scoring-neutral.
+    const std::string joined = [] {
+        std::string out;
+        for (const std::string& line : kFlashlightDescription) { out += line; out += '\n'; }
+        return out;
+    }();
+    EXPECT_NE(joined.find("default: F"), std::string::npos);
+    EXPECT_NE(joined.find("score"), std::string::npos);
 }
 
 TEST(MenuResourceEntry, ExplicitPicturePathOverridesTheDefaultThumbnail)

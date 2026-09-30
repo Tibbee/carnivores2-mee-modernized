@@ -1155,9 +1155,12 @@ void LoadResources()
 
 	UtilInfo ui;
 	size_t accIdx = 0;
-	auto addUtil = [&](const char* name, const char* descFile, const char* cmd, const char* scoreKey, float scoreDefault, int32_t defaultPrice, const char* pic) {
+	auto addUtil = [&](const char* name, const char* descFile, const char* cmd, const char* scoreKey, float scoreDefault, int32_t defaultPrice, const char* pic, const std::vector<std::string>* builtinDesc = nullptr) {
 		ui.m_Name = name;
-		LoadText(ui.m_Description, descFile);
+		// A mod-supplied .nfo always wins; the built-in text only covers installs
+		// whose HUNTDAT predates the accessory, where the panel would otherwise be
+		// blank and LoadText() would print a failure.
+		LoadAccessoryDescription(ui.m_Description, descFile, builtinDesc);
 		ui.m_Command = cmd;
 		ui.m_ScoreMod = LookupAccessoryScoreMod(scoreKey, scoreDefault);
 		ui.m_Price = (accIdx < g_AccessoryPrices.size()) ? g_AccessoryPrices[accIdx] : defaultPrice;
@@ -1222,7 +1225,9 @@ void LoadResources()
 	// rather than steal a line meant for a future accessory. The .nfo and icon
 	// are both optional (no stock data ships either), so the row always shows,
 	// with a built-in description and an empty icon box as the worst case.
-	addUtil("Flashlight", "huntdat/menu/txt/flashlight.nfo", "-flashlight", "flashlight", 1.0f, 30, "huntdat/menu/pics/equip_fl.tga");
+	// Lines stay under ~48 characters: the info panel draws them unwrapped at
+	// x=424 (Menu.cpp), so longer lines run off the 800-wide menu buffer.
+	addUtil("Flashlight", "huntdat/menu/txt/flashlight.nfo", "-flashlight", "flashlight", 1.0f, 30, "huntdat/menu/pics/equip_fl.tga", &kFlashlightDescription);
 
 	// Observer info (used for info panel display, not in equipment list)
 	g_ObserverInfo.m_Name = "Observer";
@@ -1524,6 +1529,41 @@ bool LoadText(std::vector<std::string>& txt, const std::string& path)
 
 	return false;
 }
+
+
+// Every accessory row that can ship without data must load its blurb through
+// this: the file the mod provides wins, and the built-in text covers exactly
+// the missing-file case. Night vision still spells the same rule out inline
+// with its own strings; new rows call this so the choice stays in one place.
+void LoadAccessoryDescription(std::vector<std::string>& txt, const std::string& descFile,
+                              const std::vector<std::string>* builtinDesc)
+{
+	if (!LoadText(txt, descFile) && builtinDesc) {
+		txt = *builtinDesc;
+	}
+}
+
+
+// Built-in flashlight blurb (see the Hunt.h declaration and the addUtil call
+// that consumes it). A modernization accessory must not depend on shipped
+// data: HUNTDAT comes from the user's own game installation, so most installs
+// have no flashlight.nfo and would otherwise show a blank panel plus a
+// LoadText() failure on stdout. Kept identical in wording to the file it
+// stands in for, and every line under 48 characters because the shop panel
+// draws them unwrapped. Defined here rather than in Hunt2.cpp (the usual home
+// for EXTERNAL globals) so the menu resource tests can link it.
+const std::vector<std::string> kFlashlightDescription = {
+	"Accessory : Flashlight",
+	"",
+	"A torch that casts a warm beam ahead of",
+	"you, letting you pick out terrain and game",
+	"in the dark without lighting the whole map.",
+	"The beam follows your aim and fades with",
+	"distance. Press the configured key",
+	"(default: F) to switch it on and off. Use",
+	"of the flashlight does not affect your",
+	"score."
+};
 
 
 bool LoadWave(SoundFX& sfx, const std::string& path)
