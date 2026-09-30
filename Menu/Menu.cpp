@@ -258,7 +258,8 @@ constexpr int kAccScent = 2;
 constexpr int kAccDouble = 3;
 constexpr int kAccNV = 4;
 constexpr int kAccTranq = 5;
-constexpr int kAccCount = 6;
+constexpr int kAccFlashlight = 6;
+constexpr int kAccCount = 7;
 
 static void NormalizeRendererOption()
 {
@@ -319,6 +320,38 @@ void WaitForMouseRelease()
 }
 
 
+// Rows of MenuOptions[OPT_KEYBINDINGS] that do NOT map onto KeyMap fields.
+//
+// Everything before FirstControlsRowIndex() is addressed by index into
+// Options::KeyMap, so the number of rows added ahead of NightVision must stay
+// exactly sizeof(KeyMap)/sizeof(int32_t). The trailing rows are stored
+// elsewhere in Options and are resolved by counting back from the end.
+//
+// They used to be addressed as size()-3, size()-2 and size()-1, which silently
+// pointed at the WRONG binding the moment a row was inserted: adding the
+// flashlight row shifted size()-3 off "Night vision" and onto another binding,
+// with no crash and no log line. Count back from the end instead.
+enum class ControlsRow {
+	NightVision = 0,
+	Flashlight,
+	MouseInvert,
+	MouseSensitivity,
+	Count
+};
+
+inline int ControlsRowIndex(ControlsRow row)
+{
+	return static_cast<int>(MenuOptions[OPT_KEYBINDINGS].Item.size())
+		- static_cast<int>(ControlsRow::Count)
+		+ static_cast<int>(row);
+}
+
+// First row that reads its binding from somewhere other than Options::KeyMap.
+inline int FirstControlsRowIndex()
+{
+	return ControlsRowIndex(ControlsRow::NightVision);
+}
+
 void AcceptNewKey()
 {
 	uint8_t keystate[256];
@@ -327,10 +360,12 @@ void AcceptNewKey()
 
 		if (keystate[VK_ESCAPE] & 128)
 		{
-			// Check if we're setting the NightVision key (the last keybinding item before Reverse mouse)
-			const int nvIndex = static_cast<int>(MenuOptions[OPT_KEYBINDINGS].Item.size() - 3);
-			if (g_WaitKey == nvIndex) {
+			// Clearing a binding: KeyMap rows zero their own field, the two
+			// equipment toggle rows clear their dedicated Options members.
+			if (g_WaitKey == ControlsRowIndex(ControlsRow::NightVision)) {
 				g_Options.NightVisionKey = 0;
+			} else if (g_WaitKey == ControlsRowIndex(ControlsRow::Flashlight)) {
+				g_Options.FlashlightKey = 0;
 			} else {
 				*((uint32_t*)(&g_Options.KeyMap) + g_WaitKey) = 0;
 			}
@@ -343,12 +378,15 @@ void AcceptNewKey()
 			{
 				if (keystate[k] & 128)
 				{
-					// Check if this is the NightVision key slot
-					const int nvIndex = static_cast<int>(MenuOptions[OPT_KEYBINDINGS].Item.size() - 3);
-					if (g_WaitKey == nvIndex) {
-						// Avoid reassigning an already-used key -- check only other NV keys
+					// Equipment toggles live outside Options::KeyMap, so they are
+					// independent of the movement bindings and only need to avoid
+					// colliding with their own slot.
+					if (g_WaitKey == ControlsRowIndex(ControlsRow::NightVision)) {
 						if (g_Options.NightVisionKey == k) return;
 						g_Options.NightVisionKey = k;
+					} else if (g_WaitKey == ControlsRowIndex(ControlsRow::Flashlight)) {
+						if (g_Options.FlashlightKey == k) return;
+						g_Options.FlashlightKey = k;
 					} else {
 						// Unassign any existing binding that uses the same key
 						const int keyFieldCount = static_cast<int>(sizeof(g_Options.KeyMap) / sizeof(int32_t));
@@ -692,12 +730,16 @@ void InitInterface()
 	MenuOptions[m].AddItem("Change Call");
 	MenuOptions[m].AddItem("Binoculars");
 	MenuOptions[m].AddItem("Night vision");
+	MenuOptions[m].AddItem("Flashlight");
 #ifdef _iceage
 	MenuOptions[m].AddItem("Call Resupply");
 #endif //_iceage
 	MenuOptions[m].AddItem("Reverse mouse");
 	MenuOptions[m].AddItem("Mouse sensitivity");
 	MenuOptions[m].Rect = { OptionsLayout::PANEL_CONTROLS.x, OptionsLayout::PANEL_CONTROLS.y, OptionsLayout::PANEL_CONTROLS.GetRight(), OptionsLayout::PANEL_CONTROLS.GetBottom() };
+	// Rows below are addressed positionally into Options::KeyMap (see
+	// ControlsRowIndex), so the two lists must stay the same length.
+	assert(FirstControlsRowIndex() == static_cast<int>(sizeof(TKeyMap) / sizeof(int32_t)));
 
 	m = OPT_VIDEO;
 	MenuOptions[m].x0 = OptionsLayout::PANEL_VIDEO.x;
@@ -773,8 +815,9 @@ void InitInterface()
 #endif //_iceage
 	MenuHunt[m].AddItem("Night vision");
 	MenuHunt[m].AddItem("Tranquilizers");
+	MenuHunt[m].AddItem("Flashlight");
 #ifndef _iceage
-	// Keep parallel with g_UtilInfo (camo/radar/scent/double/NV/tranq).
+	// Keep parallel with g_UtilInfo (camo/radar/scent/double/NV/tranq/flashlight).
 	assert(MenuHunt[m].Item.size() == (size_t)kAccCount);
 #endif
 	MenuHunt[m].Rect = { 610, 382, 790, 542 };
@@ -2109,22 +2152,27 @@ void MenuEventInput(int32_t menu)
 
 							mo.Selected = mo.Hilite;
 
-							if (static_cast<size_t>(mo.Hilite) < MenuOptions[OPT_KEYBINDINGS].Item.size() - 3)
+							if (mo.Hilite >= 0 && mo.Hilite < FirstControlsRowIndex())
 							{
 								WaitForMouseRelease();
 								g_WaitKey = mo.Hilite;
 							}
-							else if (static_cast<int>(mo.Hilite) == MenuOptions[OPT_KEYBINDINGS].Item.size() - 3) // Night vision toggle key
+							else if (mo.Hilite == ControlsRowIndex(ControlsRow::NightVision)) // Night vision toggle key
 							{
 								WaitForMouseRelease();
 								g_WaitKey = mo.Hilite;
 							}
-							else if (static_cast<int>(mo.Hilite) == MenuOptions[OPT_KEYBINDINGS].Item.size() - 2) // Mouse Y-Axis Inverted
+							else if (mo.Hilite == ControlsRowIndex(ControlsRow::Flashlight)) // Flashlight toggle key
+							{
+								WaitForMouseRelease();
+								g_WaitKey = mo.Hilite;
+							}
+							else if (mo.Hilite == ControlsRowIndex(ControlsRow::MouseInvert)) // Mouse Y-Axis Inverted
 							{
 								WaitForMouseRelease();
 								g_Options.MouseInvert = !g_Options.MouseInvert;
 							}
-							else if (static_cast<int>(mo.Hilite) == MenuOptions[OPT_KEYBINDINGS].Item.size() - 1) // Mouse Sensitivty Slider
+							else if (mo.Hilite == ControlsRowIndex(ControlsRow::MouseSensitivity)) // Mouse Sensitivty Slider
 							{
 								if (g_CursorPos.x >= sliderX && g_CursorPos.x <= sliderX + tbw)
 									g_Options.MouseSensitivity = static_cast<int>((v * 255.f));
@@ -2530,6 +2578,13 @@ void MenuEventInput(int32_t menu)
 						params << " " << g_UtilInfo[kAccTranq].m_Command;
 				}
 
+				// Flashlight: like night vision this only unlocks the in-game
+				// toggle; the accessory itself carries no quieter cheat behind it.
+				{
+					if (static_cast<int>(MenuHunt[3].Item.size()) > kAccFlashlight && MenuHunt[3].Item[kAccFlashlight].second)
+						params << " " << g_UtilInfo[kAccFlashlight].m_Command;
+				}
+
 				if (g_ObserverMode)
 					params << " -observ";
 
@@ -2680,12 +2735,15 @@ void DrawMenuOptions()
 
 	// Control key bindings
 	for (auto i = 0U; i < MenuOptions[OPT_KEYBINDINGS].Item.size(); i++) {
-		const int nvIndex = static_cast<int>(MenuOptions[OPT_KEYBINDINGS].Item.size() - 3);
+		const int row = static_cast<int>(i);
 
-		// Key name string: use NightVisionKey for the NV slot, KeyMap for others
+		// Key name string: the two equipment-toggle rows read their own Options
+		// members, everything else reads KeyMap.
 		std::stringstream ss;
-		if (static_cast<int>(i) == nvIndex) {
+		if (row == ControlsRowIndex(ControlsRow::NightVision)) {
 			ss << g_KeyNames[MapVKKey(g_Options.NightVisionKey)];
+		} else if (row == ControlsRowIndex(ControlsRow::Flashlight)) {
+			ss << g_KeyNames[MapVKKey(g_Options.FlashlightKey)];
 		} else {
 			ss << g_KeyNames[MapVKKey(*((int32_t*)&g_Options.KeyMap + i))];
 		}
@@ -2695,25 +2753,26 @@ void DrawMenuOptions()
 
 		DrawTextShadow(g_ControlsLabels.x0, y0, MenuOptions[OPT_KEYBINDINGS].Item[i].first, c, DTA_RIGHT);
 
-		if (static_cast<int>(i) < MenuOptions[OPT_KEYBINDINGS].Item.size() - 3)
+		if (row < FirstControlsRowIndex())
 		{
 			// KeyMap-bound keys
-			if (g_WaitKey == i)
+			if (g_WaitKey == row)
 				DrawTextShadow(g_ControlsValues.x0, y0, "<?>", value_c);
 			else
 				DrawTextShadow(g_ControlsValues.x0, y0, ss.str(), value_c);
 		}
-		else if (static_cast<int>(i) == nvIndex)
+		else if (row == ControlsRowIndex(ControlsRow::NightVision) ||
+		         row == ControlsRowIndex(ControlsRow::Flashlight))
 		{
-			// Night vision toggle key (stored in NightVisionKey, not KeyMap)
-			if (g_WaitKey == i)
+			// Equipment toggles (stored outside KeyMap: see Options in Hunt.h)
+			if (g_WaitKey == row)
 				DrawTextShadow(g_ControlsValues.x0, y0, "<?>", value_c);
 			else
 				DrawTextShadow(g_ControlsValues.x0, y0, ss.str(), value_c);
 		}
-		else if (static_cast<int>(i) == MenuOptions[OPT_KEYBINDINGS].Item.size() - 2)
+		else if (row == ControlsRowIndex(ControlsRow::MouseInvert))
 			DrawTextShadow(g_ControlsValues.x0, y0, st_BoolText[static_cast<int>(g_Options.MouseInvert)], value_c);
-		else if (static_cast<int>(i) == MenuOptions[OPT_KEYBINDINGS].Item.size() - 1)
+		else if (row == ControlsRowIndex(ControlsRow::MouseSensitivity))
 			DrawSliderBar(OptionsLayout::CONTROLS_SLIDER_X, y0 + 12, OptionsLayout::CONTROLS_SLIDER_W, static_cast<float>(g_Options.MouseSensitivity) / 255.0f, label_c);
 	}
 

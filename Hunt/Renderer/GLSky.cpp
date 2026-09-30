@@ -466,6 +466,9 @@ void GLRenderer::RenderFSRect(uint32_t color, bool additive)
 
     UpdatePerFrameUBO(identity);
     m_modelShader.Use();
+    // Fullscreen glare quad in NDC space: a sky/light effect drawn over an
+    // already-lit scene, so it must not pick up the beam.
+    ApplyFlashlightUniforms(m_modelShader.GetProgramID(), false);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
@@ -574,6 +577,10 @@ void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int 
         static const GLint uNight = glGetUniformLocation(m_modelShader.GetProgramID(), "uNightStrength");
         if (uNight >= 0) glUniform1f(uNight, 0.0f);
     }
+    // ...and outside the beam. This shares the model program with genuine
+    // world models, so the uniform would otherwise still hold whatever the
+    // last dinosaur draw left in it, and the moon would look torch-lit.
+    ApplyFlashlightUniforms(m_modelShader.GetProgramID(), false);
     // uProjection in PerFrame UBO (Phase 1.1)
 
     // The weapon's phong/env-map draw passes set uTintByFogColor=1.0 on this

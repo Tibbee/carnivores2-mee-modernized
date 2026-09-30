@@ -612,6 +612,11 @@ public:
 	bool	MouseInvert;
 	int32_t	MouseSensitivity;
 	int32_t	NightVisionKey; // Key to toggle night vision (default: 'N' = 0x4E)
+	// Deliberately NOT a TKeyMap field: that struct is blobsaved with
+	// sizeof(TKeyMap) into trophy0N.sav, so growing it would shift every
+	// field after it for existing profiles. Bindings that are not part of the
+	// movement block live out here, the way NightVisionKey does.
+	int32_t	FlashlightKey; // Key to toggle the flashlight (default: 'F' = 0x46)
 
 	void Default();
 };
@@ -720,6 +725,7 @@ EXTERNAL std::vector<AreaInfo>	g_AreaInfo;
 EXTERNAL std::vector<UtilInfo>	g_UtilInfo;
 EXTERNAL UtilInfo				g_TranqInfo, g_ObserverInfo;
 EXTERNAL std::map<std::string, float> g_AccessoryScoreMods; // populated by ReadAccessories()
+EXTERNAL std::map<std::string, std::string> g_AccessoryIcons; // populated by ReadAccessoryIcons(): accessory key -> shop icon path
 EXTERNAL std::vector<int32_t> g_AccessoryPrices; // parsed from 'acces' lines in _MENU.TXT prices block
 EXTERNAL std::vector<unsigned int> g_DinoList;
 EXTERNAL uint32_t				g_ProfileIndex;

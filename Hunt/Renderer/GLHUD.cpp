@@ -100,6 +100,11 @@ void GLRenderer::Render_Cross(int x, int y)
     };
     UpdatePerFrameUBO(identity);
     m_modelShader.Use();
+    // HUD rings live in NDC space and share the world model program, so the
+    // beam uniforms left by the last dinosaur draw would light them: their
+    // radial distance is ~1 unit, i.e. point-blank range and full strength.
+    // The beam is world-only, so switch it off for this pass.
+    ApplyFlashlightUniforms(m_modelShader.GetProgramID(), false);
 
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);

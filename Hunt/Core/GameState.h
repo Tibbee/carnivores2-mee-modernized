@@ -18,6 +18,7 @@
 #include "Core/MathTypes.h"
 #include "Core/SkyModeMapping.h"
 #include "Core/AudioTypes.h"
+#include "Core/Flashlight.h"
 #include "Core/RenderTypes.h"
 #include "Core/ModelTypes.h"
 #include <array>
@@ -550,6 +551,21 @@ constexpr float kSkyHorizonDropMax     = 30.0f;
 GLOBAL float OptSkyHorizonDrop;
 
 GLOBAL int  NightVisionKey;
+
+// Flashlight accessory.
+//   FlashlightMode -- purchased/equipped for this hunt (menu sends -flashlight)
+//   FlashlightOn   -- player-toggled; only meaningful while FlashlightMode
+// Like night vision this is an orthogonal renderer flag, not a GameMode: it
+// must never touch g_GameMode or toggling it while scoped would clobber the
+// zoom state.
+GLOBAL BOOL FlashlightMode, FlashlightOn;
+GLOBAL int  FlashlightKey;
+// Beam shape, from config.cfg. Plain ints so the existing ParseConfigInt
+// range guard can validate them; see Core/Flashlight.h for the units.
+GLOBAL int  OptFlashlightInnerAngleDeg;
+GLOBAL int  OptFlashlightOuterAngleDeg;
+GLOBAL int  OptFlashlightRange;
+GLOBAL int  OptFlashlightIntensityPct;
 
 GLOBAL int  OptFov;
 

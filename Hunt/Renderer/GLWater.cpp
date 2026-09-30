@@ -79,6 +79,10 @@ void GLRenderer::RenderWaterSurface()
             glUniform1f(uNight, (OptDayNight == 2 && !NightVisionOn) ? 1.0f : 0.0f);
         }
     }
+    // Same story for the flashlight: this is another draw through the same
+    // program, with another UpdatePerFrameUBO() in between, so the beam has
+    // to be pushed here too rather than inherited from RenderTerrain().
+    ApplyFlashlightUniforms(m_terrainShader.GetProgramID(), true);
 
     // the terrain program's sun forward-scatter uniforms are
     // set for terrain in RenderTerrain(); the water surface reuses the

@@ -113,6 +113,7 @@ if(RENDERER)
             Hunt/Renderer/GLUtils.cpp
             Hunt/Renderer/GLFog.cpp
             Hunt/Renderer/GLNight.cpp
+            Hunt/Renderer/GLFlashlight.cpp
             Hunt/Renderer/GLShadow.cpp
             Hunt/Renderer/GLSky.cpp
             Hunt/Renderer/GLHUD.cpp
@@ -311,6 +312,7 @@ if(MSVC)
         tests/test_command_line_parse.cpp
         tests/test_config_parse.cpp
         tests/test_config_text.cpp
+        tests/test_flashlight.cpp
         tests/test_legacy_scalar_differential.cpp
         tests/test_load_diagnostics.cpp
         tests/test_script_value_parse.cpp

@@ -109,7 +109,9 @@ void GLRenderer::RenderProjectedCharacterShadow(const TCharacter& character, flo
         return;
     }
 
-    DrawModelVertices(m_whiteTexture, shadowVertices, BuildLegacyProjection(), true, true, false);
+    // A shadow blob is the absence of light; the beam must not brighten it.
+    DrawModelVertices(m_whiteTexture, shadowVertices, BuildLegacyProjection(), true, true, false,
+                      /*tintByFogColor=*/false, /*worldLit=*/false);
 }
 
 void GLRenderer::RenderProjectedShadows()
@@ -199,7 +201,9 @@ void GLRenderer::RenderProjectedShadows()
             BuildCharacterShadowVertices(character, alpha, shadowBatch);
         }
         if (!shadowBatch.empty()) {
-            DrawModelVertices(m_whiteTexture, shadowBatch, BuildLegacyProjection(), true, true, false);
+            // Same as above: shadow blobs opt out of the beam.
+            DrawModelVertices(m_whiteTexture, shadowBatch, BuildLegacyProjection(), true, true, false,
+                              /*tintByFogColor=*/false, /*worldLit=*/false);
         }
     } else {
         for (const auto& entry : sortedCharacters) {

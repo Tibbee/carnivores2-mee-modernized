@@ -14,6 +14,7 @@ std::vector<WeapInfo> g_WeapInfo;
 std::vector<AreaInfo> g_AreaInfo;
 std::vector<UtilInfo> g_UtilInfo;
 std::map<std::string, float> g_AccessoryScoreMods;
+std::map<std::string, std::string> g_AccessoryIcons;
 std::vector<int32_t> g_AccessoryPrices;
 UtilInfo g_ObserverInfo;
 Options g_Options;

@@ -322,13 +322,21 @@ private:
     // The shader uses it to attenuate the overlay with the camera-in-fog
     // envelope instead of mixing the fog colour into it a second time -- the
     // body pass underneath already carries that blend (see shaders/model.frag).
+    // `worldLit` selects whether this draw participates in world-only effects
+    // (the flashlight beam in particular). It defaults to true because almost
+    // every caller draws world geometry; pass false for draw paths that borrow
+    // the model program for something that is not part of the world -- shadows,
+    // the near-model viewmodel and its Phong/env overlays. Those all sit a few
+    // hundred units from the eye, so leaving the beam enabled would light them
+    // at point-blank range and wash them out.
     void DrawModelVertices(GLuint texture,
                            const std::vector<ModelVertex>& vertices,
                            const std::array<float, 16>& projection,
                            bool depthTest,
                            bool enableBlend,
                            bool additive,
-                           bool tintByFogColor = false);
+                           bool tintByFogColor = false,
+                           bool worldLit = true);
     void EnsureTerrainTextureArray();
     void UploadTerrainLayer(int layer, const TEXTURE& texture);
     void CollectTerrainTile(int x, int y, int r,
@@ -777,7 +785,29 @@ public:
     // Underwater full-screen colour overlay (dynamic per water body)
     void DrawUnderwaterOverlay();
 
+    // Flashlight accessory (purchased equipment, toggled with the configured
+    // key). The beam is forward lighting inside the world shaders rather than
+    // a post-process, so it needs no framebuffer copy and cannot bleed onto
+    // the sky or the HUD.
+    //
+    // FlashlightEnabled(): purchased AND toggled AND a non-zero intensity.
+    // ApplyFlashlightUniforms(): pushes the beam onto ONE program. Every draw
+    // path that renders world geometry must call it -- the world programs are
+    // separate objects with their own uniform state, so a skipped path keeps
+    // whatever a previous frame left behind. Pass worldLit=false for elements
+    // drawn with a world program that are not part of the world (the sun).
+    bool FlashlightEnabled() const;
+    void ApplyFlashlightUniforms(unsigned int program, bool worldLit);
+
 private:
+    struct FlashlightUniformLocations {
+        GLint beam = -1;
+        GLint color = -1;
+    };
+    // Keyed by program id so the shared helper caches once per program rather
+    // than querying GL on every draw.
+    std::map<unsigned int, FlashlightUniformLocations> m_flashlightLocations;
+
     // Night overlay resources
     GLShader m_nightDesatProgram;
     GLuint m_nightSceneTex = 0;

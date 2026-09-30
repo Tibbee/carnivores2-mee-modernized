@@ -938,6 +938,8 @@ void GLRenderer::DrawElementBatch(const std::vector<ModelVertex>& batch)
     };
     UpdatePerFrameUBO(identity);
     m_modelShader.Use();
+    // NDC-space HUD batch: not world geometry, so no beam (see RenderCircle).
+    ApplyFlashlightUniforms(m_modelShader.GetProgramID(), false);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_FALSE);
@@ -1058,6 +1060,8 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
 
     UpdatePerFrameUBO(identity);
     m_modelShader.Use();
+    // 2D HUD circles in NDC space: not world geometry, so no beam.
+    ApplyFlashlightUniforms(m_modelShader.GetProgramID(), false);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif

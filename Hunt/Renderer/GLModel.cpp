@@ -90,7 +90,8 @@ void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z
     // its window depth is ~20x the stored value and GL_LEQUAL discards every
     // fragment, which silently killed the env-map reflection.
     glDepthRange(0.0, kViewmodelDepthRangeMax);
-    DrawModelVertices(texture, vertices, projection, true, true, true, true);
+    DrawModelVertices(texture, vertices, projection, true, true, true, true,
+                       /*worldLit=*/false);
     glDepthRange(0.0, 1.0);
 }
 
@@ -132,7 +133,10 @@ void GLRenderer::RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float
     // depth lives in the viewmodel depth range, so drawing the specular pass
     // at (0, 1) put it behind the body it belongs to and GL_LEQUAL dropped it.
     glDepthRange(0.0, kViewmodelDepthRangeMax);
-    DrawModelVertices(texture, vertices, projection, true, true, true, true);
+    // Weapon overlays ride the camera a few hundred units out, i.e. always at
+    // point-blank beam range, so they opt out of the flashlight.
+    DrawModelVertices(texture, vertices, projection, true, true, true, true,
+                       /*worldLit=*/false);
     glDepthRange(0.0, 1.0);
 }
 
@@ -189,12 +193,15 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
     // RenderModelClipEnvMap) re-draw these exact triangles, so they must
     // reuse kViewmodelDepthRangeMax too -- see GLUtils.h.
     glDepthRange(0.0, kViewmodelDepthRangeMax);
-    DrawModelVertices(item.texture, item.opaqueVertices, projection, true, false, false);
+    DrawModelVertices(item.texture, item.opaqueVertices, projection, true, false, false,
+                       /*tintByFogColor=*/false, /*worldLit=*/false);
     if (!item.cutoutVertices.empty()) {
-        DrawModelVertices(item.texture, item.cutoutVertices, projection, true, false, false);
+        DrawModelVertices(item.texture, item.cutoutVertices, projection, true, false, false,
+                           /*tintByFogColor=*/false, /*worldLit=*/false);
     }
     if (!item.transparentVertices.empty()) {
-        DrawModelVertices(item.texture, item.transparentVertices, projection, true, true, false);
+        DrawModelVertices(item.texture, item.transparentVertices, projection, true, true, false,
+                           /*tintByFogColor=*/false, /*worldLit=*/false);
     }
     glDepthRange(0.0, 1.0);
 }
@@ -532,6 +539,8 @@ void GLRenderer::RenderInstancedModels()
             glUniform1f(uNight, (OptDayNight == 2 && !NightVisionOn) ? 1.0f : 0.0f);
         }
     }
+    // Flashlight beam on instanced world objects (trees, rocks, huts).
+    ApplyFlashlightUniforms(m_instancedModelShader.GetProgramID(), true);
     glBindVertexArray(m_instanceVAO);
 
     // camera-in-fog global envelope (see GLRenderer::UpdateCameraFogEnvelope).
@@ -1036,7 +1045,8 @@ void GLRenderer::DrawModelVertices(GLuint texture,
                                    bool depthTest,
                                    bool enableBlend,
                                    bool additive,
-                                   bool tintByFogColor)
+                                   bool tintByFogColor,
+                                   bool worldLit)
 {
     if (!m_modelShader.IsValid() || texture == 0 || vertices.empty()) {
         return;
@@ -1055,6 +1065,10 @@ void GLRenderer::DrawModelVertices(GLuint texture,
             glUniform1f(uNight, (OptDayNight == 2 && !NightVisionOn) ? 1.0f : 0.0f);
         }
     }
+    // Flashlight beam on dinosaurs, hunters and other world models. The
+    // sun/moon pass resets this to zero for the same reason it resets night
+    // lighting.
+    ApplyFlashlightUniforms(m_modelShader.GetProgramID(), worldLit);
     // uProjection is now in the PerFrame UBO (Phase 1.1). uTintByFogColor
     // stays a per-draw uniform; location cached at Initialize() (1.6).
     glUniform1f(m_locModelTint, tintByFogColor ? 1.0f : 0.0f);

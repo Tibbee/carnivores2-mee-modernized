@@ -202,6 +202,10 @@ void ProcessCommandLine()
     if (equals_nocase(s, "-double"))  DoubleAmmo = true;
     if (equals_nocase(s, "-huntdog"))  g_GameMode = GameMode::DogMode;
     if (equals_nocase(s, "-nightvision")) { NightVisionMode = true; g_GameMode = GameMode::NightVision; }
+    // Purchased accessory: the state only says "may be toggled". It is a
+    // renderer flag like night vision, so it deliberately does not touch
+    // g_GameMode -- the previous line only does that as a legacy quirk.
+    if (equals_nocase(s, "-flashlight"))  FlashlightMode = true;
     if (equals_nocase(s, "-radar"))   RadarMode = true;
     if (equals_nocase(s, "-survival"))  g_GameMode = GameMode::SurvivalMode;
     if (equals_nocase(s, "-sonar"))   { SonarMode = true; g_GameMode = GameMode::SonarMode; }

@@ -379,6 +379,9 @@ void GLRenderer::RenderTerrain()
             glUniform1f(uNight, (OptDayNight == 2 && !NightVisionOn) ? 1.0f : 0.0f);
         }
     }
+    // Flashlight beam (world-only, same contract as night lighting). The
+    // water surface reuses this program, so it inherits the beam from here.
+    ApplyFlashlightUniforms(m_terrainShader.GetProgramID(), true);
 
     // per-pixel sun-fog forward-scatter.  Replaces the old per-tile
     // CPU glow (one value per tile, interpolated across its 4 vertices, which

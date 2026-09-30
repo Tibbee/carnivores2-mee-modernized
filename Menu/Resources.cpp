@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include <set>
 #include <vector>
+#include "../Hunt/Core/Flashlight.h"
 #include "Core/ConfigText.h"
 #include "ListMath.h"
 #include "Loaders/LoadDiagnostics.h"
@@ -139,6 +140,7 @@ static std::string ReadAssignedText(const char* value, const char* where)
 void ReadWeapons(FILE*);
 void ReadCharacters(FILE*);
 void ReadAccessories(FILE*);
+void ReadAccessoryIcons(FILE*);
 void LoadC2Maps();
 
 
@@ -642,6 +644,82 @@ static float LookupAccessoryScoreMod(const std::string& key, float defaultValue)
 }
 
 
+/*
+ * ReadAccessoryIcons()
+ *
+ * Parses an optional 'accessory_icons { ... }' block in _MENU.TXT / _RES.TXT.
+ * Same shape as 'accessories { ... }' but the values are file paths, letting a
+ * mod supply its own shop icon for any accessory -- notably the ones the
+ * modernization added, which no stock data ships art for:
+ *
+ *     accessory_icons
+ *     {
+ *         flashlight = 'huntdat/menu/pics/my_flashlight.tga'
+ *         nightvision = 'huntdat/menu/pics/my_nv.tga'
+ *     }
+ *     .
+ *
+ * Keys are the accessory's command-line flag without the leading '-'. Icons
+ * must be 16-bit TGA (the menu art format); LoadPicture() rejects anything
+ * else and the row falls back to the empty icon box.
+ */
+void ReadAccessoryIcons(FILE* stream)
+{
+	char line[256];
+	uint32_t count = 0;
+
+	while (fgets(line, 255, stream))
+	{
+		g_ScriptLine++;
+		if (line[0] == '.') break; // end of block
+
+		const char* eq = strchr(line, '=');
+		if (!eq) continue;
+
+		std::string key(line, eq - line);
+		while (!key.empty() && (key.back() == ' ' || key.back() == '\t' || key.back() == '\r' || key.back() == '\n'))
+			key.pop_back();
+		size_t kstart = key.find_first_not_of(" \t");
+		if (kstart != std::string::npos) key = key.substr(kstart);
+		if (key.empty() || key[0] == '#') continue;
+
+		std::string value(eq + 1);
+		while (!value.empty() && (value.back() == ' ' || value.back() == '\t' || value.back() == '\r' || value.back() == '\n'))
+			value.pop_back();
+		size_t vstart = value.find_first_not_of(" \t");
+		if (vstart != std::string::npos) value = value.substr(vstart);
+		size_t comment = value.find('#');
+		if (comment != std::string::npos) value = value.substr(0, comment);
+		while (!value.empty() && (value.back() == ' ' || value.back() == '\t' || value.back() == '\r' || value.back() == '\n'))
+			value.pop_back();
+
+		if (value.empty()) continue;
+
+		g_AccessoryIcons[key] = value;
+		count++;
+		std::cout << "  accessory_icon[" << key << "] = " << value << std::endl;
+	}
+
+	std::cout << "Loaded " << count << " accessory icon overrides" << std::endl;
+}
+
+
+/*
+ * LookupAccessoryIcon()
+ *
+ * Resolves the shop icon for an accessory: a mod-supplied path wins, then the
+ * built-in path, then (if that file does not exist) an empty icon box.
+ */
+static std::string LookupAccessoryIcon(const std::string& key, const std::string& defaultPath)
+{
+	auto it = g_AccessoryIcons.find(key);
+	if (it != g_AccessoryIcons.end() && !it->second.empty()) {
+		return it->second;
+	}
+	return defaultPath;
+}
+
+
 void ReadPrices(FILE* stream)
 {
 	uint32_t CurA = 0;
@@ -976,6 +1054,7 @@ void LoadResourcesScript()
 	g_StartCredits = 100; // Default
 	g_ScriptLine = 0;
 	g_AccessoryScoreMods.clear(); // reset on each script load
+	g_AccessoryIcons.clear();      // same: a reload must not keep the previous file's icons
 	g_AccessoryPrices.clear();
 
 	// Try _MENU.TXT first (simplified menu data with prices)
@@ -1020,6 +1099,10 @@ void LoadResourcesScript()
 			else if (strstr(line, "accessories")) {
 				std::cout << "Found 'accessories' section at line " << g_ScriptLine << std::endl;
 				ReadAccessories(file);
+			}
+			else if (strstr(line, "accessory_icons")) {
+				std::cout << "Found 'accessory_icons' section at line " << g_ScriptLine << std::endl;
+				ReadAccessoryIcons(file);
 			}
 
 			// C2ME sections we don't need - skip their blocks
@@ -1079,11 +1162,15 @@ void LoadResources()
 		ui.m_ScoreMod = LookupAccessoryScoreMod(scoreKey, scoreDefault);
 		ui.m_Price = (accIdx < g_AccessoryPrices.size()) ? g_AccessoryPrices[accIdx] : defaultPrice;
 		accIdx++;
+		// Icon override hook: mods can point any accessory at their own art via
+		// the 'accessory_icons { }' block. Use the command flag without its dash
+		// as the key so the two stays consistent with 'accessories { }'.
+		const std::string iconKey = (cmd && cmd[0] == '-') ? std::string(cmd + 1) : std::string(cmd ? cmd : "");
 		// The shop icon is optional: some accessories (e.g. tranquilizers in
 		// both stock C2 and Triassic) have no dedicated image, and the
 		// original game shows them with an empty icon box. Never guess a
 		// different EQUIPn image - a wrong icon is worse than none.
-		LoadPicture(ui.m_Thumbnail, pic);
+		LoadPicture(ui.m_Thumbnail, LookupAccessoryIcon(iconKey, pic));
 		g_UtilInfo.push_back(ui);
 		ui.m_Description.clear();
 	};
@@ -1127,6 +1214,15 @@ void LoadResources()
 	ui.m_Description.clear(); // the shared buffer must not leak into the next accessory
 
 	addUtil("Tranquilizers","huntdat/menu/txt/tranq.nfo",  "-tranq -tranquilizer", "tranq", 1.25f, 60, "huntdat/menu/pics/equip6.tga");
+
+	// Flashlight: a modernization accessory, priced like the other entries but
+	// listed last on purpose. Stock _MENU.TXT ships six 'acces' price lines
+	// (camo/radar/scent/double/NV/tranq), so accIdx is already 6 here and there
+	// is no seventh slot to consume -- it must fall back to its own default
+	// rather than steal a line meant for a future accessory. The .nfo and icon
+	// are both optional (no stock data ships either), so the row always shows,
+	// with a built-in description and an empty icon box as the worst case.
+	addUtil("Flashlight", "huntdat/menu/txt/flashlight.nfo", "-flashlight", "flashlight", 1.0f, 30, "huntdat/menu/pics/equip_fl.tga");
 
 	// Observer info (used for info panel display, not in equipment list)
 	g_ObserverInfo.m_Name = "Observer";
@@ -1264,6 +1360,7 @@ void TrophyLoad(Profile& profile, int pr)
 	g_Options.ViewRange = ClampMenuViewOpt(g_Options.ViewRange);
 	g_Options.ObjectDetail = kObjectDetailDefault;
 	g_Options.NightVisionKey = 0x4E; // Default: 'N' key
+	g_Options.FlashlightKey = kFlashlightKeyDefault; // Default: 'F' key
 
 	//Temporary:
 	int r = profile.Rank;
@@ -1544,6 +1641,7 @@ void Options::Default()
 	this->OptFpsLimit = kFpsLimitDefault;
 	this->VerboseLogging = false;
 	this->NightVisionKey = 0x4E; // Default: 'N' key
+	this->FlashlightKey = kFlashlightKeyDefault; // Default: 'F' key
 }
 
 
@@ -1693,6 +1791,7 @@ void SaveConfig()
 	fresh.emplace_back("fps_limit", std::to_string(g_Options.OptFpsLimit));
 	fresh.emplace_back("verbose_logging", g_Options.VerboseLogging ? "1" : "0");
 	fresh.emplace_back("nightvision_key", std::to_string(g_Options.NightVisionKey));
+	fresh.emplace_back("flashlight_key", std::to_string(g_Options.FlashlightKey));
 
 	// Persist the selected resolution as WxH so the render exe honours it
 	// even though the legacy per-profile index (trophy0N.sav) is fragile
@@ -1821,6 +1920,14 @@ static bool ParseConfigLine(const std::string& line)
 		int v;
 		if (iss >> v) {
 			g_Options.NightVisionKey = v;
+		}
+		return true;
+	}
+
+	if (key == "flashlight_key") {
+		int v;
+		if (iss >> v) {
+			g_Options.FlashlightKey = ClampFlashlightKey(v);
 		}
 		return true;
 	}

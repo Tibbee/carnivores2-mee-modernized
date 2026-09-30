@@ -1112,6 +1112,17 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       else
         AddMessage("Night vision OFF");
     }
+    if (pressed(FlashlightKey) && FlashlightMode) {
+      // Same orthogonal-flag contract as night vision: never touches
+      // g_GameMode. Gated on FlashlightMode so the key does nothing on a
+      // hunt launched without the accessory, rather than silently granting
+      // equipment the player did not pay for.
+      FlashlightOn = !FlashlightOn;
+      if (FlashlightOn)
+        AddMessage("Flashlight ON");
+      else
+        AddMessage("Flashlight OFF");
+    }
     if (static_cast<int>(wParam) == cheatcode[cheati] && g_GameMode != GameMode::SurvivalMode)
     {
       cheati++;

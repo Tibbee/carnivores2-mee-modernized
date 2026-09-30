@@ -12,6 +12,7 @@
 #include "Core/ConfigText.h"
 #include "Core/TerrainMip.h"
 #include "Core/WaterWaveFade.h"
+#include "Core/Flashlight.h"
 #include "Loaders/LoadDiagnostics.h"
 
 #ifdef _gl
@@ -347,6 +348,15 @@ void InitEngine()
   NightVisionMode = false;
   NightVisionOn   = false;
   NightVisionKey  = 0x4E; // Default: 'N' key
+
+  // Flashlight accessory: off until a hunt is launched with -flashlight.
+  FlashlightMode = false;
+  FlashlightOn   = false;
+  FlashlightKey  = kFlashlightKeyDefault;
+  OptFlashlightInnerAngleDeg = static_cast<int>(kFlashlightInnerAngleDegDefault);
+  OptFlashlightOuterAngleDeg = static_cast<int>(kFlashlightOuterAngleDegDefault);
+  OptFlashlightRange         = static_cast<int>(kFlashlightRangeDefault);
+  OptFlashlightIntensityPct  = kFlashlightIntensityPctDefault;
 
   // Accessory score multipliers. Defaults match the legacy hardcoded
   // values that used to live in SubmitDinoScore() so legacy hunts
@@ -822,6 +832,20 @@ static void CreateDefaultConfig()
     "# Nightvision key VK code (default: 78 = 'N')\r\n"
     "nightvision_key 78\r\n"
     "\r\n"
+    "# Flashlight key VK code (default: 70 = 'F'). The flashlight is only\r\n"
+    "# available on hunts launched with the Flashlight accessory selected.\r\n"
+    "flashlight_key 70\r\n"
+    "\r\n"
+    "# Flashlight beam shape. inner/outer are half-angles in degrees from the\r\n"
+    "# view axis (full strength inside `inner`, faded out by `outer`); range is\r\n"
+    "# world units (256 = one terrain cell) and intensity is the peak boost as\r\n"
+    "# a percent, so 500 multiplies lit surface colours by up to 6.0 before\r\n"
+    "# the headroom roll-off that keeps lit terrain from clipping.\r\n"
+    "flashlight_inner_angle 14\r\n"
+    "flashlight_outer_angle 26\r\n"
+    "flashlight_range 6000\r\n"
+    "flashlight_intensity 500\r\n"
+    "\r\n"
     "# Window resolution, e.g. 1920x1080. Overrides the per-profile\r\n"
     "# resolution saved in trophy0N.sav. Omit to use the profile value.\r\n"
     "# The menu writes this automatically when you change Resolution.\r\n"
@@ -996,6 +1020,64 @@ static void LoadConfig()
       }
       else if (_stricmp(key, "nightvision_key") == 0) {
         NightVisionKey = value;
+      }
+      else if (_stricmp(key, "flashlight_key") == 0) {
+        // Toggle binding for the flashlight accessory. Clamped to the same
+        // 0..255 span KeyDownMatches() accepts, so an out-of-range value can
+        // never produce a binding no key press can satisfy.
+        FlashlightKey = ClampFlashlightKey(value);
+      }
+      else if (_stricmp(key, "flashlight_inner_angle") == 0 ||
+               _stricmp(key, "flashlight_outer_angle") == 0) {
+        // Half-angles in degrees. Parsed strictly so "abc" cannot silently
+        // mean a one-degree pinhole beam.
+        const bool inner = (_stricmp(key, "flashlight_inner_angle") == 0);
+        int degrees = inner ? OptFlashlightInnerAngleDeg : OptFlashlightOuterAngleDeg;
+        if (ParseConfigInt(keyval,
+                           static_cast<int>(kFlashlightAngleDegMin),
+                           static_cast<int>(kFlashlightAngleDegMax), degrees)) {
+          // Keeps inner < outer: the shader feeds these to smoothstep(),
+          // whose edges must stay ordered.
+          float innerDeg = inner ? static_cast<float>(degrees)
+                                 : static_cast<float>(OptFlashlightInnerAngleDeg);
+          float outerDeg = inner ? static_cast<float>(OptFlashlightOuterAngleDeg)
+                                 : static_cast<float>(degrees);
+          NormalizeFlashlightConeDeg(innerDeg, outerDeg);
+          OptFlashlightInnerAngleDeg = static_cast<int>(innerDeg + 0.5f);
+          OptFlashlightOuterAngleDeg = static_cast<int>(outerDeg + 0.5f);
+          char msg[80];
+          sprintf_s(msg, sizeof(msg), "Config: %s = %d deg\n", key, degrees);
+          PrintLog(msg);
+        } else {
+          PrintLog("Config: flashlight inner/outer angle must be 1..90, ignoring.\n");
+        }
+      }
+      else if (_stricmp(key, "flashlight_range") == 0) {
+        // Beam reach in world units (256 units = one terrain cell).
+        int range = static_cast<int>(kFlashlightRangeDefault);
+        if (ParseConfigInt(keyval, static_cast<int>(kFlashlightRangeMin),
+                           static_cast<int>(kFlashlightRangeMax), range)) {
+          OptFlashlightRange = ClampFlashlightRange(range);
+          char msg[72];
+          sprintf_s(msg, sizeof(msg), "Config: flashlight_range = %d\n", range);
+          PrintLog(msg);
+        } else {
+          PrintLog("Config: flashlight_range must be 256..60000, ignoring.\n");
+        }
+      }
+      else if (_stricmp(key, "flashlight_intensity") == 0) {
+        // Peak beam boost as a percent. 0 disables it entirely, which is the
+        // documented way to turn the effect into a pure no-op.
+        int percent = kFlashlightIntensityPctDefault;
+        if (ParseConfigInt(keyval, kFlashlightIntensityPctMin,
+                           kFlashlightIntensityPctMax, percent)) {
+          OptFlashlightIntensityPct = ClampFlashlightIntensityPct(percent);
+          char msg[80];
+          sprintf_s(msg, sizeof(msg), "Config: flashlight_intensity = %d\n", percent);
+          PrintLog(msg);
+        } else {
+          PrintLog("Config: flashlight_intensity must be 0..1000, ignoring.\n");
+        }
       }
       else if (_stricmp(key, "terrain_mip_level") == 0) {
         // Highest mip level the GL terrain/water sampler may select from the
