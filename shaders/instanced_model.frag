@@ -8,6 +8,7 @@ in float vRadialDist;
 in vec3 vWorldNormal;
 in float vAlpha;
 in float vCutout;
+in vec3 vViewPos;        // view-space position (camera at origin)
 in float vTintByFog;
 in vec3 vVolumetricFogColor;
 in float vVolumetricFog;
@@ -112,8 +113,19 @@ void main() {
    // Flashlight: after the night darkening above, so the beam restores what
    // night took away instead of being darkened with everything else. The sky
    // and HUD use separate programs and never reach this path.
-   ApplyFlashlight(finalColor, vRadialDist,
-                   vViewZ / max(vRadialDist, 1.0));
+   {
+      // The beam must be evaluated from the INTERPOLATED POSITION, not from
+      // interpolated scalars. GPU varyings are perspective-correct, so
+      // vViewPos is exact per fragment, whereas vViewZ/vRadialDist were
+      // computed per vertex: along a near/far tile the true depth varies
+      // hyperbolically, and interpolating a scalar distance linearly
+      // overshoots it badly mid-triangle, which both overstated the falloff
+      // distance and dragged the cone's cosine toward 1. See
+      // Core/Flashlight.h and tests/test_flashlight.cpp.
+      float beamDistance = length(vViewPos);
+      float beamCos = max(-vViewPos.z, 0.0) / max(beamDistance, 1.0);
+      ApplyFlashlight(finalColor, beamDistance, beamCos);
+   }
 
    FragColor = vec4(finalColor, texColor.a * vAlpha);
 }

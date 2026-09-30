@@ -167,3 +167,18 @@ restored in `finally`, including after a failed run.
 A failed run keeps its isolated directory, `failure.txt`, and any attributable
 GLPerf files for diagnosis, then removes those generated files from the deployment.
 Generated `tools/artifacts/` files remain ignored and must not be committed.
+
+## Flashlight beam probe
+
+`c2_capture_flashlight.ps1` is a behavioural (not performance) harness for the
+night-hunt flashlight. It launches area1 at `dtm=2` with `-flashlight`, captures
+the frame before and after posting the `F` toggle, then pitches the camera to
+the ground by parking the cursor below the client centre (the game reads the
+cursor delta each frame and re-centres it) and captures again. It prints mean
+luminance per screen region for each state.
+
+The region deltas are the point: with the beam working, `pitched/crosshair`
+must rise when the light is switched on. It fell (`-2.6`) while the beam was
+evaluated from per-vertex scalars, and rose to `+28.0` once the shaders derived
+the beam from the interpolated view position. Treat a negative crosshair delta
+as a beam regression, not as noise.

@@ -18,6 +18,9 @@ out float vAlpha;
 out float vCutout;
 out float vViewZ;
 out float vRadialDist;   // radial camera distance; drives distance fog (see terrain.vert)
+out vec3 vViewPos;       // view-space position (camera at origin); the flashlight reads
+                          // this instead of the scalar varyings because only a position
+                          // interpolates perspective-correctly
 void main() {
    gl_Position = uProjection * vec4(aPos, 1.0);
    vTexCoord = aTexCoord;
@@ -29,4 +32,5 @@ void main() {
    vFogColor = aFogColor;
    vViewZ = max(-aPos.z, 0.0);
    vRadialDist = length(aPos);
+   vViewPos = aPos;
 }

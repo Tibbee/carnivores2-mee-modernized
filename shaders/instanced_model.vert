@@ -32,6 +32,7 @@ out vec2 vTexCoord;
 out float vLight;
 out float vViewZ;           // Phase 2.5: view-space Z for per-pixel fog
 out float vRadialDist;      // radial camera distance; drives distance fog (see terrain.vert)
+out vec3 vViewPos;         // view-space position (camera at origin) -- see model.vert
 out vec3 vWorldNormal;      // Phase 2.5: face normal for directional light
 out float vAlpha;
 out float vCutout;
@@ -87,6 +88,7 @@ void main() {
    // Matches the terrain shader's vViewZ = max(-aPos.z, 0.0).
    vViewZ = max(-viewPos.z, 0.0);
    vRadialDist = length(viewPos.xyz);
+   vViewPos = viewPos.xyz;
    // Phase 2.5: transform face normal for directional light
    vWorldNormal = mat3(iWorld) * aNormal;
    // Phase 2.x: 3DFX-style height-graded pocket fog.
