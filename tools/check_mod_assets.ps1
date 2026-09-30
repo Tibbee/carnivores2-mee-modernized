@@ -11,6 +11,7 @@
 
         accessory_icons        { flashlight = 'huntdat/menu/pics/x.tga' }
         accessory_descriptions  { flashlight = 'huntdat/menu/txt/x.nfo' }
+        accessory_prices        { flashlight = 30 }
 
     This walks the same script the menu reads and reports, before the modder
     ships:
@@ -30,10 +31,10 @@
         does not know these sections, and stops at the block's '.' closer --
         silently skipping every section after it. Accessory blocks belong in
         _MENU.TXT only
-      - a section header swallowed by a still-open block: these blocks close
-        at a line with '.' at column 0, not at their '}' line, so a second
-        block written directly under the first one's '}' never takes effect
-        (the engine reads it the same way)
+      - a section header swallowed by a still-open block: accessory blocks
+        close at a '.' at column 0, not at their '}' line. The legacy
+        accessories score block uses that rule too: insert a new '.' after
+        its '}' before adding new blocks to the shipped _MENU.TXT
       - blocks placed after the script's terminating '.' line: the menu stops
         reading at the first '.' at column 0 outside a block, so anything
         appended below it never loads
@@ -162,8 +163,9 @@ function Get-RowForKey {
 function Get-AccessoryBlockKind {
     param([string]$Line)
     if ($Line.StartsWith('#') -or $Line.StartsWith(';')) { return $null }
-    if ($Line -match '^\s*accessory_icons(?:\s|\{|$)') { return 'icons' }
-    if ($Line -match '^\s*accessory_descriptions(?:\s|\{|$)') { return 'texts' }
+    if ($Line -cmatch '^\s*accessory_icons(?:\s|\{|$)') { return 'icons' }
+    if ($Line -cmatch '^\s*accessory_descriptions(?:\s|\{|$)') { return 'texts' }
+    if ($Line -cmatch '^\s*accessory_prices(?:\s|\{|$)') { return 'prices' }
     return $null
 }
 
@@ -210,13 +212,22 @@ if (Test-GameFile $resTxt) {
 # at a line starting with '.'.
 $iconOverrides = @{}       # normalized key -> @{ Value; Line }
 $textOverrides = @{}
+$priceOverrides = @{}
 $block = $null
+$scoreBlock = $false
 $terminated = $false
 $lineNo = 0
 if (Test-GameFile $script) {
     foreach ($line in [System.IO.File]::ReadAllLines($script)) {
         $lineNo++
         $header = Get-AccessoryBlockKind $line
+        if ($scoreBlock) {
+            if ($line.Length -gt 0 -and $line[0] -eq '.') { $scoreBlock = $false; continue }
+            if ($null -ne $header) {
+                $errors.Add("swallowed       ${scriptName}:$lineNo '$($line.Trim())' is inside the legacy accessories score block -- add a '.' at column zero after that block's '}' before the new section")
+            }
+            continue
+        }
         if ($terminated) {
             # The menu stops at the first top-level '.' at column 0.
             if ($null -ne $header) {
@@ -244,14 +255,23 @@ if (Test-GameFile $script) {
             $value = $line.Substring($eq + 1)
             $hash = $value.IndexOf('#')
             if ($hash -ge 0) { $value = $value.Substring(0, $hash) }
-            $value = (Get-Unquoted $value)
-            if ($value -eq '') { continue }
-            $entry = @{ Value = (Get-RelativePath $value); Line = $lineNo }
-            if ($block -eq 'icons') { $iconOverrides[(Get-NormalizedKey $key)] = $entry }
-            else { $textOverrides[(Get-NormalizedKey $key)] = $entry }
+            if ($block -eq 'prices') { $value = $value.Trim() }
+            else { $value = (Get-Unquoted $value) }
+            if ($value -eq '' -and $block -ne 'prices') { continue }
+            $entry = @{ Value = $value; Line = $lineNo }
+            if ($block -eq 'icons') { $entry.Value = Get-RelativePath $value; $iconOverrides[(Get-NormalizedKey $key)] = $entry }
+            elseif ($block -eq 'texts') { $entry.Value = Get-RelativePath $value; $textOverrides[(Get-NormalizedKey $key)] = $entry }
+            else { $priceOverrides[(Get-NormalizedKey $key)] = $entry }
+            continue
+        }
+        if ($line -cmatch '^\s*accessories(?:\s|\{|$)' -and -not $line.StartsWith('#') -and -not $line.StartsWith(';')) {
+            $scoreBlock = $true
             continue
         }
         if ($null -ne $header) { $block = $header; continue }
+    }
+    if ($scoreBlock) {
+        $errors.Add("unterminated   $scriptName ends inside the legacy accessories score block")
     }
     if ($null -ne $block) {
         $errors.Add("unterminated   $scriptName ends inside an accessory block; add a '.' closer before the script's final '.'")
@@ -314,6 +334,20 @@ foreach ($entry in $iconOverrides.GetEnumerator()) {
     }
 }
 
+foreach ($entry in $priceOverrides.GetEnumerator()) {
+    $row = Get-RowForKey -Key $entry.Key
+    $where = "${scriptName}:$($entry.Value.Line)"
+    if ($null -eq $row -or $row.ScoreKey -eq 'observe') {
+        $errors.Add("unknown key    '$($entry.Key)' ($where) matches no priced shop row")
+        continue
+    }
+    $price = $entry.Value.Value.Trim()
+    $parsed = 0
+    if ($price -notmatch '^\+?[0-9]+$' -or -not [int]::TryParse($price, [ref]$parsed) -or $parsed -lt 0) {
+        $errors.Add("bad price      '$($entry.Value.Value)' ($where) must be a nonnegative whole number within the 32-bit range")
+    }
+}
+
 foreach ($entry in $textOverrides.GetEnumerator()) {
     $row = Get-RowForKey -Key $entry.Key
     $where = "${scriptName}:$($entry.Value.Line)"
@@ -359,7 +393,7 @@ foreach ($row in $rows) {
 
 # --- report -------------------------------------------------------------------
 Write-Output "Carnivores 2 shop-asset check: $GameDir"
-Write-Output "  script: $scriptName; icon overrides: $($iconOverrides.Count); text overrides: $($textOverrides.Count)"
+Write-Output "  script: $scriptName; icon overrides: $($iconOverrides.Count); text overrides: $($textOverrides.Count); price overrides: $($priceOverrides.Count)"
 
 if ($errors.Count -gt 0) {
     Write-Output ""

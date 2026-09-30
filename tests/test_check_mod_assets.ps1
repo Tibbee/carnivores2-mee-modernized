@@ -25,6 +25,11 @@ try {
     [System.IO.File]::WriteAllText($resFile, "# accessory_icons mentioned in a comment`n.")
     [System.IO.File]::WriteAllText($menuFile, @'
 # accessory_descriptions is not a section header
+accessories
+{
+ camo = 0.85
+}
+.
 accessory_icons
 {
 camo = 'huntdat/menu/pics/camo.tga'
@@ -35,6 +40,12 @@ accessory_descriptions
 camo = 'huntdat/menu/txt/camo.nfo'
 }
 .
+accessory_prices
+{
+'Cover scent' = 12
+flashlight = 0
+}
+.
 .
 # accessory_icons is only a comment after the terminator
 '@)
@@ -42,11 +53,20 @@ camo = 'huntdat/menu/txt/camo.nfo'
     [byte[]]$tga = @(0,0,2,0,0,0,0,0,0,0,0,0,1,0,1,0,16,0,255,255)
     [System.IO.File]::WriteAllBytes($icon, $tga)
 
-    $valid = Invoke-Check -ExpectedExit 0 -ExpectedText '0 error(s)' -ForbiddenText "no icon        'Camouflage'"
+    $valid = Invoke-Check -ExpectedExit 0 -ExpectedText 'price overrides: 2' -ForbiddenText "no icon        'Camouflage'"
     if ($valid.Contains("no blurb file  'Camouflage'") -or $valid.Contains('bad placement') -or
         $valid.Contains('swallowed') -or $valid.Contains('after end')) {
         throw "A valid override or a comment was treated as a missing asset/block:`n$valid"
     }
+
+    $correctMenu = [System.IO.File]::ReadAllText($menuFile).Replace("`r`n", "`n")
+    [System.IO.File]::WriteAllText($menuFile, $correctMenu.Replace("}`n.`naccessory_icons", "}`naccessory_icons"))
+    Invoke-Check -ExpectedExit 1 -ExpectedText 'legacy accessories score block' | Out-Null
+    [System.IO.File]::WriteAllText($menuFile, $correctMenu.Replace('flashlight = 0', 'flashlight = -4'))
+    Invoke-Check -ExpectedExit 1 -ExpectedText 'bad price' | Out-Null
+    [System.IO.File]::WriteAllText($menuFile, $correctMenu.Replace('flashlight = 0', "flashlight = '4'"))
+    Invoke-Check -ExpectedExit 1 -ExpectedText 'bad price' | Out-Null
+    [System.IO.File]::WriteAllText($menuFile, $correctMenu)
 
     [System.IO.File]::WriteAllBytes($icon, $tga[0..17])
     Invoke-Check -ExpectedExit 1 -ExpectedText 'truncated 16-bit pixel data' | Out-Null
@@ -60,7 +80,7 @@ camo = 'huntdat/menu/txt/camo.nfo'
     Invoke-Check -ExpectedExit 0 -ExpectedText 'swallowed' | Out-Null
     [System.IO.File]::WriteAllText($menuFile, ".`naccessory_icons`n{`n}`n.`n")
     Invoke-Check -ExpectedExit 1 -ExpectedText 'after end' | Out-Null
-    [System.IO.File]::WriteAllText($resFile, "accessory_icons`n{`n}`n.`n")
+    [System.IO.File]::WriteAllText($resFile, "accessory_prices`n{`n}`n.`n")
     Invoke-Check -ExpectedExit 1 -ExpectedText 'bad placement' | Out-Null
 
     Write-Output 'Shop asset checker contract tests passed.'
