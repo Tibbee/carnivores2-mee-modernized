@@ -757,7 +757,7 @@ EXTERNAL Options				g_Options;
 EXTERNAL Picture*				g_HuntSelectPic;
 EXTERNAL int32_t				g_TimeOfDay;
 EXTERNAL bool					g_ObserverMode;
-EXTERNAL int32_t				g_ScoreDebit;
+EXTERNAL int64_t				g_ScoreDebit; // current setup cost, never stored in the profile
 // Last hunt setup, persisted in config.cfg so the hunt screen reselects it
 // on entry instead of resetting to defaults. Menu.cpp owns capture/restore
 // (MenuHunt lists are file-local there); Resources.cpp owns the file format.
@@ -817,6 +817,7 @@ void SaveConfig();
 void RequestMenuExit(int exitCode = 0);
 void TrophyDelete(uint32_t);
 bool ReadTGAFile(const std::string& path, TargaImage& tga);
+bool LoadMenuBackground(const std::string& path, TargaImage& tga);
 bool LoadPicture(Picture& pic, const std::string& fpath);
 bool LoadText(std::vector<std::string>& txt, const std::string& path);
 bool LoadWave(SoundFX& sfx, const std::string& path);

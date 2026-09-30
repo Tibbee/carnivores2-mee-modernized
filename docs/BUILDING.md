@@ -6,7 +6,7 @@ Everything here assumes PowerShell in the repository root.
 
 | | |
 |---|---|
-| CMake | 3.15 or newer. `CMakeLists.txt` declares 3.15 and `CMakePresets.json` pins the same. |
+| CMake | **3.21 or newer** for the supplied schema-v3 presets. The project's declared 3.15 minimum alone does not support them. |
 | Compiler | MSVC from Visual Studio 2019/2022, or the standalone build tools. |
 | Architecture | **x86 (32-bit) only.** See below. |
 | Ninja | Only if you use the presets unchanged, because they set `"generator": "Ninja"`. Override it in your own preset if you'd rather use Visual Studio. |
@@ -46,14 +46,15 @@ Output goes to `build/<preset>/bin/`: `Carnivores1_GL.exe`,
 `Carnivores1_SOFT.exe`, `Carnivores2Menu.exe`, and a copy of `shaders/`.
 
 The renderer is a compile-time choice (`-DRENDERER=GL` or `-DRENDERER=SOFT`, set
-by the presets). `config.cfg` has a `renderer` key, but it does not switch
-anything at runtime; it exists so a config file describes the build it came
-with. The executable's own name is the authority on which renderer you have.
+by the presets). Each engine binary has a fixed backend. The `renderer` key in
+`config.cfg` **does select which binary the menu launches**: 0 Software,
+1 OpenGL. It does not turn a running engine into the other backend.
 
 ## Tests
 
-Nine unit and contract test binaries register with CTest, plus two integration
-smoke tests that are off by default:
+Eight native test executables and two PowerShell validator suites register
+with CTest (ten default suites), plus two integration smoke tests that are off
+by default:
 
 ```powershell
 cmake --preset ogl-release-shipping
@@ -75,6 +76,8 @@ pointing it at an empty folder.
 
 `Carnivores2Tests.HuntdatValidator` shells out to `tools/check_huntdat.ps1`,
 which is described in [DEBUGGING.md](DEBUGGING.md).
+`Carnivores2Tests.ShopAssetValidator` exercises `tools/check_mod_assets.ps1`;
+see [MODDING-SHOP.md](MODDING-SHOP.md).
 
 CI runs on every push; see `.github/workflows/build.yml`.
 
@@ -128,9 +131,10 @@ Two things worth knowing about what it does:
   against `VERSION_STRING` in `Hunt/Core/Version.h`, and a mismatch throws
   rather than shipping old code under a new label. If you get that error,
   rebuild the release presets.
-- **`config.cfg` is regenerated, not copied.** It's extracted from the template
-  in `CreateDefaultConfig()` (`Hunt/Game/EngineInit.cpp`). The `config.cfg` in
-  your deployed folder is dev-tweaked and is deliberately never shipped.
+- **`config.cfg` is regenerated, not copied.** The packaging script maintains
+  a separate template that must stay synchronized with `CreateDefaultConfig()`
+  in `Hunt/Game/EngineInit.cpp`; it does not extract that source template.
+  The deployed folder's dev-tweaked `config.cfg` is deliberately never shipped.
 
 The package contains no data set. Drop your MEE 1.11 `HUNTDAT` next to the
 menu. `OpenAL32.dll` is there because the engine loads it by name rather than

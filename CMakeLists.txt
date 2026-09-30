@@ -325,6 +325,7 @@ if(MSVC)
         tests/test_memory_arena.cpp
         tests/test_menu_slider.cpp
         tests/test_menu_launch_args.cpp
+        tests/test_shop_safety.cpp
         tests/test_projectile_math.cpp
         tests/test_score_mod.cpp
         tests/test_sky_fog_projection.cpp

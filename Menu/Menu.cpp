@@ -10,6 +10,7 @@
 #include "LaunchArgs.h"
 #include "ListMath.h"
 #include "SliderMath.h"
+#include "ShopSafety.h"
 #include "../Hunt/Core/ScoreMod.h"
 #include <cassert>
 #include <cmath>
@@ -476,9 +477,9 @@ void MenuSet::AddItem(const std::string& txt)
 Determine the amount of points that the current license selection
 in the hunt screen will cost.
 */
-int32_t CalculateDebit()
+HuntBudget CalculateDebit()
 {
-	int32_t debit = 0;
+	HuntBudget debit = 0;
 
 	if (MenuHunt[0].Selected >= 0 && MenuHunt[0].Selected < (int)g_AreaInfo.size())
 	{
@@ -487,30 +488,17 @@ int32_t CalculateDebit()
 
 	for (unsigned i = 0; i < MenuHunt[1].Item.size() && i < g_DinoList.size(); i++)
 	{
-		if (MenuHunt[1].Item[i].second)
+		if (MenuHunt[1].Item[i].second && g_DinoList[i] < g_DinoInfo.size())
 		{
 			debit += g_DinoInfo[g_DinoList[i]].m_Price;
 		}
 	}
 
-	for (unsigned i = 0; i < MenuHunt[2].Item.size(); i++)
-	{
-		if (MenuHunt[2].Item[i].second)
-		{
-			debit += g_WeapInfo[i].m_Price;
-		}
-	}
+	debit += SelectedRowCost(MenuHunt[2].Item, g_WeapInfo);
 
-	// Accessories settle their *scoring* at hunt end (smod= multipliers),
-	// but their license price debits upfront like everything else -- and
-	// the equipment toggle gates on affordability for exactly that reason.
-	for (unsigned i = 0; i < MenuHunt[3].Item.size() && i < g_UtilInfo.size(); i++)
-	{
-		if (MenuHunt[3].Item[i].second)
-		{
-			debit += g_UtilInfo[i].m_Price;
-		}
-	}
+	// Prices reserve the current setup's budget, not permanently spend score.
+	// Accessory scoring is a separate hunt-end calculation (smod= multipliers).
+	debit += SelectedRowCost(MenuHunt[3].Item, g_UtilInfo);
 
 	return debit;
 }
@@ -967,23 +955,16 @@ int MenuObjectDetailFromSlider(float v)
 
 void DrawPicture(int x, int y, Picture& pic)
 {
-	if (pic.m_Data == nullptr || pic.m_Width == 0 || pic.m_Height == 0)
-		return;
-
-	/*for (int y = 0; y < 600; y++) {
-		memcpy((uint16_t*)lpVideoBuf + (y * 800), &menu.m_Image[(600 - y - 1) * 800], 800 * 2);
-	}*/
-
-	for (auto i = 0U; i < pic.m_Height; i++) {
-		memcpy((uint16_t*)lpVideoBuf + x + (y + i) * 800U, pic.m_Data + (pic.m_Height - i - 1) * pic.m_Width, pic.m_Width * 2);
-	}
+	BlitMenuPicture(static_cast<uint16_t*>(lpVideoBuf), 800, 600,
+		x, y, pic.m_Data, pic.m_Width, pic.m_Height);
 }
 
 
 void DrawPicture(int x, int y, int w, int h, uint16_t* lpImage)
 {
-	for (int i = 0; i < h; i++)
-		memcpy((uint16_t*)lpVideoBuf + x + (y + i) * 800, lpImage + (h - i - 1) * w, w * 2);
+	if (w > 0 && h > 0)
+		BlitMenuPicture(static_cast<uint16_t*>(lpVideoBuf), 800, 600,
+			x, y, lpImage, static_cast<unsigned>(w), static_cast<unsigned>(h));
 }
 
 
@@ -1185,7 +1166,7 @@ static void RestoreHuntSelections()
 		g_TimeOfDay = g_SavedHuntTime;
 		g_MenuItem.SetIsElementSet(g_TimeOfDay + 1, true);
 	}
-	if (g_UserProfile.Score - CalculateDebit() < 0) {
+	if (CalculateDebit() > static_cast<HuntBudget>(g_UserProfile.Score)) {
 		// Saved setup is unaffordable here (e.g. restored onto a poorer
 		// profile, or hand-edited masks) -- fall back to the entry defaults
 		// above instead of displaying a negative account. Time-of-day is
@@ -1426,7 +1407,7 @@ void LoadGameMenu(int32_t menu)
 
 	TargaImage tga;
 
-	if (ReadTGAFile(mf_off, tga)) {
+	if (LoadMenuBackground(mf_off, tga)) {
 		memcpy(g_MenuItem.m_Image, tga.m_Data, (800 * 2) * 600);
 	}
 	else {
@@ -1435,7 +1416,7 @@ void LoadGameMenu(int32_t menu)
 	}
 
 	if (!mf_on.empty()) {
-		if (ReadTGAFile(mf_on, tga)) {
+		if (LoadMenuBackground(mf_on, tga)) {
 			memcpy(g_MenuItem.m_Image_On, tga.m_Data, (800 * 2) * 600);
 		}
 		else {
@@ -1623,8 +1604,8 @@ void DrawMenuHunt()
 	DrawTextShadow(328 + 8, 38, ss.str(), c, DTA_LEFT);
 	ss.str(""); ss.clear();
 
-	// Draw the debited credits for the current hunt options, in range of -999 - 9999
-	ss << (std::min(9999, std::max(-999, (g_UserProfile.Score - g_ScoreDebit))));
+	// Display the remaining setup budget, not a persistent credit deduction.
+	ss << std::clamp<HuntBudget>(RemainingHuntBudget(g_UserProfile.Score, g_ScoreDebit), -999, 9999);
 	DrawTextShadow(472 - 8, 38, ss.str(), c, DTA_RIGHT);
 	ss.str(""); ss.clear();
 
@@ -1696,7 +1677,7 @@ void DrawMenuHunt()
 
 	InterfaceSetFont(fnt_Small);
 
-	int32_t score = g_UserProfile.Score - g_ScoreDebit;
+	HuntBudget score = RemainingHuntBudget(g_UserProfile.Score, g_ScoreDebit);
 
 	for (unsigned ii = MenuHunt[0].Offset;
 		ii < HuntListVisibleEnd(MenuHunt[0].Offset, g_AreaInfo.size()); ii++) {
@@ -2278,14 +2259,14 @@ void MenuEventInput(int32_t menu)
 		if (IsPointInRect(g_CursorPos, MenuHunt[0].Rect))
 		{
 			WaitForMouseRelease();
-			int32_t scorea = 0;
+			HuntBudget scorea = 0;
 
 			if (MenuHunt[0].Selected != -1)
 			{
 				scorea = g_AreaInfo[MenuHunt[0].Selected].m_Price;
 			}
 
-			int32_t score = (g_UserProfile.Score - g_ScoreDebit) + scorea;
+			HuntBudget score = RemainingHuntBudget(g_UserProfile.Score, g_ScoreDebit) + scorea;
 			int yd = g_CursorPos.y - MenuHunt[0].Rect.top;
 
 			unsigned index = HuntListDataIndex(yd / 16, MenuHunt[0].Offset);
@@ -2319,7 +2300,7 @@ void MenuEventInput(int32_t menu)
 		}
 		else if (IsPointInRect(g_CursorPos, MenuHunt[1].Rect))
 		{
-			int32_t score = g_UserProfile.Score - g_ScoreDebit;
+			HuntBudget score = RemainingHuntBudget(g_UserProfile.Score, g_ScoreDebit);
 			int yd = g_CursorPos.y - MenuHunt[1].Rect.top;
 
 			unsigned index = yd / 16;
@@ -2354,7 +2335,7 @@ void MenuEventInput(int32_t menu)
 		}
 		else if (IsPointInRect(g_CursorPos, MenuHunt[2].Rect))
 		{
-			int32_t score = g_UserProfile.Score - g_ScoreDebit;
+			HuntBudget score = RemainingHuntBudget(g_UserProfile.Score, g_ScoreDebit);
 			int yd = g_CursorPos.y - MenuHunt[2].Rect.top;
 
 			unsigned index = HuntListDataIndex(yd / 16, MenuHunt[2].Offset);
@@ -2388,7 +2369,7 @@ void MenuEventInput(int32_t menu)
 		}
 		else if (IsPointInRect(g_CursorPos, MenuHunt[3].Rect))
 		{
-			int32_t score = g_UserProfile.Score - g_ScoreDebit;
+			HuntBudget score = RemainingHuntBudget(g_UserProfile.Score, g_ScoreDebit);
 			int yd = g_CursorPos.y - MenuHunt[3].Rect.top;
 			unsigned accIndex = (unsigned)(yd / 16) + MenuHunt[3].Offset;
 
@@ -2469,6 +2450,14 @@ void MenuEventInput(int32_t menu)
 				if (MenuHunt[0].Selected == -1)
 				{
 					// -- Don't launch
+					return;
+				}
+
+				// Recheck the whole setup before saving/launching, including restored
+				// selections whose authored prices may have changed since last use.
+				g_ScoreDebit = CalculateDebit();
+				if (g_ScoreDebit > static_cast<HuntBudget>(g_UserProfile.Score)) {
+					ShowErrorMessage("The selected hunt exceeds your setup budget.");
 					return;
 				}
 

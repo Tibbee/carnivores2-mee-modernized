@@ -6,12 +6,18 @@
 
 .DESCRIPTION
     The hunt-screen equipment shop reads its rows from HUNTDAT/_MENU.TXT (with
-    HUNTDAT/_RES.TXT as the legacy fallback). Two optional blocks redirect a
-    row's art and blurb:
+    HUNTDAT/_RES.TXT as the legacy fallback). Optional shop blocks customize
+    existing rows. Assignments must follow the header on separate lines:
 
-        accessory_icons        { flashlight = 'huntdat/menu/pics/x.tga' }
-        accessory_descriptions  { flashlight = 'huntdat/menu/txt/x.nfo' }
-        accessory_prices        { flashlight = 30 }
+        accessory_prices
+        {
+            flashlight = 30
+        }
+        .
+
+    See docs/MODDING-SHOP.md for the complete stock-tail replacement, including
+    the score-block closer and final file dot. Icon and description blocks use
+    the same multiline shape, with single-quoted game-relative file paths.
 
     This walks the same script the menu reads and reports, before the modder
     ships:
@@ -20,9 +26,9 @@
         changes nothing in-game)
       - every override whose file does not exist, or whose icon is not the
         menu art format (16-bit uncompressed truecolor TGA, no palette)
-      - icons wider than ~762 px (DrawPicture blits 1:1 at x=38 in the
-        800-wide buffer, so anything wider spills onto the next row) and
-        non-stock cell sizes (741x214; any size renders, but nothing scales)
+      - icons exceeding the visible canvas at (38,73): the menu now clips
+        them safely, but does not scale them; non-stock cell sizes (741x214)
+        may also look wrong
       - description lines longer than ~48 characters (the info panel draws
         them unwrapped at x=424, so long lines run off the panel)
       - rows whose default art/text is missing from this install (the row
@@ -82,18 +88,15 @@ function Test-GameFile {
 
 function Get-RelativePath {
     param([string]$Value)
-    # Data paths appear with either separator, and INI-style samples double the
-    # backslashes ('huntdat\\menu\\pics\\x.tga').
-    $p = $Value.Replace('\\', '/').Replace('\', '/')
-    while ($p.Contains('//')) { $p = $p.Replace('//', '/') }
-    return $p
+    # Keep authored paths: the runtime does not rewrite them either.
+    return $Value
 }
 
 # One pair of surrounding single quotes, the way Menu/Resources.cpp strips
 # script values. Trim("'") would eat runs of quotes; the menu eats exactly one.
 function Get-Unquoted {
     param([string]$Value)
-    $v = $Value.Trim()
+    $v = $Value.Trim([char[]]" `t`r`n")
     if ($v.Length -ge 2 -and $v[0] -eq "'" -and $v[-1] -eq "'") {
         return $v.Substring(1, $v.Length - 2)
     }
@@ -104,7 +107,7 @@ function Get-Unquoted {
 # ignored (Menu/Resources.cpp NormalizeAccessoryKey).
 function Get-NormalizedKey {
     param([string]$Key)
-    return ((Get-Unquoted $Key) -replace '[\s_-]', '').ToLowerInvariant()
+    return ((Get-Unquoted $Key) -replace '[ \t_-]', '').ToLowerInvariant()
 }
 
 if (-not (Test-Path -LiteralPath $GameDir -PathType Container)) {
@@ -158,8 +161,21 @@ function Get-RowForKey {
     return $null
 }
 
-# Recognize section headers, not mentions in comments or other script lines.
-# Column-zero # and ; are ignored by LoadResourcesScript().
+# Match the runtime's quote-aware comments in new shop blocks and dispatch.
+function Get-CodeLine {
+    param([string]$Line)
+    $quoted = $false
+    for ($i = 0; $i -lt $Line.Length; $i++) {
+        if ($Line[$i] -eq "'") { $quoted = -not $quoted }
+        if (-not $quoted -and ($Line[$i] -eq '#' -or $Line[$i] -eq ';' -or
+            ($Line[$i] -eq '/' -and $i + 1 -lt $Line.Length -and $Line[$i + 1] -eq '/'))) {
+            return $Line.Substring(0, $i)
+        }
+    }
+    return $Line
+}
+
+# Recognize complete, case-sensitive header tokens, not substring mentions.
 function Get-AccessoryBlockKind {
     param([string]$Line)
     if ($Line.StartsWith('#') -or $Line.StartsWith(';')) { return $null }
@@ -215,11 +231,27 @@ $textOverrides = @{}
 $priceOverrides = @{}
 $block = $null
 $scoreBlock = $false
+$nestedSection = $false
+$nestedDepth = 0
+$nestedStarted = $false
 $terminated = $false
 $lineNo = 0
 if (Test-GameFile $script) {
     foreach ($line in [System.IO.File]::ReadAllLines($script)) {
         $lineNo++
+        if ($nestedSection) {
+            $nestedDepth += ([regex]::Matches($line, '\{')).Count - ([regex]::Matches($line, '\}')).Count
+            if ($line.Contains('{')) { $nestedStarted = $true }
+            if ($nestedStarted -and $nestedDepth -le 0) { $nestedSection = $false }
+            continue
+        }
+        if (-not $scoreBlock -and $line.Length -gt 4096) {
+            $errors.Add("line too long  ${scriptName}:$lineNo exceeds 4096 characters; the runtime ignores the whole line")
+            continue
+        }
+        # Preserve the score reader's old grammar; only dispatch/new blocks
+        # use the improved comment rules.
+        if (-not $scoreBlock) { $line = Get-CodeLine $line }
         $header = Get-AccessoryBlockKind $line
         if ($scoreBlock) {
             if ($line.Length -gt 0 -and $line[0] -eq '.') { $scoreBlock = $false; continue }
@@ -250,25 +282,42 @@ if (Test-GameFile $script) {
             }
             $eq = $line.IndexOf('=')
             if ($eq -lt 1) { continue }
-            $key = $line.Substring(0, $eq).Trim()
+            $key = $line.Substring(0, $eq).Trim([char[]]" `t`r`n")
             if ($key -eq '' -or $key[0] -eq '#') { continue }
             $value = $line.Substring($eq + 1)
-            $hash = $value.IndexOf('#')
-            if ($hash -ge 0) { $value = $value.Substring(0, $hash) }
-            if ($block -eq 'prices') { $value = $value.Trim() }
+            if ($block -eq 'prices') { $value = $value.Trim([char[]]@(32,9,10,13,11,12)) }
             else { $value = (Get-Unquoted $value) }
             if ($value -eq '' -and $block -ne 'prices') { continue }
             $entry = @{ Value = $value; Line = $lineNo }
             if ($block -eq 'icons') { $entry.Value = Get-RelativePath $value; $iconOverrides[(Get-NormalizedKey $key)] = $entry }
             elseif ($block -eq 'texts') { $entry.Value = Get-RelativePath $value; $textOverrides[(Get-NormalizedKey $key)] = $entry }
-            else { $priceOverrides[(Get-NormalizedKey $key)] = $entry }
+            else {
+                $parsed = 0
+                if ($value -notmatch '^[+-]?[0-9]+$' -or -not [int]::TryParse($value, [ref]$parsed) -or $parsed -lt 0) {
+                    $errors.Add("bad price      '$value' (${scriptName}:$lineNo) must be a nonnegative whole number within the 32-bit range (runtime ignores this assignment)")
+                } else { $priceOverrides[(Get-NormalizedKey $key)] = $entry }
+            }
             continue
         }
         if ($line -cmatch '^\s*accessories(?:\s|\{|$)' -and -not $line.StartsWith('#') -and -not $line.StartsWith(';')) {
             $scoreBlock = $true
             continue
         }
-        if ($null -ne $header) { $block = $header; continue }
+        if ($null -ne $header) {
+            if ($line.Contains('=')) {
+                $errors.Add("bad header     ${scriptName}:$lineNo put assignments on separate lines after the shop section header")
+            }
+            $block = $header
+            continue
+        }
+        # Production readers consume these brace-delimited sections before
+        # dispatch resumes. A dot inside one is not the menu EOF.
+        if ($line -cmatch '^\s*(weapons|characters|prices)(?:\s|\{|$)' -or
+            ($line.Contains('{') -and $line -cmatch '^\s*(common|areatable|spawntable|packtable|trophytable|oldambients|corpseambients|mapambients|hunterinfo)(?:\s|\{|$)')) {
+            $nestedDepth = ([regex]::Matches($line, '\{')).Count - ([regex]::Matches($line, '\}')).Count
+            $nestedStarted = $line.Contains('{')
+            $nestedSection = -not $nestedStarted -or $nestedDepth -gt 0
+        }
     }
     if ($scoreBlock) {
         $errors.Add("unterminated   $scriptName ends inside the legacy accessories score block")
@@ -301,8 +350,13 @@ function Read-TgaHeader {
 foreach ($entry in $iconOverrides.GetEnumerator()) {
     $row = Get-RowForKey -Key $entry.Key
     $where = "${scriptName}:$($entry.Value.Line)"
-    if ($null -eq $row) {
-        $errors.Add("unknown key    '$($entry.Key)' ($where) matches no shop row -- the override silently changes nothing")
+    if ($null -eq $row -or $row.ScoreKey -eq 'observe') {
+        $errors.Add("unknown key    '$($entry.Key)' ($where) matches no icon target -- the override silently changes nothing")
+        continue
+    }
+    $effective = Get-EffectiveOverride -Overrides $iconOverrides -Row $row
+    if ($effective.Line -ne $entry.Value.Line) {
+        $notes.Add("shadowed icon  '$($entry.Key)' ($where) is unused; a higher-priority key wins for '$($row.Name)'")
         continue
     }
     $full = Join-Path $GameDir $entry.Value.Value
@@ -327,8 +381,8 @@ foreach ($entry in $iconOverrides.GetEnumerator()) {
     if (($header.Descriptor -band 0x20) -ne 0) {
         $warnings.Add("top-origin icon $($entry.Value.Value)   has its top-origin bit set; the menu ignores the origin and will draw it upside down")
     }
-    if ($header.Width -gt 762) {
-        $warnings.Add("wide icon      $($entry.Value.Value)   is $($header.Width)x$($header.Height); DrawPicture blits 1:1 at x=38 in the 800-wide buffer, so anything wider than 762 spills onto the next row")
+    if ($header.Width -gt 762 -or $header.Height -gt 527) {
+        $warnings.Add("clipped icon   $($entry.Value.Value)   is $($header.Width)x$($header.Height); the menu clips it to the canvas at (38,73), without scaling")
     } elseif ($header.Width -ne 741 -or $header.Height -ne 214) {
         $warnings.Add("odd icon size  $($entry.Value.Value)   is $($header.Width)x$($header.Height); the stock cell is 741x214 and nothing scales, so it renders 1:1 at the same spot")
     }
@@ -341,11 +395,6 @@ foreach ($entry in $priceOverrides.GetEnumerator()) {
         $errors.Add("unknown key    '$($entry.Key)' ($where) matches no priced shop row")
         continue
     }
-    $price = $entry.Value.Value.Trim()
-    $parsed = 0
-    if ($price -notmatch '^\+?[0-9]+$' -or -not [int]::TryParse($price, [ref]$parsed) -or $parsed -lt 0) {
-        $errors.Add("bad price      '$($entry.Value.Value)' ($where) must be a nonnegative whole number within the 32-bit range")
-    }
 }
 
 foreach ($entry in $textOverrides.GetEnumerator()) {
@@ -353,6 +402,11 @@ foreach ($entry in $textOverrides.GetEnumerator()) {
     $where = "${scriptName}:$($entry.Value.Line)"
     if ($null -eq $row) {
         $errors.Add("unknown key    '$($entry.Key)' ($where) matches no shop row -- the override silently changes nothing")
+        continue
+    }
+    $effective = Get-EffectiveOverride -Overrides $textOverrides -Row $row
+    if ($effective.Line -ne $entry.Value.Line) {
+        $notes.Add("shadowed text  '$($entry.Key)' ($where) is unused; a higher-priority key wins for '$($row.Name)'")
         continue
     }
     $full = Join-Path $GameDir $entry.Value.Value

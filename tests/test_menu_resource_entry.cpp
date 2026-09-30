@@ -440,6 +440,109 @@ TEST(MenuResourceEntry, ExplicitPicturePathOverridesTheDefaultThumbnail)
     EXPECT_EQ(g_DinoInfo[0].m_PicturePath, "huntdat/menu/pics/custom.tga");
 }
 
+TEST(MenuResourceEntry, ShopHeadersIgnoreCommentsAndSubstringMentions)
+{
+    ResetMenuState();
+    TempMenuDirectory fixture;
+    std::ofstream menu("huntdat/_menu.txt");
+    menu << "common {\n.\n}\n"
+            "// accessory_descriptions is only a comment\n"
+            "  # accessory_prices = mentioned in a comment\n"
+            "  ; accessory_icons is also a comment\n"
+            "not_accessory_prices\n"
+            "accessory_icons\n{\nflashlight = 'lamp#1.tga' # actual comment\n}\n.\n"
+            "accessory_prices\n{\n; flashlight = 900\n// radar = 800\nflashlight = -0\n}\n.\n.\n";
+    menu.close();
+    ASSERT_NO_THROW(LoadResourcesScript());
+    EXPECT_EQ(g_AccessoryIcons["flashlight"], "lamp#1.tga");
+    EXPECT_TRUE(g_AccessoryDescriptions.empty());
+    ASSERT_EQ(g_AccessoryPriceOverrides.size(), 1u);
+    EXPECT_EQ(g_AccessoryPriceOverrides["flashlight"], 0);
+}
+
+TEST(MenuResourceEntry, ShopAssignmentsReadCompleteLinesAndBoundExcessiveLines)
+{
+    ResetMenuState();
+    LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+    LoadDiagnostics::Instance().Clear();
+    const std::string text = "flashlight =" + std::string(300, ' ') + "'long#path.tga'\n"
+        "radar =" + std::string(4100, ' ') + "'ignored.tga'\n"
+        "scent = 'after.tga'\n.\n";
+    TempScript script(text.c_str());
+    ASSERT_NE(script.stream, nullptr);
+    ReadAccessoryIcons(script.stream);
+    EXPECT_EQ(g_AccessoryIcons["flashlight"], "long#path.tga");
+    EXPECT_EQ(g_AccessoryIcons.count("radar"), 0u);
+    EXPECT_EQ(g_AccessoryIcons["scent"], "after.tga");
+    EXPECT_EQ(LoadDiagnostics::Instance().Count(), 1u);
+    TempScript prices(("flashlight =" + std::string(300, ' ') + "7\n.\n").c_str());
+    ReadAccessoryPrices(prices.stream);
+    EXPECT_EQ(g_AccessoryPriceOverrides["flashlight"], 7);
+    LoadDiagnostics::Instance().SetMode(LoadMode::Strict);
+    TempScript strict(("radar =" + std::string(4100, ' ') + "9\n.\n").c_str());
+    EXPECT_THROW(ReadAccessoryPrices(strict.stream), std::exception);
+    LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+    LoadDiagnostics::Instance().Clear();
+}
+
+TEST(MenuResourceEntry, InvalidLaterNamedPriceDoesNotEraseTheValidOverride)
+{
+    ResetMenuState();
+    LoadDiagnostics::Instance().Clear();
+    LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+    TempScript prices("camo = 7\ncamo = 999999999999\n.\n");
+    ReadAccessoryPrices(prices.stream);
+    EXPECT_EQ(g_AccessoryPriceOverrides["camo"], 7);
+    EXPECT_EQ(LoadDiagnostics::Instance().Count(), 1u);
+    LoadDiagnostics::Instance().Clear();
+}
+
+TEST(MenuResourceEntry, InlineShopAssignmentReportsInsteadOfSilentlySucceeding)
+{
+    ResetMenuState();
+    TempMenuDirectory fixture;
+    std::ofstream("huntdat/_menu.txt") << "accessory_prices { flashlight = 7 }\n.\n.\n";
+    std::ostringstream log;
+    auto* previous = std::cout.rdbuf(log.rdbuf());
+    EXPECT_NO_THROW(LoadResourcesScript());
+    std::cout.rdbuf(previous);
+    EXPECT_TRUE(g_AccessoryPriceOverrides.empty());
+    EXPECT_NE(log.str().find("put assignments on separate lines"), std::string::npos);
+}
+
+TEST(MenuResourceEntry, BackgroundDimensionsAreValidatedBeforeFixedSizeCopies)
+{
+    TempMenuDirectory fixture;
+    LoadDiagnostics::Instance().Clear();
+    for (unsigned width : {1u, 800u}) {
+        const unsigned height = width == 1 ? 1 : 600;
+        unsigned char header[18] = {0,0,2};
+        header[12] = static_cast<unsigned char>(width);
+        header[13] = static_cast<unsigned char>(width >> 8);
+        header[14] = static_cast<unsigned char>(height);
+        header[15] = static_cast<unsigned char>(height >> 8);
+        header[16] = 16;
+        std::ofstream out("background.tga", std::ios::binary);
+        out.write(reinterpret_cast<char*>(header), sizeof header);
+        std::vector<char> pixels(width * height * 2, 0);
+        out.write(pixels.data(), pixels.size());
+        out.close();
+        TargaImage image;
+        EXPECT_EQ(LoadMenuBackground("background.tga", image), width == 800);
+    }
+    EXPECT_EQ(LoadDiagnostics::Instance().Count(), 1u);
+    LoadDiagnostics::Instance().Clear();
+}
+
+TEST(MenuResourceEntry, EmptyDescriptionFileIsAnIntentionalBlankOverride)
+{
+    TempMenuDirectory fixture;
+    std::ofstream("empty.nfo");
+    std::vector<std::string> lines;
+    ASSERT_TRUE(LoadText(lines, "empty.nfo"));
+    EXPECT_TRUE(lines.empty());
+}
+
 TEST(MenuResourceEntry, StockShapedScriptLoadsBlocksAndNamedPrices)
 {
     ResetMenuState();

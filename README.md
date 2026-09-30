@@ -79,8 +79,8 @@ diagnostic, and there is a strict mode for when you actually want it to stop.
 
 ### Prerequisites
 
-- CMake 3.15 or newer. The presets are written against 3.15 and the project
-  declares the same minimum.
+- CMake **3.21 or newer** for the supplied presets (schema version 3).
+  `CMakeLists.txt` declares 3.15, but that does not make presets usable on 3.15.
 - Visual Studio 2019/2022 or the MSVC build tools.
 - **32-bit x86.** `Hunt/Renderer/renderasm.cpp` contains inline x86 assembly, so
   there is no x64 build. If your toolset is 64-bit-only you need the x86
@@ -153,14 +153,24 @@ per-second state line for every reacting animal: species, position, where it
 thinks you're going, how far away you actually are, and how much reaction time
 it has left. Most AI questions get answered from that file.
 
-`docs/DEBUGGING.md` has the full key list, every `config.cfg` option, and the
+`docs/DEBUGGING.md` lists keys, important `config.cfg` options, and the
 data validation tools worth using before filing a bug.
+
+## Customizing the equipment shop
+
+Existing rows accept named prices and icon/description redirects in
+`HUNTDAT/_MENU.TXT`, without recompiling. Prices reserve the current hunt's
+setup budget; they are not permanently deducted from profile score.
+[docs/MODDING-SHOP.md](docs/MODDING-SHOP.md) has a copyable example, the required
+block terminators, supported keys, and the read-only asset checker. These hooks
+do not add new rows or gameplay abilities.
 
 ## Documentation
 
 - [CHANGELOG.md](CHANGELOG.md): what changed in each release
 - [docs/BUILDING.md](docs/BUILDING.md): presets, packaging, PGO, deployment
 - [docs/DEBUGGING.md](docs/DEBUGGING.md): keys, logs, config, data validation
+- [docs/MODDING-SHOP.md](docs/MODDING-SHOP.md): equipment prices, art, text and validation
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): source layout and how it got
   that way
 - [NOTICE.md](NOTICE.md): upstream credits, base commit, third-party licences

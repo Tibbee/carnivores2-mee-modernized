@@ -18,6 +18,17 @@ Draft changes on local `main` after `origin/main` (`9db51ec`); not part of
 the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
 
+### Unmerged shop-externalization branch
+
+`feature/shop-externalization` additionally provides named prices and icon/text
+redirects for existing equipment rows, plus a read-only shop checker. These
+changes are not on `main` or in a published package; see
+[the modder guide](docs/MODDING-SHOP.md). Pictures are clipped to the menu canvas,
+setup-budget totals use 64-bit arithmetic, and comments/complete-line parsing
+and checker diagnostics agree for the new blocks. Legacy positional prices
+and score-block terminators remain supported. Prices do not permanently spend
+profile score. Dynamic rows are not implemented.
+
 ### Summary
 - Restore legacy/mod script tolerance with a lenient-by-default load policy,
   repair finite creature-awareness edge cases and pack/flee behavior, and

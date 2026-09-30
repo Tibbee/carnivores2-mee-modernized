@@ -717,36 +717,75 @@ static void StripScriptQuotes(std::string& value)
  * texts are plain text, one panel line per file line, under about 48
  * characters (the panel draws them unwrapped).
  */
+// New shop blocks and top-level dispatch consume complete logical lines.
+// Bound authored lines, but never reinterpret an overlong line's remainder.
+static bool ReadMenuLine(FILE* stream, std::string& line)
+{
+	line.clear();
+	bool overflow = false;
+	int c;
+	while ((c = fgetc(stream)) != EOF && c != '\n') {
+		if (c == '\r') continue;
+		if (line.size() < 4096) line.push_back(static_cast<char>(c));
+		else overflow = true;
+	}
+	if (c == EOF && line.empty() && !overflow) return false;
+	++g_ScriptLine;
+	if (overflow) {
+		LoadDiagnostics::Instance().Report("MenuResource", "script line",
+			"line exceeds 4096 characters (whole line ignored)", nullptr);
+		if (LoadDiagnostics::Instance().Strict())
+			throw script_error("Menu script line exceeds 4096 characters.", "ReadMenuLine", g_ScriptLine);
+		line.clear();
+	}
+	return true;
+}
+
+static std::string MenuLineWithoutComment(const std::string& line)
+{
+	bool quoted = false;
+	for (size_t i = 0; i < line.size(); ++i) {
+		if (line[i] == '\'') quoted = !quoted;
+		if (!quoted && (line[i] == '#' || line[i] == ';' ||
+			(line[i] == '/' && i + 1 < line.size() && line[i + 1] == '/')))
+			return line.substr(0, i);
+	}
+	return line;
+}
+
+static bool MenuSectionIs(const std::string& line, const char* key)
+{
+	const size_t begin = line.find_first_not_of(" \t\r\n");
+	if (begin == std::string::npos) return false;
+	const size_t end = begin + strlen(key);
+	return line.compare(begin, strlen(key), key) == 0 &&
+		(end == line.size() || line[end] == '{' || std::isspace(static_cast<unsigned char>(line[end])));
+}
+
 static void ReadAccessoryPathBlock(FILE* stream, std::map<std::string, std::string>& target, const char* what)
 {
-	char line[256];
+	std::string line;
 	uint32_t count = 0;
 
-	while (fgets(line, 255, stream))
+	while (ReadMenuLine(stream, line))
 	{
-		g_ScriptLine++;
-		if (line[0] == '.') break; // end of block
+		if (!line.empty() && line[0] == '.') break; // legacy column-zero closer
+		line = MenuLineWithoutComment(line);
+		const size_t eq = line.find('=');
+		if (eq == std::string::npos) continue;
 
-		const char* eq = strchr(line, '=');
-		if (!eq) continue;
-
-		std::string key(line, eq - line);
+		std::string key = line.substr(0, eq);
 		while (!key.empty() && (key.back() == ' ' || key.back() == '\t' || key.back() == '\r' || key.back() == '\n'))
 			key.pop_back();
 		size_t kstart = key.find_first_not_of(" \t");
 		if (kstart != std::string::npos) key = key.substr(kstart);
 		if (key.empty() || key[0] == '#') continue;
 
-		std::string value(eq + 1);
+		std::string value = line.substr(eq + 1);
 		while (!value.empty() && (value.back() == ' ' || value.back() == '\t' || value.back() == '\r' || value.back() == '\n'))
 			value.pop_back();
 		size_t vstart = value.find_first_not_of(" \t");
 		if (vstart != std::string::npos) value = value.substr(vstart);
-		size_t comment = value.find('#');
-		if (comment != std::string::npos) value = value.substr(0, comment);
-		while (!value.empty() && (value.back() == ' ' || value.back() == '\t' || value.back() == '\r' || value.back() == '\n'))
-			value.pop_back();
-
 		if (value.empty()) continue;
 
 		// Keys may be quoted like the values ('Cover scent' = '...').
@@ -778,13 +817,13 @@ void ReadAccessoryDescriptions(FILE* stream)
 // resolved positional/default price when that row is constructed.
 void ReadAccessoryPrices(FILE* stream)
 {
-	char line[256];
-	while (fgets(line, 255, stream)) {
-		g_ScriptLine++;
-		if (line[0] == '.') break;
-		const char* eq = strchr(line, '=');
-		if (!eq) continue;
-		std::string key(line, eq - line);
+	std::string line;
+	while (ReadMenuLine(stream, line)) {
+		if (!line.empty() && line[0] == '.') break;
+		line = MenuLineWithoutComment(line);
+		const size_t eq = line.find('=');
+		if (eq == std::string::npos) continue;
+		std::string key = line.substr(0, eq);
 		const size_t start = key.find_first_not_of(" \t");
 		if (start == std::string::npos || key[start] == '#' || key[start] == ';') continue;
 		key = key.substr(start);
@@ -792,16 +831,14 @@ void ReadAccessoryPrices(FILE* stream)
 		StripScriptQuotes(key);
 		key = NormalizeAccessoryKey(key);
 		if (key.empty()) continue;
-		std::string value(eq + 1);
-		const size_t comment = value.find('#');
-		if (comment != std::string::npos) value.erase(comment);
+		std::string value = line.substr(eq + 1);
 		const ScriptIntResult parsed = ParseScriptIntStatus(value.c_str(), 0);
 		char* end = nullptr;
 		std::strtol(value.c_str(), &end, 10);
 		while (*end && std::isspace(static_cast<unsigned char>(*end))) ++end;
 		if (parsed.status != ScriptScalarStatus::Ok || parsed.value < 0 || *end) {
 			LoadDiagnostics::Instance().Report("accessory price", key.c_str(),
-				"expected a nonnegative whole-number price (override ignored)", line);
+				"expected a nonnegative whole-number price (override ignored)", line.c_str());
 			if (LoadDiagnostics::Instance().Strict())
 				throw script_error("Invalid named accessory price.", "ReadAccessoryPrices", g_ScriptLine);
 			continue;
@@ -1208,7 +1245,7 @@ void LoadResourcesScript()
 	InitMenuLoadPolicy();
 
 	FILE* file;
-	char line[256];
+	std::string line;
 
 	// Initialise some things
 	g_StartCredits = 100; // Default
@@ -1230,47 +1267,53 @@ void LoadResourcesScript()
 		return;
 	}
 
+	std::unique_ptr<FILE, decltype(&fclose)> ownedFile(file, fclose);
 	try
 	{
 		std::cout << "Loading resources script..." << std::endl;
 
-		while (fgets(line, 255, file))
+		while (ReadMenuLine(file, line))
 		{
-			g_ScriptLine++;
+			if (!line.empty() && line[0] == '.') break; // column-zero EOF
+			line = MenuLineWithoutComment(line);
+			const bool shopHeader = MenuSectionIs(line, "accessory_icons") ||
+				MenuSectionIs(line, "accessory_descriptions") || MenuSectionIs(line, "accessory_prices");
+			if (shopHeader && line.find('=') != std::string::npos) {
+				LoadDiagnostics::Instance().Report("MenuResource", "shop section header",
+					"put assignments on separate lines inside the block", line.c_str());
+				if (LoadDiagnostics::Instance().Strict())
+					throw script_error("Shop assignments must follow the section header.", "LoadResourcesScript", g_ScriptLine);
+			}
 
-			if (line[0] == '.') break;			//endoffile EOF
-			if (line[0] == '#') continue;	//comment
-			if (line[0] == ';') continue;	//comment
-
-			// Menu-relevant sections (these must appear at start of line)
-			if (strstr(line, "weapons")) {
+			// Complete header tokens only; comments/paths cannot select readers.
+			if (MenuSectionIs(line, "weapons")) {
 				std::cout << "Found 'weapons' section at line " << g_ScriptLine << std::endl;
 				ReadWeapons(file);
 				std::cout << "Loaded " << g_WeapInfo.size() << " weapons" << std::endl;
 			}
-			else if (strstr(line, "characters")) {
+			else if (MenuSectionIs(line, "characters")) {
 				std::cout << "Found 'characters' section at line " << g_ScriptLine << std::endl;
 				ReadCharacters(file);
 				std::cout << "Loaded " << g_DinoInfo.size() << " characters" << std::endl;
 			}
-			else if (strstr(line, "accessory_prices")) {
+			else if (MenuSectionIs(line, "accessory_prices")) {
 				std::cout << "Found 'accessory_prices' section at line " << g_ScriptLine << std::endl;
 				ReadAccessoryPrices(file);
 			}
-			else if (strstr(line, "prices")) {
+			else if (MenuSectionIs(line, "prices")) {
 				std::cout << "Found 'prices' section at line " << g_ScriptLine << std::endl;
 				ReadPrices(file);
 				std::cout << "Loaded " << g_AreaInfo.size() << " areas" << std::endl;
 			}
-			else if (strstr(line, "accessories")) {
+			else if (MenuSectionIs(line, "accessories")) {
 				std::cout << "Found 'accessories' section at line " << g_ScriptLine << std::endl;
 				ReadAccessories(file);
 			}
-			else if (strstr(line, "accessory_icons")) {
+			else if (MenuSectionIs(line, "accessory_icons")) {
 				std::cout << "Found 'accessory_icons' section at line " << g_ScriptLine << std::endl;
 				ReadAccessoryIcons(file);
 			}
-			else if (strstr(line, "accessory_descriptions")) {
+			else if (MenuSectionIs(line, "accessory_descriptions")) {
 				std::cout << "Found 'accessory_descriptions' section at line " << g_ScriptLine << std::endl;
 				ReadAccessoryDescriptions(file);
 			}
@@ -1278,13 +1321,16 @@ void LoadResourcesScript()
 			// C2ME sections we don't need - skip their blocks
 			// Note: these checks require the keyword at the start of the line
 			// to avoid matching substrings inside other sections
-			else if (strstr(line, "common") || strstr(line, "areatable") ||
-			         strstr(line, "spawntable") || strstr(line, "packtable") ||
-			         strstr(line, "trophytable") || strstr(line, "oldambients") ||
-			         strstr(line, "corpseambients") || strstr(line, "mapambients") ||
-			         strstr(line, "hunterinfo")) {
-				if (strstr(line, "{")) {
-					SkipNestedBlock(file, line, 255);
+			else if (MenuSectionIs(line, "common") || MenuSectionIs(line, "areatable") ||
+			         MenuSectionIs(line, "spawntable") || MenuSectionIs(line, "packtable") ||
+			         MenuSectionIs(line, "trophytable") || MenuSectionIs(line, "oldambients") ||
+			         MenuSectionIs(line, "corpseambients") || MenuSectionIs(line, "mapambients") ||
+			         MenuSectionIs(line, "hunterinfo")) {
+				if (line.find('{') != std::string::npos) {
+					int depth = 0;
+					do {
+						for (char c : line) { if (c == '{') ++depth; else if (c == '}') --depth; }
+					} while (depth > 0 && ReadMenuLine(file, line));
 				}
 			}
 		}
@@ -1296,7 +1342,7 @@ void LoadResourcesScript()
 		throw std::runtime_error(e.what());
 	}
 
-	fclose(file);
+	ownedFile.reset();
 
 	// Custom-map discovery (.c2map files in HUNTDAT/AREAS/).
 	// Modder-friendly feature: ship a .c2map descriptor and the menu
@@ -1697,6 +1743,17 @@ bool ReadTGAFile(const std::string& path, TargaImage& tga)
 }
 
 
+bool LoadMenuBackground(const std::string& path, TargaImage& tga)
+{
+	if (!ReadTGAFile(path, tga)) return false;
+	if (tga.m_Header.tgaWidth != 800 || tga.m_Header.tgaHeight != 600) {
+		LoadDiagnostics::Instance().Report("menu background", path.c_str(),
+			"full-screen menu art must be 800x600", nullptr);
+		return false;
+	}
+	return true;
+}
+
 bool LoadPicture(Picture& pic, const std::string& fpath)
 {
 	TargaImage tga;
@@ -1733,13 +1790,11 @@ bool LoadText(std::vector<std::string>& txt, const std::string& path)
 
 	if (tf.is_open())
 	{
-		while (!tf.eof())
-		{
-			std::string line = "";
-			std::getline(tf, line);
-			txt.push_back(line);
-		}
-		tf.close();
+		std::vector<std::string> loaded;
+		std::string line;
+		while (std::getline(tf, line)) loaded.push_back(line);
+		if (tf.bad() || (tf.fail() && !tf.eof())) return false;
+		txt.insert(txt.end(), loaded.begin(), loaded.end());
 		return true;
 	}
 	else

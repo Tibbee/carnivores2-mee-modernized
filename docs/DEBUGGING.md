@@ -94,6 +94,16 @@ exits `1` on errors. `-Strict` also fails on warnings. Textures and sounds are
 deliberately not checked, because the engine reports those differently and
 listing them would be noise.
 
+For equipment prices, icons and descriptions, also run:
+
+```powershell
+pwsh tools/check_mod_assets.ps1 -GameDir E:/Games/CarnivoresLegacy
+```
+
+It checks shop keys, effective overrides, image formats, text and block
+placement without changing the installation. `-Strict` also fails on warnings.
+[MODDING-SHOP.md](MODDING-SHOP.md) explains the supported authoring syntax.
+
 ### Strict load mode
 
 By default the engine is forgiving on purpose. Malformed scalars keep a
@@ -108,8 +118,10 @@ load_mode strict
 ```
 
 Or set `C2_STRICT_DATA=1` in the environment, which is easier for CI. Strict
-mode halts on the first recoverable problem. Structurally malformed files and
-values that can't be made safe at all stay fatal in both modes.
+mode halts on recoverable scalar/index problems. Structurally malformed files
+and values that can't be made safe at all stay fatal in both modes. Menu art
+and description diagnostics remain nonfatal; use the shop checker's `-Strict`
+option when validating those assets.
 
 `tests/test_legacy_scalar_differential.cpp` pins every recovered value to what
 the original `atoi`/`atof` would have returned, so if someone ever tightens a
@@ -123,7 +135,7 @@ about survive. Values are validated on load.
 
 | Key | Default | |
 |---|---|---|
-| `renderer` | `1` | 0 software, 1 OpenGL. **Descriptive only**: the renderer is fixed at compile time. |
+| `renderer` | `1` | Selects the binary launched by the menu: 0 Software, 1 OpenGL. Each engine binary's backend is fixed at compile time. |
 | `fov` | `62` | Degrees, 35-90. |
 | `object_detail` | `48` | View distance / object detail, 24-96. |
 | `fps_limit` | `1` | 0 unlimited, 1 = 60, 2 = 120, 3 = 240. |
@@ -155,15 +167,10 @@ Audio reverb is tuned with commented-out `env0_*` overrides (`decay`, `decayhf`,
 compiled default.
 
 The engine only writes `config.cfg` when the file doesn't exist, so a config
-that predates a new feature keeps silently running that key on its default. If
-you want to know what's actually in effect:
-
-```powershell
-pwsh tools/c2_config_defaults.ps1 -ConfigPath config.cfg
-```
-
-It reports every entry that differs from the engine's built-in default, which is
-usually the quickest way to explain "the setting isn't doing anything".
+that predates a new feature keeps silently running that key on its default. To check effective settings, read the startup `Config effective:` entries in
+`render.log`, then compare omitted keys with the documented defaults and
+`CreateDefaultConfig()` in `Hunt/Game/EngineInit.cpp`. A local development-only
+config comparison script is not part of this repository's distributed tools.
 
 ## Performance
 
@@ -189,7 +196,8 @@ the sky modes.
 
 ## Tests
 
-Nine CTest binaries run without an MEE data set present:
+Ten default CTest suites (eight native executables and two PowerShell
+validator suites) run without an MEE data set present:
 
 | Test | Covers |
 |---|---|
@@ -202,6 +210,7 @@ Nine CTest binaries run without an MEE data set present:
 | `Carnivores2Tests.MenuResourceContracts` | The menu's `_MENU.TXT` reader with the `_RES.TXT` fallback, both grammars through the real `ReadCharacters()` / `ReadWeapons()` |
 | `Carnivores2Tests.ScriptParserContracts` | The real `_RES.TXT` line readers, checking that text fields can't select the numeric dispatch or a block opener |
 | `Carnivores2Tests.HuntdatValidator` | Runs `tools/check_huntdat.ps1` against fixtures |
+| `Carnivores2Tests.ShopAssetValidator` | Runs the shop checker against placement, alias, price, comment and asset fixtures |
 
 The `*Contracts` tests deliberately link the production source file rather than
 reimplementing it. If one of those breaks, it's because the real entry point
