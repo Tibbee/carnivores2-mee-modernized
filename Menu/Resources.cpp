@@ -17,6 +17,7 @@
 #include <memory>
 #include <limits>
 #include <string>
+#include <type_traits>
 #include <cstdlib>
 #include <cctype>
 #include <set>
@@ -145,6 +146,7 @@ void ReadCharacters(FILE*);
 void ReadAccessories(FILE*);
 void ReadAccessoryIcons(FILE*);
 void ReadAccessoryDescriptions(FILE*);
+void ReadAccessoryPrices(FILE*);
 void LoadC2Maps();
 
 
@@ -771,6 +773,42 @@ void ReadAccessoryDescriptions(FILE* stream)
 	ReadAccessoryPathBlock(stream, g_AccessoryDescriptions, "description");
 }
 
+// Optional named prices in _MENU.TXT. Keep the legacy 'prices' block and its
+// positional 'acces' lines untouched; these values only override a row's
+// resolved positional/default price when that row is constructed.
+void ReadAccessoryPrices(FILE* stream)
+{
+	char line[256];
+	while (fgets(line, 255, stream)) {
+		g_ScriptLine++;
+		if (line[0] == '.') break;
+		const char* eq = strchr(line, '=');
+		if (!eq) continue;
+		std::string key(line, eq - line);
+		const size_t start = key.find_first_not_of(" \t");
+		if (start == std::string::npos || key[start] == '#' || key[start] == ';') continue;
+		key = key.substr(start);
+		while (!key.empty() && (key.back() == ' ' || key.back() == '\t')) key.pop_back();
+		StripScriptQuotes(key);
+		key = NormalizeAccessoryKey(key);
+		if (key.empty()) continue;
+		std::string value(eq + 1);
+		const size_t comment = value.find('#');
+		if (comment != std::string::npos) value.erase(comment);
+		const ScriptIntResult parsed = ParseScriptIntStatus(value.c_str(), 0);
+		char* end = nullptr;
+		std::strtol(value.c_str(), &end, 10);
+		while (*end && std::isspace(static_cast<unsigned char>(*end))) ++end;
+		if (parsed.status != ScriptScalarStatus::Ok || parsed.value < 0 || *end) {
+			LoadDiagnostics::Instance().Report("accessory price", key.c_str(),
+				"expected a nonnegative whole-number price (override ignored)", line);
+			if (LoadDiagnostics::Instance().Strict())
+				throw script_error("Invalid named accessory price.", "ReadAccessoryPrices", g_ScriptLine);
+			continue;
+		}
+		g_AccessoryPriceOverrides[key] = parsed.value;
+	}
+}
 
 /*
  * LookupAccessoryIcon() / LookupAccessoryText()
@@ -784,8 +822,9 @@ void ReadAccessoryDescriptions(FILE* stream)
  * file: a missing one is reported and the row keeps its default path, so
  * the description can then fall back to its built-in text where provided.
  */
-static const std::string* FindAccessoryOverride(const std::map<std::string, std::string>& overrides,
-                                                const std::string& scoreKey, const char* name, const char* cmd)
+template <typename Value>
+static const Value* FindAccessoryOverride(const std::map<std::string, Value>& overrides,
+                                          const std::string& scoreKey, const char* name, const char* cmd)
 {
 	const std::string legacy = (cmd && cmd[0] == '-') ? std::string(cmd + 1) : std::string(cmd ? cmd : "");
 	const std::string probes[3] = {
@@ -796,8 +835,12 @@ static const std::string* FindAccessoryOverride(const std::map<std::string, std:
 	for (const std::string& probe : probes) {
 		if (probe.empty()) continue;
 		auto it = overrides.find(probe);
-		if (it != overrides.end() && !it->second.empty())
+		if (it != overrides.end()) {
+			if constexpr (std::is_same_v<Value, std::string>) {
+				if (it->second.empty()) continue;
+			}
 			return &it->second;
+		}
 	}
 	return nullptr;
 }
@@ -827,6 +870,13 @@ std::string LookupAccessoryText(const std::string& scoreKey, const char* name, c
 			"override file not found (using the default description file)", nullptr);
 	}
 	return defaultPath;
+}
+
+static int32_t LookupAccessoryPrice(const std::string& scoreKey, const char* name,
+                                    const char* cmd, int32_t fallback)
+{
+	const int32_t* price = FindAccessoryOverride(g_AccessoryPriceOverrides, scoreKey, name, cmd);
+	return price ? *price : fallback;
 }
 
 
@@ -1166,6 +1216,7 @@ void LoadResourcesScript()
 	g_AccessoryScoreMods.clear(); // reset on each script load
 	g_AccessoryIcons.clear();      // same: a reload must not keep the previous file's icons
 	g_AccessoryDescriptions.clear(); // same for the description overrides
+	g_AccessoryPriceOverrides.clear(); // same for named prices
 	g_AccessoryPrices.clear();
 
 	// Try _MENU.TXT first (simplified menu data with prices)
@@ -1201,6 +1252,10 @@ void LoadResourcesScript()
 				std::cout << "Found 'characters' section at line " << g_ScriptLine << std::endl;
 				ReadCharacters(file);
 				std::cout << "Loaded " << g_DinoInfo.size() << " characters" << std::endl;
+			}
+			else if (strstr(line, "accessory_prices")) {
+				std::cout << "Found 'accessory_prices' section at line " << g_ScriptLine << std::endl;
+				ReadAccessoryPrices(file);
 			}
 			else if (strstr(line, "prices")) {
 				std::cout << "Found 'prices' section at line " << g_ScriptLine << std::endl;
@@ -1296,7 +1351,8 @@ void LoadResources()
 		LoadRowDescription(ui.m_Description, scoreKey, name, cmd, descFile, builtinDesc);
 		ui.m_Command = cmd;
 		ui.m_ScoreMod = LookupAccessoryScoreMod(scoreKey, scoreDefault);
-		ui.m_Price = (accIdx < g_AccessoryPrices.size()) ? g_AccessoryPrices[accIdx] : defaultPrice;
+		const int32_t positional = (accIdx < g_AccessoryPrices.size()) ? g_AccessoryPrices[accIdx] : defaultPrice;
+		ui.m_Price = LookupAccessoryPrice(scoreKey, name, cmd, positional);
 		accIdx++;
 		// Icon override hook: mods can point any accessory at their own art via
 		// the 'accessory_icons { }' block. Both blocks address the row by its
@@ -1346,6 +1402,7 @@ void LoadResources()
 		ui.m_Price = 50; // fixed default (original feature commit)
 		// Do NOT advance accIdx: tranq still reads prices[4] on 5-line mods.
 	}
+	ui.m_Price = LookupAccessoryPrice("nightvision", "Night vision", "-nightvision", ui.m_Price);
 	// Addressable by both override blocks as 'nightvision' / 'Night vision'.
 	LoadPicture(ui.m_Thumbnail, LookupAccessoryIcon("nightvision", "Night vision", "-nightvision", "huntdat/menu/pics/equip_nv.tga"));
 	g_UtilInfo.push_back(ui);

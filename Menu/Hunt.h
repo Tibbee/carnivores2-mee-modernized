@@ -727,6 +727,7 @@ EXTERNAL UtilInfo				g_TranqInfo, g_ObserverInfo;
 EXTERNAL std::map<std::string, float> g_AccessoryScoreMods; // populated by ReadAccessories()
 EXTERNAL std::map<std::string, std::string> g_AccessoryIcons; // populated by ReadAccessoryIcons(): accessory key -> shop icon path
 EXTERNAL std::map<std::string, std::string> g_AccessoryDescriptions; // populated by ReadAccessoryDescriptions(): accessory key -> description text file path
+EXTERNAL std::map<std::string, int32_t> g_AccessoryPriceOverrides; // accessory_prices block: named prices override positional values
 EXTERNAL std::vector<int32_t> g_AccessoryPrices; // parsed from 'acces' lines in _MENU.TXT prices block
 // Built-in shop blurb for the flashlight, used only when the loaded HUNTDAT
 // ships no huntdat/menu/txt/flashlight.nfo. Defined in Menu/Resources.cpp (not

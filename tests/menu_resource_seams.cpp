@@ -16,6 +16,7 @@ std::vector<UtilInfo> g_UtilInfo;
 std::map<std::string, float> g_AccessoryScoreMods;
 std::map<std::string, std::string> g_AccessoryIcons;
 std::map<std::string, std::string> g_AccessoryDescriptions;
+std::map<std::string, int32_t> g_AccessoryPriceOverrides;
 std::vector<int32_t> g_AccessoryPrices;
 UtilInfo g_ObserverInfo;
 Options g_Options;

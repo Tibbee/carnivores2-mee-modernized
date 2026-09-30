@@ -11,6 +11,7 @@
 
 #include <cstdio>
 #include <exception>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -24,9 +25,35 @@ void ReadWeapons(FILE* stream);
 void ReadPrices(FILE* stream);
 void ReadAccessoryIcons(FILE* stream);
 void ReadAccessoryDescriptions(FILE* stream);
+void ReadAccessoryPrices(FILE* stream);
 bool LoadText(std::vector<std::string>& txt, const std::string& path);
 
 namespace {
+
+class TempMenuDirectory final
+{
+public:
+    TempMenuDirectory()
+        : previous(std::filesystem::current_path()),
+          root(std::filesystem::temp_directory_path() /
+               ("c2-shop-script-" + std::to_string(GetCurrentProcessId()) + "-" +
+                std::to_string(GetTickCount64())))
+    {
+        std::filesystem::create_directories(root / "huntdat");
+        std::filesystem::current_path(root);
+    }
+
+    ~TempMenuDirectory()
+    {
+        std::filesystem::current_path(previous);
+        std::error_code ignored;
+        std::filesystem::remove_all(root, ignored);
+    }
+
+private:
+    std::filesystem::path previous;
+    std::filesystem::path root;
+};
 
 class TempScript final
 {
@@ -59,6 +86,7 @@ void ResetMenuState()
     g_AccessoryScoreMods.clear();
     g_AccessoryIcons.clear();
     g_AccessoryDescriptions.clear();
+    g_AccessoryPriceOverrides.clear();
     g_StartCredits = 0;
 }
 
@@ -410,6 +438,142 @@ TEST(MenuResourceEntry, ExplicitPicturePathOverridesTheDefaultThumbnail)
 
     ASSERT_EQ(g_DinoInfo.size(), 1u);
     EXPECT_EQ(g_DinoInfo[0].m_PicturePath, "huntdat/menu/pics/custom.tga");
+}
+
+TEST(MenuResourceEntry, StockShapedScriptLoadsBlocksAndNamedPrices)
+{
+    ResetMenuState();
+    LoadDiagnostics::Instance().Clear();
+    TempMenuDirectory fixture;
+    // The shipped accessories block ends at its first dot, not its '}'.
+    // Adding a dot after it makes every new block reachable; the second dot
+    // after the final new block ends the top-level script.
+    std::ofstream menu("huntdat/_menu.txt");
+    ASSERT_TRUE(menu.is_open());
+    menu << "prices {\n start = 100\n acces = 30\n acces = 40\n acces = 20\n"
+            " acces = 50\n acces = 50\n acces = 60\n}\n"
+            "accessories\n{\n camo = 0.85\n}\n.\n"
+            "accessory_icons\n{\n scent = 'mod_scent.tga'\n}\n.\n"
+            "accessory_descriptions\n{\n flashlight = 'mod_flashlight.nfo'\n}\n.\n"
+            "accessory_prices\n{\n camo = 9\n nightvision = 70\n"
+            " tranq = 15\n flashlight = 0\n}\n.\n.\n";
+    menu.close();
+
+    ASSERT_NO_THROW(LoadResourcesScript());
+    EXPECT_EQ(g_AccessoryIcons["scent"], "mod_scent.tga");
+    EXPECT_EQ(g_AccessoryDescriptions["flashlight"], "mod_flashlight.nfo");
+    EXPECT_EQ(g_AccessoryPriceOverrides["nightvision"], 70);
+    EXPECT_EQ(g_AccessoryPriceOverrides["flashlight"], 0);
+    EXPECT_EQ(g_AccessoryPrices.size(), 6u);
+    EXPECT_NO_THROW(LoadResources());
+    ASSERT_EQ(g_UtilInfo.size(), 7u);
+    EXPECT_EQ(g_UtilInfo[0].m_Price, 9);
+    EXPECT_EQ(g_UtilInfo[1].m_Price, 40);
+    EXPECT_EQ(g_UtilInfo[2].m_Price, 20);
+    EXPECT_EQ(g_UtilInfo[3].m_Price, 50);
+    EXPECT_EQ(g_UtilInfo[4].m_Price, 70);
+    EXPECT_EQ(g_UtilInfo[5].m_Price, 15);
+    EXPECT_EQ(g_UtilInfo[6].m_Price, 0);
+    LoadDiagnostics::Instance().Clear();
+}
+
+TEST(MenuResourceEntry, MissingScoreBlockDotSwallowsTheNewSection)
+{
+    ResetMenuState();
+    LoadDiagnostics::Instance().Clear();
+    LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+    TempMenuDirectory fixture;
+    std::ofstream menu("huntdat/_menu.txt");
+    ASSERT_TRUE(menu.is_open());
+    menu << "accessories\n{\n camo = 0.85\n}\n"
+            "accessory_icons\n{\n scent = 'mod_scent.tga'\n}\n.\n.\n";
+    menu.close();
+    EXPECT_NO_THROW(LoadResourcesScript());
+    // Legacy behavior is deliberately preserved; the checker detects this
+    // bad insertion and directs authors to add the missing score-block dot.
+    EXPECT_TRUE(g_AccessoryIcons.empty());
+    EXPECT_EQ(g_AccessoryScoreMods.count("scent"), 1u);
+    LoadDiagnostics::Instance().Clear();
+}
+
+TEST(MenuResourceEntry, KeyedOnlyPricesFollowNamesNotEntryOrder)
+{
+    ResetMenuState();
+    TempScript prices(
+        "flashlight = 7\ntranq = 6\nnightvision = 5\n'Double ammo' = 4\n"
+        "'Cover scent' = 3\nRadar = 2\nCamouflage = 1\n.\n");
+    ASSERT_NE(prices.stream, nullptr);
+    ReadAccessoryPrices(prices.stream);
+    LoadResources();
+    ASSERT_EQ(g_UtilInfo.size(), 7u);
+    for (size_t i = 0; i < g_UtilInfo.size(); ++i)
+        EXPECT_EQ(g_UtilInfo[i].m_Price, static_cast<int32_t>(i + 1));
+}
+
+TEST(MenuResourceEntry, NamedPricesDoNotShiftFiveLineLegacyPrices)
+{
+    ResetMenuState();
+    g_AccessoryPrices = { 1, 2, 3, 4, 5 };
+    g_AccessoryPriceOverrides["nightvision"] = 77;
+    LoadResources();
+    ASSERT_EQ(g_UtilInfo.size(), 7u);
+    EXPECT_EQ(g_UtilInfo[4].m_Price, 77);
+    EXPECT_EQ(g_UtilInfo[5].m_Price, 5);
+    EXPECT_EQ(g_UtilInfo[6].m_Price, 30);
+    g_UtilInfo.clear();
+    g_AccessoryPriceOverrides.clear();
+    LoadResources();
+    ASSERT_EQ(g_UtilInfo.size(), 7u);
+    EXPECT_EQ(g_UtilInfo[4].m_Price, 50);
+    EXPECT_EQ(g_UtilInfo[5].m_Price, 5);
+    g_UtilInfo.clear();
+    g_AccessoryPrices = { 1, 2, 3, 4, 5, 6, 7 };
+    LoadResources();
+    EXPECT_EQ(g_UtilInfo[4].m_Price, 5);
+    EXPECT_EQ(g_UtilInfo[5].m_Price, 6);
+    EXPECT_EQ(g_UtilInfo[6].m_Price, 7);
+}
+
+TEST(MenuResourceEntry, NamedPricesPreferCanonicalThenDisplayThenLegacyKey)
+{
+    ResetMenuState();
+    TempScript script("Tranquilizers = 13\ntranq -tranquilizer = 15\ntranq = 17\n.\n");
+    ASSERT_NE(script.stream, nullptr);
+    ReadAccessoryPrices(script.stream);
+    LoadResources();
+    ASSERT_EQ(g_UtilInfo.size(), 7u);
+    EXPECT_EQ(g_UtilInfo[5].m_Price, 17);
+    g_UtilInfo.clear();
+    g_AccessoryPriceOverrides.erase("tranq");
+    LoadResources();
+    EXPECT_EQ(g_UtilInfo[5].m_Price, 13);
+    g_UtilInfo.clear();
+    g_AccessoryPriceOverrides.erase("tranquilizers");
+    LoadResources();
+    EXPECT_EQ(g_UtilInfo[5].m_Price, 15);
+}
+
+TEST(MenuResourceEntry, NamedPricesRejectInvalidValuesAndHonorAliases)
+{
+    ResetMenuState();
+    LoadDiagnostics::Instance().Clear();
+    LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+    TempScript script("'Cover scent' = 12\ntranq = -2\nflashlight = xyz\nradar = 12.5\n.\n");
+    ASSERT_NE(script.stream, nullptr);
+    EXPECT_NO_THROW(ReadAccessoryPrices(script.stream));
+    EXPECT_EQ(g_AccessoryPriceOverrides["coverscent"], 12);
+    EXPECT_EQ(g_AccessoryPriceOverrides.count("tranq"), 0u);
+    EXPECT_EQ(g_AccessoryPriceOverrides.count("flashlight"), 0u);
+    EXPECT_EQ(g_AccessoryPriceOverrides.count("radar"), 0u);
+    EXPECT_EQ(LoadDiagnostics::Instance().Count(), 3u);
+    LoadDiagnostics::Instance().Clear();
+
+    TempScript strict("camo = -1\n.\n");
+    ASSERT_NE(strict.stream, nullptr);
+    LoadDiagnostics::Instance().SetMode(LoadMode::Strict);
+    EXPECT_THROW(ReadAccessoryPrices(strict.stream), std::exception);
+    LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+    LoadDiagnostics::Instance().Clear();
 }
 
 TEST(MenuResourceEntry, AccessoryIconBlockNormalizesKeysAndStripsQuotes)
