@@ -726,6 +726,7 @@ EXTERNAL std::vector<UtilInfo>	g_UtilInfo;
 EXTERNAL UtilInfo				g_TranqInfo, g_ObserverInfo;
 EXTERNAL std::map<std::string, float> g_AccessoryScoreMods; // populated by ReadAccessories()
 EXTERNAL std::map<std::string, std::string> g_AccessoryIcons; // populated by ReadAccessoryIcons(): accessory key -> shop icon path
+EXTERNAL std::map<std::string, std::string> g_AccessoryDescriptions; // populated by ReadAccessoryDescriptions(): accessory key -> description text file path
 EXTERNAL std::vector<int32_t> g_AccessoryPrices; // parsed from 'acces' lines in _MENU.TXT prices block
 // Built-in shop blurb for the flashlight, used only when the loaded HUNTDAT
 // ships no huntdat/menu/txt/flashlight.nfo. Defined in Menu/Resources.cpp (not
@@ -737,6 +738,14 @@ EXTERNAL const std::vector<std::string> kFlashlightDescription;
 // falls back to builtinDesc when that file is absent.
 void LoadAccessoryDescription(std::vector<std::string>& txt, const std::string& descFile,
                               const std::vector<std::string>* builtinDesc);
+// Resolve one accessory row's art / blurb file from the 'accessory_icons' /
+// 'accessory_descriptions' blocks. scoreKey is the canonical key ('scent',
+// 'tranq'), and the row's display name and legacy command-derived key are
+// accepted too (see the accessory key comment in Menu/Resources.cpp).
+std::string LookupAccessoryIcon(const std::string& scoreKey, const char* name, const char* cmd,
+                                const std::string& defaultPath);
+std::string LookupAccessoryText(const std::string& scoreKey, const char* name, const char* cmd,
+                                const std::string& defaultPath);
 EXTERNAL std::vector<unsigned int> g_DinoList;
 EXTERNAL uint32_t				g_ProfileIndex;
 EXTERNAL uint32_t				g_HiliteProfileIndex;

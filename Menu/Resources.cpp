@@ -14,8 +14,11 @@
 #include <iomanip>
 #include <sstream>
 #include <fstream>
+#include <memory>
+#include <limits>
 #include <string>
 #include <cstdlib>
+#include <cctype>
 #include <set>
 #include <vector>
 #include "../Hunt/Core/Flashlight.h"
@@ -141,6 +144,7 @@ void ReadWeapons(FILE*);
 void ReadCharacters(FILE*);
 void ReadAccessories(FILE*);
 void ReadAccessoryIcons(FILE*);
+void ReadAccessoryDescriptions(FILE*);
 void LoadC2Maps();
 
 
@@ -645,25 +649,73 @@ static float LookupAccessoryScoreMod(const std::string& key, float defaultValue)
 
 
 /*
- * ReadAccessoryIcons()
+ * Accessory script keys
  *
- * Parses an optional 'accessory_icons { ... }' block in _MENU.TXT / _RES.TXT.
- * Same shape as 'accessories { ... }' but the values are file paths, letting a
- * mod supply its own shop icon for any accessory -- notably the ones the
- * modernization added, which no stock data ships art for:
+ * The 'accessory_icons { }' and 'accessory_descriptions { }' blocks accept
+ * several spellings for each row. The older 'accessories { }' score block
+ * still uses literal keys; its existing behavior is unchanged. For the path
+ * blocks only, accepted spellings are:
+ *
+ *   - the score-block key ('camo', 'radar', 'scent', 'double', 'tranq',
+ *     'nightvision', 'flashlight', 'observe') -- the canonical form,
+ *   - the row's display name ('Cover scent', 'Tranquilizers'),
+ *   - the full command string without its leading dash -- kept alive so a
+ *     mod that already used the accidental compound 'tranq -tranquilizer'
+ *     key from the first implementation keeps working.
+ *
+ * Keys are normalized (NormalizeAccessoryKey): case-insensitive, spaces,
+ * tabs, hyphens and underscores ignored, so 'Night Vision', 'nightvision'
+ * and 'night_vision' are the same key. The block readers store keys in
+ * normalized form.
+ */
+static std::string NormalizeAccessoryKey(const std::string& key)
+{
+	std::string out;
+	out.reserve(key.size());
+	for (char c : key) {
+		if (c == ' ' || c == '\t' || c == '-' || c == '_')
+			continue;
+		out += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+	}
+	return out;
+}
+
+// Strip one pair of surrounding single quotes from a script string value --
+// the same 'path' form the .c2map info block and the character reader
+// accept, and the form the block examples are written in.
+static void StripScriptQuotes(std::string& value)
+{
+	if (value.size() >= 2 && value.front() == '\'' && value.back() == '\'')
+		value = value.substr(1, value.size() - 2);
+}
+
+/*
+ * ReadAccessoryIcons() / ReadAccessoryDescriptions()
+ *
+ * Parse the optional 'accessory_icons { ... }' / 'accessory_descriptions
+ * { ... }' blocks in _MENU.TXT. Same shape as 'accessories { ... }' but the
+ * values are file paths, letting a mod supply its own art or blurb for any
+ * accessory -- notably the ones the modernization added, which no stock
+ * data ships art for:
  *
  *     accessory_icons
  *     {
- *         flashlight = 'huntdat/menu/pics/my_flashlight.tga'
- *         nightvision = 'huntdat/menu/pics/my_nv.tga'
+ *         flashlight      = 'huntdat/menu/pics/my_flashlight.tga'
+ *         'Cover scent'   = 'huntdat/menu/pics/my_scent.tga'
+ *         nightvision     = 'huntdat/menu/pics/my_nv.tga'
  *     }
  *     .
  *
- * Keys are the accessory's command-line flag without the leading '-'. Icons
- * must be 16-bit TGA (the menu art format); LoadPicture() rejects anything
- * else and the row falls back to the empty icon box.
+ * Put these blocks in _MENU.TXT only. The engine also reads _RES.TXT, does
+ * not know these sections, and stops at the block's '.' closer -- a block
+ * placed there silently truncates the engine's script load.
+ *
+ * Icons must be 16-bit TGA (the menu art format); LoadPicture() rejects
+ * anything else and the row falls back to the empty icon box. Description
+ * texts are plain text, one panel line per file line, under about 48
+ * characters (the panel draws them unwrapped).
  */
-void ReadAccessoryIcons(FILE* stream)
+static void ReadAccessoryPathBlock(FILE* stream, std::map<std::string, std::string>& target, const char* what)
 {
 	char line[256];
 	uint32_t count = 0;
@@ -695,26 +747,84 @@ void ReadAccessoryIcons(FILE* stream)
 
 		if (value.empty()) continue;
 
-		g_AccessoryIcons[key] = value;
+		// Keys may be quoted like the values ('Cover scent' = '...').
+		StripScriptQuotes(key);
+		StripScriptQuotes(value);
+		key = NormalizeAccessoryKey(key);
+		if (key.empty()) continue;
+
+		target[key] = value;
 		count++;
-		std::cout << "  accessory_icon[" << key << "] = " << value << std::endl;
+		std::cout << "  accessory_" << what << "[" << key << "] = " << value << std::endl;
 	}
 
-	std::cout << "Loaded " << count << " accessory icon overrides" << std::endl;
+	std::cout << "Loaded " << count << " accessory " << what << " overrides" << std::endl;
+}
+
+void ReadAccessoryIcons(FILE* stream)
+{
+	ReadAccessoryPathBlock(stream, g_AccessoryIcons, "icon");
+}
+
+void ReadAccessoryDescriptions(FILE* stream)
+{
+	ReadAccessoryPathBlock(stream, g_AccessoryDescriptions, "description");
 }
 
 
 /*
- * LookupAccessoryIcon()
+ * LookupAccessoryIcon() / LookupAccessoryText()
  *
- * Resolves the shop icon for an accessory: a mod-supplied path wins, then the
- * built-in path, then (if that file does not exist) an empty icon box.
+ * Resolves one accessory row's override path. The row is addressed by its
+ * score-block key (canonical), its display name or its legacy
+ * command-derived key; the first match wins. Icon overrides replace the
+ * built-in path outright and a missing file leaves the row with the empty
+ * icon box, matching the original behavior -- the failure is reported so
+ * the load summary says why. Text overrides must point at an existing
+ * file: a missing one is reported and the row keeps its default path, so
+ * the description can then fall back to its built-in text where provided.
  */
-static std::string LookupAccessoryIcon(const std::string& key, const std::string& defaultPath)
+static const std::string* FindAccessoryOverride(const std::map<std::string, std::string>& overrides,
+                                                const std::string& scoreKey, const char* name, const char* cmd)
 {
-	auto it = g_AccessoryIcons.find(key);
-	if (it != g_AccessoryIcons.end() && !it->second.empty()) {
-		return it->second;
+	const std::string legacy = (cmd && cmd[0] == '-') ? std::string(cmd + 1) : std::string(cmd ? cmd : "");
+	const std::string probes[3] = {
+		NormalizeAccessoryKey(scoreKey),
+		NormalizeAccessoryKey(name ? name : ""),
+		NormalizeAccessoryKey(legacy),
+	};
+	for (const std::string& probe : probes) {
+		if (probe.empty()) continue;
+		auto it = overrides.find(probe);
+		if (it != overrides.end() && !it->second.empty())
+			return &it->second;
+	}
+	return nullptr;
+}
+
+std::string LookupAccessoryIcon(const std::string& scoreKey, const char* name, const char* cmd,
+                                const std::string& defaultPath)
+{
+	const std::string* overridePath = FindAccessoryOverride(g_AccessoryIcons, scoreKey, name, cmd);
+	if (overridePath) {
+		if (!std::filesystem::exists(*overridePath)) {
+			LoadDiagnostics::Instance().Report("accessory icon", overridePath->c_str(),
+				"override file not found (row shows the empty icon box)", nullptr);
+		}
+		return *overridePath;
+	}
+	return defaultPath;
+}
+
+std::string LookupAccessoryText(const std::string& scoreKey, const char* name, const char* cmd,
+                               const std::string& defaultPath)
+{
+	const std::string* overridePath = FindAccessoryOverride(g_AccessoryDescriptions, scoreKey, name, cmd);
+	if (overridePath) {
+		if (std::filesystem::exists(*overridePath))
+			return *overridePath;
+		LoadDiagnostics::Instance().Report("accessory text", overridePath->c_str(),
+			"override file not found (using the default description file)", nullptr);
 	}
 	return defaultPath;
 }
@@ -1055,6 +1165,7 @@ void LoadResourcesScript()
 	g_ScriptLine = 0;
 	g_AccessoryScoreMods.clear(); // reset on each script load
 	g_AccessoryIcons.clear();      // same: a reload must not keep the previous file's icons
+	g_AccessoryDescriptions.clear(); // same for the description overrides
 	g_AccessoryPrices.clear();
 
 	// Try _MENU.TXT first (simplified menu data with prices)
@@ -1104,6 +1215,10 @@ void LoadResourcesScript()
 				std::cout << "Found 'accessory_icons' section at line " << g_ScriptLine << std::endl;
 				ReadAccessoryIcons(file);
 			}
+			else if (strstr(line, "accessory_descriptions")) {
+				std::cout << "Found 'accessory_descriptions' section at line " << g_ScriptLine << std::endl;
+				ReadAccessoryDescriptions(file);
+			}
 
 			// C2ME sections we don't need - skip their blocks
 			// Note: these checks require the keyword at the start of the line
@@ -1135,8 +1250,8 @@ void LoadResourcesScript()
 	// take precedence on duplicate project names.
 	LoadC2Maps();
 
-	// Report values recovered by the lenient load policy (see
-	// Loaders/LoadDiagnostics.h). Strict mode throws before reaching here.
+	// Report script/map diagnostics before loading menu art. Resource failures
+	// occur later in LoadResources() and are reported there.
 	LoadDiagnostics& diagnostics = LoadDiagnostics::Instance();
 	if (diagnostics.Count() > 0) {
 		std::cout << diagnostics.Summary();
@@ -1144,6 +1259,22 @@ void LoadResourcesScript()
 	}
 }
 
+
+// An unreadable but existing redirect should not suppress a stock .nfo;
+// for newer accessories the built-in blurb remains the last fallback.
+static void LoadRowDescription(std::vector<std::string>& text,
+                               const std::string& scoreKey, const char* name, const char* cmd,
+                               const std::string& defaultPath, const std::vector<std::string>* builtin)
+{
+	const std::string path = LookupAccessoryText(scoreKey, name, cmd, defaultPath);
+	if (path != defaultPath) {
+		if (LoadText(text, path)) return;
+		LoadDiagnostics::Instance().Report("accessory text", path.c_str(),
+			"override file could not be read (using the default description file)", nullptr);
+		text.clear();
+	}
+	LoadAccessoryDescription(text, defaultPath, builtin);
+}
 
 void LoadResources()
 {
@@ -1153,29 +1284,30 @@ void LoadResources()
 	//LoadPicture(g_TrackBar[0], "huntdat/menu/sl_bar.tga");
 	//LoadPicture(g_TrackBar[1], "huntdat/menu/sl_but.tga");
 
-	UtilInfo ui;
 	size_t accIdx = 0;
 	auto addUtil = [&](const char* name, const char* descFile, const char* cmd, const char* scoreKey, float scoreDefault, int32_t defaultPrice, const char* pic, const std::vector<std::string>* builtinDesc = nullptr) {
+		// Fresh picture per row: a missing file must not inherit the prior row's art.
+		UtilInfo ui;
 		ui.m_Name = name;
 		// A mod-supplied .nfo always wins; the built-in text only covers installs
 		// whose HUNTDAT predates the accessory, where the panel would otherwise be
-		// blank and LoadText() would print a failure.
-		LoadAccessoryDescription(ui.m_Description, descFile, builtinDesc);
+		// blank and LoadText() would print a failure. An 'accessory_descriptions
+		// { }' entry redirects the row to another text file first.
+		LoadRowDescription(ui.m_Description, scoreKey, name, cmd, descFile, builtinDesc);
 		ui.m_Command = cmd;
 		ui.m_ScoreMod = LookupAccessoryScoreMod(scoreKey, scoreDefault);
 		ui.m_Price = (accIdx < g_AccessoryPrices.size()) ? g_AccessoryPrices[accIdx] : defaultPrice;
 		accIdx++;
 		// Icon override hook: mods can point any accessory at their own art via
-		// the 'accessory_icons { }' block. Use the command flag without its dash
-		// as the key so the two stays consistent with 'accessories { }'.
-		const std::string iconKey = (cmd && cmd[0] == '-') ? std::string(cmd + 1) : std::string(cmd ? cmd : "");
+		// the 'accessory_icons { }' block. Both blocks address the row by its
+		// score key ('scent', 'tranq'), its display name or its legacy
+		// command-derived key -- see the accessory key comment above.
 		// The shop icon is optional: some accessories (e.g. tranquilizers in
 		// both stock C2 and Triassic) have no dedicated image, and the
 		// original game shows them with an empty icon box. Never guess a
 		// different EQUIPn image - a wrong icon is worse than none.
-		LoadPicture(ui.m_Thumbnail, LookupAccessoryIcon(iconKey, pic));
+		LoadPicture(ui.m_Thumbnail, LookupAccessoryIcon(scoreKey, name, cmd, pic));
 		g_UtilInfo.push_back(ui);
-		ui.m_Description.clear();
 	};
 
 	addUtil("Camouflage",  "huntdat/menu/txt/camoflag.nfo", "-camo",  "camo", 0.85f, 30,  "huntdat/menu/pics/equip1.tga");
@@ -1187,16 +1319,18 @@ void LoadResources()
 	// when a mod ships no nightvis.nfo or equip_nv.tga (the icon is optional;
 	// the row shows with an empty icon box like other icon-less accessories).
 	// A built-in description covers mods without the .nfo.
+	UtilInfo ui;
 	ui.m_Name = "Night vision";
-	ui.m_Description.clear();
-	if (!LoadText(ui.m_Description, "huntdat/menu/txt/nightvis.nfo")) {
-		ui.m_Description.push_back("Accessory : Night Vision Goggles");
-		ui.m_Description.push_back("");
-		ui.m_Description.push_back("Toggle a green-tinted night vision view during");
-		ui.m_Description.push_back("night hunts. Press the configured key (default: N)");
-		ui.m_Description.push_back("to switch it on and off. Night vision does not");
-		ui.m_Description.push_back("affect your score.");
-	}
+	const std::vector<std::string> nightVisionDescription = {
+		"Accessory : Night Vision Goggles",
+		"",
+		"Toggle a green-tinted night vision view during",
+		"night hunts. Press the configured key (default: N)",
+		"to switch it on and off. Night vision does not",
+		"affect your score."
+	};
+	LoadRowDescription(ui.m_Description, "nightvision", "Night vision", "-nightvision",
+		"huntdat/menu/txt/nightvis.nfo", &nightVisionDescription);
 	ui.m_Command = "-nightvision";
 	ui.m_ScoreMod = LookupAccessoryScoreMod("nightvision", 1.0f); // neutral
 	// Price rule: consume a positional acces= line ONLY when the mod priced 6
@@ -1212,9 +1346,9 @@ void LoadResources()
 		ui.m_Price = 50; // fixed default (original feature commit)
 		// Do NOT advance accIdx: tranq still reads prices[4] on 5-line mods.
 	}
-	LoadPicture(ui.m_Thumbnail, "huntdat/menu/pics/equip_nv.tga");
+	// Addressable by both override blocks as 'nightvision' / 'Night vision'.
+	LoadPicture(ui.m_Thumbnail, LookupAccessoryIcon("nightvision", "Night vision", "-nightvision", "huntdat/menu/pics/equip_nv.tga"));
 	g_UtilInfo.push_back(ui);
-	ui.m_Description.clear(); // the shared buffer must not leak into the next accessory
 
 	addUtil("Tranquilizers","huntdat/menu/txt/tranq.nfo",  "-tranq -tranquilizer", "tranq", 1.25f, 60, "huntdat/menu/pics/equip6.tga");
 
@@ -1231,7 +1365,8 @@ void LoadResources()
 
 	// Observer info (used for info panel display, not in equipment list)
 	g_ObserverInfo.m_Name = "Observer";
-	LoadText(g_ObserverInfo.m_Description, "huntdat/menu/txt/observe.nfo");
+	LoadRowDescription(g_ObserverInfo.m_Description, "observe", "Observer", "-observe -observer",
+		"huntdat/menu/txt/observe.nfo", nullptr);
 	g_ObserverInfo.m_Command = "-observe -observer";
 	g_ObserverInfo.m_ScoreMod = LookupAccessoryScoreMod("observe", 1.0f); // neutral
 
@@ -1241,6 +1376,14 @@ void LoadResources()
 	LoadWave(g_MenuSound_Move, "huntdat/soundfx/menumov.wav");
 	LoadWave(g_MenuSound_Type, "huntdat/soundfx/type.wav");
 	LoadWave(g_MenuSound_TypeGo, "huntdat/soundfx/typego.wav");
+
+	// Icon and description overrides (and malformed TGA art) are resolved in
+	// this function, after LoadResourcesScript() has printed its own summary.
+	LoadDiagnostics& diagnostics = LoadDiagnostics::Instance();
+	if (diagnostics.Count() > 0) {
+		std::cout << diagnostics.Summary();
+		diagnostics.Clear();
+	}
 }
 
 
@@ -1443,29 +1586,56 @@ bool ReadTGAFile(const std::string& path, TargaImage& tga)
 		return false;
 	}
 
-	fs.read(reinterpret_cast<char*>(&tga.m_Header), sizeof(TARGAINFOHEADER));
+	if (!fs.read(reinterpret_cast<char*>(&tga.m_Header), sizeof(TARGAINFOHEADER))) {
+		LoadDiagnostics::Instance().Report("menu picture", path.c_str(),
+			"truncated TGA header", nullptr);
+		return false;
+	}
 
 	if (tga.m_Header.tgaColorMapType) {
-		std::cout << "Has a color palette: " << path << std::endl;
+		LoadDiagnostics::Instance().Report("menu picture", path.c_str(),
+			"TGA has a color palette (16-bit uncompressed truecolor required)", nullptr);
 		return false;
 	}
 
 	if (tga.m_Header.tgaImageType != TGA_IMAGETYPE_RGB) {
-		std::cout << "Not an RGB image: " << path << std::endl;
+		LoadDiagnostics::Instance().Report("menu picture", path.c_str(),
+			"TGA is not uncompressed truecolor (16-bit uncompressed truecolor required)", nullptr);
 		return false;
 	}
 
-	if (tga.m_Header.tgaIdentSize) {
-		fs.seekg(tga.m_Header.tgaIdentSize, std::ios::cur); // Skip Ident header
+	// Menu pictures are 16-bit throughout, including the full-screen menu
+	// images copied in Menu.cpp. Reject other depths before allocating data.
+	if (tga.m_Header.tgaBits != 16) {
+		LoadDiagnostics::Instance().Report("menu picture", path.c_str(),
+			"expected a 16-bit TGA (menu art is 16-bit 5551)", nullptr);
+		return false;
 	}
-
-	if (tga.m_Data)
-		delete[] tga.m_Data;
-
-	int size = (tga.m_Header.tgaWidth * (tga.m_Header.tgaBits / 8)) * tga.m_Header.tgaHeight;
-	tga.m_Data = new uint8_t[size];
-	fs.read(reinterpret_cast<char*>(tga.m_Data), size);
-
+	const uint64_t size = static_cast<uint64_t>(tga.m_Header.tgaWidth) *
+		tga.m_Header.tgaHeight * sizeof(uint16_t);
+	if (!size || size > static_cast<uint64_t>(std::numeric_limits<size_t>::max()) ||
+		size > static_cast<uint64_t>(std::numeric_limits<std::streamsize>::max())) {
+		LoadDiagnostics::Instance().Report("menu picture", path.c_str(),
+			"invalid TGA dimensions", nullptr);
+		return false;
+	}
+	fs.seekg(tga.m_Header.tgaIdentSize, std::ios::cur);
+	const std::streampos start = fs.tellg();
+	fs.seekg(0, std::ios::end);
+	if (start == std::streampos(-1) || fs.tellg() - start < static_cast<std::streamoff>(size)) {
+		LoadDiagnostics::Instance().Report("menu picture", path.c_str(),
+			"truncated TGA pixel data", nullptr);
+		return false;
+	}
+	fs.seekg(start);
+	std::unique_ptr<uint8_t[]> data(new uint8_t[static_cast<size_t>(size)]);
+	if (!fs.read(reinterpret_cast<char*>(data.get()), static_cast<std::streamsize>(size))) {
+		LoadDiagnostics::Instance().Report("menu picture", path.c_str(),
+			"could not read TGA pixel data", nullptr);
+		return false;
+	}
+	delete[] tga.m_Data;
+	tga.m_Data = data.release();
 	return true;
 }
 
@@ -1476,14 +1646,7 @@ bool LoadPicture(Picture& pic, const std::string& fpath)
 
 	if (ReadTGAFile(fpath, tga))
 	{
-		// Menu art is 16-bit 5551. Reject anything else rather than
-		// reinterpreting the bytes (a 24/32-bit mod icon would decode
-		// to garbage and the w*h uint16 loop below would overrun).
-		if (tga.m_Header.tgaBits != 16) {
-			std::cout << "LoadPicture: expected 16-bit TGA: " << fpath << std::endl;
-			return false;
-		}
-
+		// ReadTGAFile already validated 16-bit depth and the pixel payload.
 		pic.m_Width = tga.m_Header.tgaWidth;
 		pic.m_Height = tga.m_Header.tgaHeight;
 
@@ -1531,10 +1694,8 @@ bool LoadText(std::vector<std::string>& txt, const std::string& path)
 }
 
 
-// Every accessory row that can ship without data must load its blurb through
-// this: the file the mod provides wins, and the built-in text covers exactly
-// the missing-file case. Night vision still spells the same rule out inline
-// with its own strings; new rows call this so the choice stays in one place.
+// Load a file path with an optional built-in fallback. The row-specific
+// redirect logic lives in LoadRowDescription() above.
 void LoadAccessoryDescription(std::vector<std::string>& txt, const std::string& descFile,
                               const std::vector<std::string>* builtinDesc)
 {
