@@ -1,6 +1,6 @@
 # Moonlit night lighting (OpenGL)
 
-This feature is on the unmerged `feature/night-lighting` branch. It is not a
+This feature is on local `main` after the owner-approved fast-forward. It is not a
 published release. The owner tested and visually accepted both the initial
 night preview and the deployed UI/weapon follow-up. This is preview acceptance,
 not a claim that every manual regression scenario was exercised.

@@ -18,9 +18,9 @@ Draft changes on local `main` after `origin/main` (`9db51ec`); not part of
 the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
 
-### Unmerged Moonlit night branch
+### Moonlit night lighting (on local main)
 
-`feature/night-lighting` implements darker OpenGL moonlit nights, coordinated
+Accepted night-lighting work implements darker OpenGL moonlit nights, coordinated
 sky/fog grading and flashlight restoration of both brightness and natural
 color within the beam. Bounded config settings and a complete Classic fallback
 are documented in [night lighting](docs/NIGHT-LIGHTING.md). Day/dawn, software
@@ -31,6 +31,10 @@ NV restores brightness but retains desaturation and wins when both are on.
 Essential controls have a readability floor; the geometric beam is unchanged.
 The owner tested and visually accepted the deployed Shipping follow-up.
 No exhaustive manual matrix or published package is claimed.
+The owner approved fast-forwarding local main from `7864e32` to `366ab7e`;
+all four night commits are included, with no merge commit. The completed
+shop-externalization and night-lighting feature branches were deleted safely.
+No push, rebuild, deployment or live data edits occurred for this merge.
 
 ### Shop customization (on local main)
 
