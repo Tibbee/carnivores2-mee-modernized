@@ -183,7 +183,7 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
     // Depth-coherent viewmodels: compress the overlay into the near slice
     // of the SAME depth buffer instead of clearing it. The old glClear
     // erased world depth mid-frame, so anything reading depth at present
-    // time (ReShade, GetTraceK sun occlusion) saw the gun only. With the
+    // time (ReShade, sun-depth occlusion) saw the gun only. With the
     // range sandwich the gun still depth-tests nearer than any world
     // fragment (always-on-top preserved, no wall clipping), world depth
     // survives to SwapBuffers, and gun-vs-gun overlap keeps resolving in

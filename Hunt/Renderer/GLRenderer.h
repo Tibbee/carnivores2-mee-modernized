@@ -699,15 +699,14 @@ private:
     float m_sunLight = 0.0f;
     float m_skyTraceK = 1.0f;
     float m_traceK = 1.0f;
+    // Previous-frame depth-occlusion factor applied to m_sunLight by
+    // ApplySunDepthOcclusion(); sampled at frame start by UpdateSunTraceK().
+    float m_traceKApplied = 0.0f;
     int m_sunScrX = 0;
     int m_sunScrY = 0;
     int m_lastSunVisibilityScrX = 0;
     int m_lastSunVisibilityScrY = 0;
     unsigned int m_lastSunVisibilityUpdate = 0;
-    int m_lastSunTraceScrX = -1;
-    int m_lastSunTraceScrY = -1;
-    unsigned int m_lastSunTraceFrame = 0;
-    float m_lastSunTraceK = 1.0f;
     // Hysteresis latch for uniform-overcast detection (interim workaround).
     // When a large cloud covers both detection and reference rings, the
     // ring-vs-ring detector reports "clear" (dev ≈ 0).  The latch prevents
@@ -729,7 +728,6 @@ private:
     void RenderSun(float x, float y, float z);
     void RenderModelSun(TModel* mptr, float x0, float y0, float z0, int alpha);
     float GetSkyK(int x, int y);
-    float GetTraceK(int x, int y);
 
     // HUD/UI overlay pipeline -- uploads lpVideoBuf as a fullscreen quad on top of the 3D scene
     GLShader m_uiShader;
@@ -765,6 +763,7 @@ public:
     Vector3d GetCamEnvelopeColor()  const { return m_camEnvelopeColor; }
     void     UpdateCameraFogEnvelope();
     void RenderFSRect(uint32_t color, bool additive = true);
+    void UpdateSunTraceK();
     void ApplySunDepthOcclusion();
     void DrawHUDOverlay();
 

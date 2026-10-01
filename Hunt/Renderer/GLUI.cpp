@@ -271,6 +271,9 @@ void CopyHARDToDIB()
 void RenderSkyPlane()
 {
     if (g_GLRenderer) {
+        // Sample the previous frame's sun-depth occlusion before the depth
+        // clear below wipes it (see GLRenderer::UpdateSunTraceK).
+        g_GLRenderer->UpdateSunTraceK();
         g_GLRenderer->ClearVideoBuf();
         // Clear only previous frame's dirty HUD regions (not the whole buffer).
         // The rest of lpVideoBuf retains its state from the last upload -- no

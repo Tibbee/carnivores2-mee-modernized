@@ -394,8 +394,8 @@ void GLRenderer::RenderSkyPlane()
         if (sunDir.z < -2024.0f) {
             RenderSun(sunDir.x, sunDir.y, sunDir.z);
             // GetSkyK is called inside RenderSun for cloud occlusion.
-            // GetTraceK (depth-based) is deferred to ShowVideo() after the
-            // full scene is rendered, so the depth buffer has terrain/models.
+            // Sun-depth occlusion is sampled at frame start by
+            // UpdateSunTraceK() and applied in ApplySunDepthOcclusion().
         }
     }
 
@@ -499,24 +499,10 @@ void GLRenderer::RenderFSRect(uint32_t color, bool additive)
 void GLRenderer::ApplySunDepthOcclusion()
 {
     // Called from ShowVideo() after the full scene is rendered.
-    // Samples the depth buffer at the sun's screen position to check
-    // if terrain/models are occluding the sun.
-    // Depth-based occlusion sample is cached for the current frame in
-    // m_lastSunTraceK / m_lastSunTraceScrX / m_lastSunTraceFrame so
-    // ApplySunDepthOcclusion() can reuse it without a second readback.
-    float traceK = 0.0f;
-    if (m_sunScrX == m_lastSunTraceScrX &&
-        m_sunScrY == m_lastSunTraceScrY &&
-        RealTime == m_lastSunTraceFrame) {
-        traceK = m_lastSunTraceK;
-    } else {
-        traceK = GetTraceK(m_sunScrX, m_sunScrY);
-        m_lastSunTraceK = traceK;
-        m_lastSunTraceScrX = m_sunScrX;
-        m_lastSunTraceScrY = m_sunScrY;
-        m_lastSunTraceFrame = RealTime;
-    }
-    m_sunLight *= traceK;
+    // Applies the depth-occlusion factor sampled at frame start by
+    // UpdateSunTraceK() (previous frame's depth at the previous frame's sun
+    // position -- one frame of sampling latency, smoothed there by DeltaFunc).
+    m_sunLight *= m_traceKApplied;
 }
 
 // UpdateSunVisibility() was removed: it had no call site (dead since its
@@ -660,8 +646,8 @@ void GLRenderer::RenderSun(float x, float y, float z)
     // Rate-limit the sky-occlusion readback to ~15 Hz (66 ms) to avoid
     // GPU pipeline stalls every frame.  When the sun screen position
     // hasn't changed and we updated recently, reuse the cached value.
-    // GetTraceK (depth occlusion) is deferred to ApplySunDepthOcclusion()
-    // which has its own caching; we don't need to worry about it here.
+    // Sun-depth occlusion (UpdateSunTraceK) samples at frame start and is
+    // applied in ApplySunDepthOcclusion(); nothing to do here.
     if (m_sunScrX != m_lastSunVisibilityScrX ||
         m_sunScrY != m_lastSunVisibilityScrY ||
         RealTime - m_lastSunVisibilityUpdate >= 66) {
@@ -877,9 +863,30 @@ float GLRenderer::GetSkyK(int x, int y)
     return m_skyTraceK;
 }
 
-float GLRenderer::GetTraceK(int x, int y)
+void GLRenderer::UpdateSunTraceK()
 {
-    if (x < 10 || y < 10 || x > WinW - 10 || y > WinH - 10) return 0.0f;
+#ifdef GL_PERF_HOOKS
+    GL_PERF_SCOPE("Sun_TraceSample");
+#endif
+    // Depth-based sun occlusion: sample the depth buffer at the sun's screen
+    // position to check if terrain/models are occluding the sun.
+    //
+    // Runs at frame start, before the depth clear, so the buffer still holds
+    // the PREVIOUS frame's depth and the GPU has finished that frame: a
+    // synchronous glReadPixels here is cheap. The old end-of-frame call site
+    // paid the full in-flight pipeline drain (measured 2.46 ms/frame), and a
+    // double-buffered PBO did not hide it (1.82 ms copy kick + 0.29 ms map):
+    // the depth-format transfer serializes on this driver.
+    // ApplySunDepthOcclusion() consumes the result later in the same frame --
+    // one frame of sampling latency, which the DeltaFunc smoothing tolerates.
+    const int x = m_sunScrX;
+    const int y = m_sunScrY;
+    if (x < 10 || y < 10 || x > WinW - 10 || y > WinH - 10) {
+        // Sun was off-screen when sampled: keep the old contract (zero the
+        // applied factor) rather than smoothing toward a stale value.
+        m_traceKApplied = 0.0f;
+        return;
+    }
 
     // Batch-read a 21x21 block (covers all offsets from -10..+10) in one
     // glReadPixels call instead of 9 separate 1x1 reads.
@@ -900,7 +907,7 @@ float GLRenderer::GetTraceK(int x, int y)
     k /= 9.0f;
 
     DeltaFunc(m_traceK, k, TimeDt / 1024.0f);
-    return m_traceK;
+    m_traceKApplied = m_traceK;
 }
 
 void GLRenderer::UploadSkyTexture()
