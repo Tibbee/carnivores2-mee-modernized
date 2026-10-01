@@ -9,6 +9,7 @@
 
 #include "Renderer/IRenderer.h"
 #include "Core/TerrainMip.h"
+#include "Core/NightPresentation.h"
 #include "glad/glad.h"
 #include "Renderer/GLShader.h"
 #include "Renderer/GLPerf.h"
@@ -336,7 +337,8 @@ private:
                            bool enableBlend,
                            bool additive,
                            bool tintByFogColor = false,
-                           bool worldLit = true);
+                           bool worldLit = true,
+                           NightDrawKind nightKind = NightDrawKind::World);
     void EnsureTerrainTextureArray();
     void UploadTerrainLayer(int layer, const TEXTURE& texture);
     void CollectTerrainTile(int x, int y, int r,
@@ -751,6 +753,9 @@ private:
     int  m_prevDirtyRectCount = 0;
     bool m_hudNeedsFullUpload = true;  // set after texture (re)creation
     bool m_hudNeedsFullClear  = false; // set after any full-DIB overwrite
+    NightReadableRegions m_nightReadableRegions;
+    GLint m_locUIReadableRects = -1;
+    GLint m_locUIReadableCount = -1;
 
 public:
     float GetSunLight() const { return m_sunLight; }
@@ -766,6 +771,7 @@ public:
     // Called by functions that write to lpVideoBuf to mark the affected
     // screen region (in lpVideoBuf pixel coordinates, clamped).
     void MarkDirtyRect(int x, int y, int w, int h);
+    void ProtectHUDRect(int x, int y, int w, int h);
 
     // Called at frame start instead of full-buffer memset.
     // Clears only the regions that were uploaded last frame, so the
@@ -777,7 +783,8 @@ public:
     void InvalidateHUDOverlay();
 
     // Active world/sky night grading (plain uniforms; no UBO layout change).
-    void ApplyNightLightingUniforms(unsigned int program);
+    void ApplyNightLightingUniforms(unsigned int program,
+                                   NightDrawKind kind = NightDrawKind::World);
 
     // Legacy, currently unused fullscreen night pipeline
     void InitializeNightDesaturation();
@@ -806,6 +813,7 @@ private:
     struct NightUniformLocations {
         GLint strength = -1;
         GLint settings = -1;
+        GLint presentation = -1;
     };
     std::map<unsigned int, NightUniformLocations> m_nightLocations;
 

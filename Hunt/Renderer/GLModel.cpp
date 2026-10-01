@@ -91,7 +91,7 @@ void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z
     // fragment, which silently killed the env-map reflection.
     glDepthRange(0.0, kViewmodelDepthRangeMax);
     DrawModelVertices(texture, vertices, projection, true, true, true, true,
-                       /*worldLit=*/false);
+                       /*worldLit=*/false, NightDrawKind::Viewmodel);
     glDepthRange(0.0, 1.0);
 }
 
@@ -134,9 +134,10 @@ void GLRenderer::RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float
     // at (0, 1) put it behind the body it belongs to and GL_LEQUAL dropped it.
     glDepthRange(0.0, kViewmodelDepthRangeMax);
     // Weapon overlays ride the camera a few hundred units out, i.e. always at
-    // point-blank beam range, so they opt out of the flashlight.
+    // point-blank beam range, so they opt out of the geometric beam. Their
+    // equipment-dependent visibility matches the weapon body instead.
     DrawModelVertices(texture, vertices, projection, true, true, true, true,
-                       /*worldLit=*/false);
+                       /*worldLit=*/false, NightDrawKind::Viewmodel);
     glDepthRange(0.0, 1.0);
 }
 
@@ -194,14 +195,14 @@ void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,
     // reuse kViewmodelDepthRangeMax too -- see GLUtils.h.
     glDepthRange(0.0, kViewmodelDepthRangeMax);
     DrawModelVertices(item.texture, item.opaqueVertices, projection, true, false, false,
-                       /*tintByFogColor=*/false, /*worldLit=*/false);
+                       /*tintByFogColor=*/false, /*worldLit=*/false, NightDrawKind::Viewmodel);
     if (!item.cutoutVertices.empty()) {
         DrawModelVertices(item.texture, item.cutoutVertices, projection, true, false, false,
-                           /*tintByFogColor=*/false, /*worldLit=*/false);
+                           /*tintByFogColor=*/false, /*worldLit=*/false, NightDrawKind::Viewmodel);
     }
     if (!item.transparentVertices.empty()) {
         DrawModelVertices(item.texture, item.transparentVertices, projection, true, true, false,
-                           /*tintByFogColor=*/false, /*worldLit=*/false);
+                           /*tintByFogColor=*/false, /*worldLit=*/false, NightDrawKind::Viewmodel);
     }
     glDepthRange(0.0, 1.0);
 }
@@ -1041,7 +1042,8 @@ void GLRenderer::DrawModelVertices(GLuint texture,
                                    bool enableBlend,
                                    bool additive,
                                    bool tintByFogColor,
-                                   bool worldLit)
+                                   bool worldLit,
+                                   NightDrawKind nightKind)
 {
     if (!m_modelShader.IsValid() || texture == 0 || vertices.empty()) {
         return;
@@ -1052,9 +1054,8 @@ void GLRenderer::DrawModelVertices(GLuint texture,
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
-    // Night lighting is applied to world-model fragments here. The sun/moon
-    // draw sets this uniform back to zero, so it is never darkened by night.
-    ApplyNightLightingUniforms(m_modelShader.GetProgramID());
+    // Disabling the beam alone cannot distinguish held models from shadows.
+    ApplyNightLightingUniforms(m_modelShader.GetProgramID(), nightKind);
     // Flashlight beam on dinosaurs, hunters and other world models. The
     // sun/moon pass resets this to zero for the same reason it resets night
     // lighting.

@@ -61,6 +61,41 @@ This does not restore daytime light maps, remove fog, create shadows or introduc
 new geometry illumination. The beam shape/range/intensity settings remain the
 existing ones. See [debugging/config](DEBUGGING.md).
 
+## In-game UI and held models
+
+Moonlit nights use a shared equipment-visibility rule for the map, compass,
+wind indicator and near-models (weapon, binoculars and their related passes):
+
+| Active equipment | Brightness | Saturation |
+|---|---|---|
+| Neither | World brightness setting | Night desaturation setting |
+| Flashlight | Pre-night brightness | Original color |
+| Night vision | Pre-night brightness | Retain night desaturation; green overlay follows |
+| Both | Same as night vision | Same as night vision (NV takes priority) |
+
+The flashlight must be purchased, on and have nonzero intensity. UI/held-model
+restoration follows that effective toggle state, not cone/range geometry. It
+adds no warm beam boost to the weapon. Diffuse, cutout, transparent, reflection
+and specular passes share the policy. World surfaces retain the original
+localized beam; world/sky NV behavior remains the accepted previous behavior.
+
+Health and control messages get a minimum 55-percent pre-night brightness
+multiplier, still desaturated, without equipment. Exit/pause cards have their
+confirmation lettering baked into the artwork, so the WHOLE card gets this
+floor. Other art, including the map, uses the configured world multiplier.
+The scope/aiming cross becomes a dim light mark in Moonlit night only; its
+day/Classic black appearance and geometry are retained.
+
+Readability uses at most 16 clipped top-down rectangles during the existing
+UI draw. Overflow makes the overlay readable instead of dropping controls.
+Bounds reset each frame; no second fullscreen pass, mask texture or CPU
+modification of the HUD image is needed. Transparent pixels are tested BEFORE
+grading, so dim opaque borders do not disappear.
+
+Day/dawn and Classic have no new equipment-dependent UI rules. No new config
+keys are needed. This follow-up is locally implemented, NOT deployed/visually
+accepted merely because the earlier Moonlit preview was accepted.
+
 ## Sky, moon and night vision
 
 The night sky texture is desaturated/dimmed separately, with a world-anchored
@@ -69,8 +104,9 @@ brightness/desaturation grade as the world, once per fog source, retaining the
 existing 35-percent night fog blend. Golden terrain scatter/fog warming is
 disabled in Moonlit night. The moon disc/halo keep their separate rendering.
 
-Night vision bypasses the extra world grade and new sky treatment, retaining
-the previous green-overlay behavior. HUD/menu pixels are not night-graded.
+Night vision bypasses the extra WORLD grade and new sky treatment, retaining
+the previous green-overlay behavior. In-game UI/held models follow the rule
+above; the standalone menu is unaffected.
 No new framebuffer copy, render target or PerFrame UBO layout is required.
 
 The cloud-visibility heuristic still samples the rendered sky; its response to
@@ -81,7 +117,8 @@ toggles. Do not interpret unit tests as proof of identical cloud/moon dynamics.
 
 Tests cover settings/ranges, Classic behavior, dawn/day/NV bypass, full/partial
 beam restoration, cone/range endpoints, sky/fog grading, shader-copy parity and
-draw-path uniform contracts. They do not establish a good-looking final image.
+draw-path uniform contracts, equipment-state priority, readability bounds and
+UI transparency. They do not establish a good-looking final image.
 
 Deploy the matching OpenGL executable and all shaders together. New shader
 uniforms have Classic initializers for older executables, but an older engine
@@ -92,7 +129,9 @@ Manual acceptance should compare Classic/Moonlit at the same location:
 - Flashlight off/on; center, edge and range falloff; zero intensity.
 - NV off/on, including NV plus flashlight.
 - Fog entry/exit, cloud edges, moon visibility and underwater views.
-- Dawn/day and HUD readability.
+- Map/exit/pause, compass/wind, weapon body/highlights and aiming-mark visibility.
+- Toggle equipment with an overlay open; dismiss it and check for stale patches.
+- Dawn/day and Classic appearance, HUD readability and zero-intensity behavior.
 
 Use a disposable installation unless the owner separately authorizes live
 deployment/testing. See [building/deployment](BUILDING.md).

@@ -97,6 +97,17 @@ void ApplyNightLighting(inout vec3 color, float distance, float cosOffAxis)
 }
 // END NIGHT LIGHTING
 
+uniform vec3 uNightPresentation = vec3(1.0, 0.0, 0.0);
+
+// BEGIN NIGHT PRESENTATION -- shared by model.frag and ui.frag.
+void ApplyNightPresentation(inout vec3 color, float brightness)
+{
+   if (uNightPresentation.z < 0.5) return;
+   float gray = dot(color, vec3(0.299, 0.587, 0.114));
+   color = mix(color, vec3(gray), uNightPresentation.y) * brightness;
+}
+// END NIGHT PRESENTATION
+
 void main() {
    vec4 texColor = texture(uModelTexture, vTexCoord);
    if (vCutout > 0.5 && texColor.a <= 0.5) discard;
@@ -134,8 +145,10 @@ void main() {
    }
 
    // Grade night, restore local color/brightness, then apply the unchanged
-   // warm beam contribution. Sky and HUD never reach this world-only path.
-   {
+   // warm beam contribution, OR grade held models once without beam geometry.
+   if (uNightPresentation.z > 0.5) {
+      ApplyNightPresentation(finalColor, uNightPresentation.x);
+   } else {
       // The beam must be evaluated from the INTERPOLATED POSITION, not from
       // interpolated scalars. GPU varyings are perspective-correct, so
       // vViewPos is exact per fragment, whereas vViewZ/vRadialDist were

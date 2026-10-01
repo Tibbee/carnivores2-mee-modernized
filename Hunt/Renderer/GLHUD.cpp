@@ -70,10 +70,14 @@ void GLRenderer::Render_Cross(int x, int y)
     const float radiusX = radius / static_cast<float>(WinW) * 2.0f;
     const float radiusY = radius / static_cast<float>(WinH) * 2.0f;
 
-    auto makeVertex = [](float px, float py) -> ModelVertex {
+    // The legacy cross is black. Moonlit uses a dim readable mark instead;
+    // leave its daytime/Classic appearance and geometry intact.
+    const bool moonlit = OptDayNight == 2 && NightLightingOptions().mode == 1;
+    const uint8_t crossFog = moonlit ? 0 : 255;
+    auto makeVertex = [crossFog](float px, float py) -> ModelVertex {
         return {
             px, py, 0.0f, 0.0f, 0.0f,
-            255, 255, 128, 0, // light, fog-to-black, alpha, cutout
+            255, crossFog, 128, 0, // light, fog-to-black, alpha, cutout
             0, 0, 0,          // fog colour
             {0, 0, 0, 0, 0}
         };
@@ -103,8 +107,14 @@ void GLRenderer::Render_Cross(int x, int y)
     // HUD rings live in NDC space and share the world model program, so the
     // beam uniforms left by the last dinosaur draw would light them: their
     // radial distance is ~1 unit, i.e. point-blank range and full strength.
-    // The beam is world-only, so switch it off for this pass.
+    // Restore readability by policy, never by the geometric beam.
+    ApplyNightLightingUniforms(m_modelShader.GetProgramID(), NightDrawKind::EssentialHud);
     ApplyFlashlightUniforms(m_modelShader.GetProgramID(), false);
+    if (moonlit) {
+        glUniform1f(m_locModelTint, 0.0f);
+        const GLint camFog = glGetUniformLocation(m_modelShader.GetProgramID(), "uCamFogAmount");
+        if (camFog >= 0) glUniform1f(camFog, 0.0f);
+    }
 
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
@@ -298,6 +308,12 @@ void GLRenderer::DrawHUDOverlay()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     m_uiShader.Use();
+    ApplyNightLightingUniforms(m_uiShader.GetProgramID(), NightDrawKind::Hud);
+    if (m_locUIReadableCount >= 0)
+        glUniform1i(m_locUIReadableCount, m_nightReadableRegions.count);
+    if (m_locUIReadableRects >= 0 && m_nightReadableRegions.count > 0)
+        glUniform4fv(m_locUIReadableRects, m_nightReadableRegions.count,
+                     m_nightReadableRegions.bounds.data());
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(m_uiVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -345,6 +361,9 @@ void GLRenderer::DrawScaledPicture(int x, int y, int w, int h, TPicture& pic)
     }
 
     MarkDirtyRect(x, y, w, h);
+    // These cards bake their confirmation text/buttons into the artwork.
+    if (&pic == &ExitPic || &pic == &PausePic || &pic == &TrophyExit)
+        ProtectHUDRect(x, y, w, h);
 }
 
 void GLRenderer::DrawPicture(int x, int y, TPicture& pic)
@@ -375,6 +394,11 @@ void GLRenderer::RegisterPicture(TPicture* pptr)
 {
     // No-op: we copy to lpVideoBuf in DrawPicture instead
     (void)pptr;
+}
+
+void GLRenderer::ProtectHUDRect(int x, int y, int w, int h)
+{
+    m_nightReadableRegions.Add(x, y, w, h, WinW, WinH);
 }
 
 void GLRenderer::MarkDirtyRect(int x, int y, int w, int h)
@@ -415,6 +439,7 @@ void GLRenderer::MarkDirtyRect(int x, int y, int w, int h)
 
 void GLRenderer::InvalidateHUDOverlay()
 {
+    m_nightReadableRegions.Clear();
     // Called after a full-DIB overwrite. The next frame must do a full-buffer
     // clear + full upload to erase stale pixels from the HUD overlay texture.
     m_hudNeedsFullClear = true;
@@ -424,6 +449,8 @@ void GLRenderer::InvalidateHUDOverlay()
 
 void GLRenderer::ClearStaleHUDRegions()
 {
+    // Readability belongs to this frame, independently of texture dirty state.
+    m_nightReadableRegions.Clear();
     // Clear only the regions from the previous frame (not the whole buffer).
     // This zeros out HUD elements that may have moved or disappeared,
     // while leaving the rest of lpVideoBuf untouched (it will retain its
@@ -541,6 +568,8 @@ void GLRenderer::InitializeHudPipeline()
 
     m_uiShader.Use();
     glUniform1i(glGetUniformLocation(m_uiShader.GetProgramID(), "uTexture"), 0);
+    m_locUIReadableRects = glGetUniformLocation(m_uiShader.GetProgramID(), "uUIReadableRects[0]");
+    m_locUIReadableCount = glGetUniformLocation(m_uiShader.GetProgramID(), "uUIReadableCount");
 }
 
 void GLRenderer::DrawHMap()

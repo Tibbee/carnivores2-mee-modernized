@@ -85,7 +85,7 @@ void GLRenderer::InitializeNightDesaturation()
     glUniform1f(m_locNightDesatStrength, 0.6f);  // 60% desaturation
 }
 
-void GLRenderer::ApplyNightLightingUniforms(unsigned int program)
+void GLRenderer::ApplyNightLightingUniforms(unsigned int program, NightDrawKind kind)
 {
     if (program == 0) return;
     auto cached = m_nightLocations.find(program);
@@ -93,12 +93,20 @@ void GLRenderer::ApplyNightLightingUniforms(unsigned int program)
         const NightUniformLocations fresh = {
             glGetUniformLocation(program, "uNightStrength"),
             glGetUniformLocation(program, "uNightSettings"),
+            glGetUniformLocation(program, "uNightPresentation"),
         };
         cached = m_nightLocations.emplace(program, fresh).first;
     }
-    // Always push disabled values too: NV/day changes cannot leave old state.
+    // Always reset both paths: shared model programs must never inherit UI state.
+    const auto presentation = NightPresentationParameters(OptDayNight, NightVisionOn != 0,
+        FlashlightEnabled(), NightLightingOptions(), kind);
+    if (cached->second.presentation >= 0)
+        glUniform3fv(cached->second.presentation, 1, presentation.data());
+    // Modded/older shaders without the new uniform keep their world grade.
+    const bool presentationEnabled = cached->second.presentation >= 0 && presentation[2] > 0.5f;
     if (cached->second.strength >= 0)
-        glUniform1f(cached->second.strength, OptDayNight == 2 && !NightVisionOn ? 1.0f : 0.0f);
+        glUniform1f(cached->second.strength, kind != NightDrawKind::Unaffected &&
+            !presentationEnabled && OptDayNight == 2 && !NightVisionOn ? 1.0f : 0.0f);
     if (cached->second.settings >= 0) {
         const auto parameters = NightLightingParameters(OptDayNight, NightVisionOn != 0,
             NightLightingOptions());

@@ -840,7 +840,10 @@ void RenderHealthBar()
     }
 
     // Mark dirty: health bar rect including 1px border on all sides
-    if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(x0 - 1, y0 - 1, L + 2, H + 3);
+    if (g_GLRenderer) {
+        g_GLRenderer->MarkDirtyRect(x0 - 1, y0 - 1, L + 2, H + 3);
+        g_GLRenderer->ProtectHUDRect(x0 - 1, y0 - 1, L + 2, H + 3);
+    }
 }
 
 void ShowControlElements()
@@ -864,6 +867,10 @@ void ShowControlElements()
         TextOut(hdcCMain, px + 1, py + 1, str, static_cast<int>(strlen(str)));
         SetTextColor(hdcCMain, color);
         TextOut(hdcCMain, px, py, str, static_cast<int>(strlen(str)));
+        SIZE extent{};
+        if (g_GLRenderer && GetTextExtentPoint32A(hdcCMain, str,
+                static_cast<int>(strlen(str)), &extent))
+            g_GLRenderer->ProtectHUDRect(px, py, extent.cx + 2, extent.cy + 2);
     };
 
     if (TIMER)
@@ -1002,8 +1009,8 @@ void ShowControlElements()
     // sits on top in the overlay upload.
     RenderHealthBar();
 
-    // Night lighting is applied by the world shaders. The sky and moon are
-    // therefore not processed by a fullscreen desaturation/darkness pass.
+    // Equipment visibility is applied once during UI composition. The world
+    // beam remains geometric; NV's existing green tint follows in ShowVideo.
 
     // Upload lpVideoBuf overlay to GL.
     if (g_GLRenderer) g_GLRenderer->DrawHUDOverlay();

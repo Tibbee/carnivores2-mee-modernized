@@ -939,7 +939,9 @@ void GLRenderer::DrawElementBatch(const std::vector<ModelVertex>& batch)
     };
     UpdatePerFrameUBO(identity);
     m_modelShader.Use();
-    // NDC-space HUD batch: not world geometry, so no beam (see RenderCircle).
+    // Projected world particles: reset presentation state left by held models.
+    ApplyNightLightingUniforms(m_modelShader.GetProgramID());
+    // No geometric beam for these NDC vertices (see RenderCircle).
     ApplyFlashlightUniforms(m_modelShader.GetProgramID(), false);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -1061,7 +1063,9 @@ void GLRenderer::RenderCircle(float cx, float cy, float z, float R, uint32_t RGB
 
     UpdatePerFrameUBO(identity);
     m_modelShader.Use();
-    // 2D HUD circles in NDC space: not world geometry, so no beam.
+    // These projected world effects must not inherit held-model presentation.
+    ApplyNightLightingUniforms(m_modelShader.GetProgramID());
+    // NDC coordinates cannot drive the geometric beam.
     ApplyFlashlightUniforms(m_modelShader.GetProgramID(), false);
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();

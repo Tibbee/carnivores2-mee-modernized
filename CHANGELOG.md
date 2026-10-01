@@ -24,8 +24,12 @@ compatibility/gameplay package candidate, not an already published hotfix.
 sky/fog grading and flashlight restoration of both brightness and natural
 color within the beam. Bounded config settings and a complete Classic fallback
 are documented in [night lighting](docs/NIGHT-LIGHTING.md). Day/dawn, software
-rendering, trophy layouts and equipment economy remain unchanged. No live
-visual acceptance or published package is claimed.
+rendering, trophy layouts and equipment economy remain unchanged. The owner
+accepted the initial Shipping night preview. A subsequent local implementation
+unifies in-game UI/weapon visibility: flashlight restores brightness/color;
+NV restores brightness but retains desaturation and wins when both are on.
+Essential controls have a readability floor; the geometric beam is unchanged.
+This follow-up is not deployed/visually accepted; no published package is claimed.
 
 ### Shop customization (on local main)
 

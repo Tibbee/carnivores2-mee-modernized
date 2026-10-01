@@ -165,7 +165,7 @@ TEST(NightLighting, EveryActiveDrawPushesUniformsAndMoonStaysExcluded) {
 	EXPECT_NE(ReadSource("Hunt/Renderer/GLWater.cpp").find("ApplyNightLightingUniforms(m_terrainShader.GetProgramID());"), std::string::npos);
 	const auto models = ReadSource("Hunt/Renderer/GLModel.cpp");
 	EXPECT_NE(models.find("ApplyNightLightingUniforms(m_instancedModelShader.GetProgramID());"), std::string::npos);
-	EXPECT_NE(models.find("ApplyNightLightingUniforms(m_modelShader.GetProgramID());"), std::string::npos);
+	EXPECT_NE(models.find("ApplyNightLightingUniforms(m_modelShader.GetProgramID(), nightKind);"), std::string::npos);
 	const auto sky = ReadSource("Hunt/Renderer/GLSky.cpp");
 	EXPECT_NE(sky.find("ApplyNightLightingUniforms(m_skyShader.GetProgramID());"), std::string::npos);
 	EXPECT_NE(sky.find("if (uNight >= 0) glUniform1f(uNight, 0.0f);"), std::string::npos);
