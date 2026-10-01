@@ -29,8 +29,8 @@ accepted the initial Shipping night preview. A subsequent local implementation
 unifies in-game UI/weapon visibility: flashlight restores brightness/color;
 NV restores brightness but retains desaturation and wins when both are on.
 Essential controls have a readability floor; the geometric beam is unchanged.
-This follow-up is deployed for owner preview but not yet visually accepted;
-no published package is claimed.
+The owner tested and visually accepted the deployed Shipping follow-up.
+No exhaustive manual matrix or published package is claimed.
 
 ### Shop customization (on local main)
 

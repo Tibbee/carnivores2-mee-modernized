@@ -1,8 +1,9 @@
 # Moonlit night lighting (OpenGL)
 
 This feature is on the unmerged `feature/night-lighting` branch. It is not a
-published release. The owner accepted the initial night preview; the UI/weapon
-follow-up is deployed for preview and still needs visual acceptance.
+published release. The owner tested and visually accepted both the initial
+night preview and the deployed UI/weapon follow-up. This is preview acceptance,
+not a claim that every manual regression scenario was exercised.
 
 The goal is a dark moonlit wilderness: silhouettes and broad terrain remain
 readable, but the flashlight or night vision is useful for identifying animals,
@@ -94,8 +95,9 @@ modification of the HUD image is needed. Transparent pixels are tested BEFORE
 grading, so dim opaque borders do not disappear.
 
 Day/dawn and Classic have no new equipment-dependent UI rules. No new config
-keys are needed. This follow-up was deployed with owner approval for preview;
-it is not visually accepted merely because the earlier Moonlit preview was accepted.
+keys are needed. This follow-up was deployed with owner approval and separately
+visually accepted after testing. Detailed regression cases below remain a
+checklist, not a claimed completed manual matrix.
 
 ## Sky, moon and night vision
 
