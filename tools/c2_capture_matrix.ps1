@@ -15,6 +15,7 @@ param(
     [string]$Renderer = "gl",
     [switch]$All,
     [ValidateRange(1, 20)][int]$Repeats = 1,
+    [ValidateRange(-1, 255)][int]$ViewOption = -1,
     [ValidateRange(1, 120)][int]$WarmupSeconds = 10,
     [ValidateRange(0, 30)][int]$PostCaptureSeconds = 2,
     [string]$GameDir = $env:CARNIVORES2_LEGACY_DIR,
@@ -48,6 +49,10 @@ if (-not $BuildExe) { $BuildExe = Join-Path $repoRoot "build/$buildPreset/bin/$b
 
 $manifestPath = Join-Path $repoRoot "tools/c2_capture_manifest.json"
 $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+# View-option override for matched view-distance sweeps; -1 keeps the
+# manifest default. The effective value is re-read from the trophy in
+# metadata, so captures remain self-describing either way.
+$effectiveViewOption = if ($ViewOption -ge 0) { $ViewOption } else { [int]$manifest.settings.view_option }
 $deployedConfigPath = Join-Path $GameDir "config.cfg"
 $configPath = $null # Resolved beside BuildExe after preflight; C2 loads config from the executable directory.
 $trophyPath = Join-Path $GameDir "trophy00.sav"
@@ -540,7 +545,7 @@ function Run-Capture {
         # glperf_logging is an OpenGL-harness key; the software build has no
         # consumer, so writing it would assert a setting that does nothing.
         if ($isGl) { Set-ConfigValues $configPath @{ glperf_logging = 1 } }
-        Set-TrophyViewOption $trophyPath ([int]$manifest.settings.view_option)
+        Set-TrophyViewOption $trophyPath $effectiveViewOption
         # The deployed opengl32.dll is ReShade's proxy. Removing it only for
         # this run forces the system OpenGL ICD; the exact original bytes are
         # restored in finally. The software renderer never loads it.
@@ -750,7 +755,7 @@ if ($All) {
 Write-Host "C2 capture session: $sessionDir"
 Write-Host "Build: $sourceSha ($buildExeHash)"
 Write-Host "Renderer: $rendererLabel ($buildPreset)"
-Write-Host "Settings: ReShade off, FPS unlimited, FOV $($manifest.settings.fov), object detail $($manifest.settings.object_detail), view option $($manifest.settings.view_option)"
+Write-Host "Settings: ReShade off, FPS unlimited, FOV $($manifest.settings.fov), object detail $($manifest.settings.object_detail), view option $effectiveViewOption"
 foreach ($scenarioEntry in $selectedScenarios) {
     foreach ($resolutionEntry in $selectedResolutions) {
         for ($repeat = 1; $repeat -le $Repeats; $repeat++) {
