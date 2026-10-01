@@ -290,6 +290,11 @@ if(RENDERER)
     )
 
     # Copy shader files to the output directory (for the GL renderer)
+    # Keep configure-time copies fresh during incremental shader iteration.
+    file(GLOB C2_SHADER_INPUTS CONFIGURE_DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.vert
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.frag)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${C2_SHADER_INPUTS})
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders DESTINATION ${CMAKE_BINARY_DIR}/bin)
 endif()
 
@@ -313,6 +318,7 @@ if(MSVC)
         tests/test_config_parse.cpp
         tests/test_config_text.cpp
         tests/test_flashlight.cpp
+        tests/test_night_lighting.cpp
         tests/test_legacy_scalar_differential.cpp
         tests/test_load_diagnostics.cpp
         tests/test_script_value_parse.cpp
@@ -342,6 +348,8 @@ if(MSVC)
         ${CMAKE_CURRENT_SOURCE_DIR}/Hunt/Core
         ${CMAKE_CURRENT_SOURCE_DIR}/Menu
     )
+    target_compile_definitions(Carnivores2Tests PRIVATE
+        C2_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(Carnivores2Tests PRIVATE gtest_main)
     add_test(NAME Carnivores2Tests COMMAND Carnivores2Tests)
 

@@ -13,6 +13,7 @@
 #include "Core/TerrainMip.h"
 #include "Core/WaterWaveFade.h"
 #include "Core/Flashlight.h"
+#include "Core/NightLighting.h"
 #include "Loaders/LoadDiagnostics.h"
 
 #ifdef _gl
@@ -348,6 +349,7 @@ void InitEngine()
   NightVisionMode = false;
   NightVisionOn   = false;
   NightVisionKey  = 0x4E; // Default: 'N' key
+  NightLightingOptions() = NightLightingSettings{};
 
   // Flashlight accessory: off until a hunt is launched with -flashlight.
   FlashlightMode = false;
@@ -832,6 +834,14 @@ static void CreateDefaultConfig()
     "# Nightvision key VK code (default: 78 = 'N')\r\n"
     "nightvision_key 78\r\n"
     "\r\n"
+    "# OpenGL only: 0=Classic night, 1=darker Moonlit night (default).\r\n"
+    "# Brightness is 5..100 percent; desaturation is 0..100 percent.\r\n"
+    "# Flashlight restores local brightness/color; night vision bypasses it.\r\n"
+    "night_lighting 1\r\n"
+    "night_world_brightness 22\r\n"
+    "night_desaturation 85\r\n"
+    "night_sky_brightness 60\r\n"
+    "\r\n"
     "# Flashlight key VK code (default: 70 = 'F'). The flashlight is only\r\n"
     "# available on hunts launched with the Flashlight accessory selected.\r\n"
     "flashlight_key 70\r\n"
@@ -1020,6 +1030,23 @@ static void LoadConfig()
       }
       else if (_stricmp(key, "nightvision_key") == 0) {
         NightVisionKey = value;
+      }
+      else if (_stricmp(key, "night_lighting") == 0 ||
+               _stricmp(key, "night_world_brightness") == 0 ||
+               _stricmp(key, "night_desaturation") == 0 ||
+               _stricmp(key, "night_sky_brightness") == 0) {
+        const NightLightingOption option = _stricmp(key, "night_lighting") == 0
+          ? NightLightingOption::Mode : _stricmp(key, "night_world_brightness") == 0
+          ? NightLightingOption::WorldBrightness : _stricmp(key, "night_desaturation") == 0
+          ? NightLightingOption::Desaturation : NightLightingOption::SkyBrightness;
+        const bool applied = NightLightingConfigValueFits(line, sizeof(keyval)) &&
+          ParseNightLightingOption(option, keyval, NightLightingOptions());
+        char msg[256];
+        sprintf_s(msg, sizeof(msg), applied
+          ? "Config: %s = %s (OpenGL night lighting).\n"
+          : "Config: invalid %s = %s, ignoring (mode 0..1, brightness 5..100, desaturation 0..100).\n",
+          key, keyval);
+        PrintLog(msg);
       }
       else if (_stricmp(key, "flashlight_key") == 0) {
         // Toggle binding for the flashlight accessory. Clamped to the same

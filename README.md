@@ -171,6 +171,7 @@ do not add new rows or gameplay abilities.
 - [docs/BUILDING.md](docs/BUILDING.md): presets, packaging, PGO, deployment
 - [docs/DEBUGGING.md](docs/DEBUGGING.md): keys, logs, config, data validation
 - [docs/MODDING-SHOP.md](docs/MODDING-SHOP.md): equipment prices, art, text and validation
+- [docs/NIGHT-LIGHTING.md](docs/NIGHT-LIGHTING.md): Moonlit night, flashlight color restoration and Classic fallback (unmerged feature)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): source layout and how it got
   that way
 - [NOTICE.md](NOTICE.md): upstream credits, base commit, third-party licences

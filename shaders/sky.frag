@@ -31,6 +31,8 @@ uniform vec2 uSunScreenPos;   // sun/moon screen pos (top-origin)
 uniform float uSunVisibility; // = m_skyTraceK
 uniform float uSunGlow;       // master glow strength (sun 0.18, moon 0.10)
 uniform float uBodyIsMoon;    // 1.0 = moon (night), 0.0 = sun (day)
+// Classic initializer also permits these shaders with an older executable.
+uniform vec4 uNightSettings = vec4(0.5, 0.6, 1.0, 0.0); // gain, desaturation, sky gain, Moonlit
 uniform float uPocketFog;     // camera pocket-fog density (0..1)
 uniform vec3  uPocketFogColor;// camera pocket-fog colour
 uniform vec3  uCamFogColor;     // camera-in-fog envelope colour
@@ -122,6 +124,11 @@ void main() {
    }
    vec3 skyColor = texture(uSkyTexture, uv).rgb;
    bool isMoon = uBodyIsMoon > 0.5;
+   bool moonlit = isMoon && uNightSettings.w > 0.5;
+   if (moonlit) {
+       float skyLuma = dot(skyColor, vec3(0.299, 0.587, 0.114));
+       skyColor = mix(skyColor, vec3(skyLuma), uNightSettings.y) * uNightSettings.z;
+   }
 
    // Horizon-zenith gradient.  Real skies are not flat: the zenith
    // is darker and more saturated, while the horizon is lighter and warmer.
@@ -140,8 +147,9 @@ void main() {
        ? uCamFogAmount * (1.0f - 0.6f * vertFade)
        : 0.0f;
 
-   // Zenith darkening: 1.0 at the horizon, 0.92 at the zenith.
-   float zenithDark = 0.92 + 0.08 * (1.0 - vert);
+   // Moonlit: preserve horizon silhouettes with a darker canopy overhead.
+   // Classic, daytime and NV keep the original gradient exactly.
+   float zenithDark = moonlit ? mix(1.0, 0.72, vert) : 0.92 + 0.08 * (1.0 - vert);
    skyColor *= zenithDark;
 
    // Sun/moon glow on the sky texture -- a soft halo around the body's
@@ -194,13 +202,16 @@ void main() {
    vec3 skyPocketFogColor = uPocketFogColor;
    vec3 skyCamFogColor = uCamFogColor;
    if (isMoon) {
-       const float kNightFogDesaturation = 0.75;
+       float kNightFogDesaturation = moonlit ? uNightSettings.y : 0.75;
+       float nightFogBrightness = moonlit ? uNightSettings.x : 1.0;
        float fogLuma = dot(uFogColor, vec3(0.299, 0.587, 0.114));
        float pocketLuma = dot(uPocketFogColor, vec3(0.299, 0.587, 0.114));
        float camLuma = dot(uCamFogColor, vec3(0.299, 0.587, 0.114));
-       skyFogColor = mix(uFogColor, vec3(fogLuma), kNightFogDesaturation);
-       skyPocketFogColor = mix(uPocketFogColor, vec3(pocketLuma), kNightFogDesaturation);
-       skyCamFogColor = mix(uCamFogColor, vec3(camLuma), kNightFogDesaturation);
+       // Match the world grade ONCE for each fog source; do not dim the
+       // moon/halo or grade the entire final sky a second time.
+       skyFogColor = mix(uFogColor, vec3(fogLuma), kNightFogDesaturation) * nightFogBrightness;
+       skyPocketFogColor = mix(uPocketFogColor, vec3(pocketLuma), kNightFogDesaturation) * nightFogBrightness;
+       skyCamFogColor = mix(uCamFogColor, vec3(camLuma), kNightFogDesaturation) * nightFogBrightness;
    }
 
    // Per-pixel pocket fog on the sky.  Blend the (already globally

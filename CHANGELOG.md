@@ -18,11 +18,20 @@ Draft changes on local `main` after `origin/main` (`9db51ec`); not part of
 the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
 
-### Unmerged shop-externalization branch
+### Unmerged Moonlit night branch
 
-`feature/shop-externalization` additionally provides named prices and icon/text
-redirects for existing equipment rows, plus a read-only shop checker. These
-changes are not on `main` or in a published package; see
+`feature/night-lighting` implements darker OpenGL moonlit nights, coordinated
+sky/fog grading and flashlight restoration of both brightness and natural
+color within the beam. Bounded config settings and a complete Classic fallback
+are documented in [night lighting](docs/NIGHT-LIGHTING.md). Day/dawn, software
+rendering, trophy layouts and equipment economy remain unchanged. No live
+visual acceptance or published package is claimed.
+
+### Shop customization (on local main)
+
+The owner fast-forwarded `feature/shop-externalization` into local `main` on
+2026-10-01. It provides named prices and icon/text redirects for existing
+equipment rows, plus a read-only shop checker. Not in a published package; see
 [the modder guide](docs/MODDING-SHOP.md). Pictures are clipped to the menu canvas,
 setup-budget totals use 64-bit arithmetic, and comments/complete-line parsing
 and checker diagnostics agree for the new blocks. Legacy positional prices

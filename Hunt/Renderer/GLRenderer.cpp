@@ -229,6 +229,7 @@ void GLRenderer::LoadGLExtensions()
 
 bool GLRenderer::Initialize()
 {
+    m_nightLocations.clear();
     LOG_INFO("GLRenderer::Initialize called");
 
     if (!CreateContext()) {

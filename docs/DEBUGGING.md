@@ -145,6 +145,10 @@ about survive. Values are validated on load.
 | `ai_logging` | `0` | AI awareness trace. See above. |
 | `load_mode` | `lenient` | `strict` halts on the first recoverable data error. |
 | `nightvision_key` | `78` | VK code; 78 is `N`. |
+| `night_lighting` | `1` | OpenGL only: 0 Classic, 1 Moonlit. Unmerged feature; see [night lighting](NIGHT-LIGHTING.md). |
+| `night_world_brightness` | `22` | Moonlit world gain, 5-100 percent. |
+| `night_desaturation` | `85` | Moonlit desaturation, 0-100 percent. |
+| `night_sky_brightness` | `60` | Moonlit authored sky texture gain, 5-100 percent. |
 | `flashlight_key` | `70` | VK code; 70 is `F`. Only works on hunts started with the flashlight accessory. |
 | `flashlight_inner_angle` | `14` | Half-angle in degrees, full strength inside it. |
 | `flashlight_outer_angle` | `26` | Half-angle where the beam fades out completely. |

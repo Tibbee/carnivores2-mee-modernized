@@ -129,12 +129,12 @@ Copy-Item $lgpl (Join-Path $PkgDir 'THIRD-PARTY-LICENSES\COPYING.OpenAL-Soft.txt
 # --- clean default config.cfg ------------------------------------------
 # Mirror Hunt/Game/EngineInit.cpp CreateDefaultConfig (fov 62 default,
 # object_detail 48 default, fps_limit 1, verbose_logging 0, ai_logging 0,
-# load_mode lenient, nightvision_key 78, flashlight_key 70 and the four
+# load_mode lenient, nightvision_key 78, Moonlit night defaults (1/22/85/60),
+# flashlight_key 70 and the four
 # flashlight_* beam keys, sky_mode 1, sky_horizon_drop 12,
 # sky_dome_scale 384, terrain_mip_level 3, water_mipmap 1,
 # water_wave_fade_rings 8, glperf_logging 0, commented audio/hunt examples).
-# Keep this in sync with the source: tools/c2_config_defaults.ps1 reads the
-# engine template and will list any key this copy has fallen behind on.
+# Keep this in sync with CreateDefaultConfig; the package has its own template.
 @"
 # Carnivores 2 Modder's Engine - Configuration
 # This file is auto-generated on first launch.
@@ -169,6 +169,14 @@ load_mode lenient
 
 # Nightvision key VK code (default: 78 = 'N')
 nightvision_key 78
+
+# OpenGL only: 0=Classic night, 1=darker Moonlit night (default).
+# Brightness is 5..100 percent; desaturation is 0..100 percent.
+# Flashlight restores local brightness/color; night vision bypasses it.
+night_lighting 1
+night_world_brightness 22
+night_desaturation 85
+night_sky_brightness 60
 
 # Flashlight key VK code (default: 70 = 'F'). The flashlight is only
 # available on hunts launched with the Flashlight accessory selected.

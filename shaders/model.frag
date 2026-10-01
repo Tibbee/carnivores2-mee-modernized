@@ -73,6 +73,30 @@ void ApplyFlashlight(inout vec3 color, float distance, float cosOffAxis)
    color = max(color, beam * 0.03);
 }
 
+// Classic initializer also permits these shaders with an older executable.
+uniform vec4 uNightSettings = vec4(0.5, 0.6, 1.0, 0.0); // gain, desaturation, sky gain, Moonlit
+
+// BEGIN NIGHT LIGHTING -- keep identical across the three world shaders.
+void ApplyNightLighting(inout vec3 color, float distance, float cosOffAxis)
+{
+   if (uNightStrength <= 0.001) return;
+   vec3 originalColor = color;
+   float gray = dot(originalColor, vec3(0.299, 0.587, 0.114));
+   color = mix(originalColor, vec3(gray), uNightSettings.y * uNightStrength);
+   color *= mix(1.0, uNightSettings.x, uNightStrength);
+
+   // Restore brightness AND color, fading with the existing beam geometry.
+   // Classic mode and NV do not change the previous flashlight composition.
+   if (uNightSettings.w > 0.5 && uFlashlight.x > 0.0) {
+      float cone = smoothstep(uFlashlight.w, uFlashlight.z, cosOffAxis);
+      float atten = clamp(1.0 - distance / max(uFlashlight.y, 1.0), 0.0, 1.0);
+      atten *= atten;
+      float restoration = clamp(uFlashlight.x * cone * atten, 0.0, 1.0);
+      color = mix(color, originalColor, restoration);
+   }
+}
+// END NIGHT LIGHTING
+
 void main() {
    vec4 texColor = texture(uModelTexture, vTexCoord);
    if (vCutout > 0.5 && texColor.a <= 0.5) discard;
@@ -109,16 +133,8 @@ void main() {
        finalColor = finalColor * (1.0f - camFog) + envelopeColor * camFog;
    }
 
-   // Apply night lighting to world models only. Sky and moon use their own
-   // night textures/shading and never pass through this multiplier.
-   if (uNightStrength > 0.001f) {
-       float gray = dot(finalColor, vec3(0.299, 0.587, 0.114));
-       finalColor = mix(finalColor, vec3(gray), 0.6 * uNightStrength);
-       finalColor *= mix(1.0, 0.5, uNightStrength);
-   }
-   // Flashlight: after the night darkening above, so the beam restores what
-   // night took away instead of being darkened with everything else. The sky
-   // and HUD use separate programs and never reach this path.
+   // Grade night, restore local color/brightness, then apply the unchanged
+   // warm beam contribution. Sky and HUD never reach this world-only path.
    {
       // The beam must be evaluated from the INTERPOLATED POSITION, not from
       // interpolated scalars. GPU varyings are perspective-correct, so
@@ -130,6 +146,7 @@ void main() {
       // Core/Flashlight.h and tests/test_flashlight.cpp.
       float beamDistance = length(vViewPos);
       float beamCos = max(-vViewPos.z, 0.0) / max(beamDistance, 1.0);
+      ApplyNightLighting(finalColor, beamDistance, beamCos);
       ApplyFlashlight(finalColor, beamDistance, beamCos);
    }
 

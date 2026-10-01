@@ -533,12 +533,7 @@ void GLRenderer::RenderInstancedModels()
     glBindTexture(GL_TEXTURE_BUFFER, m_exactShadeTexture);
     glUniform1i(glGetUniformLocation(m_instancedModelShader.GetProgramID(), "uExactShade"), 1);
     glActiveTexture(GL_TEXTURE0);
-    {
-        static const GLint uNight = glGetUniformLocation(m_instancedModelShader.GetProgramID(), "uNightStrength");
-        if (uNight >= 0) {
-            glUniform1f(uNight, (OptDayNight == 2 && !NightVisionOn) ? 1.0f : 0.0f);
-        }
-    }
+    ApplyNightLightingUniforms(m_instancedModelShader.GetProgramID());
     // Flashlight beam on instanced world objects (trees, rocks, huts).
     ApplyFlashlightUniforms(m_instancedModelShader.GetProgramID(), true);
     glBindVertexArray(m_instanceVAO);
@@ -1059,12 +1054,7 @@ void GLRenderer::DrawModelVertices(GLuint texture,
 #endif
     // Night lighting is applied to world-model fragments here. The sun/moon
     // draw sets this uniform back to zero, so it is never darkened by night.
-    {
-        static const GLint uNight = glGetUniformLocation(m_modelShader.GetProgramID(), "uNightStrength");
-        if (uNight >= 0) {
-            glUniform1f(uNight, (OptDayNight == 2 && !NightVisionOn) ? 1.0f : 0.0f);
-        }
-    }
+    ApplyNightLightingUniforms(m_modelShader.GetProgramID());
     // Flashlight beam on dinosaurs, hunters and other world models. The
     // sun/moon pass resets this to zero for the same reason it resets night
     // lighting.

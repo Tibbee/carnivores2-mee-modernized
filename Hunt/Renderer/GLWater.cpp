@@ -73,12 +73,7 @@ void GLRenderer::RenderWaterSurface()
 
     // Water uses the terrain shader, so apply the same world-only night
     // lighting explicitly rather than relying on the previous terrain pass.
-    {
-        static const GLint uNight = glGetUniformLocation(m_terrainShader.GetProgramID(), "uNightStrength");
-        if (uNight >= 0) {
-            glUniform1f(uNight, (OptDayNight == 2 && !NightVisionOn) ? 1.0f : 0.0f);
-        }
-    }
+    ApplyNightLightingUniforms(m_terrainShader.GetProgramID());
     // Same story for the flashlight: this is another draw through the same
     // program, with another UpdatePerFrameUBO() in between, so the beam has
     // to be pushed here too rather than inherited from RenderTerrain().

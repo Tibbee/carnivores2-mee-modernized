@@ -776,7 +776,10 @@ public:
     // to force the next frame to do a full clear + full upload.
     void InvalidateHUDOverlay();
 
-    // Night desaturation + darkness overlay pipeline
+    // Active world/sky night grading (plain uniforms; no UBO layout change).
+    void ApplyNightLightingUniforms(unsigned int program);
+
+    // Legacy, currently unused fullscreen night pipeline
     void InitializeNightDesaturation();
     void ShutdownNightDesaturation();
     void RenderSceneDesaturated();   // desaturate 3D scene only (before HUD)
@@ -800,6 +803,12 @@ public:
     void ApplyFlashlightUniforms(unsigned int program, bool worldLit);
 
 private:
+    struct NightUniformLocations {
+        GLint strength = -1;
+        GLint settings = -1;
+    };
+    std::map<unsigned int, NightUniformLocations> m_nightLocations;
+
     struct FlashlightUniformLocations {
         GLint beam = -1;
         GLint color = -1;

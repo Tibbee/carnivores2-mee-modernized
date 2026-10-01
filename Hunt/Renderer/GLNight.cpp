@@ -5,6 +5,7 @@
 #include "Hunt.h"
 #include "GLRenderer.h"
 #include "Renderer/GLUtils.h"
+#include "Core/NightLighting.h"
 
 #ifdef _gl
 
@@ -82,6 +83,27 @@ void GLRenderer::InitializeNightDesaturation()
     m_locNightDesatStrength = glGetUniformLocation(m_nightDesatProgram.GetProgramID(), "uDesaturateStrength");
     glUniform1i(m_locNightDesatTexture, 0);
     glUniform1f(m_locNightDesatStrength, 0.6f);  // 60% desaturation
+}
+
+void GLRenderer::ApplyNightLightingUniforms(unsigned int program)
+{
+    if (program == 0) return;
+    auto cached = m_nightLocations.find(program);
+    if (cached == m_nightLocations.end()) {
+        const NightUniformLocations fresh = {
+            glGetUniformLocation(program, "uNightStrength"),
+            glGetUniformLocation(program, "uNightSettings"),
+        };
+        cached = m_nightLocations.emplace(program, fresh).first;
+    }
+    // Always push disabled values too: NV/day changes cannot leave old state.
+    if (cached->second.strength >= 0)
+        glUniform1f(cached->second.strength, OptDayNight == 2 && !NightVisionOn ? 1.0f : 0.0f);
+    if (cached->second.settings >= 0) {
+        const auto parameters = NightLightingParameters(OptDayNight, NightVisionOn != 0,
+            NightLightingOptions());
+        glUniform4fv(cached->second.settings, 1, parameters.data());
+    }
 }
 
 #endif // _gl

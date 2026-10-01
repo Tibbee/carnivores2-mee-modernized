@@ -4,6 +4,7 @@
 
 #include "Hunt.h"
 #include "GLRenderer.h"
+#include "Core/NightLighting.h"
 #include "Renderer/GLUtils.h"
 
 #ifdef _gl
@@ -372,13 +373,8 @@ void GLRenderer::RenderTerrain()
     m_terrainShader.Use();
 
     // Night lighting belongs on world geometry, not in a fullscreen pass;
-    // this leaves the separately-rendered sky and moon untouched.
-    {
-        static const GLint uNight = glGetUniformLocation(m_terrainShader.GetProgramID(), "uNightStrength");
-        if (uNight >= 0) {
-            glUniform1f(uNight, (OptDayNight == 2 && !NightVisionOn) ? 1.0f : 0.0f);
-        }
-    }
+    // this keeps its treatment separate from the sky grade and moon.
+    ApplyNightLightingUniforms(m_terrainShader.GetProgramID());
     // Flashlight beam (world-only, same contract as night lighting). The
     // water surface reuses this program, so it inherits the beam from here.
     ApplyFlashlightUniforms(m_terrainShader.GetProgramID(), true);
@@ -394,7 +390,8 @@ void GLRenderer::RenderTerrain()
         static const GLint uSunVis  = glGetUniformLocation(m_terrainShader.GetProgramID(), "uSunVisibility");
         static const GLint uScatter = glGetUniformLocation(m_terrainShader.GetProgramID(), "uFogScatter");
         if (uScatter >= 0) {
-            if (m_isUnderwater || GetSunLight() < 0.1f) {
+            if (m_isUnderwater || GetSunLight() < 0.1f ||
+                UseMoonlitNight(OptDayNight, NightVisionOn != 0, NightLightingOptions())) {
                 glUniform1f(uScatter, 0.0f);
             } else {
                 // Keep fog forward-scatter aligned with the rendered celestial body.

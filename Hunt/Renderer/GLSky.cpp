@@ -181,6 +181,7 @@ void GLRenderer::RenderSkyPlane()
 
     UpdatePerFrameUBO();
     m_skyShader.Use();
+    ApplyNightLightingUniforms(m_skyShader.GetProgramID());
     glUniform1i(m_locSkyTexture, 0);
     glUniform2f(m_locSkyViewport, static_cast<float>(WinW), static_cast<float>(WinH));
     glUniform2f(m_locSkyVideoCenter, static_cast<float>(VideoCX), static_cast<float>(VideoCY));
@@ -728,8 +729,8 @@ void GLRenderer::RenderSun(float x, float y, float z)
 
     // The moon uses the same sunAlpha as the day sun, so it is already
     // dimmed by clouds (m_skyTraceK).  RenderModelSun switches to normal
-    // alpha blending at night (no additive glare), and the night-darkness
-    // overlay provides the tonal dimming -- so full brightness here is fine.
+    // alpha blending at night (no additive glare). World/sky night grading
+    // deliberately excludes this disc; there is no active darkness overlay.
     RenderModelSun(SunModel.get(), x * d, y * d, z * d, sunAlpha);
 }
 

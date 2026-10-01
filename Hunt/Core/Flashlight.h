@@ -46,8 +46,10 @@ inline constexpr float kFlashlightRangeMax     = 60000.0f;
 // Peak gain inside the inner cone at zero distance, as a percent. 500 means
 // surface colours are multiplied by up to 1 + 5 there (times the headroom
 // roll-off), which is what it takes to make genuinely dark night ground read
-// as torch-lit rather than merely less black: night multiplies world colours
-// by 0.5 and desaturates them, so a small boost is invisible. Measured on
+// as torch-lit rather than merely less black: Classic night multiplies world
+// colours by 0.5 and desaturates them, so a small boost is invisible. Moonlit
+// first restores pre-night color locally, then applies this unchanged boost.
+// Measured on
 // area1 at night, this roughly doubles near foreground terrain luminance
 // while keeping local texture contrast intact.
 inline constexpr int kFlashlightIntensityPctDefault = 500;

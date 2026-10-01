@@ -6,6 +6,7 @@
 #include "GLRenderer.h"
 #include "Renderer/GLUtils.h"
 #include "Core/TerrainFog.h"
+#include "Core/NightLighting.h"
 
 #ifdef _gl
 
@@ -97,7 +98,9 @@ Vector3d DecodeFogColorBGR(int rgb)
 // pass 0.0f to skip the shift entirely.
 int ApplySunFogColourShift(int fogRGB, float sunLight)
 {
-    if (sunLight <= 0.1f) {
+    // Moonlight must not inherit the golden sunlight palette. Classic/NV
+    // retain the previous fog treatment; software never calls this helper.
+    if (sunLight <= 0.1f || UseMoonlitNight(OptDayNight, NightVisionOn != 0, NightLightingOptions())) {
         return fogRGB;
     }
     // Sun elevation is constant for the fixed sun position; hoist the sqrt
