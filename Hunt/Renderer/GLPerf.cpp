@@ -125,6 +125,9 @@ struct GLPerfState {
     uint32_t frameTerrainAlphaCulled = 0;
     uint32_t frameTerrainEmittedTiles = 0;
     uint32_t frameTerrainVertices = 0;
+    uint32_t framePrecachePoints = 0;
+    uint32_t framePrecacheWaterCells = 0;
+    uint32_t framePrecacheFogOn = 0;
     uint32_t frameLastTexture = 0;
     bool frameHasLastTexture = false;
     std::unordered_set<uint32_t> frameUniqueTextureHandles;
@@ -379,6 +382,7 @@ void AppendCaptureHeader() {
         "terrain_chunk_candidates,terrain_tile_candidates,terrain_coarse_culled,"
         "terrain_back_culled,terrain_frustum_culled,terrain_distance_culled,"
         "terrain_alpha_culled,terrain_emitted_tiles,terrain_vertices,"
+        "precache_points,precache_water_cells,precache_fogon,"
         "previous_frame_interval_ms,previous_swap_ms");
     for (const std::string& name : g_state.captureScopeOrder) {
         std::fprintf(g_state.captureFile, ",%s_cpu_ms,%s_gpu_ms,%s_calls",
@@ -435,7 +439,7 @@ void WriteCaptureFrame() {
     // GPU query results are asynchronous. Keep the sentinel explicit instead
     // of writing a result from another frame or a rolling average here.
     std::fprintf(g_state.captureFile,
-        "%d,%.3f,%.3f,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u",
+        "%d,%.3f,%.3f,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u",
         g_state.captureFramesWritten,
         g_state.frameCpuMs,
         -1.0,
@@ -453,7 +457,10 @@ void WriteCaptureFrame() {
         g_state.frameTerrainDistanceCulled,
         g_state.frameTerrainAlphaCulled,
         g_state.frameTerrainEmittedTiles,
-        g_state.frameTerrainVertices);
+        g_state.frameTerrainVertices,
+        g_state.framePrecachePoints,
+        g_state.framePrecacheWaterCells,
+        g_state.framePrecacheFogOn);
     // Previous begin-to-begin interval includes simulation, profiler overhead,
     // presentation and pacing. This is throughput, not display latency.
     std::fprintf(g_state.captureFile, ",%.3f,%.3f",
@@ -756,6 +763,9 @@ extern "C" void glperf_frame_begin() {
     g_state.frameTerrainAlphaCulled = 0;
     g_state.frameTerrainEmittedTiles = 0;
     g_state.frameTerrainVertices = 0;
+    g_state.framePrecachePoints = 0;
+    g_state.framePrecacheWaterCells = 0;
+    g_state.framePrecacheFogOn = 0;
     g_state.frameLastTexture = 0;
     g_state.frameHasLastTexture = false;
     g_state.frameUniqueTextureHandles.clear();
@@ -886,7 +896,10 @@ extern "C" void glperf_note_terrain_workload(uint32_t chunkCandidates,
                                                    uint32_t distanceCulled,
                                                    uint32_t alphaCulled,
                                                    uint32_t emittedTiles,
-                                                   uint32_t vertices) {
+                                                   uint32_t vertices,
+                                                   uint32_t precachePoints,
+                                                   uint32_t precacheWaterCells,
+                                                   uint32_t precacheFogOn) {
     if (!g_state.initialized || !g_state.loggingEnabled || !g_state.frameActive) return;
     g_state.frameTerrainChunkCandidates = chunkCandidates;
     g_state.frameTerrainTileCandidates = tileCandidates;
@@ -897,6 +910,9 @@ extern "C" void glperf_note_terrain_workload(uint32_t chunkCandidates,
     g_state.frameTerrainAlphaCulled = alphaCulled;
     g_state.frameTerrainEmittedTiles = emittedTiles;
     g_state.frameTerrainVertices = vertices;
+    g_state.framePrecachePoints = precachePoints;
+    g_state.framePrecacheWaterCells = precacheWaterCells;
+    g_state.framePrecacheFogOn = precacheFogOn;
 }
 
 extern "C" void glperf_note_texture_bind(uint32_t handle) {

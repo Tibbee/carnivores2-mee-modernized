@@ -23,6 +23,10 @@ void PreCashGroundModel()
 
   BOOL FogFound = false;
   NeedWater = false;
+#ifdef GL_PERF_HOOKS
+  PrecachePointsSwept = 0;
+  PrecacheWaterCells = 0;
+#endif
 
   static float waveCache[32][32];
   static int waveCacheRandomMap[32][32] = {};
@@ -157,10 +161,113 @@ void PreCashGroundModel()
     return fogCacheValue[fogCellX];
   };
 
+#if defined(_gl)
+  // Reduced-coverage sweep (GL build only; the software renderer keeps the
+  // full square). Per row, the swept x range is the union of:
+  //   (a) the walk's rowRange spans (disk intersect frustum half-planes),
+  //       +2.5 cells for its chunk/3x3 corner reads (GLTerrain.cpp
+  //       CollectTerrainChunk2x2 / CollectTerrainTile);
+  //   (b) the +1600 write cone, +1 cell rounding margin: every VMap write
+  //       (Light/Fog at :304-325, FOGON discovery at :333-335) and the
+  //       water/NeedWater set (:217-225) are gated by these tests, so
+  //       covering the write region preserves every consumer-visible value
+  //       and its staleness timeline (consumer inventory: CarnivoresDoc
+  //       Phase 2a proof).
+  // The height term uses the same permissive wyEff selection as the walk's
+  // rowRange so pitched frusta cannot escape the bound.
+  const float fovk = FOVK;
+  const float wyMin2 = 0.0f - CameraY;
+  const float wyMax2 = 255.0f * static_cast<float>(ctHScale) - CameraY;
+  const float wyEff2 = (sb > 0.0f) ? wyMin2 : (sb < 0.0f ? wyMax2 : 0.0f);
+  const float coneCr = (1600.0f - wyEff2 * sb) / 256.0f;
+  const float coneCl = -coneCr;
+  const float coneAr = ca * fovk - sa * cb;
+  const float coneBr = sa * fovk + ca * cb;
+  const float coneAl = ca * fovk + sa * cb;
+  const float coneBl = sa * fovk - ca * cb;
+  const float coneRightSlack = std::fabs(coneAr) + std::fabs(coneBr);
+  const float coneLeftSlack = std::fabs(coneAl) + std::fabs(coneBl);
+  const float residualX = CameraX / 256.0f - (static_cast<float>(CCX) + 0.5f);
+  const float residualY = CameraZ / 256.0f - (static_cast<float>(CCY) + 0.5f);
+  const float viewR2 = static_cast<float>(ctViewR) * static_cast<float>(ctViewR);
+  // The walk's own half-planes (GLTerrain.cpp rowRange): BackViewR slack and
+  // the same +3-cell expansion, so this term is a superset of every cell the
+  // walk can visit or read corners of.
+  const float walkCr = (BackViewR - wyEff2 * sb) / 256.0f;
+  const float walkCl = -walkCr;
+  const float walkRightSlack = 3.0f * (std::fabs(coneAr) + std::fabs(coneBr));
+  const float walkLeftSlack = 3.0f * (std::fabs(coneAl) + std::fabs(coneBl));
+  const int squareLo = -(ctViewR + 3);
+  const int squareHi = (ctViewR + 3) - 1;
+  auto reducedRowXRange = [&](int yOff, int& loOut, int& hiOut) {
+    const float dy = static_cast<float>(yOff) - residualY;
+    float lo = 1.0e30f;
+    float hi = -1.0e30f;
+    const float d2 = viewR2 - dy * dy;
+    if (d2 >= 0.0f) {
+      const float D = std::sqrt(d2);
+      float wLo = -D;
+      float wHi = D;
+      const float wRhsR = walkCr + walkRightSlack - coneBr * dy;
+      if (coneAr > 1e-12f)       wHi = (std::min)(wHi, wRhsR / coneAr);
+      else if (coneAr < -1e-12f) wLo = (std::max)(wLo, wRhsR / coneAr);
+      else if (coneBr * dy > walkCr + walkRightSlack) { wLo = 1.0f; wHi = 0.0f; }
+      const float wRhsL = walkCl - walkLeftSlack - coneBl * dy;
+      if (wLo <= wHi) {
+        if (coneAl > 1e-12f)       wLo = (std::max)(wLo, wRhsL / coneAl);
+        else if (coneAl < -1e-12f) wHi = (std::min)(wHi, wRhsL / coneAl);
+        else if (coneBl * dy < walkCl - walkLeftSlack) { wLo = 1.0f; wHi = 0.0f; }
+      }
+      if (wLo <= wHi) {
+        lo = wLo - 2.5f + residualX;
+        hi = wHi + 2.5f + residualX;
+      }
+    }
+    const float expandedCr = coneCr + coneRightSlack;
+    const float rhsR = expandedCr - coneBr * dy;
+    float coneLo = 1.0e30f;
+    float coneHi = -1.0e30f;
+    bool coneOk = true;
+    if (coneAr > 1e-12f)       coneHi = rhsR / coneAr + residualX;
+    else if (coneAr < -1e-12f) coneLo = rhsR / coneAr + residualX;
+    else if (coneBr * dy > expandedCr) coneOk = false;
+    const float expandedCl = coneCl - coneLeftSlack;
+    const float rhsL = expandedCl - coneBl * dy;
+    if (coneOk) {
+      if (coneAl > 1e-12f)       coneLo = (std::max)(coneLo, rhsL / coneAl + residualX);
+      else if (coneAl < -1e-12f) coneHi = (std::min)(coneHi, rhsL / coneAl + residualX);
+      else if (coneBl * dy < expandedCl) coneOk = false;
+    }
+    if (coneOk && coneLo <= coneHi) {
+      lo = (std::min)(lo, coneLo);
+      hi = (std::max)(hi, coneHi);
+    }
+    if (lo > hi) {
+      loOut = 1;
+      hiOut = 0;
+      return;
+    }
+    loOut = (std::max)(squareLo, static_cast<int>(std::floor(lo)));
+    hiOut = (std::min)(squareHi, static_cast<int>(std::ceil(hi)));
+  };
+#endif
+
 
   for (y=-(ctViewR+3); y<(ctViewR+3); y++)
-    for (x=-(ctViewR+3); x<(ctViewR+3); x++)
+  {
+#if defined(_gl)
+    int sweepXLo, sweepXHi;
+    reducedRowXRange(y, sweepXLo, sweepXHi);
+    if (sweepXLo > sweepXHi) continue;
+#else
+    const int sweepXLo = -(ctViewR + 3);
+    const int sweepXHi = (ctViewR + 3) - 1;
+#endif
+    for (x=sweepXLo; x<=sweepXHi; x++)
     {
+#ifdef GL_PERF_HOOKS
+      ++PrecachePointsSwept;
+#endif
 
       int r = MAX((MAX(y,-y)), (MAX(x,-x)));
 
@@ -223,6 +330,9 @@ void PreCashGroundModel()
         else
         {
           NeedWater = true;
+#ifdef GL_PERF_HOOKS
+          ++PrecacheWaterCells;
+#endif
           VMap2[kViewGridCenter + y][kViewGridCenter + x].Light = 168-static_cast<int>((wdelta*24));
 
           float Alpha;
@@ -393,8 +503,12 @@ void PreCashGroundModel()
       VMap[kViewGridCenter + y][kViewGridCenter + x].DFlags = DF;
 #endif
     }
+  }
 
   FOGON = FogFound || IsUnderwater();
+#ifdef GL_PERF_HOOKS
+  PrecacheFogOn = FOGON ? 1 : 0;
+#endif
 }
 
 void AddShadowCircle(int x, int y, int R, int D)

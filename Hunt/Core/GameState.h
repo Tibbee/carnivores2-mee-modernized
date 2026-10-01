@@ -495,6 +495,7 @@ GLOBAL int WATERANI, Clouds, SKY, GOURAUD,
           FOGENABLE, FOGON, CAMERAINFOG,
           WATERREVERSE, waterclip, UNDERWATER, ONWATER, NeedWater,
           SWIM, FLY, PAUSE, OPTICMODE, BINMODE, EXITMODE, MapMode, RunMode, CrouchMode;
+GLOBAL int PrecachePointsSwept, PrecacheWaterCells, PrecacheFogOn;
 
 GLOBAL int  CameraFogI;
 

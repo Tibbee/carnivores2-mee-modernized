@@ -95,7 +95,10 @@ void glperf_note_terrain_workload(uint32_t chunkCandidates,
                                  uint32_t distanceCulled,
                                  uint32_t alphaCulled,
                                  uint32_t emittedTiles,
-                                 uint32_t vertices);
+                                 uint32_t vertices,
+                                 uint32_t precachePoints,
+                                 uint32_t precacheWaterCells,
+                                 uint32_t precacheFogOn);
 void glperf_note_texture_bind(uint32_t handle);
 void glperf_note_state_change();
 
@@ -127,11 +130,12 @@ private:
 #define GL_PERF_SCOPE(name)         ::GLPerfScope glperf_scope_obj_(name)
 #define GL_PERF_CPU_SCOPE(name)     ::GLPerfScope glperf_scope_obj_(name, false)
 #define GL_PERF_DRAW(n)             ::glperf_add_draw(static_cast<uint32_t>(n))
-#define GL_PERF_TERRAIN_WORKLOAD(chunks, candidates, coarse, back, frustum, distance, alpha, emitted, vertices) \
+#define GL_PERF_TERRAIN_WORKLOAD(chunks, candidates, coarse, back, frustum, distance, alpha, emitted, vertices, precachePoints, precacheWater, precacheFogOn) \
     ::glperf_note_terrain_workload(static_cast<uint32_t>(chunks), static_cast<uint32_t>(candidates), \
         static_cast<uint32_t>(coarse), static_cast<uint32_t>(back), static_cast<uint32_t>(frustum), \
         static_cast<uint32_t>(distance), static_cast<uint32_t>(alpha), static_cast<uint32_t>(emitted), \
-        static_cast<uint32_t>(vertices))
+        static_cast<uint32_t>(vertices), static_cast<uint32_t>(precachePoints), \
+        static_cast<uint32_t>(precacheWater), static_cast<uint32_t>(precacheFogOn))
 #define GL_PERF_TEXTURE_BIND(h)     ::glperf_note_texture_bind(static_cast<uint32_t>(h))
 #define GL_PERF_STATE_CHANGE()      ::glperf_note_state_change()
 
@@ -142,7 +146,7 @@ private:
 #define GL_PERF_SCOPE(name)         ((void)0)
 #define GL_PERF_CPU_SCOPE(name)     ((void)0)
 #define GL_PERF_DRAW(n)             ((void)0)
-#define GL_PERF_TERRAIN_WORKLOAD(chunks, candidates, coarse, back, frustum, distance, alpha, emitted, vertices) ((void)0)
+#define GL_PERF_TERRAIN_WORKLOAD(chunks, candidates, coarse, back, frustum, distance, alpha, emitted, vertices, precachePoints, precacheWater, precacheFogOn) ((void)0)
 #define GL_PERF_TEXTURE_BIND(h)     ((void)0)
 #define GL_PERF_STATE_CHANGE()      ((void)0)
 

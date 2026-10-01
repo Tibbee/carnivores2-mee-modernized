@@ -1263,7 +1263,10 @@ void GLRenderer::RenderGround()
                              m_terrainPerf.distanceCulled,
                              m_terrainPerf.alphaCulled,
                              m_terrainPerf.emittedTiles,
-                             m_terrainVertexCount);
+                             m_terrainVertexCount,
+                             PrecachePointsSwept,
+                             PrecacheWaterCells,
+                             PrecacheFogOn);
 #endif
 }
 #endif // _gl
