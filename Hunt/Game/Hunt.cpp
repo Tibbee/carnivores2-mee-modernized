@@ -1160,7 +1160,7 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       else
         AddMessage("Night vision OFF");
     }
-    if (pressed(FlashlightKey) && FlashlightMode) {
+    if (pressed(FlashlightKey) && FlashlightMode && MyHealth > 0) {
       // Same orthogonal-flag contract as night vision: never touches
       // g_GameMode. Gated on FlashlightMode so the key does nothing on a
       // hunt launched without the accessory, rather than silently granting

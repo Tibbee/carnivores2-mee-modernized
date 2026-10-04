@@ -5,12 +5,66 @@
 #include <gtest/gtest.h>
 
 #include "Flashlight.h"
+#include <fstream>
+#include <iterator>
 
 namespace {
 
 constexpr float kEps = 1e-5f;
 
+std::string FlashlightSource(const char* relative)
+{
+    std::ifstream file(std::string(C2_SOURCE_ROOT) + "/" + relative, std::ios::binary);
+    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+}
+
 } // namespace
+
+TEST(FlashlightTest, DeadHunterCannotIlluminateEvenWithAStaleToggle)
+{
+    for (bool equipped : {false, true})
+        for (bool switchedOn : {false, true})
+            for (int intensity : {0, 500, 1000})
+                for (int health : {-1, 0, 1, 100000})
+                    EXPECT_EQ(FlashlightShouldIlluminate(equipped, switchedOn, intensity, health),
+                        equipped && switchedOn && intensity > 0 && health > 0);
+}
+
+TEST(FlashlightTest, DeathTransitionClearsTheToggleBeforeTheKillCamera)
+{
+    const auto source = FlashlightSource("Hunt/Game/Characters.cpp");
+    const auto start = source.find("void AddDeadBody(");
+    const auto end = source.find("float AngleDifference(", start);
+    ASSERT_NE(start, std::string::npos);
+    ASSERT_NE(end, std::string::npos);
+    const auto death = source.substr(start, end - start);
+    const auto health = death.find("MyHealth = 0;");
+    const auto off = death.find("FlashlightOn = false;");
+    const auto camera = death.find("DemoPoint.DemoTime = 1;");
+    ASSERT_NE(health, std::string::npos);
+    ASSERT_NE(off, std::string::npos);
+    ASSERT_NE(camera, std::string::npos);
+    EXPECT_LT(health, off);
+    EXPECT_LT(off, camera);
+}
+
+TEST(FlashlightTest, ToggleCannotRelightDuringDeath)
+{
+    const auto source = FlashlightSource("Hunt/Game/Hunt.cpp");
+    EXPECT_NE(source.find("if (pressed(FlashlightKey) && FlashlightMode && MyHealth > 0) {"),
+        std::string::npos);
+}
+
+TEST(FlashlightTest, RendererUsesLivingHunterPolicyAndPushesDisabledUniforms)
+{
+    const auto source = FlashlightSource("Hunt/Renderer/GLFlashlight.cpp");
+    EXPECT_NE(source.find("return FlashlightShouldIlluminate(FlashlightMode, FlashlightOn,"),
+        std::string::npos);
+    EXPECT_NE(source.find("OptFlashlightIntensityPct, MyHealth);"), std::string::npos);
+    EXPECT_NE(source.find("const bool enabled = worldLit && FlashlightEnabled();"), std::string::npos);
+    EXPECT_NE(source.find("float beam[4] = { 0.0f,"), std::string::npos);
+    EXPECT_NE(source.find("glUniform4fv(cached->second.beam, 1, beam);"), std::string::npos);
+}
 
 TEST(FlashlightTest, DefaultsDescribeATorchNotASearchlight)
 {

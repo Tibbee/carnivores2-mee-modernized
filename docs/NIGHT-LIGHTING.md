@@ -75,7 +75,10 @@ wind indicator and near-models (weapon, binoculars and their related passes):
 | Night vision | Pre-night brightness | Retain night desaturation; green overlay follows |
 | Both | Same as night vision | Same as night vision (NV takes priority) |
 
-The flashlight must be purchased, on and have nonzero intensity. UI/held-model
+The flashlight must be purchased, on, have nonzero intensity and belong to a
+living hunter. Death switches it off immediately, including dinosaur kill
+animations, and the flashlight key cannot turn it back on while dead.
+Night vision is unchanged. UI/held-model
 restoration follows that effective toggle state, not cone/range geometry. It
 adds no warm beam boost to the weapon. Diffuse, cutout, transparent, reflection
 and specular passes share the policy. World surfaces retain the original
@@ -131,6 +134,9 @@ Manual acceptance should compare Classic/Moonlit at the same location:
 - Clear ground, dense vegetation, animal silhouettes and water.
 - Flashlight off/on; center, edge and range falloff; zero intensity.
 - NV off/on, including NV plus flashlight.
+- Die with the flashlight on: the beam and flashlight-driven UI restoration
+  stop at death; pressing the flashlight key during the kill animation does
+  not relight it. Check a new hunt still starts with the flashlight off.
 - Fog entry/exit, cloud edges, moon visibility and underwater views.
 - Map/exit/pause, compass/wind, weapon body/highlights and aiming-mark visibility.
 - Toggle equipment with an overlay open; dismiss it and check for stale patches.

@@ -20,6 +20,14 @@
 
 #include <cmath>
 
+// Death must suppress both the world beam and flashlight-driven HUD grading,
+// even if a stale toggle remains set. Health is authoritative, not UI mode.
+inline constexpr bool FlashlightShouldIlluminate(bool equipped, bool switchedOn,
+    int intensityPct, int hunterHealth)
+{
+    return equipped && switchedOn && intensityPct > 0 && hunterHealth > 0;
+}
+
 // Toggle binding. Stored outside TKeyMap -- which is blobsaved with
 // sizeof(TKeyMap) into trophy0N.sav -- exactly like NightVisionKey, so adding
 // it cannot shift the profile layout.

@@ -344,6 +344,7 @@ void AddDeadBody(TCharacter *cptr, int phase, bool scream)
 
 	Characters[ChCount].Health = 0;
 	MyHealth = 0;
+	FlashlightOn = false; // Switch off before the death/kill camera takes over.
 	if (cptr)
 	{
 		killerDino = cptr;

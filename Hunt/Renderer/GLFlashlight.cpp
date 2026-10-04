@@ -20,8 +20,10 @@ bool GLRenderer::FlashlightEnabled() const
 {
     // Purchased for this hunt (-flashlight from the menu) and toggled on.
     // A zero intensity is the config-level off switch, so checking it here
-    // makes the toggle honest: the HUD message and the beam agree.
-    return FlashlightMode && FlashlightOn && OptFlashlightIntensityPct > 0;
+    // makes the toggle honest: the HUD message and the beam agree. Death
+    // also disables flashlight-driven HUD restoration through this policy.
+    return FlashlightShouldIlluminate(FlashlightMode, FlashlightOn,
+        OptFlashlightIntensityPct, MyHealth);
 }
 
 void GLRenderer::ApplyFlashlightUniforms(unsigned int program, bool worldLit)
