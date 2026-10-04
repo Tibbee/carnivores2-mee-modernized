@@ -6,6 +6,7 @@
 #include "GLRenderer.h"
 #include "Renderer/GLUtils.h"
 #include "Renderer/SkyFogProjection.h"
+#include "Renderer/SunDepthOcclusion.h"
 
 #ifdef _gl
 
@@ -502,7 +503,11 @@ void GLRenderer::ApplySunDepthOcclusion()
     // Applies the depth-occlusion factor sampled at frame start by
     // UpdateSunTraceK() (previous frame's depth at the previous frame's sun
     // position -- one frame of sampling latency, smoothed there by DeltaFunc).
-    m_sunLight *= m_traceKApplied;
+    // RenderSkyPlane() may have moved the current projection off-screen since
+    // sampling (camera motion or optic zoom). Zero glare immediately there,
+    // without discarding the smoothed cache or reading current-frame depth.
+    m_sunLight = ApplySunDepthFactor(m_sunLight, m_traceKApplied,
+        m_sunScrX, m_sunScrY, WinW, WinH);
 }
 
 // UpdateSunVisibility() was removed: it had no call site (dead since its
@@ -881,7 +886,7 @@ void GLRenderer::UpdateSunTraceK()
     // one frame of sampling latency, which the DeltaFunc smoothing tolerates.
     const int x = m_sunScrX;
     const int y = m_sunScrY;
-    if (x < 10 || y < 10 || x > WinW - 10 || y > WinH - 10) {
+    if (!SunTracePositionOnScreen(x, y, WinW, WinH)) {
         // Sun was off-screen when sampled: keep the old contract (zero the
         // applied factor) rather than smoothing toward a stale value.
         m_traceKApplied = 0.0f;

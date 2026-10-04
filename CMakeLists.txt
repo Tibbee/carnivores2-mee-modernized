@@ -339,6 +339,7 @@ if(MSVC)
         tests/test_sky_fog_projection.cpp
         tests/test_sky_mode_mapping.cpp
         tests/test_spawn_math.cpp
+        tests/test_sun_depth_occlusion.cpp
         tests/test_terrain_fog.cpp
         tests/test_terrain_fog_smoothing.cpp
         tests/test_terrain_mip.cpp
