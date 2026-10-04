@@ -325,6 +325,7 @@ if(MSVC)
         tests/test_script_value_parse.cpp
         tests/test_game_mode.cpp
         tests/test_math.cpp
+        Hunt/Math/Vector.cpp
         tests/test_trophy_mode.cpp
         tests/test_key_bindings.cpp
         tests/test_load_validate.cpp

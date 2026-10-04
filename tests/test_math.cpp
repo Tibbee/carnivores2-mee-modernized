@@ -1,101 +1,16 @@
 // ==========================================================================
-// test_math.cpp -- Unit tests for dependency-free math functions
+// test_math.cpp -- Tests linked to the production Hunt/Math/Vector.cpp
 // ==========================================================================
-// These functions are self-contained (no game state), making them ideal
-// first test candidates. Implementations are reproduced inline so the test
-// binary does not depend on Hunt.h or other game headers.
+// Do not duplicate the math implementations: gameplay distance regressions
+// must fail here even when an optimization originated in rendering work.
 
 #include <gtest/gtest.h>
-
-#define _USE_MATH_DEFINES
+#include "Hunt.h"
 #include <cmath>
 #include <cstdlib>
 
-// --- Vector3d (simplified copy from Core/MathTypes.h) ---
-struct Vector3d { float x, y, z; };
-
-constexpr float pi = 3.14159265358979323846f;
-
-// --- Helper to compare float vectors ---
-::testing::AssertionResult VectorNear(const Vector3d& a, const Vector3d& b, float eps = 0.001f) {
-    if (std::fabs(a.x - b.x) > eps || std::fabs(a.y - b.y) > eps || std::fabs(a.z - b.z) > eps)
-        return ::testing::AssertionFailure()
-            << "expected (" << a.x << ", " << a.y << ", " << a.z << ") "
-            << "got (" << b.x << ", " << b.y << ", " << b.z << ")";
-    return ::testing::AssertionSuccess();
-}
-
-// ===================== Implementation under test =====================
-
-static float FastInvSqrt(float x) {
-    float xhalf = 0.5f * x;
-    union { float f; int i; } uf;
-    uf.f = x;
-    uf.i = 0x5f3759df - (uf.i >> 1);
-    uf.f *= (1.5f - (xhalf * uf.f * uf.f));
-    return uf.f;
-}
-
-void NormVector(Vector3d& v, float Scale) {
-    double n = v.x * v.x + v.y * v.y + v.z * v.z;
-    if (n < 0.000000001) n = 0.000000001;
-    if (Scale == 1.0f) {
-        float factor = FastInvSqrt(static_cast<float>(n));
-        v.x *= factor; v.y *= factor; v.z *= factor;
-    } else {
-        float factor = static_cast<float>(static_cast<double>(Scale) / std::sqrt(n));
-        v.x *= factor; v.y *= factor; v.z *= factor;
-    }
-}
-
-float VectorLengthSq(Vector3d v) {
-    return v.x * v.x + v.y * v.y + v.z * v.z;
-}
-
-float VectorLength(Vector3d v) {
-    return static_cast<float>(std::sqrt(VectorLengthSq(v)));
-}
-
-int siRand(int R) {
-    if (R == RAND_MAX) return 0;
-    return (rand() * (R * 2 + 1)) / RAND_MAX - R;
-}
-
-float SGN(float f) {
-    return (f < 0) ? -1.0f : 1.0f;
-}
-
-float FindVectorAlpha(float vx, float vy) {
-    float alpha = std::atan2(vy, vx);
-    if (alpha < 0) alpha += 2.0f * pi;
-    return alpha;
-}
-
-void MulVectorsScal(const Vector3d& v1, const Vector3d& v2, float& r) {
-    r = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
-}
-
-void MulVectorsVect(const Vector3d& v1, const Vector3d& v2, Vector3d& r) {
-    r.x = v1.y * v2.z - v2.y * v1.z;
-    r.y = -v1.x * v2.z + v2.x * v1.z;
-    r.z = v1.x * v2.y - v2.x * v1.y;
-}
-
-Vector3d SubVectors(Vector3d& v1, Vector3d& v2) {
-    Vector3d res;
-    res.x = v1.x - v2.x;
-    res.y = v1.y - v2.y;
-    res.z = v1.z - v2.z;
-    return res;
-}
-
-Vector3d AddVectors(Vector3d& v1, Vector3d& v2) {
-    Vector3d res;
-    res.x = v1.x + v2.x;
-    res.y = v1.y + v2.y;
-    res.z = v1.z + v2.z;
-    return res;
-}
+// RotateVector's only engine-state dependencies. No game/window is launched.
+float ca = 1.0f, sa = 0.0f, cb = 1.0f, sb = 0.0f;
 
 // ===================== Tests =====================
 
@@ -117,6 +32,20 @@ TEST(VectorLengthTest, Pythagoras) {
 TEST(VectorLengthTest, ThreeD) {
     Vector3d v = {2.0f, 3.0f, 6.0f};
     EXPECT_FLOAT_EQ(VectorLength(v), 7.0f); // sqrt(4+9+36) = sqrt(49)
+}
+
+TEST(VectorLengthTest, PreservesStrictGameplayThresholds) {
+    // Projectile safety/recovery (128/300), trophy interaction (148), and
+    // ammo pickup (200) all use strict comparisons against VectorLength.
+    for (float threshold : {128.0f, 148.0f, 200.0f, 300.0f}) {
+        EXPECT_LT(VectorLength({threshold * 0.999f, 0.0f, 0.0f}), threshold);
+        EXPECT_GT(VectorLength({threshold * 1.001f, 0.0f, 0.0f}), threshold);
+        EXPECT_FLOAT_EQ(VectorLength({threshold, 0.0f, 0.0f}), threshold);
+    }
+}
+
+TEST(VectorLengthTest, TinyNonzeroVectorRetainsLength) {
+    EXPECT_FLOAT_EQ(VectorLength({0.0f, 0.0f, 1.0e-6f}), 1.0e-6f);
 }
 
 TEST(VectorLengthSqTest, Simple) {
