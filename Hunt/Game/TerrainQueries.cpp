@@ -4,6 +4,8 @@
 
 #include "Hunt.h"
 
+#include "Core/BoundFit.h"
+
 float GetLandOH(int x, int y)
 {
   return static_cast<float>((HMapO[y][x])) * ctHScale;
@@ -139,22 +141,41 @@ BOOL PointOnBound(float &H, float px, float py, float cx, float cy, float oy, TB
     if (bound[o].a<0) continue;
     if (bound[o].y2 + oy > PlayerY + 128) continue;
 
-    float a,b;
-    float ccx = bound[o].cx*ca + bound[o].cy*sa;
-    float ccy = bound[o].cy*ca - bound[o].cx*sa;
-
-    if (angle & 1)
+    BOOL inside;
+    if (bound[o].cosph != 1.0f || bound[o].sinph != 0.0f)
     {
-      a = bound[o].b;
-      b = bound[o].a;
+      // Fitted box: containment in the box frame (Core/BoundFit.h); px/py
+      // are already relative to the cell centre.
+      c2bound::FitBox fb;
+      fb.cx = bound[o].cx;
+      fb.cz = bound[o].cy;
+      fb.a  = bound[o].a;
+      fb.b  = bound[o].b;
+      fb.cos = bound[o].cosph;
+      fb.sin = bound[o].sinph;
+      inside = c2bound::OrientedContains(px, py, 0.f, 0.f, fb, angle);
     }
     else
     {
-      a = bound[o].a;
-      b = bound[o].b;
+      float a,b;
+      float ccx = bound[o].cx*ca + bound[o].cy*sa;
+      float ccy = bound[o].cy*ca - bound[o].cx*sa;
+
+      if (angle & 1)
+      {
+        a = bound[o].b;
+        b = bound[o].a;
+      }
+      else
+      {
+        a = bound[o].a;
+        b = bound[o].b;
+      }
+
+      inside = ( fabs(px - ccx) < a) && (fabs(py - ccy) < b);
     }
 
-    if ( ( fabs(px - ccx) < a) &&  (fabs(py - ccy) < b) )
+    if (inside)
     {
       _on=true;
       if (H < bound[o].y2) H = bound[o].y2;
@@ -181,22 +202,41 @@ BOOL PointUnBound(float &H, float px, float py, float cx, float cy, float oy, TB
     if (bound[o].a<0) continue;
     if (bound[o].y1 + oy < PlayerY + 128) continue;
 
-    float a,b;
-    float ccx = bound[o].cx*ca + bound[o].cy*sa;
-    float ccy = bound[o].cy*ca - bound[o].cx*sa;
-
-    if (angle & 1)
+    BOOL inside;
+    if (bound[o].cosph != 1.0f || bound[o].sinph != 0.0f)
     {
-      a = bound[o].b;
-      b = bound[o].a;
+      // Fitted box: containment in the box frame (Core/BoundFit.h); px/py
+      // are already relative to the cell centre.
+      c2bound::FitBox fb;
+      fb.cx = bound[o].cx;
+      fb.cz = bound[o].cy;
+      fb.a  = bound[o].a;
+      fb.b  = bound[o].b;
+      fb.cos = bound[o].cosph;
+      fb.sin = bound[o].sinph;
+      inside = c2bound::OrientedContains(px, py, 0.f, 0.f, fb, angle);
     }
     else
     {
-      a = bound[o].a;
-      b = bound[o].b;
+      float a,b;
+      float ccx = bound[o].cx*ca + bound[o].cy*sa;
+      float ccy = bound[o].cy*ca - bound[o].cx*sa;
+
+      if (angle & 1)
+      {
+        a = bound[o].b;
+        b = bound[o].a;
+      }
+      else
+      {
+        a = bound[o].a;
+        b = bound[o].b;
+      }
+
+      inside = ( fabs(px - ccx) < a) && (fabs(py - ccy) < b);
     }
 
-    if ( ( fabs(px - ccx) < a) &&  (fabs(py - ccy) < b) )
+    if (inside)
     {
       _on=true;
       if (H > bound[o].y1) H = bound[o].y1;

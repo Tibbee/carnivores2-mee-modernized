@@ -593,6 +593,18 @@ constexpr int kWaterWaveFadeMin     = 0;
 constexpr int kWaterWaveFadeMax     = 64;
 GLOBAL int  OptWaterWaveFadeRings;
 
+// ── ofBOUND collision-box fit (experimental; see Core/BoundFit.h) ──
+// 0 = legacy axis-aligned boxes from CalcBoundBox (default; stock
+// behaviour). 1 = also fit an oriented box per mesh part using 0°/45°
+// candidates. 2 = min-area rectangle (any baked angle). A fit replaces the
+// legacy box only when its padded footprint wins by boundbox_fit_win
+// percent, so axis-aligned and organic parts are untouched. Vertical
+// (y1/y2) values never change; only the X/Z footprint does.
+// config.cfg "boundbox_fit" / "boundbox_fit_win".
+constexpr int kBoundBoxFitWinDefault = 20;
+GLOBAL int  OptBoundBoxFit;
+GLOBAL int  OptBoundBoxFitWin;
+
 // ── GPU performance-optimization feature flags (global runtime kill-switch) ──
 // Single bitmask read by each new GPU optimization. Set the mask to 0 in
 // config.cfg ("gpufeatures 0") to disable ALL new GPU optimizations at once;

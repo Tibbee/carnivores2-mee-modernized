@@ -86,6 +86,10 @@ struct TBMPModel
 struct TBound
 {
   float cx, cy, a, b, y1, y2;
+  // Oriented-fit support (experimental, config.cfg "boundbox_fit"): the box's
+  // u axis in model space, v = (-sinph, cosph). (1, 0) = legacy axis-aligned
+  // box, which keeps the original inline test paths (Core/BoundFit.h).
+  float cosph, sinph;
 };
 
 struct TModel

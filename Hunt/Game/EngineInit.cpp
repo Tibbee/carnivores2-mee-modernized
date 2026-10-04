@@ -528,6 +528,8 @@ void InitEngine()
   OptTerrainMaxMipLevel = kTerrainMaxMipDefault; // config.cfg terrain_mip_level
   OptWaterMipmap = 1;                           // config.cfg water_mipmap
   OptWaterWaveFadeRings = kWaterWaveFadeDefault; // config.cfg water_wave_fade_rings
+  OptBoundBoxFit = 0;                           // config.cfg boundbox_fit (1/2 = experimental fit)
+  OptBoundBoxFitWin = kBoundBoxFitWinDefault;   // config.cfg boundbox_fit_win
 
   OptViewR = kViewOptDefault;
   OptObjectDetail = kObjectDetailDefault;
@@ -907,6 +909,17 @@ static void CreateDefaultConfig()
     "# 0 = legacy hard cutoff. Larger = gradual, seam-free falloff.\r\n"
     "water_wave_fade_rings 8\r\n"
     "\r\n"
+    "# ofBOUND collision-box fit (experimental): 0=off (stock axis-aligned\r\n"
+    "# boxes), 1=fit oriented boxes using 0/45-degree candidates, 2=min-area\r\n"
+    "# rectangle (any baked angle). Floor/ceiling heights never change; only\r\n"
+    "# the X/Z footprint does. A fit is used only when its padded footprint\r\n"
+    "# beats the axis-aligned box by boundbox_fit_win percent.\r\n"
+    "boundbox_fit 0\r\n"
+    "\r\n"
+    "# Minimum padded-area win (percent, 0..100) before a fitted collision box\r\n"
+    "# replaces the axis-aligned one. Keeps stock content as-is.\r\n"
+    "boundbox_fit_win 20\r\n"
+    "\r\n"
     "# GPU features bitmask (default: all optimizations enabled)\r\n"
     "# Set to 0 to disable all GPU optimizations.\r\n"
     "gpufeatures %u\r\n"
@@ -1198,6 +1211,34 @@ static void LoadConfig()
           PrintLog(msg);
         } else {
           PrintLog("Config: water_wave_fade_rings must be 0..64, ignoring.\n");
+        }
+      }
+      else if (_stricmp(key, "boundbox_fit") == 0) {
+        // Experimental ofBOUND oriented-box fit (see Core/BoundFit.h).
+        // 0 = legacy axis-aligned boxes (stock behaviour); 1 = fit 0/45-degree
+        // oriented boxes; 2 = min-area rectangle (any baked angle).
+        // Acceptance is controlled by boundbox_fit_win below.
+        int mode = 0;
+        if (ParseConfigInt(keyval, 0, 2, mode)) {
+          OptBoundBoxFit = mode;
+          char msg[64];
+          sprintf_s(msg, sizeof(msg), "Config: boundbox_fit = %d\n", mode);
+          PrintLog(msg);
+        } else {
+          PrintLog("Config: boundbox_fit must be 0..2, ignoring.\n");
+        }
+      }
+      else if (_stricmp(key, "boundbox_fit_win") == 0) {
+        // Minimum padded-area win (percent) before a fitted box replaces the
+        // legacy axis-aligned one; keeps stock content and organic parts as-is.
+        int win = kBoundBoxFitWinDefault;
+        if (ParseConfigInt(keyval, 0, 100, win)) {
+          OptBoundBoxFitWin = win;
+          char msg[64];
+          sprintf_s(msg, sizeof(msg), "Config: boundbox_fit_win = %d\n", win);
+          PrintLog(msg);
+        } else {
+          PrintLog("Config: boundbox_fit_win must be 0..100, ignoring.\n");
         }
       }
       else if (_stricmp(key, "gpufeatures") == 0) {

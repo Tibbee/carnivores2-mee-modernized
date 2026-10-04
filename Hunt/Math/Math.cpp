@@ -1,5 +1,9 @@
 #include "Hunt.h"
 
+#include <vector>
+
+#include "Core/BoundFit.h"
+
 // Imported from Math/Vector.cpp
 extern float PointToVectorDSq(Vector3d A, Vector3d AB, Vector3d C);
 extern float FindVectorAlpha(float vx, float vy);
@@ -101,6 +105,34 @@ void CheckBoundCollision(float &px, float &py, float cx, float cy, float oy, TBo
     if (bound[o].y1 + oy > PlayerY + 256) continue;
 
 
+
+    if (bound[o].cosph != 1.0f || bound[o].sinph != 0.0f)
+
+    {
+
+      // Fitted (oriented) box: same wall test in the box frame; the push is
+
+      // rotated back (Core/BoundFit.h). Legacy boxes keep the inline path.
+
+      c2bound::FitBox fb;
+
+      fb.cx = bound[o].cx;
+
+      fb.cz = bound[o].cy;
+
+      fb.a  = bound[o].a;
+
+      fb.b  = bound[o].b;
+
+      fb.cos = bound[o].cosph;
+
+      fb.sin = bound[o].sinph;
+
+      c2bound::WallPushOriented(px, py, cx, cy, fb, angle, 2.f);
+
+      continue;
+
+    }
 
     float ccx = bound[o].cx*ca + bound[o].cy*sa;
 
@@ -1894,6 +1926,8 @@ void CalcBoundBox(TModel* mptr, TBound *bound)
 
   float x1, x2, y1, y2, z1, z2;
 
+  std::vector<float> fitX, fitZ;   // per-part footprint for the optional fit
+
   BOOL first;
 
 
@@ -1905,6 +1939,14 @@ void CalcBoundBox(TModel* mptr, TBound *bound)
     first = true;
 
     bound[o].a=-1;
+
+    bound[o].cosph = 1.0f;
+
+    bound[o].sinph = 0.0f;
+
+    fitX.clear();
+
+    fitZ.clear();
 
 
 
@@ -1919,6 +1961,10 @@ void CalcBoundBox(TModel* mptr, TBound *bound)
       if (p.hide) continue;
 
       if (p.owner!=o) continue;
+
+      fitX.push_back(p.x);
+
+      fitZ.push_back(p.z);
 
 
 
@@ -1989,6 +2035,44 @@ void CalcBoundBox(TModel* mptr, TBound *bound)
     bound[o].a  = (x2-x1) / 2;
 
     bound[o].b  = (z2-z1) / 2;
+
+    // Experimental oriented fit (config.cfg "boundbox_fit", default off):
+
+    // the fitted box replaces the AABB only when it wins by the configured
+
+    // percentage, so axis-aligned and organic parts keep the legacy values.
+
+    if (OptBoundBoxFit != 0 && fitX.size() >= 2)
+
+    {
+
+      const int count = static_cast<int>(fitX.size());
+
+      const c2bound::FitBox fit = (OptBoundBoxFit >= 2)
+
+        ? c2bound::FitMinArea(fitX.data(), fitZ.data(), count, 72.f)
+
+        : c2bound::FitCandidates(fitX.data(), fitZ.data(), count, 72.f);
+
+      if (c2bound::FitAccepts(fit.Area(), bound[o].a * bound[o].b * 4.f, OptBoundBoxFitWin))
+
+      {
+
+        bound[o].cx = fit.cx;
+
+        bound[o].cy = fit.cz;
+
+        bound[o].a  = fit.a;
+
+        bound[o].b  = fit.b;
+
+        bound[o].cosph = fit.cos;
+
+        bound[o].sinph = fit.sin;
+
+      }
+
+    }
 
 
 

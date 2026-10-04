@@ -133,7 +133,8 @@ Copy-Item $lgpl (Join-Path $PkgDir 'THIRD-PARTY-LICENSES\COPYING.OpenAL-Soft.txt
 # flashlight_key 70 and the four
 # flashlight_* beam keys, sky_mode 1, sky_horizon_drop 12,
 # sky_dome_scale 384, terrain_mip_level 3, water_mipmap 1,
-# water_wave_fade_rings 8, glperf_logging 0, commented audio/hunt examples).
+# water_wave_fade_rings 8, boundbox_fit 0, boundbox_fit_win 20,
+# glperf_logging 0, commented audio/hunt examples).
 # Keep this in sync with CreateDefaultConfig; the package has its own template.
 @"
 # Carnivores 2 Modder's Engine - Configuration
@@ -239,6 +240,17 @@ water_mipmap 1
 # the legacy cutoff (the outermost 4 rings are never displaced).
 # 0 = legacy hard cutoff. Larger = gradual, seam-free falloff.
 water_wave_fade_rings 8
+
+# ofBOUND collision-box fit (experimental): 0=off (stock axis-aligned
+# boxes), 1=fit oriented boxes using 0/45-degree candidates, 2=min-area
+# rectangle (any baked angle). Floor/ceiling heights never change; only
+# the X/Z footprint does. A fit is used only when its padded footprint
+# beats the axis-aligned box by boundbox_fit_win percent.
+boundbox_fit 0
+
+# Minimum padded-area win (percent, 0..100) before a fitted collision box
+# replaces the axis-aligned one. Keeps stock content as-is.
+boundbox_fit_win 20
 
 # GPU features bitmask (default: all optimizations enabled)
 # Set to 0 to disable all GPU optimizations.
