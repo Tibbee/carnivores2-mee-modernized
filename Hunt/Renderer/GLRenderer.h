@@ -547,8 +547,11 @@ private:
     // (wind indicator, compass, weapon viewmodels) change VideoCX/VideoCY/
     // CameraW/CameraH between the main scene and the HUD overlay, so a
     // per-frame cache would feed a stale matrix to the near-model path.
+    // Repack fresh data every call; skip only byte-identical full uploads.
+    // The partial water writer must invalidate this buffer-owned cache.
     unsigned int m_perFrameUBO = 0;
     bool m_perFrameUBOInitialized = false;
+    UniformValueCache<60> m_perFrameUpload;
     std::array<float, 16> m_cachedProjection{};
     float m_cachedFogStart = 0.0f;
     float m_cachedFogDistance = 0.0f;

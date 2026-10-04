@@ -231,6 +231,7 @@ bool GLRenderer::Initialize()
 {
     m_nightLocations.clear();
     m_flashlightLocations.clear();
+    m_perFrameUpload.invalidate();
     LOG_INFO("GLRenderer::Initialize called");
 
     if (!CreateContext()) {
@@ -365,6 +366,7 @@ bool GLRenderer::Initialize()
 
 void GLRenderer::Shutdown()
 {
+    m_perFrameUpload.invalidate();
 #ifdef GL_PERF_HOOKS
     glperf_shutdown();
 #endif
@@ -401,6 +403,7 @@ void GLRenderer::Shutdown()
 
 void GLRenderer::DestroyContext()
 {
+    m_perFrameUpload.invalidate();
     if (m_hrc) {
         if (wglGetCurrentContext() == m_hrc) {
             wglMakeCurrent(nullptr, nullptr);
@@ -453,6 +456,7 @@ void GLRenderer::EnsurePerFrameUBO()
     if (m_perFrameUBOInitialized) {
         return;
     }
+    m_perFrameUpload.invalidate(); // Newly allocated storage has unknown contents.
     constexpr GLsizeiptr kUBOBytes = 240;  // Phase 2.4: +64 for uView, +16 for uWaterAlphaFade, +48 for the water-depth/wavelength block
     glGenBuffers(1, &m_perFrameUBO);
     glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
@@ -554,6 +558,10 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection,
     // terrain light cool/blue.  clamp(1 - traceK*1.2, 0, 1): fully clear at
     // traceK≈0.83+, fully overcast at traceK=0.
     data[49] = (std::max)(0.0f, (std::min)(1.0f, 1.0f - m_skyTraceK * 1.2f));  // uCloudCover
+
+    // All current inputs and pass-specific matrices were repacked above.
+    // Equality is against actual last full contents, not a frame/time stamp.
+    if (!m_perFrameUpload.shouldUpload(data)) return;
 
     glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, data.size() * sizeof(float), data.data());

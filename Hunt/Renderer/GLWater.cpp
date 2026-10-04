@@ -25,6 +25,9 @@ void GLRenderer::SetWaterAlphaFade(float enabled, float fadeStart, float fadeEnd
         fadeStep
     };
 
+    // This partial write changes the buffer independently of the last full
+    // packet. Force its next full update even if the CPU packet is unchanged.
+    m_perFrameUpload.invalidate();
     glBindBuffer(GL_UNIFORM_BUFFER, m_perFrameUBO);
     glBufferSubData(GL_UNIFORM_BUFFER, 176, sizeof(data), data);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);

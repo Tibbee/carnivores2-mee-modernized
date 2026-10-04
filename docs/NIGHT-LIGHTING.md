@@ -134,7 +134,8 @@ night settings, HUD/viewmodel presentation, flashlight beam parameters and
 flashlight tint. `UniformValueCache` compares exact float bytes without an
 approximation or epsilon. Desired values are still computed on every draw,
 including NV/daytime/off/death and non-world transitions; camera UBO inputs
-are still rebuilt every call. Both program maps clear on renderer initialization.
+are still rebuilt every call. A separate full-packet cache now skips only
+identical 240-byte UBO uploads, with invalidation for partial water writes. Both program maps clear on renderer initialization.
 The redundant direct sun/moon `uNightStrength` write was removed so the shared
 helper owns it. All three builds pass 10/10 CTest and 58 focused renderer-policy cases pass.
 An isolated actual-model-shader test matches 640 cached/uncached RGBA pixel
