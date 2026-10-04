@@ -164,7 +164,7 @@ GLOBAL TSnowType SnowInfo[32];
 GLOBAL int SnowCh;
 
 GLOBAL int TargetDino, TargetArea, TargetWeapon, WeaponPres, TargetCall,
-          ObservMode, Tranq, ObjectsOnLook, RenderHitBox,
+          ObservMode, CamSpin, CamFixed, CamTravel, Tranq, ObjectsOnLook, RenderHitBox,
           CurrentWeapon, ShotsLeft[10], AmmoMag[10],
 	MagShotsLeft[10], Chambered[10], FiringMode[10]; //TrophyTime,
 

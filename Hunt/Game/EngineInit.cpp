@@ -14,6 +14,7 @@
 #include "Core/WaterWaveFade.h"
 #include "Core/Flashlight.h"
 #include "Core/NightLighting.h"
+#include "Core/UnattendedCapture.h"
 #include "Loaders/LoadDiagnostics.h"
 
 #ifdef _gl
@@ -416,6 +417,7 @@ void InitEngine()
   Heap = HeapCreate( 0, 60000000, 0 );
   if( Heap == nullptr )
   {
+    if (unattended_capture::options.enabled) DoHalt2("Error creating heap.");
     MessageBox(hwndMain,"Error creating heap.","Error",IDOK);
     return;
   }

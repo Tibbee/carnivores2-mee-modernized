@@ -1,17 +1,28 @@
-# C2 performance capture matrix
+# C2 unattended correctness and performance captures
 
-`c2_capture_matrix.ps1` runs fixed C2 scenarios through a renderer capture
-harness and preserves a self-contained evidence set for each run. It is based
-on C1's proven capture runner, adapted for C2's configuration, trophy layout,
-asset roster, executable names, native-resolution target, and stricter output
-validation.
+`c2_capture_matrix.ps1` defaults to a **single max-view terrain stress test**:
+Area 4 rotation + translation, 2560×1440, view option 255 (radius 230),
+three-second warm-up, 120 captured frames, and automatic exit. OpenGL uses a
+**hidden, non-activating window**: no focus grab, mouse capture, simulated
+keys, display-mode change, audio, or desktop screenshot. You can keep using
+other applications while it runs. Correctness runs are capped at 60 FPS to
+reduce desktop contention; they are not performance benchmarks.
+
+Verified on the owner's NVIDIA RTX 3070 on 2026-10-02: the default run completed
+in about eight seconds including harness setup (incremental build had no work),
+with a non-black 2560×1440 framebuffer, 120 CSV rows, no GPU-query drops, no
+precache-read failures, and normal automatic shutdown. This is driver-specific
+validation, not a guarantee for every OpenGL ICD.
 
 ## Renderers
 
-`-Renderer gl` (the default) is the original OpenGL 3.3 performance matrix and
-behaves exactly as it always has. `-Renderer soft` reuses the same scenarios,
-resolutions, landing coordinates, window discovery, and client capture against
-`build/soft-release`, producing `frame.png` plus the runtime logs.
+`-Renderer gl` (the default) uses `ogl-release` with GLPerf enabled. Background
+capture requires that instrumented GL build; Shipping rejects the capture flag
+before creating any window. `-Foreground` explicitly opts into the old visible
+window/F11/desktop-capture workflow. There is no automatic foreground fallback.
+
+Software capture remains available only with **`-Renderer soft -Foreground`**,
+using `build/soft-release` and producing `frame.png` plus runtime logs.
 
 C2 selects its renderer **at compile time**, not from `config.cfg`, so the
 executable identity is authoritative; the `renderer` key is written into the
@@ -22,7 +33,7 @@ deliberately omits the GL-only machinery rather than emitting zeros for it:
 |---|---|---|
 | Preset / executable | `ogl-release` / `Carnivores1_GL.exe` | `soft-release` / `Carnivores1_SOFT.exe` |
 | `GL_PERF_HOOKS=ON` required | yes | no |
-| F11 capture, 120-frame CSV, `glperf.log` | yes | no — and a stray GLPerf file is a run failure |
+| Automatic capture, 120-frame CSV, `glperf.log` | yes (F11 only with `-Foreground`) | no — and a stray GLPerf file is a run failure |
 | ReShade/`opengl32.dll` removal + module check | yes | no |
 | Deployed/build shader parity | yes | no (no shader stage) |
 | `summary.json` | CPU distribution + counters | frame geometry and renderer label only |
@@ -34,7 +45,15 @@ pinned `renderer = 1` and could not produce them.
 
 ## Measurement policy
 
-The primary baseline targets renderer performance rather than presentation:
+Use **`-Purpose benchmark`** deliberately for performance evidence. It defaults
+to the fixed-camera `area4_spawn` scenario and a ten-second warm-up. Keep the
+machine idle for comparable timings; background capture avoids interruption,
+not CPU/GPU competition. Match capture mode across control and candidate:
+hidden-window driver behavior, normal process priority, and disabled audio mean
+background timings cannot be compared directly with foreground gameplay.
+Metadata records purpose, mode, framebuffer source, and timing caveats.
+
+The benchmark baseline targets renderer performance rather than presentation:
 
 - `ogl-release`, with `GL_PERF_HOOKS=ON`
 - ReShade and local graphics wrappers rejected at runtime
@@ -43,9 +62,9 @@ The primary baseline targets renderer performance rather than presentation:
 - maximum object detail 96
 - maximum view option 255 (render radius 230)
 - all GPU feature flags enabled
-- fixed landing tile and default camera heading
+- fixed landing tile; Area 4 benchmark uses `-camfixed` to pin its full pose
 - observer mode with no selected huntable dinosaur or weapon for area baselines
-- 10-second warm-up, then one 120-render-frame F11 capture
+- 10-second warm-up, then one automatic 120-render-frame capture
 
 GLPerf CPU time ends before `SwapBuffers`; it excludes VSync, variable-refresh,
 compositor, and presentation waits. CSV GPU columns are `-1` by design. Resolved
@@ -56,6 +75,19 @@ Observer mode prevents player death and close-range selected-dinosaur occlusion,
 but ambient actors, wind, and the animation clock are not frozen. Fixed landing
 coordinates stabilize terrain composition. Use repeated samples for performance
 claims rather than expecting byte-identical screenshots.
+
+Routine correctness runs test **only max view**. Lower view distances require
+an explicit `-Purpose benchmark -ViewOption N` invocation; no automatic
+distance sweep exists. The fast asset-free native coverage tests still check
+several radii and camera poses in less than a second without opening the game.
+
+`area4_camtravel` implies `-camspin` and includes pitch changes and horizontal
+motion across the camera-grid snap boundaries. Background motion advances one
+full yaw revolution per 120 rendered frames, independent of FPS. Every terrain
+and water grid-position read is checked against the refreshed precache rows.
+A failure is logged without a modal dialog. This catches stale reads, not every
+possible visual defect; manual walking/swimming and pocket-fog boundary review
+remain separate acceptance checks.
 
 ## Requirements
 
@@ -81,21 +113,31 @@ The deployed game executable is not replaced.
 From the C2 repository root:
 
 ```bat
-powershell -NoProfile -File tools/c2_capture_matrix.ps1 -Scenario area1_spawn -Resolution 1024x768
-powershell -NoProfile -File tools/c2_capture_matrix.ps1 -Renderer soft -Scenario area1_spawn -Resolution 1024x768
-powershell -NoProfile -File tools/c2_capture_matrix.ps1 -All -Repeats 3
+rem Routine stress test: max view only, one hidden run, no desktop interruption.
+powershell -NoProfile -File tools/c2_capture_matrix.ps1
+
+rem Performance comparison: fixed camera, unlimited FPS; keep the machine idle.
+powershell -NoProfile -File tools/c2_capture_matrix.ps1 -Purpose benchmark -Repeats 3
+
+rem Visible testing is explicit, never a background-mode fallback.
+powershell -NoProfile -File tools/c2_capture_matrix.ps1 -Renderer soft -Foreground -Scenario area1_spawn -Resolution 1024x768
 ```
 
 Useful controls:
 
 ```text
 -Renderer gl|soft
+-Purpose correctness|benchmark
+-Foreground
+-ViewOption N                 (non-max values require benchmark purpose)
 -WarmupSeconds N
--PostCaptureSeconds N
+-PostCaptureSeconds N         (foreground only; default 0)
 -Repeats N
 -SkipBuild
 -DryRun
 -OutDir PATH
+-All                         (explicit, expensive scenario/resolution matrix)
+-AllowDirtyBuildInputs       (diagnostic runs preserve the source patch)
 ```
 
 The runner builds once before the matrix unless `-SkipBuild` is supplied. It
@@ -121,8 +163,13 @@ Ready resolutions are:
 | 1920×1080 | Windowed | Modern scaling control |
 | 2560×1440 | Borderless | Owner's native workload; keeps the full client visible |
 
-The harness verifies the physical engine client size. It never externally
-resizes the window because that would not update C2's gameplay GL viewport.
+Those window modes apply to foreground captures. Background runs use an
+exact-size hidden popup at any listed resolution. The harness verifies the
+engine client size; it never externally resizes the window. The engine writes
+a bottom-up BGRA BMP from the final OpenGL back buffer, after the last measured
+frame and before swapping. The harness validates dimensions/non-black pixels,
+converts it to `frame.png`, and removes the intermediate BMP. Other windows
+cannot obscure the image.
 
 ## Artifact layout
 
@@ -155,7 +202,9 @@ For every successful **GL** run, the runner requires:
 3. resolved GPU samples in the rolling log;
 4. `gpu_drop=0` throughout the run;
 5. no `ABNORMAL_HALT`; and
-6. `Game normal shutdown` after `WM_CLOSE`.
+6. `Game normal shutdown` after automatic completion (or foreground `WM_CLOSE`);
+7. background mode: framebuffer saved, correct dimensions, non-black image,
+   and no observed visible/focused renderer window.
 
 Items 1–4 are GL-only. Items 5 and 6 apply to **both** renderers, and a
 `soft` run additionally fails if it produced any GLPerf file at all, which

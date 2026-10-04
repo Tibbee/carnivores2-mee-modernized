@@ -82,6 +82,9 @@ void ResetCommandLineState()
     g_GameMode = GameMode::Normal;
     RadarMode = false;
     NightVisionMode = false;
+    CamSpin = false;
+    CamFixed = false;
+    CamTravel = false;
     ScoreMod_Camo = 0.0f;
     ScoreMod_Radar = 0.0f;
     ScoreMod_Scent = 0.0f;
@@ -121,6 +124,34 @@ BOOL _HeapFree(HANDLE, DWORD, LPVOID)
 [[noreturn]] void DoHalt(LPSTR message)
 {
     throw std::runtime_error(message ? message : "halt");
+}
+
+TEST(CommandLineEntry, CaptureCameraFlagsAreOptIn)
+{
+    RestoreProcessArguments restoreArguments;
+    ResetCommandLineState();
+    CommandLineArguments fixed{"Carnivores1", "-CAMFIXED"};
+    fixed.Install();
+    ProcessCommandLine();
+    EXPECT_TRUE(CamFixed);
+    EXPECT_FALSE(CamSpin);
+    EXPECT_FALSE(CamTravel);
+
+    ResetCommandLineState();
+    CommandLineArguments travel{"Carnivores1", "-camtravel"};
+    travel.Install();
+    ProcessCommandLine();
+    EXPECT_TRUE(CamSpin);
+    EXPECT_TRUE(CamTravel);
+    EXPECT_FALSE(CamFixed);
+
+    ResetCommandLineState();
+    CommandLineArguments normal{"Carnivores1"};
+    normal.Install();
+    ProcessCommandLine();
+    EXPECT_FALSE(CamSpin);
+    EXPECT_FALSE(CamFixed);
+    EXPECT_FALSE(CamTravel);
 }
 
 TEST(CommandLineEntry, ProductionPathAppliesMenuArguments)

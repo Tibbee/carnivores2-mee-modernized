@@ -3,6 +3,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "Core/UnattendedCapture.h"
 
 void ProcessReload() {
 
@@ -427,33 +428,28 @@ void ProcessSlide()
 void ProcessPlayerMovement()
 {
 
-  POINT ms;
-
-  GetCursorPos(&ms);
-  ScreenToClient(hwndMain, &ms);
-  if (REVERSEMS) ms.y = -ms.y+VideoCY*2;
-  // The per-frame mouse delta naturally scales with frame time because the
-  // cursor is reset to the centre every frame, so ms-VideoCX/Y ~= V*T. The
-  // original `rav += D * K` is therefore already framerate-independent in
-  // terms of per-second sensitivity (K*V constant). Do NOT normalize by
-  // TimeDt here: in an uncapped game that makes sensitivity scale linearly
-  // with framerate (4x faster look at 240 FPS vs 60 FPS).
-  rav += static_cast<float>((ms.x-VideoCX)) * (OptMsSens+64) / 600.f / 192.f;
-  rbv += static_cast<float>((ms.y-VideoCY)) * (OptMsSens+64) / 600.f / 192.f;
-//  if (KeyFlags & kfStrafe)
-//    SSpeed+= static_cast<float>(rav) * 10;
-//  else
+  if (!unattended_capture::options.enabled) {
+    POINT ms;
+    GetCursorPos(&ms);
+    ScreenToClient(hwndMain, &ms);
+    if (REVERSEMS) ms.y = -ms.y+VideoCY*2;
+    // The per-frame mouse delta naturally scales with frame time because
+    // the cursor is reset to the centre every frame, so ms-VideoCX/Y ~= V*T.
+    // `rav += D * K` is already framerate-independent in per-second
+    // sensitivity. Do NOT normalize by TimeDt: that would make sensitivity
+    // scale linearly with framerate (4x at 240 FPS versus 60 FPS).
+    rav += static_cast<float>((ms.x-VideoCX)) * (OptMsSens+64) / 600.f / 192.f;
+    rbv += static_cast<float>((ms.y-VideoCY)) * (OptMsSens+64) / 600.f / 192.f;
     PlayerAlpha += rav;
-  PlayerBeta  += rbv;
+    PlayerBeta += rbv;
 
-  // Per-second exponential decay (10 ms time constant) so the smoothing is
-  // framerate-independent. Replaces the old per-frame `/(2 + TimeDt/20)`
-  // which was much stronger at low FPS and made the look sluggish on slow
-  // frames.
-  float decay = expf(-static_cast<float>(TimeDt) / 10.0f);
-  rav *= decay;
-  rbv *= decay;
-  ResetMousePos();
+    // Per-second exponential decay (10 ms time constant) so smoothing is
+    // framerate-independent, unlike the old `/(2 + TimeDt/20)` decay.
+    const float decay = expf(-static_cast<float>(TimeDt) / 10.0f);
+    rav *= decay;
+    rbv *= decay;
+    ResetMousePos();
+  }
 
 
 

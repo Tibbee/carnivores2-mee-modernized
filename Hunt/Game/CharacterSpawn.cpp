@@ -5,6 +5,7 @@
 
 #include "Hunt.h"
 #include "Core/SpawnMath.h"
+#include "Core/UnattendedCapture.h"
 #include "Game/CharacterInternal.h"
 
 namespace {
@@ -542,7 +543,8 @@ void dispSighting(int dii, int xx, int zz) {
 	sprintf_s(buff, sizeof(buff), "Sighting:\n%s", DinoInfo[dii].Name);
 	size_t used = strlen(buff);
 	sprintf_s(buff + used, sizeof(buff) - used, " %s", loc);
-	MessageBox(hwndMain, buff, "TEST", IDOK);
+    if (unattended_capture::options.enabled) PrintLog(buff);
+    else MessageBox(hwndMain, buff, "TEST", IDOK);
 
 }
 
@@ -981,13 +983,15 @@ void PlaceCharacters()
 				SpwnMax *= 10;
 				char buff[100];
 				sprintf_s(buff, "Influx:%s", DinoInfo[DinoInfoIndex].Name);
-				MessageBox(hwndMain, buff, "TEST", IDOK);
+                if (unattended_capture::options.enabled) PrintLog(buff);
+                else MessageBox(hwndMain, buff, "TEST", IDOK);
 				}
 				else if (Region[RegionNo].SpawnRate * 1000 > rRand(100000)) {
 					SpwnMax *= 50;
 					char buff[100];
 					sprintf_s(buff, "Unprecidented Influx:%s", DinoInfo[DinoInfoIndex].Name);
-					MessageBox(hwndMain, buff, "TEST", IDOK);
+                    if (unattended_capture::options.enabled) PrintLog(buff);
+                    else MessageBox(hwndMain, buff, "TEST", IDOK);
 				}
 			}
 			int spawnNo = Region[RegionNo].SpawnMin;

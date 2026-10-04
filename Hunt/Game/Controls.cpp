@@ -5,11 +5,12 @@
 #include "Hunt.h"
 #include <algorithm>
 #include <cmath>
+#include "Core/UnattendedCapture.h"
 #include "Core/WaterColor.h"  // water-colour-aware depth modulation
 
 void CaptureMouse(BOOL capture)
 {
-  if (!hwndMain) return;
+  if (!hwndMain || unattended_capture::options.enabled) return;
 
   if (capture) {
     RECT rect;
@@ -34,7 +35,7 @@ void ResetMousePos()
 {
   if (!hwndMain) return;
 
-  if (blActive && _GameState && !IsPaused()) {
+  if (!unattended_capture::options.enabled && blActive && _GameState && !IsPaused()) {
     POINT p = { VideoCX, VideoCY };
     ClientToScreen(hwndMain, &p);
     SetCursorPos(p.x, p.y);
@@ -251,7 +252,8 @@ void ProcessControls()
 {
   int _KeyFlags = KeyFlags;
   KeyFlags = 0;
-  GetKeyboardState(KeyboardState);
+  if (unattended_capture::options.enabled) ZeroMemory(KeyboardState, sizeof(KeyboardState));
+  else GetKeyboardState(KeyboardState);
 
   
   if (KeyboardState[KeyMap.fkReload] & 128)  KeyFlags += kfLookUp;

@@ -45,6 +45,9 @@ bool glperf_is_active();
 
 // F11 capture trigger. Starts a fixed per-frame CPU/counter CSV capture.
 void glperf_trigger_capture();
+// One-shot unattended capture completion/failure checks (no-op in Shipping).
+bool glperf_capture_is_running();
+int glperf_capture_frames_written();
 
 // Init / shutdown. Called from the GL renderer after a current context exists.
 void glperf_init();

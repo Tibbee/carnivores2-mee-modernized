@@ -1,5 +1,6 @@
 #define INITGUID
 #include "Hunt.h"
+#include "Core/UnattendedCapture.h"
 #ifdef _gl
 #include "Renderer/GLRenderer.h"
 #endif
@@ -108,7 +109,8 @@ void DoHalt(LPSTR Mess)
 		PrintLog("ABNORMAL_HALT: ");
 		PrintLog(Mess);
 		PrintLog("\n");
-		MessageBox(nullptr, Mess, "Carnivores Termination", IDOK | MB_SYSTEMMODAL | MB_ICONEXCLAMATION);
+        if (!unattended_capture::options.enabled)
+            MessageBox(nullptr, Mess, "Carnivores Termination", IDOK | MB_SYSTEMMODAL | MB_ICONEXCLAMATION);
 	}
 
 	ShutdownSession();
@@ -145,7 +147,8 @@ void DoHalt2(LPSTR Mess)
 		PrintLog("ABNORMAL_HALT: ");
 		PrintLog(Mess);
 		PrintLog("\n");
-		MessageBox(nullptr, Mess, "Carnivores Termination", IDOK | MB_SYSTEMMODAL | MB_ICONEXCLAMATION);
+        if (!unattended_capture::options.enabled)
+            MessageBox(nullptr, Mess, "Carnivores Termination", IDOK | MB_SYSTEMMODAL | MB_ICONEXCLAMATION);
 	}
 
 	CloseLog();
@@ -231,6 +234,7 @@ TPicture LoadWall;
 
 void UpdateLoadingWindow()
 {
+  if (unattended_capture::options.enabled) return;
 
   HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
   HFONT   hfntOld = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
@@ -268,6 +272,7 @@ void UpdateLoadingWindow()
 void StartLoading()
 {
   LoadPictureTGA(LoadWall,   "HUNTDAT\\MENU\\loading.tga");
+  if (unattended_capture::options.enabled) return;
   SetWindowPos(hwndMain, HWND_TOP, (GetSystemMetrics(SM_CXSCREEN) - LoadWall.W)/2,
                (GetSystemMetrics(SM_CYSCREEN) - LoadWall.H/2)/2, LoadWall.W, LoadWall.H/2,
                SWP_SHOWWINDOW);
@@ -308,7 +313,13 @@ void SetVideoMode(int W, int H)
   // loading screen only.
   if (hwndMain) CreateVideoDIB(WinW, WinH);
 
-  if (FULLSCREEN) {
+  if (unattended_capture::options.enabled) {
+    // A hidden, non-activating popup has an exact-size client at any
+    // resolution, without changing the desktop mode or occupying it.
+    SetWindowLong(hwndMain, GWL_STYLE, WS_POPUP);
+    SetWindowPos(hwndMain, nullptr, 0, 0, W, H,
+                 SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED);
+  } else if (FULLSCREEN) {
     SetWindowLong(hwndMain, GWL_STYLE, WS_VISIBLE | WS_POPUP);
 
     // Honour the configured resolution by switching the display mode,
@@ -435,8 +446,10 @@ void SetVideoMode(int W, int H)
   CameraW = CameraH;
 
   LoDetailSky =(W>400);
-  SetCursor(hcArrow);
-  while (ShowCursor(false)>=0) ;
+  if (!unattended_capture::options.enabled) {
+    SetCursor(hcArrow);
+    while (ShowCursor(false)>=0) ;
+  }
 }
 
 

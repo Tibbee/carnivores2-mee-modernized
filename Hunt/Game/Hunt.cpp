@@ -1,6 +1,7 @@
 #include "Hunt.h"
 #include "Core/KeyBindings.h"
 #include "Core/TerrainFog.h"
+#include "Core/UnattendedCapture.h"
 #include "stdio.h"
 #ifdef _gl
 #include "Renderer/GLUtils.h"
@@ -280,11 +281,54 @@ void DrawScene()
 
   dFacesCount = 0;
 
+  // Capture-harness camera motion (-camspin): spin the camera every frame so
+  // stale camera-space precache entries (VMap/VMap2 .v) surface as stretched
+  // geometry instead of hiding behind a fixed camera, and oscillate pitch to
+  // exercise the sweep bounds' pitch branches. The accumulator assigns (not
+  // increments) the globals so the player-state derivation in Controls cannot
+  // pin the view.
+  if (CamFixed) {
+    // Pin the complete pose: startup cursor motion and settling/collisions
+    // must not change the terrain workload between matched benchmark runs.
+    static const float fixedX = PlayerX;
+    static const float fixedZ = PlayerZ;
+    CameraX = fixedX;
+    CameraZ = fixedZ;
+    CameraY = GetLandQH(fixedX, fixedZ) + 220.0f;
+    CameraAlpha = 0.0f;
+    CameraBeta = 0.0f;
+  }
+  if (CamSpin) {
+    static float camSpinAlpha = 0.0f;
+    // Background correctness captures cover a full revolution in exactly
+    // 120 frames regardless of GPU load/FPS; foreground retains real time.
+    camSpinAlpha += unattended_capture::options.enabled ? static_cast<float>(2.0 * pi / unattended_capture::kCaptureFrames) : TimeDt / 1500.f;
+    CameraAlpha = camSpinAlpha;
+    CameraBeta = unattended_capture::options.enabled ? std::sin(camSpinAlpha * 2.0f) * 0.2f :
+        static_cast<float>(sin(RealTime / 360.f)) * 0.2f;
+    if (CamTravel) {
+      // Render-only translation around the player: cross several 512-unit
+      // CCX/CCY snap boundaries without changing saves or player physics.
+      CameraX = PlayerX + 640.0f * std::sin(camSpinAlpha * 0.7f);
+      CameraZ = PlayerZ + 640.0f * std::cos(camSpinAlpha * 0.9f);
+    }
+  }
+
   ca = static_cast<float>(cos(CameraAlpha));
   sa = static_cast<float>(sin(CameraAlpha));
 
   cb = static_cast<float>(cos(CameraBeta));
   sb = static_cast<float>(sin(CameraBeta));
+
+  if (CamFixed || CamSpin) {
+    // Controls computed these from PlayerBeta before the diagnostic pose
+    // override. Match its policy to the camera actually being rendered.
+    const float aspectScale = (std::max)(1.0f,
+        (static_cast<float>(WinW) / static_cast<float>(WinH)) / (4.0f / 3.0f));
+    BackViewR = CLIP3D ? (sb < 0.0f ? 320.0f - 1024.0f * sb : 320.0f + 512.0f * sb) * aspectScale : 300.0f;
+    BackViewRR = CLIP3D ? static_cast<int>((380 + static_cast<int>(1024.0f * std::fabs(sb))) * aspectScale) : 380;
+    if (CLIP3D && IsUnderwater()) BackViewR -= 512.0f * (std::min)(0.0f, sb) * aspectScale;
+  }
 
   CCX = (static_cast<int>(CameraX) / 512) * 2;
   CCY = (static_cast<int>(CameraZ) / 512) * 2;
@@ -1067,7 +1111,11 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
 {
   BOOL A = (GetActiveWindow() == hWnd);
 
-  if (A!=blActive)
+  if (unattended_capture::options.enabled &&
+      ((message >= WM_KEYFIRST && message <= WM_KEYLAST) ||
+       (message >= WM_MOUSEFIRST && message <= WM_MOUSELAST) || message == WM_INPUT)) return 0;
+
+  if (!unattended_capture::options.enabled && A!=blActive)
   {
     blActive = A;
 
@@ -1539,9 +1587,10 @@ BOOL CreateMainWindow()
   wc.lpszClassName = "HuntRenderWindow";
   if (!RegisterClass(&wc)) return false;
 
-  hwndMain = CreateWindow(
+  const bool background = unattended_capture::options.enabled;
+  hwndMain = CreateWindowEx(background ? WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW : 0,
                "HuntRenderWindow","Carnivores 2 Renderer",
-               WS_VISIBLE |  WS_POPUP,
+               background ? WS_POPUP : WS_VISIBLE | WS_POPUP,
                0, 0, 0, 0, nullptr,  nullptr, hInst, nullptr );
 
   if (hwndMain)
@@ -1701,9 +1750,11 @@ void ProcessGame()
 
   if (NeedRVM)
   {
-	SetWindowPos(hwndMain, HWND_TOP, 0,0,0,0,  SWP_SHOWWINDOW);
-	SetFocus(hwndMain);
-	Activate3DHardware();
+    if (!unattended_capture::options.enabled) {
+      SetWindowPos(hwndMain, HWND_TOP, 0,0,0,0, SWP_SHOWWINDOW);
+      SetFocus(hwndMain);
+    }
+    Activate3DHardware();
 	NeedRVM = false;
   }
 
@@ -1764,11 +1815,30 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   LogInit("carnivor.log");
   CreateLog();
 
+  if (!unattended_capture::parse(__argc, __argv, unattended_capture::options)) {
+    LOG_ERROR("Invalid unattended capture arguments");
+    PrintLog("Invalid unattended capture arguments.\n");
+    CloseLog(); LogClose();
+    return ERROR_BAD_ARGUMENTS;
+  }
+#if !defined(_gl) || !defined(GL_PERF_HOOKS)
+  if (unattended_capture::options.enabled) {
+    LOG_ERROR("Unattended capture requires OpenGL with GL_PERF_HOOKS");
+    CloseLog(); LogClose();
+    return ERROR_NOT_SUPPORTED;
+  }
+#endif
+  if (unattended_capture::options.enabled) {
+    PrintLog("Unattended capture: hidden window, no input/focus/audio; normal process priority.\n");
+    SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+  }
+
   CreateMainWindow();
 
   Init3DHardware();
   InitEngine();
-  InitAudioSystem(hwndMain, hlog, OptSound);
+  if (!unattended_capture::options.enabled) InitAudioSystem(hwndMain, hlog, OptSound);
 
   StartLoading();
   PrintLoad("Loading...");
@@ -1880,7 +1950,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     }
     else
     {
-      if (blActive) { ProcessGame(); LimitFPS(); }
+      if (blActive || unattended_capture::options.enabled) { ProcessGame(); LimitFPS(); }
       else Sleep(100);
     }
   }
@@ -1901,7 +1971,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
   ShutDownEngine();
 
-  ShowCursor(true);
+  if (!unattended_capture::options.enabled) ShowCursor(true);
   PrintLog("Game normal shutdown.\n");
   LOG_INFO("Game normal shutdown");
 

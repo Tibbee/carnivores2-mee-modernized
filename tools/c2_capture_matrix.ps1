@@ -1,23 +1,27 @@
 <#
 .SYNOPSIS
-Capture reproducible C2 OpenGL and software performance scenarios.
+Run a short unattended max-view OpenGL correctness capture by default.
+Use -Purpose benchmark for timing evidence and -Foreground only when needed.
 
 .EXAMPLE
-powershell -NoProfile -File tools/c2_capture_matrix.ps1 -Scenario area1_spawn -Resolution 1024x768
-powershell -NoProfile -File tools/c2_capture_matrix.ps1 -Renderer soft -Scenario area1_spawn -Resolution 1024x768
-powershell -NoProfile -File tools/c2_capture_matrix.ps1 -All -Repeats 3
+powershell -NoProfile -File tools/c2_capture_matrix.ps1
+powershell -NoProfile -File tools/c2_capture_matrix.ps1 -Purpose benchmark -Repeats 3
+powershell -NoProfile -File tools/c2_capture_matrix.ps1 -Renderer soft -Foreground -Scenario area1_spawn -Resolution 1024x768
 #>
 [CmdletBinding()]
 param(
-    [string]$Scenario = "area1_spawn",
-    [string]$Resolution = "1024x768",
+    [string]$Scenario = "area4_camtravel",
+    [string]$Resolution = "2560x1440",
+    [ValidateSet("correctness", "benchmark")]
+    [string]$Purpose = "correctness",
+    [switch]$Foreground,
     [ValidateSet("gl", "soft")]
     [string]$Renderer = "gl",
     [switch]$All,
     [ValidateRange(1, 20)][int]$Repeats = 1,
     [ValidateRange(-1, 255)][int]$ViewOption = -1,
-    [ValidateRange(1, 120)][int]$WarmupSeconds = 10,
-    [ValidateRange(0, 30)][int]$PostCaptureSeconds = 2,
+    [ValidateRange(1, 120)][int]$WarmupSeconds = 3,
+    [ValidateRange(0, 30)][int]$PostCaptureSeconds = 0,
     [string]$GameDir = $env:CARNIVORES2_LEGACY_DIR,
     [string]$BuildExe = "",
     [string]$OutDir = "tools/artifacts/perf-current",
@@ -37,6 +41,16 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 # still produces frame.png plus the runtime logs, which is what the sky and
 # water work needs for repeatable before/after comparison.
 $isGl = $Renderer -eq "gl"
+$background = -not $Foreground
+if ($background -and -not $isGl) { throw 'Unattended capture currently requires GL; use -Renderer soft -Foreground explicitly for software.' }
+if ($Purpose -eq 'correctness' -and $ViewOption -ge 0 -and $ViewOption -ne 255) {
+    throw 'Routine correctness tests use max view only (255). Other distances require an explicit -Purpose benchmark run.'
+}
+if ($Purpose -eq 'benchmark') {
+    if (-not $PSBoundParameters.ContainsKey('WarmupSeconds')) { $WarmupSeconds = 10 }
+    if (-not $PSBoundParameters.ContainsKey('Scenario')) { $Scenario = 'area4_spawn' }
+}
+if ($background -and $PostCaptureSeconds -ne 0) { throw 'Unattended captures exit automatically; PostCaptureSeconds requires -Foreground.' }
 $buildPreset = if ($isGl) { "ogl-release" } else { "soft-release" }
 $buildExeName = if ($isGl) { "Carnivores1_GL.exe" } else { "Carnivores1_SOFT.exe" }
 $rendererConfigValue = if ($isGl) { 1 } else { 0 }
@@ -52,7 +66,8 @@ $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
 # View-option override for matched view-distance sweeps; -1 keeps the
 # manifest default. The effective value is re-read from the trophy in
 # metadata, so captures remain self-describing either way.
-$effectiveViewOption = if ($ViewOption -ge 0) { $ViewOption } else { [int]$manifest.settings.view_option }
+$effectiveViewOption = if ($Purpose -eq 'correctness') { 255 } elseif ($ViewOption -ge 0) { $ViewOption } else { [int]$manifest.settings.view_option }
+$effectiveFpsLimit = if ($Purpose -eq 'correctness') { 1 } else { [int]$manifest.settings.fps_limit } # 1 = 60 FPS: lower desktop contention
 $deployedConfigPath = Join-Path $GameDir "config.cfg"
 $configPath = $null # Resolved beside BuildExe after preflight; C2 loads config from the executable directory.
 $trophyPath = Join-Path $GameDir "trophy00.sav"
@@ -245,6 +260,8 @@ public static class C2CaptureNative {
     [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr hwnd, out RECT rect);
     [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr hwnd, ref POINT point);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
     [DllImport("user32.dll")] public static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
     [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
@@ -283,6 +300,9 @@ function Wait-GameHwnd {
         if ($Process.HasExited) { throw "Game exited before its renderer window became ready (exit $($Process.ExitCode))." }
         $hwnd = Resolve-GameHwnd $Process
         if ($hwnd -ne [IntPtr]::Zero) {
+            if ($background -and ([C2CaptureNative]::IsWindowVisible($hwnd) -or [C2CaptureNative]::GetForegroundWindow() -eq $hwnd)) {
+                throw 'Unattended renderer became visible or took focus during startup.'
+            }
             $rect = New-Object C2CaptureNative+RECT
             if ([C2CaptureNative]::GetClientRect($hwnd, [ref]$rect)) {
                 $actualWidth = $rect.R - $rect.L
@@ -351,6 +371,40 @@ function Wait-GLPerfCapture {
         Start-Sleep -Milliseconds 200
     }
     throw "A complete 120-frame GLPerf CSV was not produced within $TimeoutSeconds seconds."
+}
+
+function Wait-UnattendedCapture {
+    param([System.Diagnostics.Process]$Process, [IntPtr]$Hwnd)
+    $timer = [System.Diagnostics.Stopwatch]::StartNew()
+    while (-not $Process.HasExited) {
+        if ([C2CaptureNative]::IsWindowVisible($Hwnd) -or [C2CaptureNative]::GetForegroundWindow() -eq $Hwnd) {
+            throw 'Unattended renderer became visible or took focus.'
+        }
+        if ($timer.Elapsed.TotalSeconds -gt ($WarmupSeconds + 90)) { throw 'Unattended capture did not exit within its time budget.' }
+        Start-Sleep -Milliseconds 100
+    }
+    $Process.WaitForExit()
+    if ($Process.ExitCode -ne 0) { throw "Unattended renderer exited with code $($Process.ExitCode)." }
+}
+
+function Convert-FramebufferCapture {
+    param([string]$BitmapPath, [string]$PngPath, [int]$Width, [int]$Height)
+    if (-not (Test-Path -LiteralPath $BitmapPath -PathType Leaf)) { throw 'Unattended renderer did not save its framebuffer.' }
+    $bitmap = [System.Drawing.Bitmap]::FromFile($BitmapPath)
+    try {
+        if ($bitmap.Width -ne $Width -or $bitmap.Height -ne $Height) { throw 'Framebuffer dimensions differ from the requested resolution.' }
+        $sum = 0.0; $samples = 0
+        for ($y = 0; $y -lt $Height; $y += [Math]::Max(1, [int]($Height / 24))) {
+            for ($x = 0; $x -lt $Width; $x += [Math]::Max(1, [int]($Width / 32))) {
+                $pixel = $bitmap.GetPixel($x, $y)
+                $sum += 0.2126 * $pixel.R + 0.7152 * $pixel.G + 0.0722 * $pixel.B
+                $samples++
+            }
+        }
+        if ($sum / $samples -lt 1.0) { throw 'Unattended framebuffer is black; hidden-window rendering is not valid on this driver/scene.' }
+        $bitmap.Save($PngPath, [System.Drawing.Imaging.ImageFormat]::Png)
+    } finally { $bitmap.Dispose() }
+    Remove-Item -LiteralPath $BitmapPath -Force
 }
 
 function Capture-GameClientPng {
@@ -488,7 +542,7 @@ function Run-Capture {
     $parts = $resolutionId -split 'x'
     if ($parts.Count -ne 2) { throw "Invalid resolution '$resolutionId'." }
     $width = [int]$parts[0]; $height = [int]$parts[1]
-    $mode = [string]$ResolutionEntry.mode
+    $mode = if ($background) { 'hidden' } else { [string]$ResolutionEntry.mode }
     $displayMode = if ($mode -eq 'borderless') { 2 } else { 0 }
 
     $arguments = @()
@@ -501,6 +555,14 @@ function Run-Capture {
     $runDir = Join-Path $sessionDir $baseName
     New-Item -ItemType Directory -Path $runDir -Force | Out-Null
     $png = Join-Path $runDir "frame.png"
+    $framebufferPath = Join-Path $runDir 'frame.bmp'
+    if ($background) {
+        $arguments += '-capture-background'
+        $arguments += "-capture-warmup-ms=$($WarmupSeconds * 1000)"
+        # Start-Process joins ArgumentList into one command line. Quote the
+        # entire path-bearing option so paths with spaces stay one argv item.
+        $arguments += ('"-capture-output={0}"' -f $framebufferPath)
+    }
     $metaPath = Join-Path $runDir "metadata.json"
     $summaryPath = Join-Path $runDir "summary.json"
     $failurePath = Join-Path $runDir "failure.txt"
@@ -537,7 +599,7 @@ function Run-Capture {
             renderer = $rendererConfigValue
             fov = [int]$manifest.settings.fov
             object_detail = [int]$manifest.settings.object_detail
-            fps_limit = [int]$manifest.settings.fps_limit
+            fps_limit = $effectiveFpsLimit
             resolution = $resolutionId
             display_mode = $displayMode
             gpufeatures = [string]$manifest.settings.gpufeatures
@@ -556,22 +618,28 @@ function Run-Capture {
         $effectiveConfig = Get-ConfigValues $configPath
         $assets = Get-ScenarioAssetMetadata $ScenarioEntry
 
-        $process = Start-Process -FilePath $BuildExe -ArgumentList $arguments -WorkingDirectory $GameDir -PassThru -WindowStyle Normal
+        $windowStyle = if ($background) { 'Hidden' } else { 'Normal' }
+        $process = Start-Process -FilePath $BuildExe -ArgumentList $arguments -WorkingDirectory $GameDir -PassThru -WindowStyle $windowStyle
         Write-Host "[$baseName] pid=$($process.Id); waiting for renderer readiness"
         $hwnd = Wait-GameHwnd $process $width $height
-        Write-Host "[$baseName] renderer ready; warming for $WarmupSeconds s"
-        Start-Sleep -Seconds $WarmupSeconds
-        if ($process.HasExited) { throw "Game exited during warm-up (exit $($process.ExitCode))." }
-        Assert-CaptureWindowSize $hwnd $width $height
         if ($isGl) { $openglModule = Assert-ReShadeDisabled $process }
-
-        if ($isGl) {
-            Trigger-GLPerfCapture $hwnd
-            $null = Wait-GLPerfCapture $beforeGLPerf $process
+        if ($background) {
+            Write-Host "[$baseName] hidden renderer ready; automatic warm-up/capture/exit (no desktop input)"
+            Wait-UnattendedCapture $process $hwnd
+            Convert-FramebufferCapture $framebufferPath $png $width $height
+        } else {
+            Write-Host "[$baseName] renderer ready; warming for $WarmupSeconds s"
+            Start-Sleep -Seconds $WarmupSeconds
+            if ($process.HasExited) { throw "Game exited during warm-up (exit $($process.ExitCode))." }
+            Assert-CaptureWindowSize $hwnd $width $height
+            if ($isGl) {
+                Trigger-GLPerfCapture $hwnd
+                $null = Wait-GLPerfCapture $beforeGLPerf $process
+            }
+            if ($PostCaptureSeconds -gt 0) { Start-Sleep -Seconds $PostCaptureSeconds }
+            Capture-GameClientPng $hwnd $png $width $height
+            Stop-CaptureProcess $process
         }
-        if ($PostCaptureSeconds -gt 0) { Start-Sleep -Seconds $PostCaptureSeconds }
-        Capture-GameClientPng $hwnd $png $width $height
-        Stop-CaptureProcess $process
 
         $changed = @(Get-ChangedGLPerfFiles $beforeGLPerf)
         $allLogs = @($changed | Where-Object { $_.Name -like 'glperf-*.log' })
@@ -613,6 +681,9 @@ function Run-Capture {
         $runtimeText = $runtimeText -join "`n"
         if ($runtimeText -match 'ABNORMAL_HALT') { throw "Runtime logs report ABNORMAL_HALT." }
         if ($runtimeText -notmatch 'Game normal shutdown') { throw "Runtime logs do not confirm normal shutdown." }
+        if ($background -and $runtimeText -notmatch 'Unattended capture complete; framebuffer saved') {
+            throw 'Runtime logs do not confirm unattended completion.'
+        }
 
         if ($isGl) {
             Assert-GpuLog $logCopy
@@ -641,7 +712,11 @@ function Run-Capture {
         }
 
         $metadata = [ordered]@{
-            schema_version = 1
+            schema_version = 2
+            capture_purpose = $Purpose
+            unattended = $background
+            frame_source = if ($background) { 'OpenGL back buffer (after final measured frame)' } else { 'desktop pixels' }
+            timing_caveat = 'Background/foreground modes are not interchangeable benchmark baselines. Background correctness is capped at 60 FPS; concurrent desktop CPU/GPU work can skew all timing results.'
             capture_timestamp_utc = (Get-Date).ToUniversalTime().ToString('o')
             build_sha = $sourceSha
             build_inputs_dirty = ($buildInputChanges.Count -gt 0)
@@ -667,7 +742,7 @@ function Run-Capture {
                 fov = [int]$manifest.settings.fov
                 object_detail = [int]$manifest.settings.object_detail
                 view_option = Get-TrophyViewOption $trophyPath
-                fps_limit = [int]$manifest.settings.fps_limit
+                fps_limit = $effectiveFpsLimit
                 gpufeatures = [string]$manifest.settings.gpufeatures
                 reshade = $false
             }
@@ -715,6 +790,10 @@ $required = @($manifestPath, $deployedConfigPath, $trophyPath, (Join-Path $GameD
 $missing = @($required | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) })
 if ($missing.Count) { throw "Missing capture prerequisites:`n  $($missing -join "`n  ")" }
 Assert-CleanBuildInputs
+if (-not $DryRun) {
+    $running = @(Get-Process -Name Carnivores1_GL,Carnivores1_SOFT,v_gl,v_soft,Carnivores2Menu -ErrorAction SilentlyContinue)
+    if ($running.Count) { throw 'Close the game/menu before capturing; the runner temporarily changes config/profile/log files and will not interrupt an existing session.' }
+}
 if (-not $SkipBuild) {
     & cmake --build --preset $buildPreset
     if ($LASTEXITCODE -ne 0) { throw "$buildPreset build failed." }
@@ -755,7 +834,9 @@ if ($All) {
 Write-Host "C2 capture session: $sessionDir"
 Write-Host "Build: $sourceSha ($buildExeHash)"
 Write-Host "Renderer: $rendererLabel ($buildPreset)"
-Write-Host "Settings: ReShade off, FPS unlimited, FOV $($manifest.settings.fov), object detail $($manifest.settings.object_detail), view option $effectiveViewOption"
+Write-Host "Mode: $Purpose; unattended=$background; repeats=$Repeats; warm-up=${WarmupSeconds}s"
+Write-Host "Settings: ReShade off, FPS option $effectiveFpsLimit, FOV $($manifest.settings.fov), object detail $($manifest.settings.object_detail), view option $effectiveViewOption"
+if ($Purpose -eq 'benchmark') { Write-Warning 'Keep the machine idle for timing comparisons; match capture mode, settings and build inputs. Background runs omit audio and cannot be compared directly with foreground gameplay timings.' }
 foreach ($scenarioEntry in $selectedScenarios) {
     foreach ($resolutionEntry in $selectedResolutions) {
         for ($repeat = 1; $repeat -le $Repeats; $repeat++) {

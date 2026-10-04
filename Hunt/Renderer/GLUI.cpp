@@ -13,6 +13,8 @@
 #include "Hunt.h"
 #include "GLRenderer.h"
 #include "Renderer/UIText.h"
+#include "Core/UnattendedCapture.h"
+#include "Core/CaptureBitmap.h"
 
 #ifdef _gl
 
@@ -39,6 +41,14 @@ void PerfTriggerCapture()
 // SwapBuffers/presentation wait. No-op when GL_PERF_HOOKS is not defined.
 void PerfFrameBegin()
 {
+    if (unattended_capture::options.enabled) {
+        static unattended_capture::Schedule schedule;
+        if (schedule.shouldTrigger(GetTickCount64(), unattended_capture::options.warmupMs)) {
+            glperf_trigger_capture();
+            if (!glperf_capture_is_running()) DoHalt("Unattended GLPerf capture could not start");
+            PrintLog("Unattended capture started (120 frames).\n");
+        }
+    }
     glperf_frame_begin();
 }
 
@@ -97,7 +107,7 @@ void Activate3DHardware()
     }
 
     // Ensure window is in foreground
-    if (hwndMain) {
+    if (hwndMain && !unattended_capture::options.enabled) {
         SetForegroundWindow(hwndMain);
         SetFocus(hwndMain);
     }
@@ -209,6 +219,30 @@ void ShowVideo()
     // End after all scene and post-processing work, but before SwapBuffers so
     // driver/compositor or vsync waits are not included in renderer CPU time.
     PerfFrameEnd();
+
+    if (unattended_capture::options.enabled && glperf_capture_frames_written() == unattended_capture::kCaptureFrames &&
+        !glperf_capture_is_running()) {
+        // Read the final composited BACK buffer before presentation. This
+        // synchronous read/file write is AFTER the last measured frame; no
+        // screenshot stall contaminates the CSV or needs a visible window.
+        std::array<unsigned char, 54> header{};
+        std::uint32_t pixelBytes = 0;
+        if (!capture_bitmap::makeHeader(WinW, WinH, header, pixelBytes)) {
+            DoHalt("Invalid unattended framebuffer dimensions");
+        }
+        std::vector<unsigned char> pixels(pixelBytes);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glReadBuffer(GL_BACK);
+        glReadPixels(0, 0, WinW, WinH, GL_BGRA, GL_UNSIGNED_BYTE, pixels.data());
+        if (glGetError() != GL_NO_ERROR ||
+            !capture_bitmap::write(unattended_capture::options.output, WinW, WinH, pixels.data())) {
+            DoHalt("Could not save unattended framebuffer capture");
+        }
+        PrintLog("Unattended capture complete; framebuffer saved.\n");
+        PostQuitMessage(0);
+    }
 #endif
 
     // Swap buffers

@@ -217,6 +217,9 @@ void ProcessCommandLine()
     if (equals_nocase(s, "-cisk"))   CiskMode = true;
     if (equals_nocase(s, "-tranq")) Tranq = true;
     if (equals_nocase(s, "-observ")) ObservMode = true;
+    if (equals_nocase(s, "-camspin")) CamSpin = true;
+    if (equals_nocase(s, "-camfixed")) CamFixed = true;
+    if (equals_nocase(s, "-camtravel")) { CamSpin = true; CamTravel = true; }
 
     // smod=camo,radar,scent,double,tranq,observer. The order lives in
     // Hunt/Core/ScoreMod.h and is shared with the Menu's assembly, so the two

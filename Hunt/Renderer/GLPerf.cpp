@@ -17,6 +17,8 @@
 // by the renderer setup code.
 extern "C" bool glperf_is_active()     { return false; }
 extern "C" void glperf_trigger_capture() {}
+extern "C" bool glperf_capture_is_running() { return false; }
+extern "C" int glperf_capture_frames_written() { return 0; }
 extern "C" void glperf_init()          {}
 extern "C" void glperf_shutdown()      {}
 extern "C" void glperf_set_logging(bool) {}
@@ -24,6 +26,7 @@ extern "C" void glperf_set_logging(bool) {}
 #else  // GL_PERF_HOOKS
 
 #include "glad/glad.h"
+#include "Core/UnattendedCapture.h"
 
 #include <windows.h>
 
@@ -46,7 +49,7 @@ using Clock = std::chrono::steady_clock;
 
 // Diagnostic model subscopes plus scene-dependent effects exceed 32 names.
 constexpr int   kMaxPasses          = 64;
-constexpr int   kMaxCaptureFrames   = 120;
+constexpr int   kMaxCaptureFrames   = unattended_capture::kCaptureFrames;
 constexpr int   kScopeQueryRingSize = 8;
 constexpr int   kFrameQueryRingSize = 8;
 constexpr int   kMaxNestDepth       = 8;
@@ -715,6 +718,14 @@ extern "C" bool glperf_is_active() {
 extern "C" void glperf_trigger_capture() {
     if (!g_state.initialized || !g_state.loggingEnabled) return;
     StartCapture();
+}
+
+extern "C" bool glperf_capture_is_running() {
+    return g_state.captureActive && g_state.captureFile != nullptr;
+}
+
+extern "C" int glperf_capture_frames_written() {
+    return g_state.captureFramesWritten;
 }
 
 extern "C" void glperf_set_logging(bool enabled) {

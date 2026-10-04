@@ -74,10 +74,39 @@
       "name": "Area 4 observer baseline",
       "ready": true,
       "project": "huntdat\\areas\\area4",
-      "extra_args": ["reg=0", "din=0", "wep=0", "dtm=0", "-observ", "x=528.5", "y=768.5"],
+      "extra_args": ["reg=0", "din=0", "wep=0", "dtm=0", "-observ", "-camfixed", "x=528.5", "y=768.5"],
       "landing_tile": "528.5,768.5",
-      "camera": "flat-terrain vegetation viewpoint; default north heading and level pitch",
+      "camera": "flat-terrain vegetation viewpoint; pinned north heading and level pitch (-camfixed)",
       "notes": "Data-selected candidate in the deployed modded AREA4.MAP: an object-free, non-water tile with high forward object density, negligible local rise, and a low north-facing terrain horizon. Primary worst-case object workload at view option 255 (ctViewR 230) and object detail 96; screenshot review remains mandatory."
+    },
+    {
+      "id": "area4_camspin",
+      "name": "Area 4 rotating camera (stale-vertex gate)",
+      "ready": true,
+      "project": "huntdat\\areas\\area4",
+      "extra_args": [
+        "reg=0",
+        "din=0",
+        "wep=0",
+        "dtm=0",
+        "-observ",
+        "-camspin",
+        "x=528.5",
+        "y=768.5"
+      ],
+      "landing_tile": "528.5,768.5",
+      "camera": "yaw spin with oscillating pitch; one revolution per 120 frames unattended, ~0.67 rad/s foreground",
+      "notes": "Camera-motion regression gate for stale camera-space precache entries (VMap/VMap2 .v): every fixed-camera scenario passes even when swept coverage is wrong, because stale equals fresh under a static camera. Run this after any PreCashGroundModel or sweep-bounds change; stretched or exploding vertices fail it."
+    },
+    {
+      "id": "area4_camtravel",
+      "name": "Area 4 rotating and translating camera",
+      "ready": true,
+      "project": "huntdat\\areas\\area4",
+      "extra_args": ["reg=0", "din=0", "wep=0", "dtm=0", "-observ", "-camtravel", "x=528.5", "y=768.5"],
+      "landing_tile": "528.5,768.5",
+      "camera": "yaw/pitch motion plus a 640-unit horizontal orbit crossing CCX/CCY snaps",
+      "notes": "Default short max-view correctness gate. Render-only translation; -camtravel implies -camspin and its GLPerf precache-read checks. Unattended motion covers one yaw revolution per 120 frames. Does not replace manual walking/swimming or underwater-state validation."
     },
     {
       "id": "area5_spawn",
