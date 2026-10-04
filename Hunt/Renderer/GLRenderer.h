@@ -10,6 +10,7 @@
 #include "Renderer/IRenderer.h"
 #include "Core/TerrainMip.h"
 #include "Core/NightPresentation.h"
+#include "Core/UniformValueCache.h"
 #include "glad/glad.h"
 #include "Renderer/GLShader.h"
 #include "Renderer/GLPerf.h"
@@ -814,12 +815,18 @@ private:
         GLint settings = -1;
         GLint presentation = -1;
         GLint moonBrightness = -1;
+        MoonBrightnessUniformCache moonBrightnessValue;
+        UniformValueCache<1> strengthValue;
+        UniformValueCache<4> settingsValue;
+        UniformValueCache<3> presentationValue;
     };
     std::map<unsigned int, NightUniformLocations> m_nightLocations;
 
     struct FlashlightUniformLocations {
         GLint beam = -1;
         GLint color = -1;
+        UniformValueCache<4> beamValue;
+        UniformValueCache<3> colorValue;
     };
     // Keyed by program id so the shared helper caches once per program rather
     // than querying GL on every draw.

@@ -31,6 +31,21 @@ inline float NightMoonBrightnessGain(int timeOfDay, bool moonBody,
 		? std::clamp(settings.moonBrightnessPct, 0, 1000) / 100.0f : 1.0f;
 }
 
+// One instance per GL program, discarded when the renderer/program is rebuilt.
+// The first use always uploads: do not assume a shader's initial uniform value.
+class MoonBrightnessUniformCache {
+public:
+	bool shouldUpload(float value) {
+		if (valid_ && value == value_) return false;
+		value_ = value;
+		valid_ = true;
+		return true;
+	}
+private:
+	float value_ = 1.0f;
+	bool valid_ = false;
+};
+
 inline float NightMoonGlowStrength(int timeOfDay, const NightLightingSettings& settings) {
 	const float base = NightCelestialHaloStrength(timeOfDay);
 	return timeOfDay == 2

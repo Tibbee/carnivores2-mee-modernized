@@ -69,6 +69,62 @@ TEST(NightLighting, MoonSettingIsStrictAndPreservesOtherNightControls) {
 	EXPECT_EQ(settings.desaturationPct, 85);
 }
 
+TEST(NightLighting, MoonRgbUniformCacheIsWiredAndInvalidatedWithRenderer) {
+	const auto sky = ReadSource("Hunt/Renderer/GLSky.cpp");
+	EXPECT_NE(sky.find("NightDrawKind::Unaffected, OptDayNight == 2);"), std::string::npos);
+	const auto night = ReadSource("Hunt/Renderer/GLNight.cpp");
+	EXPECT_NE(night.find("glGetUniformLocation(program, \"uMoonBrightness\")"), std::string::npos);
+	EXPECT_NE(night.find("NightMoonBrightnessGain(OptDayNight, moonBody, NightLightingOptions())"), std::string::npos);
+	EXPECT_NE(night.find("moonBrightnessValue.shouldUpload(moonGain)"), std::string::npos);
+	EXPECT_NE(night.find("glUniform1f(cached->second.moonBrightness, moonGain)"), std::string::npos);
+	EXPECT_NE(ReadSource("Hunt/Renderer/GLRenderer.h").find("MoonBrightnessUniformCache moonBrightnessValue;"), std::string::npos);
+	EXPECT_NE(ReadSource("Hunt/Renderer/GLRenderer.cpp").find("m_nightLocations.clear();"), std::string::npos);
+	EXPECT_NE(ReadSource("Hunt/Renderer/GLRenderer.h").find("bool moonBody = false"), std::string::npos);
+	const auto shader = ReadSource("shaders/model.frag");
+	EXPECT_NE(shader.find("uniform float uMoonBrightness = 1.0;"), std::string::npos);
+	EXPECT_NE(shader.find("vec4(finalColor * uMoonBrightness, texColor.a * vAlpha)"), std::string::npos);
+	EXPECT_NE(ReadSource("Hunt/Game/EngineInit.cpp").find("NightLightingOption::MoonBrightness"), std::string::npos);
+}
+
+TEST(NightLighting, MoonUniformCacheUploadsFirstUseEvenAtNeutralGain) {
+	MoonBrightnessUniformCache cache;
+	EXPECT_TRUE(cache.shouldUpload(1.0f));
+	for (int draw = 0; draw < 1000; ++draw)
+		EXPECT_FALSE(cache.shouldUpload(1.0f));
+}
+
+TEST(NightLighting, MoonUniformCacheUploadsOnlyMoonAndResetTransitions) {
+	MoonBrightnessUniformCache cache;
+	NightLightingSettings settings;
+	int uploads = 0;
+	for (int frame = 0; frame < 120; ++frame) {
+		uploads += cache.shouldUpload(NightMoonBrightnessGain(2, true, settings));
+		for (int draw = 0; draw < 1000; ++draw)
+			uploads += cache.shouldUpload(NightMoonBrightnessGain(2, false, settings));
+	}
+	EXPECT_EQ(uploads, 240); // Previously 120120 unconditional uploads.
+	EXPECT_FALSE(cache.shouldUpload(1.0f));
+}
+
+TEST(NightLighting, MoonUniformCacheHandlesEditsSunAndIndependentPrograms) {
+	MoonBrightnessUniformCache first, second;
+	NightLightingSettings settings;
+	EXPECT_TRUE(first.shouldUpload(NightMoonBrightnessGain(2, true, settings)));
+	EXPECT_FALSE(first.shouldUpload(NightMoonBrightnessGain(2, true, settings)));
+	EXPECT_TRUE(second.shouldUpload(NightMoonBrightnessGain(2, true, settings)));
+	settings.moonBrightnessPct = 200;
+	EXPECT_TRUE(first.shouldUpload(NightMoonBrightnessGain(2, true, settings)));
+	EXPECT_FALSE(first.shouldUpload(NightMoonBrightnessGain(2, true, settings)));
+	EXPECT_TRUE(first.shouldUpload(NightMoonBrightnessGain(1, true, settings)));
+	EXPECT_FALSE(first.shouldUpload(NightMoonBrightnessGain(0, true, settings)));
+	settings.moonBrightnessPct = 0;
+	EXPECT_TRUE(first.shouldUpload(NightMoonBrightnessGain(2, true, settings)));
+	EXPECT_TRUE(first.shouldUpload(NightMoonBrightnessGain(2, false, settings)));
+	EXPECT_FALSE(first.shouldUpload(NightMoonBrightnessGain(2, false, settings)));
+	MoonBrightnessUniformCache rebuilt;
+	EXPECT_TRUE(rebuilt.shouldUpload(1.0f));
+}
+
 TEST(NightLighting, MoonGlowScalesIndependentlyAndLeavesTheSunUnchanged) {
 	NightLightingSettings settings;
 	EXPECT_FLOAT_EQ(NightMoonGlowStrength(2, settings), 0.10f);

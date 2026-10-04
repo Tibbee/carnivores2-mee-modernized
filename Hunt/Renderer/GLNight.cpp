@@ -98,25 +98,31 @@ void GLRenderer::ApplyNightLightingUniforms(unsigned int program, NightDrawKind 
         };
         cached = m_nightLocations.emplace(program, fresh).first;
     }
-    // Reset the RGB gain every draw so ordinary models do not inherit it.
+    // Evaluate every draw, but upload only on first use or a value change.
+    // The first non-moon draw still resets a moon gain to 1; subsequent world,
+    // held-model and overlay draws reuse it without another driver call.
     if (cached->second.moonBrightness >= 0) {
         const float moonGain = NightMoonBrightnessGain(OptDayNight, moonBody, NightLightingOptions());
-        glUniform1f(cached->second.moonBrightness, moonGain);
+        if (cached->second.moonBrightnessValue.shouldUpload(moonGain))
+            glUniform1f(cached->second.moonBrightness, moonGain);
     }
-    // Always reset both paths: shared model programs must never inherit UI state.
+    // Compute desired state every draw; changed values (including resets) upload.
     const auto presentation = NightPresentationParameters(OptDayNight, NightVisionOn != 0,
         FlashlightEnabled(), NightLightingOptions(), kind);
-    if (cached->second.presentation >= 0)
+    if (cached->second.presentation >= 0 &&
+        cached->second.presentationValue.shouldUpload(presentation))
         glUniform3fv(cached->second.presentation, 1, presentation.data());
     // Modded/older shaders without the new uniform keep their world grade.
     const bool presentationEnabled = cached->second.presentation >= 0 && presentation[2] > 0.5f;
-    if (cached->second.strength >= 0)
-        glUniform1f(cached->second.strength, kind != NightDrawKind::Unaffected &&
-            !presentationEnabled && OptDayNight == 2 && !NightVisionOn ? 1.0f : 0.0f);
+    const float strength = kind != NightDrawKind::Unaffected &&
+        !presentationEnabled && OptDayNight == 2 && !NightVisionOn ? 1.0f : 0.0f;
+    if (cached->second.strength >= 0 && cached->second.strengthValue.shouldUpload({strength}))
+        glUniform1f(cached->second.strength, strength);
     if (cached->second.settings >= 0) {
         const auto parameters = NightLightingParameters(OptDayNight, NightVisionOn != 0,
             NightLightingOptions());
-        glUniform4fv(cached->second.settings, 1, parameters.data());
+        if (cached->second.settingsValue.shouldUpload(parameters))
+            glUniform4fv(cached->second.settings, 1, parameters.data());
     }
 }
 

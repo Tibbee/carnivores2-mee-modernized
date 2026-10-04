@@ -62,8 +62,8 @@ TEST(FlashlightTest, RendererUsesLivingHunterPolicyAndPushesDisabledUniforms)
         std::string::npos);
     EXPECT_NE(source.find("OptFlashlightIntensityPct, MyHealth);"), std::string::npos);
     EXPECT_NE(source.find("const bool enabled = worldLit && FlashlightEnabled();"), std::string::npos);
-    EXPECT_NE(source.find("float beam[4] = { 0.0f,"), std::string::npos);
-    EXPECT_NE(source.find("glUniform4fv(cached->second.beam, 1, beam);"), std::string::npos);
+    EXPECT_NE(source.find("std::array<float, 4> beam = { 0.0f,"), std::string::npos);
+    EXPECT_NE(source.find("glUniform4fv(cached->second.beam, 1, beam.data());"), std::string::npos);
 }
 
 TEST(FlashlightTest, DefaultsDescribeATorchNotASearchlight)

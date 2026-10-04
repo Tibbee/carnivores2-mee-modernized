@@ -48,10 +48,9 @@ void GLRenderer::ApplyFlashlightUniforms(unsigned int program, bool worldLit)
         return;
     }
 
-    // A disabled beam still has to be pushed: uniform values are per-program
-    // state, so a path that stops setting them keeps whatever the frame
-    // before last left behind.
-    float beam[4] = { 0.0f, kFlashlightRangeDefault, 1.0f, 0.0f };
+    // A transition to disabled must still upload; only identical values can
+    // be skipped. Desired beam state is evaluated even for non-world draws.
+    std::array<float, 4> beam = { 0.0f, kFlashlightRangeDefault, 1.0f, 0.0f };
     const bool enabled = worldLit && FlashlightEnabled();
     if (enabled) {
         float innerDeg = static_cast<float>(OptFlashlightInnerAngleDeg);
@@ -64,10 +63,12 @@ void GLRenderer::ApplyFlashlightUniforms(unsigned int program, bool worldLit)
         beam[3] = FlashlightCosFromAngleDeg(outerDeg);
     }
 
-    glUniform4fv(cached->second.beam, 1, beam);
+    if (cached->second.beamValue.shouldUpload(beam))
+        glUniform4fv(cached->second.beam, 1, beam.data());
     if (cached->second.color >= 0) {
-        const float tint[3] = { kFlashlightColorR, kFlashlightColorG, kFlashlightColorB };
-        glUniform3fv(cached->second.color, 1, tint);
+        const std::array<float, 3> tint = { kFlashlightColorR, kFlashlightColorG, kFlashlightColorB };
+        if (cached->second.colorValue.shouldUpload(tint))
+            glUniform3fv(cached->second.color, 1, tint.data());
     }
 }
 

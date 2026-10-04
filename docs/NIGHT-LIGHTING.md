@@ -124,7 +124,23 @@ Cloud visibility, global fog, underwater depth and the shared `SunGlare_Disc`
 runtime F10 tuning still attenuate disc alpha (there is no `sun_glare_disc`
 config key). The desired RGB gain is 1 for all other draws sharing the model
 shader, including world objects, held models, HUD and the daytime sun.
-The disc control does not change halo brightness.
+A per-program value cache uploads only on first use or a gain transition:
+the first non-moon draw resets a moon gain, and subsequent neutral draws skip
+the redundant driver call. Renderer initialization clears the cache. The shader
+multiplication is unchanged. The disc control does not change halo brightness.
+
+The same per-program first-use/change-only policy now covers night strength,
+night settings, HUD/viewmodel presentation, flashlight beam parameters and
+flashlight tint. `UniformValueCache` compares exact float bytes without an
+approximation or epsilon. Desired values are still computed on every draw,
+including NV/daytime/off/death and non-world transitions; camera UBO inputs
+are still rebuilt every call. Both program maps clear on renderer initialization.
+The redundant direct sun/moon `uNightStrength` write was removed so the shared
+helper owns it. All three builds pass 10/10 CTest and 58 focused renderer-policy cases pass.
+An isolated actual-model-shader test matches 640 cached/uncached RGBA pixel
+comparisons (1e-7 tolerance); synthetic repeated requests require 323 rather
+than 323200 uploads. Controls that always upload or never upload are rejected.
+These counts are not a whole-frame benchmark or visual gameplay acceptance.
 
 `night_moon_glow_strength` independently scales the cooler sky halo: 100 retains
 its existing 0.10 base strength, 200 doubles it, and 0 disables only the halo.
@@ -138,6 +154,12 @@ An isolated hidden GPU probe compiled the actual `model.frag` and verified
 blending, RGBA32F and RGBA8 targets. Above-100-percent gain brightens the
 synthetic moon texel; float output tracks the expected contribution, while
 normalized output eventually saturates. Reset-to-1 non-moon draws pass.
+A subsequent cached-versus-unconditional GPU probe matched the same synthetic
+pixel outputs (tolerance 1e-7), including the non-moon reset, while reducing
+uniform uploads from 2020 to 17 across repeated requests. A native 120-frame
+sequence with 1000 ordinary draws per frame requires 240 rather than 120120
+uploads at non-neutral moon gain; at gain 1, repeated requests need no uploads
+after first use. These are call-count checks, not measured frame-time gains.
 This is not visual gameplay acceptance or an exact real-moon texture comparison.
 Local evidence: C2 `build/moon-rgb-gpu-probe.cpp`,
 `build/moon-rgb-gpu-probe-results.log` and `build/moon-rgb-focused.log`.
