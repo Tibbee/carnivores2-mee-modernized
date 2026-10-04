@@ -6,6 +6,7 @@
 #include "GLRenderer.h"
 #include "Core/NightLighting.h"
 #include "Core/TerrainSweep.h"
+#include "Core/TerrainFogSmoothing.h"
 #include "Renderer/GLUtils.h"
 
 #ifdef _gl
@@ -537,32 +538,6 @@ void GLRenderer::RebuildWaterBlockBits()
 // The original 3-arg version delegates to these for backward compat.
 // ---------------------------------------------------------------------------
 
-// Smooth fog-volume transitions.  Blend the four per-corner fog
-// colours 30% toward their tile average to soften hard fog boundaries.
-// This is the "simpler alternative" from CarnivoresDoc architecture/pocket-fog.md --
-// no additional FogsMap lookups, just averaging already-fetched colours.
-static void SmoothFogColors(Vector3d& fog00, Vector3d& fog10,
-                            Vector3d& fog01, Vector3d& fog11)
-{
-    constexpr float kBlend = 0.3f;
-    constexpr float kInvBlend = 1.0f - kBlend;
-    const float avgX = (fog00.x + fog10.x + fog01.x + fog11.x) * 0.25f;
-    const float avgY = (fog00.y + fog10.y + fog01.y + fog11.y) * 0.25f;
-    const float avgZ = (fog00.z + fog10.z + fog01.z + fog11.z) * 0.25f;
-    fog00.x = fog00.x * kInvBlend + avgX * kBlend;
-    fog00.y = fog00.y * kInvBlend + avgY * kBlend;
-    fog00.z = fog00.z * kInvBlend + avgZ * kBlend;
-    fog10.x = fog10.x * kInvBlend + avgX * kBlend;
-    fog10.y = fog10.y * kInvBlend + avgY * kBlend;
-    fog10.z = fog10.z * kInvBlend + avgZ * kBlend;
-    fog01.x = fog01.x * kInvBlend + avgX * kBlend;
-    fog01.y = fog01.y * kInvBlend + avgY * kBlend;
-    fog01.z = fog01.z * kInvBlend + avgZ * kBlend;
-    fog11.x = fog11.x * kInvBlend + avgX * kBlend;
-    fog11.y = fog11.y * kInvBlend + avgY * kBlend;
-    fog11.z = fog11.z * kInvBlend + avgZ * kBlend;
-}
-
 // Sun-fog forward-scatter glow and colour shift.
 // Sun-fog forward-scatter glow.
 void GLRenderer::CollectTerrainTile(int x, int y, int r,
@@ -882,15 +857,18 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
     }
 
     // Emit each coarse survivor through the shared precise cull path.
+    // fogCol is local to this chunk and shared by up to four of its tiles.
+    // Never smooth it in place: later tiles must see the original corners,
+    // matching the single smoothing pass used by the 1x1 fallback.
     for (int dj = 0; dj < 2; ++dj) {
         for (int di = 0; di < 2; ++di) {
             if (!coarsePass[dj][di]) continue;
-            // Smooth fog-volume transitions per tile
-            SmoothFogColors(fogCol[dj][di], fogCol[dj][di + 1],
-                            fogCol[dj + 1][di], fogCol[dj + 1][di + 1]);
+            const auto fog = SmoothedTileFogColors(
+                fogCol[dj][di], fogCol[dj][di + 1],
+                fogCol[dj + 1][di], fogCol[dj + 1][di + 1]);
             EmitTerrainTile(x + di, y + dj, backR[dj][di],
                             v[dj][di], v[dj][di + 1], v[dj + 1][di], v[dj + 1][di + 1],
-                            fogCol[dj][di], fogCol[dj][di + 1], fogCol[dj + 1][di], fogCol[dj + 1][di + 1],
+                            fog[0], fog[1], fog[2], fog[3],
                             alpha[dj][di], alpha[dj][di + 1], alpha[dj + 1][di], alpha[dj + 1][di + 1]);
         }
     }
