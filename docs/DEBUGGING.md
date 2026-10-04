@@ -166,6 +166,17 @@ about survive. Values are validated on load.
 | `gpufeatures` | all on | Bitmask. `0` disables every GPU optimisation. |
 | `glperf_logging` | `0` | Requires a `GL_PERF_HOOKS` build. Writes `glperf-*.log`. |
 
+The VS Code deployment task now appends missing supported defaults without
+replacing existing values, comments or unknown keys. It creates a backup and
+keeps conditional profile/menu selections commented when absent. The 32
+reverb fields for effective environments also have explicit compiled defaults;
+environment 7 remains an intentional no-op. See
+[config completion](../tools/c2_config_defaults_README.md) for the dry-run,
+source/package coverage check and preservation rules. This does not add new
+controls by itself. The subsequently implemented `night_moon_glow_strength`
+is now included in defaults. F10 variables such as `SunGlare_Disc` are not
+config keys.
+
 Audio reverb is tuned with commented-out `env0_*` overrides (`decay`, `decayhf`,
 `diffusion`, `reverb`). The `envN` preset selects the environment: 0 Generic,
 1 Plate, 2 Forest, 3 Mountain, 4 Canyon, 5 Cave, 6 Special-1, 7 no-op,

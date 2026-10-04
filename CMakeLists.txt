@@ -457,6 +457,10 @@ if(MSVC)
     add_test(NAME Carnivores2Tests.ScriptParserContracts
              COMMAND Carnivores2ScriptParserContractTests)
 
+    find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
+    add_test(NAME Carnivores2Tests.ConfigDefaults
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_config_defaults.py)
+
     # Asset-free fixtures for the support validator: bare model filenames and
     # the menu's _RES.TXT price fallback must not be missed.
     add_test(NAME Carnivores2Tests.HuntdatValidator

@@ -116,7 +116,8 @@ The moon disc does not inherit world or sky brightness/desaturation.
 `night_moon_brightness` scales its RGB contribution, not opacity. The default
 128 is approximately the earlier 200 -> 255 alpha boost; 100 uses the original
 disc brightness, 200 doubles its contribution and 1000 requests ten times.
-Restart the hunt after changing config. Missing keys use the compiled default.
+Restart the hunt after changing config. Missing keys use the compiled default;
+VS Code deployment appends missing defaults without replacing authored values.
 
 The temporary alpha/halo boost has been reverted: base opacity is again 200
 and the separate cooler halo strength is 0.10 (day/dawn remain 200/0.18).
@@ -137,7 +138,7 @@ including NV/daytime/off/death and non-world transitions; camera UBO inputs
 are still rebuilt every call. A separate full-packet cache now skips only
 identical 240-byte UBO uploads, with invalidation for partial water writes. Both program maps clear on renderer initialization.
 The redundant direct sun/moon `uNightStrength` write was removed so the shared
-helper owns it. All three builds pass 10/10 CTest and 58 focused renderer-policy cases pass.
+helper owns it. All three builds pass 11/11 CTest and 58 focused renderer-policy cases pass.
 An isolated actual-model-shader test matches 640 cached/uncached RGBA pixel
 comparisons (1e-7 tolerance); synthetic repeated requests require 323 rather
 than 323200 uploads. Controls that always upload or never upload are rejected.

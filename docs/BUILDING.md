@@ -12,8 +12,10 @@ Everything here assumes PowerShell in the repository root.
 | Ninja | Only if you use the presets unchanged, because they set `"generator": "Ninja"`. Override it in your own preset if you'd rather use Visual Studio. |
 | 7-Zip | Only for packaging. `tools/release/make-c2-package.ps1` looks for `7z.exe` on `PATH` and in the usual install locations and throws if it can't find one. |
 
-Python appears in some of the helper scripts under `tools/`, but the build
-itself does not need it.
+Python **3.10 or newer** is required when building the default test configuration
+(`Carnivores2Tests.ConfigDefaults`) and by the VS Code deployment task's
+non-destructive config completion helper. Put `python` on `PATH` for deployment.
+The engine executable itself does not require Python.
 
 ### Why 32-bit
 
@@ -52,8 +54,9 @@ by the presets). Each engine binary has a fixed backend. The `renderer` key in
 
 ## Tests
 
-Eight native test executables and two PowerShell validator suites register
-with CTest (ten default suites), plus two integration smoke tests that are off
+Eight native test executables, two PowerShell validator suites and one Python
+config-defaults suite register with CTest (eleven default suites), plus two
+integration smoke tests that are off
 by default:
 
 ```powershell

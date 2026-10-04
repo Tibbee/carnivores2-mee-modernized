@@ -242,7 +242,7 @@ water_wave_fade_rings 8
 
 # GPU features bitmask (default: all optimizations enabled)
 # Set to 0 to disable all GPU optimizations.
-gpufeatures 4294967295
+gpufeatures 127
 
 # GL performance logging: 0=off, 1=on (default: 0)
 # Requires GL_PERF_HOOKS build. Writes glperf-*.log files.
@@ -253,16 +253,57 @@ glperf_logging 0
 # 5=Cave, 6=Special-1, 7=intentional no-op, 8=Underwater.
 # decay: seconds [0.1,20]; decayhf: HF decay ratio [0.1,2];
 # diffusion: [0,1]; reverb: late-reverb level in mB [-10000,0].
-# Uncomment to override; commented lines use compiled defaults
-# (Generic: decay=1.49, decayhf=0.3, diffusion=0.4, reverb=-620).
-#env0_decay 1.49
-#env0_decayhf 0.3
-#env0_diffusion 0.4
-#env0_reverb -620
+# Compiled defaults for every effective preset; change fields to override.
+# Environment 7 is an intentional no-op and has no effective tuning.
+# 0: Generic
+env0_decay 1.49
+env0_decayhf 0.3
+env0_diffusion 0.4
+env0_reverb -620
+# 1: Plate
+env1_decay 1.2
+env1_decayhf 0.2
+env1_diffusion 0.2
+env1_reverb -600
+# 2: Forest
+env2_decay 1.49
+env2_decayhf 0.18
+env2_diffusion 0.3
+env2_reverb -700
+# 3: Mountain
+env3_decay 2.6
+env3_decayhf 0.2
+env3_diffusion 0.326
+env3_reverb -500
+# 4: Canyon
+env4_decay 1.1
+env4_decayhf 0.6
+env4_diffusion 0.275
+env4_reverb -700
+# 5: Cave
+env5_decay 3.2
+env5_decayhf 0.6
+env5_diffusion 0.9
+env5_reverb -200
+# 6: Special
+env6_decay 1.8
+env6_decayhf 0.4
+env6_diffusion 0.4
+env6_reverb -400
+# 8: Underwater
+env8_decay 1.5
+env8_decayhf 0.1
+env8_diffusion 0.1
+env8_reverb -200
 
 # Last hunt setup (written by the menu when you launch a hunt).
 # The menu reselects these on the hunt screen; delete them to
-# return to entry defaults.
+# return to entry defaults. These examples do not force a selection.
+#hunt_area area1
+#hunt_dinos 0
+#hunt_weapons 0
+#hunt_utils 0
+#hunt_time 0
 "@ | Set-Content -Path (Join-Path $PkgDir 'config.cfg') -Encoding Ascii
 
 # --- end-user README.txt ------------------------------------------------
