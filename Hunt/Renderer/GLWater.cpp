@@ -3,6 +3,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "Core/TerrainSweep.h"
 #include "GLRenderer.h"
 #include "Renderer/GLUtils.h"
 
@@ -257,6 +258,11 @@ void GLRenderer::CollectWaterTileFast(int x, int y, int r,
         }
     }
 
+#ifdef GL_PERF_HOOKS
+    if (CamSpin && !terrain_sweep::footprintRefreshed(localX, localY, 1)) {
+        DoHalt("Stale water precache footprint");
+    }
+#endif
     EPoint v00 = VMap2[localY][localX];
     EPoint v10 = VMap2[localY][localX + 1];
     EPoint v01 = VMap2[localY + 1][localX];

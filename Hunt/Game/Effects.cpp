@@ -5,6 +5,7 @@
 #include "Hunt.h"
 #include "Core/WaterWaveFade.h"
 #include "Core/WaterWaveCache.h"
+#include "Core/TerrainSweep.h"
 #include <array>
 #include <cmath>
 
@@ -27,6 +28,7 @@ void PreCashGroundModel()
 #ifdef GL_PERF_HOOKS
   PrecachePointsSwept = 0;
   PrecacheWaterCells = 0;
+  terrain_sweep::refreshedRows.fill({});
 #endif
 
   static water_wave::Cache waves;
@@ -65,7 +67,14 @@ void PreCashGroundModel()
   std::array<float, kViewGridSize> xSa{};
   std::array<float, kViewGridSize> zCa{};
   std::array<float, kViewGridSize> zSa{};
+#if defined(_gl)
+  // Ceil(center span) plus the last 2x2 chunk can read positive offsets
+  // ctViewR+3/+4 after an even-cell camera snap. Refresh those .v values
+  // too; the old attribute-write square remains ctViewR+3 below.
+  const int gridRadius = ctViewR + 5;
+#else
   const int gridRadius = ctViewR + 3;
+#endif
   for (int offset = -gridRadius; offset < gridRadius; ++offset) {
     const int grid = kViewGridCenter + offset;
     mapX[grid] = (CCX + offset) & 1023;
@@ -94,19 +103,20 @@ void PreCashGroundModel()
   };
 
 #if defined(_gl)
-  // Reduced-coverage sweep (GL build only; the software renderer keeps the
-  // full square). Per row, the swept x range is the union of:
-  //   (a) the walk's rowRange spans (disk intersect frustum half-planes),
-  //       +2.5 cells for its chunk/3x3 corner reads (GLTerrain.cpp
-  //       CollectTerrainChunk2x2 / CollectTerrainTile);
-  //   (b) the +1600 write cone, +1 cell rounding margin: every VMap write
-  //       (Light/Fog at :304-325, FOGON discovery at :333-335) and the
-  //       water/NeedWater set (:217-225) are gated by these tests, so
-  //       covering the write region preserves every consumer-visible value
-  //       and its staleness timeline (consumer inventory: CarnivoresDoc
-  //       Phase 2a proof).
-  // The height term uses the same permissive wyEff selection as the walk's
-  // rowRange so pitched frusta cannot escape the bound.
+  // GL sweeps the union of the actual terrain/water read footprints and
+  // the +1600 attribute-write cone. Do NOT approximate the footprint with
+  // each vertex row's own rowRange plus horizontal slack: the walk unions
+  // two tile rows and reads three vertex rows, even when a vertex row's own
+  // disk/frustum intersection is empty. That left stale .v corners during
+  // camera motion. Include the whole rounded chunk footprint on every row.
+  const terrain_sweep::Bounds walkBounds(CCX, CCY, ctMapSize, ctViewR,
+      CameraX, CameraZ, CameraY, ctHScale, ca, sa, cb, sb, FOVK, BackViewR);
+  std::array<terrain_sweep::RowSpan, kViewGridSize> readSpans{};
+  terrain_sweep::includeReadFootprints(walkBounds, readSpans, kViewGridCenter);
+
+  // Keep attribute writes/NeedWater/FOGON discovery outside the walk too.
+  // These bounds preserve the legacy gated writes; .v reads are covered
+  // independently above, including coarse-cull and object backR slack.
   const float fovk = FOVK;
   const float wyMin2 = 0.0f - CameraY;
   const float wyMax2 = 255.0f * static_cast<float>(ctHScale) - CameraY;
@@ -121,47 +131,20 @@ void PreCashGroundModel()
   const float coneLeftSlack = std::fabs(coneAl) + std::fabs(coneBl);
   const float residualX = CameraX / 256.0f - (static_cast<float>(CCX) + 0.5f);
   const float residualY = CameraZ / 256.0f - (static_cast<float>(CCY) + 0.5f);
-  const float viewR2 = static_cast<float>(ctViewR) * static_cast<float>(ctViewR);
-  // The walk's own half-planes (GLTerrain.cpp rowRange): BackViewR slack and
-  // the same +3-cell expansion, so this term is a superset of every cell the
-  // walk can visit or read corners of.
-  const float walkCr = (BackViewR - wyEff2 * sb) / 256.0f;
-  const float walkCl = -walkCr;
-  const float walkRightSlack = 3.0f * (std::fabs(coneAr) + std::fabs(coneBr));
-  const float walkLeftSlack = 3.0f * (std::fabs(coneAl) + std::fabs(coneBl));
   const int squareLo = -(ctViewR + 3);
   const int squareHi = (ctViewR + 3) - 1;
   auto reducedRowXRange = [&](int yOff, int& loOut, int& hiOut) {
     const float dy = static_cast<float>(yOff) - residualY;
-    float lo = 1.0e30f;
-    float hi = -1.0e30f;
-    const float d2 = viewR2 - dy * dy;
-    if (d2 >= 0.0f) {
-      const float D = std::sqrt(d2);
-      float wLo = -D;
-      float wHi = D;
-      const float wRhsR = walkCr + walkRightSlack - coneBr * dy;
-      if (coneAr > 1e-12f)       wHi = (std::min)(wHi, wRhsR / coneAr);
-      else if (coneAr < -1e-12f) wLo = (std::max)(wLo, wRhsR / coneAr);
-      else if (coneBr * dy > walkCr + walkRightSlack) { wLo = 1.0f; wHi = 0.0f; }
-      const float wRhsL = walkCl - walkLeftSlack - coneBl * dy;
-      if (wLo <= wHi) {
-        if (coneAl > 1e-12f)       wLo = (std::max)(wLo, wRhsL / coneAl);
-        else if (coneAl < -1e-12f) wHi = (std::min)(wHi, wRhsL / coneAl);
-        else if (coneBl * dy < walkCl - walkLeftSlack) { wLo = 1.0f; wHi = 0.0f; }
-      }
-      if (wLo <= wHi) {
-        lo = wLo - 2.5f + residualX;
-        hi = wHi + 2.5f + residualX;
-      }
-    }
+    const auto& reads = readSpans[kViewGridCenter + yOff];
+    float lo = reads.empty() ? 1.0e30f : static_cast<float>(reads.lo);
+    float hi = reads.empty() ? -1.0e30f : static_cast<float>(reads.hi);
     const float expandedCr = coneCr + coneRightSlack;
     const float rhsR = expandedCr - coneBr * dy;
-    float coneLo = 1.0e30f;
-    float coneHi = -1.0e30f;
+    float coneLo = -1.0e30f;
+    float coneHi = 1.0e30f;
     bool coneOk = true;
-    if (coneAr > 1e-12f)       coneHi = rhsR / coneAr + residualX;
-    else if (coneAr < -1e-12f) coneLo = rhsR / coneAr + residualX;
+    if (coneAr > 1e-12f)       coneHi = (std::min)(coneHi, rhsR / coneAr + residualX);
+    else if (coneAr < -1e-12f) coneLo = (std::max)(coneLo, rhsR / coneAr + residualX);
     else if (coneBr * dy > expandedCr) coneOk = false;
     const float expandedCl = coneCl - coneLeftSlack;
     const float rhsL = expandedCl - coneBl * dy;
@@ -170,27 +153,34 @@ void PreCashGroundModel()
       else if (coneAl < -1e-12f) coneHi = (std::min)(coneHi, rhsL / coneAl + residualX);
       else if (coneBl * dy < expandedCl) coneOk = false;
     }
-    if (coneOk && coneLo <= coneHi) {
-      lo = (std::min)(lo, coneLo);
-      hi = (std::max)(hi, coneHi);
+    if (coneOk && yOff >= squareLo && yOff <= squareHi) {
+      coneLo = (std::max)(static_cast<float>(squareLo), coneLo);
+      coneHi = (std::min)(static_cast<float>(squareHi), coneHi);
+      if (coneLo <= coneHi) {
+        lo = (std::min)(lo, coneLo);
+        hi = (std::max)(hi, coneHi);
+      }
     }
     if (lo > hi) {
       loOut = 1;
       hiOut = 0;
       return;
     }
-    loOut = (std::max)(squareLo, static_cast<int>(std::floor(lo)));
-    hiOut = (std::min)(squareHi, static_cast<int>(std::ceil(hi)));
+    loOut = (std::max)(-gridRadius, static_cast<int>(std::floor(lo)));
+    hiOut = (std::min)(gridRadius - 1, static_cast<int>(std::ceil(hi)));
   };
 #endif
 
 
-  for (y=-(ctViewR+3); y<(ctViewR+3); y++)
+  for (y=-gridRadius; y<gridRadius; y++)
   {
 #if defined(_gl)
     int sweepXLo, sweepXHi;
     reducedRowXRange(y, sweepXLo, sweepXHi);
     if (sweepXLo > sweepXHi) continue;
+#ifdef GL_PERF_HOOKS
+    terrain_sweep::refreshedRows[kViewGridCenter + y] = {sweepXLo, sweepXHi};
+#endif
 #else
     const int sweepXLo = -(ctViewR + 3);
     const int sweepXHi = (ctViewR + 3) - 1;
@@ -207,6 +197,8 @@ void PreCashGroundModel()
       const int gridY = kViewGridCenter + y;
       const int xx = mapX[gridX];
       const int yy = mapY[gridY];
+      const bool inAttributeSquare = x >= -(ctViewR + 3) && x < ctViewR + 3 &&
+                                     y >= -(ctViewR + 3) && y < ctViewR + 3;
 
       v[0].x = worldX[gridX];
       v[0].z = worldZ[gridY];
@@ -251,7 +243,7 @@ void PreCashGroundModel()
         // (FOVK < 1) drops visible side water vertices, leaving stale
         // Light/ALPHA/Fog (or zero ALPHA, which skips the tile) and possibly
         // a false NeedWater=false for the whole frame.
-        if (fabs(rv.x * FOVK) > -rv.z + 1524)
+        if (!inAttributeSquare || fabs(rv.x * FOVK) > -rv.z + 1524)
         {
 #if !defined(_gl)
           VMap2[kViewGridCenter + y][kViewGridCenter + x].DFlags = 128;
@@ -341,7 +333,7 @@ void PreCashGroundModel()
       rv.z = terrainVz * localCb + v[0].y * localSb;
 
 
-      if (fabs(rv.x * FOVK) > -rv.z + 1600)
+      if (!inAttributeSquare || fabs(rv.x * FOVK) > -rv.z + 1600)
       {
         VMap[kViewGridCenter + y][kViewGridCenter + x].v = rv;
 #if !defined(_gl)

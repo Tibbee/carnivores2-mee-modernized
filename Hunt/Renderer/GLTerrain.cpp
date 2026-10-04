@@ -5,6 +5,7 @@
 #include "Hunt.h"
 #include "GLRenderer.h"
 #include "Core/NightLighting.h"
+#include "Core/TerrainSweep.h"
 #include "Renderer/GLUtils.h"
 
 #ifdef _gl
@@ -610,6 +611,11 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
         }
     }
 
+#ifdef GL_PERF_HOOKS
+    if (CamSpin && !terrain_sweep::footprintRefreshed(localX, localY, 1)) {
+        DoHalt("Stale terrain precache footprint (1x1)");
+    }
+#endif
     // Fetch vertices
     EPoint v00 = VMap[localY][localX];
     EPoint v10 = VMap[localY][localX + 1];
@@ -830,6 +836,11 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
         return;
     }
 
+#ifdef GL_PERF_HOOKS
+    if (CamSpin && !terrain_sweep::footprintRefreshed(localX, localY, 2)) {
+        DoHalt("Stale terrain precache footprint (2x2)");
+    }
+#endif
     // Read the shared 3x3 grid of VMap corners (9 reads for 4 tiles vs 16).
     EPoint v[3][3];
     int      fogIdx[3][3];
@@ -1114,80 +1125,10 @@ void GLRenderer::RenderGround()
 #ifdef GL_PERF_HOOKS
         GLPerfScope scope_walk("RenderGround_Walk", false);
 #endif
-        // Per-frame frustum coefficients.
-        const float fovk = FOVK;
-        const float ca_  = ca, sa_ = sa, cb_ = cb, sb_ = sb;
-        // Safe terrain-height bounds relative to the camera (global map
-        // range 0..255; conservative superset so pitch never misses a tile).
-        const float wyMin = 0.0f - CameraY;
-        const float wyMax = 255.0f * static_cast<float>(ctHScale) - CameraY;
-        // wyEff maximizes (-wy*sb): lowest terrain when looking down,
-        // highest terrain when looking up, so the bound is a superset of
-        // the true pitched frustum for every possible corner height.
-        const float wyEff = (sb_ > 0.0f) ? wyMin : (sb_ < 0.0f ? wyMax : 0.0f);
-        const float P  = BackViewR - wyEff * sb_;   // effective near offset (world units)
-        const float Cr = P / 256.0f;                // in cells
-        const float Cl = -Cr;
-        const float Ar = ca_ * fovk - sa_ * cb_;
-        const float Br = sa_ * fovk + ca_ * cb_;
-        const float Al = ca_ * fovk + sa_ * cb_;
-        const float Bl = sa_ * fovk - ca_ * cb_;
-
-        const float ctViewRf = static_cast<float>(ctViewR);
-        const float ctViewR2 = ctViewRf * ctViewRf;
-
-        // CCX/CCY snap to even map cells, so the camera can be nearly two
-        // cells from that origin. Use the actual camera-to-tile-center
-        // residual rather than assuming the snap error is below one cell.
-        const float cameraCellX = CameraX / 256.0f;
-        const float cameraCellY = CameraZ / 256.0f;
-        const float residualX = cameraCellX - (static_cast<float>(CCX) + 0.5f);
-        const float residualY = cameraCellY - (static_cast<float>(CCY) + 0.5f);
-
-        // Apply the safety margin to each half-plane before rejection. Merely
-        // widening an accepted x interval cannot recover a wholly rejected
-        // near-parallel row. Three cells conservatively cover tile corners
-        // and floating-point/rounding slack.
-        constexpr float kMargin = 3.0f;
-        const float rightSlack = kMargin * (std::fabs(Ar) + std::fabs(Br));
-        const float leftSlack = kMargin * (std::fabs(Al) + std::fabs(Bl));
-
-        const int yLo = (std::max)(0, static_cast<int>(std::ceil(
-            static_cast<float>(CCY) + residualY - ctViewRf)));
-        const int yHi = (std::min)(ctMapSize - 1, static_cast<int>(std::floor(
-            static_cast<float>(CCY) + residualY + ctViewRf)));
-
-        // Compute one row's map-relative dx range [lo,hi]: exact center
-        // distance disk intersected with conservatively expanded frustum
-        // half-planes. Returns false when the row has no candidate span.
-        auto rowRange = [&](float mapDy, float& lo, float& hi) -> bool {
-            const float dy = mapDy - residualY;
-            const float d2 = ctViewR2 - dy * dy;
-            if (d2 < 0.0f) return false;
-            const float D = std::sqrt((std::max)(0.0f, d2));
-            lo = -D; hi = D;
-
-            // Right half-plane: Ar*dx + Br*dy <= Cr + rightSlack
-            const float expandedCr = Cr + rightSlack;
-            const float rhsR = expandedCr - Br * dy;
-            if      (Ar >  1e-12f) hi = (std::min)(hi, rhsR / Ar);
-            else if (Ar < -1e-12f) lo = (std::max)(lo, rhsR / Ar);
-            else if (Br * dy > expandedCr) return false;
-
-            // Left half-plane: Al*dx + Bl*dy >= Cl - leftSlack
-            const float expandedCl = Cl - leftSlack;
-            const float rhsL = expandedCl - Bl * dy;
-            if      (Al >  1e-12f) lo = (std::max)(lo, rhsL / Al);
-            else if (Al < -1e-12f) hi = (std::min)(hi, rhsL / Al);
-            else if (Bl * dy < expandedCl) return false;
-
-            if (lo > hi) return false;
-            // Convert true camera-relative center offsets back to offsets
-            // from the snapped CCX origin used by the map/grid lookup.
-            lo += residualX;
-            hi += residualX;
-            return true;
-        };
+        // The precache uses this same walk (including pairing/rounding),
+        // then projects each visited chunk onto its three vertex rows.
+        const terrain_sweep::Bounds bounds(CCX, CCY, ctMapSize, ctViewR,
+            CameraX, CameraZ, CameraY, ctHScale, ca, sa, cb, sb, FOVK, BackViewR);
 
         // Phase 2: process rows two at a time so the 2x2 chunk can share
         // VMap corners vertically as well as horizontally (9 reads for 4
@@ -1195,29 +1136,16 @@ void GLRenderer::RenderGround()
         // (each row's range is a superset of its visible tiles, and the union
         // is a superset of both -- so no row's visible tile is missed; the
         // per-tile culls in CollectTerrainChunk2x2 remove the slack).
-        int y = yLo;
-        for (; y + 1 <= yHi; y += 2) {
-            const float dy0 = static_cast<float>(y - CCY);
-            const float dy1 = static_cast<float>(y + 1 - CCY);
-            float lo0, hi0, lo1, hi1;
-            const bool ok0 = rowRange(dy0, lo0, hi0);
-            const bool ok1 = rowRange(dy1, lo1, hi1);
-            if (!ok0 && !ok1) continue;
-            float lo = ok0 ? lo0 : lo1;
-            float hi = ok0 ? hi0 : hi1;
-            if (ok0 && ok1) {
-                lo = (std::min)(lo, lo1);
-                hi = (std::max)(hi, hi1);
-            }
-            int xLeft  = (std::max)(0,             CCX + static_cast<int>(std::floor(lo)));
-            int xRight = (std::min)(ctMapSize - 1, CCX + static_cast<int>(std::ceil(hi)));
-            if (xLeft > xRight) continue;
-
-            for (int x = xLeft; x <= xRight; x += 2) {
-                CollectTerrainChunk2x2(x, y, tFadeStart, tFadeStartSq, tFadeEnd);
+        bounds.visitSpans([&](int y, int xLeft, int xRight, int rows) {
+            for (int x = xLeft; x <= xRight; x += rows) {
+                if (rows == 2) {
+                    CollectTerrainChunk2x2(x, y, tFadeStart, tFadeStartSq, tFadeEnd);
+                } else {
+                    CollectTerrainTile(x, y, 0, tFadeStart, tFadeStartSq, tFadeEnd);
+                }
                 if (NeedWater) {
-                    for (int dj = 0; dj < 2; ++dj) {
-                        for (int di = 0; di < 2; ++di) {
+                    for (int dj = 0; dj < rows; ++dj) {
+                        for (int di = 0; di < rows; ++di) {
                             const int wx = x + di;
                             const int wy = y + dj;
                             if (BlockHasWater(wx, wy)) {
@@ -1227,21 +1155,7 @@ void GLRenderer::RenderGround()
                     }
                 }
             }
-        }
-        // Leftover odd row -- 1x1 (a 2x2 chunk would need a row beyond yHi).
-        if (y <= yHi) {
-            float lo, hi;
-            if (rowRange(static_cast<float>(y - CCY), lo, hi)) {
-                int xLeft  = (std::max)(0,             CCX + static_cast<int>(std::floor(lo)));
-                int xRight = (std::min)(ctMapSize - 1, CCX + static_cast<int>(std::ceil(hi)));
-                for (int x = xLeft; x <= xRight; ++x) {
-                    CollectTerrainTile(x, y, 0, tFadeStart, tFadeStartSq, tFadeEnd);
-                    if (NeedWater && BlockHasWater(x, y)) {
-                        CollectWaterTileFast(x, y, 0, wViewDistSq, wFadeStart, wFadeStartSq, wFadeEnd, wFadeEndSq);
-                    }
-                }
-            }
-        }
+        });
 
         // Terrain rows are bounded using ordinary tile dimensions. A large
         // cave roof, cliff, or tall custom model can remain visible after its
