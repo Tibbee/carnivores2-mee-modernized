@@ -344,3 +344,77 @@ TEST(BoundFit, LocalOfMatchesTheBoxFrameUnderMapRotation) {
     EXPECT_FLOAT_EQ(qx, 200.0f);
     EXPECT_FLOAT_EQ(qy, 0.0f);
 }
+
+TEST(BoundFit, TopPlaneIgnoresUnderSurfaceFringeOfATiltedSlab) {
+    // A 30°-pitched slab with top AND bottom faces. The bottom face's
+    // projection fringes past the top at the high end; without the trimmed
+    // fit those cells rejected every slab that has a bottom face.
+    const float c30 = std::cos(30.0f * kDeg2Rad);
+    const float s30 = std::sin(30.0f * kDeg2Rad);
+    const float L = 1500.0f, W = 400.0f, T = 96.0f;
+    std::vector<float> us, vs, ys;
+    const float yRows[2] = {0.0f, T};
+    for (float yLocal : yRows) {
+        for (float sx : {-1.0f, 1.0f}) {
+            for (float sz : {-1.0f, 1.0f}) {
+                const float x = sx * L * 0.5f;
+                us.push_back(x * c30 - yLocal * s30);
+                vs.push_back(sz * W * 0.5f);
+                ys.push_back(x * s30 + yLocal * c30);
+            }
+        }
+    }
+    const c2bound::TopPlane p = c2bound::FitTopPlane(
+        us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
+        c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
+    ASSERT_TRUE(p.ok);
+    EXPECT_NEAR(p.gx, std::tan(30.0f * kDeg2Rad), 1e-3f);
+    EXPECT_NEAR(p.gz, 0.0f, 1e-3f);
+}
+
+TEST(BoundFit, TopPlaneFitsTessellatedTiltedSlab) {
+    // Same slab tessellated on both faces: the under-surface fringe is a
+    // full bucket row here; the trimmed fit must still recover the plane.
+    const float c30 = std::cos(30.0f * kDeg2Rad);
+    const float s30 = std::sin(30.0f * kDeg2Rad);
+    const float L = 1500.0f, W = 400.0f, T = 96.0f;
+    std::vector<float> us, vs, ys;
+    const float yRows[2] = {0.0f, T};
+    for (float yLocal : yRows) {
+        for (int i = 0; i <= 16; ++i) {
+            for (int j = 0; j <= 4; ++j) {
+                const float x = -L * 0.5f + L * static_cast<float>(i) / 16.0f;
+                us.push_back(x * c30 - yLocal * s30);
+                vs.push_back(-W * 0.5f + W * static_cast<float>(j) / 4.0f);
+                ys.push_back(x * s30 + yLocal * c30);
+            }
+        }
+    }
+    const c2bound::TopPlane p = c2bound::FitTopPlane(
+        us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
+        c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
+    ASSERT_TRUE(p.ok);
+    EXPECT_NEAR(p.gx, std::tan(30.0f * kDeg2Rad), 1e-3f);
+    EXPECT_NEAR(p.gz, 0.0f, 1e-3f);
+}
+
+TEST(BoundFit, TopPlaneRejectsCurvedDome) {
+    // A hemisphere-like top: trimming cannot rescue it, and the majority
+    // guard / residual gate must reject it so organic parts stay flat.
+    const float R = 300.0f, span = 1200.0f;
+    std::vector<float> us, vs, ys;
+    for (int i = 0; i <= 24; ++i) {
+        for (int j = 0; j <= 24; ++j) {
+            const float nx = static_cast<float>(i) / 24.0f - 0.5f;
+            const float nz = static_cast<float>(j) / 24.0f - 0.5f;
+            const float rn = std::min(1.0f, std::sqrt(nx * nx + nz * nz) * 2.0f / 0.9f);
+            us.push_back(nx * span);
+            vs.push_back(nz * span);
+            ys.push_back(std::sqrt(std::max(0.0f, 1.0f - rn * rn)) * R);
+        }
+    }
+    const c2bound::TopPlane p = c2bound::FitTopPlane(
+        us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
+        c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
+    EXPECT_FALSE(p.ok);
+}

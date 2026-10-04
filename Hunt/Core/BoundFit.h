@@ -151,10 +151,14 @@ struct TopPlane {
 
 // Fit the top envelope of a part. us/vs are the part's vertices in the box's
 // local frame, ys the model heights. Every (u, v) grid cell contributes only
-// its highest vertex, so under-surfaces cannot drag the plane down; the plane
-// is then least-squares over those samples. Rejected when the envelope is not
-// planar within maxResidual, steeper than maxGrade, or the samples are
-// degenerate (collinear), which keeps organic and vertical parts flat.
+// its highest vertex, so under-surfaces cannot drag the plane down. Cells
+// that sit clearly below the current plane are then dropped and the fit is
+// repeated: those are cells covered only by an under-surface (a slab's
+// bottom face fringes past the top in projection) and they must not poison
+// the plane. Above-plane samples are never dropped, so spikes still fail the
+// residual gate. Accepted only when a majority of the envelope stays within
+// maxResidual of the plane and the grade is within maxGrade; degenerate
+// (collinear) samples are rejected, keeping organic and vertical parts flat.
 inline TopPlane FitTopPlane(const float* us, const float* vs, const float* ys, int n,
                             float bucket, float maxResidual, float maxGrade) {
     TopPlane r;
@@ -186,45 +190,76 @@ inline TopPlane FitTopPlane(const float* us, const float* vs, const float* ys, i
         }
     }
 
-    double sumN = 0.0, su = 0.0, sv = 0.0, sy = 0.0;
+    std::vector<unsigned char> keep(topY.size(), 0);
+    int kept = 0;
     for (size_t k = 0; k < topY.size(); ++k) {
-        if (topY[k] == -FLT_MAX) continue;
-        sumN += 1.0;
-        su += topU[k];
-        sv += topV[k];
-        sy += topY[k];
+        if (topY[k] != -FLT_MAX) {
+            keep[k] = 1;
+            ++kept;
+        }
     }
-    if (sumN < 3.0) return r;
+    const int total = kept;
+    if (kept < 3) return r;
 
-    const double mu = su / sumN;
-    const double mv = sv / sumN;
-    const double my = sy / sumN;
-    double cuu = 0.0, cuv = 0.0, cvv = 0.0, cuy = 0.0, cvy = 0.0;
-    for (size_t k = 0; k < topY.size(); ++k) {
-        if (topY[k] == -FLT_MAX) continue;
-        const double du = topU[k] - mu;
-        const double dv = topV[k] - mv;
-        const double dy = topY[k] - my;
-        cuu += du * du;
-        cuv += du * dv;
-        cvv += dv * dv;
-        cuy += du * dy;
-        cvy += dv * dy;
+    double c0 = 0.0, gx = 0.0, gz = 0.0;
+    for (int pass = 0; ; ++pass) {
+        double sumN = 0.0, su = 0.0, sv = 0.0, sy = 0.0;
+        for (size_t k = 0; k < topY.size(); ++k) {
+            if (!keep[k]) continue;
+            sumN += 1.0;
+            su += topU[k];
+            sv += topV[k];
+            sy += topY[k];
+        }
+        if (sumN < 3.0) return r;
+
+        const double mu = su / sumN;
+        const double mv = sv / sumN;
+        const double my = sy / sumN;
+        double cuu = 0.0, cuv = 0.0, cvv = 0.0, cuy = 0.0, cvy = 0.0;
+        for (size_t k = 0; k < topY.size(); ++k) {
+            if (!keep[k]) continue;
+            const double du = topU[k] - mu;
+            const double dv = topV[k] - mv;
+            const double dy = topY[k] - my;
+            cuu += du * du;
+            cuv += du * dv;
+            cvv += dv * dv;
+            cuy += du * dy;
+            cvy += dv * dy;
+        }
+        const double det = cuu * cvv - cuv * cuv;
+        // Collinear samples leave the gradient underdetermined; the relative
+        // guard keeps large decks solvable and degenerate slivers flat.
+        if (det < 1e-9 * (cuu + cvv + 1.0)) return r;
+        gx = (cuy * cvv - cvy * cuv) / det;
+        gz = (cvy * cuu - cuy * cuv) / det;
+        c0 = my - gx * mu - gz * mv;
+
+        if (pass >= 3) break;
+        bool dropped = false;
+        for (size_t k = 0; k < topY.size(); ++k) {
+            if (!keep[k]) continue;
+            const double resid = topY[k] - (c0 + gx * topU[k] + gz * topV[k]);
+            if (resid < -maxResidual) {
+                keep[k] = 0;
+                --kept;
+                dropped = true;
+            }
+        }
+        if (!dropped) break;
     }
-    const double det = cuu * cvv - cuv * cuv;
-    // Collinear samples leave the gradient underdetermined; the relative
-    // guard keeps large decks solvable and degenerate slivers flat.
-    if (det < 1e-9 * (cuu + cvv + 1.0)) return r;
 
-    const double gx = (cuy * cvv - cvy * cuv) / det;
-    const double gz = (cvy * cuu - cuy * cuv) / det;
-    const double c0 = my - gx * mu - gz * mv;
+    if (kept < 3) return r;
+    // A real top surface stays majority-represented after trimming; if most
+    // of the envelope had to go, the top is not planar enough to trust.
+    if (kept * 2 < total) return r;
 
     const double grade = std::sqrt(gx * gx + gz * gz);
     if (grade > maxGrade) return r;
 
     for (size_t k = 0; k < topY.size(); ++k) {
-        if (topY[k] == -FLT_MAX) continue;
+        if (!keep[k]) continue;
         const double fit = c0 + gx * topU[k] + gz * topV[k];
         if (std::fabs(topY[k] - fit) > maxResidual) return r;
     }
