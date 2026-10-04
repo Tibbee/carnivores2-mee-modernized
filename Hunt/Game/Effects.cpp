@@ -4,6 +4,7 @@
 
 #include "Hunt.h"
 #include "Core/WaterWaveFade.h"
+#include "Core/WaterWaveCache.h"
 #include <array>
 #include <cmath>
 
@@ -28,77 +29,8 @@ void PreCashGroundModel()
   PrecacheWaterCells = 0;
 #endif
 
-  static float waveCache[32][32];
-  static int waveCacheRandomMap[32][32] = {};
-  static int waveCacheTime = 0;
-  static bool waveCacheReady = false;
-
-  // Multi-component wave cache for water surface displacement
-  struct WaveCacheEntry { float wx[3], wy[3], wz[3]; };
-  static WaveCacheEntry waveCacheSurface[32][32];
-  static int waveCacheSurfaceTime = 0;
-  static bool waveCacheSurfaceReady = false;
-
-  if (!waveCacheReady || waveCacheTime != RealTime) {
-    waveCacheTime = RealTime;
-    for (int wy = 0; wy < 32; wy++) {
-      for (int wx = 0; wx < 32; wx++) {
-        waveCacheRandomMap[wy][wx] = RandomMap[wy][wx];
-        waveCache[wy][wx] = static_cast<float>(sin(-pi/2 + waveCacheRandomMap[wy][wx] / 128 + static_cast<float>(RealTime) / 200.f));
-      }
-    }
-    waveCacheReady = true;
-  } else {
-    for (int wy = 0; wy < 32; wy++) {
-      for (int wx = 0; wx < 32; wx++) {
-        if (waveCacheRandomMap[wy][wx] != RandomMap[wy][wx]) {
-          waveCacheRandomMap[wy][wx] = RandomMap[wy][wx];
-          waveCache[wy][wx] = static_cast<float>(sin(-pi/2 + waveCacheRandomMap[wy][wx] / 128 + static_cast<float>(RealTime) / 200.f));
-        }
-      }
-    }
-  }
-
-  // Pre-compute multi-component wave offsets for water surface
-  // Invalidate cache when wave parameters change (for real-time debug tuning)
-  static float lastWave1Amp = 0, lastWave2Amp = 0, lastWave3Amp = 0, lastWaveSpeed = 0;
-  if (WWave1Amp != lastWave1Amp || WWave2Amp != lastWave2Amp ||
-      WWave3Amp != lastWave3Amp || WWaveSpeed != lastWaveSpeed) {
-    waveCacheSurfaceReady = false;
-    lastWave1Amp = WWave1Amp;
-    lastWave2Amp = WWave2Amp;
-    lastWave3Amp = WWave3Amp;
-    lastWaveSpeed = WWaveSpeed;
-  }
-  if (!waveCacheSurfaceReady || waveCacheSurfaceTime != RealTime) {
-    waveCacheSurfaceTime = RealTime;
-    float t = RealTime / 200.f * WWaveSpeed;
-    // Y amplitude is ~80% of X/Z amplitude for a natural wave shape
-    float amp1y = WWave1Amp * 0.8f;
-    float amp2y = WWave2Amp * 0.8f;
-    float amp3y = WWave3Amp * 0.8f;
-    for (int wy = 0; wy < 32; wy++) {
-      for (int wx = 0; wx < 32; wx++) {
-        int r1 = RandomMap[wy][wx];
-        int r2 = RandomMap[(wy + 11) & 31][(wx + 7) & 31];
-        float px = static_cast<float>(wx) * 0.5f;
-        float py = static_cast<float>(wy) * 0.5f;
-        // Wave 1: primary swell -- large slow heave
-        waveCacheSurface[wy][wx].wx[0] = static_cast<float>(sin(px + py + t)) * WWave1Amp;
-        waveCacheSurface[wy][wx].wy[0] = static_cast<float>(sin(px * 0.8f + py * 0.6f + t * 0.9f)) * amp1y;
-        waveCacheSurface[wy][wx].wz[0] = static_cast<float>(sin(pi/2.f + px + py + t)) * WWave1Amp;
-        // Wave 2: secondary cross-wave -- medium amplitude, different direction
-        waveCacheSurface[wy][wx].wx[1] = static_cast<float>(sin(px * 1.5f - py * 0.7f + t * 1.3f + r1 * 0.01f)) * WWave2Amp;
-        waveCacheSurface[wy][wx].wy[1] = static_cast<float>(sin(px * 1.2f - py * 0.9f + t * 1.1f + r1 * 0.01f)) * amp2y;
-        waveCacheSurface[wy][wx].wz[1] = static_cast<float>(sin(pi/3.f + px * 1.5f - py * 0.7f + t * 1.3f + r2 * 0.01f)) * WWave2Amp;
-        // Wave 3: fine detail -- small fast ripples
-        waveCacheSurface[wy][wx].wx[2] = static_cast<float>(sin(px * 2.3f + py * 1.2f + t * 2.1f + r2 * 0.01f)) * WWave3Amp;
-        waveCacheSurface[wy][wx].wy[2] = static_cast<float>(sin(px * 2.0f + py * 1.5f + t * 1.8f + r2 * 0.01f)) * amp3y;
-        waveCacheSurface[wy][wx].wz[2] = static_cast<float>(sin(pi/4.f + px * 2.3f + py * 1.2f + t * 2.1f + r1 * 0.01f)) * WWave3Amp;
-      }
-    }
-    waveCacheSurfaceReady = true;
-  }
+  static water_wave::Cache waves;
+  waves.update(RealTime, RandomMap, {WWave1Amp, WWave2Amp, WWave3Amp, WWaveSpeed});
 
   MapMinY = 10241024;
   Vector3d rv;
@@ -289,12 +221,10 @@ void PreCashGroundModel()
         rv = v[0];
         rv.y = WaterList[ WMap[yy][xx] ].wlevel*ctHScale - CameraY;
 
-        // Use the per-RealTime wave offset cache built at the top of
-        // PreCashGroundModel(). The cache reduces ~2,600 sin() calls per
-        // frame to 1,024 per RealTime change (and zero in steady state).
-        // The 4ab70c8 commit introduced the cache but never wired the
-        // lookup; this change completes that fix.
-        float wdelta = waveCache[yy & 31][xx & 31];
+        // Reuse the phase cache built above: per-cell constants refresh
+        // when RandomMap changes, and time-dependent pairs refresh each
+        // frame. No per-vertex trigonometry is needed here.
+        float wdelta = waves.lighting[yy & 31][xx & 31];
 
         // Wave displacement. The legacy gate was a hard cutoff (r < ctViewR-4),
         // which stepped straight from full amplitude to zero and left a seam
@@ -308,7 +238,7 @@ void PreCashGroundModel()
         if ( (FMap[yy][xx] & fmWater) && waveFade > 0.0f)
         {
           // Multi-component wave displacement from cache, faded by distance.
-          const WaveCacheEntry& wc = waveCacheSurface[yy & 31][xx & 31];
+          const water_wave::Surface& wc = waves.surface[yy & 31][xx & 31];
           rv.x += (wc.wx[0] + wc.wx[1] + wc.wx[2]) * waveFade;
           rv.y += (wc.wy[0] + wc.wy[1] + wc.wy[2]) * waveFade;
           rv.z += (wc.wz[0] + wc.wz[1] + wc.wz[2]) * waveFade;
