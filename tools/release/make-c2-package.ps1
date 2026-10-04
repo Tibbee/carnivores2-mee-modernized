@@ -170,13 +170,16 @@ load_mode lenient
 # Nightvision key VK code (default: 78 = 'N')
 nightvision_key 78
 
-# OpenGL only: 0=Classic night, 1=darker Moonlit night (default).
+# OpenGL Moonlit night brightness and desaturation.
 # Brightness is 5..100 percent; desaturation is 0..100 percent.
 # Flashlight restores local brightness/color; night vision bypasses it.
-night_lighting 1
 night_world_brightness 22
 night_desaturation 85
 night_sky_brightness 60
+# Moon disc only: RGB brightness 0..1000 percent, 100 = original.
+night_moon_brightness 128
+# Moon halo only: strength 0..1000 percent, 100 = existing glow.
+night_moon_glow_strength 100
 
 # Flashlight key VK code (default: 70 = 'F'). The flashlight is only
 # available on hunts launched with the Flashlight accessory selected.

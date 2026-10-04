@@ -71,8 +71,8 @@ void GLRenderer::Render_Cross(int x, int y)
     const float radiusY = radius / static_cast<float>(WinH) * 2.0f;
 
     // The legacy cross is black. Moonlit uses a dim readable mark instead;
-    // leave its daytime/Classic appearance and geometry intact.
-    const bool moonlit = OptDayNight == 2 && NightLightingOptions().mode == 1;
+    // leave its daytime appearance and geometry intact.
+    const bool moonlit = OptDayNight == 2;
     const uint8_t crossFog = moonlit ? 0 : 255;
     auto makeVertex = [crossFog](float px, float py) -> ModelVertex {
         return {

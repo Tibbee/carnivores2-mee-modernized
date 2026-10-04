@@ -31,8 +31,8 @@ uniform vec2 uSunScreenPos;   // sun/moon screen pos (top-origin)
 uniform float uSunVisibility; // = m_skyTraceK
 uniform float uSunGlow;       // master glow strength (sun 0.18, moon 0.10)
 uniform float uBodyIsMoon;    // 1.0 = moon (night), 0.0 = sun (day)
-// Classic initializer also permits these shaders with an older executable.
-uniform vec4 uNightSettings = vec4(0.5, 0.6, 1.0, 0.0); // gain, desaturation, sky gain, Moonlit
+// Night defaults; the matching engine pushes configured values per draw.
+uniform vec4 uNightSettings = vec4(0.22, 0.85, 0.60, 1.0); // gain, desaturation, sky gain, normal-night treatment
 uniform float uPocketFog;     // camera pocket-fog density (0..1)
 uniform vec3  uPocketFogColor;// camera pocket-fog colour
 uniform vec3  uCamFogColor;     // camera-in-fog envelope colour
@@ -148,7 +148,7 @@ void main() {
        : 0.0f;
 
    // Moonlit: preserve horizon silhouettes with a darker canopy overhead.
-   // Classic, daytime and NV keep the original gradient exactly.
+   // Daytime and NV keep the original gradient exactly.
    float zenithDark = moonlit ? mix(1.0, 0.72, vert) : 0.92 + 0.08 * (1.0 - vert);
    skyColor *= zenithDark;
 

@@ -8,32 +8,56 @@
 #include <array>
 #include <cstring>
 
+// Restore the original celestial opacity/glow. Moon brightness is an RGB
+// gain instead, so it does not saturate the packed alpha or defeat fades.
+inline constexpr float NightCelestialDiscAlpha(int /*timeOfDay*/) {
+	return 200.0f;
+}
+inline constexpr float NightCelestialHaloStrength(int timeOfDay) {
+	return timeOfDay == 2 ? 0.10f : 0.18f;
+}
+
 struct NightLightingSettings {
-	int mode = 1; // 0 = Classic, 1 = Moonlit
 	int worldBrightnessPct = 22;
 	int desaturationPct = 85;
 	int skyBrightnessPct = 60;
+	int moonBrightnessPct = 128; // Approximately the previous 200 -> 255 boost.
+	int moonGlowStrengthPct = 100; // 100 = existing halo; 0 disables it.
 };
+
+inline float NightMoonBrightnessGain(int timeOfDay, bool moonBody,
+	const NightLightingSettings& settings) {
+	return timeOfDay == 2 && moonBody
+		? std::clamp(settings.moonBrightnessPct, 0, 1000) / 100.0f : 1.0f;
+}
+
+inline float NightMoonGlowStrength(int timeOfDay, const NightLightingSettings& settings) {
+	const float base = NightCelestialHaloStrength(timeOfDay);
+	return timeOfDay == 2
+		? base * (std::clamp(settings.moonGlowStrengthPct, 0, 1000) / 100.0f) : base;
+}
 
 inline NightLightingSettings& NightLightingOptions() {
 	static NightLightingSettings settings;
 	return settings;
 }
 
-enum class NightLightingOption { Mode, WorldBrightness, Desaturation, SkyBrightness };
+enum class NightLightingOption { WorldBrightness, Desaturation, SkyBrightness, MoonBrightness, MoonGlowStrength };
 
 inline bool ParseNightLightingOption(NightLightingOption option, const char* text,
 	NightLightingSettings& settings) {
-	const int minimum = option == NightLightingOption::Mode ||
-		option == NightLightingOption::Desaturation ? 0 : 5;
-	const int maximum = option == NightLightingOption::Mode ? 1 : 100;
+	const bool moonOption = option == NightLightingOption::MoonBrightness ||
+		option == NightLightingOption::MoonGlowStrength;
+	const int minimum = option == NightLightingOption::Desaturation || moonOption ? 0 : 5;
+	const int maximum = moonOption ? 1000 : 100;
 	int value = 0;
 	if (!ParseConfigInt(text, minimum, maximum, value)) return false;
 	switch (option) {
-	case NightLightingOption::Mode: settings.mode = value; break;
 	case NightLightingOption::WorldBrightness: settings.worldBrightnessPct = value; break;
 	case NightLightingOption::Desaturation: settings.desaturationPct = value; break;
 	case NightLightingOption::SkyBrightness: settings.skyBrightnessPct = value; break;
+	case NightLightingOption::MoonBrightness: settings.moonBrightnessPct = value; break;
+	case NightLightingOption::MoonGlowStrength: settings.moonGlowStrengthPct = value; break;
 	default: return false;
 	}
 	return true;
@@ -50,17 +74,16 @@ inline bool NightLightingConfigValueFits(const char* line, std::size_t capacity)
 	return length > 0 && length < capacity;
 }
 
-inline bool UseMoonlitNight(int timeOfDay, bool nightVisionOn,
-	const NightLightingSettings& settings) {
-	return timeOfDay == 2 && !nightVisionOn && settings.mode == 1;
+inline bool UseMoonlitNight(int timeOfDay, bool nightVisionOn) {
+	return timeOfDay == 2 && !nightVisionOn;
 }
 
 // Plain vec4 uniform, not a PerFrame UBO extension: world gain, desaturation,
 // sky gain, restoration/new sky treatment enabled. NV retains the old sky.
 inline std::array<float, 4> NightLightingParameters(int timeOfDay, bool nightVisionOn,
 	const NightLightingSettings& settings) {
-	if (!UseMoonlitNight(timeOfDay, nightVisionOn, settings))
-		return {0.5f, 0.6f, 1.0f, 0.0f};
+	if (!UseMoonlitNight(timeOfDay, nightVisionOn))
+		return {1.0f, 0.0f, 1.0f, 0.0f};
 	return {settings.worldBrightnessPct / 100.0f, settings.desaturationPct / 100.0f,
 		settings.skyBrightnessPct / 100.0f, 1.0f};
 }
@@ -87,7 +110,7 @@ inline NightRgb GradeNightWorld(const NightRgb& original, int timeOfDay,
 	if (timeOfDay != 2 || nightVisionOn) return original;
 	const auto parameters = NightLightingParameters(timeOfDay, nightVisionOn, settings);
 	const float gray = NightLuminance(original);
-	const float restore = parameters[3] > 0.5f ? std::clamp(restoration, 0.0f, 1.0f) : 0.0f;
+	const float restore = std::clamp(restoration, 0.0f, 1.0f);
 	NightRgb result{};
 	for (size_t i = 0; i < result.size(); ++i) {
 		const float graded = (original[i] * (1.0f - parameters[1]) +

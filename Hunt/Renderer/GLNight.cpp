@@ -85,7 +85,7 @@ void GLRenderer::InitializeNightDesaturation()
     glUniform1f(m_locNightDesatStrength, 0.6f);  // 60% desaturation
 }
 
-void GLRenderer::ApplyNightLightingUniforms(unsigned int program, NightDrawKind kind)
+void GLRenderer::ApplyNightLightingUniforms(unsigned int program, NightDrawKind kind, bool moonBody)
 {
     if (program == 0) return;
     auto cached = m_nightLocations.find(program);
@@ -94,8 +94,14 @@ void GLRenderer::ApplyNightLightingUniforms(unsigned int program, NightDrawKind 
             glGetUniformLocation(program, "uNightStrength"),
             glGetUniformLocation(program, "uNightSettings"),
             glGetUniformLocation(program, "uNightPresentation"),
+            glGetUniformLocation(program, "uMoonBrightness"),
         };
         cached = m_nightLocations.emplace(program, fresh).first;
+    }
+    // Reset the RGB gain every draw so ordinary models do not inherit it.
+    if (cached->second.moonBrightness >= 0) {
+        const float moonGain = NightMoonBrightnessGain(OptDayNight, moonBody, NightLightingOptions());
+        glUniform1f(cached->second.moonBrightness, moonGain);
     }
     // Always reset both paths: shared model programs must never inherit UI state.
     const auto presentation = NightPresentationParameters(OptDayNight, NightVisionOn != 0,

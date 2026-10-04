@@ -100,7 +100,7 @@ int ApplySunFogColourShift(int fogRGB, float sunLight)
 {
     // Moonlight must not inherit the golden sunlight palette. Classic/NV
     // retain the previous fog treatment; software never calls this helper.
-    if (sunLight <= 0.1f || UseMoonlitNight(OptDayNight, NightVisionOn != 0, NightLightingOptions())) {
+    if (sunLight <= 0.1f || UseMoonlitNight(OptDayNight, NightVisionOn != 0)) {
         return fogRGB;
     }
     // Sun elevation is constant for the fixed sun position; hoist the sqrt

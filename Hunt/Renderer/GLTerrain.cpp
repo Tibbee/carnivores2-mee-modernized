@@ -393,7 +393,7 @@ void GLRenderer::RenderTerrain()
         static const GLint uScatter = glGetUniformLocation(m_terrainShader.GetProgramID(), "uFogScatter");
         if (uScatter >= 0) {
             if (m_isUnderwater || GetSunLight() < 0.1f ||
-                UseMoonlitNight(OptDayNight, NightVisionOn != 0, NightLightingOptions())) {
+                UseMoonlitNight(OptDayNight, NightVisionOn != 0)) {
                 glUniform1f(uScatter, 0.0f);
             } else {
                 // Keep fog forward-scatter aligned with the rendered celestial body.

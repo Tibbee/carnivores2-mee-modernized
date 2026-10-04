@@ -21,16 +21,104 @@ std::string ShaderBlock(const std::string& text, const char* begin, const char* 
 }
 }
 
+TEST(NightLighting, MoonBrightnessBoostLeavesDawnAndDaySunUnchanged) {
+	for (int time : {0, 1}) {
+		EXPECT_FLOAT_EQ(NightCelestialDiscAlpha(time), 200.0f);
+		EXPECT_FLOAT_EQ(NightCelestialHaloStrength(time), 0.18f);
+	}
+	EXPECT_FLOAT_EQ(NightCelestialDiscAlpha(2), 200.0f);
+	EXPECT_FLOAT_EQ(NightCelestialHaloStrength(2), 0.10f);
+	const NightLightingSettings settings;
+	EXPECT_FLOAT_EQ(NightMoonBrightnessGain(2, true, settings), 1.28f);
+	for (int time : {0, 1})
+		EXPECT_FLOAT_EQ(NightMoonBrightnessGain(time, true, settings), 1.0f);
+}
+
+TEST(NightLighting, MoonRendererUsesBrightnessPolicyWithoutRemovingVisibilityFades) {
+	const auto sky = ReadSource("Hunt/Renderer/GLSky.cpp");
+	EXPECT_NE(sky.find("glUniform1f(m_locSkySunGlow, NightMoonGlowStrength(OptDayNight, NightLightingOptions()));"), std::string::npos);
+	EXPECT_NE(sky.find("NightCelestialDiscAlpha(OptDayNight) * std::pow(m_skyTraceK, 0.6f) * depthAtten * sunEnvDim * SunGlare_Disc"), std::string::npos);
+	EXPECT_NE(sky.find("NightDrawKind::Unaffected"), std::string::npos);
+	EXPECT_NE(ReadSource("shaders/sky.frag").find("isMoon ? uSunVisibility : uSunVisibility * uSunVisibility"), std::string::npos);
+}
+
+TEST(NightLighting, MoonGainSupportsHighValuesButDoesNotLeakToOtherDraws) {
+	NightLightingSettings settings;
+	for (int percent : {0, 50, 100, 128, 200, 1000}) {
+		settings.moonBrightnessPct = percent;
+		EXPECT_FLOAT_EQ(NightMoonBrightnessGain(2, true, settings), percent / 100.0f);
+		for (int time : {0, 1, 2})
+			EXPECT_FLOAT_EQ(NightMoonBrightnessGain(time, false, settings), 1.0f);
+	}
+	settings.moonBrightnessPct = 10000;
+	EXPECT_FLOAT_EQ(NightMoonBrightnessGain(2, true, settings), 10.0f);
+	settings.moonBrightnessPct = -1;
+	EXPECT_FLOAT_EQ(NightMoonBrightnessGain(2, true, settings), 0.0f);
+}
+
+TEST(NightLighting, MoonSettingIsStrictAndPreservesOtherNightControls) {
+	NightLightingSettings settings;
+	for (const char* valid : {"0", "100", "128", "200", "1000"})
+		EXPECT_TRUE(ParseNightLightingOption(NightLightingOption::MoonBrightness, valid, settings));
+	for (const char* invalid : {"-1", "1001", "nan", "200junk", "", "99999999999999999999"}) {
+		EXPECT_FALSE(ParseNightLightingOption(NightLightingOption::MoonBrightness, invalid, settings));
+		EXPECT_EQ(settings.moonBrightnessPct, 1000);
+	}
+	EXPECT_EQ(settings.worldBrightnessPct, 22);
+	EXPECT_EQ(settings.skyBrightnessPct, 60);
+	EXPECT_EQ(settings.desaturationPct, 85);
+}
+
+TEST(NightLighting, MoonGlowScalesIndependentlyAndLeavesTheSunUnchanged) {
+	NightLightingSettings settings;
+	EXPECT_FLOAT_EQ(NightMoonGlowStrength(2, settings), 0.10f);
+	const float discGain = NightMoonBrightnessGain(2, true, settings);
+	const auto grade = NightLightingParameters(2, false, settings);
+	for (int percent : {0, 50, 100, 200, 1000}) {
+		settings.moonGlowStrengthPct = percent;
+		EXPECT_FLOAT_EQ(NightMoonGlowStrength(2, settings), 0.10f * (percent / 100.0f));
+		for (int time : {0, 1})
+			EXPECT_FLOAT_EQ(NightMoonGlowStrength(time, settings), 0.18f);
+		EXPECT_FLOAT_EQ(NightMoonBrightnessGain(2, true, settings), discGain);
+		EXPECT_EQ(NightLightingParameters(2, false, settings), grade);
+		EXPECT_FLOAT_EQ(NightCelestialDiscAlpha(2), 200.0f);
+	}
+	settings.moonGlowStrengthPct = -1;
+	EXPECT_FLOAT_EQ(NightMoonGlowStrength(2, settings), 0.0f);
+	settings.moonGlowStrengthPct = 10000;
+	EXPECT_FLOAT_EQ(NightMoonGlowStrength(2, settings), 1.0f);
+}
+
+TEST(NightLighting, MoonGlowConfigRejectsInvalidValuesWithoutResettingCustomValues) {
+	NightLightingSettings settings;
+	for (const char* valid : {"0", "100", "200", "1000"})
+		EXPECT_TRUE(ParseNightLightingOption(NightLightingOption::MoonGlowStrength, valid, settings));
+	for (const char* invalid : {"-1", "1001", "nan", "200junk", "", "99999999999999999999"}) {
+		EXPECT_FALSE(ParseNightLightingOption(NightLightingOption::MoonGlowStrength, invalid, settings));
+		EXPECT_EQ(settings.moonGlowStrengthPct, 1000);
+	}
+	EXPECT_EQ(settings.moonBrightnessPct, 128);
+	EXPECT_EQ(settings.worldBrightnessPct, 22);
+	EXPECT_EQ(settings.skyBrightnessPct, 60);
+}
+
+TEST(NightLighting, MoonGlowKeepsProductionCloudAndFogAttenuation) {
+	const auto config = ReadSource("Hunt/Game/EngineInit.cpp");
+	EXPECT_NE(config.find("NightLightingOption::MoonGlowStrength"), std::string::npos);
+	const auto sky = ReadSource("shaders/sky.frag");
+	EXPECT_NE(sky.find("uSunGlow * occ * (1.0 - fogFactor * 0.5) * (1.0f - envSky)"), std::string::npos);
+	EXPECT_NE(sky.find("float glowRadius = isMoon ? 110.0"), std::string::npos);
+}
+
 TEST(NightLighting, DefaultsAndActivation) {
 	const NightLightingSettings settings;
-	EXPECT_EQ(settings.mode, 1);
 	EXPECT_EQ(settings.worldBrightnessPct, 22);
 	EXPECT_EQ(settings.desaturationPct, 85);
 	EXPECT_EQ(settings.skyBrightnessPct, 60);
-	EXPECT_TRUE(UseMoonlitNight(2, false, settings));
-	EXPECT_FALSE(UseMoonlitNight(0, false, settings));
-	EXPECT_FALSE(UseMoonlitNight(1, false, settings));
-	EXPECT_FALSE(UseMoonlitNight(2, true, settings));
+	EXPECT_TRUE(UseMoonlitNight(2, false));
+	EXPECT_FALSE(UseMoonlitNight(0, false));
+	EXPECT_FALSE(UseMoonlitNight(1, false));
+	EXPECT_FALSE(UseMoonlitNight(2, true));
 }
 
 TEST(NightLighting, StrictSettingsAndInvalidDuplicatesPreserveValues) {
@@ -49,10 +137,7 @@ TEST(NightLighting, StrictSettingsAndInvalidDuplicatesPreserveValues) {
 	EXPECT_TRUE(ParseNightLightingOption(NightLightingOption::Desaturation, "100", settings));
 	EXPECT_FALSE(ParseNightLightingOption(NightLightingOption::Desaturation, "101", settings));
 	EXPECT_EQ(settings.desaturationPct, 100);
-	EXPECT_TRUE(ParseNightLightingOption(NightLightingOption::Mode, "0", settings));
-	EXPECT_FALSE(ParseNightLightingOption(NightLightingOption::Mode, "2", settings));
-	EXPECT_FALSE(ParseNightLightingOption(NightLightingOption::Mode, nullptr, settings));
-	EXPECT_EQ(settings.mode, 0);
+	EXPECT_FALSE(ParseNightLightingOption(NightLightingOption::WorldBrightness, nullptr, settings));
 }
 
 TEST(NightLighting, OversizedConfigTokensCannotBecomeValidPrefixes) {
@@ -71,21 +156,37 @@ TEST(NightLighting, DayDawnAndNightVisionAreUnchanged) {
 	EXPECT_EQ(GradeNightWorld(color, 0, false, settings, 1.0f), color);
 	EXPECT_EQ(GradeNightWorld(color, 1, false, settings, 1.0f), color);
 	EXPECT_EQ(GradeNightWorld(color, 2, true, settings, 1.0f), color);
-	EXPECT_EQ(NightLightingParameters(2, true, settings), (std::array<float, 4>{0.5f, 0.6f, 1.0f, 0.0f}));
+	EXPECT_EQ(NightLightingParameters(2, true, settings), (std::array<float, 4>{1.0f, 0.0f, 1.0f, 0.0f}));
 	EXPECT_EQ(GradeNightSky(color, 0.6f, 2, true, settings),
 		GradeNightSky(color, 0.6f, 1, false, settings));
 }
 
-TEST(NightLighting, ClassicMatchesPreviousGradeAndIgnoresRestoration) {
+TEST(NightLighting, SingleNightLookUsesOnlyBrightnessAndDesaturationSettings) {
 	NightLightingSettings settings;
-	settings.mode = 0;
+	settings.worldBrightnessPct = 15;
+	settings.desaturationPct = 85;
+	settings.skyBrightnessPct = 100;
+	const auto parameters = NightLightingParameters(2, false, settings);
+	EXPECT_FLOAT_EQ(parameters[0], 0.15f);
+	EXPECT_FLOAT_EQ(parameters[1], 0.85f);
+	EXPECT_FLOAT_EQ(parameters[2], 1.0f);
+	EXPECT_FLOAT_EQ(parameters[3], 1.0f);
 	const NightRgb color = {0.8f, 0.4f, 0.1f};
-	const auto result = GradeNightWorld(color, 2, false, settings, 1.0f);
-	const float gray = NightLuminance(color);
-	for (std::size_t i = 0; i < color.size(); ++i)
-		EXPECT_FLOAT_EQ(result[i], (0.4f * color[i] + 0.6f * gray) * 0.5f);
-	EXPECT_EQ(NightLightingParameters(2, false, settings),
-		(std::array<float, 4>{0.5f, 0.6f, 1.0f, 0.0f}));
+	EXPECT_EQ(GradeNightWorld(color, 2, false, settings, 1.0f), color);
+}
+
+TEST(NightLighting, ObsoleteModeKeyCannotSelectAnAlternateLook) {
+	const auto config = ReadSource("Hunt/Game/EngineInit.cpp");
+	const auto start = config.find("else if (_stricmp(key, \"night_lighting\") == 0) {");
+	const auto end = config.find("else if (_stricmp(key, \"night_world_brightness\")", start);
+	ASSERT_NE(start, std::string::npos);
+	ASSERT_NE(end, std::string::npos);
+	const auto ignored = config.substr(start, end - start);
+	EXPECT_NE(ignored.find("night_lighting is obsolete"), std::string::npos);
+	EXPECT_EQ(ignored.find("ParseNightLightingOption"), std::string::npos);
+	EXPECT_EQ(ignored.find("NightLightingOptions()"), std::string::npos);
+	EXPECT_EQ(ReadSource("Hunt/Core/NightLighting.h").find("int mode"), std::string::npos);
+	EXPECT_EQ(config.find("NightLightingOption::Mode"), std::string::npos);
 }
 
 TEST(NightLighting, MoonlitIsDarkerAndLessSaturatedButNotBlack) {
@@ -141,7 +242,7 @@ TEST(NightLighting, WorldShaderCopiesAndCompositionOrderStayInSync) {
 	const auto model = ReadSource("shaders/model.frag");
 	const auto instanced = ReadSource("shaders/instanced_model.frag");
 	const auto night = ShaderBlock(terrain, "// BEGIN NIGHT LIGHTING", "// END NIGHT LIGHTING");
-	const auto beam = ShaderBlock(terrain, "void ApplyFlashlight(", "// Classic initializer");
+	const auto beam = ShaderBlock(terrain, "void ApplyFlashlight(", "// Night defaults");
 	ASSERT_FALSE(night.empty());
 	ASSERT_FALSE(beam.empty());
 	EXPECT_NE(night.find("uNightSettings.y * uNightStrength"), std::string::npos);
@@ -150,8 +251,8 @@ TEST(NightLighting, WorldShaderCopiesAndCompositionOrderStayInSync) {
 	EXPECT_NE(night.find("mix(color, originalColor, restoration)"), std::string::npos);
 	for (const auto* shader : {&terrain, &model, &instanced}) {
 		EXPECT_EQ(ShaderBlock(*shader, "// BEGIN NIGHT LIGHTING", "// END NIGHT LIGHTING"), night);
-		EXPECT_EQ(ShaderBlock(*shader, "void ApplyFlashlight(", "// Classic initializer"), beam);
-		EXPECT_NE(shader->find("uNightSettings = vec4(0.5, 0.6, 1.0, 0.0)"), std::string::npos);
+		EXPECT_EQ(ShaderBlock(*shader, "void ApplyFlashlight(", "// Night defaults"), beam);
+		EXPECT_NE(shader->find("uNightSettings = vec4(0.22, 0.85, 0.60, 1.0)"), std::string::npos);
 		const auto restore = shader->find("ApplyNightLighting(finalColor, beamDistance, beamCos);");
 		const auto illuminate = shader->find("ApplyFlashlight(finalColor, beamDistance, beamCos);");
 		ASSERT_NE(restore, std::string::npos);
@@ -160,7 +261,7 @@ TEST(NightLighting, WorldShaderCopiesAndCompositionOrderStayInSync) {
 	}
 }
 
-TEST(NightLighting, EveryActiveDrawPushesUniformsAndMoonStaysExcluded) {
+TEST(NightLighting, EveryActiveDrawEvaluatesUniformsAndMoonStaysExcluded) {
 	EXPECT_NE(ReadSource("Hunt/Renderer/GLTerrain.cpp").find("ApplyNightLightingUniforms(m_terrainShader.GetProgramID());"), std::string::npos);
 	EXPECT_NE(ReadSource("Hunt/Renderer/GLWater.cpp").find("ApplyNightLightingUniforms(m_terrainShader.GetProgramID());"), std::string::npos);
 	const auto models = ReadSource("Hunt/Renderer/GLModel.cpp");
@@ -168,6 +269,7 @@ TEST(NightLighting, EveryActiveDrawPushesUniformsAndMoonStaysExcluded) {
 	EXPECT_NE(models.find("ApplyNightLightingUniforms(m_modelShader.GetProgramID(), nightKind);"), std::string::npos);
 	const auto sky = ReadSource("Hunt/Renderer/GLSky.cpp");
 	EXPECT_NE(sky.find("ApplyNightLightingUniforms(m_skyShader.GetProgramID());"), std::string::npos);
-	EXPECT_NE(sky.find("if (uNight >= 0) glUniform1f(uNight, 0.0f);"), std::string::npos);
+	EXPECT_NE(sky.find("NightDrawKind::Unaffected, OptDayNight == 2);"), std::string::npos);
+	EXPECT_EQ(sky.find("glUniform1f(uNight"), std::string::npos);
 	EXPECT_NE(sky.find("ApplyFlashlightUniforms(m_modelShader.GetProgramID(), false);"), std::string::npos);
 }

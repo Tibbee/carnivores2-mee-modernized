@@ -7,6 +7,7 @@
 #include "Renderer/GLUtils.h"
 #include "Renderer/SkyFogProjection.h"
 #include "Renderer/SunDepthOcclusion.h"
+#include "Core/NightLighting.h"
 
 #ifdef _gl
 
@@ -223,7 +224,7 @@ void GLRenderer::RenderSkyPlane()
     // sun vs moon get different glow character.  The sun is bright and
     // warm; the moon is dim and cool, so it gets a smaller master strength
     // (handled in the shader via uBodyIsMoon).  OptDayNight==2 is night/moon.
-    glUniform1f(m_locSkySunGlow, (OptDayNight == 2) ? 0.10f : 0.18f);
+    glUniform1f(m_locSkySunGlow, NightMoonGlowStrength(OptDayNight, NightLightingOptions()));
     glUniform1f(m_locSkyBodyIsMoon, (OptDayNight == 2) ? 1.0f : 0.0f);
 
     // World-space gradient: pass the camera basis so the sky shader
@@ -564,13 +565,9 @@ void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int 
 #ifdef GL_PERF_HOOKS
     GL_PERF_STATE_CHANGE();
 #endif
-    // The moon/sun is a sky element, not world geometry. Keep it outside
-    // the world-only night lighting applied by DrawModelVertices().
-    {
-        static const GLint uNight = glGetUniformLocation(m_modelShader.GetProgramID(), "uNightStrength");
-        if (uNight >= 0) glUniform1f(uNight, 0.0f);
-    }
-    ApplyNightLightingUniforms(m_modelShader.GetProgramID(), NightDrawKind::Unaffected);
+    // The moon/sun is a sky element, not world geometry. The shared helper
+    // owns all night-uniform writes and resets world grading for this draw.
+    ApplyNightLightingUniforms(m_modelShader.GetProgramID(), NightDrawKind::Unaffected, OptDayNight == 2);
     // ...and outside the beam. This shares the model program with genuine
     // world models, so the uniform would otherwise still hold whatever the
     // last dinosaur draw left in it, and the moon would look torch-lit.
@@ -718,12 +715,12 @@ void GLRenderer::RenderSun(float x, float y, float z)
     const float sunEnvDim = 1.0f - m_camEnvelopeAmount * 0.7f;
     // SunGlare_Disc scales the disc (1.0 = stock); m_sunLight-style paths
     // elsewhere are untouched (fog-scatter tuning reads the raw value).
-    const int sunAlpha = static_cast<int>(200.0f * std::pow(m_skyTraceK, 0.6f) * depthAtten * sunEnvDim * SunGlare_Disc);
+    const int sunAlpha = static_cast<int>(NightCelestialDiscAlpha(OptDayNight) * std::pow(m_skyTraceK, 0.6f) * depthAtten * sunEnvDim * SunGlare_Disc);
 
-    // The moon uses the same sunAlpha as the day sun, so it is already
-    // dimmed by clouds (m_skyTraceK).  RenderModelSun switches to normal
-    // alpha blending at night (no additive glare). World/sky night grading
-    // deliberately excludes this disc; there is no active darkness overlay.
+    // Moon brightness now uses an independent RGB gain, not increased alpha.
+    // Original cloud (m_skyTraceK), fog and underwater depth dimming remain. Both bodies
+    // use additive blending; world/sky night grading deliberately excludes
+    // this disc. There is no active darkness overlay.
     RenderModelSun(SunModel.get(), x * d, y * d, z * d, sunAlpha);
 }
 

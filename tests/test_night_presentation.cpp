@@ -37,7 +37,7 @@ TEST(NightPresentation, EquipmentStatesAgreeForMapCompassWindAndWeapon) {
 	}
 }
 
-TEST(NightPresentation, DayDawnClassicWorldAndMoonOptOut) {
+TEST(NightPresentation, DayDawnWorldAndMoonOptOut) {
 	NightLightingSettings settings;
 	const std::array<float, 3> disabled{1.0f, 0.0f, 0.0f};
 	for (const auto kind : {NightDrawKind::World, NightDrawKind::Viewmodel,
@@ -46,10 +46,6 @@ TEST(NightPresentation, DayDawnClassicWorldAndMoonOptOut) {
 			for (bool nv : {false, true})
 				for (bool flashlight : {false, true})
 					EXPECT_EQ(NightPresentationParameters(time, nv, flashlight, settings, kind), disabled);
-		settings.mode = 0;
-		EXPECT_EQ(NightPresentationParameters(2, false, true, settings, kind), disabled);
-		EXPECT_EQ(NightPresentationParameters(2, true, false, settings, kind), disabled);
-		settings.mode = 1;
 	}
 	EXPECT_EQ(NightPresentationParameters(2, false, false, settings, NightDrawKind::World), disabled);
 	EXPECT_EQ(NightPresentationParameters(2, true, true, settings, NightDrawKind::Unaffected), disabled);

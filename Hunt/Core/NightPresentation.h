@@ -14,7 +14,7 @@ inline constexpr int kNightReadableRectLimit = 16;
 inline std::array<float, 3> NightPresentationParameters(int timeOfDay,
 	bool nightVisionOn, bool flashlightEnabled, const NightLightingSettings& settings,
 	NightDrawKind kind) {
-	if (timeOfDay != 2 || settings.mode != 1 || kind == NightDrawKind::World ||
+	if (timeOfDay != 2 || kind == NightDrawKind::World ||
 		kind == NightDrawKind::Unaffected) return {1.0f, 0.0f, 0.0f};
 	const float desaturation = settings.desaturationPct / 100.0f;
 	if (nightVisionOn) return {1.0f, desaturation, 1.0f};

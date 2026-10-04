@@ -836,13 +836,16 @@ static void CreateDefaultConfig()
     "# Nightvision key VK code (default: 78 = 'N')\r\n"
     "nightvision_key 78\r\n"
     "\r\n"
-    "# OpenGL only: 0=Classic night, 1=darker Moonlit night (default).\r\n"
+    "# OpenGL Moonlit night brightness and desaturation.\r\n"
     "# Brightness is 5..100 percent; desaturation is 0..100 percent.\r\n"
     "# Flashlight restores local brightness/color; night vision bypasses it.\r\n"
-    "night_lighting 1\r\n"
     "night_world_brightness 22\r\n"
     "night_desaturation 85\r\n"
     "night_sky_brightness 60\r\n"
+    "# Moon disc only: RGB brightness 0..1000 percent, 100 = original.\r\n"
+    "night_moon_brightness 128\r\n"
+    "# Moon halo only: strength 0..1000 percent, 100 = existing glow.\r\n"
+    "night_moon_glow_strength 100\r\n"
     "\r\n"
     "# Flashlight key VK code (default: 70 = 'F'). The flashlight is only\r\n"
     "# available on hunts launched with the Flashlight accessory selected.\r\n"
@@ -1033,20 +1036,26 @@ static void LoadConfig()
       else if (_stricmp(key, "nightvision_key") == 0) {
         NightVisionKey = value;
       }
-      else if (_stricmp(key, "night_lighting") == 0 ||
-               _stricmp(key, "night_world_brightness") == 0 ||
+      else if (_stricmp(key, "night_lighting") == 0) {
+        // Compatibility with existing configs: there is only one night look.
+        PrintLog("Config: night_lighting is obsolete; Moonlit night is always used.\n");
+      }
+      else if (_stricmp(key, "night_world_brightness") == 0 ||
                _stricmp(key, "night_desaturation") == 0 ||
-               _stricmp(key, "night_sky_brightness") == 0) {
-        const NightLightingOption option = _stricmp(key, "night_lighting") == 0
-          ? NightLightingOption::Mode : _stricmp(key, "night_world_brightness") == 0
+               _stricmp(key, "night_sky_brightness") == 0 ||
+               _stricmp(key, "night_moon_brightness") == 0 ||
+               _stricmp(key, "night_moon_glow_strength") == 0) {
+        const NightLightingOption option = _stricmp(key, "night_world_brightness") == 0
           ? NightLightingOption::WorldBrightness : _stricmp(key, "night_desaturation") == 0
-          ? NightLightingOption::Desaturation : NightLightingOption::SkyBrightness;
+          ? NightLightingOption::Desaturation : _stricmp(key, "night_sky_brightness") == 0
+          ? NightLightingOption::SkyBrightness : _stricmp(key, "night_moon_brightness") == 0
+          ? NightLightingOption::MoonBrightness : NightLightingOption::MoonGlowStrength;
         const bool applied = NightLightingConfigValueFits(line, sizeof(keyval)) &&
           ParseNightLightingOption(option, keyval, NightLightingOptions());
         char msg[256];
         sprintf_s(msg, sizeof(msg), applied
           ? "Config: %s = %s (OpenGL night lighting).\n"
-          : "Config: invalid %s = %s, ignoring (mode 0..1, brightness 5..100, desaturation 0..100).\n",
+          : "Config: invalid %s = %s, ignoring (brightness 5..100, desaturation 0..100, moon 0..1000).\n",
           key, keyval);
         PrintLog(msg);
       }

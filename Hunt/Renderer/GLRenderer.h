@@ -783,7 +783,7 @@ public:
 
     // Active world/sky night grading (plain uniforms; no UBO layout change).
     void ApplyNightLightingUniforms(unsigned int program,
-                                   NightDrawKind kind = NightDrawKind::World);
+                                   NightDrawKind kind = NightDrawKind::World, bool moonBody = false);
 
     // Legacy, currently unused fullscreen night pipeline
     void InitializeNightDesaturation();
@@ -813,6 +813,7 @@ private:
         GLint strength = -1;
         GLint settings = -1;
         GLint presentation = -1;
+        GLint moonBrightness = -1;
     };
     std::map<unsigned int, NightUniformLocations> m_nightLocations;
 

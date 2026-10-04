@@ -76,8 +76,8 @@ void ApplyFlashlight(inout vec3 color, float distance, float cosOffAxis)
    color = max(color, beam * 0.03);
 }
 
-// Classic initializer also permits these shaders with an older executable.
-uniform vec4 uNightSettings = vec4(0.5, 0.6, 1.0, 0.0); // gain, desaturation, sky gain, Moonlit
+// Night defaults; the matching engine pushes configured values per draw.
+uniform vec4 uNightSettings = vec4(0.22, 0.85, 0.60, 1.0); // gain, desaturation, sky gain, normal-night treatment
 
 // BEGIN NIGHT LIGHTING -- keep identical across the three world shaders.
 void ApplyNightLighting(inout vec3 color, float distance, float cosOffAxis)
@@ -89,7 +89,7 @@ void ApplyNightLighting(inout vec3 color, float distance, float cosOffAxis)
    color *= mix(1.0, uNightSettings.x, uNightStrength);
 
    // Restore brightness AND color, fading with the existing beam geometry.
-   // Classic mode and NV do not change the previous flashlight composition.
+   // Night vision bypasses this world grade and its color restoration.
    if (uNightSettings.w > 0.5 && uFlashlight.x > 0.0) {
       float cone = smoothstep(uFlashlight.w, uFlashlight.z, cosOffAxis);
       float atten = clamp(1.0 - distance / max(uFlashlight.y, 1.0), 0.0, 1.0);
