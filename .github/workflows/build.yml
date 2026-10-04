@@ -1,6 +1,22 @@
 name: Build and Test
 
-on: [push, pull_request]
+# Feature branches are checked through pull requests, not again on every push.
+# Markdown/documentation-only updates do not need the build/test matrix.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+
+# Keep PR and main checks separate; newer updates supersede older runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
