@@ -706,8 +706,11 @@ private:
     // Previous-frame depth-occlusion factor applied to m_sunLight by
     // ApplySunDepthOcclusion(); sampled at frame start by UpdateSunTraceK().
     float m_traceKApplied = 0.0f;
-    int m_sunScrX = 0;
-    int m_sunScrY = 0;
+    // Prepared before the sky shader; invalid positions never emit a halo.
+    int m_sunScrX = -1;
+    int m_sunScrY = -1;
+    bool m_celestialProjectionValid = false;
+    int m_celestialTimeOfDay = -1;
     int m_lastSunVisibilityScrX = 0;
     int m_lastSunVisibilityScrY = 0;
     unsigned int m_lastSunVisibilityUpdate = 0;
@@ -729,6 +732,7 @@ private:
     int m_skyReadPBOY[2] = { 0, 0 };   // sun Y captured into each PBO
     std::vector<ModelVertex> m_sunModelVertices;
 
+    void ResetCelestialState(int timeOfDay);
     void RenderSun(float x, float y, float z);
     void RenderModelSun(TModel* mptr, float x0, float y0, float z0, int alpha);
     float GetSkyK(int x, int y);

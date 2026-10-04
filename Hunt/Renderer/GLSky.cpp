@@ -7,6 +7,7 @@
 #include "Renderer/GLUtils.h"
 #include "Renderer/SkyFogProjection.h"
 #include "Renderer/SunDepthOcclusion.h"
+#include "Renderer/CelestialState.h"
 #include "Core/NightLighting.h"
 
 #ifdef _gl
@@ -16,12 +17,45 @@
 #include <cmath>
 #include <vector>
 
+void GLRenderer::ResetCelestialState(int timeOfDay)
+{
+    m_celestialTimeOfDay = timeOfDay;
+    m_skyTraceK = CelestialInitialVisibility(timeOfDay);
+    m_sunLight = 0.0f;
+    m_sunScrX = m_sunScrY = -1;
+    m_celestialProjectionValid = false;
+    m_traceK = 1.0f;
+    m_traceKApplied = 0.0f;
+    m_lastSunVisibilityUpdate = 0;
+    m_lastSunVisibilityScrX = m_lastSunVisibilityScrY = -1;
+    // Discard pending samples/latches from a different body or sky pipeline.
+    // Storage remains reusable; the next request primes the async pair again.
+    m_skyReadPBOReady = false;
+    m_skyReadPBOIdx = 0;
+    m_cloudLatched = false;
+    m_cloudLatchFrames = 0;
+}
+
 void GLRenderer::RenderSkyPlane()
 {
 #ifdef GL_PERF_HOOKS
     GL_PERF_SCOPE("RenderSkyPlane");
 #endif
+    if (m_celestialTimeOfDay != OptDayNight) ResetCelestialState(OptDayNight);
+    m_sunLight = 0.0f;
+    // Current camera/optic projection is needed BEFORE drawing the sky halo.
+    // Frame-start depth sampling has already consumed the previous position.
+    const Vector3d sunDir = RotateVector(Sun3dPos);
+    const auto sunProjection = SunModel
+        ? ProjectCelestialBody(sunDir, VideoCX, VideoCY, CameraW, CameraH)
+        : CelestialProjection{};
+    m_sunScrX = sunProjection.x;
+    m_sunScrY = sunProjection.y;
+    m_celestialProjectionValid = sunProjection.valid;
+
     if (!m_skyVAO || !m_skyTexture || !m_skyShader.IsValid()) {
+        m_celestialProjectionValid = false;
+        m_sunScrX = m_sunScrY = -1;
         return;
     }
 
@@ -215,12 +249,12 @@ void GLRenderer::RenderSkyPlane()
     glUniform1f(m_locSkyPlaneDrop, dropSin);
     glUniform2f(m_locSkyPlaneAnchor, 0.004f * CameraX, -0.004f * CameraZ);
 
-    // Sun glow on sky texture.  The sun's screen position (m_sunScrX/Y)
-    // and visibility (m_skyTraceK) are members updated by RenderSun(), which
-    // runs later in this same function -- so these values are at most one
-    // frame stale.  That lag is imperceptible for a slowly-moving sun.
+    // Position/validity is current-frame; cloud visibility still uses the
+    // smoothed asynchronous sample. Never emit at a default/stale corner when
+    // the body is missing, behind the camera or otherwise unprojectable.
     glUniform2f(m_locSkySunScreenPos, static_cast<float>(m_sunScrX), static_cast<float>(m_sunScrY));
-    glUniform1f(m_locSkySunVisibility, m_skyTraceK);
+    glUniform1f(m_locSkySunVisibility,
+        CelestialHaloVisibility(m_celestialProjectionValid, m_skyTraceK));
     // sun vs moon get different glow character.  The sun is bright and
     // warm; the moon is dim and cool, so it gets a smaller master strength
     // (handled in the shader via uBodyIsMoon).  OptDayNight==2 is night/moon.
@@ -388,17 +422,10 @@ void GLRenderer::RenderSkyPlane()
     // Render sun on top of sky (matching D3D/3DFX: sky plane renders sun).
     // The sun is only drawn when the sky is drawn.  The scissor (if any)
     // is still active, so the sun is also clipped to above the water line.
-    if (SunModel && shouldDrawSky) {
-        m_sunLight = 0.0f;
-        // Match the legacy D3D/3DFX source for dawn, day, and night.
-        Vector3d sunDir = Sun3dPos;
-        sunDir = RotateVector(sunDir);
-        if (sunDir.z < -2024.0f) {
-            RenderSun(sunDir.x, sunDir.y, sunDir.z);
-            // GetSkyK is called inside RenderSun for cloud occlusion.
-            // Sun-depth occlusion is sampled at frame start by
-            // UpdateSunTraceK() and applied in ApplySunDepthOcclusion().
-        }
+    if (SunModel && shouldDrawSky && m_celestialProjectionValid) {
+        RenderSun(sunDir.x, sunDir.y, sunDir.z);
+        // GetSkyK samples the rendered sky, before the disc, through the same
+        // rate-limited async PBO path. Depth sampling remains at frame start.
     }
 
     if (scissorEnabled) {
@@ -642,9 +669,7 @@ void GLRenderer::RenderModelSun(TModel* mptr, float x0, float y0, float z0, int 
 
 void GLRenderer::RenderSun(float x, float y, float z)
 {
-    m_sunScrX = VideoCX + static_cast<int>(x / (-z) * CameraW);
-    m_sunScrY = VideoCY - static_cast<int>(y / (-z) * CameraH);
-
+    // RenderSkyPlane prepared these coordinates before the halo draw.
     // Rate-limit the sky-occlusion readback to ~15 Hz (66 ms) to avoid
     // GPU pipeline stalls every frame.  When the sun screen position
     // hasn't changed and we updated recently, reuse the cached value.
@@ -834,7 +859,7 @@ float GLRenderer::GetSkyK(int x, int y)
 
             // Night remap: moon glow is dimmer and uses linear (not squared)
             // cloud dependence, so remap k to a lower range.
-            if (OptDayNight == 2) k = 0.12f + k / 5.0f;
+            k = CelestialVisibilityFromSkySample(OptDayNight, k);
 
             // Review fix: apply the asymmetric transition HERE (where it
             // is actually live).  A cloud covering the sun (k < m_skyTraceK) darkens
@@ -959,6 +984,7 @@ void GLRenderer::ShutdownSkyPipeline()
 
 void GLRenderer::InitializeSkyPipeline()
 {
+    ResetCelestialState(OptDayNight);
     if (!m_skyShader.LoadFromFile("shaders/sky.vert", "shaders/sky.frag")) {
         LOG_ERROR("Sky shader compilation failed");
         return;

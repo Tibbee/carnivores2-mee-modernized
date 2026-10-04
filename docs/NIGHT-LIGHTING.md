@@ -112,6 +112,13 @@ the previous green-overlay behavior. In-game UI/held models follow the rule
 above; the standalone menu is unaffected.
 No new framebuffer copy, render target or PerFrame UBO layout is required.
 
+The sun/moon halo uses the current camera/optic projection before the sky draw;
+missing or behind-camera bodies emit no halo. Night visibility starts at the
+existing clear-moon value 0.32 rather than the sun's 1.0, preventing the false
+bright startup drop on first look. Async cloud/fog fading still applies; day/dawn
+retain their 1.0 clear-sky seed. These state fixes are tested/deployed, with
+owner startup/turn/zoom acceptance still pending.
+
 The moon disc does not inherit world or sky brightness/desaturation.
 `night_moon_brightness` scales its RGB contribution, not opacity. The default
 128 is approximately the earlier 200 -> 255 alpha boost; 100 uses the original
