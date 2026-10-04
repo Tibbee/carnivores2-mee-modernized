@@ -26,6 +26,14 @@ inline constexpr float kPad = 72.0f;
 // cos(45°)/sin(45°) with the same literal Math.cpp's kOctCos/kOctSin use.
 inline constexpr float kSqrt1_2 = 0.70710678f;
 
+// Top-plane (slope) fit limits: envelope sampling bucket (model units), the
+// near-planar tolerance, the steepest accepted grade (tan 60°) and the grade
+// below which a fit collapses back to the legacy flat top.
+inline constexpr float kSlopeBucket = 48.0f;
+inline constexpr float kSlopeMaxResidual = 16.0f;
+inline constexpr float kSlopeMaxGrade = 1.7320508f;
+inline constexpr float kSlopeMinGrade = 0.01f;
+
 // A part's oriented footprint box in model space. Half extents include the
 // load-time padding; the wall test adds its own +2 margin.
 struct FitBox {
@@ -132,6 +140,102 @@ inline bool FitAccepts(float fitArea, float baseArea, int minWinPercent) {
     return win >= static_cast<float>(minWinPercent) * 0.01f;
 }
 
+// A part's top surface, fitted as the plane y = c0 + gx*u + gz*v in the
+// footprint box's local frame (u = cosph/sinph axis, v = perpendicular).
+struct TopPlane {
+    float c0 = 0.0f;  // plane height at local (0, 0)
+    float gx = 0.0f;  // rise per unit along u
+    float gz = 0.0f;  // rise per unit along v
+    bool ok = false;  // false = keep the legacy flat top at max y
+};
+
+// Fit the top envelope of a part. us/vs are the part's vertices in the box's
+// local frame, ys the model heights. Every (u, v) grid cell contributes only
+// its highest vertex, so under-surfaces cannot drag the plane down; the plane
+// is then least-squares over those samples. Rejected when the envelope is not
+// planar within maxResidual, steeper than maxGrade, or the samples are
+// degenerate (collinear), which keeps organic and vertical parts flat.
+inline TopPlane FitTopPlane(const float* us, const float* vs, const float* ys, int n,
+                            float bucket, float maxResidual, float maxGrade) {
+    TopPlane r;
+    if (n < 3) return r;
+
+    float u1 = FLT_MAX, u2 = -FLT_MAX, v1 = FLT_MAX, v2 = -FLT_MAX;
+    for (int i = 0; i < n; ++i) {
+        if (us[i] < u1) u1 = us[i];
+        if (us[i] > u2) u2 = us[i];
+        if (vs[i] < v1) v1 = vs[i];
+        if (vs[i] > v2) v2 = vs[i];
+    }
+    const float uSpan = u2 - u1;
+    const float vSpan = v2 - v1;
+
+    const int nbU = std::max(1, std::min(32, static_cast<int>(uSpan / bucket + 0.5f) + 1));
+    const int nbV = std::max(1, std::min(32, static_cast<int>(vSpan / bucket + 0.5f) + 1));
+    std::vector<float> topY(static_cast<size_t>(nbU) * nbV, -FLT_MAX);
+    std::vector<float> topU(static_cast<size_t>(nbU) * nbV, 0.0f);
+    std::vector<float> topV(static_cast<size_t>(nbU) * nbV, 0.0f);
+    for (int i = 0; i < n; ++i) {
+        const int iu = (uSpan > 0.0f) ? std::min(nbU - 1, static_cast<int>((us[i] - u1) / uSpan * nbU)) : 0;
+        const int iv = (vSpan > 0.0f) ? std::min(nbV - 1, static_cast<int>((vs[i] - v1) / vSpan * nbV)) : 0;
+        const size_t k = static_cast<size_t>(iu) * nbV + iv;
+        if (ys[i] > topY[k]) {
+            topY[k] = ys[i];
+            topU[k] = us[i];
+            topV[k] = vs[i];
+        }
+    }
+
+    double sumN = 0.0, su = 0.0, sv = 0.0, sy = 0.0;
+    for (size_t k = 0; k < topY.size(); ++k) {
+        if (topY[k] == -FLT_MAX) continue;
+        sumN += 1.0;
+        su += topU[k];
+        sv += topV[k];
+        sy += topY[k];
+    }
+    if (sumN < 3.0) return r;
+
+    const double mu = su / sumN;
+    const double mv = sv / sumN;
+    const double my = sy / sumN;
+    double cuu = 0.0, cuv = 0.0, cvv = 0.0, cuy = 0.0, cvy = 0.0;
+    for (size_t k = 0; k < topY.size(); ++k) {
+        if (topY[k] == -FLT_MAX) continue;
+        const double du = topU[k] - mu;
+        const double dv = topV[k] - mv;
+        const double dy = topY[k] - my;
+        cuu += du * du;
+        cuv += du * dv;
+        cvv += dv * dv;
+        cuy += du * dy;
+        cvy += dv * dy;
+    }
+    const double det = cuu * cvv - cuv * cuv;
+    // Collinear samples leave the gradient underdetermined; the relative
+    // guard keeps large decks solvable and degenerate slivers flat.
+    if (det < 1e-9 * (cuu + cvv + 1.0)) return r;
+
+    const double gx = (cuy * cvv - cvy * cuv) / det;
+    const double gz = (cvy * cuu - cuy * cuv) / det;
+    const double c0 = my - gx * mu - gz * mv;
+
+    const double grade = std::sqrt(gx * gx + gz * gz);
+    if (grade > maxGrade) return r;
+
+    for (size_t k = 0; k < topY.size(); ++k) {
+        if (topY[k] == -FLT_MAX) continue;
+        const double fit = c0 + gx * topU[k] + gz * topV[k];
+        if (std::fabs(topY[k] - fit) > maxResidual) return r;
+    }
+
+    r.c0 = static_cast<float>(c0);
+    r.gx = static_cast<float>(gx);
+    r.gz = static_cast<float>(gz);
+    r.ok = true;
+    return r;
+}
+
 // ===================== runtime tests for fitted boxes =====================
 
 inline void MapRotate(float x, float z, int rotIdx, float& outX, float& outZ) {
@@ -141,6 +245,33 @@ inline void MapRotate(float x, float z, int rotIdx, float& outX, float& outZ) {
     const float sa = rs[rotIdx & 3];
     outX = x * ca + z * sa;
     outZ = z * ca - x * sa;
+}
+
+// Signed local coordinates of a world point in the box's frame (u along
+// (cos, sin), v perpendicular), composed with the map rotation: the same
+// coordinates the oriented wall/containment code uses. Sloped boxes evaluate
+// their top plane through this so the surface lives in the fit's frame.
+inline void LocalOf(float px, float pz, float cellX, float cellZ,
+                    float boxX, float boxZ, float cosA, float sinA, int rotIdx,
+                    float& qx, float& qy) {
+    float uwx, uwz, vwx, vwz, ccx, ccz;
+    MapRotate(cosA, sinA, rotIdx, uwx, uwz);
+    MapRotate(-sinA, cosA, rotIdx, vwx, vwz);
+    MapRotate(boxX, boxZ, rotIdx, ccx, ccz);
+    const float dx = (px - cellX) - ccx;
+    const float dz = (pz - cellZ) - ccz;
+    qx = dx * uwx + dz * uwz;
+    qy = dx * vwx + dz * vwz;
+}
+
+// Height of a (possibly sloped) top at local (qx, qy). y2 is the surface
+// height at the box centre; gx/gz the gradient along u/v ((0, 0) = flat top).
+inline float TopAt(float y2, float gx, float gz, float qx, float qy) {
+    return y2 + gx * qx + gz * qy;
+}
+
+inline float ClampF(float v, float lo, float hi) {
+    return v < lo ? lo : (v > hi ? hi : v);
 }
 
 // CheckBoundCollision's ofBOUND branch for a fitted box: push px/pz out of

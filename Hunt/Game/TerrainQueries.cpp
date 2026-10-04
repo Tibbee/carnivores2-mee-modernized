@@ -139,6 +139,28 @@ BOOL PointOnBound(float &H, float px, float py, float cx, float cy, float oy, TB
   {
 
     if (bound[o].a<0) continue;
+
+    if (bound[o].gx != 0.0f || bound[o].gz != 0.0f)
+    {
+      // Sloped box: the floor is the top plane evaluated at the query point
+      // (clamped for the step-up gate), so the player climbs the ramp
+      // instead of being refused by the flat maximum height.
+      float qx, qy;
+      c2bound::LocalOf(px, py, 0.f, 0.f, bound[o].cx, bound[o].cy,
+                       bound[o].cosph, bound[o].sinph, angle, qx, qy);
+      const float qxC = c2bound::ClampF(qx, -bound[o].a, bound[o].a);
+      const float qyC = c2bound::ClampF(qy, -bound[o].b, bound[o].b);
+      if (c2bound::TopAt(bound[o].y2, bound[o].gx, bound[o].gz, qxC, qyC) + oy > PlayerY + 128) continue;
+
+      if (fabs(qx) < bound[o].a && fabs(qy) < bound[o].b)
+      {
+        _on = true;
+        const float top = c2bound::TopAt(bound[o].y2, bound[o].gx, bound[o].gz, qx, qy);
+        if (H < top) H = top;
+      }
+      continue;
+    }
+
     if (bound[o].y2 + oy > PlayerY + 128) continue;
 
     BOOL inside;

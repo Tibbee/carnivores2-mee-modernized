@@ -530,6 +530,7 @@ void InitEngine()
   OptWaterWaveFadeRings = kWaterWaveFadeDefault; // config.cfg water_wave_fade_rings
   OptBoundBoxFit = 0;                           // config.cfg boundbox_fit (1/2 = experimental fit)
   OptBoundBoxFitWin = kBoundBoxFitWinDefault;   // config.cfg boundbox_fit_win
+  OptBoundBoxSlope = 0;                         // config.cfg boundbox_slope (1 = sloped-top fit)
 
   OptViewR = kViewOptDefault;
   OptObjectDetail = kObjectDetailDefault;
@@ -920,6 +921,13 @@ static void CreateDefaultConfig()
     "# replaces the axis-aligned one. Keeps stock content as-is.\r\n"
     "boundbox_fit_win 20\r\n"
     "\r\n"
+    "# ofBOUND sloped-top extension (experimental): 0=off (flat box tops,\r\n"
+    "# stock behaviour). 1=fit each part's top as a plane when its top\r\n"
+    "# envelope is near-planar and gentle; ramps and tipped decks become\r\n"
+    "# walkable instead of flat-topped walls. Independent of boundbox_fit;\r\n"
+    "# parts without an accepted plane are unchanged.\r\n"
+    "boundbox_slope 0\r\n"
+    "\r\n"
     "# GPU features bitmask (default: all optimizations enabled)\r\n"
     "# Set to 0 to disable all GPU optimizations.\r\n"
     "gpufeatures %u\r\n"
@@ -1239,6 +1247,19 @@ static void LoadConfig()
           PrintLog(msg);
         } else {
           PrintLog("Config: boundbox_fit_win must be 0..100, ignoring.\n");
+        }
+      }
+      else if (_stricmp(key, "boundbox_slope") == 0) {
+        // Experimental sloped-top boxes (see Core/BoundFit.h). 0 = legacy flat
+        // tops; 1 = fit a near-planar top plane when the part qualifies.
+        int mode = 0;
+        if (ParseConfigInt(keyval, 0, 1, mode)) {
+          OptBoundBoxSlope = mode;
+          char msg[64];
+          sprintf_s(msg, sizeof(msg), "Config: boundbox_slope = %d\n", mode);
+          PrintLog(msg);
+        } else {
+          PrintLog("Config: boundbox_slope must be 0..1, ignoring.\n");
         }
       }
       else if (_stricmp(key, "gpufeatures") == 0) {

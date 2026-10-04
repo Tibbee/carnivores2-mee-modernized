@@ -12,6 +12,7 @@
 #include "Core/BoundFit.h"
 
 #include <cmath>
+#include <vector>
 
 namespace {
 
@@ -230,4 +231,116 @@ TEST(BoundFit, DegenerateInputsAreSafe) {
     const c2bound::FitBox l = c2bound::FitMinArea(lineX, lineZ, 3, c2bound::kPad);
     EXPECT_TRUE(std::isfinite(l.cx) && std::isfinite(l.cz));
     EXPECT_GT(l.Area(), 0.0f);
+}
+
+// ===================== top-plane (slope) fit =====================
+
+TEST(BoundFit, TopPlaneFitsSlopedDeckAt30) {
+    // 30° planar top y = 100 + tan30°·u over a 2048 x 256 footprint.
+    const float grade = std::tan(30.0f * kDeg2Rad);
+    std::vector<float> us, vs, ys;
+    for (int i = 0; i < 33; ++i) {
+        for (int j = 0; j < 5; ++j) {
+            const float u = -1024.0f + 2048.0f * static_cast<float>(i) / 32.0f;
+            const float v = -128.0f + 256.0f * static_cast<float>(j) / 4.0f;
+            us.push_back(u);
+            vs.push_back(v);
+            ys.push_back(100.0f + grade * u);
+        }
+    }
+    const c2bound::TopPlane p = c2bound::FitTopPlane(
+        us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
+        c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
+    ASSERT_TRUE(p.ok);
+    EXPECT_NEAR(p.gx, grade, 1e-4f);
+    EXPECT_NEAR(p.gz, 0.0f, 1e-4f);
+    EXPECT_NEAR(p.c0, 100.0f, 0.1f);
+}
+
+TEST(BoundFit, TopPlaneAcceptsFlatTopAtZeroGrade) {
+    std::vector<float> us, vs, ys;
+    for (int i = 0; i < 20; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            us.push_back(-500.0f + 50.0f * static_cast<float>(i));
+            vs.push_back(-100.0f + 50.0f * static_cast<float>(j));
+            ys.push_back(64.0f);
+        }
+    }
+    const c2bound::TopPlane p = c2bound::FitTopPlane(
+        us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
+        c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
+    ASSERT_TRUE(p.ok);
+    EXPECT_NEAR(p.gx, 0.0f, 1e-6f);
+    EXPECT_NEAR(p.gz, 0.0f, 1e-6f);
+    // Below kSlopeMinGrade the producer collapses back to the legacy flat box.
+    EXPECT_LT(std::sqrt(p.gx * p.gx + p.gz * p.gz), c2bound::kSlopeMinGrade);
+}
+
+TEST(BoundFit, TopPlaneRejectsSteepNonPlanarAndDegenerateTops) {
+    // 65° from horizontal exceeds the tan-60° grade cap (planar, 2D spread).
+    {
+        const float steep = std::tan(65.0f * kDeg2Rad);
+        std::vector<float> us, vs, ys;
+        for (int i = 0; i < 16; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                const float u = -512.0f + 64.0f * static_cast<float>(i);
+                us.push_back(u);
+                vs.push_back(-64.0f + 64.0f * static_cast<float>(j));
+                ys.push_back(steep * u);
+            }
+        }
+        const c2bound::TopPlane p = c2bound::FitTopPlane(
+            us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
+            c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
+        EXPECT_FALSE(p.ok);
+    }
+    // A single spike above an otherwise flat top breaks near-planarity.
+    {
+        std::vector<float> us, vs, ys;
+        for (int i = 0; i < 12; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                us.push_back(-400.0f + 80.0f * static_cast<float>(i));
+                vs.push_back(-96.0f + 64.0f * static_cast<float>(j));
+                ys.push_back(50.0f + ((i == 6 && j == 2) ? 40.0f : 0.0f));
+            }
+        }
+        const c2bound::TopPlane p = c2bound::FitTopPlane(
+            us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
+            c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
+        EXPECT_FALSE(p.ok);
+    }
+    // Collinear samples leave the gradient underdetermined.
+    {
+        std::vector<float> us, vs, ys;
+        for (int i = 0; i < 10; ++i) {
+            us.push_back(-450.0f + 100.0f * static_cast<float>(i));
+            vs.push_back(0.0f);
+            ys.push_back(0.3f * us.back());
+        }
+        const c2bound::TopPlane p = c2bound::FitTopPlane(
+            us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
+            c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
+        EXPECT_FALSE(p.ok);
+    }
+}
+
+TEST(BoundFit, TopAtEvaluatesTheSurfacePlane) {
+    EXPECT_FLOAT_EQ(c2bound::TopAt(100.0f, 0.5f, -0.25f, 8.0f, 4.0f), 103.0f);
+}
+
+TEST(BoundFit, LocalOfMatchesTheBoxFrameUnderMapRotation) {
+    // A 45°-fitted box viewed at map rotation 1: the model-space point
+    // (1000·c, 1000·s) lands at R1(p) = (1000·s, -1000·c) and must read back
+    // as the pure u coordinate.
+    const float c = c2bound::kSqrt1_2;
+    const float s = c2bound::kSqrt1_2;
+    float qx, qy;
+    c2bound::LocalOf(1000.0f * s, -1000.0f * c, 0.0f, 0.0f, 0.0f, 0.0f, c, s, 1, qx, qy);
+    EXPECT_NEAR(qx, 1000.0f, 0.01f);
+    EXPECT_NEAR(qy, 0.0f, 0.01f);
+
+    // Local coordinates are relative to the box centre.
+    c2bound::LocalOf(300.0f, 0.0f, 0.0f, 0.0f, 100.0f, 0.0f, 1.0f, 0.0f, 0, qx, qy);
+    EXPECT_FLOAT_EQ(qx, 200.0f);
+    EXPECT_FLOAT_EQ(qy, 0.0f);
 }

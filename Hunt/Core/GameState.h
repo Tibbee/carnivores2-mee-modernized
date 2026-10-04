@@ -605,6 +605,15 @@ constexpr int kBoundBoxFitWinDefault = 20;
 GLOBAL int  OptBoundBoxFit;
 GLOBAL int  OptBoundBoxFitWin;
 
+// ── ofBOUND sloped-top extension (experimental; see Core/BoundFit.h) ──
+// 0 = flat box tops (default; stock behaviour). 1 = also fit each mesh
+// part's top as a plane when its top envelope is near-planar and no steeper
+// than tan 60°: floor/wall/step tests then evaluate the surface at the
+// query point, so ramps and tipped decks become walkable instead of
+// flat-topped walls. Works with or without boundbox_fit; parts without an
+// accepted plane keep the legacy flat top. config.cfg "boundbox_slope".
+GLOBAL int  OptBoundBoxSlope;
+
 // ── GPU performance-optimization feature flags (global runtime kill-switch) ──
 // Single bitmask read by each new GPU optimization. Set the mask to 0 in
 // config.cfg ("gpufeatures 0") to disable ALL new GPU optimizations at once;

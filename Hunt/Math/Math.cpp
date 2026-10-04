@@ -100,6 +100,52 @@ void CheckBoundCollision(float &px, float &py, float cx, float cy, float oy, TBo
 
     if (bound[o].a<0) continue;
 
+    if (bound[o].gx != 0.0f || bound[o].gz != 0.0f)
+
+    {
+
+      // Sloped box: the step-over gate reads the surface height at the
+
+      // player's (clamped) position instead of the box's flat maximum, so a
+
+      // ramp blocks only where it is actually above the step limit. The push
+
+      // is the same oriented least-penetration resolution as fitted boxes.
+
+      float qx, qy;
+
+      c2bound::LocalOf(px, py, cx, cy, bound[o].cx, bound[o].cy,
+
+                       bound[o].cosph, bound[o].sinph, angle, qx, qy);
+
+      const float qxC = c2bound::ClampF(qx, -bound[o].a, bound[o].a);
+
+      const float qyC = c2bound::ClampF(qy, -bound[o].b, bound[o].b);
+
+      if (c2bound::TopAt(bound[o].y2, bound[o].gx, bound[o].gz, qxC, qyC) + oy < PlayerY + 128) continue;
+
+      if (bound[o].y1 + oy > PlayerY + 256) continue;
+
+      c2bound::FitBox fb;
+
+      fb.cx = bound[o].cx;
+
+      fb.cz = bound[o].cy;
+
+      fb.a  = bound[o].a;
+
+      fb.b  = bound[o].b;
+
+      fb.cos = bound[o].cosph;
+
+      fb.sin = bound[o].sinph;
+
+      c2bound::WallPushOriented(px, py, cx, cy, fb, angle, 2.f);
+
+      continue;
+
+    }
+
     if (bound[o].y2 + oy < PlayerY + 128) continue;
 
     if (bound[o].y1 + oy > PlayerY + 256) continue;
@@ -1928,6 +1974,8 @@ void CalcBoundBox(TModel* mptr, TBound *bound)
 
   std::vector<float> fitX, fitZ;   // per-part footprint for the optional fit
 
+  std::vector<float> fitY;         // per-part heights for the optional slope fit
+
   BOOL first;
 
 
@@ -1944,9 +1992,15 @@ void CalcBoundBox(TModel* mptr, TBound *bound)
 
     bound[o].sinph = 0.0f;
 
+    bound[o].gx = 0.0f;
+
+    bound[o].gz = 0.0f;
+
     fitX.clear();
 
     fitZ.clear();
+
+    fitY.clear();
 
 
 
@@ -1965,6 +2019,8 @@ void CalcBoundBox(TModel* mptr, TBound *bound)
       fitX.push_back(p.x);
 
       fitZ.push_back(p.z);
+
+      fitY.push_back(p.y);
 
 
 
@@ -2069,6 +2125,70 @@ void CalcBoundBox(TModel* mptr, TBound *bound)
         bound[o].cosph = fit.cos;
 
         bound[o].sinph = fit.sin;
+
+      }
+
+    }
+
+    // Experimental sloped top (config.cfg "boundbox_slope", default off):
+
+    // when the part's top envelope is near-planar and gentle, the box top
+
+    // becomes the plane y2 + gx*u + gz*v in the fitted frame and ramps stop
+
+    // behaving as flat-topped walls. Zero gradient keeps the legacy values.
+
+    if (OptBoundBoxSlope != 0 && fitX.size() >= 3)
+
+    {
+
+      const float c = bound[o].cosph;
+
+      const float s = bound[o].sinph;
+
+      const int count = static_cast<int>(fitX.size());
+
+      std::vector<float> localU(count);
+
+      std::vector<float> localV(count);
+
+      for (int i2=0; i2<count; ++i2)
+
+      {
+
+        localU[i2] = fitX[i2] * c + fitZ[i2] * s;
+
+        localV[i2] = fitZ[i2] * c - fitX[i2] * s;
+
+      }
+
+      const c2bound::TopPlane plane = c2bound::FitTopPlane(
+
+        localU.data(), localV.data(), fitY.data(), count,
+
+        c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
+
+      const float grade = plane.ok
+
+        ? static_cast<float>(sqrt(plane.gx * plane.gx + plane.gz * plane.gz)) : 0.0f;
+
+      if (plane.ok && grade >= c2bound::kSlopeMinGrade)
+
+      {
+
+        // y2 becomes the plane height at the box centre so the consumers can
+
+        // read the surface with TopAt(y2, gx, gz, qx, qy) in the box frame.
+
+        const float cu = bound[o].cx * c + bound[o].cy * s;
+
+        const float cv = bound[o].cy * c - bound[o].cx * s;
+
+        bound[o].gx = plane.gx;
+
+        bound[o].gz = plane.gz;
+
+        bound[o].y2 = plane.c0 + plane.gx * cu + plane.gz * cv;
 
       }
 

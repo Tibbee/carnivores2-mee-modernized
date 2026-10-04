@@ -134,6 +134,7 @@ Copy-Item $lgpl (Join-Path $PkgDir 'THIRD-PARTY-LICENSES\COPYING.OpenAL-Soft.txt
 # flashlight_* beam keys, sky_mode 1, sky_horizon_drop 12,
 # sky_dome_scale 384, terrain_mip_level 3, water_mipmap 1,
 # water_wave_fade_rings 8, boundbox_fit 0, boundbox_fit_win 20,
+# boundbox_slope 0,
 # glperf_logging 0, commented audio/hunt examples).
 # Keep this in sync with CreateDefaultConfig; the package has its own template.
 @"
@@ -251,6 +252,13 @@ boundbox_fit 0
 # Minimum padded-area win (percent, 0..100) before a fitted collision box
 # replaces the axis-aligned one. Keeps stock content as-is.
 boundbox_fit_win 20
+
+# ofBOUND sloped-top extension (experimental): 0=off (flat box tops,
+# stock behaviour). 1=fit each part's top as a plane when its top
+# envelope is near-planar and gentle; ramps and tipped decks become
+# walkable instead of flat-topped walls. Independent of boundbox_fit;
+# parts without an accepted plane are unchanged.
+boundbox_slope 0
 
 # GPU features bitmask (default: all optimizations enabled)
 # Set to 0 to disable all GPU optimizations.

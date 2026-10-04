@@ -85,9 +85,11 @@ static_assert(sizeof(TModel) == 52,
               "would shift the entire object array");
 
 // TObject: contains TObjInfo + TBound[8] + TBMPModel + model + TVTL + ...
-// Expected ~140 bytes. Range check catches catastrophic bloat without
-// failing on minor alignment differences across toolchains.
-static_assert(sizeof(TObject) >= 300 && sizeof(TObject) <= 400,
+// Range check catches catastrophic bloat without failing on minor alignment
+// differences across toolchains. x86 size: 328 stock, +64 for the oriented
+// footprint fields (boundbox_fit) and +64 for the sloped-top fields
+// (boundbox_slope) — 2 floats each on TBound[8] — so 456 today.
+static_assert(sizeof(TObject) >= 300 && sizeof(TObject) <= 512,
               "TObject size is outside expected range — MObjects[256] "
               "layout has shifted");
 

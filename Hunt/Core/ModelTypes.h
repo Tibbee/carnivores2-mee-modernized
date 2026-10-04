@@ -90,6 +90,11 @@ struct TBound
   // u axis in model space, v = (-sinph, cosph). (1, 0) = legacy axis-aligned
   // box, which keeps the original inline test paths (Core/BoundFit.h).
   float cosph, sinph;
+  // Sloped-top support (experimental, config.cfg "boundbox_slope"): the top
+  // surface is the plane y(u,v) = y2 + gx*u + gz*v in the same local frame;
+  // y2 is then the surface height at the box centre. (0, 0) = flat top at y2,
+  // the legacy behaviour, which keeps the original test paths (Core/BoundFit.h).
+  float gx, gz;
 };
 
 struct TModel
