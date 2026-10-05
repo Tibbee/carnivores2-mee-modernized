@@ -8,6 +8,7 @@
 
 #include "Hunt.h"
 #include "Targa.h"
+#include "../Hunt/Audio/WaveReader.h"
 
 #include <iostream>
 #include <filesystem>
@@ -1841,42 +1842,22 @@ const std::vector<std::string> kFlashlightDescription = {
 
 bool LoadWave(SoundFX& sfx, const std::string& path)
 {
-	std::ifstream tf(path, std::ios::binary);
-
-	if (tf.is_open())
-	{
-		tf.seekg(36);
-
-		char c[5]; c[4] = 0;
-
-		while (true)
-		{
-			c[0] = tf.get();
-			if (c[0] == 'd')
-			{
-				tf.read(&c[1], 3);
-				if (!std::string(c).compare("data")) break;
-				else tf.seekg(-3, std::ios::cur);
-			}
-		}
-
-		tf.read(reinterpret_cast<char*>(&sfx.m_Length), 4);
-
-		if (sfx.m_Data)
-			delete[] sfx.m_Data;
-
-		sfx.m_Data = new int16_t[sfx.m_Length / sizeof(int16_t)];
-		tf.read(reinterpret_cast<char*>(sfx.m_Data), sfx.m_Length);
-
-		tf.close();
-		return true;
+	std::ifstream file(path, std::ios::binary);
+	std::vector<short> samples;
+	const char* error = nullptr;
+	if (!file || !c2audio::ReadWave(file, samples, error)) {
+		std::cout << "LoadWave(): " << (error ? error : "cannot open WAV file")
+		          << ": '" << path << "'" << std::endl;
+		return false;
 	}
-	else
-	{
-		std::cout << "LoadWave() : Unable to open .wav file for reading: '" << path << "'" << std::endl;
-	}
-
-	return false;
+	const auto bytes = samples.size() * sizeof(short);
+	std::unique_ptr<int16_t[]> data(new int16_t[samples.size()]);
+	memcpy(data.get(), samples.data(), bytes);
+	delete[] sfx.m_Data;
+	sfx.m_Data = data.release();
+	sfx.m_Length = static_cast<uint32_t>(bytes);
+	sfx.m_Frequency = c2audio::kSampleRate;
+	return true;
 }
 
 
@@ -1966,14 +1947,13 @@ SoundFX::SoundFX() :
 }
 
 
-SoundFX::SoundFX(const SoundFX& w)
+SoundFX::SoundFX(const SoundFX& w) : SoundFX()
 {
 	if (w.m_Length && w.m_Data) {
-		m_Data = new int16_t[w.m_Length];
+		m_Data = new int16_t[(static_cast<size_t>(w.m_Length) + 1) / sizeof(int16_t)];
 		memcpy(m_Data, w.m_Data, w.m_Length);
+		m_Length = w.m_Length;
 	}
-
-	m_Length = w.m_Length;
 	m_Frequency = w.m_Frequency;
 }
 

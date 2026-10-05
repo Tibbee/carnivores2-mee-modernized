@@ -313,6 +313,8 @@ if(MSVC)
 
     add_executable(Carnivores2Tests
         tests/test_ai_behavior_math.cpp
+        tests/test_audio_math.cpp
+        tests/test_wave_reader.cpp
         tests/test_billboard_math.cpp
         tests/test_command_line_parse.cpp
         tests/test_config_parse.cpp
@@ -432,6 +434,7 @@ if(MSVC)
     # entry points so a value can never select a different field.
     add_executable(Carnivores2MenuResourceTests
         tests/test_menu_resource_entry.cpp
+        tests/test_menu_wave_entry.cpp
         tests/menu_resource_seams.cpp
         Menu/Resources.cpp
     )
@@ -442,6 +445,31 @@ if(MSVC)
     target_link_libraries(Carnivores2MenuResourceTests PRIVATE gtest_main)
     add_test(NAME Carnivores2Tests.MenuResourceContracts
              COMMAND Carnivores2MenuResourceTests)
+
+    # Production backend translation units use strict, fault-injectable AL
+    # seams: these tests neither require a DLL nor open a playback device.
+    add_executable(Carnivores2AudioBackendTests
+        tests/test_audio_backend.cpp
+        Hunt/Audio/OpenAL_Loader.cpp
+    )
+    target_include_directories(Carnivores2AudioBackendTests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt)
+    target_link_libraries(Carnivores2AudioBackendTests PRIVATE gtest_main)
+    add_test(NAME Carnivores2Tests.AudioBackend COMMAND Carnivores2AudioBackendTests)
+
+    add_executable(Carnivores2MenuAudioBackendTests
+        tests/test_menu_audio_backend.cpp
+        tests/menu_resource_seams.cpp
+        Menu/Resources.cpp
+        Hunt/Audio/OpenAL_Loader.cpp
+    )
+    target_include_directories(Carnivores2MenuAudioBackendTests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Menu
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt)
+    target_link_libraries(Carnivores2MenuAudioBackendTests PRIVATE gtest_main)
+    add_test(NAME Carnivores2Tests.MenuAudioBackend COMMAND Carnivores2MenuAudioBackendTests)
+    set_tests_properties(Carnivores2Tests.AudioBackend Carnivores2Tests.MenuAudioBackend
+                         Carnivores2Tests.MenuResourceContracts PROPERTIES TIMEOUT 30)
 
     # Link the production _RES.TXT line readers with the real global state and
     # narrow log/heap seams. ReadWeaponLine()/ReadCharacterLine() must keep
@@ -507,7 +535,7 @@ endif()
 
 # Apply the project warning policy only to project-owned targets. GoogleTest
 # and vendored loader targets retain their own upstream compiler settings.
-foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests Carnivores2LoaderContractTests Carnivores2PictureLoaderContractTests Carnivores2CommandLineContractTests Carnivores2MenuResourceTests Carnivores2ScriptParserContractTests)
+foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests Carnivores2LoaderContractTests Carnivores2PictureLoaderContractTests Carnivores2CommandLineContractTests Carnivores2MenuResourceTests Carnivores2ScriptParserContractTests Carnivores2AudioBackendTests Carnivores2MenuAudioBackendTests)
     if(TARGET ${C2_TARGET})
         c2_apply_msvc_compile_policy(${C2_TARGET})
     endif()

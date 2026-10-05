@@ -8,6 +8,7 @@
 #include <string>
 
 #include "Hunt.h"
+#include "wav_fixture.h"
 
 namespace {
 
@@ -40,16 +41,12 @@ TEST(SoundLoaderEntry, MissingWavUsesProductionFailurePath)
 TEST(SoundLoaderEntry, ValidWavUsesProductionEntryPoint)
 {
     const char* path = "__c2_loader_contract_valid__.wav";
-    unsigned char wav[48] = {};
+    const auto wav = wav_fixture::Pcm16({123, -456});
     const DWORD length = 4;
     const short samples[2] = {123, -456};
-    memcpy(wav + 36, "data", 4);
-    memcpy(wav + 40, &length, sizeof(length));
-    memcpy(wav + 44, samples, sizeof(samples));
-
     FILE* file = nullptr;
     ASSERT_EQ(fopen_s(&file, path, "wb"), 0);
-    ASSERT_EQ(fwrite(wav, 1, sizeof(wav), file), sizeof(wav));
+    ASSERT_EQ(fwrite(wav.data(), 1, wav.size(), file), wav.size());
     fclose(file);
 
     char mutablePath[] = "__c2_loader_contract_valid__.wav";
@@ -82,14 +79,11 @@ TEST(SoundLoaderEntry, TruncatedWavWithoutDataChunkUsesProductionFailurePath)
 TEST(SoundLoaderEntry, TruncatedWavPayloadUsesProductionFailurePath)
 {
     const char* path = "__c2_loader_contract_short_data__.wav";
-    unsigned char wav[44] = {};
-    memcpy(wav + 36, "data", 4);
-    const DWORD length = 2;
-    memcpy(wav + 40, &length, sizeof(length));
-
+    auto wav = wav_fixture::Pcm16({123});
+    wav.pop_back();
     FILE* file = nullptr;
     ASSERT_EQ(fopen_s(&file, path, "wb"), 0);
-    ASSERT_EQ(fwrite(wav, 1, sizeof(wav), file), sizeof(wav));
+    ASSERT_EQ(fwrite(wav.data(), 1, wav.size(), file), wav.size());
     fclose(file);
 
     char mutablePath[] = "__c2_loader_contract_short_data__.wav";
@@ -97,4 +91,33 @@ TEST(SoundLoaderEntry, TruncatedWavPayloadUsesProductionFailurePath)
     EXPECT_THROW(LoadWav(mutablePath, sound), LoaderHalt);
 
     remove(path);
+}
+
+TEST(SoundLoaderEntry, Stereo44100UsesTheSharedNormalizationContract)
+{
+    char path[] = "__c2_loader_contract_stereo__.wav";
+    const auto wav = wav_fixture::Pcm16({100,300,200,400,300,500,400,600},2,44100);
+    FILE* file = nullptr;
+    ASSERT_EQ(fopen_s(&file,path,"wb"),0);
+    ASSERT_EQ(fwrite(wav.data(),1,wav.size(),file),wav.size());
+    fclose(file);
+    TSFX sound{};
+    EXPECT_NO_THROW(LoadWav(path,sound));
+    EXPECT_EQ(sound.length,4);
+    EXPECT_EQ(sound.lpData,(std::vector<short>{200,400}));
+    EXPECT_EQ(remove(path),0);
+}
+
+TEST(SoundLoaderEntry, InvalidReplacementPreservesSoundAndClosesItsFile)
+{
+    char path[] = "__c2_loader_contract_bad_frame__.wav";
+    const auto wav = wav_fixture::Riff(wav_fixture::Format()+wav_fixture::Chunk("data","x"));
+    FILE* file = nullptr;
+    ASSERT_EQ(fopen_s(&file,path,"wb"),0);
+    ASSERT_EQ(fwrite(wav.data(),1,wav.size(),file),wav.size());
+    fclose(file);
+    TSFX sound{};sound.length=2;sound.lpData={42};
+    EXPECT_THROW(LoadWav(path,sound),LoaderHalt);
+    EXPECT_EQ(sound.length,2);EXPECT_EQ(sound.lpData,(std::vector<short>{42}));
+    EXPECT_EQ(remove(path),0); // Win32 refuses deletion of a leaked read-only-shared handle.
 }

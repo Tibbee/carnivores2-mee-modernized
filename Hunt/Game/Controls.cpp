@@ -7,6 +7,7 @@
 #include <cmath>
 #include "Core/UnattendedCapture.h"
 #include "Core/WaterColor.h"  // water-colour-aware depth modulation
+#include "Audio/AudioMath.h"
 
 void CaptureMouse(BOOL capture)
 {
@@ -395,11 +396,11 @@ SKIPYMOVE:
         {
           AddWCircle(CameraX, CameraZ, 1.2);
           AddVoicev(fxStepW[(RealTime % 3)].length,
-                    fxStepW[(RealTime % 3)].lpData.data(), 64+static_cast<int>((VSpeed*30.f)));
+                    fxStepW[(RealTime % 3)].lpData.data(), FootstepVolume(VSpeed, true));
         }
         else
           AddVoicev(fxStep[(RealTime % 3)].length,
-                    fxStep[(RealTime % 3)].lpData.data(), 24+static_cast<int>((VSpeed*50.f)));
+                    fxStep[(RealTime % 3)].lpData.data(), FootstepVolume(VSpeed, false));
   stepdd = d;
 
   if (PlayerBeta> 1.46f) {

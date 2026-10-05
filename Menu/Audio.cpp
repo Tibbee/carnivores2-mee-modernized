@@ -30,41 +30,59 @@ struct MenuAudioState
 
 MenuAudioState g_MenuAudio;
 
+bool CheckMenuALError(const char* operation)
+{
+	const ALenum error = alGetError();
+	if (error == AL_NO_ERROR) return true;
+	std::cout << "MenuAudio: AL error " << error << " at " << operation << std::endl;
+	return false;
+}
+#define MENU_AL_CHECK(call) ([&]() { call; return CheckMenuALError(#call); }())
+
 bool UploadSound(ALuint& buffer, const SoundFX& sfx)
 {
-	if (!sfx.m_Data || !sfx.m_Length || !sfx.m_Frequency)
+	if (!sfx.m_Data || !sfx.m_Length || sfx.m_Length > (16u << 20) ||
+	    sfx.m_Length % sizeof(int16_t) || !sfx.m_Frequency || sfx.m_Frequency > 384000)
 		return false;
-
-	alGenBuffers(1, &buffer);
-	if (!buffer)
+	ALuint candidate = 0;
+	if (!MENU_AL_CHECK(alGenBuffers(1, &candidate)) || !candidate) {
+		if (candidate) MENU_AL_CHECK(alDeleteBuffers(1, &candidate));
 		return false;
-
-	alBufferData(buffer, AL_FORMAT_MONO16, sfx.m_Data, (ALsizei)sfx.m_Length, (ALsizei)sfx.m_Frequency);
+	}
+	if (!MENU_AL_CHECK(alBufferData(candidate, AL_FORMAT_MONO16, sfx.m_Data,
+	    static_cast<ALsizei>(sfx.m_Length), static_cast<ALsizei>(sfx.m_Frequency)))) {
+		MENU_AL_CHECK(alDeleteBuffers(1, &candidate));
+		return false;
+	}
+	buffer = candidate;
 	return true;
 }
 
 bool CreateSource(ALuint& source, ALuint buffer, bool loop, float gain)
 {
-	if (!buffer)
+	if (!buffer) return false;
+	ALuint candidate = 0;
+	if (!MENU_AL_CHECK(alGenSources(1, &candidate)) || !candidate) {
+		if (candidate) MENU_AL_CHECK(alDeleteSources(1, &candidate));
 		return false;
-
-	alGenSources(1, &source);
-	if (!source)
+	}
+	if (!MENU_AL_CHECK(alSourcei(candidate, AL_BUFFER, buffer)) ||
+	    !MENU_AL_CHECK(alSourcei(candidate, AL_SOURCE_RELATIVE, AL_TRUE)) ||
+	    !MENU_AL_CHECK(alSource3f(candidate, AL_POSITION, 0.0f, 0.0f, 0.0f)) ||
+	    !MENU_AL_CHECK(alSourcef(candidate, AL_GAIN, gain)) ||
+	    !MENU_AL_CHECK(alSourcei(candidate, AL_LOOPING, loop ? AL_TRUE : AL_FALSE))) {
+		MENU_AL_CHECK(alDeleteSources(1, &candidate));
 		return false;
-
-	alSourcei(source, AL_BUFFER, buffer);
-	alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
-	alSource3f(source, AL_POSITION, 0.0f, 0.0f, 0.0f);
-	alSourcef(source, AL_GAIN, gain);
-	alSourcei(source, AL_LOOPING, loop ? AL_TRUE : AL_FALSE);
+	}
+	source = candidate;
 	return true;
 }
 
 void DestroySource(ALuint& source)
 {
 	if (source) {
-		alSourceStop(source);
-		alDeleteSources(1, &source);
+		MENU_AL_CHECK(alSourceStop(source));
+		MENU_AL_CHECK(alDeleteSources(1, &source));
 		source = 0;
 	}
 }
@@ -72,7 +90,7 @@ void DestroySource(ALuint& source)
 void DestroyBuffer(ALuint& buffer)
 {
 	if (buffer) {
-		alDeleteBuffers(1, &buffer);
+		MENU_AL_CHECK(alDeleteBuffers(1, &buffer));
 		buffer = 0;
 	}
 }
@@ -83,11 +101,9 @@ void PlaySource(ALuint source)
 		return;
 
 	ALint state = AL_STOPPED;
-	alGetSourcei(source, AL_SOURCE_STATE, &state);
-	if (state == AL_PLAYING)
-		alSourceStop(source);
-
-	alSourcePlay(source);
+	if (!MENU_AL_CHECK(alGetSourcei(source, AL_SOURCE_STATE, &state))) return;
+	if (state == AL_PLAYING && !MENU_AL_CHECK(alSourceStop(source))) return;
+	MENU_AL_CHECK(alSourcePlay(source));
 }
 }
 
@@ -120,7 +136,10 @@ bool MenuAudioInit()
 		return false;
 	}
 
-	alDistanceModel(AL_INVERSE_DISTANCE_CLAMPED);
+	if (!MENU_AL_CHECK(alDistanceModel(AL_INVERSE_DISTANCE_CLAMPED))) {
+		MenuAudioShutdown();
+		return false;
+	}
 
 	// Core sounds (required). If any of these fail, the menu is silent.
 	bool coreOk = true;
@@ -210,9 +229,9 @@ void MenuAudioStartAmbient()
 	// Returning from a hunt explicitly resumes this source, then the normal
 	// main-menu start event may call us again. Do not restart the loop at zero.
 	ALint state = AL_STOPPED;
-	alGetSourcei(g_MenuAudio.ambientSource, AL_SOURCE_STATE, &state);
-	if (state != AL_PLAYING)
-		alSourcePlay(g_MenuAudio.ambientSource);
+	if (MENU_AL_CHECK(alGetSourcei(g_MenuAudio.ambientSource, AL_SOURCE_STATE, &state)) &&
+	    state != AL_PLAYING)
+		MENU_AL_CHECK(alSourcePlay(g_MenuAudio.ambientSource));
 }
 
 void MenuAudioStopAmbient()
@@ -220,7 +239,7 @@ void MenuAudioStopAmbient()
 	if (!g_MenuAudio.active || !g_MenuAudio.ambientSource)
 		return;
 
-	alSourceStop(g_MenuAudio.ambientSource);
+	MENU_AL_CHECK(alSourceStop(g_MenuAudio.ambientSource));
 }
 
 void MenuAudioPlayHover()

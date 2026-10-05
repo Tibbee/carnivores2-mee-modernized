@@ -33,10 +33,13 @@ LPALISEXTENSIONPRESENT alIsExtensionPresent = nullptr;
 LPALSOURCE3I alSource3i = nullptr;
 LPALGETSTRING alGetString = nullptr;
 LPALCGETSTRING alcGetString = nullptr;
+LPALGETPROCADDRESS alGetProcAddress = nullptr;
+LPALCISEXTENSIONPRESENT alcIsExtensionPresent = nullptr;
 
 static HMODULE hOpenAL = nullptr;
 
 bool LoadOpenAL() {
+    if (hOpenAL) return true;
     hOpenAL = LoadLibraryA("openal32.dll");
     if (!hOpenAL) return false;
 
@@ -73,6 +76,8 @@ bool LoadOpenAL() {
     alSource3i = (LPALSOURCE3I)GetProcAddress(hOpenAL, "alSource3i");
     alGetString = (LPALGETSTRING)GetProcAddress(hOpenAL, "alGetString");
     alcGetString = (LPALCGETSTRING)GetProcAddress(hOpenAL, "alcGetString");
+    alGetProcAddress = (LPALGETPROCADDRESS)GetProcAddress(hOpenAL, "alGetProcAddress");
+    alcIsExtensionPresent = (LPALCISEXTENSIONPRESENT)GetProcAddress(hOpenAL, "alcIsExtensionPresent");
 
     // Core functions required (EFX optional)
     if (!alcOpenDevice || !alcCloseDevice || !alcCreateContext ||
@@ -80,52 +85,73 @@ bool LoadOpenAL() {
         !alGenBuffers || !alDeleteBuffers || !alBufferData ||
         !alGenSources || !alDeleteSources || !alSourcei || !alSourcef ||
         !alSource3f || !alSourcePlay || !alSourceStop || !alGetSourcei ||
-        !alGetError || !alListenerf || !alListener3f || !alListenerfv) {
-        FreeLibrary(hOpenAL);
-        hOpenAL = nullptr;
+        !alGetError || !alListenerf || !alListener3f || !alListenerfv ||
+        !alGetProcAddress || !alcIsExtensionPresent) {
+        UnloadOpenAL();
         return false;
     }
 
     return true;
 }
 
-void UnloadOpenAL() {
-    if (hOpenAL) {
-        FreeLibrary(hOpenAL);
-        hOpenAL = nullptr;
+// Device-scoped EFX is optional. Never assume the DLL exports extension symbols.
+bool LoadOpenALEFX(ALCdevice* device)
+{
+    if (!device || !alcIsExtensionPresent || !alGetProcAddress ||
+        !alcIsExtensionPresent(device, "ALC_EXT_EFX")) return false;
+#define LOAD_EFX(name, type) name = reinterpret_cast<type>(alGetProcAddress(#name))
+    LOAD_EFX(alGenEffects, LPALGENEFFECTS);
+    LOAD_EFX(alDeleteEffects, LPALDELETEEFFECTS);
+    LOAD_EFX(alEffecti, LPALEFFECTI);
+    LOAD_EFX(alEffectf, LPALEFFECTF);
+    LOAD_EFX(alGenAuxiliaryEffectSlots, LPALGENAUXILIARYEFFECTSLOTS);
+    LOAD_EFX(alDeleteAuxiliaryEffectSlots, LPALDELETEAUXILIARYEFFECTSLOTS);
+    LOAD_EFX(alAuxiliaryEffectSloti, LPALAUXILIARYEFFECTSLOTI);
+    LOAD_EFX(alAuxiliaryEffectSlotf, LPALAUXILIARYEFFECTSLOTF);
+    LOAD_EFX(alSource3i, LPALSOURCE3I);
+#undef LOAD_EFX
+    return alGenEffects && alDeleteEffects && alEffecti && alEffectf &&
+        alGenAuxiliaryEffectSlots && alDeleteAuxiliaryEffectSlots &&
+        alAuxiliaryEffectSloti && alAuxiliaryEffectSlotf && alSource3i;
+}
 
-        alcOpenDevice = nullptr;
-        alcCloseDevice = nullptr;
-        alcCreateContext = nullptr;
-        alcMakeContextCurrent = nullptr;
-        alcDestroyContext = nullptr;
-        alDistanceModel = nullptr;
-        alGenBuffers = nullptr;
-        alDeleteBuffers = nullptr;
-        alBufferData = nullptr;
-        alGenSources = nullptr;
-        alDeleteSources = nullptr;
-        alSourcei = nullptr;
-        alSourcef = nullptr;
-        alSource3f = nullptr;
-        alSourcePlay = nullptr;
-        alSourceStop = nullptr;
-        alGetSourcei = nullptr;
-        alGetError = nullptr;
-        alListenerf = nullptr;
-        alListener3f = nullptr;
-        alListenerfv = nullptr;
-        alGenEffects = nullptr;
-        alDeleteEffects = nullptr;
-        alEffecti = nullptr;
-        alEffectf = nullptr;
-        alGenAuxiliaryEffectSlots = nullptr;
-        alDeleteAuxiliaryEffectSlots = nullptr;
-        alAuxiliaryEffectSloti = nullptr;
-        alAuxiliaryEffectSlotf = nullptr;
-        alIsExtensionPresent = nullptr;
-        alSource3i = nullptr;
-        alGetString = nullptr;
-        alcGetString = nullptr;
-    }
+void UnloadOpenAL()
+{
+    if (hOpenAL) FreeLibrary(hOpenAL);
+    hOpenAL = nullptr;
+    alcOpenDevice = nullptr;
+    alcCloseDevice = nullptr;
+    alcCreateContext = nullptr;
+    alcMakeContextCurrent = nullptr;
+    alcDestroyContext = nullptr;
+    alDistanceModel = nullptr;
+    alGenBuffers = nullptr;
+    alDeleteBuffers = nullptr;
+    alBufferData = nullptr;
+    alGenSources = nullptr;
+    alDeleteSources = nullptr;
+    alSourcei = nullptr;
+    alSourcef = nullptr;
+    alSource3f = nullptr;
+    alSourcePlay = nullptr;
+    alSourceStop = nullptr;
+    alGetSourcei = nullptr;
+    alGetError = nullptr;
+    alListenerf = nullptr;
+    alListener3f = nullptr;
+    alListenerfv = nullptr;
+    alGenEffects = nullptr;
+    alDeleteEffects = nullptr;
+    alEffecti = nullptr;
+    alEffectf = nullptr;
+    alGenAuxiliaryEffectSlots = nullptr;
+    alDeleteAuxiliaryEffectSlots = nullptr;
+    alAuxiliaryEffectSloti = nullptr;
+    alAuxiliaryEffectSlotf = nullptr;
+    alIsExtensionPresent = nullptr;
+    alSource3i = nullptr;
+    alGetString = nullptr;
+    alcGetString = nullptr;
+    alGetProcAddress = nullptr;
+    alcIsExtensionPresent = nullptr;
 }

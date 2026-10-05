@@ -52,7 +52,6 @@ typedef struct ALCcontext_struct ALCcontext;
 
 // --- EFX extension (OpenAL Soft) ---
 #define AL_EFFECT_TYPE 0x8001
-#define AL_EFFECTSLOT_TYPE 0x8091
 #define AL_FILTER_TYPE 0x8005
 #define AL_EFFECT_REVERB 0x0001
 #define AL_EFFECT_EAXREVERB 0x8000
@@ -60,7 +59,6 @@ typedef struct ALCcontext_struct ALCcontext;
 #define AL_EFFECTSLOT_GAIN 0x0002
 #define AL_AUXILIARY_SEND_FILTER 0x20006
 #define AL_FILTER_NULL 0x0000
-#define AL_EXT_EFX 1
 
 // Standard REVERB params (for AL_EFFECT_REVERB type)
 #define AL_REVERB_DENSITY 0x0001
@@ -126,6 +124,8 @@ typedef ALCboolean (AL_APIENTRY *LPALISEXTENSIONPRESENT)(const ALchar* extname);
 typedef void (AL_APIENTRY *LPALSOURCE3I)(ALuint source, ALenum param, ALint value1, ALint value2, ALint value3);
 typedef const ALchar* (AL_APIENTRY *LPALGETSTRING)(ALenum param);
 typedef const ALCchar* (ALC_APIENTRY *LPALCGETSTRING)(ALCdevice* device, ALCenum param);
+typedef void* (AL_APIENTRY *LPALGETPROCADDRESS)(const ALchar* name);
+typedef ALCboolean (ALC_APIENTRY *LPALCISEXTENSIONPRESENT)(ALCdevice* device, const ALCchar* name);
 
 // --- Global function pointers ---
 extern LPALCOPENDEVICE alcOpenDevice;
@@ -161,8 +161,11 @@ extern LPALISEXTENSIONPRESENT alIsExtensionPresent;
 extern LPALSOURCE3I alSource3i;
 extern LPALGETSTRING alGetString;
 extern LPALCGETSTRING alcGetString;
+extern LPALGETPROCADDRESS alGetProcAddress;
+extern LPALCISEXTENSIONPRESENT alcIsExtensionPresent;
 
 bool LoadOpenAL();
+bool LoadOpenALEFX(ALCdevice* device);
 void UnloadOpenAL();
 
 #endif
