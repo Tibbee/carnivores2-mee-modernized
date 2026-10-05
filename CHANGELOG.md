@@ -18,11 +18,13 @@ Draft changes on local `main` after `origin/main` (`9db51ec`); not part of
 the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
 
-### Audio correctness (feature branch, 2026-10-05)
+### Audio correctness (on local main, 2026-10-05)
 
-Implemented on `fix/audio-system-hardening`, based on collision preview
-`754fb00`; not merged or released. Backward footsteps now match forward
-loudness, environment 7 is explicitly dry, ambient transitions retain live
+Implemented at `66e5f9e` on `fix/audio-system-hardening`, based on collision
+preview `754fb00`. The owner approved fast-forwarding the fit/slope/audio
+branch chain into local `main` on 2026-10-05, with no merge commit. Not pushed
+or released; listening acceptance remains pending. Backward footsteps now match
+forward loudness, environment 7 is explicitly dry, ambient transitions retain live
 loop positions and reach their exact gain endpoints, and moving-loop buffer
 replacement stops before binding. Failed OpenAL uploads/setup roll back instead
 of claiming successful playback; optional EFX uses the device-scoped capability
