@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include "Core/GameMode.h"
 #include "Workbench/WorkbenchUI.h"
 #include "Workbench/TuningRuntime.h"
 
@@ -124,12 +125,16 @@ protected:
 		io.AddMouseButtonEvent(0, true); workbench::RenderUI(); workbench::RenderUI();
 		io.AddMouseButtonEvent(0, false); workbench::RenderUI();
 	}
-	void TypeExact(const char* text) {
+	void BeginExactDraft(const char* text) {
 		Click("exact", 0);
 		auto& io = ImGui::GetIO();
 		io.AddKeyEvent(ImGuiMod_Ctrl, true); io.AddKeyEvent(ImGuiKey_A, true); workbench::RenderUI();
 		io.AddKeyEvent(ImGuiKey_A, false); io.AddKeyEvent(ImGuiMod_Ctrl, false);
 		io.AddInputCharactersUTF8(text); workbench::RenderUI(); workbench::RenderUI();
+	}
+	void TypeExact(const char* text) {
+		BeginExactDraft(text);
+		auto& io = ImGui::GetIO();
 		io.AddKeyEvent(ImGuiKey_Enter, true); workbench::RenderUI();
 		io.AddKeyEvent(ImGuiKey_Enter, false); workbench::RenderUI();
 	}
@@ -256,6 +261,96 @@ TEST_F(WorkbenchGPU, RealSliderGestureIsOneUndoActionAndExactEntryDoesNotStaySta
 	Click("undo"); EXPECT_FLOAT_EQ(workbench::ReadRuntimeValues()[0], loaded); EXPECT_FALSE(workbench::RuntimeSession().CanUndo());
 	Click("redo"); EXPECT_NE(workbench::ReadRuntimeValues()[0], loaded);
 	TypeExact("0.345"); EXPECT_FLOAT_EQ(workbench::ReadRuntimeValues()[0], .345f);
+}
+TEST_F(WorkbenchGPU, EscapeDuringExactDraftDismissesInteractionBeforeClosingWithoutPublishing) {
+	Open(); workbench::RenderUI(); workbench::RenderUI();
+	const auto before = workbench::ReadRuntimeValues();
+	BeginExactDraft("0.678"); ASSERT_TRUE(ImGui::IsAnyItemActive());
+	workbench::HandleUIMessage(window, WM_KEYDOWN, VK_ESCAPE, 0, true);
+	EXPECT_TRUE(workbench::UIOpen()); EXPECT_FALSE(ImGui::IsAnyItemActive());
+	workbench::RenderUI(); EXPECT_EQ(workbench::ReadRuntimeValues(), before);
+	EXPECT_FALSE(workbench::RuntimeSession().CanUndo());
+	workbench::HandleUIMessage(window, WM_KEYUP, VK_ESCAPE, 0, true);
+	workbench::HandleUIMessage(window, WM_KEYDOWN, VK_ESCAPE, 0, true);
+	EXPECT_FALSE(workbench::UIOpen()); EXPECT_EQ(workbench::ReadRuntimeValues(), before);
+	EXPECT_EQ(glGetError(), GL_NO_ERROR);
+}
+TEST_F(WorkbenchGPU, FocusLossDuringDraftAndLoadedComparisonKeepsAppliedEditsAndHistory) {
+	Open(); workbench::RenderUI(); workbench::RenderUI();
+	TypeExact("0.456"); const auto edited = workbench::ReadRuntimeValues();
+	BeginExactDraft("0.678"); ASSERT_TRUE(ImGui::IsAnyItemActive());
+	ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter, true); // Pending apply must not survive focus loss.
+	workbench::NotifyUIFocus(false); workbench::NotifyUIFocus(true);
+	workbench::RenderUI(); workbench::RenderUI();
+	EXPECT_FALSE(ImGui::IsAnyItemActive()); EXPECT_TRUE(workbench::UIOwnsInput());
+	EXPECT_EQ(workbench::ReadRuntimeValues(), edited);
+	ASSERT_EQ(workbench::CompareRuntime(true), workbench::Error::None);
+	EXPECT_TRUE(workbench::RuntimeSession().IsComparing());
+	workbench::NotifyUIFocus(false); workbench::NotifyUIFocus(true);
+	workbench::RenderUI(); EXPECT_FALSE(workbench::RuntimeSession().IsComparing());
+	EXPECT_EQ(workbench::ReadRuntimeValues(), edited);
+	ASSERT_EQ(workbench::UndoRuntime(), workbench::Error::None);
+	EXPECT_EQ(workbench::ReadRuntimeValues(), workbench::RuntimeSession().Loaded());
+	EXPECT_FALSE(workbench::RuntimeSession().CanUndo());
+	ASSERT_EQ(workbench::RedoRuntime(), workbench::Error::None);
+	EXPECT_EQ(workbench::ReadRuntimeValues(), edited); EXPECT_EQ(glGetError(), GL_NO_ERROR);
+}
+TEST_F(WorkbenchGPU, SwitchingToTestMidDragFinishesOneCommandAndClearsQueuedMouseInput) {
+	Open(); workbench::RenderUI(); workbench::RenderUI();
+	const auto loaded = workbench::ReadRuntimeValues(); const auto rect = rectangles.at({"slider", 0});
+	auto& io = ImGui::GetIO();
+	io.AddMousePosEvent(rect[0] + 30, (rect[1] + rect[3]) / 2); io.AddMouseButtonEvent(0, true);
+	workbench::RenderUI(); workbench::RenderUI();
+	for (float position : {.2f, .3f, .4f}) {
+		io.AddMousePosEvent(rect[0] + (rect[2] - rect[0]) * position, (rect[1] + rect[3]) / 2);
+		workbench::RenderUI();
+	}
+	ASSERT_TRUE(ImGui::IsAnyItemActive()); const auto edited = workbench::ReadRuntimeValues();
+	ASSERT_NE(edited, loaded);
+	io.AddMouseButtonEvent(1, true); // An unprocessed click must be cleared too.
+	workbench::HandleUIMessage(window, WM_KEYDOWN, VK_F8, 0, true);
+	EXPECT_FALSE(workbench::UIOwnsInput()); EXPECT_TRUE(workbench::UIBlocksLook());
+	workbench::RenderUI(); EXPECT_FALSE(ImGui::IsAnyItemActive());
+	EXPECT_FALSE(io.MouseDown[0]); EXPECT_FALSE(io.MouseDown[1]);
+	EXPECT_EQ(workbench::ReadRuntimeValues(), edited);
+	workbench::FinishGameplayInputFrame(); EXPECT_FALSE(workbench::UIBlocksLook());
+	workbench::HandleUIMessage(window, WM_KEYDOWN, VK_ESCAPE, 0, true);
+	EXPECT_TRUE(workbench::UIOwnsInput());
+	ASSERT_EQ(workbench::UndoRuntime(), workbench::Error::None);
+	EXPECT_EQ(workbench::ReadRuntimeValues(), loaded); EXPECT_FALSE(workbench::RuntimeSession().CanUndo());
+	ASSERT_EQ(workbench::RedoRuntime(), workbench::Error::None);
+	EXPECT_EQ(workbench::ReadRuntimeValues(), edited); EXPECT_EQ(glGetError(), GL_NO_ERROR);
+}
+TEST_F(WorkbenchGPU, HuntRestartDropsDraftQueuedApplyAndObsoleteHistory) {
+	Open(); workbench::RenderUI(); workbench::RenderUI();
+	TypeExact("0.456"); ASSERT_TRUE(workbench::RuntimeSession().CanUndo());
+	BeginExactDraft("0.678"); ASSERT_TRUE(ImGui::IsAnyItemActive());
+	ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter, true);
+	ASSERT_EQ(workbench::ResetRuntimeForHunt(), workbench::Error::None);
+	const auto restarted = workbench::ReadRuntimeValues();
+	workbench::RenderUI(); workbench::RenderUI();
+	EXPECT_FALSE(ImGui::IsAnyItemActive()); EXPECT_EQ(workbench::ReadRuntimeValues(), restarted);
+	EXPECT_EQ(workbench::RuntimeSession().ChangedCount(), 0u);
+	EXPECT_FALSE(workbench::RuntimeSession().CanUndo()); EXPECT_FALSE(workbench::RuntimeSession().CanRedo());
+	TypeExact("0.345"); EXPECT_FLOAT_EQ(workbench::ReadRuntimeValues()[0], .345f);
+	EXPECT_EQ(glGetError(), GL_NO_ERROR);
+}
+TEST_F(WorkbenchGPU, ShellTransitionsPreserveGameOverlayAndPauseState) {
+	const auto originalMode = g_GameMode, originalSaved = g_SavedOverlayMode;
+	for (auto mode : {GameMode::MapMode, GameMode::OpticScope, GameMode::Binocular, GameMode::Paused, GameMode::ExitCountdown}) {
+		SCOPED_TRACE(static_cast<unsigned int>(mode));
+		g_GameMode = mode; g_SavedOverlayMode = GameMode::OpticScope;
+		Open(); workbench::RenderUI();
+		workbench::HandleUIMessage(window, WM_KEYDOWN, VK_F8, 0, true);
+		workbench::RenderUI(); EXPECT_EQ(g_GameMode, mode); EXPECT_EQ(g_SavedOverlayMode, GameMode::OpticScope);
+		workbench::HandleUIMessage(window, WM_KEYDOWN, VK_ESCAPE, 0, true);
+		workbench::NotifyUIFocus(false); workbench::NotifyUIFocus(true);
+		workbench::HandleUIMessage(window, WM_SYSKEYDOWN, VK_F10, 0, true);
+		EXPECT_FALSE(workbench::UIOpen()); EXPECT_EQ(g_GameMode, mode);
+		EXPECT_EQ(g_SavedOverlayMode, GameMode::OpticScope);
+	}
+	g_GameMode = originalMode; g_SavedOverlayMode = originalSaved;
+	EXPECT_EQ(glGetError(), GL_NO_ERROR);
 }
 TEST_F(WorkbenchGPU, OptionalSyntheticInspectorScreenshot) {
 	Open(); workbench::RenderUI(); workbench::RenderUI();
