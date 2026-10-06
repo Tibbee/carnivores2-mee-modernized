@@ -48,6 +48,15 @@ TEST_F(WorkbenchRuntime, EachSetterChangesOnlyItsOwnProductionGlobal) {
 		ASSERT_EQ(RedoRuntime(), Error::None); EXPECT_TRUE(SameValues(Globals(), expected));
 	}
 }
+TEST_F(WorkbenchRuntime, SynchronizationOnlyObservesAndInvalidatesExternalWrites) {
+	const auto baseline = Globals();
+	EXPECT_EQ(SynchronizeRuntimeSession(), Error::None); EXPECT_EQ(Globals(), baseline);
+	WWave1Amp = .5f;
+	EXPECT_EQ(SynchronizeRuntimeSession(), Error::RuntimeChanged);
+	EXPECT_FLOAT_EQ(WWave1Amp, .5f); EXPECT_FALSE(RuntimeSession().IsLoaded());
+	EXPECT_EQ(SynchronizeRuntimeSession(), Error::NotLoaded);
+	EXPECT_FLOAT_EQ(WWave1Amp, .5f);
+}
 TEST_F(WorkbenchRuntime, InvalidTextAndNumericEditsNeverPublish) {
 	const auto before = Globals();
 	EXPECT_EQ(EditRuntimeText(Parameter::FogDensity, ""), Error::Blank);

@@ -22,6 +22,8 @@
 #include "Renderer/GLUtils.h"
 #include "Core/TerrainFog.h"
 #include "Core/WaterColor.h"  // water-colour-aware depth modulation
+#include "Core/UnattendedCapture.h"
+#include "Workbench/WorkbenchUI.h"
 
 #define WGL_CONTEXT_MAJOR_VERSION_ARB     0x2091
 #define WGL_CONTEXT_MINOR_VERSION_ARB     0x2092
@@ -360,6 +362,15 @@ bool GLRenderer::Initialize()
     m_locSkyCamForward     = glGetUniformLocation(m_skyShader.GetProgramID(), "uCamForward");
 
     m_Initialized = true;
+    if (!unattended_capture::options.enabled && !workbench::InitializeUI(m_hwnd, [](bool ownsInput) {
+        KeyFlags = 0;
+        for (auto& key : KeyboardState) key &= 127; // Release downs, retain toggle bits.
+        rav = rbv = 0.0f;
+        alreadyFired = false;
+        CaptureMouse(!ownsInput && blActive && _GameState && !IsPaused());
+    }, PrintLog)) {
+        LOG_WARN("Workbench initialization failed; retaining legacy F10 panel");
+    }
     LOG_INFO("GLRenderer initialization completed successfully");
     return true;
 }
@@ -373,6 +384,8 @@ void GLRenderer::Shutdown()
 
     if (!m_Initialized && !m_hrc) return;
 
+    // Backend GPU/font objects must die before the owning context does.
+    workbench::DetachUI();
     ShutdownTerrainPipeline();
     ShutdownModelPipeline();
     ShutdownInstancingPipeline();
@@ -403,6 +416,7 @@ void GLRenderer::Shutdown()
 
 void GLRenderer::DestroyContext()
 {
+    workbench::DetachUI();
     m_perFrameUpload.invalidate();
     if (m_hrc) {
         if (wglGetCurrentContext() == m_hrc) {

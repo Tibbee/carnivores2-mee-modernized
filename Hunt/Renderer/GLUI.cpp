@@ -11,6 +11,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "Workbench/WorkbenchUI.h"
 #include "GLRenderer.h"
 #include "Renderer/UIText.h"
 #include "Core/UnattendedCapture.h"
@@ -216,7 +217,11 @@ void ShowVideo()
 
 #ifdef GL_PERF_HOOKS
     }
-    // End after all scene and post-processing work, but before SwapBuffers so
+#endif
+    // Tooling is last: do not tint it with underwater/glare/night-vision washes.
+    workbench::RenderUI();
+#ifdef GL_PERF_HOOKS
+    // End after all scene, workbench and post-processing work, before SwapBuffers so
     // driver/compositor or vsync waits are not included in renderer CPU time.
     PerfFrameEnd();
 

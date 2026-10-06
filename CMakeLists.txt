@@ -125,8 +125,32 @@ if(RENDERER)
             Hunt/Renderer/GLPerf.h
             Hunt/Renderer/GLPerf.cpp
             Hunt/Renderer/GLUI.cpp
+            Hunt/Workbench/InputBoundary.cpp
+            Hunt/Workbench/WorkbenchUI.cpp
             deps/glad/glad.c
         )
+        # Pinned, offline-vendored UI: GL game only, never menu/Software.
+        add_library(c2_imgui STATIC
+            deps/imgui/imgui.cpp
+            deps/imgui/imgui_draw.cpp
+            deps/imgui/imgui_tables.cpp
+            deps/imgui/imgui_widgets.cpp
+            deps/imgui/backends/imgui_impl_win32.cpp
+            deps/imgui/backends/imgui_impl_opengl3.cpp)
+        target_compile_features(c2_imgui PUBLIC cxx_std_17)
+        target_include_directories(c2_imgui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui
+                                            PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/deps)
+        target_compile_definitions(c2_imgui PRIVATE IMGUI_IMPL_OPENGL_LOADER_CUSTOM
+                                                  IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
+        target_link_libraries(c2_imgui PUBLIC dwmapi)
+        # Use the engine's existing GLAD loader, no second dynamic GL loader.
+        if(MSVC)
+            set_source_files_properties(deps/imgui/backends/imgui_impl_opengl3.cpp
+                PROPERTIES COMPILE_OPTIONS "/FIglad/glad.h")
+        else()
+            set_source_files_properties(deps/imgui/backends/imgui_impl_opengl3.cpp
+                PROPERTIES COMPILE_OPTIONS "-include;glad/glad.h")
+        endif()
         if(GL_PERF_HOOKS)
             message(STATUS "Building with OpenGL Renderer (GL_PERF_HOOKS=ON)")
         else()
@@ -287,6 +311,10 @@ if(RENDERER)
         opengl32
     )
 
+    if(RENDERER STREQUAL "GL")
+        target_link_libraries(Carnivores1 PRIVATE c2_imgui)
+    endif()
+
     # Output directory for the executable
     set_target_properties(Carnivores1 PROPERTIES
         OUTPUT_NAME "Carnivores1_${RENDERER}"
@@ -326,7 +354,9 @@ if(MSVC)
         tests/test_flashlight.cpp
         tests/test_uniform_value_cache.cpp
         tests/test_workbench_session.cpp
+        tests/test_workbench_input.cpp
         Hunt/Workbench/TuningSession.cpp
+        Hunt/Workbench/InputBoundary.cpp
         tests/test_per_frame_upload.cpp
         tests/test_night_lighting.cpp
         tests/test_night_presentation.cpp
@@ -467,6 +497,25 @@ if(MSVC)
     target_link_libraries(Carnivores2WorkbenchTests PRIVATE gtest_main)
     add_test(NAME Carnivores2Tests.WorkbenchRuntime COMMAND Carnivores2WorkbenchTests)
 
+    if(RENDERER STREQUAL "GL")
+        # Hidden owned window/context only: no game, assets, focus or OS input.
+        add_executable(Carnivores2WorkbenchGPUTests
+            tests/test_workbench_gpu.cpp
+            Hunt/Workbench/WorkbenchUI.cpp
+            Hunt/Workbench/InputBoundary.cpp
+            Hunt/Workbench/TuningSession.cpp
+            Hunt/Workbench/TuningRuntime.cpp
+            Hunt/Core/StateDefs.cpp
+            deps/glad/glad.c)
+        target_include_directories(Carnivores2WorkbenchGPUTests PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/Hunt ${CMAKE_CURRENT_SOURCE_DIR}/deps)
+        target_compile_definitions(Carnivores2WorkbenchGPUTests PRIVATE C2_WORKBENCH_UI_PROBE)
+        target_link_libraries(Carnivores2WorkbenchGPUTests PRIVATE
+            gtest_main c2_imgui opengl32 gdi32 user32)
+        add_test(NAME Carnivores2Tests.WorkbenchGPU COMMAND Carnivores2WorkbenchGPUTests)
+        set_tests_properties(Carnivores2Tests.WorkbenchGPU PROPERTIES TIMEOUT 30 LABELS "hidden-gpu")
+    endif()
+
     # Production backend translation units use strict, fault-injectable AL
     # seams: these tests neither require a DLL nor open a playback device.
     add_executable(Carnivores2AudioBackendTests
@@ -556,7 +605,7 @@ endif()
 
 # Apply the project warning policy only to project-owned targets. GoogleTest
 # and vendored loader targets retain their own upstream compiler settings.
-foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests Carnivores2LoaderContractTests Carnivores2PictureLoaderContractTests Carnivores2CommandLineContractTests Carnivores2MenuResourceTests Carnivores2ScriptParserContractTests Carnivores2AudioBackendTests Carnivores2MenuAudioBackendTests Carnivores2WorkbenchTests)
+foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests Carnivores2LoaderContractTests Carnivores2PictureLoaderContractTests Carnivores2CommandLineContractTests Carnivores2MenuResourceTests Carnivores2ScriptParserContractTests Carnivores2AudioBackendTests Carnivores2MenuAudioBackendTests Carnivores2WorkbenchTests Carnivores2WorkbenchGPUTests)
     if(TARGET ${C2_TARGET})
         c2_apply_msvc_compile_policy(${C2_TARGET})
     endif()

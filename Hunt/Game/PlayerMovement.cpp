@@ -4,6 +4,9 @@
 
 #include "Hunt.h"
 #include "Core/UnattendedCapture.h"
+#ifdef _gl
+#include "Workbench/WorkbenchUI.h"
+#endif
 
 void ProcessReload() {
 
@@ -428,7 +431,11 @@ void ProcessSlide()
 void ProcessPlayerMovement()
 {
 
-  if (!unattended_capture::options.enabled) {
+  if (!unattended_capture::options.enabled
+#ifdef _gl
+      && !workbench::UIBlocksLook()
+#endif
+  ) {
     POINT ms;
     GetCursorPos(&ms);
     ScreenToClient(hwndMain, &ms);

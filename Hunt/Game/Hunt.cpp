@@ -6,6 +6,7 @@
 #include "stdio.h"
 #ifdef _gl
 #include "Renderer/GLUtils.h"
+#include "Workbench/WorkbenchUI.h"
 #endif
 #include <cmath>
 #include <algorithm>
@@ -1119,6 +1120,9 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
   if (!unattended_capture::options.enabled && A!=blActive)
   {
     blActive = A;
+#ifdef _gl
+    workbench::NotifyUIFocus(blActive != 0);
+#endif
 
     if (blActive) SetPriorityClass( GetCurrentProcess(), HIGH_PRIORITY_CLASS);
     else SetPriorityClass( GetCurrentProcess(), IDLE_PRIORITY_CLASS);
@@ -1138,6 +1142,15 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     }
 
   }
+
+#ifdef _gl
+  // Own both message and polled input; WantCapture* alone is not a boundary.
+  // Route before equipment/stance/cheat toggles and legacy menu actions.
+  if (workbench::HandleUIMessage(hWnd, message, wParam, lParam, _GameState != 0)) {
+    if (workbench::UIOpen()) UnderwaterDebugMenu = false;
+    return (message == WM_SETCURSOR || message == WM_XBUTTONDOWN || message == WM_XBUTTONUP) ? TRUE : 0;
+  }
+#endif
 
   // Toggles fire once per press, not on Windows key-repeat. SYSKEYDOWN
   // also carries Alt bindings; the normal window handling below is retained.
@@ -1881,6 +1894,9 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
   ProcessSyncro();
   blActive = true;
+#ifdef _gl
+  workbench::NotifyUIFocus(true);
+#endif
 
   alreadyFired = false;
 
@@ -1912,6 +1928,10 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   Audio_Shutdown();
 
   ShutDown3DHardware();
+#ifdef _gl
+  workbench::ShutdownUI();
+  CaptureMouse(false);
+#endif
 
   ShutDownEngine();
 

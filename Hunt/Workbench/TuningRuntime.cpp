@@ -35,6 +35,7 @@ template <typename Operation> Error Mutate(Operation operation) {
 }
 }
 const Session& RuntimeSession() { return session; }
+Error SynchronizeRuntimeSession() { return CheckCurrent(); }
 Values ReadRuntimeValues() {
 	Values values{};
 	for (std::size_t i = 0; i < values.size(); ++i) values[i] = *bindings[i];

@@ -7,6 +7,7 @@ namespace workbench {
 // pointers, ImGui dependencies, file writes or gameplay-mode transitions.
 const Session& RuntimeSession();
 Values ReadRuntimeValues();
+Error SynchronizeRuntimeSession(); // Observe external writes without publishing.
 Error CaptureRuntimeBaseline();
 Error ResetRuntimeForHunt();
 Error EditRuntime(Parameter id, float value);

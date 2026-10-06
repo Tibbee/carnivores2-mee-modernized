@@ -8,10 +8,16 @@
 #include "Core/UnattendedCapture.h"
 #include "Core/WaterColor.h"  // water-colour-aware depth modulation
 #include "Audio/AudioMath.h"
+#ifdef _gl
+#include "Workbench/WorkbenchUI.h"
+#endif
 
 void CaptureMouse(BOOL capture)
 {
   if (!hwndMain || unattended_capture::options.enabled) return;
+#ifdef _gl
+  if (workbench::UIOwnsInput()) capture = false;
+#endif
 
   if (capture) {
     RECT rect;
@@ -35,6 +41,9 @@ void CaptureMouse(BOOL capture)
 void ResetMousePos()
 {
   if (!hwndMain) return;
+#ifdef _gl
+  if (workbench::UIOwnsInput()) return;
+#endif
 
   if (!unattended_capture::options.enabled && blActive && _GameState && !IsPaused()) {
     POINT p = { VideoCX, VideoCY };
@@ -255,6 +264,9 @@ void ProcessControls()
   KeyFlags = 0;
   if (unattended_capture::options.enabled) ZeroMemory(KeyboardState, sizeof(KeyboardState));
   else GetKeyboardState(KeyboardState);
+#ifdef _gl
+  workbench::FilterGameplayKeys(KeyboardState);
+#endif
 
   
   if (KeyboardState[KeyMap.fkReload] & 128)  KeyFlags += kfLookUp;
@@ -719,5 +731,8 @@ SKIPYMOVE:
   CameraPos.x = CameraX;
   CameraPos.y = CameraY;
   CameraPos.z = CameraZ;
+#ifdef _gl
+  workbench::FinishGameplayInputFrame();
+#endif
 
 }
