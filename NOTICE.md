@@ -45,6 +45,7 @@ any release package.
 | khrplatform.h (Khronos, `deps/KHR/`) | GL loader platform header | MIT |
 | OpenAL Soft (`OpenAL32.dll`) | Runtime audio library | LGPL |
 | googletest (build-time only) | Unit tests | BSD-3-Clause |
+| Dear ImGui (`deps/imgui/`, pinned docking revision) | OpenGL live workbench | MIT — `deps/imgui/LICENSE.txt` |
 
 OpenAL Soft is loaded dynamically by name at runtime and can be replaced with
 any other `OpenAL32.dll`. When OpenAL Soft is redistributed with a release

@@ -1,0 +1,17 @@
+{
+  "backends/imgui_impl_opengl3.cpp": "49dbceecb8dc31a87847469aae6986a200bbec2d2b5089bd1a6f4fad1dc1d943",
+  "backends/imgui_impl_opengl3.h": "8b41f2d0d8d388ef9aee9c7cb73171ecae202118be3217b80cc1d6743012daca",
+  "backends/imgui_impl_win32.cpp": "ed5f00e3a675324487ecdde14833968a3387855f953d6e18a157de6a2958ee05",
+  "backends/imgui_impl_win32.h": "10450c3ceee5cbae2a0dfe545c5f3a5026ff1e42999b097910f101f5400009b2",
+  "imconfig.h": "0884061cc43e27e1d346fe18dcd1425792eb2532d3d16610a82eb5ac751f7594",
+  "imgui_draw.cpp": "8823f49f5c7a5181c0435a5fa01a03c3ff5bece283482b81001e71a66993f997",
+  "imgui_internal.h": "b6a9b40031c95c83d27595ce0b71f7e102d705ccac6bee6d03ff931fdd370569",
+  "imgui_tables.cpp": "4ea380fa9d49cac6cbfbc8b969969f9b0705518ec9ca340681d8c70e3eefbc28",
+  "imgui_widgets.cpp": "215eae588d52b455344ab5bd9847ab133d8bafff70841f992f7701b9fbda4dbc",
+  "imgui.cpp": "2faf54df0db896fcb30b8e528e064f2c3227f2f695fe1c8fe62aa8b71f228084",
+  "imgui.h": "ea876e477f06f9619206284551638171c7ba4ed4dbc6ba67002e8f2e4ad7d3c7",
+  "imstb_rectpack.h": "2efa3d5f7d003c19743b15155dad9f46d9f9fc783a18893d703b431d3c990972",
+  "imstb_textedit.h": "77010e494caf72c178b573569612aec409d24380409676325a31d02de0ec64b7",
+  "imstb_truetype.h": "87f08919ae8e7223451d0e9d06b62829075d3e920c9e6ad436db9d7e7427ffce",
+  "LICENSE.txt": "c80c5789748d955c4a650562baa0d750494e2c7128c2ca66aaebe2e3c4e198bf"
+}

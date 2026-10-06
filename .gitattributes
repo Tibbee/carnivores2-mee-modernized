@@ -1,0 +1,5 @@
+# Preserve pinned upstream bytes across Windows checkouts (checksum inventory).
+deps/imgui/*.cpp -text
+deps/imgui/*.h -text
+deps/imgui/backends/* -text
+deps/imgui/LICENSE.txt -text

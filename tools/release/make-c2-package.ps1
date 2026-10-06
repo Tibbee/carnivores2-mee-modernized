@@ -122,6 +122,7 @@ Copy-Item $openal  $PkgDir
 Copy-Item $alsoft  $PkgDir
 Copy-Item (Join-Path $RepoRoot 'LICENSE')   $PkgDir
 Copy-Item (Join-Path $RepoRoot 'NOTICE.md') $PkgDir
+Copy-Item (Join-Path $RepoRoot 'deps\imgui\LICENSE.txt') (Join-Path $PkgDir 'THIRD-PARTY-LICENSES\LICENSE.Dear-ImGui.txt')
 Copy-Item (Join-Path $RepoRoot 'CHANGELOG.md') $PkgDir
 Copy-Item $ReleaseNotesPath (Join-Path $PkgDir 'RELEASE-NOTES.md')
 Copy-Item $lgpl (Join-Path $PkgDir 'THIRD-PARTY-LICENSES\COPYING.OpenAL-Soft.txt')
