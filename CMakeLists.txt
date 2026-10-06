@@ -181,6 +181,8 @@ set(CORE_FILES
     Hunt/Game/Network.cpp
     Hunt/Network/NetworkManager.cpp
     Hunt/Debug/Log.cpp
+    Hunt/Workbench/TuningSession.h
+    Hunt/Workbench/TuningSession.cpp
     Hunt/Game/TerrainQueries.cpp
     Hunt/Game/Ship.cpp
     Hunt/Game/CommandLine.cpp
@@ -321,6 +323,8 @@ if(MSVC)
         tests/test_config_text.cpp
         tests/test_flashlight.cpp
         tests/test_uniform_value_cache.cpp
+        tests/test_workbench_session.cpp
+        Hunt/Workbench/TuningSession.cpp
         tests/test_per_frame_upload.cpp
         tests/test_night_lighting.cpp
         tests/test_night_presentation.cpp
