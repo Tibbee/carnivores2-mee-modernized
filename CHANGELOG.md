@@ -17,6 +17,21 @@ Copy-paste release summaries are in `release-notes/`.
 Draft changes on local `main` after `origin/main` (`9db51ec`); not part of
 the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
+The separately labelled workbench preview below is on a feature branch, not main.
+
+### Live modder workbench (feature preview, 2026-10-06)
+
+Local `feat/modder-workbench` at `af2aee3` replaces OpenGL F10 with a compact
+native Dear ImGui inspector for the same thirteen Fog/Waves/Sun controls.
+Sliders, validated exact entry, loaded resets/comparison, grouped undo/redo and
+help/change review are available. F8 hands input to/from the hunt; Escape from
+Test returns to UI. Keyboard/mouse ownership is explicit, including held-input
+and focus reconciliation. **Simulation keeps running; opening is not pause.**
+Software keeps its legacy panel. Current fields are runtime-only: closing keeps
+edits, not files, and dump names are not supported config keys. No docking,
+picking, definition reloads or 1.2 migration behavior. Shipping preview is tested
+and deployed, but owner visual/input acceptance remains pending; no main merge,
+push or release. See the [current workbench guide](docs/LIVE-WORKBENCH.md).
 
 ### Audio correctness (on local main, 2026-10-05)
 
