@@ -68,21 +68,15 @@ inline FitBox FitBoxAlong(const float* xs, const float* zs, int n, float c, floa
     return box;
 }
 
-// Best of the axis-aligned (0°) and diagonal (45°) candidates; a rectangle's
-// orientation is defined mod 90°, so those two cover the exact baked cases.
-// Ties keep 0°, keeping unrotated parts identical to the legacy box.
-inline FitBox FitCandidates(const float* xs, const float* zs, int n, float pad) {
-    if (n <= 0) return FitBox{};
-    const FitBox axis = FitBoxAlong(xs, zs, n, 1.0f, 0.0f, pad);
-    const FitBox diag = FitBoxAlong(xs, zs, n, kSqrt1_2, kSqrt1_2, pad);
-    return (diag.Area() < axis.Area()) ? diag : axis;
-}
-
-// Min-area enclosing rectangle (convex hull + hull-edge directions). Exact
-// for any convex footprint at any baked angle; falls back to the candidates
-// when the hull is degenerate (fewer than three distinct points).
+// Smallest padded rectangle among 0°/45° and convex-hull-edge directions.
+// Recovers any baked rectangle angle. Seed the search with 0°/45° so its
+// padded area is never worse than either candidate, including degenerate
+// hulls. Ties retain the seed (0° first), preserving axis-aligned boxes.
 inline FitBox FitMinArea(const float* xs, const float* zs, int n, float pad) {
     if (n <= 0) return FitBox{};
+    FitBox best = FitBoxAlong(xs, zs, n, 1.0f, 0.0f, pad);
+    const FitBox diag = FitBoxAlong(xs, zs, n, kSqrt1_2, kSqrt1_2, pad);
+    if (diag.Area() < best.Area()) best = diag;
     std::vector<int> idx(static_cast<size_t>(n));
     for (int i = 0; i < n; ++i) idx[static_cast<size_t>(i)] = i;
     std::sort(idx.begin(), idx.end(), [&](int A, int B) {
@@ -110,10 +104,10 @@ inline FitBox FitMinArea(const float* xs, const float* zs, int n, float pad) {
     upper.pop_back();
     std::vector<int> hull = lower;
     hull.insert(hull.end(), upper.begin(), upper.end());
-    if (hull.size() < 3) return FitCandidates(xs, zs, n, pad);
-
-    FitBox best;
-    bool have = false;
+    // A two-point hull is a segment: test its direction just like a polygon
+    // edge instead of restricting collinear footprints to the 0°/45° seeds.
+    // Single points and zero-length duplicate edges retain the safe seed.
+    if (hull.size() < 2) return best;
     for (size_t i = 0; i < hull.size(); ++i) {
         const int A = hull[i];
         const int B = hull[(i + 1) % hull.size()];
@@ -124,12 +118,11 @@ inline FitBox FitMinArea(const float* xs, const float* zs, int n, float pad) {
         dx /= len;
         dz /= len;
         const FitBox box = FitBoxAlong(xs, zs, n, dx, dz, pad);
-        if (!have || box.Area() < best.Area() - 1e-9f) {
+        if (box.Area() < best.Area() - 1e-9f) {
             best = box;
-            have = true;
         }
     }
-    return have ? best : FitCandidates(xs, zs, n, pad);
+    return best;
 }
 
 // Accept a fit only when its padded area beats the padded AABB area by at

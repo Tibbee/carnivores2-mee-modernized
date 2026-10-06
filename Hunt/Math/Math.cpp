@@ -2098,17 +2098,13 @@ void CalcBoundBox(TModel* mptr, TBound *bound)
 
     // percentage, so axis-aligned and organic parts keep the legacy values.
 
-    if (OptBoundBoxFit != 0 && fitX.size() >= 2)
+    if (OptBoundBoxFit == 1 && fitX.size() >= 2)
 
     {
 
       const int count = static_cast<int>(fitX.size());
 
-      const c2bound::FitBox fit = (OptBoundBoxFit >= 2)
-
-        ? c2bound::FitMinArea(fitX.data(), fitZ.data(), count, 72.f)
-
-        : c2bound::FitCandidates(fitX.data(), fitZ.data(), count, 72.f);
+      const c2bound::FitBox fit = c2bound::FitMinArea(fitX.data(), fitZ.data(), count, 72.f);
 
       if (c2bound::FitAccepts(fit.Area(), bound[o].a * bound[o].b * 4.f, OptBoundBoxFitWin))
 

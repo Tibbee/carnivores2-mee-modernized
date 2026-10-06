@@ -48,6 +48,33 @@ TEST(ConfigParseInt, RejectsOutOfRangeAndOverflow) {
     EXPECT_EQ(out, 77);
 }
 
+TEST(ConfigParseBoundBoxFit, AcceptsOnlyLegacyAndOrientedModes) {
+    int out = -1;
+    EXPECT_TRUE(ParseBoundBoxFit("0", out));
+    EXPECT_EQ(out, 0);
+    EXPECT_TRUE(ParseBoundBoxFit("1", out));
+    EXPECT_EQ(out, 1);
+    EXPECT_TRUE(ParseBoundBoxFit("+1", out));
+    EXPECT_EQ(out, 1);
+}
+
+TEST(ConfigParseBoundBoxFit, RejectsOldNumberAndMalformedValuesWithoutChangingOutput) {
+    // The former oriented-mode number 2 is invalid, not a compatibility
+    // alias. Duplicate invalid config entries must keep the valid value.
+    for (const char* token : {"2", "+2", "02", "-1", "3", "", "abc", "1junk",
+                              "1.0", "99999999999999999999"}) {
+        for (int initial : {0, 1}) {
+            SCOPED_TRACE(::testing::Message() << "token=" << token << " initial=" << initial);
+            int out = initial;
+            EXPECT_FALSE(ParseBoundBoxFit(token, out));
+            EXPECT_EQ(out, initial);
+        }
+    }
+    int out = 1;
+    EXPECT_FALSE(ParseBoundBoxFit(nullptr, out));
+    EXPECT_EQ(out, 1);
+}
+
 TEST(ConfigParseFloat, AcceptsFullTokensInsideTheRange) {
     // Inclusive range used by config.cfg "sky_dome_scale".
     float out = -1.0f;

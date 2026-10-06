@@ -243,10 +243,10 @@ water_mipmap 1
 water_wave_fade_rings 8
 
 # ofBOUND collision-box fit (experimental): 0=off (stock axis-aligned
-# boxes), 1=fit oriented boxes using 0/45-degree candidates, 2=min-area
-# rectangle (any baked angle). Floor/ceiling heights never change; only
-# the X/Z footprint does. A fit is used only when its padded footprint
-# beats the axis-aligned box by boundbox_fit_win percent.
+# boxes), 1=fit oriented rectangles (any baked angle). Floor/ceiling
+# heights never change; only the X/Z footprint does. A fit is used only
+# when its padded footprint beats the axis-aligned box by
+# boundbox_fit_win percent.
 boundbox_fit 0
 
 # Minimum padded-area win (percent, 0..100) before a fitted collision box

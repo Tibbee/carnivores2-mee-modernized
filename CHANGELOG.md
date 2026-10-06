@@ -18,6 +18,19 @@ Draft changes on local `main` after `origin/main` (`9db51ec`); not part of
 the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
 
+### Collision fitting cleanup (local preview)
+
+Removed the unreleased 0°/45°-only fitting algorithm and renumbered the
+remaining modes: `boundbox_fit 0` keeps legacy axis-aligned boxes (still
+the default), and `boundbox_fit 1` enables oriented fitting at any baked
+angle. The former value `2` is no longer accepted. Oriented fitting now
+includes the 0°/45° candidates in its hull-edge search, with no separate
+candidate-only implementation. Collinear footprints also test their actual
+segment direction, recovering arbitrary baked angles; single-point and
+sub-tolerance footprints retain the safe seeded fallback.
+The padded-area acceptance threshold and independent `boundbox_slope`
+setting are unchanged.
+
 ### Audio correctness (on local main, 2026-10-05)
 
 Implemented at `66e5f9e` on `fix/audio-system-hardening`, based on collision

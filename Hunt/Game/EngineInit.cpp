@@ -528,7 +528,7 @@ void InitEngine()
   OptTerrainMaxMipLevel = kTerrainMaxMipDefault; // config.cfg terrain_mip_level
   OptWaterMipmap = 1;                           // config.cfg water_mipmap
   OptWaterWaveFadeRings = kWaterWaveFadeDefault; // config.cfg water_wave_fade_rings
-  OptBoundBoxFit = 0;                           // config.cfg boundbox_fit (1/2 = experimental fit)
+  OptBoundBoxFit = 0;                           // config.cfg boundbox_fit (1 = experimental fit)
   OptBoundBoxFitWin = kBoundBoxFitWinDefault;   // config.cfg boundbox_fit_win
   OptBoundBoxSlope = 0;                         // config.cfg boundbox_slope (1 = sloped-top fit)
 
@@ -911,10 +911,10 @@ static void CreateDefaultConfig()
     "water_wave_fade_rings 8\r\n"
     "\r\n"
     "# ofBOUND collision-box fit (experimental): 0=off (stock axis-aligned\r\n"
-    "# boxes), 1=fit oriented boxes using 0/45-degree candidates, 2=min-area\r\n"
-    "# rectangle (any baked angle). Floor/ceiling heights never change; only\r\n"
-    "# the X/Z footprint does. A fit is used only when its padded footprint\r\n"
-    "# beats the axis-aligned box by boundbox_fit_win percent.\r\n"
+    "# boxes), 1=fit oriented rectangles (any baked angle). Floor/ceiling\r\n"
+    "# heights never change; only the X/Z footprint does. A fit is used only\r\n"
+    "# when its padded footprint beats the axis-aligned box by\r\n"
+    "# boundbox_fit_win percent.\r\n"
     "boundbox_fit 0\r\n"
     "\r\n"
     "# Minimum padded-area win (percent, 0..100) before a fitted collision box\r\n"
@@ -1223,17 +1223,17 @@ static void LoadConfig()
       }
       else if (_stricmp(key, "boundbox_fit") == 0) {
         // Experimental ofBOUND oriented-box fit (see Core/BoundFit.h).
-        // 0 = legacy axis-aligned boxes (stock behaviour); 1 = fit 0/45-degree
-        // oriented boxes; 2 = min-area rectangle (any baked angle).
+        // 0 = legacy axis-aligned boxes (stock behaviour); 1 = oriented
+        // rectangle (any baked angle).
         // Acceptance is controlled by boundbox_fit_win below.
         int mode = 0;
-        if (ParseConfigInt(keyval, 0, 2, mode)) {
+        if (ParseBoundBoxFit(keyval, mode)) {
           OptBoundBoxFit = mode;
           char msg[64];
           sprintf_s(msg, sizeof(msg), "Config: boundbox_fit = %d\n", mode);
           PrintLog(msg);
         } else {
-          PrintLog("Config: boundbox_fit must be 0..2, ignoring.\n");
+          PrintLog("Config: boundbox_fit must be 0 or 1, ignoring.\n");
         }
       }
       else if (_stricmp(key, "boundbox_fit_win") == 0) {
