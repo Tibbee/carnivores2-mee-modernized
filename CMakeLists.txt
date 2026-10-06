@@ -183,6 +183,8 @@ set(CORE_FILES
     Hunt/Debug/Log.cpp
     Hunt/Workbench/TuningSession.h
     Hunt/Workbench/TuningSession.cpp
+    Hunt/Workbench/TuningRuntime.h
+    Hunt/Workbench/TuningRuntime.cpp
     Hunt/Game/TerrainQueries.cpp
     Hunt/Game/Ship.cpp
     Hunt/Game/CommandLine.cpp
@@ -450,6 +452,21 @@ if(MSVC)
     add_test(NAME Carnivores2Tests.MenuResourceContracts
              COMMAND Carnivores2MenuResourceTests)
 
+    # Production tuning adapters linked to the real scalar global storage;
+    # no window, renderer, game launch or licensed assets are required.
+    add_executable(Carnivores2WorkbenchTests
+        tests/test_workbench_runtime.cpp
+        Hunt/Workbench/TuningSession.cpp
+        Hunt/Workbench/TuningRuntime.cpp
+        Hunt/Core/StateDefs.cpp
+    )
+    target_include_directories(Carnivores2WorkbenchTests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt)
+    target_compile_definitions(Carnivores2WorkbenchTests PRIVATE
+        C2_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(Carnivores2WorkbenchTests PRIVATE gtest_main)
+    add_test(NAME Carnivores2Tests.WorkbenchRuntime COMMAND Carnivores2WorkbenchTests)
+
     # Production backend translation units use strict, fault-injectable AL
     # seams: these tests neither require a DLL nor open a playback device.
     add_executable(Carnivores2AudioBackendTests
@@ -539,7 +556,7 @@ endif()
 
 # Apply the project warning policy only to project-owned targets. GoogleTest
 # and vendored loader targets retain their own upstream compiler settings.
-foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests Carnivores2LoaderContractTests Carnivores2PictureLoaderContractTests Carnivores2CommandLineContractTests Carnivores2MenuResourceTests Carnivores2ScriptParserContractTests Carnivores2AudioBackendTests Carnivores2MenuAudioBackendTests)
+foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests Carnivores2LoaderContractTests Carnivores2PictureLoaderContractTests Carnivores2CommandLineContractTests Carnivores2MenuResourceTests Carnivores2ScriptParserContractTests Carnivores2AudioBackendTests Carnivores2MenuAudioBackendTests Carnivores2WorkbenchTests)
     if(TARGET ${C2_TARGET})
         c2_apply_msvc_compile_policy(${C2_TARGET})
     endif()

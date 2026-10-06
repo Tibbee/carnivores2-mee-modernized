@@ -2,6 +2,7 @@
 #include "Core/KeyBindings.h"
 #include "Core/TerrainFog.h"
 #include "Core/UnattendedCapture.h"
+#include "Workbench/TuningRuntime.h"
 #include "stdio.h"
 #ifdef _gl
 #include "Renderer/GLUtils.h"
@@ -1217,7 +1218,6 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     if (UnderwaterDebugMenu)
     {
       char buf[128];
-      float step;
 
       // Tab switching (PgUp/PgDn)
       if (static_cast<int>(wParam) == VK_PRIOR) {  // PgUp
@@ -1234,7 +1234,9 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       }
 
       // Parameter count per tab
-      int paramCount = (UnderwaterDebugTab == 0) ? 7 : (UnderwaterDebugTab == 1) ? 4 : 2;
+      const auto group = UnderwaterDebugTab == 0 ? workbench::Group::Fog :
+        UnderwaterDebugTab == 1 ? workbench::Group::Waves : workbench::Group::Sun;
+      const int paramCount = static_cast<int>(workbench::GroupCount(group));
 
       switch (static_cast<int>(wParam))
       {
@@ -1247,83 +1249,25 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       case VK_LEFT:
       case VK_RIGHT:
       {
-        bool right = (static_cast<int>(wParam) == VK_RIGHT);
-
-        if (UnderwaterDebugTab == 0) {
-          // ── Fog parameters ──
-          float* params[] = { &UWFog_BaseDensityMult, &UWFog_CameraDepthMult, &UWFog_VertRange, &UWFog_VertStrength, &UWFog_CurveExp, &UWFog_CapBase, &UWFog_CapCameraBoost };
-          float* p = params[UnderwaterDebugSelected];
-          if (UnderwaterDebugSelected == 1 || UnderwaterDebugSelected == 3 ||
-              UnderwaterDebugSelected == 5 || UnderwaterDebugSelected == 6) {
-              float addStep = right ? 5.0f : -5.0f;
-              if (UnderwaterDebugSelected == 1) addStep = right ? 0.05f : -0.05f;
-              *p += addStep;
-          } else {
-              step = right ? 1.1f : 0.9f;
-              if (UnderwaterDebugSelected == 4) step = right ? 1.05f : 0.95f;
-              *p *= step;
-          }
-          if (UnderwaterDebugSelected == 0) *p = std::clamp(*p, 0.1f, 3.0f);
-          if (UnderwaterDebugSelected == 1) *p = std::clamp(*p, 0.0f, 2.0f);
-          if (UnderwaterDebugSelected == 2) *p = std::clamp(*p, 50.0f, 4000.0f);
-          if (UnderwaterDebugSelected == 3) *p = std::clamp(*p, 0.0f, 300.0f);
-          if (UnderwaterDebugSelected == 4) *p = std::clamp(*p, 0.5f, 10.0f);
-          if (UnderwaterDebugSelected == 5) *p = std::clamp(*p, 0.0f, 500.0f);
-          if (UnderwaterDebugSelected == 6) *p = std::clamp(*p, 0.0f, 200.0f);
-          const char* names[] = { "BaseDensity", "CamDepthMult", "VertRange", "VertStrength", "CurveExp", "CapBase", "CapCamBoost" };
-          sprintf_s(buf, sizeof(buf), "%s = %.2f", names[UnderwaterDebugSelected], *p);
-        } else if (UnderwaterDebugTab == 1) {
-          // ── Wave parameters ──
-          float* params[] = { &WWave1Amp, &WWave2Amp, &WWave3Amp, &WWaveSpeed };
-          float* p = params[UnderwaterDebugSelected];
-          if (UnderwaterDebugSelected == 3) {
-            // Speed: additive with small step
-            *p += right ? 0.05f : -0.05f;
-          } else {
-            // Amplitudes: multiplicative
-            step = right ? 1.1f : 0.9f;
-            *p *= step;
-          }
-          if (UnderwaterDebugSelected == 0) *p = std::clamp(*p, 0.0f, 120.0f);
-          if (UnderwaterDebugSelected == 1) *p = std::clamp(*p, 0.0f, 60.0f);
-          if (UnderwaterDebugSelected == 2) *p = std::clamp(*p, 0.0f, 30.0f);
-          if (UnderwaterDebugSelected == 3) *p = std::clamp(*p, 0.1f, 4.0f);
-          const char* names[] = { "Wave1Amp", "Wave2Amp", "Wave3Amp", "WaveSpeed" };
-          sprintf_s(buf, sizeof(buf), "%s = %.2f", names[UnderwaterDebugSelected], *p);
+        const bool right = (static_cast<int>(wParam) == VK_RIGHT);
+        const auto parameter = workbench::LegacyParameter(UnderwaterDebugTab, UnderwaterDebugSelected);
+        const auto error = workbench::AdjustLegacyRuntime(parameter, right);
+        if (error == workbench::Error::None) {
+          const auto* descriptor = workbench::FindDescriptor(parameter);
+          const auto values = workbench::ReadRuntimeValues();
+          sprintf_s(buf, sizeof(buf), "%s = %.2f", descriptor->legacyLabel,
+                    values[static_cast<std::size_t>(parameter)]);
+          AddMessage(buf);
         } else {
-          // ── Sun glare parameters (multipliers over computed values) ──
-          float* params[] = { &SunGlare_Master, &SunGlare_Disc };
-          float* p = params[UnderwaterDebugSelected];
-          *p += right ? 0.1f : -0.1f;
-          *p = std::clamp(*p, 0.0f, 2.0f);
-          const char* names[] = { "GlareMaster", "GlareDisc" };
-          sprintf_s(buf, sizeof(buf), "%s = %.2f", names[UnderwaterDebugSelected], *p);
+          sprintf_s(buf, sizeof(buf), "%s", workbench::ErrorMessage(error));
+          AddMessage(buf);
         }
-        AddMessage(buf);
         return 0;
       }
       case 'D':
       case 'd':
-        // Dump all values to log
-        PrintLog("=== UNDERWATER DEBUG VALUES ===\n");
-        PrintLog("--- Fog ---\n");
-        sprintf_s(buf, sizeof(buf), "UWFog_BaseDensityMult = %.2f", UWFog_BaseDensityMult); PrintLog(buf); PrintLog("\n");
-        sprintf_s(buf, sizeof(buf), "UWFog_CameraDepthMult = %.2f", UWFog_CameraDepthMult); PrintLog(buf); PrintLog("\n");
-        sprintf_s(buf, sizeof(buf), "UWFog_VertRange = %.1f", UWFog_VertRange); PrintLog(buf); PrintLog("\n");
-        sprintf_s(buf, sizeof(buf), "UWFog_VertStrength = %.1f", UWFog_VertStrength); PrintLog(buf); PrintLog("\n");
-        sprintf_s(buf, sizeof(buf), "UWFog_CurveExp = %.2f", UWFog_CurveExp); PrintLog(buf); PrintLog("\n");
-        sprintf_s(buf, sizeof(buf), "UWFog_CapBase = %.1f", UWFog_CapBase); PrintLog(buf); PrintLog("\n");
-        sprintf_s(buf, sizeof(buf), "UWFog_CapCameraBoost = %.1f", UWFog_CapCameraBoost); PrintLog(buf); PrintLog("\n");
-        sprintf_s(buf, sizeof(buf), "CameraWaterDepthFactor = %.3f", CameraWaterDepthFactor); PrintLog(buf); PrintLog("\n");
-        PrintLog("--- Waves ---\n");
-        sprintf_s(buf, sizeof(buf), "WWave1Amp = %.2f", WWave1Amp); PrintLog(buf); PrintLog("\n");
-        sprintf_s(buf, sizeof(buf), "WWave2Amp = %.2f", WWave2Amp); PrintLog(buf); PrintLog("\n");
-        sprintf_s(buf, sizeof(buf), "WWave3Amp = %.2f", WWave3Amp); PrintLog(buf); PrintLog("\n");
-        sprintf_s(buf, sizeof(buf), "WWaveSpeed = %.2f", WWaveSpeed); PrintLog(buf); PrintLog("\n");
-        PrintLog("--- Sun glare ---\n");
-        sprintf_s(buf, sizeof(buf), "SunGlare_Master = %.2f", SunGlare_Master); PrintLog(buf); PrintLog("\n");
-        sprintf_s(buf, sizeof(buf), "SunGlare_Disc = %.2f", SunGlare_Disc); PrintLog(buf); PrintLog("\n");
-        PrintLog("=== END DEBUG VALUES ===\n");
+        // Runtime dump only: these names are not supported config keys.
+        workbench::EmitRuntimeDump(PrintLog);
         AddMessage("Values dumped to log!");
         return 0;
       }

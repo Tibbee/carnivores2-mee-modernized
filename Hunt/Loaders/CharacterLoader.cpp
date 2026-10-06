@@ -3,6 +3,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "Workbench/TuningRuntime.h"
 
 // Forward declarations
 void PlaceHunter();
@@ -221,24 +222,11 @@ void ReInitGame()
   CameraWaterDepthFactor = 0.099f;
   UnderwaterDebugMenu = 0;
   UnderwaterDebugSelected = 0;
-  UWFog_VertRange = 1488.6f;       // vertical gradient range (units)
-  UWFog_VertStrength = 85.0f;      // additive fog at max depth
-  UWFog_CurveExp = 1.94f;          // curve exponent
-  UWFog_CapBase = 85.0f;           // soft cap added to FLimit
-  UWFog_CapCameraBoost = 100.0f;   // camera depth boost for cap
-  UWFog_BaseDensityMult = 0.23f;   // base fog density multiplier
-  UWFog_CameraDepthMult = 0.10f;   // Beer-Lambert camera depth multiplier
-
-  // Water wave debug parameters
   UnderwaterDebugTab = 0;
-  WWave1Amp = 14.58f;              // primary swell amplitude
-  WWave2Amp = 8.10f;               // secondary cross-wave amplitude
-  WWave3Amp = 5.00f;               // fine detail amplitude
-  WWaveSpeed = 0.50f;              // time multiplier
-
-  // Sun glare debug parameters (1.0 = stock)
-  SunGlare_Master = 1.0f;         // fullscreen blinding strength
-  SunGlare_Disc = 1.0f;           // sky sun/moon disc alpha
+  // Same compiled values, now owned by the typed registry. Capture only after
+  // reset; old-hunt undo, gestures and comparisons must never survive restart.
+  if (workbench::ResetRuntimeForHunt() != workbench::Error::None)
+    DoHalt("Could not initialize the tuning session.");
 
   PlaceHunter();
   Muzz = false;
