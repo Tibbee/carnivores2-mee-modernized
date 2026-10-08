@@ -530,7 +530,7 @@ void InitEngine()
   OptWaterWaveFadeRings = kWaterWaveFadeDefault; // config.cfg water_wave_fade_rings
   OptBoundBoxFit = 0;                           // config.cfg boundbox_fit (1 = experimental fit)
   OptBoundBoxFitWin = kBoundBoxFitWinDefault;   // config.cfg boundbox_fit_win
-  OptBoundBoxSlope = 0;                         // config.cfg boundbox_slope (1 = sloped-top fit)
+  OptBoundBoxSlope = 0;                         // config.cfg boundbox_slope (1 = sloped surfaces)
 
   OptViewR = kViewOptDefault;
   OptObjectDetail = kObjectDetailDefault;
@@ -921,11 +921,11 @@ static void CreateDefaultConfig()
     "# replaces the axis-aligned one. Keeps stock content as-is.\r\n"
     "boundbox_fit_win 20\r\n"
     "\r\n"
-    "# ofBOUND sloped-top extension (experimental): 0=off (flat box tops,\r\n"
-    "# stock behaviour). 1=fit each part's top as a plane when its top\r\n"
-    "# envelope is near-planar and gentle; ramps and tipped decks become\r\n"
-    "# walkable instead of flat-topped walls. Independent of boundbox_fit;\r\n"
-    "# parts without an accepted plane are unchanged.\r\n"
+    "# ofBOUND sloped surfaces (experimental): 0=off (flat tops/bottoms,\r\n"
+    "# stock behaviour). 1=fit near-planar, gentle top and bottom envelopes\r\n"
+    "# independently: ramps become walkable and tilted slabs preserve\r\n"
+    "# underside clearance. Independent of boundbox_fit; rejected surfaces\r\n"
+    "# keep their legacy flat limits. No new model data is required.\r\n"
     "boundbox_slope 0\r\n"
     "\r\n"
     "# GPU features bitmask (default: all optimizations enabled)\r\n"
@@ -1250,8 +1250,8 @@ static void LoadConfig()
         }
       }
       else if (_stricmp(key, "boundbox_slope") == 0) {
-        // Experimental sloped-top boxes (see Core/BoundFit.h). 0 = legacy flat
-        // tops; 1 = fit a near-planar top plane when the part qualifies.
+        // Experimental sloped surfaces (see Core/BoundFit.h). 0 = legacy
+        // flat limits; 1 = independently fit qualifying top/bottom planes.
         int mode = 0;
         if (ParseConfigInt(keyval, 0, 1, mode)) {
           OptBoundBoxSlope = mode;

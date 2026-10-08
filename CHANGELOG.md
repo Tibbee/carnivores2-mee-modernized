@@ -18,6 +18,27 @@ Draft changes on local `main` after `origin/main` (`9db51ec`); not part of
 the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
 
+### Tilted-slab underside clearance (local preview)
+
+`boundbox_slope 1` now independently fits a part's lower envelope as well
+as its top, using existing model vertices. Wall head-clearance and ceiling
+queries follow an accepted underside plane instead of filling empty space
+beneath a slab down to its lowest vertex. Rejected/flat lower fits keep the
+original minimum; accepted lower planes must stay below the retained top
+throughout the padded footprint. Ceiling queries no longer cap valid model
+heights at 1000 units. No model/map format change or new required config key.
+
+The four object-bound entry points are isolated in `Game/ObjectBounds.cpp`
+so tests can exercise production box generation and wall/floor/ceiling
+queries without launching the game. Flat limits remain the default;
+`boundbox_fit` continues to control the footprint independently.
+
+Release, Shipping, Software and Menu builds pass with 13/13 CTest suites
+each. All 42 focused bounding/surface cases pass, including 20 new cases
+covering actual producers/consumers and ordering/envelope helpers; four
+compiled negative controls fail as expected. In-game underside acceptance
+remains pending; automated geometric checks do not replace owner testing.
+
 ### Collision fitting cleanup (local preview)
 
 Removed the unreleased 0°/45°-only fitting algorithm and renumbered the

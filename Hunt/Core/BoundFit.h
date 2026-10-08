@@ -264,6 +264,69 @@ inline TopPlane FitTopPlane(const float* us, const float* vs, const float* ys, i
     return r;
 }
 
+// Fit the lower envelope using the identical rules reflected in Y. Highest
+// reflected vertices are the original lowest vertices; trimmed top-face
+// fringes cannot pull the underside up, while downward protrusions still
+// fail the residual gate. No new model data is needed.
+inline TopPlane FitBottomPlane(const float* us, const float* vs, const float* ys, int n,
+                               float bucket, float maxResidual, float maxGrade) {
+    if (n < 3) return TopPlane{};
+    std::vector<float> reflected(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) reflected[static_cast<size_t>(i)] = -ys[i];
+    TopPlane r = FitTopPlane(us, vs, reflected.data(), n, bucket, maxResidual, maxGrade);
+    r.c0 = -r.c0;
+    r.gx = -r.gx;
+    r.gz = -r.gz;
+    return r;
+}
+
+// Heights at the footprint centre plus independent gradients along u/v.
+// Zero gradients retain the original flat limits, including failed fits.
+struct SlopedBounds {
+    float y1, y2;
+    float gx = 0.0f, gz = 0.0f;
+    float bottomGx = 0.0f, bottomGz = 0.0f;
+};
+
+// A linear top-minus-bottom difference reaches its minimum at a rectangle
+// corner. Check the entire padded footprint, not just its centre, before
+// accepting an underside; independently fitted planes must never cross.
+inline bool PlanesOrdered(float top, float topGx, float topGz,
+                          float bottom, float bottomGx, float bottomGz,
+                          float a, float b) {
+    const double gap = static_cast<double>(top) - bottom;
+    const double variation = std::fabs(static_cast<double>(topGx) - bottomGx) * a
+                           + std::fabs(static_cast<double>(topGz) - bottomGz) * b;
+    return gap >= variation;
+}
+
+// Producer shared by CalcBoundBox and tests. us/vs are absolute model
+// coordinates in the chosen box frame; centreU/V recenter each fitted plane.
+// Keep the existing top acceptance unchanged. Accept a lower plane
+// independently only when gentle/non-flat and below the retained top over
+// the padded footprint; otherwise keep the legacy minimum y1.
+inline SlopedBounds FitSlopedBounds(const float* us, const float* vs, const float* ys, int n,
+                                    float centreU, float centreV, float a, float b,
+                                    float legacyBottom, float legacyTop) {
+    SlopedBounds r{legacyBottom, legacyTop};
+    const TopPlane top = FitTopPlane(us, vs, ys, n, kSlopeBucket, kSlopeMaxResidual, kSlopeMaxGrade);
+    if (top.ok && std::sqrt(top.gx * top.gx + top.gz * top.gz) >= kSlopeMinGrade) {
+        r.y2 = top.c0 + top.gx * centreU + top.gz * centreV;
+        r.gx = top.gx;
+        r.gz = top.gz;
+    }
+    const TopPlane bottom = FitBottomPlane(us, vs, ys, n, kSlopeBucket, kSlopeMaxResidual, kSlopeMaxGrade);
+    if (bottom.ok && std::sqrt(bottom.gx * bottom.gx + bottom.gz * bottom.gz) >= kSlopeMinGrade) {
+        const float y1 = bottom.c0 + bottom.gx * centreU + bottom.gz * centreV;
+        if (PlanesOrdered(r.y2, r.gx, r.gz, y1, bottom.gx, bottom.gz, a, b)) {
+            r.y1 = y1;
+            r.bottomGx = bottom.gx;
+            r.bottomGz = bottom.gz;
+        }
+    }
+    return r;
+}
+
 // ===================== runtime tests for fitted boxes =====================
 
 inline void MapRotate(float x, float z, int rotIdx, float& outX, float& outZ) {
@@ -296,6 +359,18 @@ inline void LocalOf(float px, float pz, float cellX, float cellZ,
 // height at the box centre; gx/gz the gradient along u/v ((0, 0) = flat top).
 inline float TopAt(float y2, float gx, float gz, float qx, float qy) {
     return y2 + gx * qx + gz * qy;
+}
+
+// Underside height at the same local coordinates as the top. y1 is the
+// bottom's centre height when fitted, otherwise the legacy minimum.
+inline float BottomAt(float y1, float gx, float gz, float qx, float qy) {
+    return y1 + gx * qx + gz * qy;
+}
+
+// Existing player step/head gates, now supplied with position-dependent
+// heights on sloped boxes. Equality continues to count as overlap.
+inline bool WallHeightOverlaps(float top, float bottom, float objectY, float playerY) {
+    return !(top + objectY < playerY + 128.0f || bottom + objectY > playerY + 256.0f);
 }
 
 inline float ClampF(float v, float lo, float hi) {

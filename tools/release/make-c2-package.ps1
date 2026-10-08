@@ -253,11 +253,11 @@ boundbox_fit 0
 # replaces the axis-aligned one. Keeps stock content as-is.
 boundbox_fit_win 20
 
-# ofBOUND sloped-top extension (experimental): 0=off (flat box tops,
-# stock behaviour). 1=fit each part's top as a plane when its top
-# envelope is near-planar and gentle; ramps and tipped decks become
-# walkable instead of flat-topped walls. Independent of boundbox_fit;
-# parts without an accepted plane are unchanged.
+# ofBOUND sloped surfaces (experimental): 0=off (flat tops/bottoms,
+# stock behaviour). 1=fit near-planar, gentle top and bottom envelopes
+# independently: ramps become walkable and tilted slabs preserve
+# underside clearance. Independent of boundbox_fit; rejected surfaces
+# keep their legacy flat limits. No new model data is required.
 boundbox_slope 0
 
 # GPU features bitmask (default: all optimizations enabled)

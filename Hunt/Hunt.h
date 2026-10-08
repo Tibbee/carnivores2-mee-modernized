@@ -87,9 +87,11 @@ static_assert(sizeof(TModel) == 52,
 // TObject: contains TObjInfo + TBound[8] + TBMPModel + model + TVTL + ...
 // Range check catches catastrophic bloat without failing on minor alignment
 // differences across toolchains. x86 size: 328 stock, +64 for the oriented
-// footprint fields (boundbox_fit) and +64 for the sloped-top fields
-// (boundbox_slope) — 2 floats each on TBound[8] — so 456 today.
-static_assert(sizeof(TObject) >= 300 && sizeof(TObject) <= 512,
+// footprint fields (boundbox_fit), +64 for the sloped-top fields and
+// +64 for the independent underside (boundbox_slope) — 2 floats each on
+// TBound[8] — so 520 today. TBound is runtime-only, never read from assets.
+static_assert(sizeof(TBound) == 48, "TBound surface layout changed");
+static_assert(sizeof(TObject) >= 300 && sizeof(TObject) <= 576,
               "TObject size is outside expected range — MObjects[256] "
               "layout has shifted");
 

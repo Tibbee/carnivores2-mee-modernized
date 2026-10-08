@@ -121,6 +121,7 @@ void CalcPhongMapping(TModel* mptr, Vector3d *nv);
 void CalcEnvMapping(TModel* mptr, Vector3d *nv);
 
 void CalcBoundBox(TModel* mptr, TBound *bound);
+void CheckBoundCollision(float &px, float &py, float cx, float cy, float oy, TBound *bound, int angle);
 void  NormVector(Vector3d&, float);
 float SGN(float);
 void  DeltaFunc(float &a, float b, float d);
@@ -212,6 +213,7 @@ float GetLandLt(float x, float y);
 bool waterNear(float x, float y, float maxDist);
 void CalcModelGroundLight(TModel *mptr, float x0, float z0, int FI);
 BOOL PointOnBound(float &H, float px, float py, float cx, float cy, float oy, TBound *bound, int angle);
+BOOL PointUnBound(float &H, float px, float py, float cx, float cy, float oy, TBound *bound, int angle);
 
 // === SHIP SYSTEM ===
 void AddWCircle(float x, float z, float scale);
