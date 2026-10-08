@@ -33,6 +33,17 @@ picking, definition reloads or 1.2 migration behavior. Shipping preview is teste
 and deployed, but owner visual/input acceptance remains pending; no main merge,
 push or release. See the [current workbench guide](docs/LIVE-WORKBENCH.md).
 
+### Workbench atmosphere controls (feature preview, 2026-10-07)
+
+F10 adds Night and Beam tabs for existing night grading/moon controls and
+flashlight intensity/reach/cone angles, plus session-only RGB beam tint. Whole
+numbers and ordered cone pairs are validated, color edits are atomic, and
+loaded reset/comparison/history preserve configured baselines. Scene context
+shows read-only project/time/renderer, water/fog and equipment/requested audio
+state. No equipment grants, new lighting algorithm, config writes or schema;
+legacy D-dump and Software panel retained. Four build/test variants pass.
+Deployment is held to avoid overwriting a different installed collision build.
+
 ### Audio correctness (on local main, 2026-10-05)
 
 Implemented at `66e5f9e` on `fix/audio-system-hardening`, based on collision

@@ -66,7 +66,7 @@ void GLRenderer::ApplyFlashlightUniforms(unsigned int program, bool worldLit)
     if (cached->second.beamValue.shouldUpload(beam))
         glUniform4fv(cached->second.beam, 1, beam.data());
     if (cached->second.color >= 0) {
-        const std::array<float, 3> tint = { kFlashlightColorR, kFlashlightColorG, kFlashlightColorB };
+        const auto& tint = FlashlightTint();
         if (cached->second.colorValue.shouldUpload(tint))
             glUniform3fv(cached->second.color, 1, tint.data());
     }

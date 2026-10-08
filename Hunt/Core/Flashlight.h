@@ -19,6 +19,7 @@
 // pure black surfaces (a purely multiplicative boost cannot lift black).
 
 #include <cmath>
+#include <array>
 
 // Death must suppress both the world beam and flashlight-driven HUD grading,
 // even if a stale toggle remains set. Health is authoritative, not UI mode.
@@ -68,6 +69,13 @@ inline constexpr int kFlashlightIntensityPctMax     = 1000;
 inline constexpr float kFlashlightColorR = 1.0f;
 inline constexpr float kFlashlightColorG = 0.902f;
 inline constexpr float kFlashlightColorB = 0.784f;
+
+// Main-thread session tint; no config key or profile layout change. Default
+// bytes reproduce the original warm beam. Existing shaders already consume RGB.
+inline std::array<float, 3>& FlashlightTint() {
+    static std::array<float, 3> tint{kFlashlightColorR, kFlashlightColorG, kFlashlightColorB};
+    return tint;
+}
 
 // Floor added to beam-lit pixels so genuinely black surfaces still show the
 // light. Without it the multiplicative boost leaves black at black and the

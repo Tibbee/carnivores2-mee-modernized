@@ -5,6 +5,7 @@
 #include <limits>
 #include "Workbench/TuningRuntime.h"
 #include "Core/GameState.h"
+#include "Core/NightLighting.h"
 
 // StateDefs links empty asset holders. No game allocations are permitted in
 // this asset-free executable; satisfy their deleter without linking the engine.
@@ -17,14 +18,26 @@ namespace {
 using namespace workbench;
 class WorkbenchRuntime : public ::testing::Test {
 protected:
-	void SetUp() override { ASSERT_EQ(ResetRuntimeForHunt(), Error::None); }
+	void SetUp() override {
+		NightLightingOptions() = {};
+		OptFlashlightIntensityPct = 500; OptFlashlightRange = 6000;
+		OptFlashlightInnerAngleDeg = 14; OptFlashlightOuterAngleDeg = 26;
+		FlashlightTint() = {1, .902f, .784f};
+		UWFog_BaseDensityMult = 0; // Simulate fresh engine initialization.
+		ASSERT_EQ(ResetRuntimeForHunt(), Error::None);
+	}
 };
 // Deliberately independent of production bindings: wrong/missing/swapped
 // bindings must fail, not validate through the same lookup as the adapter.
 Values Globals() {
 	return {UWFog_BaseDensityMult, UWFog_CameraDepthMult, UWFog_VertRange,
 			UWFog_VertStrength, UWFog_CurveExp, UWFog_CapBase, UWFog_CapCameraBoost,
-			WWave1Amp, WWave2Amp, WWave3Amp, WWaveSpeed, SunGlare_Master, SunGlare_Disc};
+			WWave1Amp, WWave2Amp, WWave3Amp, WWaveSpeed, SunGlare_Master, SunGlare_Disc,
+			static_cast<float>(NightLightingOptions().worldBrightnessPct), static_cast<float>(NightLightingOptions().desaturationPct),
+			static_cast<float>(NightLightingOptions().skyBrightnessPct), static_cast<float>(NightLightingOptions().moonBrightnessPct),
+			static_cast<float>(NightLightingOptions().moonGlowStrengthPct), static_cast<float>(OptFlashlightIntensityPct),
+			static_cast<float>(OptFlashlightRange), static_cast<float>(OptFlashlightInnerAngleDeg), static_cast<float>(OptFlashlightOuterAngleDeg),
+			FlashlightTint()[0], FlashlightTint()[1], FlashlightTint()[2]};
 }
 std::string Source(const char* path) {
 	std::ifstream stream(std::string(C2_SOURCE_ROOT) + "/" + path, std::ios::binary);
@@ -39,12 +52,14 @@ TEST_F(WorkbenchRuntime, CompiledInitializationCapturesTheRealScalarGlobals) {
 TEST_F(WorkbenchRuntime, EachSetterChangesOnlyItsOwnProductionGlobal) {
 	for (const auto& d : Descriptors()) {
 		ASSERT_EQ(ResetRuntimeForHunt(), Error::None);
-		auto expected = Globals(); expected[static_cast<std::size_t>(d.id)] = d.maximum;
+		auto expected = Globals(); const auto before = expected;
+		expected[static_cast<std::size_t>(d.id)] = d.maximum == d.compiledDefault ? d.minimum : d.maximum;
+		if (d.id == Parameter::FlashlightInner) expected[static_cast<std::size_t>(d.id)] = 25;
 		ASSERT_EQ(EditRuntime(d.id, expected[static_cast<std::size_t>(d.id)]), Error::None);
 		EXPECT_TRUE(SameValues(Globals(), expected)) << d.key;
 		EXPECT_TRUE(RuntimeSession().Changed(d.id));
 		EXPECT_EQ(RuntimeSession().ChangedCount(), 1u);
-		ASSERT_EQ(UndoRuntime(), Error::None); EXPECT_TRUE(SameValues(Globals(), CompiledDefaults()));
+		ASSERT_EQ(UndoRuntime(), Error::None); EXPECT_TRUE(SameValues(Globals(), before));
 		ASSERT_EQ(RedoRuntime(), Error::None); EXPECT_TRUE(SameValues(Globals(), expected));
 	}
 }
@@ -168,6 +183,62 @@ TEST_F(WorkbenchRuntime, DumpEmitterPreservesLegacyLogLineEndings) {
 	EXPECT_EQ(emittedDump, expected);
 	EXPECT_EQ(emittedLines, 19);
 	EmitRuntimeDump(nullptr); // Optional/unavailable sink must be safe.
+}
+TEST_F(WorkbenchRuntime, HuntResetRetainsConfiguredBaselinesRatherThanFactoryLighting) {
+	NightLightingOptions().worldBrightnessPct = 35;
+	OptFlashlightRange = 11000; OptFlashlightIntensityPct = 200;
+	OptFlashlightInnerAngleDeg = 10; OptFlashlightOuterAngleDeg = 22;
+	ASSERT_EQ(CaptureRuntimeBaseline(), Error::None); const auto configured = Globals();
+	ASSERT_EQ(EditRuntime(Parameter::NightWorld, 55), Error::None);
+	ASSERT_EQ(EditRuntime(Parameter::FlashlightRange, 15000), Error::None);
+	ASSERT_EQ(EditRuntimeFlashlightColor({.1f, .2f, .3f}), Error::None);
+	ASSERT_EQ(CompareRuntime(true), Error::None);
+	ASSERT_EQ(ResetRuntimeForHunt(), Error::None);
+	EXPECT_EQ(Globals(), configured); EXPECT_FALSE(RuntimeSession().CanUndo());
+	EXPECT_EQ(NightLightingParameters(2, false, NightLightingOptions())[0], .35f);
+}
+TEST_F(WorkbenchRuntime, NewExternalConfigurationAtRestartWinsOverTheOldPreview) {
+	ASSERT_EQ(EditRuntime(Parameter::NightWorld, 55), Error::None);
+	OptFlashlightRange = 12345; // New external/config value, not the tool's snapshot.
+	ASSERT_EQ(ResetRuntimeForHunt(), Error::None);
+	EXPECT_EQ(OptFlashlightRange, 12345); EXPECT_EQ(NightLightingOptions().worldBrightnessPct, 55);
+	EXPECT_EQ(RuntimeSession().Loaded(), Globals()); EXPECT_FALSE(RuntimeSession().CanUndo());
+}
+TEST_F(WorkbenchRuntime, InvalidAtmosphereAndConeEditsPublishNothing) {
+	const auto before = Globals();
+	EXPECT_EQ(EditRuntimeText(Parameter::NightWorld, "55.5"), Error::IntegerRequired);
+	EXPECT_EQ(EditRuntime(Parameter::FlashlightInner, 26), Error::InvalidCone);
+	EXPECT_EQ(EditRuntimeFlashlightColor({.1f, 2, .3f}), Error::OutOfRange);
+	EXPECT_EQ(Globals(), before); EXPECT_FALSE(RuntimeSession().CanUndo());
+	ASSERT_EQ(EditRuntimeFlashlightColor({.1f, .2f, .3f}), Error::None);
+	EXPECT_EQ(FlashlightTint(), (std::array<float, 3>{.1f, .2f, .3f}));
+	ASSERT_EQ(UndoRuntime(), Error::None); EXPECT_EQ(Globals(), before);
+}
+TEST_F(WorkbenchRuntime, ContextCopiesBoundedScalarsWithoutGrantingEquipmentOrMutatingState) {
+	const auto originalProject = std::string(ProjectName);
+	const int day = OptDayNight, underwater = UNDERWATER, fog = CameraFogI, pocket = CAMERAINFOG, env = Env, health = MyHealth;
+	const BOOL equipped = FlashlightMode, on = FlashlightOn, nv = NightVisionOn;
+	std::fill(ProjectName, ProjectName + sizeof(ProjectName), 'x');
+	OptDayNight = 2; UNDERWATER = 1; CameraFogI = 127; CAMERAINFOG = 1; Env = 7;
+	FlashlightMode = FALSE; FlashlightOn = TRUE; NightVisionOn = TRUE; MyHealth = 100;
+	const auto before = Globals(); const auto state = ReadEnvironmentContext();
+	EXPECT_EQ(state.project.size(), sizeof(ProjectName)); EXPECT_EQ(state.timeOfDay, 2);
+	EXPECT_TRUE(state.underwater); EXPECT_FALSE(state.inPocketFog); EXPECT_EQ(state.requestedEnvironment, 8);
+	EXPECT_FALSE(state.flashlightEquipped); EXPECT_TRUE(state.flashlightSwitchedOn);
+	EXPECT_FALSE(state.flashlightIlluminating); EXPECT_TRUE(state.nightVision);
+	EXPECT_EQ(Globals(), before); EXPECT_FALSE(FlashlightMode);
+	strcpy_s(ProjectName, originalProject.c_str()); OptDayNight = day; UNDERWATER = underwater;
+	CameraFogI = fog; CAMERAINFOG = pocket; Env = env; MyHealth = health;
+	FlashlightMode = equipped; FlashlightOn = on; NightVisionOn = nv;
+}
+TEST_F(WorkbenchRuntime, ExistingRendererConsumesLiveLightingAndTintWithoutShaderChanges) {
+	const auto flashlight = Source("Hunt/Renderer/GLFlashlight.cpp");
+	EXPECT_NE(flashlight.find("tint = FlashlightTint()"), std::string::npos);
+	EXPECT_NE(flashlight.find("colorValue.shouldUpload(tint)"), std::string::npos);
+	ASSERT_EQ(EditRuntime(Parameter::NightWorld, 42), Error::None);
+	EXPECT_EQ(NightLightingParameters(2, false, NightLightingOptions())[0], .42f);
+	EXPECT_EQ(NightLightingParameters(1, false, NightLightingOptions())[0], 1);
+	EXPECT_EQ(NightLightingParameters(2, true, NightLightingOptions())[0], 1);
 }
 TEST_F(WorkbenchRuntime, HuntResetAndKeyboardDispatchUseTheProductionAdapter) {
 	const auto loader = Source("Hunt/Loaders/CharacterLoader.cpp");

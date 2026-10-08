@@ -42,7 +42,8 @@ float LegacyReference(int index, float value, bool right) {
 
 TEST(WorkbenchRegistry, InventoryKeysTypesAndPoliciesAreExplicit) {
 	std::set<std::string> keys;
-	ASSERT_EQ(Descriptors().size(), 13u);
+	ASSERT_EQ(Descriptors().size(), 25u);
+	EXPECT_EQ(GroupCount(Group::Night), 5u); EXPECT_EQ(GroupCount(Group::Flashlight), 7u);
 	EXPECT_EQ(GroupCount(Group::Fog), 7u);
 	EXPECT_EQ(GroupCount(Group::Waves), 4u);
 	EXPECT_EQ(GroupCount(Group::Sun), 2u);
@@ -52,17 +53,18 @@ TEST(WorkbenchRegistry, InventoryKeysTypesAndPoliciesAreExplicit) {
 		EXPECT_TRUE(keys.insert(d.key).second);
 		EXPECT_EQ(FindParameter(d.key), d.id);
 		EXPECT_EQ(FindDescriptor(d.id), &d);
-		EXPECT_EQ(d.type, ValueType::Float);
+		EXPECT_EQ(d.type, i < 13 ? ValueType::Float : i < 22 ? ValueType::Integer : ValueType::ColorChannel);
 		EXPECT_EQ(d.scope, Scope::GlobalRuntime);
 		EXPECT_EQ(d.apply, ApplyPolicy::Live);
-		EXPECT_EQ(d.persist, PersistPolicy::RuntimeDumpOnly);
+		EXPECT_EQ(d.persist, i < 13 ? PersistPolicy::RuntimeDumpOnly : i < 22 ? PersistPolicy::RecognizedConfigKey : PersistPolicy::RuntimeOnly);
 		EXPECT_GT(std::string(d.help).size(), 10u);
 		EXPECT_GT(d.sliderStep, 0.f);
 		EXPECT_EQ(Validate(d.id, d.compiledDefault), Error::None);
 	}
 }
 TEST(WorkbenchRegistry, FactoryDefaultsMatchTheFormerReInitGameValuesExactly) {
-	const Values expected{.23f, .10f, 1488.6f, 85.f, 1.94f, 85.f, 100.f, 14.58f, 8.10f, 5.f, .50f, 1.f, 1.f};
+	const Values expected{.23f, .10f, 1488.6f, 85.f, 1.94f, 85.f, 100.f, 14.58f, 8.10f, 5.f, .50f, 1.f, 1.f,
+		22, 85, 60, 128, 100, 500, 6000, 14, 26, 1, .902f, .784f};
 	EXPECT_TRUE(SameValues(expected, CompiledDefaults()));
 }
 TEST(WorkbenchRegistry, UnknownAndOutOfBoundsIdsAreRejected) {
@@ -112,6 +114,7 @@ TEST(WorkbenchRegistry, DecimalParsingIsCompleteAndDoesNotOverwriteOnFailure) {
 }
 TEST(WorkbenchRegistry, LegacyArrowMathIsBitExactAcrossAllFieldsAndEdges) {
 	for (const auto& d : Descriptors()) {
+		if (static_cast<std::size_t>(d.id) >= kLegacyParameterCount) continue;
 		for (float start : {d.minimum, d.maximum, d.compiledDefault, (d.minimum + d.maximum) * .5f}) {
 			for (bool right : {false, true}) {
 				float oldValue = start, newValue = start;
@@ -235,6 +238,45 @@ TEST(WorkbenchSession, RecaptureInvalidatesComparisonHistoryAndOpenGesture) {
 	EXPECT_GT(s.Generation(), generation); EXPECT_FALSE(s.IsComparing()); EXPECT_FALSE(s.CanUndo()); EXPECT_FALSE(s.CanRedo());
 	s.BeginGesture(); s.Edit(Parameter::FogDensity, 1.1f); s.Capture(values); s.EndGesture();
 	EXPECT_FALSE(s.CanUndo()); EXPECT_TRUE(SameValues(s.Effective(), values));
+}
+TEST(WorkbenchAtmosphere, IntegerSettingsRejectFractionsWithoutRoundingOrPublishing) {
+	for (const auto& d : Descriptors()) if (d.type == ValueType::Integer) {
+		SCOPED_TRACE(d.key); auto s = LoadedSession();
+		const auto before = s.Edited(); float parsed = -123;
+		EXPECT_EQ(ParseValue(d.id, "22.00000001", parsed), Error::IntegerRequired);
+		EXPECT_EQ(parsed, -123);
+		EXPECT_EQ(s.Edit(d.id, d.compiledDefault + .5f), Error::IntegerRequired);
+		EXPECT_EQ(s.EditText(d.id, "nan"), Error::NonFinite);
+		EXPECT_EQ(s.Edited(), before); EXPECT_FALSE(s.CanUndo());
+	}
+	float parsed = 0;
+	EXPECT_EQ(ParseValue(Parameter::NightWorld, " +42 ", parsed), Error::None); EXPECT_EQ(parsed, 42);
+	EXPECT_EQ(Validate(Parameter::MoonBrightness, -0.f), Error::IntegerRequired);
+}
+TEST(WorkbenchAtmosphere, ConeEditsAndResetsValidateTheWholePairTransactionally) {
+	auto s = LoadedSession(); const auto before = s.Edited();
+	EXPECT_EQ(s.Edit(Parameter::FlashlightInner, 26), Error::InvalidCone);
+	EXPECT_EQ(s.Edit(Parameter::FlashlightOuter, 14), Error::InvalidCone);
+	EXPECT_EQ(s.Edited(), before); EXPECT_FALSE(s.CanUndo());
+	ASSERT_EQ(s.Edit(Parameter::FlashlightOuter, 60), Error::None);
+	ASSERT_EQ(s.Edit(Parameter::FlashlightInner, 50), Error::None);
+	EXPECT_EQ(s.Reset(Parameter::FlashlightOuter), Error::InvalidCone);
+	ASSERT_EQ(s.ResetGroup(Group::Flashlight), Error::None);
+	EXPECT_EQ(s.Edited(), before);
+	ASSERT_TRUE(s.Undo()); EXPECT_EQ(Value(s.Edited(), Parameter::FlashlightInner), 50);
+	EXPECT_EQ(Value(s.Edited(), Parameter::FlashlightOuter), 60);
+}
+TEST(WorkbenchAtmosphere, ColorIsAnAtomicValidatedReversibleEdit) {
+	auto s = LoadedSession(); const auto before = s.Edited();
+	EXPECT_EQ(s.EditFlashlightColor({.1f, std::numeric_limits<float>::quiet_NaN(), .3f}), Error::NonFinite);
+	EXPECT_EQ(s.EditFlashlightColor({.1f, .2f, 2}), Error::OutOfRange);
+	EXPECT_EQ(s.Edited(), before); EXPECT_FALSE(s.CanUndo());
+	ASSERT_EQ(s.EditFlashlightColor({.1f, .2f, .3f}), Error::None);
+	EXPECT_EQ(s.ChangedCount(), 3u);
+	ASSERT_TRUE(s.Undo()); EXPECT_EQ(s.Edited(), before); EXPECT_FALSE(s.CanUndo());
+	ASSERT_TRUE(s.Redo()); s.Compare(true); EXPECT_EQ(s.Effective(), before);
+	EXPECT_EQ(s.EditFlashlightColor({.4f, .5f, .6f}), Error::Comparing);
+	s.Compare(false); EXPECT_FLOAT_EQ(Value(s.Effective(), Parameter::FlashlightBlue), .3f);
 }
 TEST(WorkbenchSession, InvalidBaselineCannotLeaveAnOldHuntSessionUsable) {
 	auto s = LoadedSession(); s.Edit(Parameter::FogDensity, 1.f);

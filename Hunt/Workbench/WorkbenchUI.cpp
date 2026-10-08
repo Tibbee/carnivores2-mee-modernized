@@ -52,6 +52,7 @@ void ClearUIInput() {
 	if (!context) return;
 	SelectContext();
 	ImGui::ClearActiveID();
+	ImGui::ClosePopupsOverWindow(nullptr, false); // Tint picker cannot survive an ownership/generation change.
 	// Also clear the Win32 backend's drag mask. Clearing only ImGuiIO would
 	// leave a held click/capture alive after F8, closing or focus loss.
 	if (attached) {
@@ -132,6 +133,9 @@ void ConfigureStyle() {
 	style.Colors[ImGuiCol_WindowBg] = ImVec4(.208f, .235f, .235f, .97f);
 	style.Colors[ImGuiCol_TitleBg] = style.Colors[ImGuiCol_TitleBgActive] = ImVec4(.27f, .318f, .322f, 1);
 	style.Colors[ImGuiCol_FrameBg] = ImVec4(.27f, .318f, .322f, 1);
+	style.Colors[ImGuiCol_FrameBgHovered] = style.Colors[ImGuiCol_HeaderHovered] = ImVec4(.44f, .48f, .38f, 1);
+	style.Colors[ImGuiCol_FrameBgActive] = style.Colors[ImGuiCol_HeaderActive] = ImVec4(.55f, .49f, .32f, 1);
+	style.Colors[ImGuiCol_Header] = ImVec4(.36f, .41f, .35f, 1);
 	style.Colors[ImGuiCol_Button] = ImVec4(.36f, .41f, .35f, 1);
 	style.Colors[ImGuiCol_ButtonHovered] = ImVec4(.44f, .48f, .38f, 1);
 	style.Colors[ImGuiCol_ButtonActive] = ImVec4(.55f, .49f, .32f, 1);
@@ -156,8 +160,18 @@ void DrawField(const Descriptor& descriptor) {
 	ImGui::BeginDisabled(comparing || boundary.Mode() == InputMode::Test);
 	float value = RuntimeSession().Effective()[index];
 	ImGui::SetNextItemWidth((std::max)(80.0f, ImGui::GetContentRegionAvail().x - 135 * uiScale));
-	const bool changed = ImGui::SliderFloat("##slider", &value, descriptor.minimum, descriptor.maximum,
-		"%.5g", ImGuiSliderFlags_NoInput | ImGuiSliderFlags_AlwaysClamp | ImGuiSliderFlags_NoRoundToFormat);
+	bool changed = false;
+	if (descriptor.type == ValueType::Integer) {
+		int integer = static_cast<int>(value), minimum = static_cast<int>(descriptor.minimum), maximum = static_cast<int>(descriptor.maximum);
+		const auto effective = RuntimeSession().Effective();
+		if (descriptor.id == Parameter::FlashlightInner) maximum = static_cast<int>(effective[static_cast<std::size_t>(Parameter::FlashlightOuter)]) - 1;
+		if (descriptor.id == Parameter::FlashlightOuter) minimum = static_cast<int>(effective[static_cast<std::size_t>(Parameter::FlashlightInner)]) + 1;
+		changed = ImGui::SliderInt("##slider", &integer, minimum, maximum, "%d", ImGuiSliderFlags_NoInput | ImGuiSliderFlags_AlwaysClamp);
+		value = static_cast<float>(integer);
+	} else {
+		changed = ImGui::SliderFloat("##slider", &value, descriptor.minimum, descriptor.maximum,
+			"%.5g", ImGuiSliderFlags_NoInput | ImGuiSliderFlags_AlwaysClamp | ImGuiSliderFlags_NoRoundToFormat);
+	}
 	ProbeItem("slider", static_cast<int>(index));
 	if (ImGui::IsItemActivated()) Result(BeginRuntimeGesture());
 	if (changed) { Result(EditRuntime(descriptor.id, value)); input.dirty = false; input.error = Error::None; }
@@ -177,6 +191,9 @@ void DrawField(const Descriptor& descriptor) {
 		if (input.error == Error::None) input.dirty = false;
 	}
 	ImGui::TextDisabled("Loaded %.5g %s", RuntimeSession().Loaded()[index], descriptor.unit);
+	if (descriptor.group == Group::Night || descriptor.group == Group::Flashlight) {
+		ImGui::TextDisabled("Live / existing config key / no file writes");
+	}
 	ImGui::SameLine();
 	if (ImGui::SmallButton("Reset")) {
 		Result(EndRuntimeGesture()); Result(ResetRuntime(descriptor.id));
@@ -196,6 +213,44 @@ void DrawField(const Descriptor& descriptor) {
 	}
 	ImGui::Separator();
 	ImGui::PopID();
+}
+void DrawBeamColor() {
+	if (!RuntimeSession().IsLoaded()) return;
+	const auto index = static_cast<std::size_t>(Parameter::FlashlightRed);
+	const auto values = RuntimeSession().Effective(), loaded = RuntimeSession().Loaded();
+	std::array<float, 3> color{values[index], values[index + 1], values[index + 2]};
+	ImGui::TextUnformatted("Beam tint (linear RGB)");
+	ImGui::BeginDisabled(RuntimeSession().IsComparing());
+	const bool changed = ImGui::ColorEdit3("##beamTint", color.data(), ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoOptions);
+	ProbeItem("color", static_cast<int>(index));
+	if (ImGui::IsItemActivated()) Result(BeginRuntimeGesture());
+	if (changed) Result(EditRuntimeFlashlightColor(color));
+	if (ImGui::IsItemDeactivatedAfterEdit()) Result(EndRuntimeGesture());
+	ImGui::TextDisabled("Loaded %.3f / %.3f / %.3f", loaded[index], loaded[index + 1], loaded[index + 2]);
+	if (ImGui::SmallButton("Reset tint")) {
+		Result(EndRuntimeGesture()); Result(EditRuntimeFlashlightColor({loaded[index], loaded[index + 1], loaded[index + 2]}));
+	}
+	ProbeItem("color_reset", static_cast<int>(index));
+	ImGui::EndDisabled();
+	ImGui::TextWrapped("Live / session tint only. No config key; original warm tint is the loaded baseline.");
+	ImGui::Separator();
+}
+void DrawSceneContext() {
+	if (!ImGui::CollapsingHeader("Scene context (read-only)")) return;
+	const auto state = ReadEnvironmentContext();
+	ImGui::TextWrapped("Project: %s", state.project.empty() ? "unavailable" : state.project.c_str());
+	const char* time = state.timeOfDay == 0 ? "Dawn" : state.timeOfDay == 1 ? "Day" : state.timeOfDay == 2 ? "Night" : "Unknown";
+	ImGui::Text("Time: %s (%d) / renderer: OpenGL", time, state.timeOfDay);
+	ImGui::Text("Fog index: %d / pocket fog: %s", state.fogIndex, state.inPocketFog ? "inside" : "outside");
+	ImGui::Text("Requested audio environment: %d%s", state.requestedEnvironment, state.requestedEnvironment == 7 ? " (dry)" : "");
+	ImGui::TextDisabled("Last control-state request; not audio backend confirmation.");
+	ImGui::BeginDisabled();
+	bool underwater = state.underwater, nightVision = state.nightVision;
+	bool equipped = state.flashlightEquipped, on = state.flashlightSwitchedOn;
+	ImGui::Checkbox("Underwater", &underwater); ImGui::SameLine(); ImGui::Checkbox("Night vision", &nightVision);
+	ImGui::Checkbox("Flashlight equipped", &equipped); ImGui::SameLine(); ImGui::Checkbox("Switched on", &on);
+	ImGui::EndDisabled();
+	ImGui::TextDisabled("Beam currently illuminating: %s", state.flashlightIlluminating ? "yes" : "no");
 }
 void DrawInspector() {
 	auto& io = ImGui::GetIO();
@@ -236,28 +291,39 @@ void DrawInspector() {
 				ImGui::EndDisabled();
 				ImGui::TextDisabled("%zu changed; %s", RuntimeSession().ChangedCount(), RuntimeSession().IsComparing() ? "previewing loaded" : "previewing edited");
 			}
-			for (const auto group : {Group::Fog, Group::Waves, Group::Sun}) {
+			DrawSceneContext();
+			for (const auto group : {Group::Fog, Group::Waves, Group::Sun, Group::Night, Group::Flashlight}) {
 				if (group != Group::Fog) ImGui::SameLine();
-				if (ImGui::RadioButton(group == Group::Fog ? "Fog" : group == Group::Waves ? "Waves" : "Sun", group == selectedGroup)) {
+				const char* label = group == Group::Fog ? "Fog" : group == Group::Waves ? "Waves" : group == Group::Sun ? "Sun" : group == Group::Night ? "Night" : "Beam";
+				if (ImGui::RadioButton(label, group == selectedGroup)) {
 					Result(EndRuntimeGesture()); selectedGroup = group;
 				}
 				ProbeItem("group", static_cast<int>(group));
 			}
 			ImGui::Separator();
-			for (const auto& descriptor : Descriptors()) if (descriptor.group == selectedGroup) DrawField(descriptor);
+			if (selectedGroup == Group::Night) {
+				const auto state = ReadEnvironmentContext();
+				ImGui::TextWrapped(state.timeOfDay == 2 ? "Live at night; night vision bypasses world/sky grading." : "Live settings; world/sky/moon effects apply during a night hunt.");
+			}
+			if (selectedGroup == Group::Flashlight) {
+				ImGui::TextWrapped("Live beam settings; equipment, switch and living hunter are required. The tool does not grant equipment.");
+				DrawBeamColor();
+			}
+			for (const auto& descriptor : Descriptors())
+				if (descriptor.group == selectedGroup && descriptor.type != ValueType::ColorChannel) DrawField(descriptor);
 			ImGui::BeginDisabled(!RuntimeSession().IsLoaded() || RuntimeSession().IsComparing());
 			if (ImGui::Button("Reset group")) { Result(EndRuntimeGesture()); Result(ResetRuntimeGroup(selectedGroup)); fields = {}; }
 			ImGui::SameLine();
 			if (ImGui::Button("Reset all")) { Result(EndRuntimeGesture()); Result(ResetRuntimeAll()); fields = {}; }
 			ImGui::EndDisabled();
-			if (ImGui::Button("Dump runtime to log (D)")) EmitRuntimeDump(logSink);
+			if (ImGui::Button("Dump legacy tuning to log (D)")) EmitRuntimeDump(logSink);
 			if (showChanges && RuntimeSession().IsLoaded()) {
 				ImGui::Separator();
 				for (const auto& d : Descriptors()) if (RuntimeSession().Changed(d.id)) {
 					const auto i = static_cast<std::size_t>(d.id);
 					ImGui::TextWrapped("%s: %.6g -> %.6g", d.key, RuntimeSession().Loaded()[i], RuntimeSession().Edited()[i]);
 				}
-				ImGui::TextWrapped("Live runtime only. Dump names are not recognized config keys; closing keeps edits, not files.");
+				ImGui::TextWrapped("Session edits only; closing does not save files. Night/beam scalar keys already exist in config; legacy tuning/tint identifiers do not.");
 			}
 			if (lastError != Error::None) ImGui::TextWrapped("%s", ErrorMessage(lastError));
 		}

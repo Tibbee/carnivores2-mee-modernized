@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <winsock2.h>
 #include <windows.h>
 #include <glad/glad.h>
 #include <imgui.h>
@@ -8,7 +9,8 @@
 #include <map>
 #include <string>
 #include <vector>
-#include "Core/GameMode.h"
+#include "Core/GameState.h"
+#include "Core/NightLighting.h"
 #include "Workbench/WorkbenchUI.h"
 #include "Workbench/TuningRuntime.h"
 
@@ -92,6 +94,11 @@ protected:
 		ASSERT_TRUE(wglMakeCurrent(dc, context));
 		glLibrary = LoadLibraryA("opengl32.dll"); ASSERT_NE(glLibrary, nullptr);
 		ASSERT_TRUE(gladLoadGLLoader(LoadGL));
+		NightLightingOptions() = {};
+		OptFlashlightIntensityPct = 500; OptFlashlightRange = 6000;
+		OptFlashlightInnerAngleDeg = 14; OptFlashlightOuterAngleDeg = 26;
+		FlashlightTint() = {1, .902f, .784f};
+		UWFog_BaseDensityMult = 0; // Fresh engine initialization, not an old preview.
 		ASSERT_EQ(workbench::ResetRuntimeForHunt(), workbench::Error::None);
 		captureChanges = 0;
 		ASSERT_TRUE(workbench::InitializeUI(window, CaptureSeam, nullptr));
@@ -125,15 +132,15 @@ protected:
 		io.AddMouseButtonEvent(0, true); workbench::RenderUI(); workbench::RenderUI();
 		io.AddMouseButtonEvent(0, false); workbench::RenderUI();
 	}
-	void BeginExactDraft(const char* text) {
-		Click("exact", 0);
+	void BeginExactDraft(const char* text, int parameter = 0) {
+		Click("exact", parameter);
 		auto& io = ImGui::GetIO();
 		io.AddKeyEvent(ImGuiMod_Ctrl, true); io.AddKeyEvent(ImGuiKey_A, true); workbench::RenderUI();
 		io.AddKeyEvent(ImGuiKey_A, false); io.AddKeyEvent(ImGuiMod_Ctrl, false);
 		io.AddInputCharactersUTF8(text); workbench::RenderUI(); workbench::RenderUI();
 	}
-	void TypeExact(const char* text) {
-		BeginExactDraft(text);
+	void TypeExact(const char* text, int parameter = 0) {
+		BeginExactDraft(text, parameter);
 		auto& io = ImGui::GetIO();
 		io.AddKeyEvent(ImGuiKey_Enter, true); workbench::RenderUI();
 		io.AddKeyEvent(ImGuiKey_Enter, false); workbench::RenderUI();
@@ -352,11 +359,72 @@ TEST_F(WorkbenchGPU, ShellTransitionsPreserveGameOverlayAndPauseState) {
 	g_GameMode = originalMode; g_SavedOverlayMode = originalSaved;
 	EXPECT_EQ(glGetError(), GL_NO_ERROR);
 }
+TEST_F(WorkbenchGPU, NewNightAndBeamIntegerWidgetsApplyExactlyAndRejectFractionsAndInvalidCones) {
+	Open(); workbench::RenderUI(); workbench::RenderUI();
+	Click("group", static_cast<int>(workbench::Group::Night));
+	for (int parameter = 13; parameter < 18; ++parameter) EXPECT_TRUE(rectangles.count({"exact", parameter}));
+	TypeExact("42", 13); EXPECT_EQ(NightLightingOptions().worldBrightnessPct, 42);
+	TypeExact("42.0000001", 13); EXPECT_EQ(NightLightingOptions().worldBrightnessPct, 42);
+	Click("compare"); EXPECT_EQ(NightLightingOptions().worldBrightnessPct, 22);
+	Click("compare"); EXPECT_EQ(NightLightingOptions().worldBrightnessPct, 42);
+	Click("undo"); EXPECT_EQ(NightLightingOptions().worldBrightnessPct, 22);
+	Click("redo"); EXPECT_EQ(NightLightingOptions().worldBrightnessPct, 42);
+	Click("reset", 13); EXPECT_EQ(NightLightingOptions().worldBrightnessPct, 22);
+	Click("group", static_cast<int>(workbench::Group::Flashlight));
+	EXPECT_TRUE(rectangles.count({"color", 22}));
+	for (int parameter = 18; parameter < 22; ++parameter) EXPECT_TRUE(rectangles.count({"exact", parameter}));
+	TypeExact("700", 18); EXPECT_EQ(OptFlashlightIntensityPct, 700);
+	TypeExact("26", 20); EXPECT_EQ(OptFlashlightInnerAngleDeg, 14); EXPECT_EQ(OptFlashlightOuterAngleDeg, 26);
+	EXPECT_EQ(glGetError(), GL_NO_ERROR);
+}
+TEST_F(WorkbenchGPU, RealColorWidgetEditsAndResetsTheExistingBeamTint) {
+	Open(); workbench::RenderUI(); workbench::RenderUI();
+	Click("group", static_cast<int>(workbench::Group::Flashlight));
+	const auto rect = rectangles.at({"color", 22}); auto& io = ImGui::GetIO();
+	io.AddKeyEvent(ImGuiMod_Ctrl, true); workbench::RenderUI(); // Ctrl-click opens DragFloat's exact editor.
+	io.AddMousePosEvent(rect[0] + 35, (rect[1] + rect[3]) / 2); io.AddMouseButtonEvent(0, true);
+	workbench::RenderUI(); workbench::RenderUI(); io.AddMouseButtonEvent(0, false); workbench::RenderUI();
+	io.AddKeyEvent(ImGuiMod_Ctrl, true); io.AddKeyEvent(ImGuiKey_A, true); workbench::RenderUI();
+	io.AddKeyEvent(ImGuiKey_A, false); io.AddKeyEvent(ImGuiMod_Ctrl, false);
+	io.AddInputCharactersUTF8("0.125"); workbench::RenderUI(); workbench::RenderUI();
+	io.AddKeyEvent(ImGuiKey_Enter, true); workbench::RenderUI();
+	io.AddKeyEvent(ImGuiKey_Enter, false); workbench::RenderUI();
+	EXPECT_FLOAT_EQ(FlashlightTint()[0], .125f);
+	Click("undo"); EXPECT_FLOAT_EQ(FlashlightTint()[0], 1);
+	Click("redo"); EXPECT_FLOAT_EQ(FlashlightTint()[0], .125f);
+	Click("color_reset", 22); EXPECT_EQ(FlashlightTint(), (std::array<float, 3>{1, .902f, .784f}));
+	EXPECT_EQ(glGetError(), GL_NO_ERROR);
+}
+TEST_F(WorkbenchGPU, TintPickerClosesAcrossModeFocusAndHuntGenerationChanges) {
+	Open(); workbench::RenderUI(); workbench::RenderUI();
+	Click("group", static_cast<int>(workbench::Group::Flashlight));
+	const auto openPicker = [&] {
+		const auto rect = rectangles.at({"color", 22}); auto& io = ImGui::GetIO();
+		io.AddMousePosEvent(rect[2] - 10, (rect[1] + rect[3]) / 2); io.AddMouseButtonEvent(0, true);
+		workbench::RenderUI(); workbench::RenderUI();
+		io.AddMouseButtonEvent(0, false); workbench::RenderUI();
+	};
+	const auto anyPopup = [] { return ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel); };
+	openPicker(); ASSERT_TRUE(anyPopup());
+	workbench::HandleUIMessage(window, WM_KEYDOWN, VK_F8, 0, true);
+	EXPECT_FALSE(anyPopup()); workbench::RenderUI();
+	workbench::HandleUIMessage(window, WM_KEYDOWN, VK_ESCAPE, 0, true); workbench::RenderUI();
+	openPicker(); ASSERT_TRUE(anyPopup());
+	workbench::NotifyUIFocus(false); workbench::NotifyUIFocus(true); EXPECT_FALSE(anyPopup()); workbench::RenderUI();
+	openPicker(); ASSERT_TRUE(anyPopup());
+	ASSERT_EQ(workbench::ResetRuntimeForHunt(), workbench::Error::None);
+	workbench::RenderUI(); EXPECT_FALSE(anyPopup()); EXPECT_EQ(glGetError(), GL_NO_ERROR);
+}
 TEST_F(WorkbenchGPU, OptionalSyntheticInspectorScreenshot) {
 	Open(); workbench::RenderUI(); workbench::RenderUI();
 	EXPECT_FALSE(IsWindowVisible(window));
+	if (const char* group = std::getenv("C2_WORKBENCH_SCREENSHOT_GROUP")) {
+		const int selected = std::atoi(group);
+		if (selected >= 0 && selected < 5) Click("group", selected);
+	}
 	const char* output = std::getenv("C2_WORKBENCH_SCREENSHOT");
 	if (!output) return;
+	glClear(GL_COLOR_BUFFER_BIT); workbench::RenderUI(); // Clean synthetic backdrop, not accumulated old UI frames.
 	std::vector<unsigned char> pixels(2560 * 1440 * 4);
 	glPixelStorei(GL_PACK_ALIGNMENT, 1); glReadBuffer(GL_BACK);
 	glReadPixels(0, 0, 2560, 1440, GL_BGRA, GL_UNSIGNED_BYTE, pixels.data());

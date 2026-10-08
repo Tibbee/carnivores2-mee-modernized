@@ -14,20 +14,24 @@ enum class Parameter : std::size_t {
 	FogCurve, FogCap, FogCameraCap,
 	WavePrimary, WaveCross, WaveDetail, WaveSpeed,
 	SunGlare, CelestialDisc,
+	NightWorld, NightDesaturation, NightSky, MoonBrightness, MoonGlow,
+	FlashlightIntensity, FlashlightRange, FlashlightInner, FlashlightOuter,
+	FlashlightRed, FlashlightGreen, FlashlightBlue,
 	Count
 };
-enum class Group { Fog, Waves, Sun };
-enum class ValueType { Float };
+enum class Group { Fog, Waves, Sun, Night, Flashlight };
+enum class ValueType { Float, Integer, ColorChannel };
 enum class Scope { GlobalRuntime };
 enum class ApplyPolicy { Live };
-enum class PersistPolicy { RuntimeDumpOnly };
+enum class PersistPolicy { RuntimeDumpOnly, RecognizedConfigKey, RuntimeOnly };
 enum class LegacyAdjustment { Multiply, Add };
 enum class Error {
 	None, UnknownParameter, NotLoaded, Blank, InvalidNumber, NonFinite,
-	OutOfRange, Comparing, RuntimeChanged
+	OutOfRange, Comparing, RuntimeChanged, IntegerRequired, InvalidCone
 };
 
 constexpr std::size_t kParameterCount = static_cast<std::size_t>(Parameter::Count);
+constexpr std::size_t kLegacyParameterCount = 13;
 constexpr std::size_t kHistoryLimit = 128;
 using Values = std::array<float, kParameterCount>;
 
@@ -63,6 +67,7 @@ const char* ErrorMessage(Error error);
 bool SameValue(float a, float b);
 bool SameValues(const Values& a, const Values& b);
 Error Validate(Parameter id, float value);
+Error ValidateValues(const Values& values);
 Error ParseValue(Parameter id, std::string_view text, float& value);
 Error LegacyAdjustedValue(Parameter id, float current, bool increase, float& value);
 
@@ -83,6 +88,7 @@ public:
 
 	Error Edit(Parameter id, float value);
 	Error EditText(Parameter id, std::string_view text);
+	Error EditFlashlightColor(const std::array<float, 3>& color);
 	Error Reset(Parameter id);
 	Error ResetGroup(Group group);
 	Error ResetAll();

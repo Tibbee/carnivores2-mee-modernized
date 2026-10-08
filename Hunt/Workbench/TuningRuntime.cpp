@@ -1,4 +1,6 @@
 #include <cstdio>
+#include <algorithm>
+#include "Core/NightLighting.h"
 #include "TuningRuntime.h"
 #include "Core/GameState.h"
 
@@ -7,14 +9,22 @@ namespace {
 Session session;
 // Parameter enum order is covered against these production globals by native
 // adapter tests. Storage is process-lifetime scalar state, not level resources.
-const std::array<float*, kParameterCount> bindings{{
+const std::array<float*, kLegacyParameterCount> bindings{{
 	&UWFog_BaseDensityMult, &UWFog_CameraDepthMult, &UWFog_VertRange,
 	&UWFog_VertStrength, &UWFog_CurveExp, &UWFog_CapBase, &UWFog_CapCameraBoost,
 	&WWave1Amp, &WWave2Amp, &WWave3Amp, &WWaveSpeed,
 	&SunGlare_Master, &SunGlare_Disc
 }};
+const std::array<int*, 9> integerBindings{{
+	&NightLightingOptions().worldBrightnessPct, &NightLightingOptions().desaturationPct,
+	&NightLightingOptions().skyBrightnessPct, &NightLightingOptions().moonBrightnessPct,
+	&NightLightingOptions().moonGlowStrengthPct, &OptFlashlightIntensityPct,
+	&OptFlashlightRange, &OptFlashlightInnerAngleDeg, &OptFlashlightOuterAngleDeg
+}};
 void WriteRuntimeValues(const Values& values) {
-	for (std::size_t i = 0; i < values.size(); ++i) *bindings[i] = values[i];
+	for (std::size_t i = 0; i < bindings.size(); ++i) *bindings[i] = values[i];
+	for (std::size_t i = 0; i < integerBindings.size(); ++i) *integerBindings[i] = static_cast<int>(values[kLegacyParameterCount + i]);
+	for (std::size_t i = 0; i < 3; ++i) FlashlightTint()[i] = values[static_cast<std::size_t>(Parameter::FlashlightRed) + i];
 }
 Error CheckCurrent() {
 	if (!session.IsLoaded()) return Error::NotLoaded;
@@ -38,16 +48,39 @@ const Session& RuntimeSession() { return session; }
 Error SynchronizeRuntimeSession() { return CheckCurrent(); }
 Values ReadRuntimeValues() {
 	Values values{};
-	for (std::size_t i = 0; i < values.size(); ++i) values[i] = *bindings[i];
+	for (std::size_t i = 0; i < bindings.size(); ++i) values[i] = *bindings[i];
+	for (std::size_t i = 0; i < integerBindings.size(); ++i) values[kLegacyParameterCount + i] = static_cast<float>(*integerBindings[i]);
+	for (std::size_t i = 0; i < 3; ++i) values[static_cast<std::size_t>(Parameter::FlashlightRed) + i] = FlashlightTint()[i];
 	return values;
 }
 Error CaptureRuntimeBaseline() { return session.Capture(ReadRuntimeValues()); }
 Error ResetRuntimeForHunt() {
-	WriteRuntimeValues(CompiledDefaults());
+	auto values = ReadRuntimeValues();
+	// Preserve freshly loaded/external configuration. Only undo this session's
+	// atmosphere preview when it still owns the effective runtime snapshot.
+	if (session.IsLoaded() && SameValues(values, session.Effective())) values = session.Loaded();
+	const auto defaults = CompiledDefaults();
+	for (std::size_t i = 0; i < kLegacyParameterCount; ++i) values[i] = defaults[i];
+	if (const auto error = ValidateValues(values); error != Error::None) { session.Invalidate(); return error; }
+	WriteRuntimeValues(values);
 	return CaptureRuntimeBaseline();
 }
 Error EditRuntime(Parameter id, float value) { return Mutate([&] { return session.Edit(id, value); }); }
 Error EditRuntimeText(Parameter id, std::string_view text) { return Mutate([&] { return session.EditText(id, text); }); }
+Error EditRuntimeFlashlightColor(const std::array<float, 3>& color) {
+	return Mutate([&] { return session.EditFlashlightColor(color); });
+}
+EnvironmentContext ReadEnvironmentContext() {
+	EnvironmentContext state;
+	state.project.assign(ProjectName, std::find(ProjectName, ProjectName + sizeof(ProjectName), '\0'));
+	state.timeOfDay = OptDayNight; state.fogIndex = CameraFogI;
+	state.underwater = IsUnderwater(); state.inPocketFog = CAMERAINFOG != 0 && !state.underwater;
+	state.requestedEnvironment = state.underwater ? 8 : Env;
+	state.nightVision = NightVisionOn != 0;
+	state.flashlightEquipped = FlashlightMode != 0; state.flashlightSwitchedOn = FlashlightOn != 0;
+	state.flashlightIlluminating = FlashlightShouldIlluminate(FlashlightMode, FlashlightOn, OptFlashlightIntensityPct, MyHealth);
+	return state;
+}
 Error AdjustLegacyRuntime(Parameter id, bool increase) {
 	if (!FindDescriptor(id)) return Error::UnknownParameter;
 	return Mutate([&] {

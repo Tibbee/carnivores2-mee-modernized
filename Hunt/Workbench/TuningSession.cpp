@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <charconv>
 #include <cstring>
+#include <cmath>
 #include <system_error>
 
 namespace workbench {
@@ -47,7 +48,43 @@ const std::array<Descriptor, kParameterCount> registry{{
 	 0.f, 2.f, .01f, 1.f, LegacyAdjustment::Add, .1f, -.1f, 2},
 	{Parameter::CelestialDisc, Group::Sun, "Sun / moon disc", "SunGlare_Disc", "GlareDisc", "multiplier",
 	 "Scales the sky disc opacity, independently of moon RGB brightness and glow.",
-	 0.f, 2.f, .01f, 1.f, LegacyAdjustment::Add, .1f, -.1f, 2}
+	 0.f, 2.f, .01f, 1.f, LegacyAdjustment::Add, .1f, -.1f, 2},
+	{Parameter::NightWorld, Group::Night, "World brightness", "night_world_brightness", "", "%",
+	 "Live at night. Night vision bypasses this world grading; does not alter daytime lighting.",
+	 5, 100, 1, 22, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::NightDesaturation, Group::Night, "World desaturation", "night_desaturation", "", "%",
+	 "Live night world/sky desaturation. Zero retains color; night vision keeps its own presentation.",
+	 0, 100, 1, 85, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::NightSky, Group::Night, "Sky brightness", "night_sky_brightness", "", "%",
+	 "Live night sky gain. Does not change the time of day or daytime sky.",
+	 5, 100, 1, 60, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::MoonBrightness, Group::Night, "Moon disc brightness", "night_moon_brightness", "", "%",
+	 "Live moon-only RGB gain, separate from opacity, visibility fades and halo.",
+	 0, 1000, 1, 128, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::MoonGlow, Group::Night, "Moon halo strength", "night_moon_glow_strength", "", "%",
+	 "Live night halo multiplier; 100 is the original halo, zero disables it. Daytime sun is unchanged.",
+	 0, 1000, 1, 100, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::FlashlightIntensity, Group::Flashlight, "Beam intensity", "flashlight_intensity", "", "%",
+	 "Live beam gain. Zero disables illumination; requires purchased equipment, switch on and a living hunter.",
+	 0, 1000, 1, 500, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::FlashlightRange, Group::Flashlight, "Beam reach", "flashlight_range", "", "world units",
+	 "Live beam range; 256 world units is one terrain cell. Existing attenuation math is unchanged.",
+	 256, 60000, 1, 6000, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::FlashlightInner, Group::Flashlight, "Inner half-angle", "flashlight_inner_angle", "", "degrees",
+	 "Live full-strength cone. Must stay at least one degree below the outer half-angle; invalid pairs are rejected.",
+	 1, 90, 1, 14, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::FlashlightOuter, Group::Flashlight, "Outer half-angle", "flashlight_outer_angle", "", "degrees",
+	 "Live cone falloff edge. Must stay at least one degree above the inner half-angle.",
+	 1, 90, 1, 26, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::FlashlightRed, Group::Flashlight, "Beam tint / red", "runtime.flashlight_tint_r", "", "linear RGB",
+	 "Session-only RGB tint for the existing beam. No recognized config key or automatic save.",
+	 0, 1, .01f, 1, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::ColorChannel, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RuntimeOnly},
+	{Parameter::FlashlightGreen, Group::Flashlight, "Beam tint / green", "runtime.flashlight_tint_g", "", "linear RGB",
+	 "Session-only green beam channel; the loaded warm tint remains the reset baseline.",
+	 0, 1, .01f, .902f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::ColorChannel, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RuntimeOnly},
+	{Parameter::FlashlightBlue, Group::Flashlight, "Beam tint / blue", "runtime.flashlight_tint_b", "", "linear RGB",
+	 "Session-only blue beam channel; no shader algorithm, equipment or AI-hearing change.",
+	 0, 1, .01f, .784f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::ColorChannel, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RuntimeOnly}
 }};
 
 bool Finite(float value) {
@@ -94,6 +131,8 @@ const char* ErrorMessage(Error error) {
 	case Error::InvalidNumber: return "Enter a complete decimal number using a decimal point.";
 	case Error::NonFinite: return "NaN and infinity cannot be applied.";
 	case Error::OutOfRange: return "Value is outside this control's supported range.";
+	case Error::IntegerRequired: return "This setting requires a whole number; fractions are not rounded.";
+	case Error::InvalidCone: return "Inner angle must be at least one degree below outer angle.";
 	case Error::Comparing: return "Return to edited values before editing.";
 	case Error::RuntimeChanged: return "Runtime values changed outside this session. Capture a fresh baseline before editing.";
 	}
@@ -105,7 +144,17 @@ Error Validate(Parameter id, float value) {
 	const auto* d = FindDescriptor(id);
 	if (!d) return Error::UnknownParameter;
 	if (!Finite(value)) return Error::NonFinite;
-	return value < d->minimum || value > d->maximum ? Error::OutOfRange : Error::None;
+	if (value < d->minimum || value > d->maximum) return Error::OutOfRange;
+	if (d->type == ValueType::Integer && !SameValue(value, static_cast<float>(static_cast<int>(value)))) return Error::IntegerRequired;
+	return Error::None;
+}
+Error ValidateValues(const Values& values) {
+	for (const auto& d : registry) {
+		const auto error = Validate(d.id, values[static_cast<std::size_t>(d.id)]);
+		if (error != Error::None) return error;
+	}
+	return values[static_cast<std::size_t>(Parameter::FlashlightInner)] + 1 >
+		values[static_cast<std::size_t>(Parameter::FlashlightOuter)] ? Error::InvalidCone : Error::None;
 }
 Error ParseValue(Parameter id, std::string_view text, float& value) {
 	if (!FindDescriptor(id)) return Error::UnknownParameter;
@@ -121,6 +170,13 @@ Error ParseValue(Parameter id, std::string_view text, float& value) {
 	const auto result = std::from_chars(text.data(), text.data() + text.size(), parsed);
 	if (result.ec == std::errc::result_out_of_range) return Error::OutOfRange;
 	if (result.ec != std::errc{} || result.ptr != text.data() + text.size()) return Error::InvalidNumber;
+	if (FindDescriptor(id)->type == ValueType::Integer && Finite(parsed)) {
+		int integer = 0;
+		const auto whole = std::from_chars(text.data(), text.data() + text.size(), integer);
+		if (whole.ec == std::errc::result_out_of_range) return Error::OutOfRange;
+		if (whole.ec != std::errc{} || whole.ptr != text.data() + text.size()) return Error::IntegerRequired;
+		parsed = static_cast<float>(integer);
+	}
 	const auto error = Validate(id, parsed);
 	if (error == Error::None) value = parsed;
 	return error;
@@ -145,10 +201,8 @@ void Session::Invalidate() {
 }
 Error Session::Capture(const Values& loaded) {
 	Invalidate();
-	for (const auto& d : registry) {
-		const auto error = Validate(d.id, loaded[static_cast<std::size_t>(d.id)]);
-		if (error != Error::None) return error;
-	}
+	const auto error = ValidateValues(loaded);
+	if (error != Error::None) return error;
 	m_baseline = m_edited = loaded;
 	m_loaded = true;
 	return Error::None;
@@ -173,10 +227,8 @@ void Session::Record(const Values& before, const Values& after) {
 Error Session::Replace(const Values& values) {
 	if (!m_loaded) return Error::NotLoaded;
 	if (m_comparing) return Error::Comparing;
-	for (const auto& d : registry) {
-		const auto error = Validate(d.id, values[static_cast<std::size_t>(d.id)]);
-		if (error != Error::None) return error;
-	}
+	const auto error = ValidateValues(values);
+	if (error != Error::None) return error;
 	if (!m_gesture) Record(m_edited, values);
 	m_edited = values;
 	return Error::None;
@@ -192,6 +244,11 @@ Error Session::EditText(Parameter id, std::string_view text) {
 	float value = 0;
 	const auto error = ParseValue(id, text, value);
 	return error == Error::None ? Edit(id, value) : error;
+}
+Error Session::EditFlashlightColor(const std::array<float, 3>& color) {
+	auto values = m_edited;
+	for (std::size_t i = 0; i < color.size(); ++i) values[static_cast<std::size_t>(Parameter::FlashlightRed) + i] = color[i];
+	return Replace(values);
 }
 Error Session::Reset(Parameter id) {
 	if (!FindDescriptor(id)) return Error::UnknownParameter;
