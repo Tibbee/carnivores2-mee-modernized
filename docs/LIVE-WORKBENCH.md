@@ -6,8 +6,10 @@ This is a tested local Shipping preview, not a published release. Software keeps
 the original F10 text panel. The separate MEE 1.2 migration is not required.
 
 The deployed combined build includes main's reviewed collision checkpoint `598924f`.
-Source/builds live in sibling `Carnivores2Workbench/`; main itself remains collision-only.
-Future main updates need integration/testing here before another combined deployment.
+Source/builds now live in `Carnivores2MEE1.11/`, checked out on `feat/modder-workbench`.
+The temporary sibling worktree was removed at owner request; its evidence was archived.
+Main remains collision-only. In this single folder, commit changes before switching
+branches; integrate/test future main updates on the feature before combined deployment.
 
 ## Quick start
 
