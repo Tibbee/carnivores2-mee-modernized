@@ -19,6 +19,18 @@ the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
 The separately labelled workbench preview below is on a feature branch, not main.
 
+### Workbench measurement tools (feature tooling, 2026-10-08)
+
+Move the workspace Perl CSV helper into `tools/perf`, fix its syntax and validate
+numeric data, sentinel handling, medians/nearest-rank percentiles and current
+scope/workload columns. Add an opt-in isolated workbench capture runner and
+strict bracketed closed/UI/closed reports, with Test-strip results separate.
+An explicit background-capture option sets/verifies the actual workbench mode
+before warm-up without bypassing normal input ownership or injecting OS input.
+No deployment, game launch or new performance result in this tooling pass.
+Owner reports gameplay acceptance complete; timing remains open. See
+[tools and limitations](tools/perf/README.md).
+
 ### Live modder workbench (feature preview, 2026-10-06)
 
 Local `feat/modder-workbench` at `af2aee3` replaces OpenGL F10 with a compact
@@ -45,7 +57,9 @@ legacy D-dump and Software panel retained. Four build/test variants pass.
 Collision main checkpoint `598924f` is merged into the feature at `38efa89`;
 combined Shipping preview is tested/deployed without losing either workstream.
 All four matrices and 123 focused cases pass; config/profiles/assets unchanged.
-Workbench remains off main; owner acceptance and matched game timing remain open.
+Workbench remains off main. Owner later confirmed gameplay acceptance complete
+(2026-10-08); matched timing remains open. Historical initial checks above retain
+their original evidence.
 
 ### Tilted-slab underside clearance (local preview)
 

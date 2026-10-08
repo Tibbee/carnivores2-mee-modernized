@@ -563,6 +563,9 @@ if(MSVC)
     find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
     add_test(NAME Carnivores2Tests.ConfigDefaults
              COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_config_defaults.py)
+    add_test(NAME Carnivores2Tests.PerfTools
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_perf_tools.py)
+    set_tests_properties(Carnivores2Tests.PerfTools PROPERTIES TIMEOUT 30 LABELS "offline-tools")
 
     # Asset-free fixtures for the support validator: bare model filenames and
     # the menu's _RES.TXT price fallback must not be missed.

@@ -65,12 +65,15 @@ labelled as such, but the tool never writes them. Legacy dump/tint identifiers
 are not config keys. D deliberately keeps the original 13-field log dump unchanged.
 No picking, pause/step, docking, creature/weapon/region editing or audio tuning.
 
-## Acceptance still needed
+## Owner acceptance and performance
 
-Please check readability, slider/exact entry, comparison/history, UI/Test/focus
-transitions, held buttons and map/scope/pause combinations in the real hunt.
-Hidden native GPU/widget tests are not full in-game acceptance or performance
-benchmarks. No game/menu was automatically launched for this preview.
+On 2026-10-08 the owner confirmed all the discussed gameplay acceptance checks
+were completed, including editing/focus/lifecycle and Night/Beam/collision checks.
+This is owner-reported acceptance, not assistant-observed testing. Matched timing
+remains separate and unmeasured. The [performance tools](../tools/perf/README.md)
+provide an opt-in isolated hidden capture protocol; its first asset-backed run
+still needs validation. No game/menu was launched or preview redeployed for the
+helper/framework work. Hidden GPU/widget tests are not gameplay benchmarks.
 
 [Canonical behavior](../../CarnivoresDoc/architecture/live-modder-workbench.md)
 · [combined verification/deployment](../../CarnivoresDoc/working/sessions/c2-workbench-integration-2026-10-08.md)

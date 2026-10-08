@@ -3,6 +3,7 @@
 #include "CaptureBitmap.h"
 #include <string>
 #include <vector>
+#include <utility>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -48,6 +49,27 @@ TEST(UnattendedCapture, RejectsPartialAndInvalidArgumentsAtomically) {
     EXPECT_FALSE(parse({"game", "-capture-output=frame.bmp"}, options));
     EXPECT_FALSE(parse({"game", "-capture-background", "-capture-output="}, options));
     EXPECT_FALSE(parse({"game", "-capture-background", "-capture-output=" + std::string(260, 'x')}, options));
+}
+
+TEST(UnattendedCapture, WorkbenchModeIsExplicitValidatedAndCaptureOnly) {
+    using Mode = unattended_capture::WorkbenchMode;
+    for (const auto& entry : {std::pair<const char*, Mode>{"closed", Mode::Closed}, {"UI", Mode::UI}, {"test", Mode::Test}}) {
+        unattended_capture::Options options;
+        ASSERT_TRUE(parse({"game", std::string("-capture-workbench=") + entry.first,
+                          "-capture-output=frame.bmp", "-capture-background"}, options));
+        EXPECT_EQ(options.workbench, entry.second);
+    }
+    for (const auto& value : {"", "open", "1", "ui trailing", "testx"}) {
+        unattended_capture::Options options;
+        EXPECT_FALSE(parse({"game", "-capture-background", "-capture-output=frame.bmp",
+                            std::string("-capture-workbench=") + value}, options));
+        EXPECT_FALSE(options.enabled);
+        EXPECT_EQ(options.workbench, Mode::Closed);
+    }
+    unattended_capture::Options options;
+    EXPECT_FALSE(parse({"game", "-capture-workbench=ui"}, options));
+    EXPECT_FALSE(parse({"game", "-capture-workbench=closed"}, options));
+    EXPECT_FALSE(options.enabled);
 }
 
 TEST(UnattendedCapture, ScheduleStartsAtFirstFrameAndTriggersExactlyOnce) {

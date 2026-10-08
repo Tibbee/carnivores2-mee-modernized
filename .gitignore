@@ -19,6 +19,11 @@ tools/*
 !tools/release/
 tools/release/*
 !tools/release/make-c2-package.ps1
+!tools/perf/
+tools/perf/*
+!tools/perf/glperf_stats.pl
+!tools/perf/workbench_perf.py
+!tools/perf/README.md
 !tools/c2_capture_matrix.ps1
 !tools/c2_capture_manifest.json
 !tools/c2_capture_sky_modes.ps1

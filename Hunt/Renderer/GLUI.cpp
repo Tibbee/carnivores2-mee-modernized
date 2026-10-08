@@ -44,6 +44,29 @@ void PerfFrameBegin()
 {
     if (unattended_capture::options.enabled) {
         static unattended_capture::Schedule schedule;
+        const auto mode = unattended_capture::options.workbench;
+        if (!schedule.started) {
+            // Direct semantic messages, never OS input/focus/cursor injection.
+            // Set the mode BEFORE warm-up so font uploads/first-frame layout
+            // are excluded from measured windows. Ordinary launches never enter here.
+            if (mode != unattended_capture::WorkbenchMode::Closed) {
+                if (!workbench::UIAvailable()) DoHalt("Workbench capture backend unavailable");
+                workbench::HandleUIMessage(hwndMain, WM_KEYDOWN, VK_F10, 0, true);
+                workbench::HandleUIMessage(hwndMain, WM_KEYUP, VK_F10, 0, true);
+                if (mode == unattended_capture::WorkbenchMode::Test) {
+                    workbench::HandleUIMessage(hwndMain, WM_KEYDOWN, VK_F8, 0, true);
+                    workbench::HandleUIMessage(hwndMain, WM_KEYUP, VK_F8, 0, true);
+                }
+            }
+            PrintLog(mode == unattended_capture::WorkbenchMode::UI ? "Unattended workbench mode: ui\n" :
+                     mode == unattended_capture::WorkbenchMode::Test ? "Unattended workbench mode: test\n" :
+                     "Unattended workbench mode: closed\n");
+        }
+        // Fail instead of silently measuring a closed panel or fallback path.
+        if (workbench::UIOpen() != (mode != unattended_capture::WorkbenchMode::Closed) ||
+            workbench::UIOwnsInput() != (mode == unattended_capture::WorkbenchMode::UI)) {
+            DoHalt("Unattended workbench capture mode changed");
+        }
         if (schedule.shouldTrigger(GetTickCount64(), unattended_capture::options.warmupMs)) {
             glperf_trigger_capture();
             if (!glperf_capture_is_running()) DoHalt("Unattended GLPerf capture could not start");

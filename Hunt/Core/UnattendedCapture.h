@@ -5,11 +5,13 @@
 
 namespace unattended_capture {
 inline constexpr int kCaptureFrames = 120;
+enum class WorkbenchMode { Closed, UI, Test };
 // Parsed BEFORE window creation, not just during InitEngine: no loading
 // window, display-mode switch, focus grab or cursor capture may precede it.
 struct Options {
     bool enabled = false;
     int warmupMs = 3000;
+    WorkbenchMode workbench = WorkbenchMode::Closed;
     char output[260] = {};
 };
 inline Options options{};
@@ -26,6 +28,12 @@ inline bool parse(int argc, char* const* argv, Options& out) {
             hasCaptureOption = true;
             if (!ParseCommandLineInt(value, parsed.warmupMs) ||
                 parsed.warmupMs < 0 || parsed.warmupMs > 120000) return false;
+        } else if (CommandLineOptionValue(arg, "-capture-workbench=", &value)) {
+            hasCaptureOption = true;
+            if (_stricmp(value, "closed") == 0) parsed.workbench = WorkbenchMode::Closed;
+            else if (_stricmp(value, "ui") == 0) parsed.workbench = WorkbenchMode::UI;
+            else if (_stricmp(value, "test") == 0) parsed.workbench = WorkbenchMode::Test;
+            else return false;
         } else if (CommandLineOptionValue(arg, "-capture-output=", &value)) {
             hasCaptureOption = true;
             if (CopyCommandLineOption(parsed.output, sizeof(parsed.output), arg,
