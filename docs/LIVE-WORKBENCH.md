@@ -1,8 +1,13 @@
 # Live modder workbench — local preview
 
-OpenGL only, on `feat/modder-workbench`, implemented at `af2aee3` (2026-10-06).
+OpenGL only, on `feat/modder-workbench`. Overlay began at `af2aee3` (2026-10-06);
+atmosphere controls at `2b53b5d` and combined collision preview at `38efa89` (2026-10-08).
 This is a tested local Shipping preview, not a published release. Software keeps
 the original F10 text panel. The separate MEE 1.2 migration is not required.
+
+The deployed combined build includes main's reviewed collision checkpoint `598924f`.
+Source/builds live in sibling `Carnivores2Workbench/`; main itself remains collision-only.
+Future main updates need integration/testing here before another combined deployment.
 
 ## Quick start
 
@@ -66,4 +71,4 @@ Hidden native GPU/widget tests are not full in-game acceptance or performance
 benchmarks. No game/menu was automatically launched for this preview.
 
 [Canonical behavior](../../CarnivoresDoc/architecture/live-modder-workbench.md)
-· [verification and deployment](../../CarnivoresDoc/working/sessions/c2-workbench-overlay-2026-10-06.md)
+· [combined verification/deployment](../../CarnivoresDoc/working/sessions/c2-workbench-integration-2026-10-08.md)

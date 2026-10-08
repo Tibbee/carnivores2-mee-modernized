@@ -42,7 +42,10 @@ loaded reset/comparison/history preserve configured baselines. Scene context
 shows read-only project/time/renderer, water/fog and equipment/requested audio
 state. No equipment grants, new lighting algorithm, config writes or schema;
 legacy D-dump and Software panel retained. Four build/test variants pass.
-Deployment is held to avoid overwriting a different installed collision build.
+Collision main checkpoint `598924f` is merged into the feature at `38efa89`;
+combined Shipping preview is tested/deployed without losing either workstream.
+All four matrices and 123 focused cases pass; config/profiles/assets unchanged.
+Workbench remains off main; owner acceptance and matched game timing remain open.
 
 ### Tilted-slab underside clearance (local preview)
 
