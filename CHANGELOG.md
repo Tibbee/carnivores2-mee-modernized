@@ -44,6 +44,40 @@ state. No equipment grants, new lighting algorithm, config writes or schema;
 legacy D-dump and Software panel retained. Four build/test variants pass.
 Deployment is held to avoid overwriting a different installed collision build.
 
+### Tilted-slab underside clearance (local preview)
+
+`boundbox_slope 1` now independently fits a part's lower envelope as well
+as its top, using existing model vertices. Wall head-clearance and ceiling
+queries follow an accepted underside plane instead of filling empty space
+beneath a slab down to its lowest vertex. Rejected/flat lower fits keep the
+original minimum; accepted lower planes must stay below the retained top
+throughout the padded footprint. Ceiling queries no longer cap valid model
+heights at 1000 units. No model/map format change or new required config key.
+
+The four object-bound entry points are isolated in `Game/ObjectBounds.cpp`
+so tests can exercise production box generation and wall/floor/ceiling
+queries without launching the game. Flat limits remain the default;
+`boundbox_fit` continues to control the footprint independently.
+
+Release, Shipping, Software and Menu builds pass with 13/13 CTest suites
+each. All 42 focused bounding/surface cases pass, including 20 new cases
+covering actual producers/consumers and ordering/envelope helpers; four
+compiled negative controls fail as expected. In-game underside acceptance
+remains pending; automated geometric checks do not replace owner testing.
+
+### Collision fitting cleanup (local preview)
+
+Removed the unreleased 0°/45°-only fitting algorithm and renumbered the
+remaining modes: `boundbox_fit 0` keeps legacy axis-aligned boxes (still
+the default), and `boundbox_fit 1` enables oriented fitting at any baked
+angle. The former value `2` is no longer accepted. Oriented fitting now
+includes the 0°/45° candidates in its hull-edge search, with no separate
+candidate-only implementation. Collinear footprints also test their actual
+segment direction, recovering arbitrary baked angles; single-point and
+sub-tolerance footprints retain the safe seeded fallback.
+The padded-area acceptance threshold and independent `boundbox_slope`
+setting are unchanged.
+
 ### Audio correctness (on local main, 2026-10-05)
 
 Implemented at `66e5f9e` on `fix/audio-system-hardening`, based on collision

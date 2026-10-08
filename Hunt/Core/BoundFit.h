@@ -68,21 +68,15 @@ inline FitBox FitBoxAlong(const float* xs, const float* zs, int n, float c, floa
     return box;
 }
 
-// Best of the axis-aligned (0°) and diagonal (45°) candidates; a rectangle's
-// orientation is defined mod 90°, so those two cover the exact baked cases.
-// Ties keep 0°, keeping unrotated parts identical to the legacy box.
-inline FitBox FitCandidates(const float* xs, const float* zs, int n, float pad) {
-    if (n <= 0) return FitBox{};
-    const FitBox axis = FitBoxAlong(xs, zs, n, 1.0f, 0.0f, pad);
-    const FitBox diag = FitBoxAlong(xs, zs, n, kSqrt1_2, kSqrt1_2, pad);
-    return (diag.Area() < axis.Area()) ? diag : axis;
-}
-
-// Min-area enclosing rectangle (convex hull + hull-edge directions). Exact
-// for any convex footprint at any baked angle; falls back to the candidates
-// when the hull is degenerate (fewer than three distinct points).
+// Smallest padded rectangle among 0°/45° and convex-hull-edge directions.
+// Recovers any baked rectangle angle. Seed the search with 0°/45° so its
+// padded area is never worse than either candidate, including degenerate
+// hulls. Ties retain the seed (0° first), preserving axis-aligned boxes.
 inline FitBox FitMinArea(const float* xs, const float* zs, int n, float pad) {
     if (n <= 0) return FitBox{};
+    FitBox best = FitBoxAlong(xs, zs, n, 1.0f, 0.0f, pad);
+    const FitBox diag = FitBoxAlong(xs, zs, n, kSqrt1_2, kSqrt1_2, pad);
+    if (diag.Area() < best.Area()) best = diag;
     std::vector<int> idx(static_cast<size_t>(n));
     for (int i = 0; i < n; ++i) idx[static_cast<size_t>(i)] = i;
     std::sort(idx.begin(), idx.end(), [&](int A, int B) {
@@ -110,10 +104,10 @@ inline FitBox FitMinArea(const float* xs, const float* zs, int n, float pad) {
     upper.pop_back();
     std::vector<int> hull = lower;
     hull.insert(hull.end(), upper.begin(), upper.end());
-    if (hull.size() < 3) return FitCandidates(xs, zs, n, pad);
-
-    FitBox best;
-    bool have = false;
+    // A two-point hull is a segment: test its direction just like a polygon
+    // edge instead of restricting collinear footprints to the 0°/45° seeds.
+    // Single points and zero-length duplicate edges retain the safe seed.
+    if (hull.size() < 2) return best;
     for (size_t i = 0; i < hull.size(); ++i) {
         const int A = hull[i];
         const int B = hull[(i + 1) % hull.size()];
@@ -124,12 +118,11 @@ inline FitBox FitMinArea(const float* xs, const float* zs, int n, float pad) {
         dx /= len;
         dz /= len;
         const FitBox box = FitBoxAlong(xs, zs, n, dx, dz, pad);
-        if (!have || box.Area() < best.Area() - 1e-9f) {
+        if (box.Area() < best.Area() - 1e-9f) {
             best = box;
-            have = true;
         }
     }
-    return have ? best : FitCandidates(xs, zs, n, pad);
+    return best;
 }
 
 // Accept a fit only when its padded area beats the padded AABB area by at
@@ -271,6 +264,69 @@ inline TopPlane FitTopPlane(const float* us, const float* vs, const float* ys, i
     return r;
 }
 
+// Fit the lower envelope using the identical rules reflected in Y. Highest
+// reflected vertices are the original lowest vertices; trimmed top-face
+// fringes cannot pull the underside up, while downward protrusions still
+// fail the residual gate. No new model data is needed.
+inline TopPlane FitBottomPlane(const float* us, const float* vs, const float* ys, int n,
+                               float bucket, float maxResidual, float maxGrade) {
+    if (n < 3) return TopPlane{};
+    std::vector<float> reflected(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) reflected[static_cast<size_t>(i)] = -ys[i];
+    TopPlane r = FitTopPlane(us, vs, reflected.data(), n, bucket, maxResidual, maxGrade);
+    r.c0 = -r.c0;
+    r.gx = -r.gx;
+    r.gz = -r.gz;
+    return r;
+}
+
+// Heights at the footprint centre plus independent gradients along u/v.
+// Zero gradients retain the original flat limits, including failed fits.
+struct SlopedBounds {
+    float y1, y2;
+    float gx = 0.0f, gz = 0.0f;
+    float bottomGx = 0.0f, bottomGz = 0.0f;
+};
+
+// A linear top-minus-bottom difference reaches its minimum at a rectangle
+// corner. Check the entire padded footprint, not just its centre, before
+// accepting an underside; independently fitted planes must never cross.
+inline bool PlanesOrdered(float top, float topGx, float topGz,
+                          float bottom, float bottomGx, float bottomGz,
+                          float a, float b) {
+    const double gap = static_cast<double>(top) - bottom;
+    const double variation = std::fabs(static_cast<double>(topGx) - bottomGx) * a
+                           + std::fabs(static_cast<double>(topGz) - bottomGz) * b;
+    return gap >= variation;
+}
+
+// Producer shared by CalcBoundBox and tests. us/vs are absolute model
+// coordinates in the chosen box frame; centreU/V recenter each fitted plane.
+// Keep the existing top acceptance unchanged. Accept a lower plane
+// independently only when gentle/non-flat and below the retained top over
+// the padded footprint; otherwise keep the legacy minimum y1.
+inline SlopedBounds FitSlopedBounds(const float* us, const float* vs, const float* ys, int n,
+                                    float centreU, float centreV, float a, float b,
+                                    float legacyBottom, float legacyTop) {
+    SlopedBounds r{legacyBottom, legacyTop};
+    const TopPlane top = FitTopPlane(us, vs, ys, n, kSlopeBucket, kSlopeMaxResidual, kSlopeMaxGrade);
+    if (top.ok && std::sqrt(top.gx * top.gx + top.gz * top.gz) >= kSlopeMinGrade) {
+        r.y2 = top.c0 + top.gx * centreU + top.gz * centreV;
+        r.gx = top.gx;
+        r.gz = top.gz;
+    }
+    const TopPlane bottom = FitBottomPlane(us, vs, ys, n, kSlopeBucket, kSlopeMaxResidual, kSlopeMaxGrade);
+    if (bottom.ok && std::sqrt(bottom.gx * bottom.gx + bottom.gz * bottom.gz) >= kSlopeMinGrade) {
+        const float y1 = bottom.c0 + bottom.gx * centreU + bottom.gz * centreV;
+        if (PlanesOrdered(r.y2, r.gx, r.gz, y1, bottom.gx, bottom.gz, a, b)) {
+            r.y1 = y1;
+            r.bottomGx = bottom.gx;
+            r.bottomGz = bottom.gz;
+        }
+    }
+    return r;
+}
+
 // ===================== runtime tests for fitted boxes =====================
 
 inline void MapRotate(float x, float z, int rotIdx, float& outX, float& outZ) {
@@ -303,6 +359,18 @@ inline void LocalOf(float px, float pz, float cellX, float cellZ,
 // height at the box centre; gx/gz the gradient along u/v ((0, 0) = flat top).
 inline float TopAt(float y2, float gx, float gz, float qx, float qy) {
     return y2 + gx * qx + gz * qy;
+}
+
+// Underside height at the same local coordinates as the top. y1 is the
+// bottom's centre height when fitted, otherwise the legacy minimum.
+inline float BottomAt(float y1, float gx, float gz, float qx, float qy) {
+    return y1 + gx * qx + gz * qy;
+}
+
+// Existing player step/head gates, now supplied with position-dependent
+// heights on sloped boxes. Equality continues to count as overlap.
+inline bool WallHeightOverlaps(float top, float bottom, float objectY, float playerY) {
+    return !(top + objectY < playerY + 128.0f || bottom + objectY > playerY + 256.0f);
 }
 
 inline float ClampF(float v, float lo, float hi) {

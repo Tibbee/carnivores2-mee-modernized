@@ -95,6 +95,10 @@ struct TBound
   // y2 is then the surface height at the box centre. (0, 0) = flat top at y2,
   // the legacy behaviour, which keeps the original test paths (Core/BoundFit.h).
   float gx, gz;
+  // Independently fitted underside in the same frame: y1 is its height at
+  // the box centre, bottomGx/bottomGz its gradients. Zero gradients retain
+  // the legacy flat bottom. Runtime-only; no model/map format change.
+  float bottomGx, bottomGz;
 };
 
 struct TModel

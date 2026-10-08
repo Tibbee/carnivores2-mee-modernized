@@ -595,9 +595,9 @@ GLOBAL int  OptWaterWaveFadeRings;
 
 // ── ofBOUND collision-box fit (experimental; see Core/BoundFit.h) ──
 // 0 = legacy axis-aligned boxes from CalcBoundBox (default; stock
-// behaviour). 1 = also fit an oriented box per mesh part using 0°/45°
-// candidates. 2 = min-area rectangle (any baked angle). A fit replaces the
-// legacy box only when its padded footprint wins by boundbox_fit_win
+// behaviour). 1 = fit an oriented rectangle per mesh part (any baked
+// angle). A fit replaces the legacy box only when its padded footprint
+// wins by boundbox_fit_win
 // percent, so axis-aligned and organic parts are untouched. Vertical
 // (y1/y2) values never change; only the X/Z footprint does.
 // config.cfg "boundbox_fit" / "boundbox_fit_win".
@@ -605,13 +605,14 @@ constexpr int kBoundBoxFitWinDefault = 20;
 GLOBAL int  OptBoundBoxFit;
 GLOBAL int  OptBoundBoxFitWin;
 
-// ── ofBOUND sloped-top extension (experimental; see Core/BoundFit.h) ──
-// 0 = flat box tops (default; stock behaviour). 1 = also fit each mesh
-// part's top as a plane when its top envelope is near-planar and no steeper
-// than tan 60°: floor/wall/step tests then evaluate the surface at the
-// query point, so ramps and tipped decks become walkable instead of
-// flat-topped walls. Works with or without boundbox_fit; parts without an
-// accepted plane keep the legacy flat top. config.cfg "boundbox_slope".
+// ── ofBOUND sloped surfaces (experimental; see Core/BoundFit.h) ──
+// 0 = flat top/bottom limits (default; stock behaviour). 1 = independently
+// fit each part's upper/lower envelope when near-planar and no steeper than
+// tan 60°. Floor/wall/ceiling tests evaluate those surfaces at the query:
+// ramps become walkable and tilted slabs retain underside clearance.
+// Rejected/flat surfaces keep legacy limits; an accepted underside cannot
+// cross the retained top in the padded box. Works with or without
+// boundbox_fit. No asset-format change. config.cfg "boundbox_slope".
 GLOBAL int  OptBoundBoxSlope;
 
 // ── GPU performance-optimization feature flags (global runtime kill-switch) ──

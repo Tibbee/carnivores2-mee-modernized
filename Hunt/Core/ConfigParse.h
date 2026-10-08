@@ -21,6 +21,13 @@ inline bool ParseConfigInt(const char* text, int minValue, int maxValue, int& ou
     return true;
 }
 
+// ofBOUND footprint fitting: 0 = legacy, 1 = oriented. Keep the strict
+// boolean range here so config validation and its tests share the policy.
+inline bool ParseBoundBoxFit(const char* text, int& out)
+{
+    return ParseConfigInt(text, 0, 1, out);
+}
+
 // Closed range is written inverted on purpose: NaN fails every ordered
 // comparison, so "nan" is rejected rather than slipping past the bounds.
 inline bool ParseConfigFloat(const char* text, float minValue, float maxValue, float& out)

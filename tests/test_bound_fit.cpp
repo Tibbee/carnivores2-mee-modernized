@@ -76,10 +76,10 @@ c2bound::FitBox MakeBox(float a, float b, float cosAng, float sinAng) {
 
 }  // namespace
 
-TEST(BoundFit, CandidatesPick45ForDiagonalRectangle) {
+TEST(BoundFit, MinAreaPicks45ForDiagonalRectangle) {
     float xs[4], zs[4];
     RectPoints(2048.0f, 256.0f, 45.0f, xs, zs);
-    const c2bound::FitBox f = c2bound::FitCandidates(xs, zs, 4, c2bound::kPad);
+    const c2bound::FitBox f = c2bound::FitMinArea(xs, zs, 4, c2bound::kPad);
     EXPECT_FLOAT_EQ(f.cos, c2bound::kSqrt1_2);
     EXPECT_FLOAT_EQ(f.sin, c2bound::kSqrt1_2);
     EXPECT_NEAR(f.a, 1024.0f + c2bound::kPad, 0.05f);
@@ -88,10 +88,10 @@ TEST(BoundFit, CandidatesPick45ForDiagonalRectangle) {
     EXPECT_NEAR(f.cz, 0.0f, 0.05f);
 }
 
-TEST(BoundFit, CandidatesKeepLegacyBoxWhenAxisAligned) {
+TEST(BoundFit, MinAreaKeepsLegacyBoxWhenAxisAligned) {
     float xs[4], zs[4];
     RectPoints(2048.0f, 256.0f, 0.0f, xs, zs);
-    const c2bound::FitBox f = c2bound::FitCandidates(xs, zs, 4, c2bound::kPad);
+    const c2bound::FitBox f = c2bound::FitMinArea(xs, zs, 4, c2bound::kPad);
     EXPECT_FLOAT_EQ(f.cos, 1.0f);
     EXPECT_FLOAT_EQ(f.sin, 0.0f);
     EXPECT_NEAR(f.a, 1024.0f + c2bound::kPad, 0.01f);
@@ -120,12 +120,43 @@ TEST(BoundFit, MinAreaFollowsTheBakedAngle) {
     }
 }
 
-TEST(BoundFit, MinAreaAgreesWithCandidatesAt45) {
-    float xs[4], zs[4];
-    RectPoints(2048.0f, 256.0f, 45.0f, xs, zs);
-    const c2bound::FitBox c = c2bound::FitCandidates(xs, zs, 4, c2bound::kPad);
-    const c2bound::FitBox m = c2bound::FitMinArea(xs, zs, 4, c2bound::kPad);
-    EXPECT_NEAR(m.Area(), c.Area(), 1.0f);
+TEST(BoundFit, MinAreaNeverWorseThanAxisOrDiagonalSeeds) {
+    // Rectangles and an asymmetric concave cloud at every whole-degree
+    // angle, with duplicates/interior vertices and a translated centre.
+    const float cloudX[7] = {-600.0f, 400.0f, 900.0f, 200.0f, -350.0f, 0.0f, 900.0f};
+    const float cloudZ[7] = {-80.0f, -150.0f, 20.0f, 180.0f, 40.0f, 0.0f, 20.0f};
+    for (int deg = 0; deg < 180; ++deg) {
+        for (int shape = 0; shape < 2; ++shape) {
+            SCOPED_TRACE(::testing::Message() << "angle=" << deg << " shape=" << shape);
+            float xs[7], zs[7];
+            const int n = shape == 0 ? 4 : 7;
+            if (shape == 0) {
+                RectPoints(2048.0f, 256.0f, static_cast<float>(deg), xs, zs);
+            } else {
+                const float c = std::cos(deg * kDeg2Rad);
+                const float s = std::sin(deg * kDeg2Rad);
+                for (int i = 0; i < n; ++i) {
+                    xs[i] = cloudX[i] * c - cloudZ[i] * s;
+                    zs[i] = cloudX[i] * s + cloudZ[i] * c;
+                }
+            }
+            for (int i = 0; i < n; ++i) {
+                xs[i] += 321.0f;
+                zs[i] -= 123.0f;
+            }
+            const c2bound::FitBox axis = c2bound::FitBoxAlong(xs, zs, n, 1.0f, 0.0f, c2bound::kPad);
+            const c2bound::FitBox diag = c2bound::FitBoxAlong(
+                xs, zs, n, c2bound::kSqrt1_2, c2bound::kSqrt1_2, c2bound::kPad);
+            const c2bound::FitBox fit = c2bound::FitMinArea(xs, zs, n, c2bound::kPad);
+            EXPECT_LE(fit.Area(), axis.Area());
+            EXPECT_LE(fit.Area(), diag.Area());
+            EXPECT_NEAR(fit.cos * fit.cos + fit.sin * fit.sin, 1.0f, 1e-5f);
+            for (int i = 0; i < n; ++i) {
+                // The positive pad leaves every source vertex strictly inside.
+                EXPECT_TRUE(c2bound::OrientedContains(xs[i], zs[i], 0.0f, 0.0f, fit, 0));
+            }
+        }
+    }
 }
 
 TEST(BoundFit, AcceptThresholdBoundaries) {
@@ -219,18 +250,109 @@ TEST(BoundFit, OrientedContainsRotatedFrame) {
 }
 
 TEST(BoundFit, DegenerateInputsAreSafe) {
-    // Single point: both fit entry points must stay finite.
+    const c2bound::FitBox empty = c2bound::FitMinArea(nullptr, nullptr, 0, c2bound::kPad);
+    EXPECT_FLOAT_EQ(empty.Area(), 0.0f);
+
+    // Single point: the unified fit must stay finite and keep the axis seed.
     const float oneX[1] = {123.0f}, oneZ[1] = {456.0f};
-    const c2bound::FitBox p = c2bound::FitCandidates(oneX, oneZ, 1, c2bound::kPad);
+    const c2bound::FitBox p = c2bound::FitMinArea(oneX, oneZ, 1, c2bound::kPad);
     EXPECT_NEAR(p.cx, 123.0f, 0.01f);
     EXPECT_NEAR(p.cz, 456.0f, 0.01f);
 
-    // Collinear points: the hull degenerates and FitMinArea falls back.
+    EXPECT_FLOAT_EQ(p.cos, 1.0f);
+    EXPECT_FLOAT_EQ(p.sin, 0.0f);
+    EXPECT_FLOAT_EQ(p.a, c2bound::kPad);
+    EXPECT_FLOAT_EQ(p.b, c2bound::kPad);
+
+    // Duplicate points keep the safe seed; segments also test their direction.
+    const float dupX[3] = {123.0f, 123.0f, 123.0f};
+    const float dupZ[3] = {456.0f, 456.0f, 456.0f};
+    const c2bound::FitBox d = c2bound::FitMinArea(dupX, dupZ, 3, c2bound::kPad);
+    EXPECT_FLOAT_EQ(d.cx, p.cx);
+    EXPECT_FLOAT_EQ(d.cz, p.cz);
+    EXPECT_FLOAT_EQ(d.Area(), p.Area());
+    const float pairX[2] = {0.0f, 20.0f}, pairZ[2] = {0.0f, 20.0f};
+    const c2bound::FitBox pair = c2bound::FitMinArea(pairX, pairZ, 2, c2bound::kPad);
+
+    // At 45° the segment direction agrees with the diagonal seed.
     const float lineX[3] = {0.0f, 10.0f, 20.0f};
     const float lineZ[3] = {0.0f, 10.0f, 20.0f};
     const c2bound::FitBox l = c2bound::FitMinArea(lineX, lineZ, 3, c2bound::kPad);
     EXPECT_TRUE(std::isfinite(l.cx) && std::isfinite(l.cz));
     EXPECT_GT(l.Area(), 0.0f);
+    EXPECT_FLOAT_EQ(l.cos, c2bound::kSqrt1_2);
+    EXPECT_FLOAT_EQ(l.sin, c2bound::kSqrt1_2);
+    EXPECT_FLOAT_EQ(l.Area(), pair.Area());
+}
+
+TEST(BoundFit, MinAreaFitsTwoPointSegmentsAtArbitraryAngles) {
+    const float halfLength = 1024.0f;
+    const float centreX = 321.0f, centreZ = -123.0f;
+    for (float deg : {0.0f, 17.0f, 30.0f, 45.0f, 63.0f, 90.0f, 135.0f, -30.0f}) {
+        SCOPED_TRACE(::testing::Message() << "angle=" << deg);
+        const float c = std::cos(deg * kDeg2Rad);
+        const float s = std::sin(deg * kDeg2Rad);
+        const float xs[2] = {centreX - halfLength * c, centreX + halfLength * c};
+        const float zs[2] = {centreZ - halfLength * s, centreZ + halfLength * s};
+        const c2bound::FitBox fit = c2bound::FitMinArea(xs, zs, 2, c2bound::kPad);
+        EXPECT_NEAR(fit.cx, centreX, 0.01f);
+        EXPECT_NEAR(fit.cz, centreZ, 0.01f);
+        EXPECT_NEAR(std::max(fit.a, fit.b), halfLength + c2bound::kPad, 0.01f);
+        EXPECT_NEAR(std::min(fit.a, fit.b), c2bound::kPad, 0.01f);
+        EXPECT_NEAR(fit.Area(), 4.0f * (halfLength + c2bound::kPad) * c2bound::kPad, 2.0f);
+        const float along = fit.a >= fit.b
+            ? std::fabs(fit.cos * c + fit.sin * s)
+            : std::fabs(-fit.sin * c + fit.cos * s);
+        EXPECT_NEAR(along, 1.0f, 1e-5f);
+        EXPECT_LE(fit.Area(), c2bound::FitBoxAlong(xs, zs, 2, 1.0f, 0.0f, c2bound::kPad).Area());
+        EXPECT_LE(fit.Area(), c2bound::FitBoxAlong(
+            xs, zs, 2, c2bound::kSqrt1_2, c2bound::kSqrt1_2, c2bound::kPad).Area());
+        for (int rot = 0; rot < 4; ++rot) {
+            for (int i = 0; i < 2; ++i) {
+                float rx, rz;
+                c2bound::MapRotate(xs[i], zs[i], rot, rx, rz);
+                EXPECT_TRUE(c2bound::OrientedContains(rx, rz, 0.0f, 0.0f, fit, rot));
+            }
+        }
+    }
+}
+
+TEST(BoundFit, MinAreaFitsCollinearPointsWithDuplicates) {
+    // Integer coordinates keep this hull exactly collinear at atan(3/4),
+    // unlike a sampled float rotation whose rounding can form a thin polygon.
+    const float ts[6] = {256.0f, -256.0f, 0.0f, 128.0f, -256.0f, 256.0f};
+    float xs[6], zs[6];
+    for (int i = 0; i < 6; ++i) {
+        xs[i] = 100.0f + 4.0f * ts[i];
+        zs[i] = -50.0f + 3.0f * ts[i];
+    }
+    const c2bound::FitBox fit = c2bound::FitMinArea(xs, zs, 6, c2bound::kPad);
+    EXPECT_NEAR(fit.cx, 100.0f, 0.01f);
+    EXPECT_NEAR(fit.cz, -50.0f, 0.01f);
+    EXPECT_NEAR(fit.cos, 0.8f, 1e-5f);
+    EXPECT_NEAR(fit.sin, 0.6f, 1e-5f);
+    EXPECT_NEAR(fit.a, 1280.0f + c2bound::kPad, 0.01f);
+    EXPECT_NEAR(fit.b, c2bound::kPad, 0.01f);
+    const c2bound::FitBox axis = c2bound::FitBoxAlong(xs, zs, 6, 1.0f, 0.0f, c2bound::kPad);
+    const c2bound::FitBox diag = c2bound::FitBoxAlong(
+        xs, zs, 6, c2bound::kSqrt1_2, c2bound::kSqrt1_2, c2bound::kPad);
+    EXPECT_LT(fit.Area(), axis.Area());
+    EXPECT_LT(fit.Area(), diag.Area());
+    EXPECT_TRUE(c2bound::FitAccepts(fit.Area(), axis.Area(), 20));
+    for (int i = 0; i < 6; ++i) {
+        EXPECT_TRUE(c2bound::OrientedContains(xs[i], zs[i], 0.0f, 0.0f, fit, 0));
+    }
+}
+
+TEST(BoundFit, MinAreaKeepsSeedForSubToleranceSegments) {
+    // The existing edge-normalization guard must still avoid tiny divisors.
+    const float xs[2] = {0.0f, 2e-7f}, zs[2] = {0.0f, 1e-7f};
+    const c2bound::FitBox fit = c2bound::FitMinArea(xs, zs, 2, c2bound::kPad);
+    const c2bound::FitBox axis = c2bound::FitBoxAlong(xs, zs, 2, 1.0f, 0.0f, c2bound::kPad);
+    EXPECT_TRUE(std::isfinite(fit.cx) && std::isfinite(fit.cz));
+    EXPECT_FLOAT_EQ(fit.Area(), axis.Area());
+    EXPECT_FLOAT_EQ(fit.cos, 1.0f);
+    EXPECT_FLOAT_EQ(fit.sin, 0.0f);
 }
 
 // ===================== top-plane (slope) fit =====================

@@ -528,9 +528,9 @@ void InitEngine()
   OptTerrainMaxMipLevel = kTerrainMaxMipDefault; // config.cfg terrain_mip_level
   OptWaterMipmap = 1;                           // config.cfg water_mipmap
   OptWaterWaveFadeRings = kWaterWaveFadeDefault; // config.cfg water_wave_fade_rings
-  OptBoundBoxFit = 0;                           // config.cfg boundbox_fit (1/2 = experimental fit)
+  OptBoundBoxFit = 0;                           // config.cfg boundbox_fit (1 = experimental fit)
   OptBoundBoxFitWin = kBoundBoxFitWinDefault;   // config.cfg boundbox_fit_win
-  OptBoundBoxSlope = 0;                         // config.cfg boundbox_slope (1 = sloped-top fit)
+  OptBoundBoxSlope = 0;                         // config.cfg boundbox_slope (1 = sloped surfaces)
 
   OptViewR = kViewOptDefault;
   OptObjectDetail = kObjectDetailDefault;
@@ -911,21 +911,21 @@ static void CreateDefaultConfig()
     "water_wave_fade_rings 8\r\n"
     "\r\n"
     "# ofBOUND collision-box fit (experimental): 0=off (stock axis-aligned\r\n"
-    "# boxes), 1=fit oriented boxes using 0/45-degree candidates, 2=min-area\r\n"
-    "# rectangle (any baked angle). Floor/ceiling heights never change; only\r\n"
-    "# the X/Z footprint does. A fit is used only when its padded footprint\r\n"
-    "# beats the axis-aligned box by boundbox_fit_win percent.\r\n"
+    "# boxes), 1=fit oriented rectangles (any baked angle). Floor/ceiling\r\n"
+    "# heights never change; only the X/Z footprint does. A fit is used only\r\n"
+    "# when its padded footprint beats the axis-aligned box by\r\n"
+    "# boundbox_fit_win percent.\r\n"
     "boundbox_fit 0\r\n"
     "\r\n"
     "# Minimum padded-area win (percent, 0..100) before a fitted collision box\r\n"
     "# replaces the axis-aligned one. Keeps stock content as-is.\r\n"
     "boundbox_fit_win 20\r\n"
     "\r\n"
-    "# ofBOUND sloped-top extension (experimental): 0=off (flat box tops,\r\n"
-    "# stock behaviour). 1=fit each part's top as a plane when its top\r\n"
-    "# envelope is near-planar and gentle; ramps and tipped decks become\r\n"
-    "# walkable instead of flat-topped walls. Independent of boundbox_fit;\r\n"
-    "# parts without an accepted plane are unchanged.\r\n"
+    "# ofBOUND sloped surfaces (experimental): 0=off (flat tops/bottoms,\r\n"
+    "# stock behaviour). 1=fit near-planar, gentle top and bottom envelopes\r\n"
+    "# independently: ramps become walkable and tilted slabs preserve\r\n"
+    "# underside clearance. Independent of boundbox_fit; rejected surfaces\r\n"
+    "# keep their legacy flat limits. No new model data is required.\r\n"
     "boundbox_slope 0\r\n"
     "\r\n"
     "# GPU features bitmask (default: all optimizations enabled)\r\n"
@@ -1223,17 +1223,17 @@ static void LoadConfig()
       }
       else if (_stricmp(key, "boundbox_fit") == 0) {
         // Experimental ofBOUND oriented-box fit (see Core/BoundFit.h).
-        // 0 = legacy axis-aligned boxes (stock behaviour); 1 = fit 0/45-degree
-        // oriented boxes; 2 = min-area rectangle (any baked angle).
+        // 0 = legacy axis-aligned boxes (stock behaviour); 1 = oriented
+        // rectangle (any baked angle).
         // Acceptance is controlled by boundbox_fit_win below.
         int mode = 0;
-        if (ParseConfigInt(keyval, 0, 2, mode)) {
+        if (ParseBoundBoxFit(keyval, mode)) {
           OptBoundBoxFit = mode;
           char msg[64];
           sprintf_s(msg, sizeof(msg), "Config: boundbox_fit = %d\n", mode);
           PrintLog(msg);
         } else {
-          PrintLog("Config: boundbox_fit must be 0..2, ignoring.\n");
+          PrintLog("Config: boundbox_fit must be 0 or 1, ignoring.\n");
         }
       }
       else if (_stricmp(key, "boundbox_fit_win") == 0) {
@@ -1250,8 +1250,8 @@ static void LoadConfig()
         }
       }
       else if (_stricmp(key, "boundbox_slope") == 0) {
-        // Experimental sloped-top boxes (see Core/BoundFit.h). 0 = legacy flat
-        // tops; 1 = fit a near-planar top plane when the part qualifies.
+        // Experimental sloped surfaces (see Core/BoundFit.h). 0 = legacy
+        // flat limits; 1 = independently fit qualifying top/bottom planes.
         int mode = 0;
         if (ParseConfigInt(keyval, 0, 1, mode)) {
           OptBoundBoxSlope = mode;

@@ -210,6 +210,7 @@ set(CORE_FILES
     Hunt/Workbench/TuningRuntime.h
     Hunt/Workbench/TuningRuntime.cpp
     Hunt/Game/TerrainQueries.cpp
+    Hunt/Game/ObjectBounds.cpp
     Hunt/Game/Ship.cpp
     Hunt/Game/CommandLine.cpp
     Hunt/Game/Config.cpp
@@ -366,6 +367,8 @@ if(MSVC)
         tests/test_game_mode.cpp
         tests/test_math.cpp
         tests/test_bound_fit.cpp
+        tests/test_object_bounds.cpp
+        Hunt/Game/ObjectBounds.cpp
         Hunt/Math/Vector.cpp
         tests/test_trophy_mode.cpp
         tests/test_key_bindings.cpp
