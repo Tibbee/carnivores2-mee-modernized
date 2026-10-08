@@ -33,7 +33,7 @@ picking, definition reloads or 1.2 migration behavior. Shipping preview is teste
 and deployed, but owner visual/input acceptance remains pending; no main merge,
 push or release. See the [current workbench guide](docs/LIVE-WORKBENCH.md).
 
-### Workbench atmosphere controls (feature preview, 2026-10-07)
+### Workbench atmosphere controls (feature preview, 2026-10-08)
 
 F10 adds Night and Beam tabs for existing night grading/moon controls and
 flashlight intensity/reach/cone angles, plus session-only RGB beam tint. Whole
