@@ -13,6 +13,7 @@
 #include "Core/NightLighting.h"
 #include "Workbench/WorkbenchUI.h"
 #include "Workbench/TuningRuntime.h"
+#include "workbench_audio_seams.h"
 
 // Link real process-lifetime scalar globals, never game assets.
 BOOL _HeapFree(HANDLE, DWORD, LPVOID pointer) { if (pointer) std::abort(); return TRUE; }
@@ -94,6 +95,7 @@ protected:
 		ASSERT_TRUE(wglMakeCurrent(dc, context));
 		glLibrary = LoadLibraryA("opengl32.dll"); ASSERT_NE(glLibrary, nullptr);
 		ASSERT_TRUE(gladLoadGLLoader(LoadGL));
+		workbench_test::ResetAudio();
 		NightLightingOptions() = {};
 		OptFlashlightIntensityPct = 500; OptFlashlightRange = 6000;
 		OptFlashlightInnerAngleDeg = 14; OptFlashlightOuterAngleDeg = 26;
@@ -415,12 +417,49 @@ TEST_F(WorkbenchGPU, TintPickerClosesAcrossModeFocusAndHuntGenerationChanges) {
 	ASSERT_EQ(workbench::ResetRuntimeForHunt(), workbench::Error::None);
 	workbench::RenderUI(); EXPECT_FALSE(anyPopup()); EXPECT_EQ(glGetError(), GL_NO_ERROR);
 }
+TEST_F(WorkbenchGPU, AudioExactBankEditingAndIntegerRejectionUseSharedHistory) {
+	Open();workbench::RenderUI();workbench::RenderUI();
+	Click("group",static_cast<int>(workbench::Group::Audio));
+	const int decay=static_cast<int>(workbench::AudioParameter(2,0));
+	const int reverb=static_cast<int>(workbench::AudioParameter(2,3));
+	TypeExact("3.125",decay);EXPECT_FLOAT_EQ(workbench_test::audio[2][0],3.125f);
+	TypeExact("-200.5",reverb);EXPECT_FLOAT_EQ(workbench_test::audio[2][3],-700);
+	ASSERT_TRUE(workbench::UIOpen());
+	Click("undo");EXPECT_FLOAT_EQ(workbench_test::audio[2][0],1.49f);
+	Click("redo");EXPECT_FLOAT_EQ(workbench_test::audio[2][0],3.125f);
+	Click("audioResetBank");EXPECT_FLOAT_EQ(workbench_test::audio[2][0],1.49f);
+}
+TEST_F(WorkbenchGPU, AudioBankSwitchDiscardsDraftAndDryBankHasNoSliders) {
+	Open();workbench::RenderUI();workbench::RenderUI();
+	Click("group",static_cast<int>(workbench::Group::Audio));
+	BeginExactDraft("9.75",static_cast<int>(workbench::AudioParameter(2,0)));
+	Click("audioSelector");workbench::RenderUI();workbench::RenderUI();Click("audioBank",8);
+	EXPECT_FLOAT_EQ(workbench_test::audio[2][0],1.49f);
+	TypeExact("2.75",static_cast<int>(workbench::AudioParameter(8,0)));
+	EXPECT_FLOAT_EQ(workbench_test::audio[8][0],2.75f);
+	Click("audioSelector");workbench::RenderUI();workbench::RenderUI();Click("audioBank",7);
+	rectangles.clear();workbench::RenderUI();
+	EXPECT_FALSE(rectangles.count({"slider",static_cast<int>(workbench::AudioParameter(8,0))}));
+}
+TEST_F(WorkbenchGPU, UnsupportedAudioIsReadOnlyAndClosedOrCollapsedDiagnosticsDoNotSample) {
+	EXPECT_EQ(workbench_test::audioSamples,0);for(int i=0;i<100;++i)workbench::RenderUI();
+	EXPECT_EQ(workbench_test::audioSamples,0);
+	Open();workbench::RenderUI();workbench::RenderUI();
+	Click("group",static_cast<int>(workbench::Group::Audio));
+	EXPECT_EQ(workbench_test::audioDetailSamples,0);
+	workbench_test::audioAvailable=false;workbench::RenderUI();workbench::RenderUI();
+	TypeExact("8.25",static_cast<int>(workbench::AudioParameter(2,0)));
+	EXPECT_FLOAT_EQ(workbench_test::audio[2][0],1.49f);
+	workbench::HandleUIMessage(window,WM_KEYDOWN,VK_F10,0,true);
+	const auto samples=workbench_test::audioSamples;
+	for(int i=0;i<100;++i)workbench::RenderUI();EXPECT_EQ(workbench_test::audioSamples,samples);
+}
 TEST_F(WorkbenchGPU, OptionalSyntheticInspectorScreenshot) {
 	Open(); workbench::RenderUI(); workbench::RenderUI();
 	EXPECT_FALSE(IsWindowVisible(window));
 	if (const char* group = std::getenv("C2_WORKBENCH_SCREENSHOT_GROUP")) {
 		const int selected = std::atoi(group);
-		if (selected >= 0 && selected < 5) Click("group", selected);
+		if (selected >= 0 && selected <= 5) Click("group", selected);
 	}
 	const char* output = std::getenv("C2_WORKBENCH_SCREENSHOT");
 	if (!output) return;

@@ -6,6 +6,7 @@
 #include "Workbench/TuningRuntime.h"
 #include "Core/GameState.h"
 #include "Core/NightLighting.h"
+#include "workbench_audio_seams.h"
 
 // StateDefs links empty asset holders. No game allocations are permitted in
 // this asset-free executable; satisfy their deleter without linking the engine.
@@ -19,6 +20,7 @@ using namespace workbench;
 class WorkbenchRuntime : public ::testing::Test {
 protected:
 	void SetUp() override {
+		workbench_test::ResetAudio();
 		NightLightingOptions() = {};
 		OptFlashlightIntensityPct = 500; OptFlashlightRange = 6000;
 		OptFlashlightInnerAngleDeg = 14; OptFlashlightOuterAngleDeg = 26;
@@ -30,7 +32,7 @@ protected:
 // Deliberately independent of production bindings: wrong/missing/swapped
 // bindings must fail, not validate through the same lookup as the adapter.
 Values Globals() {
-	return {UWFog_BaseDensityMult, UWFog_CameraDepthMult, UWFog_VertRange,
+	Values v{UWFog_BaseDensityMult, UWFog_CameraDepthMult, UWFog_VertRange,
 			UWFog_VertStrength, UWFog_CurveExp, UWFog_CapBase, UWFog_CapCameraBoost,
 			WWave1Amp, WWave2Amp, WWave3Amp, WWaveSpeed, SunGlare_Master, SunGlare_Disc,
 			static_cast<float>(NightLightingOptions().worldBrightnessPct), static_cast<float>(NightLightingOptions().desaturationPct),
@@ -38,6 +40,10 @@ Values Globals() {
 			static_cast<float>(NightLightingOptions().moonGlowStrengthPct), static_cast<float>(OptFlashlightIntensityPct),
 			static_cast<float>(OptFlashlightRange), static_cast<float>(OptFlashlightInnerAngleDeg), static_cast<float>(OptFlashlightOuterAngleDeg),
 			FlashlightTint()[0], FlashlightTint()[1], FlashlightTint()[2]};
+	// Independent bank ordering; do not derive it from the production ID helper.
+	int i = 25;
+	for (int bank : {0,1,2,3,4,5,6,8}) for (int f = 0; f < 4; ++f) v[i++] = workbench_test::audio[bank][f];
+	return v;
 }
 std::string Source(const char* path) {
 	std::ifstream stream(std::string(C2_SOURCE_ROOT) + "/" + path, std::ios::binary);
@@ -250,4 +256,39 @@ TEST_F(WorkbenchRuntime, HuntResetAndKeyboardDispatchUseTheProductionAdapter) {
 	EXPECT_NE(hunt.find("workbench::AdjustLegacyRuntime(parameter, right)"), std::string::npos);
 	EXPECT_NE(hunt.find("workbench::EmitRuntimeDump(PrintLog)"), std::string::npos);
 	EXPECT_EQ(hunt.find("float* params[]"), std::string::npos);
+}
+TEST_F(WorkbenchRuntime, AudioUnavailableRejectsAtomicallyWithoutHistoryOrOtherGroupsChanging) {
+	const auto before=Globals(); workbench_test::audioAvailable=false;
+	EXPECT_EQ(EditRuntime(AudioParameter(0,0),3),Error::Unavailable);
+	EXPECT_EQ(Globals(),before);EXPECT_FALSE(RuntimeSession().CanUndo());
+	EXPECT_EQ(EditRuntime(Parameter::WavePrimary,20),Error::None);
+	EXPECT_EQ(UndoRuntime(),Error::None);
+}
+TEST_F(WorkbenchRuntime, AudioBankResetAndMixedHistoryRemainGroupedAndConfigured) {
+	workbench_test::audio[8][0]=3.25f;ASSERT_EQ(CaptureRuntimeBaseline(),Error::None);
+	ASSERT_EQ(BeginRuntimeGesture(),Error::None);
+	ASSERT_EQ(EditRuntime(AudioParameter(8,0),4),Error::None);
+	ASSERT_EQ(EditRuntime(AudioParameter(8,1),1),Error::None);ASSERT_EQ(EndRuntimeGesture(),Error::None);
+	ASSERT_EQ(EditRuntime(AudioParameter(2,0),5),Error::None);
+	ASSERT_EQ(ResetRuntimeAudioBank(8),Error::None);
+	EXPECT_FLOAT_EQ(workbench_test::audio[8][0],3.25f);EXPECT_FLOAT_EQ(workbench_test::audio[2][0],5);
+	ASSERT_EQ(UndoRuntime(),Error::None);EXPECT_FLOAT_EQ(workbench_test::audio[8][0],4);
+	ASSERT_EQ(ResetRuntimeForHunt(),Error::None);EXPECT_FLOAT_EQ(workbench_test::audio[8][0],3.25f);
+}
+TEST_F(WorkbenchRuntime, AudioExternalMutationInvalidatesAndRestartPreservesOutsideWrites) {
+	ASSERT_EQ(EditRuntime(AudioParameter(2,0),4),Error::None);
+	workbench_test::audio[8][2]=.55f;
+	EXPECT_EQ(SynchronizeRuntimeSession(),Error::RuntimeChanged);
+	ASSERT_EQ(ResetRuntimeForHunt(),Error::None);
+	EXPECT_FLOAT_EQ(workbench_test::audio[8][2],.55f);EXPECT_FLOAT_EQ(workbench_test::audio[2][0],4);
+}
+TEST_F(WorkbenchRuntime, CapabilityLossCannotHalfApplyMixedUndoAndComparisonCanSafelyWithdraw) {
+	ASSERT_EQ(BeginRuntimeGesture(),Error::None);
+	ASSERT_EQ(EditRuntime(Parameter::WavePrimary,20),Error::None);
+	ASSERT_EQ(EditRuntime(AudioParameter(2,0),4),Error::None);ASSERT_EQ(EndRuntimeGesture(),Error::None);
+	const auto edited=Globals();workbench_test::audioAvailable=false;
+	EXPECT_EQ(UndoRuntime(),Error::Unavailable);EXPECT_EQ(Globals(),edited);EXPECT_TRUE(RuntimeSession().CanUndo());
+	workbench_test::audioAvailable=true;ASSERT_EQ(CompareRuntime(true),Error::None);
+	workbench_test::audioAvailable=false;ASSERT_EQ(CompareRuntime(false),Error::None);
+	EXPECT_EQ(Globals(),edited);EXPECT_FALSE(RuntimeSession().IsComparing());
 }

@@ -1,6 +1,8 @@
 #include <cstdio>
 #include <algorithm>
+#include <utility>
 #include "Core/NightLighting.h"
+#include "Audio/AudioInspection.h"
 #include "TuningRuntime.h"
 #include "Core/GameState.h"
 
@@ -21,10 +23,17 @@ const std::array<int*, 9> integerBindings{{
 	&NightLightingOptions().moonGlowStrengthPct, &OptFlashlightIntensityPct,
 	&OptFlashlightRange, &OptFlashlightInnerAngleDeg, &OptFlashlightOuterAngleDeg
 }};
-void WriteRuntimeValues(const Values& values) {
+Error WriteRuntimeValues(const Values& values, bool requireCapability = true) {
+	const auto expected = c2audio::ReadEnvironments();
+	auto audio = expected;
+	for (std::size_t i = kAudioParameterBegin; i < kParameterCount; ++i)
+		audio[AudioEnvironment(static_cast<Parameter>(i))][(i - kAudioParameterBegin) % 4] = values[i];
+	const auto result = c2audio::WriteEnvironments(expected, audio, requireCapability);
+	if (result != c2audio::WriteResult::Ok) return result == c2audio::WriteResult::Unavailable ? Error::Unavailable : Error::RuntimeChanged;
 	for (std::size_t i = 0; i < bindings.size(); ++i) *bindings[i] = values[i];
 	for (std::size_t i = 0; i < integerBindings.size(); ++i) *integerBindings[i] = static_cast<int>(values[kLegacyParameterCount + i]);
 	for (std::size_t i = 0; i < 3; ++i) FlashlightTint()[i] = values[static_cast<std::size_t>(Parameter::FlashlightRed) + i];
+	return Error::None;
 }
 Error CheckCurrent() {
 	if (!session.IsLoaded()) return Error::NotLoaded;
@@ -36,12 +45,20 @@ Error CheckCurrent() {
 	}
 	return Error::None;
 }
-template <typename Operation> Error Mutate(Operation operation) {
+template <typename Operation> Error Mutate(Operation operation, bool requireCapability = true) {
 	const auto current = CheckCurrent();
 	if (current != Error::None) return current;
-	const auto error = operation();
-	if (error == Error::None) WriteRuntimeValues(session.Effective());
-	return error;
+	// Publish before committing history: unavailable audio must not half-apply a
+	// cross-group reset/compare/undo or create a fictitious accepted command.
+	auto candidate = session;
+	const auto error = operation(candidate);
+	if (error != Error::None) return error;
+	if (!SameValues(candidate.Effective(), session.Effective())) {
+		const auto published = WriteRuntimeValues(candidate.Effective(), requireCapability);
+		if (published != Error::None) return published;
+	}
+	session = std::move(candidate);
+	return Error::None;
 }
 }
 const Session& RuntimeSession() { return session; }
@@ -51,6 +68,9 @@ Values ReadRuntimeValues() {
 	for (std::size_t i = 0; i < bindings.size(); ++i) values[i] = *bindings[i];
 	for (std::size_t i = 0; i < integerBindings.size(); ++i) values[kLegacyParameterCount + i] = static_cast<float>(*integerBindings[i]);
 	for (std::size_t i = 0; i < 3; ++i) values[static_cast<std::size_t>(Parameter::FlashlightRed) + i] = FlashlightTint()[i];
+	const auto audio = c2audio::ReadEnvironments();
+	for (std::size_t i = kAudioParameterBegin; i < kParameterCount; ++i)
+		values[i] = audio[AudioEnvironment(static_cast<Parameter>(i))][(i - kAudioParameterBegin) % 4];
 	return values;
 }
 Error CaptureRuntimeBaseline() { return session.Capture(ReadRuntimeValues()); }
@@ -62,13 +82,13 @@ Error ResetRuntimeForHunt() {
 	const auto defaults = CompiledDefaults();
 	for (std::size_t i = 0; i < kLegacyParameterCount; ++i) values[i] = defaults[i];
 	if (const auto error = ValidateValues(values); error != Error::None) { session.Invalidate(); return error; }
-	WriteRuntimeValues(values);
+	if (const auto error = WriteRuntimeValues(values, false); error != Error::None) { session.Invalidate(); return error; }
 	return CaptureRuntimeBaseline();
 }
-Error EditRuntime(Parameter id, float value) { return Mutate([&] { return session.Edit(id, value); }); }
-Error EditRuntimeText(Parameter id, std::string_view text) { return Mutate([&] { return session.EditText(id, text); }); }
+Error EditRuntime(Parameter id, float value) { return Mutate([&](Session& s) { return s.Edit(id, value); }); }
+Error EditRuntimeText(Parameter id, std::string_view text) { return Mutate([&](Session& s) { return s.EditText(id, text); }); }
 Error EditRuntimeFlashlightColor(const std::array<float, 3>& color) {
-	return Mutate([&] { return session.EditFlashlightColor(color); });
+	return Mutate([&](Session& s) { return s.EditFlashlightColor(color); });
 }
 EnvironmentContext ReadEnvironmentContext() {
 	EnvironmentContext state;
@@ -83,20 +103,21 @@ EnvironmentContext ReadEnvironmentContext() {
 }
 Error AdjustLegacyRuntime(Parameter id, bool increase) {
 	if (!FindDescriptor(id)) return Error::UnknownParameter;
-	return Mutate([&] {
+	return Mutate([&](Session& s) {
 		float value = 0;
-		const auto error = LegacyAdjustedValue(id, session.Effective()[static_cast<std::size_t>(id)], increase, value);
-		return error == Error::None ? session.Edit(id, value) : error;
+		const auto error = LegacyAdjustedValue(id, s.Effective()[static_cast<std::size_t>(id)], increase, value);
+		return error == Error::None ? s.Edit(id, value) : error;
 	});
 }
-Error ResetRuntime(Parameter id) { return Mutate([&] { return session.Reset(id); }); }
-Error ResetRuntimeGroup(Group group) { return Mutate([&] { return session.ResetGroup(group); }); }
-Error ResetRuntimeAll() { return Mutate([] { return session.ResetAll(); }); }
-Error CompareRuntime(bool loaded) { return Mutate([&] { return session.Compare(loaded); }); }
-Error BeginRuntimeGesture() { return Mutate([] { return session.BeginGesture(); }); }
-Error EndRuntimeGesture() { return Mutate([] { session.EndGesture(); return Error::None; }); }
-Error UndoRuntime() { return Mutate([] { session.Undo(); return Error::None; }); }
-Error RedoRuntime() { return Mutate([] { session.Redo(); return Error::None; }); }
+Error ResetRuntime(Parameter id) { return Mutate([&](Session& s) { return s.Reset(id); }); }
+Error ResetRuntimeGroup(Group group) { return Mutate([&](Session& s) { return s.ResetGroup(group); }); }
+Error ResetRuntimeAudioBank(int bank) { return Mutate([&](Session& s) { return s.ResetAudioBank(bank); }); }
+Error ResetRuntimeAll() { return Mutate([](Session& s) { return s.ResetAll(); }); }
+Error CompareRuntime(bool loaded) { return Mutate([&](Session& s) { return s.Compare(loaded); }, loaded); }
+Error BeginRuntimeGesture() { return Mutate([](Session& s) { return s.BeginGesture(); }); }
+Error EndRuntimeGesture() { return Mutate([](Session& s) { s.EndGesture(); return Error::None; }); }
+Error UndoRuntime() { return Mutate([](Session& s) { s.Undo(); return Error::None; }); }
+Error RedoRuntime() { return Mutate([](Session& s) { s.Redo(); return Error::None; }); }
 
 std::string FormatRuntimeDump() {
 	const auto values = ReadRuntimeValues();

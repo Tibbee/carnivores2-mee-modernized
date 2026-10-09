@@ -2,9 +2,11 @@
 #include <gtest/gtest.h>
 #include "../Hunt/Audio/Audio_DLL.cpp"
 #include "fake_openal.h"
-
-int AudioFCount=0;
-AudioQuad data[8192]{};
+#include "Workbench/TuningRuntime.h"
+#include "Core/NightLighting.h"
+#include <cstdlib>
+#include <limits>
+BOOL _HeapFree(HANDLE, DWORD, LPVOID pointer) { if (pointer) std::abort(); return TRUE; }
 void UploadGeometry() {++fakeal::geometryCalls;}
 void PrintLog(LPSTR message) {fakeal::logs.emplace_back(message);}
 
@@ -15,7 +17,8 @@ protected:
         fakeal::Install(); g_AudioBackend=AudioBackend::OpenALSoft;
         alDevice=reinterpret_cast<ALCdevice*>(1);alContext=reinterpret_cast<ALCcontext*>(1);
         InitializeCriticalSection(&AudioCS);iSoundActive=1;g_AudioShutdown=false;
-        g_CurrentEnv=-1;g_EnvRuntimeInit=false;
+        g_CurrentEnv=g_RequestedEnv=g_AppliedEnv=-1;g_EnvRuntimeInit=false;
+        g_Application=c2audio::Application::Pending;
         ASSERT_TRUE(CreateAudioSources()); InitReverb();fakeal::logs.clear();
     }
     void TearDown() override {
@@ -188,4 +191,97 @@ TEST(AudioBackendSetup, FailedEffectSlotCreationRollsBackTheEffectWithoutDoubleC
     InitReverb();EXPECT_NE(g_effect,0u);EXPECT_NE(g_slot,0u);
     fakeal::DeleteSlots(1,&g_slot);fakeal::DeleteEffects(1,&g_effect);
     g_effect=g_slot=0;alDevice=nullptr;UnloadOpenAL();
+}
+
+TEST(AudioBackendSetup, PresetReadAndConfigBeforeInitializationNeverNeedALOrAudioCS) {
+	EXPECT_EQ(iSoundActive.load(),0);
+	g_EnvRuntimeInit=false;
+	EXPECT_TRUE(Audio_SetEnvParam(0,0,3.75f));
+	EXPECT_EQ(c2audio::ReadSnapshot(true).backend,c2audio::Backend::Disabled);
+	EXPECT_FLOAT_EQ(c2audio::ReadEnvironments()[0][0],3.75f);
+	EXPECT_TRUE(Audio_SetEnvParam(0,3,-777.75f)); // Legacy loader keeps truncation.
+	EXPECT_FLOAT_EQ(c2audio::ReadEnvironments()[0][3],-777);
+	EXPECT_FALSE(Audio_SetEnvParam(0,0,std::numeric_limits<float>::infinity()));
+}
+TEST_F(AudioBackendTest, PresetDefaultsAndSnapshotCopiesMatchEffectiveBackendTable) {
+	EXPECT_EQ(c2audio::ReadEnvironments(),c2audio::Defaults());
+	auto snapshot=c2audio::ReadEnvironments();snapshot[0][0]=19;
+	EXPECT_FLOAT_EQ(c2audio::ReadEnvironments()[0][0],1.49f);
+}
+TEST_F(AudioBackendTest, StatusSeparatesRequestSuccessDryFallbackAndPartialFailure) {
+	EXPECT_EQ(c2audio::ReadSnapshot().application,c2audio::Application::Pending);
+	Audio_SetEnvironment(8,0);
+	auto s=c2audio::ReadSnapshot();EXPECT_EQ(s.requested,8);EXPECT_EQ(s.applied,8);
+	EXPECT_EQ(s.application,c2audio::Application::Reverb);EXPECT_EQ(s.appliedValues,c2audio::Defaults()[8]);
+	fakeal::failure="source3I";Audio_SetEnvironment(2,0);
+	s=c2audio::ReadSnapshot();EXPECT_EQ(s.requested,2);EXPECT_EQ(s.applied,-1);
+	EXPECT_EQ(s.application,c2audio::Application::Failed);
+	Audio_SetEnvironment(2,0);EXPECT_EQ(c2audio::ReadSnapshot().applied,2);
+	Audio_SetEnvironment(7,0);EXPECT_EQ(c2audio::ReadSnapshot().application,c2audio::Application::Dry);
+	fakeal::DeleteSlots(1,&g_slot);fakeal::DeleteEffects(1,&g_effect);g_slot=g_effect=0;
+	Audio_SetEnvironment(8,0);s=c2audio::ReadSnapshot();EXPECT_EQ(g_CurrentEnv,8);
+	EXPECT_FALSE(s.reverbAvailable);EXPECT_EQ(s.applied,-1);EXPECT_EQ(s.application,c2audio::Application::DryFallback);
+}
+TEST_F(AudioBackendTest, StatusOnlyNeverSamplesVoicesAndFailedQueriesRemainUnknown) {
+	AddVoicev(sizeof(a),a,128);AudioSetCameraPos(0,0,0,0,0);
+	fakeal::failure="getSourceI";
+	auto status=c2audio::ReadSnapshot();EXPECT_FALSE(status.details);EXPECT_EQ(fakeal::failure,"getSourceI");
+	auto s=c2audio::ReadSnapshot(true);EXPECT_FALSE(s.voices[0].known);
+	EXPECT_TRUE(fakeal::sources[channel[0].source].playing);
+	s=c2audio::ReadSnapshot(true);EXPECT_TRUE(s.voices[0].playing);EXPECT_TRUE(s.voices[0].relative);
+	EXPECT_FLOAT_EQ(s.voices[0].configuredGain,.5f);s.voices[0].configuredGain=0;
+	EXPECT_FLOAT_EQ(fakeal::sources[channel[0].source].gain,.5f);
+}
+TEST_F(AudioBackendTest, SpatialAndAmbientDiagnosticsHaveBoundedCopiedObservations) {
+	AudioSetCameraPos(10,20,30,0,0);AddVoice3dv(sizeof(a),a,13,24,30,256);
+	SetAmbient(sizeof(b),b,128);FullFade();SetAmbient3d(sizeof(c),c,10,20,35);
+	const auto s=c2audio::ReadSnapshot(true);EXPECT_EQ(s.voices.size(),19u);
+	EXPECT_TRUE(s.voices[0].playing);EXPECT_FALSE(s.voices[0].relative);EXPECT_FLOAT_EQ(s.voices[0].distance,5);
+	EXPECT_EQ(s.voices[16].fade,256);EXPECT_FLOAT_EQ(s.voices[16].configuredGain,.5f);
+	EXPECT_TRUE(s.voices[18].playing);EXPECT_FLOAT_EQ(s.voices[18].distance,5);
+}
+TEST_F(AudioBackendTest, LegacyAndShutdownSnapshotsDoNotUseOpenALOrDeletedLocks) {
+	g_AudioBackend=AudioBackend::LegacyDLL;fakeal::failure="getSourceI";
+	EXPECT_EQ(c2audio::ReadSnapshot(true).application,c2audio::Application::LegacyUnverified);
+	EXPECT_EQ(fakeal::failure,"getSourceI");g_AudioBackend=AudioBackend::OpenALSoft;
+	Audio_Shutdown();EXPECT_EQ(c2audio::ReadSnapshot(true).application,c2audio::Application::Disabled);
+	EXPECT_EQ(fakeal::failure,"getSourceI");
+}
+TEST_F(AudioBackendTest, FullTableWritesRejectFractionsNonfiniteStaleAndDryBankAtomically) {
+	const auto before=c2audio::ReadEnvironments();auto v=before;
+	v[0][0]=2;v[8][3]=-100.5f;
+	EXPECT_EQ(c2audio::WriteEnvironments(before,v),c2audio::WriteResult::Invalid);EXPECT_EQ(c2audio::ReadEnvironments(),before);
+	v=before;v[0][0]=std::numeric_limits<float>::quiet_NaN();
+	EXPECT_EQ(c2audio::WriteEnvironments(before,v),c2audio::WriteResult::Invalid);
+	v=before;v[7][0]=1;EXPECT_EQ(c2audio::WriteEnvironments(before,v),c2audio::WriteResult::Invalid);
+	v=before;v[0][0]=2;EXPECT_TRUE(Audio_SetEnvParam(5,0,4));
+	EXPECT_EQ(c2audio::WriteEnvironments(before,v),c2audio::WriteResult::Changed);EXPECT_FLOAT_EQ(c2audio::ReadEnvironments()[0][0],before[0][0]);
+}
+TEST_F(AudioBackendTest, ActiveBankRefreshDoesNotRestartAndInactiveEditDoesNotSwitchEnvironment) {
+	SetAmbient(sizeof(a),a,256);FullFade();Audio_SetEnvironment(2,0);
+	const auto source=ambient.source;fakeal::sources[source].offset=812;
+	auto before=c2audio::ReadEnvironments(), v=before;v[5][0]=4;
+	ASSERT_EQ(c2audio::WriteEnvironments(before,v),c2audio::WriteResult::Ok);
+	EXPECT_EQ(c2audio::ReadSnapshot().applied,2);EXPECT_EQ(c2audio::ReadSnapshot().requested,2);
+	before=v;v[2][0]=3.5f;ASSERT_EQ(c2audio::WriteEnvironments(before,v),c2audio::WriteResult::Ok);
+	EXPECT_FLOAT_EQ(c2audio::ReadSnapshot().appliedValues[0],3.5f);
+	EXPECT_EQ(fakeal::sources[source].offset,812);EXPECT_EQ(fakeal::sources[source].starts,1);
+	fakeal::failure="effectF";before=v;v[2][0]=3.6f;
+	ASSERT_EQ(c2audio::WriteEnvironments(before,v),c2audio::WriteResult::Ok);
+	EXPECT_EQ(c2audio::ReadSnapshot().application,c2audio::Application::Failed);
+	Audio_SetEnvironment(2,0);EXPECT_EQ(c2audio::ReadSnapshot().applied,2);
+}
+TEST_F(AudioBackendTest, RuntimeSessionUsesRealConfiguredBanksHistoryCompareAndRestart) {
+	using namespace workbench;
+	NightLightingOptions()={};OptFlashlightIntensityPct=500;OptFlashlightRange=6000;
+	OptFlashlightInnerAngleDeg=14;OptFlashlightOuterAngleDeg=26;FlashlightTint()={1,.902f,.784f};
+	UWFog_BaseDensityMult=0;ASSERT_TRUE(Audio_SetEnvParam(8,0,3.25f));
+	ASSERT_EQ(ResetRuntimeForHunt(),Error::None);Audio_SetEnvironment(8,0);
+	const auto id=AudioParameter(8,0);ASSERT_EQ(EditRuntimeText(id,"4.75"),Error::None);
+	EXPECT_FLOAT_EQ(c2audio::ReadSnapshot().appliedValues[0],4.75f);
+	ASSERT_EQ(UndoRuntime(),Error::None);EXPECT_FLOAT_EQ(c2audio::ReadEnvironments()[8][0],3.25f);
+	ASSERT_EQ(RedoRuntime(),Error::None);ASSERT_EQ(CompareRuntime(true),Error::None);
+	EXPECT_FLOAT_EQ(c2audio::ReadEnvironments()[8][0],3.25f);ASSERT_EQ(CompareRuntime(false),Error::None);
+	EXPECT_FLOAT_EQ(c2audio::ReadEnvironments()[8][0],4.75f);ASSERT_EQ(ResetRuntimeForHunt(),Error::None);
+	EXPECT_FLOAT_EQ(c2audio::ReadEnvironments()[8][0],3.25f);
 }

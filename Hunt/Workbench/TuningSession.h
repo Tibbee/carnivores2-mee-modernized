@@ -17,9 +17,17 @@ enum class Parameter : std::size_t {
 	NightWorld, NightDesaturation, NightSky, MoonBrightness, MoonGlow,
 	FlashlightIntensity, FlashlightRange, FlashlightInner, FlashlightOuter,
 	FlashlightRed, FlashlightGreen, FlashlightBlue,
+	Env0Decay, Env0DecayHF, Env0Diffusion, Env0Reverb,
+	Env1Decay, Env1DecayHF, Env1Diffusion, Env1Reverb,
+	Env2Decay, Env2DecayHF, Env2Diffusion, Env2Reverb,
+	Env3Decay, Env3DecayHF, Env3Diffusion, Env3Reverb,
+	Env4Decay, Env4DecayHF, Env4Diffusion, Env4Reverb,
+	Env5Decay, Env5DecayHF, Env5Diffusion, Env5Reverb,
+	Env6Decay, Env6DecayHF, Env6Diffusion, Env6Reverb,
+	Env8Decay, Env8DecayHF, Env8Diffusion, Env8Reverb,
 	Count
 };
-enum class Group { Fog, Waves, Sun, Night, Flashlight };
+enum class Group { Fog, Waves, Sun, Night, Flashlight, Audio };
 enum class ValueType { Float, Integer, ColorChannel };
 enum class Scope { GlobalRuntime };
 enum class ApplyPolicy { Live };
@@ -27,11 +35,14 @@ enum class PersistPolicy { RuntimeDumpOnly, RecognizedConfigKey, RuntimeOnly };
 enum class LegacyAdjustment { Multiply, Add };
 enum class Error {
 	None, UnknownParameter, NotLoaded, Blank, InvalidNumber, NonFinite,
-	OutOfRange, Comparing, RuntimeChanged, IntegerRequired, InvalidCone
+	OutOfRange, Comparing, RuntimeChanged, IntegerRequired, InvalidCone, Unavailable
 };
 
 constexpr std::size_t kParameterCount = static_cast<std::size_t>(Parameter::Count);
 constexpr std::size_t kLegacyParameterCount = 13;
+constexpr std::size_t kAudioParameterBegin = 25;
+Parameter AudioParameter(int environment, int field);
+int AudioEnvironment(Parameter id);
 constexpr std::size_t kHistoryLimit = 128;
 using Values = std::array<float, kParameterCount>;
 
@@ -91,6 +102,7 @@ public:
 	Error EditFlashlightColor(const std::array<float, 3>& color);
 	Error Reset(Parameter id);
 	Error ResetGroup(Group group);
+	Error ResetAudioBank(int bank);
 	Error ResetAll();
 	Error Compare(bool loaded);
 	Error BeginGesture();

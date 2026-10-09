@@ -42,7 +42,8 @@ float LegacyReference(int index, float value, bool right) {
 
 TEST(WorkbenchRegistry, InventoryKeysTypesAndPoliciesAreExplicit) {
 	std::set<std::string> keys;
-	ASSERT_EQ(Descriptors().size(), 25u);
+	ASSERT_EQ(Descriptors().size(), 57u);
+	EXPECT_EQ(GroupCount(Group::Audio), 32u);
 	EXPECT_EQ(GroupCount(Group::Night), 5u); EXPECT_EQ(GroupCount(Group::Flashlight), 7u);
 	EXPECT_EQ(GroupCount(Group::Fog), 7u);
 	EXPECT_EQ(GroupCount(Group::Waves), 4u);
@@ -53,18 +54,30 @@ TEST(WorkbenchRegistry, InventoryKeysTypesAndPoliciesAreExplicit) {
 		EXPECT_TRUE(keys.insert(d.key).second);
 		EXPECT_EQ(FindParameter(d.key), d.id);
 		EXPECT_EQ(FindDescriptor(d.id), &d);
-		EXPECT_EQ(d.type, i < 13 ? ValueType::Float : i < 22 ? ValueType::Integer : ValueType::ColorChannel);
+		EXPECT_EQ(d.type, i < 13 ? ValueType::Float : i < 22 ? ValueType::Integer : i < 25 ? ValueType::ColorChannel : (i - 25) % 4 == 3 ? ValueType::Integer : ValueType::Float);
 		EXPECT_EQ(d.scope, Scope::GlobalRuntime);
 		EXPECT_EQ(d.apply, ApplyPolicy::Live);
-		EXPECT_EQ(d.persist, i < 13 ? PersistPolicy::RuntimeDumpOnly : i < 22 ? PersistPolicy::RecognizedConfigKey : PersistPolicy::RuntimeOnly);
+		EXPECT_EQ(d.persist, i < 13 ? PersistPolicy::RuntimeDumpOnly : (i >= 22 && i < 25) ? PersistPolicy::RuntimeOnly : PersistPolicy::RecognizedConfigKey);
 		EXPECT_GT(std::string(d.help).size(), 10u);
 		EXPECT_GT(d.sliderStep, 0.f);
 		EXPECT_EQ(Validate(d.id, d.compiledDefault), Error::None);
 	}
 }
+TEST(WorkbenchAudio, BankIdsAreStableAndDryBankIsNeverEditable) {
+	EXPECT_EQ(AudioParameter(0,0),Parameter::Env0Decay);EXPECT_EQ(AudioParameter(8,3),Parameter::Env8Reverb);
+	EXPECT_EQ(AudioParameter(7,0),Parameter::Count);EXPECT_EQ(AudioParameter(9,0),Parameter::Count);
+	for(int e:{0,1,2,3,4,5,6,8})for(int f=0;f<4;++f)EXPECT_EQ(AudioEnvironment(AudioParameter(e,f)),e);
+	EXPECT_EQ(AudioEnvironment(Parameter::FlashlightBlue),-1);
+	auto s=LoadedSession();const auto before=s.Edited();
+	EXPECT_EQ(s.EditText(AudioParameter(8,3),"-200.5"),Error::IntegerRequired);
+	EXPECT_EQ(s.Edited(),before);EXPECT_FALSE(s.CanUndo());
+}
 TEST(WorkbenchRegistry, FactoryDefaultsMatchTheFormerReInitGameValuesExactly) {
 	const Values expected{.23f, .10f, 1488.6f, 85.f, 1.94f, 85.f, 100.f, 14.58f, 8.10f, 5.f, .50f, 1.f, 1.f,
-		22, 85, 60, 128, 100, 500, 6000, 14, 26, 1, .902f, .784f};
+		22, 85, 60, 128, 100, 500, 6000, 14, 26, 1, .902f, .784f,
+		1.49f,.3f,.4f,-620, 1.2f,.2f,.2f,-600, 1.49f,.18f,.3f,-700,
+		2.6f,.2f,.326f,-500, 1.1f,.6f,.275f,-700, 3.2f,.6f,.9f,-200,
+		1.8f,.4f,.4f,-400, 1.5f,.1f,.1f,-200};
 	EXPECT_TRUE(SameValues(expected, CompiledDefaults()));
 }
 TEST(WorkbenchRegistry, UnknownAndOutOfBoundsIdsAreRejected) {

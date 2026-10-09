@@ -23,6 +23,7 @@ EnvironmentContext ReadEnvironmentContext(); // Scalars only, no resource pointe
 Error AdjustLegacyRuntime(Parameter id, bool increase);
 Error ResetRuntime(Parameter id);
 Error ResetRuntimeGroup(Group group);
+Error ResetRuntimeAudioBank(int bank);
 Error ResetRuntimeAll();
 Error CompareRuntime(bool loaded);
 Error BeginRuntimeGesture();

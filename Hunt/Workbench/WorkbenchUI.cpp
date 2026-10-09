@@ -10,6 +10,7 @@
 #include <backends/imgui_impl_opengl3.h>
 #include "WorkbenchUI.h"
 #include "TuningRuntime.h"
+#include "Audio/AudioInspection.h"
 
 // The backend deliberately leaves this declaration out of its public header.
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
@@ -24,6 +25,10 @@ void (*logSink)(char*) = nullptr;
 bool attached = false, showHelp = false, showChanges = false;
 float uiScale = 1.0f;
 Group selectedGroup = Group::Fog;
+int audioBank = 2;
+c2audio::Snapshot audioDetails;
+ULONGLONG audioSampleTime = 0;
+bool audioWasAvailable = false;
 std::uint64_t generation = 0;
 Error lastError = Error::None;
 struct FieldInput { char text[64]{}; bool dirty = false; Error error = Error::None; };
@@ -51,6 +56,7 @@ void SelectContext() { if (context) ImGui::SetCurrentContext(context); }
 void ClearUIInput() {
 	if (!context) return;
 	SelectContext();
+	audioDetails = {}; audioSampleTime = 0;
 	ImGui::ClearActiveID();
 	ImGui::ClosePopupsOverWindow(nullptr, false); // Tint picker cannot survive an ownership/generation change.
 	// Also clear the Win32 backend's drag mask. Clearing only ImGuiIO would
@@ -191,7 +197,7 @@ void DrawField(const Descriptor& descriptor) {
 		if (input.error == Error::None) input.dirty = false;
 	}
 	ImGui::TextDisabled("Loaded %.5g %s", RuntimeSession().Loaded()[index], descriptor.unit);
-	if (descriptor.group == Group::Night || descriptor.group == Group::Flashlight) {
+	if (descriptor.persist == PersistPolicy::RecognizedConfigKey) {
 		ImGui::TextDisabled("Live / existing config key / no file writes");
 	}
 	ImGui::SameLine();
@@ -252,13 +258,66 @@ void DrawSceneContext() {
 	ImGui::EndDisabled();
 	ImGui::TextDisabled("Beam currently illuminating: %s", state.flashlightIlluminating ? "yes" : "no");
 }
+void DrawAudio() {
+	const auto state = c2audio::ReadSnapshot();
+	const bool available = state.reverbAvailable && state.backend == c2audio::Backend::OpenAL;
+	if (audioWasAvailable && !available) { Result(EndRuntimeGesture()); ClearUIInput(); fields = {}; }
+	audioWasAvailable = available;
+	ImGui::TextWrapped("%s", c2audio::ApplicationName(state.application)); ProbeItem("audioStatus");
+	ImGui::Text("Control request %d / backend request %d / applied %d", ReadEnvironmentContext().requestedEnvironment, state.requested, state.applied);
+	if (state.application == c2audio::Application::Reverb)
+		ImGui::TextDisabled("Applied: %.4g s / HF %.4g / diffusion %.4g / %.0f mB", state.appliedValues[0], state.appliedValues[1], state.appliedValues[2], state.appliedValues[3]);
+	const char* banks[] = {"0 Generic", "1 Plate", "2 Forest", "3 Mountain", "4 Canyon", "5 Cave", "6 Special 2", "7 Dry (read-only)", "8 Underwater"};
+	const bool choosingBank = ImGui::BeginCombo("Edit preset bank", banks[audioBank], ImGuiComboFlags_HeightLarge);
+	ProbeItem("audioSelector");
+	if (choosingBank) {
+		for (int e = 0; e < 9; ++e) {
+			if (ImGui::Selectable(banks[e], audioBank == e)) {
+				Result(EndRuntimeGesture()); audioBank = e; fields = {};
+			}
+			ProbeItem("audioBank", e);
+		}
+		ImGui::EndCombo();
+	}
+	ImGui::TextWrapped("Select a bank to edit its values; this does not force the gameplay environment. Loaded reset, history and comparison apply. No file saves.");
+	if (audioBank == 7) ImGui::TextWrapped("Environment 7 is intentionally dry and has no effective reverb controls.");
+	else {
+		if (!available) ImGui::TextWrapped("Read-only: live tuning needs an active OpenAL EFX backend.");
+		ImGui::BeginDisabled(!available);
+		for (int f = 0; f < 4; ++f) DrawField(*FindDescriptor(AudioParameter(audioBank, f)));
+		ImGui::BeginDisabled(!RuntimeSession().IsLoaded() || RuntimeSession().IsComparing());
+		if (ImGui::Button("Reset this bank")) { Result(EndRuntimeGesture()); Result(ResetRuntimeAudioBank(audioBank)); fields = {}; }
+		ProbeItem("audioResetBank"); ImGui::EndDisabled();
+		ImGui::EndDisabled();
+	}
+	const bool detailed = ImGui::CollapsingHeader("Voices / ambient diagnostics (read-only)");
+	ProbeItem("audioDetails");
+	if (detailed) {
+		const auto now = GetTickCount64();
+		if (!audioSampleTime || now - audioSampleTime >= 100 || state.backend != audioDetails.backend) {
+			audioDetails = c2audio::ReadSnapshot(true); audioSampleTime = now;
+		}
+		ImGui::TextDisabled("Sampled <=10 Hz; source gain is not final audible loudness.");
+		if (!audioDetails.details) ImGui::TextDisabled("Playback observations unavailable for this backend.");
+		else for (int i = 0; i < 19; ++i) {
+			const auto& v = audioDetails.voices[i];
+			ImGui::Text("%s %d: %s / gain %.4g", i < 16 ? "Voice" : "Ambient", i < 16 ? i : i - 16,
+				!v.known ? "unknown" : v.playing ? "playing" : "stopped", v.configuredGain);
+			if (v.playing) {
+				if (v.relative) ImGui::TextDisabled("Listener-relative");
+				else ImGui::TextDisabled("World %.0f %.0f %.0f / distance %.1f", v.x, v.y, v.z, v.distance);
+				if (v.fade >= 0) ImGui::TextDisabled("Fade %d / 256", v.fade);
+			}
+		}
+	} else { audioSampleTime = 0; audioDetails = {}; }
+}
 void DrawInspector() {
 	auto& io = ImGui::GetIO();
 	io.FontGlobalScale = uiScale;
 	const bool testing = boundary.Mode() == InputMode::Test;
 	ImGui::SetNextWindowPos(ImVec2(16, 40), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowSize(ImVec2((std::min)(460 * uiScale, (std::max)(220.0f, io.DisplaySize.x - 32)),
-		(std::min)((testing ? 145 : 850) * uiScale, (std::max)(160.0f, io.DisplaySize.y - 180))), ImGuiCond_Always);
+		(std::min)((testing ? 145 : selectedGroup == Group::Audio ? 1100 : 850) * uiScale, (std::max)(160.0f, io.DisplaySize.y - 180))), ImGuiCond_Always);
 	bool visible = true;
 	ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings;
 	if (testing) flags |= ImGuiWindowFlags_NoInputs;
@@ -292,9 +351,9 @@ void DrawInspector() {
 				ImGui::TextDisabled("%zu changed; %s", RuntimeSession().ChangedCount(), RuntimeSession().IsComparing() ? "previewing loaded" : "previewing edited");
 			}
 			DrawSceneContext();
-			for (const auto group : {Group::Fog, Group::Waves, Group::Sun, Group::Night, Group::Flashlight}) {
+			for (const auto group : {Group::Fog, Group::Waves, Group::Sun, Group::Night, Group::Flashlight, Group::Audio}) {
 				if (group != Group::Fog) ImGui::SameLine();
-				const char* label = group == Group::Fog ? "Fog" : group == Group::Waves ? "Waves" : group == Group::Sun ? "Sun" : group == Group::Night ? "Night" : "Beam";
+				const char* label = group == Group::Fog ? "Fog" : group == Group::Waves ? "Waves" : group == Group::Sun ? "Sun" : group == Group::Night ? "Night" : group == Group::Flashlight ? "Beam" : "Audio";
 				if (ImGui::RadioButton(label, group == selectedGroup)) {
 					Result(EndRuntimeGesture()); selectedGroup = group;
 				}
@@ -309,10 +368,11 @@ void DrawInspector() {
 				ImGui::TextWrapped("Live beam settings; equipment, switch and living hunter are required. The tool does not grant equipment.");
 				DrawBeamColor();
 			}
+			if (selectedGroup == Group::Audio) DrawAudio();
 			for (const auto& descriptor : Descriptors())
-				if (descriptor.group == selectedGroup && descriptor.type != ValueType::ColorChannel) DrawField(descriptor);
+				if (selectedGroup != Group::Audio && descriptor.group == selectedGroup && descriptor.type != ValueType::ColorChannel) DrawField(descriptor);
 			ImGui::BeginDisabled(!RuntimeSession().IsLoaded() || RuntimeSession().IsComparing());
-			if (ImGui::Button("Reset group")) { Result(EndRuntimeGesture()); Result(ResetRuntimeGroup(selectedGroup)); fields = {}; }
+			if (ImGui::Button(selectedGroup == Group::Audio ? "Reset all audio banks" : "Reset group")) { Result(EndRuntimeGesture()); Result(ResetRuntimeGroup(selectedGroup)); fields = {}; }
 			ImGui::SameLine();
 			if (ImGui::Button("Reset all")) { Result(EndRuntimeGesture()); Result(ResetRuntimeAll()); fields = {}; }
 			ImGui::EndDisabled();
@@ -382,6 +442,7 @@ void ShutdownUI() {
 	windowHandle = nullptr; captureHook = nullptr; logSink = nullptr;
 	boundary = InputBoundary{}; generation = 0; fields = {}; lastError = Error::None;
 	selectedGroup = Group::Fog; uiScale = 1.0f; showHelp = showChanges = false;
+	audioBank = 2; audioDetails = {}; audioSampleTime = 0; audioWasAvailable = false;
 }
 void RenderUI() {
 	if (!attached || !boundary.IsOpen()) return; // No ImGui/GL work while closed.

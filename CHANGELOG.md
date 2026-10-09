@@ -19,6 +19,17 @@ the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
 The separately labelled workbench preview below is on a feature branch, not main.
 
+### Workbench Audio panel (feature preview, 2026-10-09)
+
+Add 32 effective reverb fields across banks 0-6/8 to the native F10 workbench;
+environment 7 stays dry/read-only. Loaded config baselines, atomic publication,
+grouped history/compare and existing legacy dump are preserved. Backend status
+separates requests, checked application, failures and EFX dry fallback. Explicit,
+bounded playback/ambient snapshots have no PCM/AL handles or automatic audition.
+No hearing, source allocation, reverb balance, file persistence or spatial occlusion
+change. Four presets pass; three new compiled negative controls reject. New audio
+listening/owner acceptance pending; deployment follows the collision checkpoint.
+
 ### Hidden capture corrections (2026-10-09)
 
 First asset-backed validation exposes two capture-only setup gaps: include

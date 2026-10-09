@@ -84,7 +84,103 @@ const std::array<Descriptor, kParameterCount> registry{{
 	 0, 1, .01f, .902f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::ColorChannel, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RuntimeOnly},
 	{Parameter::FlashlightBlue, Group::Flashlight, "Beam tint / blue", "runtime.flashlight_tint_b", "", "linear RGB",
 	 "Session-only blue beam channel; no shader algorithm, equipment or AI-hearing change.",
-	 0, 1, .01f, .784f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::ColorChannel, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RuntimeOnly}
+	 0, 1, .01f, .784f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::ColorChannel, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RuntimeOnly},
+	{Parameter::Env0Decay, Group::Audio, "Decay time", "env0_decay", "", "seconds",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 20, .01f, 1.49f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env0DecayHF, Group::Audio, "HF decay ratio", "env0_decayhf", "", "ratio",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 2, .01f, 0.3f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env0Diffusion, Group::Audio, "Diffusion", "env0_diffusion", "", "fraction",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 0, 1, .01f, 0.4f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env0Reverb, Group::Audio, "Late-reverb level", "env0_reverb", "", "mB",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 -10000, 0, 1, -620.f, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env1Decay, Group::Audio, "Decay time", "env1_decay", "", "seconds",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 20, .01f, 1.2f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env1DecayHF, Group::Audio, "HF decay ratio", "env1_decayhf", "", "ratio",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 2, .01f, 0.2f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env1Diffusion, Group::Audio, "Diffusion", "env1_diffusion", "", "fraction",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 0, 1, .01f, 0.2f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env1Reverb, Group::Audio, "Late-reverb level", "env1_reverb", "", "mB",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 -10000, 0, 1, -600.f, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env2Decay, Group::Audio, "Decay time", "env2_decay", "", "seconds",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 20, .01f, 1.49f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env2DecayHF, Group::Audio, "HF decay ratio", "env2_decayhf", "", "ratio",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 2, .01f, 0.18f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env2Diffusion, Group::Audio, "Diffusion", "env2_diffusion", "", "fraction",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 0, 1, .01f, 0.3f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env2Reverb, Group::Audio, "Late-reverb level", "env2_reverb", "", "mB",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 -10000, 0, 1, -700.f, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env3Decay, Group::Audio, "Decay time", "env3_decay", "", "seconds",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 20, .01f, 2.6f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env3DecayHF, Group::Audio, "HF decay ratio", "env3_decayhf", "", "ratio",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 2, .01f, 0.2f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env3Diffusion, Group::Audio, "Diffusion", "env3_diffusion", "", "fraction",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 0, 1, .01f, 0.326f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env3Reverb, Group::Audio, "Late-reverb level", "env3_reverb", "", "mB",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 -10000, 0, 1, -500.f, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env4Decay, Group::Audio, "Decay time", "env4_decay", "", "seconds",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 20, .01f, 1.1f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env4DecayHF, Group::Audio, "HF decay ratio", "env4_decayhf", "", "ratio",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 2, .01f, 0.6f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env4Diffusion, Group::Audio, "Diffusion", "env4_diffusion", "", "fraction",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 0, 1, .01f, 0.275f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env4Reverb, Group::Audio, "Late-reverb level", "env4_reverb", "", "mB",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 -10000, 0, 1, -700.f, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env5Decay, Group::Audio, "Decay time", "env5_decay", "", "seconds",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 20, .01f, 3.2f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env5DecayHF, Group::Audio, "HF decay ratio", "env5_decayhf", "", "ratio",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 2, .01f, 0.6f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env5Diffusion, Group::Audio, "Diffusion", "env5_diffusion", "", "fraction",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 0, 1, .01f, 0.9f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env5Reverb, Group::Audio, "Late-reverb level", "env5_reverb", "", "mB",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 -10000, 0, 1, -200.f, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env6Decay, Group::Audio, "Decay time", "env6_decay", "", "seconds",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 20, .01f, 1.8f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env6DecayHF, Group::Audio, "HF decay ratio", "env6_decayhf", "", "ratio",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 2, .01f, 0.4f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env6Diffusion, Group::Audio, "Diffusion", "env6_diffusion", "", "fraction",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 0, 1, .01f, 0.4f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env6Reverb, Group::Audio, "Late-reverb level", "env6_reverb", "", "mB",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 -10000, 0, 1, -400.f, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env8Decay, Group::Audio, "Decay time", "env8_decay", "", "seconds",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 20, .01f, 1.5f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env8DecayHF, Group::Audio, "HF decay ratio", "env8_decayhf", "", "ratio",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 .1f, 2, .01f, 0.1f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env8Diffusion, Group::Audio, "Diffusion", "env8_diffusion", "", "fraction",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 0, 1, .01f, 0.1f, LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::Env8Reverb, Group::Audio, "Late-reverb level", "env8_reverb", "", "mB",
+	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; no file saves.",
+	 -10000, 0, 1, -200.f, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey}
 }};
 
 bool Finite(float value) {
@@ -101,6 +197,16 @@ const std::array<Descriptor, kParameterCount>& Descriptors() { return registry; 
 const Descriptor* FindDescriptor(Parameter id) {
 	const auto index = static_cast<std::size_t>(id);
 	return index < registry.size() ? &registry[index] : nullptr;
+}
+Parameter AudioParameter(int environment, int field) {
+	if (environment < 0 || environment > 8 || environment == 7 || field < 0 || field > 3) return Parameter::Count;
+	return static_cast<Parameter>(kAudioParameterBegin + (environment == 8 ? 7 : environment) * 4 + field);
+}
+int AudioEnvironment(Parameter id) {
+	const auto i = static_cast<std::size_t>(id);
+	if (i < kAudioParameterBegin || i >= kParameterCount) return -1;
+	const int bank = static_cast<int>((i - kAudioParameterBegin) / 4);
+	return bank == 7 ? 8 : bank;
 }
 Parameter FindParameter(std::string_view key) {
 	for (const auto& d : registry) if (key == d.key) return d.id;
@@ -125,6 +231,7 @@ Values CompiledDefaults() {
 const char* ErrorMessage(Error error) {
 	switch (error) {
 	case Error::None: return "";
+	case Error::Unavailable: return "Live audio tuning requires an active OpenAL EFX backend.";
 	case Error::UnknownParameter: return "Unknown tuning parameter.";
 	case Error::NotLoaded: return "No loaded tuning baseline. Capture the current values first.";
 	case Error::Blank: return "Enter a number; blank is not zero.";
@@ -258,6 +365,14 @@ Error Session::Reset(Parameter id) {
 Error Session::ResetGroup(Group group) {
 	auto values = m_edited;
 	for (const auto& d : registry) if (d.group == group) values[static_cast<std::size_t>(d.id)] = m_baseline[static_cast<std::size_t>(d.id)];
+	return Replace(values);
+}
+Error Session::ResetAudioBank(int bank) {
+	if (AudioParameter(bank, 0) == Parameter::Count) return Error::UnknownParameter;
+	auto values = m_edited;
+	for (int f = 0; f < 4; ++f) {
+		const auto i = static_cast<std::size_t>(AudioParameter(bank, f)); values[i] = m_baseline[i];
+	}
 	return Replace(values);
 }
 Error Session::ResetAll() { return Replace(m_baseline); }

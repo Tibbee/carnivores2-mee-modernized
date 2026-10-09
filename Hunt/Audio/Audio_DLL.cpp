@@ -5,6 +5,9 @@
 #include "hunt.h"
 #include "Audio.h"
 #include "AudioMath.h"
+#include "AudioInspection.h"
+#include <mutex>
+#include <cstring>
 #include <unordered_map>
 #include <cmath>
 #include <atomic>
@@ -26,6 +29,8 @@ static CHANNEL channel[MAX_CHANNEL]{};
 static AMBIENT ambient{};
 static AMBIENT ambient2{};
 static MAMBIENT mambient{};
+static std::array<float, 3> g_ListenerPosition{};
+static bool g_ListenerKnown = false;
 
 enum class AudioBackend {
     OpenALSoft,
@@ -61,6 +66,11 @@ static LegacyAudioGeomFn g_LegacyAudioUploadGeometry = nullptr;
 static ALuint g_effect = 0;
 static ALuint g_slot   = 0;
 static int    g_CurrentEnv = -1;
+// Presets also exist before AudioCS/device initialization (LoadConfig).
+static std::recursive_mutex g_EnvironmentMutex;
+static int g_RequestedEnv = -1, g_AppliedEnv = -1;
+static c2audio::Application g_Application = c2audio::Application::Pending;
+static std::array<float, 4> g_AppliedValues{};
 
 // ---------------------------------------------------------------------------
 // EAX 2.0 environment presets  (values match original EAX2Audio/Audio3d.cpp)
@@ -108,7 +118,9 @@ bool Audio_SetEnvParam(int env, int field, float v)
 {
     // NaN bypasses ordered range comparisons; reject it (and infinities)
     // before storing floats or converting the reverb level to an integer.
-    if (env < 0 || env > 8 || !std::isfinite(v)) return false;
+    std::uint32_t bits; std::memcpy(&bits, &v, sizeof(bits));
+    if (env < 0 || env > 8 || (bits & 0x7f800000u) == 0x7f800000u) return false;
+    std::lock_guard<std::recursive_mutex> presetLock(g_EnvironmentMutex);
     EnsureEnvRuntime();
     switch (field) {
     case 0: if (v < 0.1f || v > 20.0f) return false; g_EnvRuntime[env].decay = v; break;
@@ -117,7 +129,10 @@ bool Audio_SetEnvParam(int env, int field, float v)
     case 3: if (v < -10000.0f || v > 0.0f) return false; g_EnvRuntime[env].reverb = static_cast<int>(v); break;
     default: return false;
     }
-    if (env == g_CurrentEnv) g_CurrentEnv = -1;  // force re-push if live
+    if (env == g_CurrentEnv) {
+        g_CurrentEnv = g_AppliedEnv = -1; // force re-push if live
+        g_Application = c2audio::Application::Pending;
+    }
     return true;
 }
 
@@ -280,6 +295,7 @@ DWORD WINAPI ProcessAudioThread(LPVOID)
 
 static bool CreateAudioSources()
 {
+    g_ListenerKnown = false;
     if (!AL_CHECK(alDistanceModel(AL_INVERSE_DISTANCE_CLAMPED))) return false;
     for (auto& voice : channel) {
         if (!AL_CHECK(alGenSources(1, &voice.source)) || !voice.source ||
@@ -324,6 +340,8 @@ void InitAudioSystem(HWND hw, HANDLE hlog, int driver)
 {
     if (iSoundActive) Audio_Shutdown();
     if (iSoundActive) return; // A failed thread join must not be reinitialized.
+    { std::lock_guard<std::recursive_mutex> lock(g_EnvironmentMutex);
+      g_RequestedEnv = g_AppliedEnv = -1; g_Application = c2audio::Application::Pending; }
     driver = NormalizeAudioBackend(driver);
     if (driver == AUDIO_DIRECTSOUND) {
         if (LoadLegacyAudioBackend("a_ds3d.dll")) {
@@ -510,7 +528,8 @@ void AudioSetCameraPos(float cx, float cy, float cz, float ca, float cb)
     ALfloat pos[] = { cx, cy, cz };
     ALfloat orient[6];
     AudioListenerOrientation(ca, cb, orient);
-    AL_CHECK(alListenerfv(AL_POSITION, pos));
+    g_ListenerKnown = AL_CHECK(alListenerfv(AL_POSITION, pos));
+    if (g_ListenerKnown) g_ListenerPosition = {cx, cy, cz};
     AL_CHECK(alListenerfv(AL_ORIENTATION, orient));
 }
 
@@ -689,6 +708,9 @@ static bool SetReverbSends(ALuint slot)
 
 void Audio_SetEnvironment(int e, float f)
 {
+    if (e < 0 || e > 8) return;
+    std::lock_guard<std::recursive_mutex> presetLock(g_EnvironmentMutex);
+    g_RequestedEnv = e;
     if (g_AudioBackend == AudioBackend::LegacyDLL) {
         if (g_LegacyAudioSetEnvironment) g_LegacyAudioSetEnvironment(e, f);
         return;
@@ -697,13 +719,19 @@ void Audio_SetEnvironment(int e, float f)
     AudioLock lock;
     if (e == g_CurrentEnv) return;
     EnsureEnvRuntime();
-    if (!g_effect || !g_slot) { g_CurrentEnv = e; return; }
-    g_CurrentEnv = -1; // Failed/partial applications must be retryable.
+    if (!g_effect || !g_slot) {
+        g_CurrentEnv = e; g_AppliedEnv = -1;
+        g_Application = c2audio::Application::DryFallback; return;
+    }
+    g_CurrentEnv = g_AppliedEnv = -1; // Failed/partial applications must be retryable.
+    g_Application = c2audio::Application::Failed;
     if (e == 7) {
         // Special 3 has no authored reverb: match its cold-start dry behavior.
         const bool detached = SetReverbSends(0);
-        if (AL_CHECK(alAuxiliaryEffectSloti(g_slot, AL_EFFECTSLOT_EFFECT, AL_NONE)) && detached)
-            g_CurrentEnv = e;
+        if (AL_CHECK(alAuxiliaryEffectSloti(g_slot, AL_EFFECTSLOT_EFFECT, AL_NONE)) && detached) {
+            g_CurrentEnv = g_AppliedEnv = e;
+            g_Application = c2audio::Application::Dry; g_AppliedValues = {};
+        }
         return;
     }
     const EAX2ENV& env = g_EnvRuntime[e];
@@ -716,7 +744,9 @@ void Audio_SetEnvironment(int e, float f)
         !AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_LATE_REVERB_GAIN, mBToGain(env.reverb))) ||
         !AL_CHECK(alAuxiliaryEffectSloti(g_slot, AL_EFFECTSLOT_EFFECT, g_effect)) ||
         !SetReverbSends(g_slot)) return;
-    g_CurrentEnv = e;
+    g_CurrentEnv = g_AppliedEnv = e;
+    g_Application = c2audio::Application::Reverb;
+    g_AppliedValues = {env.decay, env.decayHF, env.diffusion, static_cast<float>(env.reverb)};
     char message[160];
     sprintf_s(message, sizeof(message),
         "Audio_SetEnvironment: env=%d decay=%.3f decayHF=%.3f diffusion=%.3f reverb=%d\n",
@@ -739,3 +769,99 @@ void Audio_UploadGeometry()
 
     // OpenAL Soft has no terrain-occlusion equivalent -- discard.
 }
+
+namespace c2audio {
+Environments ReadEnvironments() {
+	std::lock_guard<std::recursive_mutex> lock(g_EnvironmentMutex);
+	EnsureEnvRuntime();
+	Environments values{};
+	for (int e = 0; e < 9; ++e) {
+		const auto& p = g_EnvRuntime[e];
+		values[e] = {p.decay, p.decayHF, p.diffusion, static_cast<float>(p.reverb)};
+	}
+	return values;
+}
+Snapshot ReadSnapshot(bool details) {
+	std::lock_guard<std::recursive_mutex> presetLock(g_EnvironmentMutex);
+	Snapshot result; result.requested = g_RequestedEnv;
+	if (!iSoundActive || g_AudioShutdown) return result;
+	if (g_AudioBackend == AudioBackend::LegacyDLL) {
+		result.backend = Backend::Legacy; result.application = Application::LegacyUnverified;
+		return result;
+	}
+	if (!alContext) return result;
+	AudioLock lock;
+	result.backend = Backend::OpenAL;
+	result.reverbAvailable = g_effect && g_slot;
+	result.application = result.reverbAvailable ? g_Application : Application::DryFallback;
+	result.applied = result.reverbAvailable ? g_AppliedEnv : -1;
+	result.appliedValues = g_AppliedValues;
+	if (!details) return result;
+	result.details = true;
+	const auto sample = [](ALuint source, VoiceSnapshot& value) {
+		if (!source) return;
+		ALint state = AL_STOPPED;
+		value.known = AL_CHECK(alGetSourcei(source, AL_SOURCE_STATE, &state));
+		value.playing = value.known && state == AL_PLAYING;
+	};
+	for (int i = 0; i < MAX_CHANNEL; ++i) {
+		auto& v = result.voices[i]; const auto& source = channel[i];
+		v.x = source.x; v.y = source.y; v.z = source.z;
+		v.relative = source.x == 0 && source.y == 0 && source.z == 0;
+		v.configuredGain = AudioGain(source.volume);
+		sample(source.source, v);
+	}
+	for (int i = 0; i < 2; ++i) {
+		const auto& source = i ? ambient2 : ambient;
+		auto& v = result.voices[16 + i]; v.relative = true;
+		v.configuredGain = AmbientGain(source); v.fade = source.volume;
+		sample(source.source, v);
+	}
+	auto& moving = result.voices[18];
+	moving.x = mambient.x; moving.y = mambient.y; moving.z = mambient.z;
+	moving.configuredGain = 1; sample(mambient.source, moving);
+	if (g_ListenerKnown) for (auto& v : result.voices) if (!v.relative) {
+		const float x = v.x - g_ListenerPosition[0], y = v.y - g_ListenerPosition[1], z = v.z - g_ListenerPosition[2];
+		v.distance = std::sqrt(x*x + y*y + z*z);
+	}
+	return result;
+}
+WriteResult WriteEnvironments(const Environments& expected, const Environments& values, bool requireCapability) {
+	std::lock_guard<std::recursive_mutex> lock(g_EnvironmentMutex);
+	const auto current = ReadEnvironments();
+	if (std::memcmp(expected.data(), current.data(), sizeof(current))) return WriteResult::Changed;
+	if (std::memcmp(values[7].data(), current[7].data(), sizeof(values[7]))) return WriteResult::Invalid;
+	for (int e = 0; e < 9; ++e) if (e != 7) {
+		const float minimum[] = {.1f,.1f,0,-10000}, maximum[] = {20,2,1,0};
+		for (int f = 0; f < 4; ++f) {
+			const float v = values[e][f]; std::uint32_t bits; std::memcpy(&bits, &v, sizeof(bits));
+			if ((bits & 0x7f800000u) == 0x7f800000u || v < minimum[f] || v > maximum[f]) return WriteResult::Invalid;
+			if (f == 3 && v != static_cast<float>(static_cast<int>(v))) return WriteResult::Invalid;
+		}
+	}
+	if (!std::memcmp(values.data(), current.data(), sizeof(current))) return WriteResult::Ok;
+	if (requireCapability && (!iSoundActive || g_AudioShutdown || !alContext ||
+		g_AudioBackend != AudioBackend::OpenALSoft || !g_effect || !g_slot)) return WriteResult::Unavailable;
+	bool refresh = false;
+	for (int e = 0; e < 9; ++e) if (e != 7) for (int f = 0; f < 4; ++f) {
+		if (std::memcmp(&current[e][f], &values[e][f], sizeof(float))) {
+			refresh |= e == g_RequestedEnv;
+			Audio_SetEnvParam(e, f, values[e][f]);
+		}
+	}
+	if (refresh && iSoundActive && !g_AudioShutdown && alContext && g_AudioBackend == AudioBackend::OpenALSoft)
+		Audio_SetEnvironment(g_RequestedEnv, 0);
+	return WriteResult::Ok;
+}
+const char* ApplicationName(Application application) {
+	switch (application) {
+	case Application::Pending: return "Pending environment application";
+	case Application::Reverb: return "Applied reverb";
+	case Application::Dry: return "Applied dry environment 7";
+	case Application::DryFallback: return "Dry fallback / EFX unavailable";
+	case Application::Failed: return "Application failed / retry pending";
+	case Application::LegacyUnverified: return "Legacy delegated / unverified";
+	default: return "Audio disabled";
+	}
+}
+} // namespace c2audio

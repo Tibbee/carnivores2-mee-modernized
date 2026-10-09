@@ -489,6 +489,7 @@ if(MSVC)
     # no window, renderer, game launch or licensed assets are required.
     add_executable(Carnivores2WorkbenchTests
         tests/test_workbench_runtime.cpp
+        tests/workbench_audio_seams.cpp
         Hunt/Workbench/TuningSession.cpp
         Hunt/Workbench/TuningRuntime.cpp
         Hunt/Core/StateDefs.cpp
@@ -504,6 +505,7 @@ if(MSVC)
         # Hidden owned window/context only: no game, assets, focus or OS input.
         add_executable(Carnivores2WorkbenchGPUTests
             tests/test_workbench_gpu.cpp
+            tests/workbench_audio_seams.cpp
             Hunt/Workbench/WorkbenchUI.cpp
             Hunt/Workbench/InputBoundary.cpp
             Hunt/Workbench/TuningSession.cpp
@@ -523,6 +525,9 @@ if(MSVC)
     # seams: these tests neither require a DLL nor open a playback device.
     add_executable(Carnivores2AudioBackendTests
         tests/test_audio_backend.cpp
+        Hunt/Workbench/TuningRuntime.cpp
+        Hunt/Workbench/TuningSession.cpp
+        Hunt/Core/StateDefs.cpp
         Hunt/Audio/OpenAL_Loader.cpp
     )
     target_include_directories(Carnivores2AudioBackendTests PRIVATE

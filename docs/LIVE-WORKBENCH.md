@@ -55,15 +55,30 @@ Expand Scene context for read-only project/time/renderer, underwater/pocket-fog,
 requested audio environment and equipment state. Environment is the control-state
 request, not confirmation from the audio backend. Booleans/time are not editable.
 
+## Audio / Environment (2026-10-09 source checkpoint)
+
+Audio shows backend request/application/capability separately from Scene context.
+Select a bank to edit decay, HF decay ratio, diffusion and integer late-reverb mB;
+this does not force the gameplay environment. Bank 7 is dry/read-only and inactive/
+unsupported backends disable tuning. Reset bank/group, history and comparison use
+loaded config values. Active-bank edits refresh checked EFX without restarting loops.
+Expand Voices/ambient for <=10 Hz observations: playback validity, configured gain,
+relative/world position, listener distance and fade. Gain is not final audible volume.
+Legacy/inactive states stay explicitly unknown. No automatic audition or file writes.
+
+Four build/test presets pass; new listening/owner acceptance remains pending.
+This source checkpoint is not deployed yet; collision inspection follows separately.
+
 ## What is not saved
 
-All 25 scalar/channel descriptors are global runtime tuning, not per-area definitions.
+All 57 scalar/channel descriptors are global runtime tuning, not per-area definitions.
 Closing keeps applied values until the hunt's ordinary reset, **not a file save**.
 No config, profile, trophy or resource files are rewritten by editing. ImGui layout
-is session-only. The nine night/beam scalar keys already exist in config and are
+is session-only. Night/beam and 32 effective audio scalar keys already exist in config and are
 labelled as such, but the tool never writes them. Legacy dump/tint identifiers
 are not config keys. D deliberately keeps the original 13-field log dump unchanged.
-No picking, pause/step, docking, creature/weapon/region editing or audio tuning.
+No picking, pause/step, docking or creature/weapon/region editing. Spatial occlusion
+and collision visualization are not part of the Audio source checkpoint.
 
 ## Owner acceptance and performance
 
