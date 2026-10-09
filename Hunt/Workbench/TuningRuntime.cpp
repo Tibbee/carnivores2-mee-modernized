@@ -80,7 +80,12 @@ Error ResetRuntimeForHunt() {
 	// atmosphere preview when it still owns the effective runtime snapshot.
 	if (session.IsLoaded() && SameValues(values, session.Effective())) values = session.Loaded();
 	const auto defaults = CompiledDefaults();
-	for (std::size_t i = 0; i < kLegacyParameterCount; ++i) values[i] = defaults[i];
+	for (std::size_t i = 0; i < kLegacyParameterCount; ++i) {
+		values[i] = defaults[i]; *bindings[i] = defaults[i];
+	}
+	// Hunt lifecycle owns these legacy resets even when invalid diagnostic
+	// state cannot form a strictly validated workbench baseline. Do not
+	// let diagnostic/tuning availability change ordinary restart behavior.
 	if (const auto error = ValidateValues(values); error != Error::None) { session.Invalidate(); return error; }
 	if (const auto error = WriteRuntimeValues(values, false); error != Error::None) { session.Invalidate(); return error; }
 	return CaptureRuntimeBaseline();

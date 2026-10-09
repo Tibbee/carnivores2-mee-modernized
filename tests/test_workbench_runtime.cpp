@@ -257,6 +257,15 @@ TEST_F(WorkbenchRuntime, HuntResetAndKeyboardDispatchUseTheProductionAdapter) {
 	EXPECT_NE(hunt.find("workbench::EmitRuntimeDump(PrintLog)"), std::string::npos);
 	EXPECT_EQ(hunt.find("float* params[]"), std::string::npos);
 }
+TEST_F(WorkbenchRuntime, LegacyRestartResetsSurviveUnsupportedLoadedAudioValues) {
+	UWFog_BaseDensityMult=.77f;WWave1Amp=.31f;
+	workbench_test::audio[5][0]=40; // Fault-injected backend snapshot, outside validated range.
+	EXPECT_EQ(workbench::ResetRuntimeForHunt(),Error::OutOfRange);
+	EXPECT_FLOAT_EQ(UWFog_BaseDensityMult,CompiledDefaults()[0]);
+	EXPECT_FLOAT_EQ(WWave1Amp,CompiledDefaults()[7]);
+	EXPECT_FLOAT_EQ(workbench_test::audio[5][0],40); // Do not silently repair an outside backend mutation.
+	EXPECT_FALSE(RuntimeSession().IsLoaded());
+}
 TEST_F(WorkbenchRuntime, AudioUnavailableRejectsAtomicallyWithoutHistoryOrOtherGroupsChanging) {
 	const auto before=Globals(); workbench_test::audioAvailable=false;
 	EXPECT_EQ(EditRuntime(AudioParameter(0,0),3),Error::Unavailable);

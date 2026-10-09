@@ -19,6 +19,13 @@ the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
 The separately labelled workbench preview below is on a feature branch, not main.
 
+### Workbench lifecycle isolation (2026-10-09)
+
+Keep ordinary hunt's thirteen legacy scalar resets independent of diagnostic
+baseline validation failures. Fault-injected invalid audio snapshots cannot block
+those resets; existing config setter range rejection and custom values stay intact.
+Final four matrices and six targeted mutants re-pass/reject after the guard.
+
 ### Workbench collision inspector (feature preview, 2026-10-09)
 
 Add a bounded nearby-placement list, copied loaded ofBOUND slots and separately

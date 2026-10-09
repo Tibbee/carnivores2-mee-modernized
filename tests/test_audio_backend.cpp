@@ -271,6 +271,16 @@ TEST_F(AudioBackendTest, ActiveBankRefreshDoesNotRestartAndInactiveEditDoesNotSw
 	EXPECT_EQ(c2audio::ReadSnapshot().application,c2audio::Application::Failed);
 	Audio_SetEnvironment(2,0);EXPECT_EQ(c2audio::ReadSnapshot().applied,2);
 }
+TEST_F(AudioBackendTest, InvalidDiagnosticTableDoesNotBlockOrdinaryLegacyRestart) {
+	ASSERT_FALSE(Audio_SetEnvParam(5,0,40)); // Existing loader range rejection remains.
+	g_EnvRuntime[5].decay=40; // Fault injection, not a reachable config-loader value.
+	UWFog_BaseDensityMult=.77f;WWave1Amp=.31f;
+	EXPECT_EQ(workbench::ResetRuntimeForHunt(),workbench::Error::OutOfRange);
+	EXPECT_FLOAT_EQ(UWFog_BaseDensityMult,workbench::CompiledDefaults()[0]);
+	EXPECT_FLOAT_EQ(WWave1Amp,workbench::CompiledDefaults()[7]);
+	EXPECT_FLOAT_EQ(c2audio::ReadEnvironments()[5][0],40);
+	Audio_SetEnvParam(5,0,c2audio::Defaults()[5][0]);
+}
 TEST_F(AudioBackendTest, RuntimeSessionUsesRealConfiguredBanksHistoryCompareAndRestart) {
 	using namespace workbench;
 	NightLightingOptions()={};OptFlashlightIntensityPct=500;OptFlashlightRange=6000;
