@@ -27,7 +27,7 @@ enum class Parameter : std::size_t {
 	Env8Decay, Env8DecayHF, Env8Diffusion, Env8Reverb,
 	Count
 };
-enum class Group { Fog, Waves, Sun, Night, Flashlight, Audio };
+enum class Group { Fog, Waves, Sun, Night, Flashlight, Audio, Collision };
 enum class ValueType { Float, Integer, ColorChannel };
 enum class Scope { GlobalRuntime };
 enum class ApplyPolicy { Live };

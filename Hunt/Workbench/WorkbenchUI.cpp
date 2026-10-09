@@ -9,6 +9,8 @@
 #include <backends/imgui_impl_win32.h>
 #include <backends/imgui_impl_opengl3.h>
 #include "WorkbenchUI.h"
+#include "CollisionInspection.h"
+#include "Core/Constants.h"
 #include "TuningRuntime.h"
 #include "Audio/AudioInspection.h"
 
@@ -23,6 +25,8 @@ HWND windowHandle = nullptr;
 void (*captureHook)(bool) = nullptr;
 void (*logSink)(char*) = nullptr;
 bool attached = false, showHelp = false, showChanges = false;
+CollisionSelection collisionSelection{};
+bool collisionOverlay=false,collisionMargin=false,inspectorExpanded=false;
 float uiScale = 1.0f;
 Group selectedGroup = Group::Fog;
 int audioBank = 2;
@@ -311,17 +315,91 @@ void DrawAudio() {
 		}
 	} else { audioSampleTime = 0; audioDetails = {}; }
 }
+void DrawCollision() {
+	ImGui::TextWrapped("Read-only loaded collision / bounded 9 x 9 neighborhood. No refit, picking or physics edits.");
+	ProbeItem("collisionScan");
+	const auto nearby=ReadNearbyCollisions();
+	ImGui::BeginChild("Placed objects",ImVec2(0,120*uiScale),true);
+	for(std::size_t i=0;i<nearby.count;++i) {
+		const auto& object=nearby.objects[i];char label[110];
+		std::snprintf(label,sizeof(label),"ID %d cell %d,%d / %.0f units / %s",object.object,object.x,object.z,object.distance,
+			(object.flags&ofBOUND) ? "ofBOUND" : (object.flags&ofCIRCLE) ? "legacy circle" : "legacy square");
+		if(ImGui::Selectable(label,collisionSelection.generation==object.generation&&collisionSelection.x==object.x&&collisionSelection.z==object.z))
+			collisionSelection=object;
+		ProbeItem("collisionObject",static_cast<int>(i));
+	}
+	if(!nearby.count)ImGui::TextWrapped("No loaded nearby placements.");
+	ImGui::EndChild();
+	const auto snapshot=ReadCollision(collisionSelection);
+	if(!snapshot.valid) { collisionSelection={};collisionOverlay=collisionMargin=false;ImGui::TextWrapped("Select a nearby placement. Stale selections clear automatically.");return; }
+	ImGui::Text("ID %d / cell %d,%d / rotation %d / flags 0x%X",collisionSelection.object,collisionSelection.x,collisionSelection.z,snapshot.rotation,snapshot.flags);
+	ImGui::Text("Origin %.1f, %.1f, %.1f",snapshot.origin.x,snapshot.origin.y,snapshot.origin.z);
+	if(!snapshot.bounded) { collisionOverlay=collisionMargin=false;ImGui::TextWrapped("Legacy circle/square policy, not an eight-slot ofBOUND object. No fitted boxes are invented."); }
+	ImGui::BeginDisabled(!snapshot.bounded);
+	ImGui::Checkbox("Selected X-ray wire overlay",&collisionOverlay);ProbeItem("collisionOverlay");
+	ImGui::Checkbox("Show wall margin +2 (magenta)",&collisionMargin);ProbeItem("collisionMargin");
+	ImGui::EndDisabled();
+	ImGui::TextWrapped("Loaded extents already contain load padding (72); it is not added again. Current fit options do not prove how these bounds were loaded.");
+	for(int i=0;i<8;++i)if(snapshot.active[i]) {
+		const auto& b=snapshot.bounds[i];ImGui::PushID(i);char label[40];std::snprintf(label,sizeof(label),"Loaded slot %d",i);
+		if(ImGui::CollapsingHeader(label)) {
+			ImGui::Text("Center %.2f, %.2f / half extents %.2f, %.2f",b.cx,b.cy,b.a,b.b);
+			ImGui::Text("Orientation cos/sin %.5f / %.5f",b.cosph,b.sinph);
+			ImGui::Text("Top %.2f / gradient %.5f, %.5f",b.y2,b.gx,b.gz);
+			ImGui::Text("Underside %.2f / gradient %.5f, %.5f",b.y1,b.bottomGx,b.bottomGz);
+		}ImGui::PopID();
+	}
+	if(snapshot.floorKnown)ImGui::Text("Selected eligible floor: %.2f",snapshot.floor);else ImGui::TextDisabled("Selected eligible floor: none");
+	if(snapshot.ceilingKnown)ImGui::Text("Selected eligible ceiling: %.2f",snapshot.ceiling);else ImGui::TextDisabled("Selected eligible ceiling: none");
+	if(snapshot.sceneKnown)ImGui::TextWrapped("Resolved player floor %.2f / ceiling %.2f / gap %.2f (neighborhood and player gates)",snapshot.sceneFloor,snapshot.sceneCeiling,snapshot.sceneCeiling-snapshot.sceneFloor);
+	else ImGui::TextWrapped("Resolved player heights unavailable at unsafe map margins/reload state.");
+	ImGui::TextWrapped("Ceiling query includes the engine fallback of terrain +20480 where no underside contributes; the gap is not a physical roof guarantee.");
+	if(ImGui::Button("Clear collision selection")){collisionSelection={};collisionOverlay=collisionMargin=false;}ProbeItem("collisionClear");
+}
+void DrawCollisionOverlay() {
+	if(!collisionOverlay)return;
+	const auto snapshot=ReadCollision(collisionSelection,false);
+	if(!snapshot.valid || !snapshot.bounded){collisionSelection={};collisionOverlay=collisionMargin=false;return;}
+	const auto camera=ReadInspectionCamera();auto* draw=ImGui::GetBackgroundDrawList();
+	const auto line=[&](const Vector3d& a,const Vector3d& b,ImU32 color) {
+		InspectionLine projected;if(!ProjectInspectionLine(a,b,camera,projected))return;
+		draw->AddLine({projected.x1,projected.y1},{projected.x2,projected.y2},color,1.5f);
+#ifdef C2_WORKBENCH_UI_PROBE
+		if(itemObserver)itemObserver("collisionLine",0,projected.x1,projected.y1,projected.x2,projected.y2);
+#endif
+	};
+	for(int slot=0;slot<8;++slot)if(snapshot.active[slot]) {
+		const auto corners=InspectionCorners(snapshot.bounds[slot],snapshot.origin,snapshot.rotation);
+		for(int i=0;i<4;++i) {
+			const int j=(i+1)%4;
+			line(corners[i],corners[j],IM_COL32(80,180,255,240));
+			line(corners[i+4],corners[j+4],IM_COL32(255,200,70,240));
+			line(corners[i],corners[i+4],IM_COL32(190,190,190,200));
+			auto a=corners[i],b=corners[j];a.y=b.y=snapshot.origin.y;
+			line(a,b,IM_COL32(80,240,140,220));
+		}
+		if(collisionMargin) {
+			auto bound=snapshot.bounds[slot];bound.a+=2;bound.b+=2;
+			const auto padded=InspectionCorners(bound,snapshot.origin,snapshot.rotation);
+			for(int i=0;i<4;++i){auto a=padded[i],b=padded[(i+1)%4];a.y=b.y=snapshot.origin.y;line(a,b,IM_COL32(240,90,220,230));}
+		}
+	}
+	draw->AddText({8,ImGui::GetIO().DisplaySize.y-24},IM_COL32(240,240,240,255),"Collision X-ray (no depth): green footprint at origin / gold top / blue underside / magenta wall +2");
+}
+
 void DrawInspector() {
 	auto& io = ImGui::GetIO();
 	io.FontGlobalScale = uiScale;
 	const bool testing = boundary.Mode() == InputMode::Test;
 	ImGui::SetNextWindowPos(ImVec2(16, 40), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowSize(ImVec2((std::min)(460 * uiScale, (std::max)(220.0f, io.DisplaySize.x - 32)),
-		(std::min)((testing ? 145 : selectedGroup == Group::Audio ? 1100 : 850) * uiScale, (std::max)(160.0f, io.DisplaySize.y - 180))), ImGuiCond_Always);
+		(std::min)((testing ? 145 : (selectedGroup == Group::Audio || selectedGroup == Group::Collision) ? 1200 : 850) * uiScale, (std::max)(160.0f, io.DisplaySize.y - 180))), ImGuiCond_Always);
 	bool visible = true;
 	ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings;
 	if (testing) flags |= ImGuiWindowFlags_NoInputs;
+	inspectorExpanded=false;
 	if (ImGui::Begin("Modder workbench", &visible, flags)) {
+		inspectorExpanded=true;
 		ImGui::TextDisabled("OpenGL / global runtime tuning / no file saves");
 		if (testing) {
 			ImGui::TextWrapped("Test scene: gameplay owns input. F8 or Escape returns to editing; F10 closes.");
@@ -351,9 +429,9 @@ void DrawInspector() {
 				ImGui::TextDisabled("%zu changed; %s", RuntimeSession().ChangedCount(), RuntimeSession().IsComparing() ? "previewing loaded" : "previewing edited");
 			}
 			DrawSceneContext();
-			for (const auto group : {Group::Fog, Group::Waves, Group::Sun, Group::Night, Group::Flashlight, Group::Audio}) {
-				if (group != Group::Fog) ImGui::SameLine();
-				const char* label = group == Group::Fog ? "Fog" : group == Group::Waves ? "Waves" : group == Group::Sun ? "Sun" : group == Group::Night ? "Night" : group == Group::Flashlight ? "Beam" : "Audio";
+			for (const auto group : {Group::Fog, Group::Waves, Group::Sun, Group::Night, Group::Flashlight, Group::Audio, Group::Collision}) {
+				if (group != Group::Fog && group != Group::Collision) ImGui::SameLine();
+				const char* label = group == Group::Fog ? "Fog" : group == Group::Waves ? "Waves" : group == Group::Sun ? "Sun" : group == Group::Night ? "Night" : group == Group::Flashlight ? "Beam" : group == Group::Audio ? "Audio" : "Collision";
 				if (ImGui::RadioButton(label, group == selectedGroup)) {
 					Result(EndRuntimeGesture()); selectedGroup = group;
 				}
@@ -369,11 +447,14 @@ void DrawInspector() {
 				DrawBeamColor();
 			}
 			if (selectedGroup == Group::Audio) DrawAudio();
+			if (selectedGroup == Group::Collision) DrawCollision();
 			for (const auto& descriptor : Descriptors())
 				if (selectedGroup != Group::Audio && descriptor.group == selectedGroup && descriptor.type != ValueType::ColorChannel) DrawField(descriptor);
 			ImGui::BeginDisabled(!RuntimeSession().IsLoaded() || RuntimeSession().IsComparing());
-			if (ImGui::Button(selectedGroup == Group::Audio ? "Reset all audio banks" : "Reset group")) { Result(EndRuntimeGesture()); Result(ResetRuntimeGroup(selectedGroup)); fields = {}; }
-			ImGui::SameLine();
+			if (selectedGroup != Group::Collision) {
+				if (ImGui::Button(selectedGroup == Group::Audio ? "Reset all audio banks" : "Reset group")) { Result(EndRuntimeGesture()); Result(ResetRuntimeGroup(selectedGroup)); fields = {}; }
+				ImGui::SameLine();
+			}
 			if (ImGui::Button("Reset all")) { Result(EndRuntimeGesture()); Result(ResetRuntimeAll()); fields = {}; }
 			ImGui::EndDisabled();
 			if (ImGui::Button("Dump legacy tuning to log (D)")) EmitRuntimeDump(logSink);
@@ -383,7 +464,7 @@ void DrawInspector() {
 					const auto i = static_cast<std::size_t>(d.id);
 					ImGui::TextWrapped("%s: %.6g -> %.6g", d.key, RuntimeSession().Loaded()[i], RuntimeSession().Edited()[i]);
 				}
-				ImGui::TextWrapped("Session edits only; closing does not save files. Night/beam scalar keys already exist in config; legacy tuning/tint identifiers do not.");
+				ImGui::TextWrapped("Session edits only; closing does not save files. Night/beam/audio scalar keys already exist in config; legacy tuning/tint identifiers do not.");
 			}
 			if (lastError != Error::None) ImGui::TextWrapped("%s", ErrorMessage(lastError));
 		}
@@ -443,6 +524,7 @@ void ShutdownUI() {
 	boundary = InputBoundary{}; generation = 0; fields = {}; lastError = Error::None;
 	selectedGroup = Group::Fog; uiScale = 1.0f; showHelp = showChanges = false;
 	audioBank = 2; audioDetails = {}; audioSampleTime = 0; audioWasAvailable = false;
+	collisionSelection={};collisionOverlay=collisionMargin=inspectorExpanded=false;
 }
 void RenderUI() {
 	if (!attached || !boundary.IsOpen()) return; // No ImGui/GL work while closed.
@@ -456,6 +538,7 @@ void RenderUI() {
 	UploadState restoreUpload;
 	ImGui_ImplOpenGL3_NewFrame(); ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame(); DrawInspector();
+	if(inspectorExpanded)DrawCollisionOverlay();
 	if (boundary.IsOpen() && boundary.OwnsInput() && !ImGui::IsAnyItemActive()) {
 		if (ImGui::IsKeyPressed(ImGuiKey_D, false) && !ImGui::GetIO().KeyCtrl) EmitRuntimeDump(logSink);
 		if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false))

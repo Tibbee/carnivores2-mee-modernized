@@ -67,7 +67,26 @@ relative/world position, listener distance and fade. Gain is not final audible v
 Legacy/inactive states stay explicitly unknown. No automatic audition or file writes.
 
 Four build/test presets pass; new listening/owner acceptance remains pending.
-This source checkpoint is not deployed yet; collision inspection follows separately.
+Collision inspection is implemented in the following independent source checkpoint.
+New panels require their own listening/visual acceptance; October 8 acceptance remains
+for the previous visual controls/input and combined collision engine.
+
+## Collision inspection
+
+Select a nearby placement from the clamped 9 x 9 list (maximum 81 candidates).
+The inspector copies up to eight actual loaded ofBOUND slots and displays IDs,
+flags, placement/rotation, extents and independent plane gradients. Legacy circle/
+square policies are labelled without invented fitted boxes. Nothing is refitted.
+Selected eligible planes are separate from resolved neighborhood floor/ceiling
+queries; map-edge/reload-unsafe queries are unavailable. Ceiling includes the
+engine terrain +20480 fallback, not proof of a physical roof.
+
+Selected X-ray is default-off: green footprint at object origin, gold top, blue
+underside, grey connecting edges. Optional magenta is the collision wall +2 margin.
+Loaded padding is already present; no second +72 is added. Projection follows the
+existing camera and clips near plane/viewport. It is explicitly not depth-tested.
+F8 Test may retain the overlay; stale session/cell/object/nearby selection clears.
+Closed/collapsed skips scans/projection. No physics, picking, pause or map writes.
 
 ## What is not saved
 
@@ -78,7 +97,7 @@ is session-only. Night/beam and 32 effective audio scalar keys already exist in 
 labelled as such, but the tool never writes them. Legacy dump/tint identifiers
 are not config keys. D deliberately keeps the original 13-field log dump unchanged.
 No picking, pause/step, docking or creature/weapon/region editing. Spatial occlusion
-and collision visualization are not part of the Audio source checkpoint.
+remain outside this implementation; collision inspection is strictly read-only.
 
 ## Owner acceptance and performance
 

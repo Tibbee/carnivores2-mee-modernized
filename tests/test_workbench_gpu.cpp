@@ -14,6 +14,7 @@
 #include "Workbench/WorkbenchUI.h"
 #include "Workbench/TuningRuntime.h"
 #include "workbench_audio_seams.h"
+#include "Workbench/CollisionInspection.h"
 
 // Link real process-lifetime scalar globals, never game assets.
 BOOL _HeapFree(HANDLE, DWORD, LPVOID pointer) { if (pointer) std::abort(); return TRUE; }
@@ -134,6 +135,15 @@ protected:
 		io.AddMouseButtonEvent(0, true); workbench::RenderUI(); workbench::RenderUI();
 		io.AddMouseButtonEvent(0, false); workbench::RenderUI();
 	}
+	void CollisionScene(bool alreadyOpen=false) {
+		OCount=1;std::memset(OMap,255,sizeof(OMap));std::memset(FMap,0,sizeof(FMap));std::memset(HMap,0,sizeof(HMap));std::memset(HMapO,0,sizeof(HMapO));
+		OMap[10][10]=0;PlayerX=PlayerZ=10*256+128;PlayerY=0;
+		MObjects[0].info.flags=ofBOUND;for(auto& b:MObjects[0].bound)b.a=-1;
+		TBound b{};b.a=172;b.b=122;b.cosph=1;b.y1=60;b.y2=160;b.gx=.05f;b.bottomGz=-.1f;MObjects[0].bound[0]=b;
+		CameraX=PlayerX;CameraY=100;CameraZ=PlayerZ+600;ca=cb=1;sa=sb=0;
+		WinW=2560;WinH=1440;VideoCX=1280;VideoCY=720;CameraW=CameraH=1200;
+		if(!alreadyOpen)Open();workbench::RenderUI();workbench::RenderUI();Click("group",6);Click("collisionObject",0);
+	}
 	void BeginExactDraft(const char* text, int parameter = 0) {
 		Click("exact", parameter);
 		auto& io = ImGui::GetIO();
@@ -148,7 +158,7 @@ protected:
 		io.AddKeyEvent(ImGuiKey_Enter, false); workbench::RenderUI();
 	}
 	void TearDown() override {
-		workbench::ShutdownUI();
+		workbench::ShutdownUI();OCount=0;
 		if (program) glDeleteProgram(program);
 		if (vao) glDeleteVertexArrays(1, &vao);
 		if (buffers[0]) glDeleteBuffers(3, buffers);
@@ -454,12 +464,52 @@ TEST_F(WorkbenchGPU, UnsupportedAudioIsReadOnlyAndClosedOrCollapsedDiagnosticsDo
 	const auto samples=workbench_test::audioSamples;
 	for(int i=0;i<100;++i)workbench::RenderUI();EXPECT_EQ(workbench_test::audioSamples,samples);
 }
+TEST_F(WorkbenchGPU, CollisionWireIsDefaultOffReadOnlyAndRestoresGLState) {
+	CollisionScene();EXPECT_FALSE(rectangles.count({"collisionLine",0}));
+	const auto tuning=workbench::ReadRuntimeValues();const float x=PlayerX,z=PlayerZ;const auto bound=MObjects[0].bound[0];
+	Click("collisionOverlay");ASSERT_TRUE(rectangles.count({"collisionLine",0}));
+	SeedState();const auto before=State();workbench::RenderUI();EXPECT_EQ(State(),before);EXPECT_EQ(glGetError(),GL_NO_ERROR);
+	Click("collisionMargin");EXPECT_EQ(workbench::ReadRuntimeValues(),tuning);EXPECT_FLOAT_EQ(PlayerX,x);EXPECT_FLOAT_EQ(PlayerZ,z);
+	EXPECT_EQ(std::memcmp(&MObjects[0].bound[0],&bound,sizeof(bound)),0);EXPECT_FALSE(workbench::RuntimeSession().CanUndo());
+}
+TEST_F(WorkbenchGPU, CollisionWireSurvivesTestFocusAndValidRendererReattachButClosesWithoutWork) {
+	CollisionScene();Click("collisionOverlay");
+	workbench::HandleUIMessage(window,WM_KEYDOWN,VK_F8,0,true);rectangles.erase({"collisionLine",0});workbench::RenderUI();
+	EXPECT_FALSE(workbench::UIOwnsInput());ASSERT_TRUE(rectangles.count({"collisionLine",0}));
+	workbench::NotifyUIFocus(false);workbench::NotifyUIFocus(true);EXPECT_TRUE(workbench::UIOwnsInput());
+	workbench::DetachUI();
+	using CreateContext=HGLRC(WINAPI*)(HDC,HGLRC,const int*);
+	auto create=reinterpret_cast<CreateContext>(wglGetProcAddress("wglCreateContextAttribsARB"));
+	const int attributes[]={0x2091,3,0x2092,3,0x9126,1,0};const auto replacement=create(dc,nullptr,attributes);ASSERT_NE(replacement,nullptr);
+	wglMakeCurrent(nullptr,nullptr);wglDeleteContext(context);context=replacement;ASSERT_TRUE(wglMakeCurrent(dc,context));
+	ASSERT_TRUE(workbench::InitializeUI(window,CaptureSeam,nullptr));
+	rectangles.erase({"collisionLine",0});workbench::RenderUI();ASSERT_TRUE(rectangles.count({"collisionLine",0}));
+	workbench::HandleUIMessage(window,WM_KEYDOWN,VK_F10,0,true);
+	rectangles.erase({"collisionLine",0});rectangles.erase({"collisionScan",-1});const int frame=ImGui::GetFrameCount();
+	for(int i=0;i<100;++i)workbench::RenderUI();EXPECT_EQ(ImGui::GetFrameCount(),frame);
+	EXPECT_FALSE(rectangles.count({"collisionLine",0}));EXPECT_FALSE(rectangles.count({"collisionScan",-1}));
+}
+TEST_F(WorkbenchGPU, CollisionCameraClippingAndStaleHuntSelectionRemoveOverlay) {
+	CollisionScene();Click("collisionOverlay");ASSERT_TRUE(rectangles.count({"collisionLine",0}));
+	CameraZ=PlayerZ-1000;rectangles.erase({"collisionLine",0});workbench::RenderUI();EXPECT_FALSE(rectangles.count({"collisionLine",0}));
+	CameraZ=PlayerZ+600;workbench::RenderUI();ASSERT_TRUE(rectangles.count({"collisionLine",0}));
+	workbench::ResetRuntimeForHunt();workbench::CaptureRuntimeBaseline();rectangles.erase({"collisionLine",0});rectangles.erase({"collisionOverlay",-1});workbench::RenderUI();
+	EXPECT_FALSE(rectangles.count({"collisionLine",0}));EXPECT_FALSE(rectangles.count({"collisionOverlay",-1}));
+}
+TEST_F(WorkbenchGPU, CollisionCollapsedAndUnselectedInspectionSkipsNeighborhoodScans) {
+	CollisionScene();Click("group",0);rectangles.erase({"collisionScan",-1});workbench::RenderUI();
+	EXPECT_FALSE(rectangles.count({"collisionScan",-1}));Click("group",6);
+	ImGui::SetWindowCollapsed("Modder workbench",true);rectangles.erase({"collisionScan",-1});rectangles.erase({"collisionLine",0});workbench::RenderUI();
+	EXPECT_FALSE(rectangles.count({"collisionScan",-1}));EXPECT_FALSE(rectangles.count({"collisionLine",0}));
+}
+
 TEST_F(WorkbenchGPU, OptionalSyntheticInspectorScreenshot) {
 	Open(); workbench::RenderUI(); workbench::RenderUI();
 	EXPECT_FALSE(IsWindowVisible(window));
 	if (const char* group = std::getenv("C2_WORKBENCH_SCREENSHOT_GROUP")) {
 		const int selected = std::atoi(group);
 		if (selected >= 0 && selected <= 5) Click("group", selected);
+		if (selected == 6) { CollisionScene(true);Click("collisionOverlay"); }
 	}
 	const char* output = std::getenv("C2_WORKBENCH_SCREENSHOT");
 	if (!output) return;

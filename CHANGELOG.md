@@ -19,6 +19,17 @@ the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
 The separately labelled workbench preview below is on a feature branch, not main.
 
+### Workbench collision inspector (feature preview, 2026-10-09)
+
+Add a bounded nearby-placement list, copied loaded ofBOUND slots and separately
+labelled selected/resolved floor/ceiling contributions. A default-off X-ray overlay
+shows actual oriented top/underside/footprint geometry and optional wall +2 margin;
+no depth claim, extra load padding, refit, model upload or collision-policy changes.
+Validate cell/object/session keys and map margins; closed/collapsed skips inspection.
+Test mode and unshared renderer recreation retain only valid CPU selection.
+Four presets pass; double-padding, wrong-rotation and stale-selection mutants reject.
+New in-game visual/listening acceptance is separate from earlier owner acceptance.
+
 ### Workbench Audio panel (feature preview, 2026-10-09)
 
 Add 32 effective reverb fields across banks 0-6/8 to the native F10 workbench;

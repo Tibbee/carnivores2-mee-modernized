@@ -209,6 +209,7 @@ set(CORE_FILES
     Hunt/Workbench/TuningSession.cpp
     Hunt/Workbench/TuningRuntime.h
     Hunt/Workbench/TuningRuntime.cpp
+    Hunt/Workbench/CollisionInspection.cpp
     Hunt/Game/TerrainQueries.cpp
     Hunt/Game/ObjectBounds.cpp
     Hunt/Game/Ship.cpp
@@ -489,6 +490,11 @@ if(MSVC)
     # no window, renderer, game launch or licensed assets are required.
     add_executable(Carnivores2WorkbenchTests
         tests/test_workbench_runtime.cpp
+        tests/test_workbench_collision.cpp
+        Hunt/Workbench/CollisionInspection.cpp
+        Hunt/Game/TerrainQueries.cpp
+        Hunt/Game/ObjectBounds.cpp
+        Hunt/Math/Vector.cpp
         tests/workbench_audio_seams.cpp
         Hunt/Workbench/TuningSession.cpp
         Hunt/Workbench/TuningRuntime.cpp
@@ -505,6 +511,10 @@ if(MSVC)
         # Hidden owned window/context only: no game, assets, focus or OS input.
         add_executable(Carnivores2WorkbenchGPUTests
             tests/test_workbench_gpu.cpp
+            Hunt/Workbench/CollisionInspection.cpp
+            Hunt/Game/TerrainQueries.cpp
+            Hunt/Game/ObjectBounds.cpp
+            Hunt/Math/Vector.cpp
             tests/workbench_audio_seams.cpp
             Hunt/Workbench/WorkbenchUI.cpp
             Hunt/Workbench/InputBoundary.cpp
