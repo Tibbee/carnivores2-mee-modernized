@@ -362,7 +362,9 @@ bool GLRenderer::Initialize()
     m_locSkyCamForward     = glGetUniformLocation(m_skyShader.GetProgramID(), "uCamForward");
 
     m_Initialized = true;
-    if (!unattended_capture::options.enabled && !workbench::InitializeUI(m_hwnd, [](bool ownsInput) {
+    // Hidden captures need the same attached backend as ordinary hunts, even
+    // when closed. CaptureMouse and ReconcileInput retain no-desktop-input guards.
+    if (!workbench::InitializeUI(m_hwnd, [](bool ownsInput) {
         KeyFlags = 0;
         for (auto& key : KeyboardState) key &= 127; // Release downs, retain toggle bits.
         rav = rbv = 0.0f;

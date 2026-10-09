@@ -70,7 +70,8 @@ python tools/perf/workbench_perf.py prepare --game-dir E:/Games/CarnivoresLegacy
 Output must be a **new** ignored directory under this checkout's `build/`.
 Preparation refuses an existing game/menu, Shipping/arbitrary binaries, dirty
 engine/build inputs and binaries older than source inputs. It makes a full
-independent `HUNTDAT` copy (~1.4 GiB for the current deployment), plus build
+independent `HUNTDAT` copy (~1.4 GiB for the current deployment), optional
+`MULTIPLAYER` assets (the hitbox CAR is loaded in offline hunts too), plus build
 shaders, executable and cloned config/profiles. No writable junctions/hardlinks,
 ReShade proxy, deployment, original config edits or original trophy edits.
 Only copied measurement keys/view bytes change. Original lighting customization

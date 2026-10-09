@@ -201,6 +201,13 @@ def inventory(root: Path) -> dict:
     return {p.relative_to(root).as_posix(): sha256(p) for p in sorted(root.rglob("*")) if p.is_file()}
 
 
+def runtime_assets(runtime: Path) -> dict:
+    assets = inventory(runtime / "HUNTDAT")
+    for folder in ("shaders", "MULTIPLAYER"):
+        assets.update({folder + "/" + key: value for key, value in inventory(runtime / folder).items()})
+    return assets
+
+
 def assert_no_game() -> None:
     if sys.platform != "win32":
         raise ValueError("Live capture requires Windows")
@@ -256,6 +263,9 @@ def prepare(game: Path, exe: Path, output: Path, targets: list[str], repeats: in
     runtime = output / "runtime"
     runtime.mkdir(parents=True)
     shutil.copytree(game / "HUNTDAT", runtime / "HUNTDAT")
+    # CharacterLoader loads the shipped hitbox/avatar CAR even in offline hunts.
+    if (game / "MULTIPLAYER").is_dir():
+        shutil.copytree(game / "MULTIPLAYER", runtime / "MULTIPLAYER")
     shutil.copytree(exe.parent / "shaders", runtime / "shaders")
     shutil.copy2(exe, runtime / "Carnivores1_GL.exe")
     inputs = output / "inputs"
@@ -264,8 +274,7 @@ def prepare(game: Path, exe: Path, output: Path, targets: list[str], repeats: in
     (inputs / "trophy00.sav").write_bytes(profile)
     if (game / "trophy00.sab").exists():
         shutil.copy2(game / "trophy00.sab", inputs / "trophy00.sab")
-    asset_hashes = inventory(runtime / "HUNTDAT")
-    asset_hashes.update({"shaders/" + k: v for k, v in inventory(runtime / "shaders").items()})
+    asset_hashes = runtime_assets(runtime)
     save_json(output / "originals.json", baseline)
     manifest = {"schema_version": 1, "kind": "unattended-workbench-renderer", "status": "prepared",
                 "original_game": str(game), "originals_unchanged": False, "targets": targets, "repeats": repeats,
@@ -325,9 +334,7 @@ def run(session: Path) -> None:
     provenance = manifest["provenance"]
     if sha256(exe) != provenance["exe_sha256"] or sha256(inputs / "config.cfg") != provenance["config_sha256"] or sha256(inputs / "trophy00.sav") != provenance["profile_sha256"]:
         raise ValueError("Prepared executable/settings changed")
-    assets = inventory(runtime / "HUNTDAT")
-    assets.update({"shaders/" + k: v for k, v in inventory(runtime / "shaders").items()})
-    if assets != provenance["assets"]:
+    if runtime_assets(runtime) != provenance["assets"]:
         raise ValueError("Prepared assets changed")
     process = None
     manifest["status"] = "running"
@@ -359,6 +366,13 @@ def run(session: Path) -> None:
                         if time.monotonic() > deadline:
                             raise ValueError(f"Capture timeout; owned PID {process.pid} NOT killed; close it yourself")
                         time.sleep(.1)
+                    # Retain diagnostics even when legacy DoHalt exits with code zero.
+                    for name in ("render.log", "carnivor.log"):
+                        if (runtime / name).exists():
+                            shutil.copy2(runtime / name, run_dir / name)
+                    log_text = (run_dir / "render.log").read_text(encoding="utf-8", errors="replace")
+                    if "ABNORMAL_HALT:" in log_text:
+                        raise ValueError("Capture halted: " + log_text.split("ABNORMAL_HALT:", 1)[1].strip())
                     if process.returncode:
                         raise ValueError(f"Capture process exited {process.returncode}")
                     changed = [p for p in runtime.glob("glperf-capture-*.csv") if before.get(p.name) != sha256(p)]

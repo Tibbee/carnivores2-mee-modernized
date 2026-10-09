@@ -19,6 +19,15 @@ the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
 The separately labelled workbench preview below is on a feature branch, not main.
 
+### Hidden capture corrections (2026-10-09)
+
+First asset-backed validation exposes two capture-only setup gaps: include
+`MULTIPLAYER` assets in the private fixture (the hitbox CAR loads offline), and
+attach the native backend during hidden captures as during ordinary hunts.
+Retain existing no-focus/cursor/input/audio guards and strict mode verification.
+Preserve halt diagnostics even when legacy shutdown returns exit code zero.
+No ordinary-launch behavior change or installed-preview replacement.
+
 ### Workbench measurement tools (feature tooling, 2026-10-08)
 
 Move the workspace Perl CSV helper into `tools/perf`, fix its syntax and validate

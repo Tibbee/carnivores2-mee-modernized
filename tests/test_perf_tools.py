@@ -271,6 +271,8 @@ class RunnerContracts(TempCase):
         binary.write_bytes(image)
         (game / "HUNTDAT").mkdir(parents=True)
         (game / "HUNTDAT/fixture.map").write_bytes(b"synthetic private fixture")
+        (game / "MULTIPLAYER/AVATARS").mkdir(parents=True)
+        (game / "MULTIPLAYER/AVATARS/Hitbox.car").write_bytes(b"synthetic offline-required avatar")
         (game / "config.cfg").write_bytes(b"glperf_logging 0\nflashlight_range 11000\n")
         (game / "trophy00.sav").write_bytes(bytes(1660))
         (game / "trophy00.sab").write_bytes(b"owner aux profile")
@@ -291,6 +293,10 @@ class RunnerContracts(TempCase):
         self.assertIn(b"glperf_logging 1", (session.parent / "inputs/config.cfg").read_bytes())
         self.assertIn(b"glperf_logging 0", (game / "config.cfg").read_bytes())
         self.assertFalse((session.parent / "runtime/opengl32.dll").exists())
+        avatar = "MULTIPLAYER/AVATARS/Hitbox.car"
+        self.assertEqual((session.parent / "runtime" / avatar).read_bytes(), (game / avatar).read_bytes())
+        manifest = json.loads(session.read_text())
+        self.assertEqual(manifest["provenance"]["assets"][avatar], perf.sha256(game / avatar))
 
     def test_mocked_runner_collects_bracketed_evidence_and_preserves_originals(self):
         session, game, original = self.prepare_fake()
@@ -319,6 +325,24 @@ class RunnerContracts(TempCase):
         self.assertEqual(report["aggregate"]["ui"]["cpu_ms"]["delta_ms"]["median"], 1)
         with mock.patch.object(perf, "assert_no_game"), self.assertRaises(ValueError):
             perf.run(session)  # Never silently overwrite/resume a completed run.
+
+    def test_mocked_zero_exit_halt_retains_diagnostics_and_fails(self):
+        session, game, original = self.prepare_fake()
+        class Process:
+            pid = 987654
+            returncode = 0
+            def poll(self):
+                return 0
+        def launch(args, cwd):
+            (Path(cwd) / "render.log").write_text("ABNORMAL_HALT: Missing offline avatar.\n")
+            return Process()
+        with mock.patch.object(perf, "REPO", session.parents[2]), mock.patch.object(perf, "assert_no_game"), \
+                mock.patch.object(perf.subprocess, "Popen", side_effect=launch):
+            with self.assertRaisesRegex(ValueError, "Missing offline avatar"):
+                perf.run(session)
+        self.assertIn("ABNORMAL_HALT:", (session.parent / "r1-ui-before/render.log").read_text())
+        self.assertEqual(json.loads(session.read_text())["status"], "failed")
+        self.assertEqual(perf.inventory(game), original)
 
     def test_mocked_timeout_records_pid_without_killing(self):
         session, game, original = self.prepare_fake()
