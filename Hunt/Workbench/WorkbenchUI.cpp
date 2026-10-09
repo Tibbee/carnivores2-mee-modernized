@@ -201,7 +201,7 @@ void DrawField(const Descriptor& descriptor) {
 		if (input.error == Error::None) input.dirty = false;
 	}
 	ImGui::TextDisabled("Loaded %.5g %s", RuntimeSession().Loaded()[index], descriptor.unit);
-	if (descriptor.persist == PersistPolicy::RecognizedConfigKey) {
+	if (descriptor.persist == PersistPolicy::RecognizedConfigKey && descriptor.group != Group::Audio) {
 		ImGui::TextDisabled("Live / existing config key / no file writes");
 	}
 	ImGui::SameLine();
@@ -267,23 +267,41 @@ void DrawAudio() {
 	const bool available = state.reverbAvailable && state.backend == c2audio::Backend::OpenAL;
 	if (audioWasAvailable && !available) { Result(EndRuntimeGesture()); ClearUIInput(); fields = {}; }
 	audioWasAvailable = available;
+	const auto scene = ReadEnvironmentContext();
+	const bool confirmed = state.applied >= 0 &&
+		(state.application == c2audio::Application::Reverb || state.application == c2audio::Application::Dry);
+	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(.12f,.21f,.24f,1));
+	ImGui::BeginChild("Live audio status", ImVec2(0,0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
+	ImGui::TextUnformatted("LIVE SCENE ENVIRONMENT  /  read-only");
+	const float fontScale = ImGui::GetCurrentWindow()->FontWindowScale;
+	ImGui::SetWindowFontScale(fontScale * 1.35f);
+	ImGui::TextWrapped("Scene requests: %s", c2audio::EnvironmentLabel(scene.requestedEnvironment)); ProbeItem("audioLiveScene",scene.requestedEnvironment);
+	ImGui::TextColored(confirmed ? ImVec4(.65f,.91f,.71f,1) : ImVec4(.96f,.76f,.45f,1),
+		"Backend applied: %s", confirmed ? c2audio::EnvironmentLabel(state.applied) : "NOT CONFIRMED"); ProbeItem("audioApplied",confirmed ? state.applied : -1);
+	ImGui::SetWindowFontScale(fontScale);
 	ImGui::TextWrapped("%s", c2audio::ApplicationName(state.application)); ProbeItem("audioStatus");
-	ImGui::Text("Control request %d / backend request %d / applied %d", ReadEnvironmentContext().requestedEnvironment, state.requested, state.applied);
+	ImGui::TextWrapped("Backend request: %s", c2audio::EnvironmentLabel(state.requested));
 	if (state.application == c2audio::Application::Reverb)
-		ImGui::TextDisabled("Applied: %.4g s / HF %.4g / diffusion %.4g / %.0f mB", state.appliedValues[0], state.appliedValues[1], state.appliedValues[2], state.appliedValues[3]);
-	const char* banks[] = {"0 Generic", "1 Plate", "2 Forest", "3 Mountain", "4 Canyon", "5 Cave", "6 Special 2", "7 Dry (read-only)", "8 Underwater"};
-	const bool choosingBank = ImGui::BeginCombo("Edit preset bank", banks[audioBank], ImGuiComboFlags_HeightLarge);
+		ImGui::TextWrapped("Applied: %.4g s / HF %.4g / diffusion %.4g / %.0f mB", state.appliedValues[0], state.appliedValues[1], state.appliedValues[2], state.appliedValues[3]);
+	ImGui::EndChild(); ImGui::PopStyleColor();
+	ImGui::Spacing(); ImGui::SeparatorText("PRESET EDITOR / manual selection");
+	ImGui::TextWrapped("This editor stays on your chosen preset. It does NOT follow scene changes or force the environment.");
+	const bool choosingBank = ImGui::BeginCombo("Preset to edit", c2audio::EnvironmentLabel(audioBank), ImGuiComboFlags_HeightLarge);
 	ProbeItem("audioSelector");
 	if (choosingBank) {
 		for (int e = 0; e < 9; ++e) {
-			if (ImGui::Selectable(banks[e], audioBank == e)) {
+			if (ImGui::Selectable(c2audio::EnvironmentLabel(e), audioBank == e)) {
 				Result(EndRuntimeGesture()); audioBank = e; fields = {};
 			}
 			ProbeItem("audioBank", e);
 		}
 		ImGui::EndCombo();
 	}
-	ImGui::TextWrapped("Select a bank to edit its values; this does not force the gameplay environment. Loaded reset, history and comparison apply. No file saves.");
+	ImGui::BeginDisabled(scene.requestedEnvironment < 0 || scene.requestedEnvironment > 8);
+	if (ImGui::Button("Edit scene-requested preset")) {
+		Result(EndRuntimeGesture()); audioBank=scene.requestedEnvironment; fields={};
+	} ProbeItem("audioEditLive"); ImGui::EndDisabled();
+	ImGui::TextWrapped("Live tuning / existing config keys / no file saves. Loaded reset, history and comparison apply.");
 	if (audioBank == 7) ImGui::TextWrapped("Environment 7 is intentionally dry and has no effective reverb controls.");
 	else {
 		if (!available) ImGui::TextWrapped("Read-only: live tuning needs an active OpenAL EFX backend.");

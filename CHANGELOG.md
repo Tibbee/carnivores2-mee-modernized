@@ -19,6 +19,16 @@ the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
 The separately labelled workbench preview below is on a feature branch, not main.
 
+### Workbench inspector corrections (2026-10-09)
+
+Separate a prominent live scene/backend audio card from the manually selected
+preset editor; an explicit button selects the scene-requested preset for editing.
+Fix missing collision placements: OCount is the last model's internal record count,
+not the map object roster. Validate loaded model slots and ignore sentinel cells.
+Add high-ID rotated/sloped bridge, release, live-status and manual-editor tests.
+Four matrices pass; seven compiled controls reject, including restoring the bad
+OCount filter. Collision geometry/gameplay and audio environment selection unchanged.
+
 ### Workbench lifecycle isolation (2026-10-09)
 
 Keep ordinary hunt's thirteen legacy scalar resets independent of diagnostic

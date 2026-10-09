@@ -7,13 +7,16 @@ namespace workbench {
 namespace {
 bool InMap(int x,int z) { return x>=0 && z>=0 && x<ctMapSize && z<ctMapSize; }
 bool PlayerCell(int& x,int& z) {
-	if(!RuntimeSession().IsLoaded() || OCount<=0 || OCount>256 || !CollisionFinite(PlayerY) ||
+	if(!RuntimeSession().IsLoaded() || !CollisionFinite(PlayerY) ||
 		!CollisionFinite(PlayerX)||!CollisionFinite(PlayerZ)||PlayerX<0||PlayerZ<0||
 		PlayerX>=ctMapSize*256.f||PlayerZ>=ctMapSize*256.f)return false;
 	x=static_cast<int>(PlayerX)/256;z=static_cast<int>(PlayerZ)/256;return true;
 }
 bool ObjectAt(int x,int z,int object) {
-	return InMap(x,z)&&object>=0&&object<OCount&&object<255&&OMap[z][x]==object;
+	// OCount is a model-loader scratch count (internal .3df records), NOT
+	// the area's object roster. Resource lifetime is represented by the
+	// loaded slot's owned model; release clears it before freeing data.
+	return InMap(x,z)&&object>=0&&object<254&&OMap[z][x]==object&&MObjects[object].model!=nullptr;
 }
 }
 NearbyCollisions ReadNearbyCollisions() {

@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <glad/glad.h>
 #include <imgui.h>
+#include <imgui_internal.h> // Test-only settled window scrolling before widget input.
 #include <array>
 #include <cstdlib>
 #include <fstream>
@@ -72,6 +73,7 @@ protected:
 	HDC dc = nullptr;
 	HGLRC context = nullptr;
 	GLuint program = 0, vao = 0, buffers[3]{}, textures[2]{}, sampler = 0;
+	TModel collisionModel{};
 	void SetUp() override {
 		rectangles.clear(); workbench::SetUIProbe(ObserveItem);
 		WNDCLASSA windowClass{}; windowClass.style = CS_OWNDC;
@@ -130,16 +132,27 @@ protected:
 	void Open() { ASSERT_TRUE(workbench::HandleUIMessage(window, WM_SYSKEYDOWN, VK_F10, 0, true)); ASSERT_TRUE(workbench::UIOpen()); }
 	void Click(const char* role, int parameter = -1) {
 		ASSERT_TRUE(rectangles.count({role, parameter}));
-		const auto rect = rectangles.at({role, parameter});
+		// Exercise scrollable controls at a visible position, not a clipped
+		// stale rectangle when a larger status panel pushes fields downward.
+		auto* inspector=ImGui::FindWindowByName("Modder workbench");
+		auto rect=rectangles.at({role,parameter});
+		const float centerY=(rect[1]+rect[3])/2;
+		if(inspector && (centerY<inspector->InnerClipRect.Min.y || centerY>inspector->InnerClipRect.Max.y)) {
+			ImGui::SetScrollY(inspector,inspector->Scroll.y+centerY-inspector->InnerClipRect.GetCenter().y);
+			workbench::RenderUI();workbench::RenderUI();rect=rectangles.at({role,parameter});
+		}
 		auto& io = ImGui::GetIO(); io.AddMousePosEvent((rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2);
 		io.AddMouseButtonEvent(0, true); workbench::RenderUI(); workbench::RenderUI();
 		io.AddMouseButtonEvent(0, false); workbench::RenderUI();
+		// Observe auto-sized child/popup layout after release before grounding
+		// the next synthetic widget input in its final rectangle.
+		workbench::RenderUI();workbench::RenderUI();
 	}
-	void CollisionScene(bool alreadyOpen=false) {
-		OCount=1;std::memset(OMap,255,sizeof(OMap));std::memset(FMap,0,sizeof(FMap));std::memset(HMap,0,sizeof(HMap));std::memset(HMapO,0,sizeof(HMapO));
-		OMap[10][10]=0;PlayerX=PlayerZ=10*256+128;PlayerY=0;
-		MObjects[0].info.flags=ofBOUND;for(auto& b:MObjects[0].bound)b.a=-1;
-		TBound b{};b.a=172;b.b=122;b.cosph=1;b.y1=60;b.y2=160;b.gx=.05f;b.bottomGz=-.1f;MObjects[0].bound[0]=b;
+	void CollisionScene(bool alreadyOpen=false,int object=0,int rotation=0) {
+		OCount=1;MObjects[object].model.reset(&collisionModel);std::memset(OMap,255,sizeof(OMap));std::memset(FMap,0,sizeof(FMap));std::memset(HMap,0,sizeof(HMap));std::memset(HMapO,0,sizeof(HMapO));
+		OMap[10][10]=static_cast<BYTE>(object);FMap[10][10]=static_cast<BYTE>(rotation<<2);PlayerX=PlayerZ=10*256+128;PlayerY=0;
+		MObjects[object].info.flags=ofBOUND;for(auto& b:MObjects[object].bound)b.a=-1;
+		TBound b{};b.a=172;b.b=122;b.cosph=1;b.y1=60;b.y2=160;b.gx=.05f;b.bottomGz=-.1f;MObjects[object].bound[0]=b;
 		CameraX=PlayerX;CameraY=100;CameraZ=PlayerZ+600;ca=cb=1;sa=sb=0;
 		WinW=2560;WinH=1440;VideoCX=1280;VideoCY=720;CameraW=CameraH=1200;
 		if(!alreadyOpen)Open();workbench::RenderUI();workbench::RenderUI();Click("group",6);Click("collisionObject",0);
@@ -159,6 +172,7 @@ protected:
 	}
 	void TearDown() override {
 		workbench::ShutdownUI();OCount=0;
+		MObjects[0].model.release();MObjects[77].model.release();
 		if (program) glDeleteProgram(program);
 		if (vao) glDeleteVertexArrays(1, &vao);
 		if (buffers[0]) glDeleteBuffers(3, buffers);
@@ -427,6 +441,20 @@ TEST_F(WorkbenchGPU, TintPickerClosesAcrossModeFocusAndHuntGenerationChanges) {
 	ASSERT_EQ(workbench::ResetRuntimeForHunt(), workbench::Error::None);
 	workbench::RenderUI(); EXPECT_FALSE(anyPopup()); EXPECT_EQ(glGetError(), GL_NO_ERROR);
 }
+TEST_F(WorkbenchGPU, ProminentLiveAudioFollowsSceneWithoutChangingManualEditor) {
+	Env=2;UNDERWATER=FALSE;Open();workbench::RenderUI();workbench::RenderUI();Click("group",5);
+	ASSERT_TRUE(rectangles.count({"audioLiveScene",2}));ASSERT_TRUE(rectangles.count({"audioApplied",2}));
+	const auto values=workbench::ReadRuntimeValues();
+	UNDERWATER=TRUE;workbench_test::audioRequested=8;workbench_test::audioApplied=8;
+	workbench::RenderUI();ASSERT_TRUE(rectangles.count({"audioLiveScene",8}));ASSERT_TRUE(rectangles.count({"audioApplied",8}));
+	rectangles.erase({"exact",static_cast<int>(workbench::AudioParameter(8,0))});workbench::RenderUI();
+	EXPECT_FALSE(rectangles.count({"exact",static_cast<int>(workbench::AudioParameter(8,0))}));
+	Click("audioEditLive");EXPECT_TRUE(rectangles.count({"exact",static_cast<int>(workbench::AudioParameter(8,0))}));
+	EXPECT_EQ(workbench::ReadRuntimeValues(),values);EXPECT_FALSE(workbench::RuntimeSession().CanUndo());
+	workbench_test::audioApplied=-1;workbench_test::audioApplication=c2audio::Application::Failed;
+	rectangles.erase({"audioApplied",8});workbench::RenderUI();EXPECT_FALSE(rectangles.count({"audioApplied",8}));
+	EXPECT_TRUE(rectangles.count({"audioApplied",-1}));UNDERWATER=FALSE;Env=2;
+}
 TEST_F(WorkbenchGPU, AudioExactBankEditingAndIntegerRejectionUseSharedHistory) {
 	Open();workbench::RenderUI();workbench::RenderUI();
 	Click("group",static_cast<int>(workbench::Group::Audio));
@@ -463,6 +491,13 @@ TEST_F(WorkbenchGPU, UnsupportedAudioIsReadOnlyAndClosedOrCollapsedDiagnosticsDo
 	workbench::HandleUIMessage(window,WM_KEYDOWN,VK_F10,0,true);
 	const auto samples=workbench_test::audioSamples;
 	for(int i=0;i<100;++i)workbench::RenderUI();EXPECT_EQ(workbench_test::audioSamples,samples);
+}
+TEST_F(WorkbenchGPU, RotatedSlopedBridgeHighObjectIDListsAndProjectsRegardlessOfModelScratchCount) {
+	CollisionScene(false,77,3);OCount=0;
+	const auto nearby=workbench::ReadNearbyCollisions();ASSERT_EQ(nearby.count,1u);EXPECT_EQ(nearby.objects[0].object,77);
+	Click("collisionOverlay");EXPECT_TRUE(rectangles.count({"collisionLine",0}));
+	MObjects[77].model.release();rectangles.erase({"collisionLine",0});workbench::RenderUI();
+	EXPECT_FALSE(rectangles.count({"collisionLine",0}));
 }
 TEST_F(WorkbenchGPU, CollisionWireIsDefaultOffReadOnlyAndRestoresGLState) {
 	CollisionScene();EXPECT_FALSE(rectangles.count({"collisionLine",0}));
@@ -509,7 +544,7 @@ TEST_F(WorkbenchGPU, OptionalSyntheticInspectorScreenshot) {
 	if (const char* group = std::getenv("C2_WORKBENCH_SCREENSHOT_GROUP")) {
 		const int selected = std::atoi(group);
 		if (selected >= 0 && selected <= 5) Click("group", selected);
-		if (selected == 6) { CollisionScene(true);Click("collisionOverlay"); }
+		if (selected == 6) { CollisionScene(true,77,3);Click("collisionOverlay"); }
 	}
 	const char* output = std::getenv("C2_WORKBENCH_SCREENSHOT");
 	if (!output) return;

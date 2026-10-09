@@ -11,14 +11,18 @@ TBound Bound() { TBound b{};b.a=172;b.b=122;b.cx=31;b.cy=-20;b.cosph=.8f;b.sinph
 	b.y1=20;b.y2=100;b.gx=.04f;b.gz=-.3f;b.bottomGx=.25f;b.bottomGz=-.2f;return b; }
 class WorkbenchCollision : public testing::Test {
 protected:
+	TModel loadedModel{}, bridgeModel{}; // Borrowed by slots; never heap-freed by the fixture.
 	void SetUp() override {
 		workbench_test::ResetAudio();workbench::ResetRuntimeForHunt();workbench::CaptureRuntimeBaseline();
-		OCount=1;std::memset(OMap,255,sizeof(OMap));std::memset(FMap,0,sizeof(FMap));std::memset(HMap,0,sizeof(HMap));std::memset(HMapO,0,sizeof(HMapO));
+		OCount=1;MObjects[0].model.reset(&loadedModel);std::memset(OMap,255,sizeof(OMap));std::memset(FMap,0,sizeof(FMap));std::memset(HMap,0,sizeof(HMap));std::memset(HMapO,0,sizeof(HMapO));
 		PlayerX=PlayerZ=10*256+128;PlayerY=100;
 		MObjects[0].info.flags=ofBOUND;for(auto& b:MObjects[0].bound)b.a=-1;
 		OMap[10][10]=0;
 	}
-	void TearDown() override { OCount=0;std::memset(OMap,255,sizeof(OMap)); }
+	void TearDown() override {
+		MObjects[0].model.release();MObjects[77].model.release();
+		OCount=0;std::memset(OMap,255,sizeof(OMap));
+	}
 };
 }
 TEST(WorkbenchCollisionGeometry, CornersMatchAllMapRotationsAndIndependentPlanes) {
@@ -63,6 +67,25 @@ TEST_F(WorkbenchCollision, LoadedPaddingAgreesWithProductionFitWithoutDoublePadd
 	const auto corners=workbench::InspectionCorners(snapshot.bounds[0],snapshot.origin,0);
 	EXPECT_FLOAT_EQ(corners[1].x-corners[0].x,345); // Inclusive legacy extent, no second +72.
 }
+TEST_F(WorkbenchCollision, AreaObjectIDDoesNotDependOnLastModelInternalObjectCount) {
+	MObjects[77].model.reset(&bridgeModel);MObjects[77].info.flags=ofBOUND;
+	for(auto& b:MObjects[77].bound)b.a=-1;MObjects[77].bound[0]=Bound();
+	OMap[10][10]=77;
+	for(int rotation=0;rotation<4;++rotation)for(int scratchCount:{0,1,8,1024}) {
+		OCount=scratchCount;FMap[10][10]=static_cast<BYTE>(rotation<<2);
+		const auto nearby=workbench::ReadNearbyCollisions();ASSERT_EQ(nearby.count,1u);
+		EXPECT_EQ(nearby.objects[0].object,77);const auto snapshot=workbench::ReadCollision(nearby.objects[0]);
+		ASSERT_TRUE(snapshot.valid);EXPECT_TRUE(snapshot.active[0]);EXPECT_EQ(snapshot.rotation,rotation);
+	}
+	const auto selected=workbench::ReadNearbyCollisions().objects[0];MObjects[77].model.release();
+	EXPECT_EQ(workbench::ReadNearbyCollisions().count,0u);EXPECT_FALSE(workbench::ReadCollision(selected).valid);
+}
+TEST_F(WorkbenchCollision, SentinelCellsAndUnloadedSlotsNeverBecomePlacements) {
+	OMap[10][10]=254;EXPECT_EQ(workbench::ReadNearbyCollisions().count,0u);
+	OMap[10][10]=255;EXPECT_EQ(workbench::ReadNearbyCollisions().count,0u);
+	OMap[10][10]=77;EXPECT_EQ(workbench::ReadNearbyCollisions().count,0u);
+	OMap[10][10]=0;MObjects[0].model.release();EXPECT_EQ(workbench::ReadNearbyCollisions().count,0u);
+}
 TEST_F(WorkbenchCollision, NeighborhoodIsBoundedClampedAndIgnoresInvalidIndices) {
 	std::memset(OMap,0,sizeof(OMap));auto nearby=workbench::ReadNearbyCollisions();EXPECT_EQ(nearby.count,81u);
 	PlayerX=PlayerZ=128;nearby=workbench::ReadNearbyCollisions();EXPECT_EQ(nearby.count,25u);
@@ -95,5 +118,5 @@ TEST_F(WorkbenchCollision, LegacyPoliciesDoNotInventBoxesAndReloadIndicesDisable
 	auto selected=workbench::ReadNearbyCollisions().objects[0];auto snapshot=workbench::ReadCollision(selected);
 	ASSERT_TRUE(snapshot.valid);EXPECT_FALSE(snapshot.bounded);EXPECT_FALSE(snapshot.active[0]);
 	OMap[11][11]=200;EXPECT_FALSE(workbench::ReadCollision(selected).sceneKnown);
-	OCount=0;EXPECT_FALSE(workbench::ReadCollision(selected).valid);
+	MObjects[0].model.release();EXPECT_FALSE(workbench::ReadCollision(selected).valid);
 }

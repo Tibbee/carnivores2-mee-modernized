@@ -9,6 +9,11 @@ inline Environments Defaults() {
 		{2.6f,.2f,.326f,-500}, {1.1f,.6f,.275f,-700}, {3.2f,.6f,.9f,-200},
 		{1.8f,.4f,.4f,-400}, {0,0,0,0}, {1.5f,.1f,.1f,-200}}};
 }
+inline const char* EnvironmentLabel(int id) {
+	static const char* const labels[] = {"0 Generic", "1 Plate", "2 Forest", "3 Mountain", "4 Canyon",
+		"5 Cave", "6 Special 2", "7 Dry", "8 Underwater"};
+	return id >= 0 && id < 9 ? labels[id] : "Unknown / not confirmed";
+}
 enum class Backend { Disabled, OpenAL, Legacy };
 enum class Application { Pending, Reverb, Dry, DryFallback, Failed, Disabled, LegacyUnverified };
 enum class WriteResult { Ok, Invalid, Changed, Unavailable };

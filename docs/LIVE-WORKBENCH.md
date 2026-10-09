@@ -62,6 +62,10 @@ request, not confirmation from the audio backend. Booleans/time are not editable
 
 ## Audio / Environment (2026-10-09 source checkpoint)
 
+Audio has a prominent read-only live scene/backend status card, separate from the
+**PRESET EDITOR / manual selection** section. The preset selector never follows
+scene changes; **Edit scene-requested preset** is the explicit shortcut to that bank.
+It changes the editor only, not the gameplay environment.
 Audio shows backend request/application/capability separately from Scene context.
 Select a bank to edit decay, HF decay ratio, diffusion and integer late-reverb mB;
 this does not force the gameplay environment. Bank 7 is dry/read-only and inactive/
@@ -79,7 +83,9 @@ for the previous visual controls/input and combined collision engine.
 ## Collision inspection
 
 Select a nearby placement from the clamped 9 x 9 list (maximum 81 candidates).
-The inspector copies up to eight actual loaded ofBOUND slots and displays IDs,
+Placements validate the actual loaded model slot, not `OCount` (which is scratch
+state for internal records of the last loaded model). The inspector copies up to
+eight actual loaded ofBOUND slots and displays IDs,
 flags, placement/rotation, extents and independent plane gradients. Legacy circle/
 square policies are labelled without invented fitted boxes. Nothing is refitted.
 Selected eligible planes are separate from resolved neighborhood floor/ceiling
