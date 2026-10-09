@@ -69,11 +69,13 @@ No picking, pause/step, docking, creature/weapon/region editing or audio tuning.
 
 On 2026-10-08 the owner confirmed all the discussed gameplay acceptance checks
 were completed, including editing/focus/lifecycle and Night/Beam/collision checks.
-This is owner-reported acceptance, not assistant-observed testing. Matched timing
-remains separate and unmeasured. The [performance tools](../tools/perf/README.md)
-provide an opt-in isolated hidden capture protocol; its first asset-backed run
-still needs validation. No game/menu was launched or preview redeployed for the
-helper/framework work. Hidden GPU/widget tests are not gameplay benchmarks.
+This is owner-reported acceptance, not assistant-observed testing. The
+[performance tools](../tools/perf/README.md) were subsequently exercised in an
+owner-authorized hidden/silent series on 2026-10-09 against collision/audio main
+without the workbench. Captures/modes validate, but several-ms closed drift exceeds
+the estimated +0.311 ms UI cost; stable overhead/foreground timing remain unresolved.
+Precache stays ~1.9 ms. Installed preview is not replaced. Hidden GPU/widget tests
+and hidden captures are not foreground gameplay FPS/input-latency evidence.
 
 [Canonical behavior](../../CarnivoresDoc/architecture/live-modder-workbench.md)
 · [combined verification/deployment](../../CarnivoresDoc/working/sessions/c2-workbench-integration-2026-10-08.md)

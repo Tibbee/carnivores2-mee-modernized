@@ -1,8 +1,8 @@
 # C2 performance tools
 
-> **Last verified:** 2026-10-08
+> **Last verified:** 2026-10-09
 > **Applies to:** [C2], OpenGL `feat/modder-workbench`
-> **Status:** Helper repaired; offline tests/build matrix pass. Live capture runner not yet exercised against the game. No new performance measurements.
+> **Status:** Asset-backed hidden captures validated; 25 offline cases/four matrices pass. Old/new comparison is noise-limited, not a definitive overhead or foreground FPS result.
 
 ## CSV helper
 
@@ -101,11 +101,15 @@ mode/completion confirmation and original-file preservation. `report.json` keeps
 Test/UI separate and exposes drift rather than granting an automatic speedup.
 Review the final framebuffers to confirm the intended inspector/scene.
 
-**Current limit:** preparation/runner contracts are exercised with synthetic
-fixtures and mocked processes; no asset-backed series was launched in this
-implementation session. The first real run still needs validation. Computer use
-is unnecessary for the scripted hidden protocol; enable it later only for an
-explicitly agreed foreground/screenshot investigation.
+**Live validation (2026-10-09):** 58 complete 120-frame captures compare native
+closed/UI/Test and pre-workbench collision/audio main. The first real attempts
+exposed missing offline-required MULTIPLAYER assets and a hidden backend-attachment
+skip; both are corrected, with failure evidence retained. Five-repeat confirmation
+estimates UI minus new-closed at +0.311 ms median, but repeat range -2.376..+3.020 ms
+and closed drift up to 5.407 ms prevent a reliable small-cost/regression claim.
+Precache remains ~1.9 ms. See the
+[measurement record](../../../CarnivoresDoc/working/sessions/c2-workbench-performance-2026-10-09.md).
+Computer use was unnecessary; foreground timing remains a separate agreed session.
 
 [Workbench behavior](../../docs/LIVE-WORKBENCH.md)
 · [canonical acceptance](../../../CarnivoresDoc/working/sessions/c2-workbench-acceptance-2026-10-07.md)
