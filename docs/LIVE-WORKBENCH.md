@@ -5,7 +5,11 @@ atmosphere controls at `2b53b5d` and combined collision preview at `38efa89` (20
 This is a tested local Shipping preview, not a published release. Software keeps
 the original F10 text panel. The separate MEE 1.2 migration is not required.
 
-The deployed combined build includes main's reviewed collision checkpoint `598924f`.
+The deployed combined build includes main's reviewed collision checkpoint `598924f`,
+Audio `75db99a`, Collision inspection `e931f13` and lifecycle isolation `201ffd8`.
+The October 9 deployment preserves all 639 protected files; new listening/real-map
+visual acceptance remains separate. See the
+[delivery record](../../CarnivoresDoc/working/sessions/c2-workbench-audio-collision-2026-10-09.md).
 Source/builds now live in `Carnivores2MEE1.11/`, checked out on `feat/modder-workbench`.
 The temporary sibling worktree was removed at owner request; its evidence was archived.
 Main remains collision-only. In this single folder, commit changes before switching
@@ -35,6 +39,7 @@ Held keys/buttons must be released before they can become fresh gameplay actions
 following ownership changes. Focus loss returns an open Test session to UI;
 closing and renderer recreation retain applied edits. Hunt restart restores the
 original legacy tuning defaults and starts a new loaded baseline/history generation.
+Invalid diagnostic state cannot prevent these ordinary legacy hunt resets.
 Atmosphere previews return to their captured configured values when the snapshot
 is still owned; new external/config values are not overwritten during restart.
 
