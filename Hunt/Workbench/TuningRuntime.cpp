@@ -124,6 +124,24 @@ Error EndRuntimeGesture() { return Mutate([](Session& s) { s.EndGesture(); retur
 Error UndoRuntime() { return Mutate([](Session& s) { s.Undo(); return Error::None; }); }
 Error RedoRuntime() { return Mutate([](Session& s) { s.Redo(); return Error::None; }); }
 
+const char* GroupName(Group group) {
+	switch (group) {
+		case Group::Fog: return "Fog";
+		case Group::Waves: return "Waves";
+		case Group::Sun: return "Sun glare";
+		case Group::Night: return "Night";
+		case Group::Flashlight: return "Beam";
+		default: return "Audio";
+	}
+}
+// Short tag used by the appended inventory; the panel spells these out.
+const char* PersistTag(PersistPolicy policy) {
+	switch (policy) {
+		case PersistPolicy::RecognizedConfigKey: return "cfg";
+		case PersistPolicy::RuntimeOnly: return "runtime";
+		default: return "dump";
+	}
+}
 std::string FormatRuntimeDump() {
 	const auto values = ReadRuntimeValues();
 	std::string dump = "=== UNDERWATER DEBUG VALUES ===\n";
@@ -140,6 +158,37 @@ std::string FormatRuntimeDump() {
 		}
 	}
 	dump += "=== END DEBUG VALUES ===\n";
+	// Appended inventory. The legacy block above is a byte-exact log contract, so
+	// nothing here may alter it: the legacy D-dump only ever covered Fog, Waves and
+	// Sun, which left night, beam and reverb values untranscribable.
+	dump += "\n=== WORKBENCH TUNABLES ===\n";
+	for (const Group group : {Group::Fog, Group::Waves, Group::Sun, Group::Night, Group::Flashlight, Group::Audio}) {
+		std::snprintf(line, sizeof(line), "--- %s ---\n", GroupName(group));
+		dump += line;
+		for (const auto& d : Descriptors()) if (d.group == group) {
+			std::snprintf(line, sizeof(line), "%s = %.*f  [%s]\n", d.key, d.dumpDecimals,
+				values[static_cast<std::size_t>(d.id)], PersistTag(d.persist));
+			dump += line;
+		}
+	}
+	dump += "=== END WORKBENCH TUNABLES ===\n";
+	// Copy-pasteable config.cfg syntax. Only recognized keys are listed, because
+	// [dump]/[runtime] fields have no loader key and cannot be reproduced from a
+	// file at all; the engine reader needs the whole token to parse.
+	std::size_t keys = 0;
+	for (const auto& d : Descriptors()) if (d.persist == PersistPolicy::RecognizedConfigKey) ++keys;
+	if (keys) {
+		dump += "\n=== CONFIG.CFG KEYS FOR TUNABLES ===\n";
+		dump += "# Global runtime tuning values that have a recognized config.cfg key.\n";
+		dump += "# Fields tagged [dump] or [runtime] above have no key and no default\n";
+		dump += "# config entry; editing the file cannot reproduce them.\n";
+		for (const auto& d : Descriptors()) if (d.persist == PersistPolicy::RecognizedConfigKey) {
+			std::snprintf(line, sizeof(line), "%s %.*f\n", d.key, d.dumpDecimals,
+				values[static_cast<std::size_t>(d.id)]);
+			dump += line;
+		}
+		dump += "=== END CONFIG.CFG KEYS ===\n";
+	}
 	return dump;
 }
 void EmitRuntimeDump(void (*sink)(char*)) {
