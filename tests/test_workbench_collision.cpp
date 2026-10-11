@@ -93,13 +93,45 @@ TEST_F(WorkbenchCollision, NeighborhoodIsBoundedClampedAndIgnoresInvalidIndices)
 	PlayerX=-1;EXPECT_EQ(workbench::ReadNearbyCollisions().count,0u);
 	PlayerX=std::numeric_limits<float>::infinity();EXPECT_EQ(workbench::ReadNearbyCollisions().count,0u);
 }
-TEST_F(WorkbenchCollision, SnapshotsCopyLiveBoundsAndRejectStaleCellGenerationAndDistance) {
+TEST_F(WorkbenchCollision, SnapshotsCopyLiveBoundsAndRejectStaleCellGenerationAndReleasedSlots) {
 	MObjects[0].bound[0]=Bound();const auto selected=workbench::ReadNearbyCollisions().objects[0];
 	const auto first=workbench::ReadCollision(selected);ASSERT_TRUE(first.valid);ASSERT_TRUE(first.active[0]);
 	MObjects[0].bound[0].a=185;EXPECT_FLOAT_EQ(first.bounds[0].a,172);EXPECT_FLOAT_EQ(workbench::ReadCollision(selected).bounds[0].a,185);
-	OMap[10][10]=255;EXPECT_FALSE(workbench::ReadCollision(selected).valid);OMap[10][10]=0;
-	PlayerX+=5*256;EXPECT_FALSE(workbench::ReadCollision(selected).valid);PlayerX-=5*256;
+	OMap[10][10]=255;
+	auto unplaced=workbench::ReadCollision(selected);
+	EXPECT_FALSE(unplaced.valid);
+	EXPECT_EQ(unplaced.status,workbench::SelectionStatus::NotPlaced);
+	OMap[10][10]=0;
 	workbench::ResetRuntimeForHunt();workbench::CaptureRuntimeBaseline();EXPECT_FALSE(workbench::ReadCollision(selected).valid);
+	EXPECT_EQ(workbench::ReadCollision(selected).status,workbench::SelectionStatus::StaleGeneration);
+}
+// The owner walks around a selected object in F8 to compare the wire with the
+// terrain, so leaving the bounded 9 x 9 scan neighborhood must not end it.
+TEST_F(WorkbenchCollision, SelectionSurvivesLeavingTheNineByNineNeighborhood) {
+	MObjects[0].bound[0]=Bound();const auto selected=workbench::ReadNearbyCollisions().objects[0];
+	const auto atHand=workbench::ReadCollision(selected);ASSERT_TRUE(atHand.valid);ASSERT_TRUE(atHand.active[0]);
+	PlayerX=PlayerZ=600*256+128; // Far outside the 9 x 9 scan, well inside the map.
+	const auto walkedAway=workbench::ReadCollision(selected);
+	EXPECT_TRUE(walkedAway.valid);EXPECT_EQ(walkedAway.status,workbench::SelectionStatus::Valid);
+	EXPECT_FLOAT_EQ(walkedAway.bounds[0].a,172);EXPECT_EQ(walkedAway.rotation,selected.rotation);
+	EXPECT_NEAR(walkedAway.origin.x,selected.x*256.f+128,1e-3);
+	EXPECT_EQ(workbench::ReadNearbyCollisions().count,0u); // The list shrinks; the wire does not vanish.
+	PlayerX=PlayerZ=10*256+128;
+	EXPECT_TRUE(workbench::ReadCollision(selected).valid); // Returning still shows it.
+}
+TEST_F(WorkbenchCollision, InvalidSelectionsReportWhyInsteadOfFailingSilently) {
+	MObjects[0].bound[0]=Bound();const auto selected=workbench::ReadNearbyCollisions().objects[0];
+	EXPECT_EQ(workbench::ReadCollision(selected).status,workbench::SelectionStatus::Valid);
+	// A cleared selection is an unloaded slot, never an out-of-range MObjects read.
+	workbench::CollisionSelection unset{};unset.generation=workbench::RuntimeSession().Generation();
+	EXPECT_EQ(workbench::ReadCollision(unset).status,workbench::SelectionStatus::UnloadedSlot);
+	auto wrongCell=selected;wrongCell.x=11;wrongCell.z=11; // OMap[11][11] is the 255 sentinel.
+	EXPECT_EQ(workbench::ReadCollision(wrongCell).status,workbench::SelectionStatus::NotPlaced);
+	auto outside=selected;outside.x=ctMapSize+4;
+	EXPECT_EQ(workbench::ReadCollision(outside).status,workbench::SelectionStatus::UnloadedSlot);
+	MObjects[0].model.release();
+	EXPECT_EQ(workbench::ReadCollision(selected).status,workbench::SelectionStatus::UnloadedSlot);
+	EXPECT_FALSE(workbench::ReadCollision(selected).valid);
 }
 TEST_F(WorkbenchCollision, ProductionHeightsRemainSeparateFromSelectedContributionsAndRespectMargins) {
 	TBound b{};b.a=b.b=300;b.cosph=1;b.y1=-30;b.y2=50;MObjects[0].bound[0]=b;

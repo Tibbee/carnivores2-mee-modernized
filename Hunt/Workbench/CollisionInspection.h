@@ -4,6 +4,11 @@
 #include <cstdint>
 
 namespace workbench {
+// Why a selection cannot be read. A selection is a lifetime identity, not a
+// proximity window: it survives walking away, and only these end it.
+enum class SelectionStatus {
+	Valid, NoPlayerCell, StaleGeneration, UnloadedSlot, NotPlaced
+};
 struct CollisionSelection {
 	std::uint64_t generation=0;
 	int x=-1,z=-1,object=-1,flags=0,rotation=0;
@@ -14,6 +19,8 @@ struct NearbyCollisions {
 	std::size_t count=0;
 };
 struct CollisionSnapshot {
+	// status explains an invalid snapshot so the operator is never left guessing.
+	SelectionStatus status=SelectionStatus::Valid;
 	bool valid=false,bounded=false,sceneKnown=false,floorKnown=false,ceilingKnown=false;
 	int flags=0,rotation=0;
 	Vector3d origin{};

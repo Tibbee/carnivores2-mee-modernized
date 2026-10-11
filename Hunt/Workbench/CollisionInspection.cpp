@@ -12,13 +12,18 @@ bool PlayerCell(int& x,int& z) {
 		PlayerX>=ctMapSize*256.f||PlayerZ>=ctMapSize*256.f)return false;
 	x=static_cast<int>(PlayerX)/256;z=static_cast<int>(PlayerZ)/256;return true;
 }
+// Loaded slot lifetime, not a distance window. OCount is a model-loader
+// scratch count (internal .3df records) and is deliberately not consulted;
+// release clears the owned model before freeing data.
 bool ObjectAt(int x,int z,int object) {
-	// OCount is a model-loader scratch count (internal .3df records), NOT
-	// the area's object roster. Resource lifetime is represented by the
-	// loaded slot's owned model; release clears it before freeing data.
 	return InMap(x,z)&&object>=0&&object<254&&OMap[z][x]==object&&MObjects[object].model!=nullptr;
 }
 }
+// A selection is an identity the operator picked, so walking away from it must
+// not discard it: F8 exists precisely to walk around an object and compare the
+// wire with what can actually be crossed. Only resource lifetime ends a
+// selection -- a released slot, a cleared placement, a restarted hunt -- and
+// every one of those reports its status instead of clearing silently.
 NearbyCollisions ReadNearbyCollisions() {
 	NearbyCollisions result;int x,z;if(!PlayerCell(x,z))return result;
 	for(int cz=(std::max)(0,z-4);cz<=(std::min)(ctMapSize-1,z+4);++cz)
@@ -35,10 +40,22 @@ NearbyCollisions ReadNearbyCollisions() {
 }
 CollisionSnapshot ReadCollision(const CollisionSelection& selected, bool queryHeights) {
 	CollisionSnapshot result;for(auto& b:result.bounds)b.a=-1;
-	int px,pz;if(!PlayerCell(px,pz)||selected.generation!=RuntimeSession().Generation()||
-		!ObjectAt(selected.x,selected.z,selected.object))return result;
-	// Selections remain nearby; moving away cannot leave a detached map-wide overlay.
-	if(std::abs(selected.x-px)>4||std::abs(selected.z-pz)>4)return result;
+	int px,pz;
+	if(!PlayerCell(px,pz)){result.status=SelectionStatus::NoPlayerCell;return result;}
+	if(selected.generation!=RuntimeSession().Generation()){
+		result.status=SelectionStatus::StaleGeneration;return result;
+	}
+	if(!ObjectAt(selected.x,selected.z,selected.object)){
+		// An out-of-range or released slot is a resource problem (short-circuit
+		// keeps a default-selected -1 index out of MObjects); anything else with
+		// an in-range slot is a placement the map no longer holds.
+		const bool slotGone = selected.object<0||selected.object>=254||
+			MObjects[selected.object].model==nullptr;
+		result.status = (!InMap(selected.x,selected.z)||slotGone)
+			? SelectionStatus::UnloadedSlot : SelectionStatus::NotPlaced;
+		return result;
+	}
+	result.status=SelectionStatus::Valid;
 	const auto& object=MObjects[selected.object];
 	result.valid=true;result.flags=object.info.flags;result.bounded=(object.info.flags&ofBOUND)!=0;
 	result.rotation=(FMap[selected.z][selected.x]>>2)&3;
