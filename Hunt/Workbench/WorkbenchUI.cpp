@@ -102,6 +102,29 @@ void SwitchInputMode() {
 }
 void Result(Error error) { lastError = error; }
 
+// A selection ends on resource lifetime only. Remember the last explanation so a
+// wire that stops being drawn says why instead of silently vanishing.
+const char* collisionNote = nullptr;
+void ClearCollisionSelection(const char* reason) {
+	collisionNote = (reason && *reason) ? reason : nullptr;
+	collisionSelection={};collisionOverlay=collisionMargin=false;
+}
+const char* SelectionReason(const CollisionSelection& selected, const CollisionSnapshot& snapshot) {
+	switch (snapshot.status) {
+		case SelectionStatus::StaleGeneration: return "the hunt restarted or the baseline was recaptured";
+		case SelectionStatus::NotPlaced: return "the map no longer holds that placement";
+		case SelectionStatus::UnloadedSlot: return "its model slot was released";
+		default: return selected.object < 0 ? "nothing is selected" : "no player position is available";
+	}
+}
+const char* PersistNote(PersistPolicy policy) {
+	switch (policy) {
+		case PersistPolicy::RecognizedConfigKey: return "existing config key";
+		case PersistPolicy::RuntimeOnly: return "session only, no config key";
+		default: return "log dump only, no config key";
+	}
+}
+
 // Upstream saves draw state, but its font upload assumes default pixel-store
 // state and no unpack PBO. Cover NewFrame (lazy device/font creation) as well as
 // RenderDrawData, without invalidating the engine's correct GL state caches.
@@ -201,9 +224,7 @@ void DrawField(const Descriptor& descriptor) {
 		if (input.error == Error::None) input.dirty = false;
 	}
 	ImGui::TextDisabled("Loaded %.5g %s", RuntimeSession().Loaded()[index], descriptor.unit);
-	if (descriptor.persist == PersistPolicy::RecognizedConfigKey && descriptor.group != Group::Audio) {
-		ImGui::TextDisabled("Live / existing config key / no file writes");
-	}
+	ImGui::TextDisabled("Live / %s / no file writes", PersistNote(descriptor.persist));
 	ImGui::SameLine();
 	if (ImGui::SmallButton("Reset")) {
 		Result(EndRuntimeGesture()); Result(ResetRuntime(descriptor.id));
@@ -343,13 +364,22 @@ void DrawCollision() {
 		std::snprintf(label,sizeof(label),"ID %d cell %d,%d / %.0f units / %s",object.object,object.x,object.z,object.distance,
 			(object.flags&ofBOUND) ? "ofBOUND" : (object.flags&ofCIRCLE) ? "legacy circle" : "legacy square");
 		if(ImGui::Selectable(label,collisionSelection.generation==object.generation&&collisionSelection.x==object.x&&collisionSelection.z==object.z))
-			collisionSelection=object;
+			{collisionSelection=object;collisionNote=nullptr;}
 		ProbeItem("collisionObject",static_cast<int>(i));
 	}
 	if(!nearby.count)ImGui::TextWrapped("No loaded nearby placements.");
 	ImGui::EndChild();
 	const auto snapshot=ReadCollision(collisionSelection);
-	if(!snapshot.valid) { collisionSelection={};collisionOverlay=collisionMargin=false;ImGui::TextWrapped("Select a nearby placement. Stale selections clear automatically.");return; }
+	if(!snapshot.valid) {
+		// Walking away no longer ends a selection, so name what actually did.
+		const bool had=collisionSelection.object>=0;
+		const char* reason=SelectionReason(collisionSelection,snapshot);
+		ClearCollisionSelection(had?reason:"");
+		if(had) ImGui::TextWrapped("Selection cleared: %s. Select a placement to inspect it.",reason);
+		else    ImGui::TextWrapped("Select a nearby placement to inspect it.");
+		ImGui::TextWrapped("A selection survives walking away; F8 is for checking it against the terrain.");
+		return;
+	}
 	ImGui::Text("ID %d / cell %d,%d / rotation %d / flags 0x%X",collisionSelection.object,collisionSelection.x,collisionSelection.z,snapshot.rotation,snapshot.flags);
 	ImGui::Text("Origin %.1f, %.1f, %.1f",snapshot.origin.x,snapshot.origin.y,snapshot.origin.z);
 	if(!snapshot.bounded) { collisionOverlay=collisionMargin=false;ImGui::TextWrapped("Legacy circle/square policy, not an eight-slot ofBOUND object. No fitted boxes are invented."); }
@@ -372,12 +402,13 @@ void DrawCollision() {
 	if(snapshot.sceneKnown)ImGui::TextWrapped("Resolved player floor %.2f / ceiling %.2f / gap %.2f (neighborhood and player gates)",snapshot.sceneFloor,snapshot.sceneCeiling,snapshot.sceneCeiling-snapshot.sceneFloor);
 	else ImGui::TextWrapped("Resolved player heights unavailable at unsafe map margins/reload state.");
 	ImGui::TextWrapped("Ceiling query includes the engine fallback of terrain +20480 where no underside contributes; the gap is not a physical roof guarantee.");
-	if(ImGui::Button("Clear collision selection")){collisionSelection={};collisionOverlay=collisionMargin=false;}ProbeItem("collisionClear");
+	if(ImGui::Button("Clear collision selection"))ClearCollisionSelection("");ProbeItem("collisionClear");
 }
 void DrawCollisionOverlay() {
 	if(!collisionOverlay)return;
 	const auto snapshot=ReadCollision(collisionSelection,false);
-	if(!snapshot.valid || !snapshot.bounded){collisionSelection={};collisionOverlay=collisionMargin=false;return;}
+	if(!snapshot.valid){ClearCollisionSelection(SelectionReason(collisionSelection,snapshot));return;}
+	if(!snapshot.bounded)return;
 	const auto camera=ReadInspectionCamera();auto* draw=ImGui::GetBackgroundDrawList();
 	const auto line=[&](const Vector3d& a,const Vector3d& b,ImU32 color) {
 		InspectionLine projected;if(!ProjectInspectionLine(a,b,camera,projected))return;
@@ -421,6 +452,7 @@ void DrawInspector() {
 		ImGui::TextDisabled("OpenGL / global runtime tuning / no file saves");
 		if (testing) {
 			ImGui::TextWrapped("Test scene: gameplay owns input. F8 or Escape returns to editing; F10 closes.");
+			if (collisionNote) ImGui::TextWrapped("Collision X-ray stopped: %s", collisionNote);
 		} else {
 			if (ImGui::Button("Test scene (F8)")) SwitchInputMode();
 			ImGui::SameLine(); if (ImGui::Button("Close (F10)")) visible = false;
@@ -464,6 +496,8 @@ void DrawInspector() {
 				ImGui::TextWrapped("Live beam settings; equipment, switch and living hunter are required. The tool does not grant equipment.");
 				DrawBeamColor();
 			}
+			if (selectedGroup == Group::Fog || selectedGroup == Group::Waves || selectedGroup == Group::Sun)
+				ImGui::TextWrapped("Legacy tuning has no config key and a hunt restart restores the compiled defaults. Press D to log every value.");
 			if (selectedGroup == Group::Audio) DrawAudio();
 			if (selectedGroup == Group::Collision) DrawCollision();
 			for (const auto& descriptor : Descriptors())
@@ -482,7 +516,7 @@ void DrawInspector() {
 					const auto i = static_cast<std::size_t>(d.id);
 					ImGui::TextWrapped("%s: %.6g -> %.6g", d.key, RuntimeSession().Loaded()[i], RuntimeSession().Edited()[i]);
 				}
-				ImGui::TextWrapped("Session edits only; closing does not save files. Night/beam/audio scalar keys already exist in config; legacy tuning/tint identifiers do not.");
+				ImGui::TextWrapped("Session edits only; no file writes. Press D to log every value, including a config.cfg block for fields that have a recognized key.");
 			}
 			if (lastError != Error::None) ImGui::TextWrapped("%s", ErrorMessage(lastError));
 		}
@@ -542,7 +576,7 @@ void ShutdownUI() {
 	boundary = InputBoundary{}; generation = 0; fields = {}; lastError = Error::None;
 	selectedGroup = Group::Fog; uiScale = 1.0f; showHelp = showChanges = false;
 	audioBank = 2; audioDetails = {}; audioSampleTime = 0; audioWasAvailable = false;
-	collisionSelection={};collisionOverlay=collisionMargin=inspectorExpanded=false;
+	ClearCollisionSelection("");inspectorExpanded=false;
 }
 void RenderUI() {
 	if (!attached || !boundary.IsOpen()) return; // No ImGui/GL work while closed.
