@@ -22,16 +22,20 @@
 // malformed file) stay fatal in both modes; the policy only decides what to
 // do with values that can be recovered.
 //
-// Sources: config.cfg `load_mode <lenient|strict>` (engine pre-read before
-// _RES.TXT is parsed) and the C2_STRICT_DATA environment variable, which
-// overrides the config so CI can force strict mode per machine.
+// Sources: config.cfg `load_mode <lenient|strict>` (both EXEs pre-read it
+// before parsing their data files) and the C2_STRICT_DATA environment
+// variable, which overrides the config so CI can force strict mode per
+// machine.
 
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <string>
 #include <vector>
+
+#include "Core/ConfigText.h"
 
 enum class LoadMode
 {
@@ -243,4 +247,21 @@ inline bool InitLoadPolicyFromEnvironment()
         LoadDiagnostics::Instance().SetMode(mode);
     free(value);
     return parsed;
+}
+
+// Apply the load policy from a config.cfg path: read the body, scan
+// `load_mode`, then let the environment override it. The engine and the menu
+// both call this before parsing their data files, so the pre-parse policy has
+// one implementation and one file resolution (see Core/ConfigPath.h).
+inline void ApplyLoadPolicyFromConfigFile(const std::string& path)
+{
+    std::ifstream input(path, std::ios::binary);
+    if (input)
+    {
+        std::string text;
+        std::size_t nulBytes = 0;
+        if (ReadConfigText(input, text, nulBytes))
+            InitLoadPolicyFromConfigText(text.c_str());
+    }
+    InitLoadPolicyFromEnvironment();
 }

@@ -1224,25 +1224,12 @@ void LoadC2Maps()
 }
 
 
-// The menu parses _MENU.TXT/_RES.TXT before its own LoadConfig() runs, so the
-// load policy is applied here from config.cfg (`load_mode`) with the
-// C2_STRICT_DATA environment override. Default is lenient.
-static void InitMenuLoadPolicy()
-{
-	std::string configPath = configpath::ResolveReadPath();
-	std::ifstream fs(configPath);
-	if (fs.is_open()) {
-		std::string whole;
-		size_t nulBytes = 0;
-		if (ReadConfigText(fs, whole, nulBytes))
-			InitLoadPolicyFromConfigText(whole.c_str());
-	}
-	InitLoadPolicyFromEnvironment();
-}
-
 void LoadResourcesScript()
 {
-	InitMenuLoadPolicy();
+	// _MENU.TXT/_RES.TXT are parsed below, before the menu's own LoadConfig()
+	// runs, so the load policy is applied from config.cfg first; C2_STRICT_DATA
+	// overrides it for CI/mod authoring. Default is lenient.
+	ApplyLoadPolicyFromConfigFile(configpath::ResolveReadPath());
 
 	FILE* file;
 	std::string line;

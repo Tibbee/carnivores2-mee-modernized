@@ -289,24 +289,6 @@ void InitGameInfo()
 static void CreateDefaultConfig();
 static void LoadConfig();
 
-// The load policy must be known before InitGameInfo() parses _RES.TXT.
-// config.cfg is re-read here for just this key (the full LoadConfig() runs
-// later in InitEngine); C2_STRICT_DATA overrides it for CI/mod authoring.
-static void LoadLoadPolicy()
-{
-  const std::string configPath = configpath::ResolveReadPath();
-
-  std::ifstream input(configPath, std::ios::binary);
-  if (input)
-  {
-    std::string text;
-    size_t nulBytes = 0;
-    if (ReadConfigText(input, text, nulBytes))
-      InitLoadPolicyFromConfigText(text.c_str());
-  }
-  InitLoadPolicyFromEnvironment();
-}
-
 void InitEngine()
 {
   FULLSCREEN   = true;
@@ -446,7 +428,10 @@ void InitEngine()
   WeaponPres = 1;
   MessageList.timeleft = 0;
 
-  LoadLoadPolicy();
+  // The load policy must be known before InitGameInfo() parses _RES.TXT; the
+  // full LoadConfig() runs later in InitEngine. C2_STRICT_DATA overrides the
+  // config for CI/mod authoring.
+  ApplyLoadPolicyFromConfigFile(configpath::ResolveReadPath());
   InitGameInfo();
 
   CreateFadeTab();
