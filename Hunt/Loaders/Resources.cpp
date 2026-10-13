@@ -1,4 +1,5 @@
 #include "Hunt.h"
+#include "Core/Version.h"
 #include "LoadValidate.h"
 #include "stdio.h"
 #include "timeapi.h"
@@ -1196,7 +1197,7 @@ void CreateLog()
 #ifdef _soft
   PrintLog("CarnivoresII Soft video driver.");
 #endif
-  PrintLog(" Build v2.04. Sep.24 1999.\n");
+  PrintLog(" Build v" VERSION_STRING ".\n");
 }
 
 void PrintLog(LPSTR l)
