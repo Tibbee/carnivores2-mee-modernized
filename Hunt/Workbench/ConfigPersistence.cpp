@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "Core/ConfigMerge.h"
+#include "Core/ConfigText.h"
 
 namespace workbench {
 
@@ -27,9 +28,10 @@ std::string FormatConfigValue(const Descriptor& descriptor, float value)
 namespace {
 
 // The loader refuses these, so a writer that produced them would create a file
-// the engine silently ignores. Mirrors Core/ConfigText.h and the offline
-// c2_config_defaults.py guard.
-constexpr std::size_t kMaxConfigBytes = 1024 * 1024;
+// the engine silently ignores. The size ceiling and the UTF-16 test are the
+// shared rules from Core/ConfigText.h; only the NUL policy differs (the loader
+// recovers padding, the writer refuses it). The offline c2_config_defaults.py
+// guard mirrors the same limits.
 
 bool ReadWholeFile(const std::string& path, std::string& bytes)
 {
@@ -42,11 +44,7 @@ bool ReadWholeFile(const std::string& path, std::string& bytes)
 PersistRefusal Classify(const std::string& bytes)
 {
 	if (bytes.size() > kMaxConfigBytes) return PersistRefusal::TooLarge;
-	if (bytes.size() >= 2) {
-		const unsigned char a = static_cast<unsigned char>(bytes[0]);
-		const unsigned char b = static_cast<unsigned char>(bytes[1]);
-		if ((a == 0xFF && b == 0xFE) || (a == 0xFE && b == 0xFF)) return PersistRefusal::UnsupportedEncoding;
-	}
+	if (IsUtf16ConfigText(bytes)) return PersistRefusal::UnsupportedEncoding;
 	if (bytes.find('\0') != std::string::npos) return PersistRefusal::NulBytes;
 	return PersistRefusal::None;
 }
