@@ -44,9 +44,9 @@ additions, CI-contract changes and deletions of files with unclear provenance.
 | 1a | Disabled-species animation bundle: `AnimateMicro/Titan/Poacher/Huntdog/huntDogSearch` + CMake entries + fwd decls | ~1,774 | **approved**, see Progress |
 | 1b | 12 functions with no caller (`ModelLoader.cpp:72,103,126,175,187,583`; `Resources.cpp:1065,1072`; `Interface.cpp:48,63`; `TerrainQueries.cpp:12`; `SoftWater.cpp:34`; `SoftTerrain.cpp:538`) | ~196 | pending |
 | 1c | `_d3d`/`_3dfx`/`__rus` dead branches + no-op alpha-flag scaffold | ~110 | **done** — `376daeb` |
-| 1d | Dead targeting/pack helpers (`CharacterTargeting.cpp:80,119,404`; `CharacterInternal.h:67,236,247`) | ~120 | pending |
+| 1d | Dead targeting/pack helpers (`CharacterTargeting.cpp:80,119,404`; `CharacterInternal.h:67,236,247`) | ~120 | **done** — `ca4c57e` |
 | 1e | Commented-out "Superseded" state defines (`Characters.cpp`) | ~159 | **done** — `183fcc1` |
-| 1f | Unused globals (`GameState.h:54,205,316,368,374,376,378,419`), dead declarations (`EngineAPI.h:95`, dup `:210/:304`; `Menu/Hunt.h:828`; `SoftInternal.h:88`; `NetworkManager.h:64-65`), split leftovers, unused `Hunt/Debug/Assert.h`, `Network.cpp` forwarding layer | ~120 | pending |
+| 1f | Unused globals (`GameState.h:54,205,316,368,374,376,378,419`), dead declarations (`EngineAPI.h:95`, dup `:210/:304`; `Menu/Hunt.h:828`; `SoftInternal.h:88`; `NetworkManager.h:64-65`), split leftovers, unused `Hunt/Debug/Assert.h`, `Network.cpp` forwarding layer | ~120 | **done** — `a6ea274` |
 | 1g | Stale comments/docs (`Resources.cpp:1244` 1999 build string, `README.md:141` F10 claims, `CHANGELOG.md:20,84`, `docs/ARCHITECTURE.md:13,143-146`, `Projectiles.cpp:1-4` header) | docs | pending |
 
 ### WS2 — Test-suite consolidation (686 → ~480 cases, ~20 clusters)
@@ -100,3 +100,9 @@ GLSL include refactor · config-scanner staging policy.
 - Group checkpoint: comment hygiene clean (270 files); release flags clean (`/GS`, no `/GS-`); clang-tidy not installed locally (CI-only check).
 - Owner decisions recorded: plan approved; disabled-species bundle deleted (owner confirmed it was upstream in-progress content to be reimplemented differently if ever needed); pass record persisted as this file.
 - Next slices: 1d (dead targeting/pack helpers — note `CharacterTargeting.cpp` is one of the doubled-CR files, stage byte-faithfully), then 1f, 1g, then WS2 clusters, then WS3/W4.
+
+### 2026-10-13 — WS1 slices 5-6 (1d, 1f)
+
+- `ca4c57e` refactor(hunt): remove dead targeting and pack helpers — deleted SetNewTargetPlace_IcthOld, SetNewTargetPlaceVanilla and SetNewTargetPlaceMosasaurus, the unused inline GetAngleDifference/AnimatePackFollow/AnimatePackFollowSq helpers and their orphaned comments; `CharacterTargeting.cpp` staged byte-faithfully (doubled-CR preserved, deletions only). ogl-debug build and ctest 16/16.
+- `a6ea274` refactor(hunt): remove unused globals, dead declarations and network wrappers — 11 unused `GameState.h` globals, 20 duplicate + 1 redundant `EngineAPI.h` declarations, the empty split-scaffolding sections (Textures/ScoreMod/FiringMode notes moved onto their declarations in `GameState.h`), the `Network.cpp` forwarding layer replaced by direct `g_Network` calls, and the unused `Hunt/Debug/Assert.h`, `NetworkGet/NetworkPost`, `RenderBMPModel2` and `StartupServer/StartupClient` declarations; `docs/ARCHITECTURE.md` tree updated. 12 files, −228 lines. ogl-debug build and ctest 16/16.
+- Next slices: 1g (stale comments/docs), then WS2 clusters, then WS3/W4. Four-preset checkpoint pending once 1g completes WS1.
