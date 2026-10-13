@@ -358,6 +358,7 @@ if(MSVC)
         tests/test_per_frame_upload.cpp
         tests/test_night_lighting.cpp
         tests/test_night_presentation.cpp
+        tests/test_source_contracts.cpp
         tests/test_legacy_scalar_differential.cpp
         tests/test_load_diagnostics.cpp
         tests/test_script_value_parse.cpp

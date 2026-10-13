@@ -3,16 +3,7 @@
 #include "Renderer/SunDepthOcclusion.h"
 #include "Core/Constants.h"
 #include "Core/NightLighting.h"
-#include <fstream>
-#include <iterator>
 #include <limits>
-
-namespace {
-std::string Source(const char* path) {
-    std::ifstream file(std::string(C2_SOURCE_ROOT) + "/" + path, std::ios::binary);
-    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
-}
-}
 
 TEST(CelestialState, StartupBehindCameraNeverUsesTheCorner) {
     // Stock night direction from InitEngine: positive Z faces behind the
@@ -92,30 +83,3 @@ TEST(CelestialState, MoonStartsAtItsClearSkyRemapRatherThanTheSunBaseline) {
     EXPECT_LT(alpha, NightCelestialDiscAlpha(2));
 }
 
-TEST(CelestialState, RendererPreparesPositionBeforeHaloAndKeepsReadbacksAsync) {
-    const auto sky = Source("Hunt/Renderer/GLSky.cpp");
-    const auto prep = sky.find("ProjectCelestialBody(sunDir, VideoCX, VideoCY, CameraW, CameraH)");
-    ASSERT_NE(prep, std::string::npos);
-    EXPECT_LT(prep, sky.find("glUniform2f(m_locSkySunScreenPos"));
-    EXPECT_LT(prep, sky.find("glDrawArrays(GL_TRIANGLES, 0, 3)"));
-    EXPECT_NE(sky.find("CelestialHaloVisibility(m_celestialProjectionValid, m_skyTraceK)"), std::string::npos);
-    EXPECT_NE(sky.find("shouldDrawSky && m_celestialProjectionValid"), std::string::npos);
-    EXPECT_NE(sky.find("if (m_celestialTimeOfDay != OptDayNight) ResetCelestialState(OptDayNight);"), std::string::npos);
-    const auto start = sky.find("void GLRenderer::RenderSun(");
-    const auto end = sky.find("float GLRenderer::GetSkyK", start);
-    EXPECT_EQ(sky.substr(start, end-start).find("m_sunScrX ="), std::string::npos);
-    EXPECT_EQ(sky.substr(start, end-start).find("m_sunScrY ="), std::string::npos);
-    EXPECT_NE(sky.find("glReadPixels(bx, WinH - ey, bw, bh, GL_RGBA, GL_UNSIGNED_BYTE, 0)"), std::string::npos);
-    EXPECT_NE(sky.find("CelestialVisibilityFromSkySample(OptDayNight, k)"), std::string::npos);
-}
-
-TEST(CelestialState, LifecycleAndBodyChangeDiscardOldPendingSamples) {
-    const auto sky = Source("Hunt/Renderer/GLSky.cpp");
-    const auto start = sky.find("void GLRenderer::ResetCelestialState(");
-    ASSERT_NE(start, std::string::npos);
-    const auto reset = sky.substr(start, sky.find("\n}", start)-start);
-    for (const char* part : {"m_skyTraceK = CelestialInitialVisibility(timeOfDay)", "m_skyReadPBOReady = false", "m_cloudLatched = false", "m_celestialProjectionValid = false", "m_sunScrX = m_sunScrY = -1"})
-        EXPECT_NE(reset.find(part), std::string::npos);
-    const auto init = sky.find("void GLRenderer::InitializeSkyPipeline()");
-    EXPECT_NE(sky.substr(init).find("ResetCelestialState(OptDayNight);"), std::string::npos);
-}

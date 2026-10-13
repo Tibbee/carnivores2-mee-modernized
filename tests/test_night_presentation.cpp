@@ -1,23 +1,6 @@
 #include <gtest/gtest.h>
 #include "Core/NightPresentation.h"
-#include <fstream>
-#include <iterator>
 #include <limits>
-
-namespace {
-std::string Source(const char* relative) {
-	std::ifstream file(std::string(C2_SOURCE_ROOT) + "/" + relative, std::ios::binary);
-	return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
-}
-std::string PresentationBlock(const std::string& shader) {
-	const auto start = shader.find("// BEGIN NIGHT PRESENTATION");
-	const auto end = shader.find("// END NIGHT PRESENTATION", start);
-	if (start == std::string::npos || end == std::string::npos) return {};
-	auto block = shader.substr(start, end - start);
-	block.erase(std::remove(block.begin(), block.end(), '\r'), block.end());
-	return block;
-}
-}
 
 TEST(NightPresentation, EquipmentStatesAgreeForMapCompassWindAndWeapon) {
 	const NightLightingSettings settings;
@@ -129,42 +112,3 @@ TEST(NightPresentation, RegionOverflowFailsReadableRatherThanDroppingControls) {
 	EXPECT_EQ(regions.count, 1);
 }
 
-TEST(NightPresentation, ShaderCopiesStayInSyncAndTransparencyPrecedesGrading) {
-	const auto ui = Source("shaders/ui.frag");
-	const auto model = Source("shaders/model.frag");
-	ASSERT_FALSE(PresentationBlock(ui).empty());
-	EXPECT_EQ(PresentationBlock(ui), PresentationBlock(model));
-	EXPECT_LT(ui.find("if (dot(rgb555"), ui.find("ApplyNightPresentation(rgb555"));
-	EXPECT_EQ(kNightReadableRectLimit, 16);
-	EXPECT_FLOAT_EQ(kNightReadabilityFloor, 0.55f);
-	EXPECT_NE(ui.find("uUIReadableRects[16]"), std::string::npos);
-	EXPECT_NE(ui.find("brightness = max(brightness, 0.55)"), std::string::npos);
-	EXPECT_NE(model.find("if (uNightPresentation.z > 0.5)"), std::string::npos);
-	EXPECT_NE(model.find("ApplyNightPresentation(finalColor, uNightPresentation.x);"), std::string::npos);
-}
-
-TEST(NightPresentation, HeldPassesUseExplicitPolicyAndNeverEnableTheWorldBeam) {
-	const auto model = Source("Hunt/Renderer/GLModel.cpp");
-	std::size_t count = 0, pos = 0;
-	while ((pos = model.find("NightDrawKind::Viewmodel", pos)) != std::string::npos) { ++count; ++pos; }
-	EXPECT_EQ(count, 5u); // diffuse, cutout, transparent, env and specular
-	EXPECT_NE(model.find("ApplyNightLightingUniforms(m_modelShader.GetProgramID(), nightKind);"), std::string::npos);
-	const auto night = Source("Hunt/Renderer/GLNight.cpp");
-	EXPECT_NE(night.find("FlashlightEnabled(), NightLightingOptions(), kind"), std::string::npos);
-	EXPECT_NE(night.find("!presentationEnabled"), std::string::npos);
-	EXPECT_NE(night.find("cached->second.presentation >= 0 && presentation[2] > 0.5f"), std::string::npos);
-	EXPECT_NE(night.find("glUniform3fv(cached->second.presentation"), std::string::npos);
-	const auto hud = Source("Hunt/Renderer/GLHUD.cpp");
-	EXPECT_NE(hud.find("NightDrawKind::EssentialHud"), std::string::npos);
-	EXPECT_NE(hud.find("NightDrawKind::Hud"), std::string::npos);
-	EXPECT_NE(hud.find("m_nightReadableRegions.Clear();"), std::string::npos);
-	EXPECT_NE(hud.find("&pic == &ExitPic || &pic == &PausePic"), std::string::npos);
-	EXPECT_NE(Source("Hunt/Renderer/GLUI.cpp").find("ProtectHUDRect(x0 - 1"), std::string::npos);
-	const auto sky = Source("Hunt/Renderer/GLSky.cpp");
-	const auto overlayStart = sky.find("void GLRenderer::RenderFSRect");
-	const auto moonStart = sky.find("void GLRenderer::RenderModelSun", overlayStart);
-	ASSERT_NE(overlayStart, std::string::npos);
-	ASSERT_NE(moonStart, std::string::npos);
-	EXPECT_NE(sky.substr(overlayStart, moonStart - overlayStart).find("NightDrawKind::Unaffected"), std::string::npos);
-	EXPECT_NE(sky.substr(moonStart).find("NightDrawKind::Unaffected"), std::string::npos);
-}

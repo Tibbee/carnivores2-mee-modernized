@@ -2,9 +2,6 @@
 #include "Core/TerrainFogSmoothing.h"
 #include <array>
 #include <algorithm>
-#include <fstream>
-#include <iterator>
-#include <string>
 
 namespace {
 void SameColor(const Vector3d& a, const Vector3d& b) {
@@ -55,17 +52,4 @@ TEST(TerrainFogSmoothing, UniformAndClearColorsArePreserved) {
         const auto result = SmoothedTileFogColors(color, color, color, color);
         for (const auto& actual : result) SameColor(actual, color);
     }
-}
-
-TEST(TerrainFogSmoothing, RendererChunkUsesNonMutatingProductionHelper) {
-    std::ifstream file(std::string(C2_SOURCE_ROOT) + "/Hunt/Renderer/GLTerrain.cpp");
-    ASSERT_TRUE(file.good());
-    const std::string source{std::istreambuf_iterator<char>(file), {}};
-    const auto begin = source.find("void GLRenderer::CollectTerrainChunk2x2(");
-    const auto end = source.find("void GLRenderer::RebuildOversizedObjectPlacements", begin);
-    ASSERT_NE(begin, std::string::npos);
-    ASSERT_NE(end, std::string::npos);
-    const auto body = source.substr(begin, end - begin);
-    EXPECT_NE(body.find("SmoothedTileFogColors("), std::string::npos);
-    EXPECT_EQ(body.find("SmoothFogColors(fogCol"), std::string::npos);
 }

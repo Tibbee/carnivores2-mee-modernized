@@ -2,14 +2,8 @@
 #include "UniformValueCache.h"
 #include "NightPresentation.h"
 #include <cmath>
-#include <fstream>
-#include <iterator>
 
 namespace {
-std::string Source(const char* path) {
-    std::ifstream file(std::string(C2_SOURCE_ROOT) + "/" + path, std::ios::binary);
-    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
-}
 }
 
 TEST(UniformValueCache, FirstUseRepeatedValuesAndFreshProgram) {
@@ -92,20 +86,4 @@ TEST(UniformValueCache, RepeatedFiveUniformRequestsCollapseToFirstUploads) {
         uploads += color.shouldUpload({kFlashlightColorR, kFlashlightColorG, kFlashlightColorB});
     }
     EXPECT_EQ(uploads, 5); // Previously 5000 calls, synthetic unchanged state.
-}
-
-TEST(UniformValueCache, RendererWiringOwnsUploadsAndClearsBothProgramMaps) {
-    const auto night = Source("Hunt/Renderer/GLNight.cpp");
-    EXPECT_NE(night.find("presentationValue.shouldUpload(presentation)"), std::string::npos);
-    EXPECT_NE(night.find("strengthValue.shouldUpload({strength})"), std::string::npos);
-    EXPECT_NE(night.find("settingsValue.shouldUpload(parameters)"), std::string::npos);
-    const auto beam = Source("Hunt/Renderer/GLFlashlight.cpp");
-    EXPECT_NE(beam.find("beamValue.shouldUpload(beam)"), std::string::npos);
-    EXPECT_NE(beam.find("colorValue.shouldUpload(tint)"), std::string::npos);
-    const auto renderer = Source("Hunt/Renderer/GLRenderer.cpp");
-    EXPECT_NE(renderer.find("m_nightLocations.clear();"), std::string::npos);
-    EXPECT_NE(renderer.find("m_flashlightLocations.clear();"), std::string::npos);
-    const auto sky = Source("Hunt/Renderer/GLSky.cpp");
-    EXPECT_EQ(sky.find("glUniform1f(uNight"), std::string::npos);
-    EXPECT_NE(sky.find("NightDrawKind::Unaffected, OptDayNight == 2);"), std::string::npos);
 }

@@ -1,15 +1,9 @@
 #include <gtest/gtest.h>
 #include "UniformValueCache.h"
 #include <cmath>
-#include <fstream>
-#include <iterator>
 
 namespace {
 using Packet = std::array<float, 60>;
-std::string Source(const char* path) {
-    std::ifstream file(std::string(C2_SOURCE_ROOT) + "/" + path, std::ios::binary);
-    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
-}
 }
 
 TEST(PerFrameUpload, FirstUseAndExplicitInvalidationAlwaysUpload) {
@@ -75,21 +69,3 @@ TEST(PerFrameUpload, PartialWaterWriteMustNotSuppressRestoringTheFullPacket) {
     EXPECT_FALSE(cache.shouldUpload(world));
 }
 
-TEST(PerFrameUpload, ProductionGuardFollowsFreshPackingAndPartialWriterInvalidates) {
-    const auto renderer = Source("Hunt/Renderer/GLRenderer.cpp");
-    const auto guard = renderer.find("if (!m_perFrameUpload.shouldUpload(data)) return;");
-    ASSERT_NE(guard, std::string::npos);
-    EXPECT_LT(renderer.find("data[49] ="), guard);
-    EXPECT_LT(guard, renderer.find("glBufferSubData(GL_UNIFORM_BUFFER, 0, data.size()"));
-    for (const char* method : {"Initialize()", "Shutdown()", "DestroyContext()", "EnsurePerFrameUBO()"}) {
-        const auto start = renderer.find(std::string("GLRenderer::") + method);
-        ASSERT_NE(start, std::string::npos);
-        const auto end = renderer.find("\n}", start);
-        EXPECT_NE(renderer.substr(start, end - start).find("m_perFrameUpload.invalidate();"), std::string::npos);
-    }
-    const auto water = Source("Hunt/Renderer/GLWater.cpp");
-    const auto invalidate = water.find("m_perFrameUpload.invalidate();");
-    ASSERT_NE(invalidate, std::string::npos);
-    EXPECT_LT(invalidate, water.find("glBufferSubData(GL_UNIFORM_BUFFER, 176,"));
-    EXPECT_NE(Source("Hunt/Renderer/GLRenderer.h").find("UniformValueCache<60> m_perFrameUpload;"), std::string::npos);
-}

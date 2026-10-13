@@ -2,8 +2,6 @@
 #include <algorithm>
 #include <cerrno>
 #include <cstdlib>
-#include <fstream>
-#include <iterator>
 #include <limits>
 #include "Workbench/TuningRuntime.h"
 #include "Core/GameState.h"
@@ -46,10 +44,6 @@ Values Globals() {
 	int i = 25;
 	for (int bank : {0,1,2,3,4,5,6,8}) for (int f = 0; f < 4; ++f) v[i++] = workbench_test::audio[bank][f];
 	return v;
-}
-std::string Source(const char* path) {
-	std::ifstream stream(std::string(C2_SOURCE_ROOT) + "/" + path, std::ios::binary);
-	return {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
 }
 }
 TEST_F(WorkbenchRuntime, CompiledInitializationCapturesTheRealScalarGlobals) {
@@ -309,24 +303,10 @@ TEST_F(WorkbenchRuntime, ContextCopiesBoundedScalarsWithoutGrantingEquipmentOrMu
 	FlashlightMode = equipped; FlashlightOn = on; NightVisionOn = nv;
 }
 TEST_F(WorkbenchRuntime, ExistingRendererConsumesLiveLightingAndTintWithoutShaderChanges) {
-	const auto flashlight = Source("Hunt/Renderer/GLFlashlight.cpp");
-	EXPECT_NE(flashlight.find("tint = FlashlightTint()"), std::string::npos);
-	EXPECT_NE(flashlight.find("colorValue.shouldUpload(tint)"), std::string::npos);
 	ASSERT_EQ(EditRuntime(Parameter::NightWorld, 42), Error::None);
 	EXPECT_EQ(NightLightingParameters(2, false, NightLightingOptions())[0], .42f);
 	EXPECT_EQ(NightLightingParameters(1, false, NightLightingOptions())[0], 1);
 	EXPECT_EQ(NightLightingParameters(2, true, NightLightingOptions())[0], 1);
-}
-TEST_F(WorkbenchRuntime, HuntResetAndKeyboardDispatchUseTheProductionAdapter) {
-	const auto loader = Source("Hunt/Loaders/CharacterLoader.cpp");
-	const auto reset = loader.find("workbench::ResetRuntimeForHunt()");
-	ASSERT_NE(reset, std::string::npos);
-	EXPECT_LT(reset, loader.find("  PlaceHunter();", reset));
-	EXPECT_EQ(loader.find("UWFog_BaseDensityMult ="), std::string::npos);
-	const auto hunt = Source("Hunt/Game/Hunt.cpp");
-	EXPECT_NE(hunt.find("workbench::AdjustLegacyRuntime(parameter, right)"), std::string::npos);
-	EXPECT_NE(hunt.find("workbench::EmitRuntimeDump(PrintLog)"), std::string::npos);
-	EXPECT_EQ(hunt.find("float* params[]"), std::string::npos);
 }
 TEST_F(WorkbenchRuntime, LegacyRestartResetsSurviveUnsupportedLoadedAudioValues) {
 	UWFog_BaseDensityMult=.77f;WWave1Amp=.31f;

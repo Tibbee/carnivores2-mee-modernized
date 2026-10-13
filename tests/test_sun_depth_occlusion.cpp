@@ -3,9 +3,6 @@
 #include "Core/Constants.h"
 #include <array>
 #include <cmath>
-#include <fstream>
-#include <iterator>
-#include <string>
 
 TEST(SunDepthOcclusion, OnScreenRetainsCachedDepthAttenuation)
 {
@@ -68,21 +65,4 @@ TEST(SunDepthOcclusion, CurrentViewportControlsGuardAfterResize)
 {
     EXPECT_GT(ApplySunDepthFactor(80.0f, 1.0f, 2000, 720, 2560, 1440), 0.0f);
     EXPECT_FLOAT_EQ(ApplySunDepthFactor(80.0f, 1.0f, 2000, 720, 1920, 1080), 0.0f);
-}
-
-TEST(SunDepthOcclusion, RendererUsesProductionPolicyWithoutEndOfFrameReadback)
-{
-    std::ifstream file(std::string(C2_SOURCE_ROOT) + "/Hunt/Renderer/GLSky.cpp");
-    ASSERT_TRUE(file.good());
-    const std::string source{std::istreambuf_iterator<char>(file), {}};
-    const auto start = source.find("void GLRenderer::ApplySunDepthOcclusion()");
-    ASSERT_NE(start, std::string::npos);
-    const auto end = source.find("\n}", start);
-    ASSERT_NE(end, std::string::npos);
-    const auto body = source.substr(start, end - start);
-    EXPECT_NE(body.find("ApplySunDepthFactor(m_sunLight, m_traceKApplied,"), std::string::npos);
-    EXPECT_NE(body.find("m_sunScrX, m_sunScrY, WinW, WinH"), std::string::npos);
-    EXPECT_EQ(body.find("glReadPixels"), std::string::npos);
-    EXPECT_EQ(body.find("m_traceKApplied ="), std::string::npos);
-    EXPECT_NE(source.find("if (!SunTracePositionOnScreen(x, y, WinW, WinH))"), std::string::npos);
 }

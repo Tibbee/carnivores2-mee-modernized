@@ -7,8 +7,6 @@
 #include <cstring>
 #include <iostream>
 #include <limits>
-#include <fstream>
-#include <iterator>
 #include <string>
 
 namespace {
@@ -186,14 +184,4 @@ TEST(WaterWaveCache, SampledSignedUptimesAndEditedSpeedsMatchDirectEvaluation) {
         cache.update(time, random, p);
         ExpectDirect(cache, time, random, p);
     }
-}
-
-TEST(WaterWaveCache, EngineUsesProductionCacheForPositionsAndLighting) {
-    std::ifstream file(std::string(C2_SOURCE_ROOT) + "/Hunt/Game/Effects.cpp");
-    ASSERT_TRUE(file.good());
-    const std::string source{std::istreambuf_iterator<char>(file), {}};
-    EXPECT_NE(source.find("static water_wave::Cache waves;"), std::string::npos);
-    EXPECT_NE(source.find("waves.update(RealTime, RandomMap, {WWave1Amp, WWave2Amp, WWave3Amp, WWaveSpeed});"), std::string::npos);
-    EXPECT_NE(source.find("waves.lighting[yy & 31][xx & 31]"), std::string::npos);
-    EXPECT_NE(source.find("waves.surface[yy & 31][xx & 31]"), std::string::npos);
 }

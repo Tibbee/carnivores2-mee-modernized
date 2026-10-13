@@ -713,9 +713,10 @@ TEST(ConfigRegistry, PublishableKeysAreUniqueAndTokenSafe) {
 		<< "two descriptors claim the same config key";
 }
 
-TEST(ConfigRegistry, EveryPublishableKeyIsReadByTheEngineLoader) {
+TEST(SourceContracts, WorkbenchWiring) {
+	// Every publishable key must be read by the engine loader: the write set
+	// cannot contain a key no configuration could supply.
 	const std::string engine = ReadSource("Hunt/Game/EngineInit.cpp");
-	// Env keys are read by a prefix branch that then matches the field name.
 	EXPECT_NE(engine.find("_strnicmp(key, \"env\", 3)"), std::string::npos);
 	for (const auto* descriptor : Publishable()) {
 		const std::string key = descriptor->key;
@@ -727,19 +728,29 @@ TEST(ConfigRegistry, EveryPublishableKeyIsReadByTheEngineLoader) {
 		EXPECT_NE(engine.find("_stricmp(key, \"" + key + "\")"), std::string::npos)
 			<< key << " is written but never read";
 	}
-}
 
-TEST(ConfigRegistry, TheWorkbenchAndTheMenuNeverOwnTheSameKey) {
-	// Two writers share config.cfg. If both claimed a key they would overwrite
-	// each other, so the sets must stay disjoint.
+	// The workbench and the menu both write config.cfg, so their key sets must
+	// stay disjoint.
 	const std::string menu = ReadSource("Menu/Resources.cpp");
 	const std::size_t begin = menu.find("void SaveConfig()");
 	ASSERT_NE(begin, std::string::npos);
 	const std::string body = menu.substr(begin);
-	for (const auto* descriptor : Publishable()) {
+	for (const auto* descriptor : Publishable())
 		EXPECT_EQ(body.find("fresh.emplace_back(\"" + std::string(descriptor->key) + "\""), std::string::npos)
 			<< descriptor->key << " is owned by both writers";
-	}
+
+	// Hunt start resets runtime through the workbench adapter before placing
+	// the hunter, and legacy keys and dump route through the adapter instead
+	// of writing globals directly.
+	const std::string loader = ReadSource("Hunt/Loaders/CharacterLoader.cpp");
+	const auto reset = loader.find("workbench::ResetRuntimeForHunt()");
+	ASSERT_NE(reset, std::string::npos);
+	EXPECT_LT(reset, loader.find("  PlaceHunter();", reset));
+	EXPECT_EQ(loader.find("UWFog_BaseDensityMult ="), std::string::npos);
+	const std::string hunt = ReadSource("Hunt/Game/Hunt.cpp");
+	EXPECT_NE(hunt.find("workbench::AdjustLegacyRuntime(parameter, right)"), std::string::npos);
+	EXPECT_NE(hunt.find("workbench::EmitRuntimeDump(PrintLog)"), std::string::npos);
+	EXPECT_EQ(hunt.find("float* params[]"), std::string::npos);
 }
 
 TEST(ConfigRegistry, NoDescriptorWritesTheDryReverbEnvironment) {

@@ -1,6 +1,4 @@
 #include <gtest/gtest.h>
-#include <fstream>
-#include <iterator>
 #include "Workbench/InputBoundary.h"
 using namespace workbench;
 namespace {
@@ -14,10 +12,6 @@ InputBoundary Open() {
 	boundary.SetAvailable(true, {});
 	boundary.SetOpen(true, {});
 	return boundary;
-}
-std::string Source(const char* relative) {
-	std::ifstream file(std::string(C2_SOURCE_ROOT) + "/" + relative);
-	return {std::istreambuf_iterator<char>(file), {}};
 }
 }
 TEST(WorkbenchInput, ClosedAvailableOrUnavailableIsTransparent) {
@@ -120,25 +114,4 @@ TEST(WorkbenchInput, ClosedModeSwitchesAndInvalidKeysAreSafe) {
 	EXPECT_FALSE(boundary.ConsumeKey(256, true));
 	EXPECT_FALSE(boundary.ConsumeKey(~0u, false));
 	boundary = Open(); EXPECT_TRUE(boundary.ConsumeKey(~0u, true));
-}
-TEST(WorkbenchInput, ProductionMessageGatePrecedesAllLegacyActions) {
-	const auto hunt = Source("Hunt/Game/Hunt.cpp");
-	const auto route = hunt.find("workbench::HandleUIMessage(hWnd");
-	ASSERT_NE(route, std::string::npos);
-	EXPECT_LT(route, hunt.find("if (pressed(KeyMap.fkBinoc)"));
-	EXPECT_LT(route, hunt.find("switch (message)", route));
-	EXPECT_NE(hunt.find("workbench::NotifyUIFocus(blActive != 0)"), std::string::npos);
-}
-TEST(WorkbenchInput, ProductionPollAndLookAreGatedWithoutSimulationPause) {
-	const auto controls = Source("Hunt/Game/Controls.cpp");
-	const auto movement = Source("Hunt/Game/PlayerMovement.cpp");
-	EXPECT_LT(controls.find("workbench::FilterGameplayKeys(KeyboardState)"), controls.find("KeyboardState[KeyMap.fkReload]"));
-	EXPECT_NE(controls.find("if (workbench::UIOwnsInput()) capture = false;"), std::string::npos);
-	EXPECT_NE(controls.find("if (workbench::UIOwnsInput()) return;"), std::string::npos);
-	EXPECT_NE(controls.find("workbench::FinishGameplayInputFrame()"), std::string::npos);
-	const auto start = movement.find("void ProcessPlayerMovement()");
-	EXPECT_LT(movement.find("!workbench::UIBlocksLook()", start), movement.find("GetCursorPos(&ms)", start));
-	const auto draw = Source("Hunt/Renderer/GLUI.cpp");
-	EXPECT_LT(draw.find("NightVisionOn"), draw.find("workbench::RenderUI()"));
-	EXPECT_LT(draw.find("workbench::RenderUI()"), draw.find("SwapBuffers(hdc)"));
 }
