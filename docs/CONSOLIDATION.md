@@ -96,7 +96,7 @@ PGO presets (owner) · flashlight GLSL tri-copy (~90, high risk, needs owner vis
 
 Menu `SaveConfig` unification · trophy format/filename fix · packaging Python dependency ·
 `C2_BUILD_TESTS` CI build-time trade · PGO removal or experimental labelling · `comments.py` delete vs document ·
-GLSL include refactor · config-scanner staging policy.
+GLSL include refactor. (`config-scanner staging policy` resolved 2026-10-14 — see the progress log.)
 
 ## Defects logged (not fixed without an owner call)
 
@@ -196,3 +196,8 @@ GLSL include refactor · config-scanner staging policy.
 - Observation: `Hunt/Game/Config.cpp` now holds only the `ShowFaces` definition plus blank padding — the dropped comment was its last real content. A file-level cleanup is a candidate for owner review; not touched here.
 - Checkpoint (sixth): all four presets configure and build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Release flags clean (`/GS`, no `/GS-`) in ogl-release and soft-release. Comment hygiene: 264 files scanned, only the WS4-owned Defect 6 finding (unchanged). clang-tidy (LLVM 23.1.0): exit 0 on the four changed TUs, advisory legacy diagnostics only.
 - Next: the staged config-scanner unification (×4, ~135 est.) — owner call pending on the staging policy; the parity harness lands before any engine/menu reader is touched.
+
+### 2026-10-14 — config-scanner owner call
+
+- Staging policy: harness first — a pure `Core/ConfigScan.h` plus a parity corpus pinning today's engine/menu/pre-read behavior with no behavior change — then one consumer per commit: the load-policy pre-read, the menu (reader + `SaveConfig` merge onto `configmerge::Merge`), the engine reader.
+- Grammar: both spellings stay as-is. `load_mode=strict` keeps working through the pre-reader's `=` separator while every other key keeps the whitespace form; the harness pins both grammars as intentional rather than a bug.
