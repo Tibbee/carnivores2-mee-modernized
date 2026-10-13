@@ -1,6 +1,6 @@
 # Consolidation Pass — C2 MEE
 
-> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 complete (17 clusters, 686 → 469 cases; plan target ~480); five four-preset checkpoints green; hygiene has 1 open finding (Defect 6, WS4-owned); clang-tidy runs locally (VS Code cpptools LLVM 23.1.0) and is clean on the latest changed files.
+> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 complete (17 clusters, 686 → 469 cases); WS3 foundational slices landed (config path resolution, load-policy pre-read, ConfigPersistence classifier); sixth four-preset checkpoint green; hygiene has 1 open finding (Defect 6, WS4-owned); clang-tidy runs locally (VS Code cpptools LLVM 23.1.0) and is clean on the latest changed files.
 > **Branch:** `refactor/consolidation-pass`, worktree `Carnivores2MEE1.11/build/consolidation-pass`, based on `feat/modder-workbench` @ `4d05faa`.
 > **Status:** in progress. Owner approved the plan and the deletion of the disabled-species animation bundle. Only the Progress log and the task list below are authoritative for what is done; the ranked estimates come from the Phase 1 hunts.
 
@@ -78,6 +78,11 @@ menu constants vs `Core/Constants.h` (~50) · resolution list ×2 (~70) · FPS l
 DPI/VK helpers ×2 (~22) · ship spawn ×2 (~12) · script-key predicate (~30) · F10 overlay GL+Soft (~150-200) ·
 bound-fit merge (~75) · idle-group selector across 8 animation files (~150-200) · menu OpenAL plumbing (~100) ·
 TGA reader ×2 (~60) · env presets triple-source (~30) · test fixtures/helpers (~55).
+
+Landed (2026-10-14): config path resolution ×4 → `Hunt/Core/ConfigPath.h` (`ResolveReadPath`/`ResolveWritePath`; `e38b060`) ·
+load-policy pre-read ×2 → `ApplyLoadPolicyFromConfigFile` in `Loaders/LoadDiagnostics.h` (`f44c1fa`) ·
+ConfigPersistence classifier → shared `kMaxConfigBytes` + `IsUtf16ConfigText` in `Core/ConfigText.h` (`ae57db8`).
+Sixth four-preset checkpoint green. Next is the staged config-scanner unification; its staging policy awaits the owner call.
 
 ### WS4 — Build & tooling (~900 LOC)
 
@@ -182,3 +187,12 @@ GLSL include refactor · config-scanner staging policy.
 - Note: the "workbench three-layer" cluster was interpreted as the two remaining layers of the tuning stack (session + runtime) because the persistence layer was already consolidated as the workbench-persistence cluster; collision/GPU layers are separate features and were left alone.
 - Checkpoint (fifth): all four presets build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Release flags clean (`/GS`, no `/GS-`). Comment hygiene: 263 files scanned, only the WS4-owned Defect 6 finding (unchanged). clang-tidy: exit 0, no errors and no blocking-check hits on the two changed files. The C4459 warnings in the workbench runtime translation unit (`NightLighting.h` ×3 plus the `v`/`nv` locals) reproduce on HEAD and are pre-existing.
 - WS2 closes at 686 → 469 cases in 17 clusters (plan target ~480). Next: WS3 unified implementations — foundational first (config path resolution ×4, load-policy wrapper ×2, ConfigPersistence classifier, then the staged config-scanner unification), then WS4 build/tooling.
+
+### 2026-10-14 — WS3 foundational slices + sixth checkpoint
+
+- `e38b060` refactor(config): share the config path resolution between the EXEs — new `Hunt/Core/ConfigPath.h` carries the exe-dir-first policy for both the read path (falls back to the working directory when no file exists) and the write path (exe directory authoritative); the four copies in `Menu/Resources.cpp` and `Hunt/Game/EngineInit.cpp` collapse onto it, `GetEngineConfigPath` keeps its char-buffer API on top, and the stale resolution comment left in `Hunt/Game/Config.cpp` is dropped. 4 files, −93/+67 lines; ogl-debug + ctest 16/16.
+- `f44c1fa` refactor(config): share the load-policy pre-read between the EXEs — `ApplyLoadPolicyFromConfigFile` in `Loaders/LoadDiagnostics.h` (read the body, scan `load_mode`, then the `C2_STRICT_DATA` override) replaces the engine's `LoadLoadPolicy` and the menu's `InitMenuLoadPolicy`; the shared read uses binary mode, matching the engine copy, and the pre-read still runs before `_RES.TXT`/`_MENU.TXT` are parsed. 3 files, −39/+32 lines; ogl-debug + ctest 16/16.
+- `ae57db8` refactor(workbench): share the config text classification with the loader — `Core/ConfigText.h` exposes `kMaxConfigBytes` and `IsUtf16ConfigText` (also used inside `ReadConfigText`); `ConfigPersistence::Classify` keeps only its refuse policy (the loader recovers NUL padding, the writer refuses it). 2 files, −12/+24 lines; ogl-debug + ctest 16/16.
+- Observation: `Hunt/Game/Config.cpp` now holds only the `ShowFaces` definition plus blank padding — the dropped comment was its last real content. A file-level cleanup is a candidate for owner review; not touched here.
+- Checkpoint (sixth): all four presets configure and build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Release flags clean (`/GS`, no `/GS-`) in ogl-release and soft-release. Comment hygiene: 264 files scanned, only the WS4-owned Defect 6 finding (unchanged). clang-tidy (LLVM 23.1.0): exit 0 on the four changed TUs, advisory legacy diagnostics only.
+- Next: the staged config-scanner unification (×4, ~135 est.) — owner call pending on the staging policy; the parity harness lands before any engine/menu reader is touched.
