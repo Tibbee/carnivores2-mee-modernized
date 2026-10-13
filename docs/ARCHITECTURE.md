@@ -10,7 +10,7 @@ fork started from (`341303d`), not from memory.
 Hunt/                              engine
 ├── Hunt.h                         umbrella header, kept for legacy includes
 ├── Memory.h                       arena allocator, smart pointers, MEM_DEBUG
-├── Core/                          headers only, no behaviour
+├── Core/                          focused headers; StateDefs.cpp holds global state
 │   ├── Version.h                  single source of truth for the version string
 │   ├── GameMode.h                 GameMode enum + IsSurvivalMode and friends
 │   ├── GameState.h                globals, via the GLOBAL macro
@@ -140,16 +140,16 @@ enormous and several of them doing more than one job.
 | | Before (baseline `341303d`) | After |
 |---|---|---|
 | Files in `Hunt/` root | 13 `.cpp` | 0 (moved into subsystem directories) |
-| `Characters.cpp` | 9,678 lines | 588 lines |
-| `Game.cpp` | 3,076 lines | gone; became `Hunt.cpp` (1,911 lines) plus extracted files |
-| Per-species animation | inside `Characters.cpp` | 18 files in `CharacterAnimation/` + a 389-line dispatcher |
+| `Characters.cpp` | 9,678 lines | 427 lines |
+| `Game.cpp` | 3,076 lines | gone; became `Hunt.cpp` (1,944 lines) plus extracted files |
+| Per-species animation | inside `Characters.cpp` | 13 files in `CharacterAnimation/` + a 360-line dispatcher |
 | `Resources.cpp` | 4,844 lines | split across `Loaders/` by resource type |
 | `Render3DFX.cpp` (Glide) | 5,054 lines | deleted |
 | `RendererD3D.cpp` (Direct3D) | 6,238 lines | deleted |
-| `RenderSoft.cpp` | 3,363 lines | `RenderSoft.cpp` + 8 `Soft*.cpp` files |
+| `RenderSoft.cpp` | 3,363 lines | `RenderSoft.cpp` + 9 `Soft*.cpp` files |
 | Shaders | inline C++ strings | 12 files in `shaders/` |
 | Audio | `Audio_DLL.cpp`, 175 lines | `Audio/` with a real OpenAL loader |
-| Software renderer | 3,363 lines in one file | 3,966 lines across `RenderSoft.cpp` + 8 `Soft*.cpp` files, with its own HUD and debug menu |
+| Software renderer | 3,363 lines in one file | 3,906 lines across `RenderSoft.cpp` + 9 `Soft*.cpp` files, with its own HUD and debug menu |
 | OpenGL | none | new `GLRenderer` and 14 `GL*.cpp` files |
 
 Removing the Glide and Direct3D backends is the single biggest structural

@@ -138,7 +138,7 @@ that matters: the menu looks for exactly those two and nothing else.
 
 | Key | |
 |---|---|
-| `F10` | Debug menu. Three tabs (fog, waves, sun); arrows to pick a value, `+`/`-` to change it, `D` to dump what you settled on. |
+| `F10` | Tuning inspector. OpenGL builds open the native workbench (Fog/Waves/Sun/Night/Beam/Audio/Collision tabs); software builds keep the legacy three-tab text menu. `D` dumps the current values to the log. |
 | `F11` | One second of per-frame performance data to a CSV. OpenGL builds only. |
 | `F12` | Screenshot. |
 | `F9` | Quit cleanly, which is the polite way to end a session. |

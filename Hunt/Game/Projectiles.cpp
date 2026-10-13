@@ -1,6 +1,5 @@
-// Projectiles.cpp -- auto-extracted from Game.cpp
 // ==========================================================================
-// Auto-extracted from Game.cpp
+// Projectiles.cpp -- bullets, impact effects and damage resolution
 // ==========================================================================
 
 #include "Hunt.h"

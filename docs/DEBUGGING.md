@@ -8,18 +8,21 @@ to know whether the problem is their data or the engine.
 
 | Key | |
 |---|---|
-| `F10` | Debug menu. Toggle with `F10`, pick a value with the arrow keys, change it with `+`/`-`, `PgUp`/`PgDn` to change tab, `D` to print the current values, `F10` again to close. |
+| `F10` | Tuning menu. OpenGL builds open the native workbench (Fog/Waves/Sun/Night/Beam/Audio/Collision tabs; sliders or exact entry, `D` dumps to the log). Software builds keep the legacy text panel (arrow keys pick a value, `+`/`-` changes it, `PgUp`/`PgDn` changes tab, `D` prints, `F10` closes). |
 | `F11` | Capture one second of per-frame CPU/GPU counters to a CSV. OpenGL builds compiled with `GL_PERF_HOOKS` only. |
 | `F12` | Screenshot. |
 | `F9` | Quit the hunt cleanly. |
 | `Enter` | Toggle fullscreen. Disabled in survival mode. |
 
 The `F10` menu is live: the values it changes take effect on the next frame, so
-you can stand in the water and walk the fog density down until you can see. It
-works in both renderers. It does not persist, so `D` prints what you found and you
-can write it into `config.cfg` or a shader by hand.
+you can stand in the water and walk the fog density down until you can see.
+Software builds keep the legacy text panel described below; OpenGL builds use
+the native workbench (see [LIVE-WORKBENCH.md](LIVE-WORKBENCH.md)) for the same
+Fog/Waves/Sun controls plus Night, Beam, Audio and Collision tabs. Nothing
+persists, so `D` prints what you found and you can write it into `config.cfg` or
+a shader by hand.
 
-Three tabs:
+The legacy panel's three tabs:
 
 | Tab | Values |
 |---|---|
