@@ -491,6 +491,7 @@ if(MSVC)
     add_executable(Carnivores2WorkbenchTests
         tests/test_workbench_runtime.cpp
         tests/test_workbench_collision.cpp
+        tests/test_workbench_config.cpp
         Hunt/Workbench/CollisionInspection.cpp
         Hunt/Game/TerrainQueries.cpp
         Hunt/Game/ObjectBounds.cpp
