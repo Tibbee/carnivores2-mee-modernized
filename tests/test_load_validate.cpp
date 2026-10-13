@@ -14,25 +14,38 @@
 
 namespace {
 
-TEST(LoadValidate, CountsFitFixedArrays) {
+TEST(LoadValidate, CountsIndicesAndRangesRespectCapacity) {
     EXPECT_TRUE(IsValidCount(0, 64));
     EXPECT_TRUE(IsValidCount(64, 64));
     EXPECT_TRUE(IsValidCount(22, 64));  // shipped .CAR AniCount maximum
     EXPECT_FALSE(IsValidCount(-1, 64));
     EXPECT_FALSE(IsValidCount(65, 64));
     EXPECT_FALSE(IsValidCount(1025, 1024));  // gObj capacity
-}
 
-TEST(LoadValidate, OrderedSpawnRangesFitCapacity) {
+    // A configured minimum/maximum pair must fit capacity and stay ordered.
     EXPECT_TRUE(IsValidOrderedRange(0, 0, 256));
     EXPECT_TRUE(IsValidOrderedRange(2, 13, 256));
     EXPECT_TRUE(IsValidOrderedRange(0, 256, 256));
     EXPECT_FALSE(IsValidOrderedRange(-1, 3, 256));
     EXPECT_FALSE(IsValidOrderedRange(4, 3, 256));
     EXPECT_FALSE(IsValidOrderedRange(0, 257, 256));
+
+    // The index helpers are strict: index == capacity is already out of range.
+    EXPECT_TRUE(IsValidIndex(0, 32));
+    EXPECT_TRUE(IsValidIndex(31, 32));
+    EXPECT_FALSE(IsValidIndex(-1, 32));
+    EXPECT_FALSE(IsValidIndex(32, 32));
+
+    EXPECT_TRUE(IsValidVertexIndex(0, 1989));
+    EXPECT_TRUE(IsValidVertexIndex(1988, 1989));
+    EXPECT_FALSE(IsValidVertexIndex(-1, 1989));
+    EXPECT_FALSE(IsValidVertexIndex(1989, 1989));
+    EXPECT_FALSE(IsValidVertexIndex(100000, 1989));
 }
 
-TEST(LoadValidate, CheckedSizesRejectWrap) {
+TEST(LoadValidate, FileDerivedSizesAreGuarded) {
+    // CheckedBytes2/3: size = a * b (or a * b * c) without 32-bit wrap. The
+    // allocator takes a DWORD, so the result must also fit 32 bits.
     size_t out = 0;
     EXPECT_TRUE(CheckedBytes2(1989, 16, out));  // shipped max VCount * 16
     EXPECT_EQ(out, 1989u * 16u);
@@ -41,22 +54,29 @@ TEST(LoadValidate, CheckedSizesRejectWrap) {
     EXPECT_FALSE(CheckedBytes2(1 << 20, 1 << 20, out));
     EXPECT_FALSE(CheckedBytes3(65536, 65536, 65536, out));
     EXPECT_FALSE(CheckedBytes2(static_cast<size_t>(-1), 2, out));
+
+    // BMP rows land in byte fRGB[800][3] on the stack: the width cap is
+    // structural, not aesthetic. Height is heap-checked via CheckedBytes.
+    EXPECT_TRUE(IsValidBmpWidth(1));
+    EXPECT_TRUE(IsValidBmpWidth(800));
+    EXPECT_FALSE(IsValidBmpWidth(0));
+    EXPECT_FALSE(IsValidBmpWidth(-40));
+    EXPECT_FALSE(IsValidBmpWidth(801));
+
+    // WAV data is non-negative and bounded (16 MiB of 16-bit audio is far
+    // beyond any shipped effect); odd lengths allocate a rounded-up sample
+    // count so the buffer cannot be one byte short.
+    EXPECT_TRUE(IsValidWavLength(0));
+    EXPECT_TRUE(IsValidWavLength(44100 * 2));
+    EXPECT_FALSE(IsValidWavLength(-1));
+    EXPECT_FALSE(IsValidWavLength((16 << 20) + 1));
+    EXPECT_EQ(WavAllocSamples(100), 50u);
+    EXPECT_EQ(WavAllocSamples(101), 51u);
+    EXPECT_EQ(WavAllocSamples(0), 0u);
 }
 
-TEST(LoadValidate, VertexIndicesStayInRange) {
-    EXPECT_TRUE(IsValidVertexIndex(0, 1989));
-    EXPECT_TRUE(IsValidVertexIndex(1988, 1989));
-    EXPECT_FALSE(IsValidVertexIndex(-1, 1989));
-    EXPECT_FALSE(IsValidVertexIndex(1989, 1989));
-    EXPECT_FALSE(IsValidVertexIndex(100000, 1989));
-
-    EXPECT_TRUE(IsValidIndex(0, 32));
-    EXPECT_TRUE(IsValidIndex(31, 32));
-    EXPECT_FALSE(IsValidIndex(-1, 32));
-    EXPECT_FALSE(IsValidIndex(32, 32));
-}
-
-TEST(LoadValidate, AnimationDurationIsPositiveAndChecked) {
+TEST(LoadValidate, AnimationTimingIsCheckedAndBounded) {
+    // Duration: frames >= 1, kps > 0, and no signed overflow.
     int duration = 0;
     EXPECT_TRUE(CheckedAnimationDuration(20, 10, duration));
     EXPECT_EQ(duration, 2000);
@@ -67,6 +87,20 @@ TEST(LoadValidate, AnimationDurationIsPositiveAndChecked) {
     EXPECT_FALSE(CheckedAnimationDuration(20, -1, duration));
     EXPECT_FALSE(CheckedAnimationDuration(2, 3000, duration));
     EXPECT_FALSE(CheckedAnimationDuration((std::numeric_limits<int>::max)(), 1, duration));
+
+    // Morph frames: 8-bit fixed point with checked-width intermediates;
+    // invalid state falls back to frame zero instead of indexing outside
+    // the animation data.
+    EXPECT_EQ(CalculateMorphFrameFixed(1, 100, 1000), 0);
+    EXPECT_EQ(CalculateMorphFrameFixed(10, -1, 1000), 0);
+    EXPECT_EQ(CalculateMorphFrameFixed(10, 1000, 1000),
+              CalculateMorphFrameFixed(10, 999, 1000));
+    const int nearEnd = CalculateMorphFrameFixed(365, 24332, 24333);
+    EXPECT_GE(nearEnd, 0);
+    EXPECT_LT((nearEnd >> 8) + 1, 365);
+    EXPECT_EQ(CalculateMorphFrameFixed((std::numeric_limits<int>::max)(),
+                                       1000, 1000), 0);
+    EXPECT_EQ(CalculateMorphFrameFixed(10, 100, 0), 0);
 }
 
 TEST(LoadValidate, WeaponAnimationReferencesRespectModelCount) {
@@ -92,19 +126,6 @@ TEST(LoadValidate, WeaponAnimationReferencesRespectModelCount) {
     EXPECT_FALSE(AreWeaponAnimationReferencesValid(weapon, 3));
 }
 
-TEST(LoadValidate, MorphFrameCalculationIsBoundedAndOverflowSafe) {
-    EXPECT_EQ(CalculateMorphFrameFixed(1, 100, 1000), 0);
-    EXPECT_EQ(CalculateMorphFrameFixed(10, -1, 1000), 0);
-    EXPECT_EQ(CalculateMorphFrameFixed(10, 1000, 1000),
-              CalculateMorphFrameFixed(10, 999, 1000));
-    const int nearEnd = CalculateMorphFrameFixed(365, 24332, 24333);
-    EXPECT_GE(nearEnd, 0);
-    EXPECT_LT((nearEnd >> 8) + 1, 365);
-    EXPECT_EQ(CalculateMorphFrameFixed((std::numeric_limits<int>::max)(),
-                                       1000, 1000), 0);
-    EXPECT_EQ(CalculateMorphFrameFixed(10, 100, 0), 0);
-}
-
 TEST(LoadValidate, MapReferencesRespectCountsAndSentinels) {
     EXPECT_TRUE(IsValidMapTextureIndex(0, 1));
     EXPECT_FALSE(IsValidMapTextureIndex(1, 1));
@@ -119,25 +140,6 @@ TEST(LoadValidate, MapReferencesRespectCountsAndSentinels) {
     EXPECT_TRUE(IsValidMapWaterIndex(0, 1));
     EXPECT_FALSE(IsValidMapWaterIndex(1, 1));
     EXPECT_FALSE(IsValidMapWaterIndex(255, 0));
-}
-
-TEST(LoadValidate, BmpWidthGuardsStackBuffer) {
-    EXPECT_TRUE(IsValidBmpWidth(1));
-    EXPECT_TRUE(IsValidBmpWidth(800));
-    EXPECT_FALSE(IsValidBmpWidth(0));
-    EXPECT_FALSE(IsValidBmpWidth(-40));
-    EXPECT_FALSE(IsValidBmpWidth(801));
-}
-
-TEST(LoadValidate, WavLengthsAreSane) {
-    EXPECT_TRUE(IsValidWavLength(0));
-    EXPECT_TRUE(IsValidWavLength(44100 * 2));
-    EXPECT_FALSE(IsValidWavLength(-1));
-    EXPECT_FALSE(IsValidWavLength((16 << 20) + 1));
-    // Odd lengths allocate a rounded-up sample count (no 1-byte overflow).
-    EXPECT_EQ(WavAllocSamples(100), 50u);
-    EXPECT_EQ(WavAllocSamples(101), 51u);
-    EXPECT_EQ(WavAllocSamples(0), 0u);
 }
 
 TEST(LoadValidate, ScriptKeyMatchesAssignmentTokenOnly) {
@@ -160,12 +162,33 @@ TEST(LoadValidate, ScriptKeyMatchesAssignmentTokenOnly) {
     EXPECT_FALSE(ScriptKeyIs("file = 'para.car'", "filename"));
     EXPECT_FALSE(ScriptKeyIs(nullptr, "file"));
     EXPECT_FALSE(ScriptKeyIs("file = 'x'", nullptr));
+
+    // Regression for "Script loading error: Characters file missing, too
+    // long, or malformed.": this path contains "name", and the old strstr()
+    // key match plus the in-place quote strip made the file branch eat a
+    // quote the name branch had already consumed.
+    char line[] = " file = 'models/modname/para.car'\n";
+    char dst[48];
+    EXPECT_FALSE(ScriptKeyIs(line, "name"));
+    ASSERT_TRUE(ScriptKeyIs(line, "file"));
+    ASSERT_TRUE(CopyQuotedValue(dst, sizeof(dst), strchr(line, '=') + 1));
+    EXPECT_STREQ(dst, "models/modname/para.car");
 }
 
-TEST(LoadValidate, QuotedValueKeepsTrailingComments) {
-    char dst[48];
+TEST(LoadValidate, QuotedValueSpansAndCappedCopies) {
+    // FindQuotedValue exposes the first quote pair without touching the line;
+    // a missing quote or a null input fails.
+    const char* value = nullptr;
+    size_t length = 0;
+    ASSERT_TRUE(FindQuotedValue(" 'bag1.car'\r\n", &value, &length));
+    EXPECT_EQ(length, 8u);
+    EXPECT_EQ(strncmp(value, "bag1.car", 8), 0);
+    EXPECT_FALSE(FindQuotedValue("'unclosed", &value, &length));
+    EXPECT_FALSE(FindQuotedValue(nullptr, &value, &length));
+
     // Callers pass the text after '='; the leading space, trailing spaces,
     // semicolons and // comments all sit outside the value.
+    char dst[48];
     EXPECT_TRUE(CopyQuotedValue(dst, sizeof(dst), " 'para.car'"));
     EXPECT_STREQ(dst, "para.car");
     EXPECT_TRUE(CopyQuotedValue(dst, sizeof(dst), " 'jager.CAR'       // 3D model file"));
@@ -202,33 +225,8 @@ TEST(LoadValidate, QuotedValueKeepsTrailingComments) {
     quoted[49] = '\'';
     quoted[50] = '\0';
     EXPECT_FALSE(CopyQuotedValue(dst, sizeof(dst), quoted));
-}
 
-TEST(LoadValidate, FindQuotedValueExposesSpan) {
-    const char* value = nullptr;
-    size_t length = 0;
-    ASSERT_TRUE(FindQuotedValue(" 'bag1.car'\r\n", &value, &length));
-    EXPECT_EQ(length, 8u);
-    EXPECT_EQ(strncmp(value, "bag1.car", 8), 0);
-    EXPECT_FALSE(FindQuotedValue("'unclosed", &value, &length));
-    EXPECT_FALSE(FindQuotedValue(nullptr, &value, &length));
-}
-
-TEST(LoadValidate, ReportedModelPathLineNowParses) {
-    // Regression for "Script loading error: Characters file missing, too
-    // long, or malformed.": this path contains "name", and the old strstr()
-    // key match plus the in-place quote strip made the file branch eat a
-    // quote the name branch had already consumed.
-    char line[] = " file = 'models/modname/para.car'\n";
-    char dst[48];
-    EXPECT_FALSE(ScriptKeyIs(line, "name"));
-    ASSERT_TRUE(ScriptKeyIs(line, "file"));
-    ASSERT_TRUE(CopyQuotedValue(dst, sizeof(dst), strchr(line, '=') + 1));
-    EXPECT_STREQ(dst, "models/modname/para.car");
-}
-
-TEST(LoadValidate, CopyCappedRejectsOverflow) {
-    char dst[48];
+    // CopyCapped needs room for the terminator; truncation is rejected.
     EXPECT_TRUE(CopyCapped(dst, sizeof(dst), "jager.car"));
     EXPECT_STREQ(dst, "jager.car");
     char exact[4];
@@ -239,7 +237,7 @@ TEST(LoadValidate, CopyCappedRejectsOverflow) {
     EXPECT_FALSE(CopyCapped(dst, sizeof(dst), nullptr));
 }
 
-TEST(LoadValidate, ExternalSlotSixAliasDetectsVanillaProjectName) {
+TEST(LoadValidate, ExternalSlotSixAliasRewrite) {
     EXPECT_TRUE(ProjectBasenameIsExternal("huntdat/areas/external"));
     EXPECT_TRUE(ProjectBasenameIsExternal("huntdat\\areas\\external"));
     EXPECT_TRUE(ProjectBasenameIsExternal("huntdat/areas/External"));  // case-insensitive paths
@@ -248,9 +246,7 @@ TEST(LoadValidate, ExternalSlotSixAliasDetectsVanillaProjectName) {
     EXPECT_FALSE(ProjectBasenameIsExternal("huntdat/areas/myexternal"));
     EXPECT_FALSE(ProjectBasenameIsExternal("huntdat/areas/trophy"));
     EXPECT_FALSE(ProjectBasenameIsExternal(nullptr));
-}
 
-TEST(LoadValidate, ExternalSlotSixAliasRewritesToLogicalAreaName) {
     // The engine's script area filtering reads the fixed offset that holds the
     // area digit ("huntdat/areas/areaN" -> index 18). After the rewrite the
     // legacy offset logic must see exactly "area6" there.
@@ -271,9 +267,7 @@ TEST(LoadValidate, ExternalSlotSixAliasRewritesToLogicalAreaName) {
     char trophy[] = "huntdat/areas/trophy";
     EXPECT_FALSE(RewriteExternalProjectAlias(trophy, sizeof(trophy)));
     EXPECT_STREQ(trophy, "huntdat/areas/trophy");
-}
 
-TEST(LoadValidate, ExternalSlotSixAliasRespectsBufferCap) {
     // The rewrite only shortens the basename, so it must succeed in any buffer
     // that already held the full path.
     char tight[] = "x/external";
