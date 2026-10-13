@@ -12,23 +12,8 @@ void AnimateHuntDead(TCharacter *cptr);
 // Forward declaration from AnimateDeadCommon.cpp
 void AnimateDeadCommon(TCharacter *cptr);
 
-// Forward declaration from AnimateTitan.cpp
-void AnimateTitan(TCharacter *cptr);
-
-// Forward declaration from AnimatePoacher.cpp
-void AnimatePoacher(TCharacter *cptr);
-
 // Forward declaration from AnimateHuntable.cpp
 void AnimateHuntable(TCharacter *cptr);
-
-// Forward declaration from AnimateMicro.cpp
-void AnimateMicro(TCharacter *cptr);
-
-// Forward declaration from huntDogSearch.cpp
-boolean huntDogSearch(TCharacter *cptr);
-
-// Forward declaration from AnimateHuntdog.cpp
-void AnimateHuntdog(TCharacter *cptr);
 
 // Forward declaration from AnimateTRex.cpp
 void AnimateTRex(TCharacter *cptr);
@@ -335,14 +320,10 @@ void AnimateCharacters()
 			else AnimateIcthDead(cptr);
 			break;
 		case AI_HUNTDOG:
-			//	HUNTDOG TEMPP DISABLED
-			
-			break;
-
 		case AI_POACHER:
-			// TEMP DISABLED
-			//if (cptr->Health) AnimatePoacher(cptr);
-			//else AnimateDeadCommon(cptr);
+		case AI_TITAN:
+		case AI_MICRO:
+			// TEMP DISABLED upstream: these clone types have no shipped animator.
 			break;
 
 		case AI_PARA:
@@ -368,16 +349,6 @@ void AnimateCharacters()
 		case AI_TREX:
 			if (cptr->Health) AnimateTRex(cptr);
 			else AnimateDeadCommon(cptr);
-			break;
-		case AI_TITAN:
-			//TEMP DISABLED
-			//if (cptr->Health) AnimateTitan(cptr);
-			//else AnimateIcthDead(cptr);
-			break;
-		case AI_MICRO:
-			//TEMP DISABLED
-			//if (cptr->Health) AnimateMicro(cptr);
-			//else AnimateIcthDead(cptr);
 			break;
 		case 0:
 			AnimateHuntDead(cptr);
