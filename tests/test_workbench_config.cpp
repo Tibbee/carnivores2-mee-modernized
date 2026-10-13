@@ -398,7 +398,7 @@ protected:
 const std::string kOriginal = "renderer 1\r\nenv0_decay 1.490\r\n";
 } // namespace
 
-TEST_F(ConfigPersistence, PreviewReadsAndWritesNothing) {
+TEST_F(ConfigPersistence, PreviewAndApplyWriteTheReviewedBytesAndRotateBackups) {
 	const std::string path = Path();
 	Write(path, kOriginal);
 	auto session = SessionWithEnv0Decay(1.6f);
@@ -420,15 +420,7 @@ TEST_F(ConfigPersistence, PreviewReadsAndWritesNothing) {
 	EXPECT_EQ(preview.fields[0].newValue, "1.600");
 	EXPECT_FALSE(preview.fields[0].appended);
 	EXPECT_TRUE(preview.unpublishable.empty());
-}
 
-TEST_F(ConfigPersistence, ApplyWritesTheReviewedBytesAndKeepsTheOriginalAsABackup) {
-	const std::string path = Path();
-	Write(path, kOriginal);
-	auto session = SessionWithEnv0Decay(1.6f);
-
-	const auto preview = PreviewConfigWrite(path, session);
-	ASSERT_TRUE(preview.ok()) << preview.message;
 	const auto write = ApplyConfigWrite(path, session, preview);
 	ASSERT_TRUE(write.ok()) << write.message;
 	EXPECT_EQ(write.keysWritten, 1u);
@@ -436,6 +428,17 @@ TEST_F(ConfigPersistence, ApplyWritesTheReviewedBytesAndKeepsTheOriginalAsABacku
 	EXPECT_EQ(ReadFileText(path), preview.merged);
 	EXPECT_EQ(ReadFileText(path + ".before-workbench.bak"), kOriginal);
 	EXPECT_FALSE(Exists(path + ".workbench.tmp")) << "the temp must not survive a clean save";
+
+	// A second save rotates the backup: the first snapshot still holds the file
+	// as it was before any save.
+	ASSERT_EQ(session.Edit(Parameter::Env0Decay, 1.7f), Error::None);
+	const auto second = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(second.ok()) << second.message;
+	const auto rotated = ApplyConfigWrite(path, session, second);
+	ASSERT_TRUE(rotated.ok()) << rotated.message;
+	EXPECT_EQ(rotated.backup, ".before-workbench.1.bak");
+	EXPECT_EQ(ReadFileText(path + ".before-workbench.bak"), kOriginal);
+	EXPECT_EQ(ReadFileText(path + ".before-workbench.1.bak"), preview.merged);
 }
 
 TEST_F(ConfigPersistence, WhatWasWrittenIsWhatTheLoaderWouldReadBack) {
@@ -455,26 +458,7 @@ TEST_F(ConfigPersistence, WhatWasWrittenIsWhatTheLoaderWouldReadBack) {
 	EXPECT_TRUE(SameValue(parsed, 17.25f)) << "token was " << token;
 }
 
-TEST_F(ConfigPersistence, ASecondSaveKeepsTheFirstBackup) {
-	const std::string path = Path();
-	Write(path, kOriginal);
-	auto session = SessionWithEnv0Decay(1.6f);
-	const auto first = PreviewConfigWrite(path, session);
-	ASSERT_TRUE(first.ok()) << first.message;
-	ASSERT_TRUE(ApplyConfigWrite(path, session, first).ok());
-
-	ASSERT_EQ(session.Edit(Parameter::Env0Decay, 1.7f), Error::None);
-	const auto second = PreviewConfigWrite(path, session);
-	ASSERT_TRUE(second.ok()) << second.message;
-	const auto write = ApplyConfigWrite(path, session, second);
-	ASSERT_TRUE(write.ok()) << write.message;
-	EXPECT_EQ(write.backup, ".before-workbench.1.bak");
-	// The first snapshot still holds the file as it was before any save.
-	EXPECT_EQ(ReadFileText(path + ".before-workbench.bak"), kOriginal);
-	EXPECT_EQ(ReadFileText(path + ".before-workbench.1.bak"), first.merged);
-}
-
-TEST_F(ConfigPersistence, AConcurrentEditBetweenReviewAndSaveRefuses) {
+TEST_F(ConfigPersistence, AFileEditOrSessionEditBetweenReviewAndSaveRefuses) {
 	const std::string path = Path();
 	Write(path, kOriginal);
 	auto session = SessionWithEnv0Decay(1.6f);
@@ -483,55 +467,47 @@ TEST_F(ConfigPersistence, AConcurrentEditBetweenReviewAndSaveRefuses) {
 
 	const std::string someoneElse = std::string(kOriginal) + "fov 62\r\n";
 	Write(path, someoneElse);
-	const auto write = ApplyConfigWrite(path, session, preview);
-	EXPECT_EQ(write.refusal, PersistRefusal::FileMoved);
+	const auto fileMoved = ApplyConfigWrite(path, session, preview);
+	EXPECT_EQ(fileMoved.refusal, PersistRefusal::FileMoved);
 	EXPECT_EQ(ReadFileText(path), someoneElse);
 	EXPECT_FALSE(Exists(path + ".before-workbench.bak")) << "a refusal must leave nothing behind";
 	EXPECT_FALSE(Exists(path + ".workbench.tmp"));
-}
 
-TEST_F(ConfigPersistence, AnEditAfterTheReviewRefuses) {
-	const std::string path = Path();
+	// The same review is also invalidated when the session itself changes: the
+	// bytes written must be the bytes that were reviewed.
 	Write(path, kOriginal);
-	auto session = SessionWithEnv0Decay(1.6f);
-	const auto preview = PreviewConfigWrite(path, session);
-	ASSERT_TRUE(preview.ok()) << preview.message;
-
+	const auto fresh = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(fresh.ok()) << fresh.message;
 	ASSERT_EQ(session.Edit(Parameter::Env1Decay, 2.0f), Error::None);
-	const auto write = ApplyConfigWrite(path, session, preview);
-	EXPECT_EQ(write.refusal, PersistRefusal::SessionMoved);
+	const auto sessionMoved = ApplyConfigWrite(path, session, fresh);
+	EXPECT_EQ(sessionMoved.refusal, PersistRefusal::SessionMoved);
 	EXPECT_EQ(ReadFileText(path), kOriginal);
 	EXPECT_FALSE(Exists(path + ".before-workbench.bak"));
 }
 
-TEST_F(ConfigPersistence, AStaleTempFileIsLeftAloneAndRefuses) {
+TEST_F(ConfigPersistence, ApplyFailuresCleanUpOnlyTheirOwnArtifacts) {
 	const std::string path = Path();
 	Write(path, kOriginal);
 	Write(path + ".workbench.tmp", "left by a crash");
 	auto session = SessionWithEnv0Decay(1.6f);
-	const auto preview = PreviewConfigWrite(path, session);
-	ASSERT_TRUE(preview.ok()) << preview.message;
 
-	const auto write = ApplyConfigWrite(path, session, preview);
-	EXPECT_EQ(write.refusal, PersistRefusal::TempExists);
+	const auto stale = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(stale.ok()) << stale.message;
+	const auto refused = ApplyConfigWrite(path, session, stale);
+	EXPECT_EQ(refused.refusal, PersistRefusal::TempExists);
 	// The stale file is the operator's to remove; this must never delete it.
 	EXPECT_EQ(ReadFileText(path + ".workbench.tmp"), "left by a crash");
 	EXPECT_EQ(ReadFileText(path), kOriginal);
 	EXPECT_FALSE(Exists(path + ".before-workbench.bak"));
-}
 
-TEST_F(ConfigPersistence, ARefusedReplaceRemovesItsOwnBackupAndTemp) {
-	const std::string path = Path();
-	Write(path, kOriginal);
 	// A read-only destination is the deterministic way to make MoveFileExA fail
-	// after the backup and temp have been written.
-	fs::permissions(path, fs::perms::owner_read, fs::perm_options::replace);
-	auto session = SessionWithEnv0Decay(1.6f);
+	// after the backup and temp have been written; both must be cleaned up.
+	fs::remove(path + ".workbench.tmp");
 	const auto preview = PreviewConfigWrite(path, session);
 	ASSERT_TRUE(preview.ok()) << preview.message;
-
-	const auto write = ApplyConfigWrite(path, session, preview);
-	EXPECT_EQ(write.refusal, PersistRefusal::ReplaceFailed);
+	fs::permissions(path, fs::perms::owner_read, fs::perm_options::replace);
+	const auto replace = ApplyConfigWrite(path, session, preview);
+	EXPECT_EQ(replace.refusal, PersistRefusal::ReplaceFailed);
 	EXPECT_EQ(ReadFileText(path), kOriginal) << "the original must be untouched";
 	EXPECT_FALSE(Exists(path + ".workbench.tmp")) << "the temp must not outlive the failure";
 	EXPECT_FALSE(Exists(path + ".before-workbench.bak"))
@@ -540,7 +516,7 @@ TEST_F(ConfigPersistence, ARefusedReplaceRemovesItsOwnBackupAndTemp) {
 	fs::permissions(path, fs::perms::owner_read | fs::perms::owner_write, fs::perm_options::replace);
 }
 
-TEST_F(ConfigPersistence, ARefusedPreviewNeverReportsReady) {
+TEST_F(ConfigPersistence, PreviewRefusalsAndTheByteLimitBoundary) {
 	const std::string path = Path();
 	Write(path, kOriginal);
 	auto clean = SessionWithEnv0Decay(1.490f); // same as the file: nothing to write
@@ -555,9 +531,7 @@ TEST_F(ConfigPersistence, ARefusedPreviewNeverReportsReady) {
 	auto comparing = SessionWithEnv0Decay(1.6f);
 	ASSERT_EQ(comparing.Compare(true), Error::None);
 	EXPECT_EQ(PreviewConfigWrite(path, comparing).refusal, PersistRefusal::Comparing);
-}
 
-TEST_F(ConfigPersistence, UnreadableAndUnsupportedFilesAreRefused) {
 	auto session = SessionWithEnv0Decay(1.6f);
 
 	const std::string missing = Path("absent.cfg");
@@ -574,16 +548,12 @@ TEST_F(ConfigPersistence, UnreadableAndUnsupportedFilesAreRefused) {
 	const std::string huge = Path("huge.cfg");
 	Write(huge, "renderer 1\r\n" + std::string(1024 * 1024 + 1, 'x'));
 	EXPECT_EQ(PreviewConfigWrite(huge, session).refusal, PersistRefusal::TooLarge);
-}
 
-TEST_F(ConfigPersistence, ExactlyTheByteLimitIsAcceptedAndOneMoreIsRefused) {
 	// ReadConfigText accepts a file of exactly 1 MiB and rejects one byte more;
 	// the protocol must draw the same line, or a readable config would refuse.
-	const std::string path = Path();
 	std::string text = kOriginal;
 	text.resize(1024 * 1024, ' '); // trailing whitespace line, no terminator
 	Write(path, text);
-	auto session = SessionWithEnv0Decay(1.6f);
 	const auto preview = PreviewConfigWrite(path, session);
 	ASSERT_TRUE(preview.ok()) << preview.message;
 	EXPECT_EQ(preview.bytesBefore, 1024u * 1024u);
@@ -592,36 +562,30 @@ TEST_F(ConfigPersistence, ExactlyTheByteLimitIsAcceptedAndOneMoreIsRefused) {
 	EXPECT_EQ(PreviewConfigWrite(path, session).refusal, PersistRefusal::TooLarge);
 }
 
-TEST_F(ConfigPersistence, AChangedLegacyFieldIsReportedAndNotWritten) {
+TEST_F(ConfigPersistence, LegacyFieldsAreListedButNeverWritten) {
 	const std::string path = Path();
 	Write(path, kOriginal);
 	Session session;
 	ASSERT_EQ(session.Capture(CompiledDefaults()), Error::None);
 	ASSERT_EQ(session.Edit(Parameter::FogDensity, 0.9f), Error::None);
 
-	const auto preview = PreviewConfigWrite(path, session);
+	const auto lonely = PreviewConfigWrite(path, session);
 	// The only changed field has no loader key, so there is nothing to write and
 	// the file must be untouched rather than carrying a key the loader ignores.
-	EXPECT_EQ(preview.refusal, PersistRefusal::NothingToWrite);
-	ASSERT_EQ(preview.unpublishable.size(), 1u);
-	EXPECT_EQ(preview.unpublishable[0], Parameter::FogDensity);
+	EXPECT_EQ(lonely.refusal, PersistRefusal::NothingToWrite);
+	ASSERT_EQ(lonely.unpublishable.size(), 1u);
+	EXPECT_EQ(lonely.unpublishable[0], Parameter::FogDensity);
 	EXPECT_EQ(ReadFileText(path), kOriginal);
-}
 
-TEST_F(ConfigPersistence, ALegacyEditAlongsideAPublishableOneIsListedSeparately) {
-	const std::string path = Path();
-	Write(path, kOriginal);
-	Session session;
-	ASSERT_EQ(session.Capture(CompiledDefaults()), Error::None);
-	ASSERT_EQ(session.Edit(Parameter::FogDensity, 0.9f), Error::None);
+	// Alongside a publishable change the legacy field is still listed, while the
+	// write itself moves only the owned key.
 	ASSERT_EQ(session.Edit(Parameter::Env0Decay, 1.6f), Error::None);
-
-	const auto preview = PreviewConfigWrite(path, session);
-	ASSERT_TRUE(preview.ok()) << preview.message;
-	ASSERT_EQ(preview.fields.size(), 1u);
-	EXPECT_EQ(preview.fields[0].key, "env0_decay");
-	ASSERT_EQ(preview.unpublishable.size(), 1u);
-	EXPECT_EQ(preview.unpublishable[0], Parameter::FogDensity);
+	const auto mixed = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(mixed.ok()) << mixed.message;
+	ASSERT_EQ(mixed.fields.size(), 1u);
+	EXPECT_EQ(mixed.fields[0].key, "env0_decay");
+	ASSERT_EQ(mixed.unpublishable.size(), 1u);
+	EXPECT_EQ(mixed.unpublishable[0], Parameter::FogDensity);
 }
 
 TEST_F(ConfigPersistence, DuplicateOwnedKeysAreReportedButTheEarlierLineIsPreserved) {

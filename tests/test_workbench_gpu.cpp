@@ -598,45 +598,35 @@ protected:
 	bool Drawn(const char* role) const { return rectangles.count({role, -1}) != 0; }
 };
 
-TEST_F(WorkbenchPersistGPU, NoWriteIsOfferedBeforeAReview) {
+TEST_F(WorkbenchPersistGPU, TheWriteOfferRequiresAReviewableChange) {
 	Open(); Redraw();
 	EXPECT_EQ(workbench::RuntimeSession().ChangedCount(), 0u);
 	EXPECT_FALSE(Drawn("persist-save"));
 	EXPECT_FALSE(Drawn("persist-confirm"));
+
+	// Legacy tuning has no config key, so there is nothing a save could do and
+	// even a review must not offer the button.
+	ASSERT_EQ(workbench::EditRuntime(workbench::Parameter::FogDensity, 0.9f), workbench::Error::None);
+	Redraw();
+	Click("persist-review");
+	EXPECT_FALSE(Drawn("persist-save"));
 }
 
-TEST_F(WorkbenchPersistGPU, AReviewOfAPublishableChangeRevealsTheWrite) {
+TEST_F(WorkbenchPersistGPU, AReviewArmsTheWriteAndOnlyTheConfirmationWrites) {
 	Open(); workbench::RenderUI(); workbench::RenderUI();
 	ASSERT_EQ(workbench::EditRuntime(workbench::Parameter::Env0Decay, 1.6f), workbench::Error::None);
+	const std::string original = ReadText(config);
 	Redraw();
 	EXPECT_FALSE(Drawn("persist-save")) << "a review must be requested before the write is offered";
 	Click("persist-review");
 	EXPECT_TRUE(Drawn("persist-save"));
 	EXPECT_FALSE(Drawn("persist-confirm")) << "the write is armed by its own click";
 	Click("persist-save");
-	EXPECT_TRUE(Drawn("persist-confirm"));
-}
-
-TEST_F(WorkbenchPersistGPU, NothingIsWrittenUntilTheConfirmation) {
-	Open(); workbench::RenderUI(); workbench::RenderUI();
-	ASSERT_EQ(workbench::EditRuntime(workbench::Parameter::Env0Decay, 1.6f), workbench::Error::None);
-	const std::string original = ReadText(config);
-	Redraw();
-	Click("persist-review");
-	Click("persist-save");
+	ASSERT_TRUE(Drawn("persist-confirm"));
 	EXPECT_EQ(ReadText(config), original) << "arming must not touch the file";
 	Click("persist-confirm");
 	EXPECT_NE(ReadText(config), original);
 	EXPECT_EQ(ReadText(config + ".before-workbench.bak"), original);
-}
-
-TEST_F(WorkbenchPersistGPU, OnlyKeylessChangesOfferNoWrite) {
-	Open(); workbench::RenderUI(); workbench::RenderUI();
-	// Legacy tuning has no config key, so there is nothing a save could do.
-	ASSERT_EQ(workbench::EditRuntime(workbench::Parameter::FogDensity, 0.9f), workbench::Error::None);
-	Redraw();
-	Click("persist-review");
-	EXPECT_FALSE(Drawn("persist-save"));
 }
 
 TEST_F(WorkbenchPersistGPU, LeavingTheEditingModeDisarmsAReviewedWrite) {
