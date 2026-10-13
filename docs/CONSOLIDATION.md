@@ -1,6 +1,6 @@
 # Consolidation Pass — C2 MEE
 
-> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 in progress (7 clusters landed, 686 → 581 cases); four-preset WS2 checkpoint green, hygiene re-run logged 2 pre-existing findings.
+> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 in progress (10 clusters landed, 686 → 558 cases); two four-preset checkpoints green, hygiene re-run logged 2 pre-existing findings.
 > **Branch:** `refactor/consolidation-pass`, worktree `Carnivores2MEE1.11/build/consolidation-pass`, based on `feat/modder-workbench` @ `4d05faa`.
 > **Status:** in progress. Owner approved the plan and the deletion of the disabled-species animation bundle. Only the Progress log and the task list below are authoritative for what is done; the ranked estimates come from the Phase 1 hunts.
 
@@ -61,6 +61,8 @@ workbench three-layer (≈15) — combined ≈ −79.
 Landed (2026-10-13): `test_map_scaling.cpp` deleted (−6, `d252d78`) · `test_math.cpp` 26→5 (`5259a6c`) · ConfigMerge 29→5 (`674b4c6`) · source-string genre: 23 source-only cases merged into four grouped `SourceContracts` tests, the hybrid workbench case stripped to its runtime checks (`bfb301e`). Suite: 686 → 616 cases.
 
 Landed (2026-10-14): load-validate 19→9 (`a218fea`) · workbench persistence 21→12 across `test_workbench_config.cpp` and `test_workbench_gpu.cpp` (`bfa544d`) · bound-fit geometry 44→28 across `test_bound_fit.cpp`, `test_object_bounds.cpp` and the `ConfigParseBoundBoxFit` pair (`26e1222`; re-verification counted 44, not the estimated 45). Suite: 616 → 581 cases. Four-preset checkpoint green; hygiene re-run surfaced 2 pre-existing findings (see Defects 5-6).
+
+Landed (2026-10-14, second batch): workbench input 14→6 (`ff26580`; re-verification counted 14, not the estimated 16) · WAV triple coverage 20→13 across `test_wave_reader.cpp`, `test_sound_loader_entry.cpp` and `test_menu_wave_entry.cpp` (`bd985e4`) · FogSampling 14→6 (`91d2e51`). Suite: 581 → 558 cases. Second four-preset checkpoint green.
 
 ### WS3 — Unified implementations (~1,300 LOC)
 
@@ -139,3 +141,12 @@ GLSL include refactor · config-scanner staging policy.
 - Checkpoint: all four presets configure and build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Release flags clean (`/GS`, no `/GS-`) in ogl-release and soft-release. clang-tidy not installed locally (CI-only check).
 - Comment hygiene re-run: 263 files scanned, 2 findings logged as Defects 5-6 — both code references predate this pass and the doc tree state is unchanged since 2026-10-03, so the earlier "clean" record missed them; no fix without an owner/doc-tree call.
 - Next WS2 clusters: workbench input (16→6), WAV triple coverage (20→13), FogSampling (14→6), then AI tables, water color/waves, menu resource/price, terrain fog, uniform cache, CLI helpers, workbench three-layer (≈15).
+
+### 2026-10-14 — WS2 clusters 8-10 + second checkpoint
+
+- `ff26580` test(workbench): consolidate the input-boundary cases into six tests — 14→6 (hunt estimated 16); closed/unavailable transparency, backend availability, closing/transition fencing, press quarantine, Test-mode transitions and focus loss. −8.
+- `bd985e4` test(audio): consolidate the WAV coverage into thirteen tests — `WaveReader` 9→6, `SoundLoaderEntry` 6→4, `MenuWaveTest` 5→3; every assertion and literal value preserved (29/26/26 statements). 20→13. −7.
+- `91d2e51` test(renderer): consolidate the fog-sampling cases into six tests — 14→6; the inline/public equivalence sweep and the underwater reference formula stay intact, the routing/skip/variant cases are grouped with counter resets between scenarios. −8.
+- Suite count measured across the 12 executables: 581 → 558 (each commit ogl-debug + ctest 16/16, staged-diff checked).
+- Checkpoint (second): all four presets build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15.
+- Next WS2 clusters: AI tables, water color/waves, menu resource/price, terrain fog, uniform cache, CLI helpers, workbench three-layer (≈15).
