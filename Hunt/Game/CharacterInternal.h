@@ -62,9 +62,6 @@ Vector3d CheckForATree(TCharacter *cptr);
 float AngleDifference(float a, float b);
 float CorrectedAlpha(float a, float b);
 
-// Inline helpers
-inline float GetAngleDifference(float a, float b) { return AngleDifference(a, b); }
-
 // Keep normal tracking and fixed event reactions on the same authored range.
 inline float GetCharacterAggressionRange(const TCharacter* cptr)
 {
@@ -224,34 +221,4 @@ inline void ClearHunterReaction(TCharacter* cptr)
     cptr->tgx = cptr->pos.x;
     cptr->tgz = cptr->pos.z;
     cptr->tgtime = 0;
-}
-
-// A fixed flee reaction stores one point rather than a direction. Once the
-// creature reaches it, the target sits behind it and it turns back, which
-// looks like circling. Extend the point along the flee direction so the
-// creature keeps running while the reaction lasts.
-// Pack following helpers
-// Called from animation functions to maintain pack formation
-inline void AnimatePackFollow(TCharacter* cptr, float leaderDist)
-{
-    if (cptr->followLeader) {
-        if (leaderDist < cptr->packDensity * 128.0f * 0.6f)
-            cptr->followLeader = false;
-    } else {
-        if (leaderDist > cptr->packDensity * 128.0f * 1.3f)
-            cptr->followLeader = true;
-    }
-}
-
-inline void AnimatePackFollowSq(TCharacter* cptr, float leaderDistSq)
-{
-    if (cptr->followLeader) {
-        float minDist = cptr->packDensity * 128.0f * 0.6f;
-        if (leaderDistSq < minDist * minDist)
-            cptr->followLeader = false;
-    } else {
-        float maxDist = cptr->packDensity * 128.0f * 1.3f;
-        if (leaderDistSq > maxDist * maxDist)
-            cptr->followLeader = true;
-    }
 }

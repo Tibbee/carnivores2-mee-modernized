@@ -77,71 +77,14 @@ replace:
 	cptr->tgx = p.x;
 	cptr->tgz = p.z;
 }
-void SetNewTargetPlace_IcthOld(TCharacter *cptr, float R)
-{
-	Vector3d p;
-	int tr = 0;
-replace:
-	p.x = cptr->pos.x + siRand(static_cast<int>(R));
-	if (p.x < 512) p.x = 512;
-	if (p.x > 1018 * 256) p.x = 1018 * 256;
-	p.z = cptr->pos.z + siRand(static_cast<int>(R));
-	if (p.z < 512) p.z = 512;
-	if (p.z > 1018 * 256) p.z = 1018 * 256;
-	tr++;
-	if (tr < 16)
-		if (fabs(p.x - cptr->pos.x) + fabs(p.z - cptr->pos.z) < R / 2.f) goto replace;
-
-	if (tr < 128)
-	{
-		if (!waterNear(p.x, p.z, 50)) goto replace;
-	}
-
-	if (tr < 256)
-		if (CheckPlaceCollisionP(p, true)) goto replace;
-
-	cptr->tgtime = 0;
-	cptr->tgx = p.x;
-	cptr->tgz = p.z;
-}
 void SetNewTargetPlace(TCharacter *cptr, float R)
 {
 
 	//if (cptr->AI < 0) {//STILL NEED THIS FOR CLASSIC AMBIENTS
 	SetNewTargetPlaceRegion(cptr, R);
 	//}
-	//else {
-	//	SetNewTargetPlaceVanilla(cptr, R);
-	//}
 
 
-}
-void SetNewTargetPlaceVanilla(TCharacter *cptr, float R)
-{
-	Vector3d p;
-	int tr = 0;
-	//PrintLog("PAR_START--");
-replace:
-	//PrintLog("PAR_IT--");
-	p.x = cptr->pos.x + siRand(static_cast<int>(R));
-	if (p.x < 512) p.x = 512;
-	if (p.x > 1018 * 256) p.x = 1018 * 256;
-	p.z = cptr->pos.z + siRand(static_cast<int>(R));
-	if (p.z < 512) p.z = 512;
-	if (p.z > 1018 * 256) p.z = 1018 * 256;
-	p.y = GetLandH(p.x, p.z);
-	tr++;
-	if (tr < 128)
-		if (fabs(p.x - cptr->pos.x) + fabs(p.z - cptr->pos.z) < R / 2.f) goto replace;
-
-	R += 512;
-
-	if (tr < 256)
-		if (CheckPlaceCollisionP(p, cptr->cpcpAquatic)) goto replace;
-
-	cptr->tgtime = 0;
-	cptr->tgx = p.x;
-	cptr->tgz = p.z;
 }
 void SetNewTargetPlaceRegion(TCharacter *cptr, float R)
 {
@@ -393,116 +336,6 @@ replace2:
 	}
 
 	//skipY:
-
-	cptr->tgtime = 0;
-	cptr->tgx = p.x;
-	cptr->tgz = p.z;
-	cptr->tdepth = targetDepthTemp;
-	cptr->lastTBeta = cptr->beta;
-	cptr->turny = 0;
-}
-void SetNewTargetPlaceMosasaurus(TCharacter *cptr, float R)
-{
-	Vector3d p;
-	int tr = 0;
-replace:
-	p.x = cptr->pos.x + siRand(static_cast<int>(R));
-	if (p.x < 512) p.x = 512;
-	if (p.x > 1018 * 256) p.x = 1018 * 256;
-	p.z = cptr->pos.z + siRand(static_cast<int>(R));
-	if (p.z < 512) p.z = 512;
-	if (p.z > 1018 * 256) p.z = 1018 * 256;
-
-	tr++;
-	//if (tr < 128)
-	if (fabs(p.x - cptr->pos.x) + fabs(p.z - cptr->pos.z) < R / 2.f) goto replace;
-
-	p.y = GetLandH(p.x, p.z);
-	float wy = GetLandUpH(p.x, p.z) - GetLandH(p.x, p.z);
-
-	if (tr < 8024)
-	{
-		if (wy < 1500) goto replace;
-	}
-
-	if (tr < 128)
-	{
-		
-		if (spawnGroup[cptr->SpawnGroupType].stayInRegion) {
-			BOOL outside = true;
-			for (int sr = 0; sr < spawnGroup[cptr->SpawnGroupType].spawnRegionCh; sr++) {
-				if (p.x > spawnGroup[cptr->SpawnGroupType].spawnRegion[sr].XMin * 256 &&
-					p.x < spawnGroup[cptr->SpawnGroupType].spawnRegion[sr].XMax * 256 &&
-					p.z > spawnGroup[cptr->SpawnGroupType].spawnRegion[sr].YMin * 256 &&
-					p.z < spawnGroup[cptr->SpawnGroupType].spawnRegion[sr].YMax * 256) outside = false;
-			}
-			if (outside) goto replace;
-		}
-		if (spawnGroup[cptr->SpawnGroupType].avoidRegionCh) {
-			for (int ar = 0; ar < spawnGroup[cptr->SpawnGroupType].avoidRegionCh; ar++) {
-				if (p.x > spawnGroup[cptr->SpawnGroupType].avoidRegion[ar].XMin * 256 &&
-					p.x < spawnGroup[cptr->SpawnGroupType].avoidRegion[ar].XMax * 256 &&
-					p.z > spawnGroup[cptr->SpawnGroupType].avoidRegion[ar].YMin * 256 &&
-					p.z < spawnGroup[cptr->SpawnGroupType].avoidRegion[ar].YMax * 256) goto replace;
-			}
-		}
-
-	}
-
-	float targetDepthTemp;
-	float tdistTemp = fabs(static_cast<float>(sqrt(
-		((p.x - cptr->pos.x)*(p.x - cptr->pos.x)) +
-		((p.z - cptr->pos.z) * (p.z - cptr->pos.z)))) / 3);
-	/*
-	float tdistTemp = fabs(static_cast<float>(sqrt(
-		((p.x - cptr->pos.x)*(p.x - cptr->pos.x)) +
-		((p.z - cptr->pos.z) * (p.z - cptr->pos.z)))) / 3);
-	*/
-replace2:
-	targetDepthTemp = siRand(static_cast<int>((R / 3)));
-	//targetDepthTemp = siRand(static_cast<int>((R/3)));
-
-	tr++;
-
-	//PREVENT TOO MUCH TURNING
-	if (tr < 1024) {
-		float tbeta = -atan((targetDepthTemp) / tdistTemp);
-		int dbeta = tbeta - cptr->beta;
-		if (dbeta < 0) dbeta *= -1;
-		if (dbeta > pi / 8) {
-			goto replace2;
-		}
-	}
-
-
-	if (tr < 1024) {
-		if (fabs(targetDepthTemp) > tdistTemp) {
-			if (targetDepthTemp > 0) {
-				targetDepthTemp = tdistTemp;
-			}
-			else {
-				targetDepthTemp = -tdistTemp;
-			}
-		}
-	}
-
-	targetDepthTemp = cptr->depth + targetDepthTemp;
-	if (targetDepthTemp < GetLandH(p.x, p.z) + 400) {
-		if (tr < 8024) {
-			goto replace2;
-		}
-		else {
-			targetDepthTemp = GetLandH(p.x, p.z) + 400;
-		}
-	}
-	if (targetDepthTemp > GetLandUpH(p.x, p.z) - 700) {
-		if (tr < 8024) {
-			goto replace2;
-		}
-		else {
-			targetDepthTemp = GetLandUpH(p.x, p.z) - 700;
-		}
-	}
 
 	cptr->tgtime = 0;
 	cptr->tgx = p.x;

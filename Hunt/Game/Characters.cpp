@@ -15,7 +15,6 @@
 
 void SetNewTargetPlace(TCharacter *cptr, float R);
 void SetNewTargetPlaceRegion(TCharacter *cptr, float R);
-void SetNewTargetPlaceVanilla(TCharacter *cptr, float R);
 
 
 void ProcessPrevPhase(TCharacter *cptr)
