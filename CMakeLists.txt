@@ -348,6 +348,7 @@ if(MSVC)
         tests/test_billboard_math.cpp
         tests/test_command_line_parse.cpp
         tests/test_config_parse.cpp
+        tests/test_config_scan.cpp
         tests/test_config_text.cpp
         tests/test_flashlight.cpp
         tests/test_uniform_value_cache.cpp
