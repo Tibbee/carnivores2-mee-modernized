@@ -57,7 +57,12 @@ struct Result {
 
 inline bool IsBlank(char c)
 {
-	return c == ' ' || c == '\t';
+	// sscanf_s's %s treats the C-locale isspace set as separators. Lines cannot
+	// contain \r or \n (they terminate the line), so '\v' and '\f' are the only
+	// extra whitespace the loader sees but a merge that checked only ' '/'\t'
+	// would miss -- and a missed occurrence can let a later line silently
+	// override a value this writer just reported as updated.
+	return c == ' ' || c == '\t' || c == '\v' || c == '\f';
 }
 
 // ASCII case-insensitive compare, matching the loader's _stricmp for the ASCII

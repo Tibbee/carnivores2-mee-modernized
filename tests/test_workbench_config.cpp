@@ -60,6 +60,46 @@ TEST(ConfigMerge, AnUnrelatedKeyNeverMoves) {
 	EXPECT_EQ(result.report.changes[0].line, 1u);
 }
 
+TEST(ConfigMerge, CROnlyFilesKeepCROnEveryLine) {
+	// Classic Mac terminators: the loader splits on \r just as on \n.
+	const std::string text = "renderer 1\renv0_decay 1.0\rb 2\r";
+	const auto result = Merge(text, {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(result.ok) << result.error;
+	EXPECT_EQ(result.text, "renderer 1\renv0_decay 1.5\rb 2\r");
+
+	const std::string append = "renderer 1\r";
+	const auto appended = Merge(append, {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(appended.ok) << appended.error;
+	EXPECT_EQ(appended.text, "renderer 1\renv0_decay 1.5\r");
+}
+
+TEST(ConfigMerge, TrailingWhitespaceAndTrailingTokensSurviveAValueRewrite) {
+	const std::string text =
+		"env0_decay 1.000   \r\n"
+		"env0_decay 1.000 2.0\r\n";
+	const auto result = Merge(text, {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(result.ok) << result.error;
+	// Only the value token of the reader's last active occurrence moves: the
+	// trailing spaces after the first line and the trailing token on the second
+	// are not this writer's to clean up.
+	EXPECT_EQ(result.text, "env0_decay 1.000   \r\nenv0_decay 1.5 2.0\r\n");
+	ASSERT_EQ(result.report.changes.size(), 1u);
+	EXPECT_EQ(result.report.changes[0].line, 1u);
+	ASSERT_EQ(result.report.duplicates.size(), 1u);
+}
+
+TEST(ConfigMerge, AValueContainingHashIsReplacedByTheNewToken) {
+	// LoadConfig rejects "1.5#x" (strtof does not consume the whole token), so
+	// the old line was inert; replacing the whole token makes the new value the
+	// one the loader reads instead of appending a second live key.
+	const std::string text = "env0_decay 1.5#x\r\n";
+	const auto result = Merge(text, {{"env0_decay", "1.6"}});
+	ASSERT_TRUE(result.ok) << result.error;
+	EXPECT_EQ(result.text, "env0_decay 1.6\r\n");
+	ASSERT_EQ(result.report.changes.size(), 1u);
+	EXPECT_EQ(result.report.changes[0].action, Action::Updated);
+}
+
 TEST(ConfigMerge, OnlyValueTokensChangeInAFileOfAwkwardShapes) {
 	const auto result = Merge(kAwkward, {{"env0_decay", "1.500"}, {"night_sky_brightness", "90"}});
 	ASSERT_TRUE(result.ok) << result.error;
@@ -149,6 +189,32 @@ TEST(ConfigMerge, AnIndentedCommentIsNotAnOccurrence) {
 	EXPECT_EQ(result.report.changes[0].action, Action::Appended);
 }
 
+TEST(ConfigMerge, VerticalTabAndFormFeedSeparateTokensLikeTheLoader) {
+	// sscanf_s treats '\v' and '\f' as whitespace, so the loader reads both
+	// spellings as an active env0_decay. If the merge did not, it would rewrite
+	// an earlier line and leave a later \v/\f line to override the saved value
+	// on the next launch, telling the operator the write had taken effect.
+	const std::string tabbed = "env0_decay\v1.2\r\n";
+	const auto inner = Merge(tabbed, {{"env0_decay", "1.6"}});
+	ASSERT_TRUE(inner.ok) << inner.error;
+	EXPECT_EQ(inner.text, "env0_decay\v1.6\r\n");
+	ASSERT_EQ(inner.report.changes.size(), 1u);
+	EXPECT_EQ(inner.report.changes[0].action, Action::Updated);
+	EXPECT_EQ(inner.report.changes[0].oldValue, "1.2");
+
+	const std::string fed =
+		"env0_decay 1.0\r\n"
+		"env0_decay\f1.4\r\n";
+	const auto result = Merge(fed, {{"env0_decay", "1.6"}});
+	ASSERT_TRUE(result.ok) << result.error;
+	// The loader's last active occurrence is the form-feed line, so that is the
+	// line that must move; the earlier value survives byte-identical.
+	EXPECT_EQ(result.text, "env0_decay 1.0\r\nenv0_decay\f1.6\r\n");
+	ASSERT_EQ(result.report.changes.size(), 1u);
+	EXPECT_EQ(result.report.changes[0].line, 1u);
+	ASSERT_EQ(result.report.duplicates.size(), 1u);
+}
+
 TEST(ConfigMerge, AnEqualsSeparatedLineIsNotAnOccurrence) {
 	// The loader reads one token, "env0_decay=1.0", which matches no key, so the
 	// line is inert: append a real setting rather than rewriting dead text.
@@ -197,6 +263,13 @@ TEST(ConfigMerge, AMissingFinalTerminatorIsPreservedWhenNothingChanges) {
 	const auto result = Merge(text, {{"env0_decay", "1.400"}});
 	ASSERT_TRUE(result.ok) << result.error;
 	EXPECT_EQ(result.text, text);
+}
+
+TEST(ConfigMerge, AMissingFinalTerminatorSurvivesAnUpdate) {
+	const std::string text = "renderer 1\r\nenv0_decay 1.400";
+	const auto result = Merge(text, {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(result.ok) << result.error;
+	EXPECT_EQ(result.text, "renderer 1\r\nenv0_decay 1.5");
 }
 
 TEST(ConfigMerge, AMissingFinalTerminatorIsCompletedBeforeAnAppend) {
@@ -348,14 +421,14 @@ std::string LoadedToken(const std::string& text, const std::string& key)
 		std::string line = text.substr(start, end - start);
 		start = end + 1;
 		if (line.empty()) continue;
-		std::size_t first = line.find_first_not_of(" \t");
+		std::size_t first = line.find_first_not_of(" \t\v\f");
 		if (first == std::string::npos || line[first] == '#') continue;
-		std::size_t keyEnd = line.find_first_of(" \t", first);
+		std::size_t keyEnd = line.find_first_of(" \t\v\f", first);
 		if (keyEnd == std::string::npos) continue;
 		if (line.substr(first, keyEnd - first) != key) continue;
-		std::size_t valueBegin = line.find_first_not_of(" \t", keyEnd);
+		std::size_t valueBegin = line.find_first_not_of(" \t\v\f", keyEnd);
 		if (valueBegin == std::string::npos) continue;
-		std::size_t valueEnd = line.find_first_of(" \t", valueBegin);
+		std::size_t valueEnd = line.find_first_of(" \t\v\f", valueBegin);
 		found = line.substr(valueBegin, valueEnd == std::string::npos ? valueEnd : valueEnd - valueBegin);
 	}
 	return found;
