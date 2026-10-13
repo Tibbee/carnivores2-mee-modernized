@@ -4,8 +4,19 @@
 
 #include "WaterWaveFade.h"
 
-TEST(WaterWaveFadeTest, ZeroRingsReproducesTheLegacyHardCutoff)
+TEST(WaterWaveFadeTest, ZeroRingsAndTheOutermostRingsReproduceTheLegacyCutoff)
 {
+	// Independent of the ramp width, the outermost kWaterWaveCutoffRings
+	// stay flat -- that is the pre-existing rule and this change only softens
+	// the approach to it.
+	for (int viewRadius : {24, 48, 96, 230}) {
+		for (int falloff : {0, 1, 8, 32, 64}) {
+			for (int ring = viewRadius - kWaterWaveCutoffRings; ring <= viewRadius + 3; ++ring) {
+				EXPECT_FLOAT_EQ(WaterWaveFade(ring, viewRadius, falloff), 0.0f);
+			}
+		}
+	}
+
 	// Legacy gate was `r < ctViewR - 4`: full amplitude strictly inside the
 	// cutoff, nothing from the cutoff outward. The ramp must reduce to exactly
 	// that when falloffRings is 0, so the setting is a true opt-in.
@@ -20,21 +31,7 @@ TEST(WaterWaveFadeTest, ZeroRingsReproducesTheLegacyHardCutoff)
 	}
 }
 
-TEST(WaterWaveFadeTest, NeverDisplacesTheOutermostRings)
-{
-	// Independent of the ramp width, the outermost kWaterWaveCutoffRings
-	// stay flat -- that is the pre-existing rule and this change only softens
-	// the approach to it.
-	for (int viewRadius : {24, 48, 96, 230}) {
-		for (int falloff : {0, 1, 8, 32, 64}) {
-			for (int ring = viewRadius - kWaterWaveCutoffRings; ring <= viewRadius + 3; ++ring) {
-				EXPECT_FLOAT_EQ(WaterWaveFade(ring, viewRadius, falloff), 0.0f);
-			}
-		}
-	}
-}
-
-TEST(WaterWaveFadeTest, FallsMonotonicallyOutwardAndStaysInRange)
+TEST(WaterWaveFadeTest, FalloffIsMonotonicAndWiderRampsQuieterNearTheCutoff)
 {
 	// Amplitude is full near the camera and decays toward the horizon, so
 	// walking the rings outward must never increase.
@@ -50,13 +47,9 @@ TEST(WaterWaveFadeTest, FallsMonotonicallyOutwardAndStaysInRange)
 	}
 	EXPECT_FLOAT_EQ(WaterWaveFade(0, viewRadius, falloff), 1.0f);
 	EXPECT_FLOAT_EQ(previous, 0.0f);
-}
 
-TEST(WaterWaveFadeTest, WideRampReachesFullAmplitudeEarlier)
-{
 	// A wider ramp must spend more rings below full amplitude, so a single
 	// ring near the cutoff is quieter with a wide ramp than a narrow one.
-	const int viewRadius = 48;
 	const int cutoff = viewRadius - kWaterWaveCutoffRings;
 	const int ring = cutoff - 1;
 	EXPECT_LT(WaterWaveFade(ring, viewRadius, 16), WaterWaveFade(ring, viewRadius, 2));

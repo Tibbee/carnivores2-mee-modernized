@@ -91,45 +91,66 @@ TEST(WaterWaveCache, FirstUseWithAllZeroRandomPhasesIsInitialized) {
         }
 }
 
-TEST(WaterWaveCache, SameTimestampParameterEditsDoNotLeaveStaleSamples) {
-    int random[32][32]; FillRandom(random);
-    Cache reused;
-    constexpr int time = 86400000;
-    reused.update(time, random, stock);
-    for (Parameters changed : {Parameters{0, 0, 0, 0}, Parameters{45, 16, 7, 1.3f},
-                               stock, Parameters{-14, 0, 5, -0.5f}}) {
-        reused.update(time, random, changed);
+TEST(WaterWaveCache, SameTimestampEditsInvalidateParameterAndRandomSources) {
+    // A parameter or random-table edit at the same uptime must not leave
+    // stale samples behind: the reused cache must match a fresh evaluation.
+    {
+        int random[32][32]; FillRandom(random);
+        Cache reused;
+        constexpr int time = 86400000;
+        reused.update(time, random, stock);
+        for (Parameters changed : {Parameters{0, 0, 0, 0}, Parameters{45, 16, 7, 1.3f},
+                                   stock, Parameters{-14, 0, 5, -0.5f}}) {
+            reused.update(time, random, changed);
+            Cache fresh;
+            fresh.update(time, random, changed);
+            ExpectSame(reused, fresh);
+            ExpectDirect(reused, time, random, changed);
+        }
+    }
+    {
+        int random[32][32]; FillRandom(random);
+        Cache reused;
+        constexpr int time = 604800000;
+        reused.update(time, random, stock);
+        random[0][0] = 1024;
+        random[11][7] = 128;
+        random[31][31] = 0;
+        reused.update(time, random, stock);
         Cache fresh;
-        fresh.update(time, random, changed);
+        fresh.update(time, random, stock);
         ExpectSame(reused, fresh);
-        ExpectDirect(reused, time, random, changed);
+        ExpectDirect(reused, time, random, stock);
     }
 }
 
-TEST(WaterWaveCache, SameTimestampRandomEditsInvalidateBothPhaseSources) {
-    int random[32][32]; FillRandom(random);
-    Cache reused;
-    constexpr int time = 604800000;
-    reused.update(time, random, stock);
-    random[0][0] = 1024;
-    random[11][7] = 128;
-    random[31][31] = 0;
-    reused.update(time, random, stock);
-    Cache fresh;
-    fresh.update(time, random, stock);
-    ExpectSame(reused, fresh);
-    ExpectDirect(reused, time, random, stock);
-}
-
-TEST(WaterWaveCache, AbsoluteTimeEvaluationDoesNotAccumulateHistoryDrift) {
-    int random[32][32]; FillRandom(random);
-    Cache reused;
-    for (int t : {0, 1800000, 86400000, 1814400000,
-                  (std::numeric_limits<int>::max)(), (std::numeric_limits<int>::min)(), 0}) {
-        reused.update(t, random, stock);
-        Cache fresh;
-        fresh.update(t, random, stock);
-        ExpectSame(reused, fresh);
+TEST(WaterWaveCache, ReusedCachesStayIdenticalAcrossAbsoluteAndSignedUptimes) {
+    // Reusing one cache across absolute and signed uptimes must not
+    // accumulate history drift.
+    {
+        int random[32][32]; FillRandom(random);
+        Cache reused;
+        for (int t : {0, 1800000, 86400000, 1814400000,
+                      (std::numeric_limits<int>::max)(), (std::numeric_limits<int>::min)(), 0}) {
+            reused.update(t, random, stock);
+            Cache fresh;
+            fresh.update(t, random, stock);
+            ExpectSame(reused, fresh);
+        }
+    }
+    {
+        int random[32][32]; FillRandom(random);
+        Cache cache;
+        std::uint32_t state = 0x31415926u;
+        for (int sample = 0; sample < 64; ++sample) {
+            state = state * 1664525u + 1013904223u;
+            int time;
+            std::memcpy(&time, &state, sizeof(time));
+            const Parameters p = sample % 2 ? stock : Parameters{45.0f, 16.0f, 7.0f, 1.3f};
+            random[sample & 31][(sample * 7) & 31] = sample * 13;
+            cache.update(time, random, p);
+            ExpectDirect(cache, time, random, p);
+        }
     }
 }
 
@@ -168,20 +189,5 @@ TEST(WaterWaveCache, MatchesDirectLegacyAtAbsoluteUptimes) {
         std::cout << "wave-diff time_ms=" << time << " component_max=" << maxComponent
                   << " displacement_max=" << maxDisplacement << " lighting_max=" << maxLighting
                   << " light_integer_differences=" << differentLights << "/1024\n";
-    }
-}
-
-TEST(WaterWaveCache, SampledSignedUptimesAndEditedSpeedsMatchDirectEvaluation) {
-    int random[32][32]; FillRandom(random);
-    Cache cache;
-    std::uint32_t state = 0x31415926u;
-    for (int sample = 0; sample < 64; ++sample) {
-        state = state * 1664525u + 1013904223u;
-        int time;
-        std::memcpy(&time, &state, sizeof(time));
-        const Parameters p = sample % 2 ? stock : Parameters{45.0f, 16.0f, 7.0f, 1.3f};
-        random[sample & 31][(sample * 7) & 31] = sample * 13;
-        cache.update(time, random, p);
-        ExpectDirect(cache, time, random, p);
     }
 }

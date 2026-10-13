@@ -22,7 +22,7 @@ constexpr int kGreen(int packed) { return (packed >> 8) & 0xFF; }
 constexpr int kRed(int packed) { return (packed >> 16) & 0xFF; }
 constexpr int kPack(int r, int g, int b) { return (r << 16) | (g << 8) | b; }
 
-TEST(WaterColor, SurfaceAndAboveLeaveTheColourAlone) {
+TEST(WaterColor, DepthAndSurfaceClampingLeaveTheColourAlone) {
     int r = 139, g = 69, b = 19;
     ModulateWaterColorByDepth(r, g, b, 0.0f);
     EXPECT_EQ(r, 139);
@@ -33,14 +33,32 @@ TEST(WaterColor, SurfaceAndAboveLeaveTheColourAlone) {
     EXPECT_EQ(r, 139);
 
     EXPECT_EQ(ModulateWaterColorByDepthBGR(0x8B4513, 0.0f), 0x8B4513);
+
+    int r1 = 139, g1 = 69, b1 = 19;
+    int r2 = 139, g2 = 69, b2 = 19;
+    ModulateWaterColorByDepth(r1, g1, b1, 1.0f);
+    ModulateWaterColorByDepth(r2, g2, b2, 5.0f);
+
+    EXPECT_EQ(r1, r2);
+    EXPECT_EQ(g1, g2);
+    EXPECT_EQ(b1, b2);
 }
 
-TEST(WaterColor, BlackWaterStaysBlack) {
+TEST(WaterColor, FadeFloorKeepsEveryChannelVisible) {
     int r = 0, g = 0, b = 0;
     ModulateWaterColorByDepth(r, g, b, 1.0f);
     EXPECT_EQ(r, 0);
     EXPECT_EQ(g, 0);
     EXPECT_EQ(b, 0);
+
+    // A pure-black channel would read as a rendering fault, so the floor is 2.
+    {
+        int r = 255, g = 1, b = 1;
+        ModulateWaterColorByDepth(r, g, b, 1.0f);
+
+        EXPECT_GE(g, 2);
+        EXPECT_GE(b, 2);
+    }
 }
 
 TEST(WaterColor, DominantChannelFadesToAboutTwoThirds) {
@@ -56,56 +74,38 @@ TEST(WaterColor, DominantChannelFadesToAboutTwoThirds) {
     EXPECT_NEAR(expected / 255.0, 0.670f, 0.01f);
 }
 
-TEST(WaterColor, BlueOceanDeepensToBlueAndKeepsBgrOrder) {
+TEST(WaterColor, HuePreservationAndPackingOrder) {
     // Pure blue at full depth: blue is dominant, so it survives while red
     // and green are absorbed to the floor.
-    const int packed = ModulateWaterColorByDepthBGR(kPack(0, 0, 255), 1.0f);
+    {
+        const int packed = ModulateWaterColorByDepthBGR(kPack(0, 0, 255), 1.0f);
 
-    EXPECT_GT(kBlue(packed), kRed(packed));
-    EXPECT_GT(kBlue(packed), kGreen(packed));
-    // A channel swap would put the surviving red in bits 0-7 instead.
-    EXPECT_GT(kBlue(packed), 100);
-    EXPECT_LE(kRed(packed), 2);
-    EXPECT_LE(kGreen(packed), 2);
-}
+        EXPECT_GT(kBlue(packed), kRed(packed));
+        EXPECT_GT(kBlue(packed), kGreen(packed));
+        // A channel swap would put the surviving red in bits 0-7 instead.
+        EXPECT_GT(kBlue(packed), 100);
+        EXPECT_LE(kRed(packed), 2);
+        EXPECT_LE(kGreen(packed), 2);
+    }
 
-TEST(WaterColor, RedLandsInTheHighBitsNotTheLowOnes) {
     // Guards the packing itself: a red-only colour must come back with the
     // surviving value in bits 16-23.
-    const int packed = ModulateWaterColorByDepthBGR(kPack(255, 0, 0), 1.0f);
+    {
+        const int packed = ModulateWaterColorByDepthBGR(kPack(255, 0, 0), 1.0f);
 
-    EXPECT_GT(kRed(packed), 100);
-    EXPECT_LE(kBlue(packed), 2);
-    EXPECT_LE(kGreen(packed), 2);
-}
+        EXPECT_GT(kRed(packed), 100);
+        EXPECT_LE(kBlue(packed), 2);
+        EXPECT_LE(kGreen(packed), 2);
+    }
 
-TEST(WaterColor, BrownSwampWaterDeepensToBrown) {
-    // The old fixed blue-biased curve drove this toward navy. Red is the
-    // dominant channel here, so red must still dominate after the tint.
-    const int packed = ModulateWaterColorByDepthBGR(kPack(139, 69, 19), 1.0f);
+    // The old fixed blue-biased curve drove brown swamp water toward navy.
+    // Red is the dominant channel here, so red must still dominate.
+    {
+        const int packed = ModulateWaterColorByDepthBGR(kPack(139, 69, 19), 1.0f);
 
-    EXPECT_GT(kRed(packed), kGreen(packed));
-    EXPECT_GT(kRed(packed), kBlue(packed));
-}
-
-TEST(WaterColor, ChannelsNeverFadeToZero) {
-    // A pure-black channel would read as a rendering fault, so the floor is 2.
-    int r = 255, g = 1, b = 1;
-    ModulateWaterColorByDepth(r, g, b, 1.0f);
-
-    EXPECT_GE(g, 2);
-    EXPECT_GE(b, 2);
-}
-
-TEST(WaterColor, DepthIsClampedToOne) {
-    int r1 = 139, g1 = 69, b1 = 19;
-    int r2 = 139, g2 = 69, b2 = 19;
-    ModulateWaterColorByDepth(r1, g1, b1, 1.0f);
-    ModulateWaterColorByDepth(r2, g2, b2, 5.0f);
-
-    EXPECT_EQ(r1, r2);
-    EXPECT_EQ(g1, g2);
-    EXPECT_EQ(b1, b2);
+        EXPECT_GT(kRed(packed), kGreen(packed));
+        EXPECT_GT(kRed(packed), kBlue(packed));
+    }
 }
 
 }  // namespace
