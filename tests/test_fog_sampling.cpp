@@ -136,100 +136,95 @@ TEST_F(FogSamplingTest, InlinePocketPackingMatchesPublicSampler)
                     }
 }
 
-TEST_F(FogSamplingTest, ClearCharacterCellRetainsCameraSegmentAndShiftedColour)
+TEST_F(FogSamplingTest, IndexAndCoordinateRoutingMatchesTheCamera)
 {
+    // A clear character cell retains the camera's segment index and the shifted
+    // calculation colour; the authored slot colour must NOT win.
     CAMERAINFOG = 1;
     CameraFogI = 5;
-    FogsList[5].fogRGB = 0x007F7F7F; // unshifted authored colour must NOT win
-    const FogSample fog = SampleFogAtPoint({0.0f, 0.0f, 2000.0f}, false);
+    FogsList[5].fogRGB = 0x007F7F7F;
+    const FogSample clear = SampleFogAtPoint({0.0f, 0.0f, 2000.0f}, false);
     EXPECT_EQ(calcCalls, 1);
     EXPECT_EQ(sampledIndex, 0); // critical: do not pre-resolve to slot 5!
-    EXPECT_FLOAT_EQ(fog.amount, 175.0f / 255.0f);
-    ExpectColor(fog.color, DecodeFogColor(calculatedColor));
-}
+    EXPECT_FLOAT_EQ(clear.amount, 175.0f / 255.0f);
+    ExpectColor(clear.color, DecodeFogColor(calculatedColor));
 
-TEST_F(FogSamplingTest, DestinationPocketIndexIsPassedThrough)
-{
-    CAMERAINFOG = 1;
-    CameraFogI = 5;
+    // The destination cell's own pocket index is what the calculator receives.
     FogsMap[3][2] = 2;
     SampleFogAtPoint({1024.0f, 0.0f, 1536.0f}, false);
     EXPECT_EQ(sampledIndex, 2);
-}
 
-TEST_F(FogSamplingTest, CameraRelativePointIsNotTranslatedTwice)
-{
+    // A camera-relative point is not translated twice.
     CameraX = 1024.0f; CameraY = 500.0f; CameraZ = 2048.0f;
     FogsMap[3][3] = 7;
     const Vector3d point = {512.0f, -300.0f, -512.0f};
     SampleFogAtPoint(point, false);
     EXPECT_EQ(sampledIndex, 7);
     ExpectColor(sampledPoint, point);
-}
 
-TEST_F(FogSamplingTest, MapBoundaryUsesMaskedIndexInsteadOfUncheckedLookup)
-{
+    // Out-of-map coordinates use the masked index rather than a raw lookup.
+    CameraX = CameraY = CameraZ = 0.0f;
     FogsMap[511][511] = 255;
     SampleFogAtPoint({-512.0f, 0.0f, -512.0f}, false);
     EXPECT_EQ(sampledIndex, 255);
 }
 
-TEST_F(FogSamplingTest, DisabledPocketFogDoesNotInvokeCalculation)
+TEST_F(FogSamplingTest, SkipPathsNeverInvokeTheCalculation)
 {
+    // Disabled pocket fog falls back to the horizon colour.
     FOGON = 0;
     CAMERAINFOG = 1;
     CameraFogI = 5;
-    const FogSample fog = SampleFogAtPoint({0.0f, 0.0f, 2000.0f}, false);
+    const FogSample disabled = SampleFogAtPoint({0.0f, 0.0f, 2000.0f}, false);
     EXPECT_EQ(calcCalls, 0);
-    EXPECT_FLOAT_EQ(fog.amount, 0.0f);
-    ExpectColor(fog.color, horizonColor);
+    EXPECT_FLOAT_EQ(disabled.amount, 0.0f);
+    ExpectColor(disabled.color, horizonColor);
+
+    // The near-model bypass skips pocket and distance sampling both.
+    CAMERAINFOG = 0;
+    FOGON = 1;
+    const FogSample nearModel = SampleFogAtPoint({0.0f, 0.0f, 100000.0f}, true);
+    EXPECT_EQ(calcCalls, 0);
+    EXPECT_FLOAT_EQ(nearModel.amount, 0.0f);
+
+    // A clear destination outside any pocket skips the calculation too.
+    const FogSample clear = SampleFogAtPoint({0.0f, 0.0f, 2000.0f}, false);
+    EXPECT_EQ(calcCalls, 0);
+    EXPECT_FLOAT_EQ(clear.amount, 0.0f);
+    ExpectColor(clear.color, horizonColor);
 }
 
-TEST_F(FogSamplingTest, NearModelBypassSkipsPocketAndDistanceSampling)
+TEST_F(FogSamplingTest, SamplerVariantsReturnTheBoundaryAmountAndColour)
 {
-    const FogSample fog = SampleFogAtPoint({0.0f, 0.0f, 100000.0f}, true);
-    EXPECT_EQ(calcCalls, 0);
-    EXPECT_FLOAT_EQ(fog.amount, 0.0f);
-}
-
-TEST_F(FogSamplingTest, ClearDestinationOutsidePocketSkipsCalculation)
-{
-    const FogSample fog = SampleFogAtPoint({0.0f, 0.0f, 2000.0f}, false);
-    EXPECT_EQ(calcCalls, 0);
-    EXPECT_FLOAT_EQ(fog.amount, 0.0f);
-    ExpectColor(fog.color, horizonColor);
-}
-
-TEST_F(FogSamplingTest, ZeroContributionDoesNotLeakStalePocketColour)
-{
+    // A zero contribution must not leak the stale pocket colour.
     FogsMap[3][0] = 5;
     calculatedAmount = 0.0f;
-    const FogSample fog = SampleFogAtPoint({0.0f, 0.0f, 2000.0f}, false);
+    const FogSample zero = SampleFogAtPoint({0.0f, 0.0f, 2000.0f}, false);
     EXPECT_EQ(calcCalls, 1);
-    EXPECT_FLOAT_EQ(fog.amount, 0.0f);
-    ExpectColor(fog.color, horizonColor);
-}
+    EXPECT_FLOAT_EQ(zero.amount, 0.0f);
+    ExpectColor(zero.color, horizonColor);
 
-TEST_F(FogSamplingTest, FullSamplerKeepsCpuHorizonFallbackForScreenSpaceConsumers)
-{
+    // The full sampler keeps the CPU horizon fallback for screen-space
+    // consumers at the halfway distance.
     const float halfway = ctViewR * 224.0f;
     FogsMap[42][0] = 5;
     calculatedAmount = 0.0f;
-    const FogSample fog = SampleFogAtPoint({0.0f, 0.0f, halfway}, false);
-    EXPECT_FLOAT_EQ(fog.amount, 0.5f);
-    ExpectColor(fog.color, horizonColor);
-}
+    const FogSample full = SampleFogAtPoint({0.0f, 0.0f, halfway}, false);
+    EXPECT_FLOAT_EQ(full.amount, 0.5f);
+    ExpectColor(full.color, horizonColor);
 
-TEST_F(FogSamplingTest, PocketOnlySamplerDoesNotDoubleApplyShaderDistanceFog)
-{
-    const FogSample fog = SamplePocketFogAtPoint(
+    // The pocket-only variant must not re-apply shader distance fog; clear the
+    // nearby pocket first so the routing, not the density, is under test.
+    FogsMap[42][0] = 0;
+    calcCalls = 0;
+    const FogSample pocketOnly = SamplePocketFogAtPoint(
         {0.0f, 0.0f, ctViewR * 224.0f}, false);
     EXPECT_EQ(calcCalls, 0);
-    EXPECT_FLOAT_EQ(fog.amount, 0.0f);
-    ExpectColor(fog.color, horizonColor);
+    EXPECT_FLOAT_EQ(pocketOnly.amount, 0.0f);
+    ExpectColor(pocketOnly.color, horizonColor);
 }
 
-TEST_F(FogSamplingTest, ShadowGroundSampleStillReceivesPocketFog)
+TEST_F(FogSamplingTest, PocketGroundSamplesAreClampedWithoutADensityMultiplier)
 {
     CameraY = 2000.0f;
     const Vector3d ground = {512.0f, -1500.0f, 2000.0f};
@@ -238,15 +233,13 @@ TEST_F(FogSamplingTest, ShadowGroundSampleStillReceivesPocketFog)
     EXPECT_FLOAT_EQ(fog.amount, 175.0f / 255.0f);
     ExpectColor(sampledPoint, ground);
     ExpectColor(fog.color, DecodeFogColor(calculatedColor));
-}
 
-TEST_F(FogSamplingTest, PocketAmountIsClampedWithoutDensityMultiplier)
-{
+    // The amount is clamped straight to 0..1, with no density multiplier.
     FogsMap[3][0] = 5;
     for (float amount : {-10.0f, 20.0f, 200.0f, 256.0f, 300.0f}) {
         calculatedAmount = amount;
-        const FogSample fog = SamplePocketFogAtPoint({0.0f, 0.0f, 2000.0f}, false);
-        EXPECT_FLOAT_EQ(fog.amount, std::clamp(amount / 255.0f, 0.0f, 1.0f));
+        const FogSample clamped = SamplePocketFogAtPoint({0.0f, 0.0f, 2000.0f}, false);
+        EXPECT_FLOAT_EQ(clamped.amount, std::clamp(amount / 255.0f, 0.0f, 1.0f));
     }
 }
 
