@@ -1,6 +1,6 @@
 # Consolidation Pass — C2 MEE
 
-> **Last verified:** 2026-10-13 — WS1 complete (1a-1g); four-preset checkpoint green (see Progress log).
+> **Last verified:** 2026-10-13 — WS1 complete (1a-1g); WS2 in progress (4 clusters landed, 686 → 616 cases); four-preset WS1 checkpoint green.
 > **Branch:** `refactor/consolidation-pass`, worktree `Carnivores2MEE1.11/build/consolidation-pass`, based on `feat/modder-workbench` @ `4d05faa`.
 > **Status:** in progress. Owner approved the plan and the deletion of the disabled-species animation bundle. Only the Progress log and the task list below are authoritative for what is done; the ranked estimates come from the Phase 1 hunts.
 
@@ -58,6 +58,8 @@ bound-fit geometry (45→28) · workbench input (16→6) · WAV triple coverage 
 plus AI tables, water color/waves, menu resource/price, terrain fog, uniform cache, CLI helpers,
 workbench three-layer (≈15) — combined ≈ −79.
 
+Landed (2026-10-13): `test_map_scaling.cpp` deleted (−6, `d252d78`) · `test_math.cpp` 26→5 (`5259a6c`) · ConfigMerge 29→5 (`674b4c6`) · source-string genre: 23 source-only cases merged into four grouped `SourceContracts` tests, the hybrid workbench case stripped to its runtime checks (`bfb301e`). Suite: 686 → 616 cases.
+
 ### WS3 — Unified implementations (~1,300 LOC)
 
 Foundational first: config path resolution ×4 (~45) · load-policy wrapper ×2 (~15) · ConfigPersistence classifier (~20) ·
@@ -114,3 +116,12 @@ GLSL include refactor · config-scanner staging policy.
 - `a506ea4` docs(repo): refresh the stale changelog refs — origin/main pinned as `81fe90b`, workbench preview branch head as `4d05faa` (owner call); historical post-tag `9db51ec` references left alone. CHANGELOG:20,84 re-verified as dated history otherwise.
 - WS1 checkpoint (completes 1c-1g group): all four presets configure and build clean (ogl-release, soft-release, menu-release re-run; ogl-debug current). ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Comment hygiene clean (263 files scanned). Release flags clean (`/GS`, no `/GS-`) in ogl-release and soft-release. clang-tidy not installed locally (CI-only check).
 - Next slices: WS2 test-suite clusters, then WS3 unified implementations, then WS4 build/tooling. Owner decisions still open: menu `SaveConfig` unification, trophy format/filename fix, packaging Python dependency, `C2_BUILD_TESTS` trade, PGO removal/labelling, `comments.py` delete vs document, GLSL include refactor, config-scanner staging policy.
+
+### 2026-10-13 — WS2 clusters 1-4
+
+- `d252d78` test(hud): delete the test-local map-scaling simulations — all six cases exercised helpers copied into the test file; re-verification corrected the inventory note (ClearStaleHUDRegions is live, GLUI.cpp:343) and only the file was removed. −6.
+- `5259a6c` test(math): consolidate the vector micro-cases into five grouped tests — every production function keeps at least one assertion; 26→5. −21.
+- `674b4c6` test(config): consolidate the ConfigMerge line-shape cases — 29→5, byte-exact expectations and the \v/\f parity row preserved. −24.
+- `bfb301e` test(renderer): consolidate the source-string contract cases into four tests — a read-only hunt inventoried 24 source-text cases (22 pure, 1 hybrid, 2 registry-driven); 23 merged into `SourceContracts` (new `tests/test_source_contracts.cpp` for three groups + one in `test_workbench_config.cpp`), exact duplicates deduplicated, and the hybrid workbench-runtime case kept as runtime-only. −19 net (23 cases out, 4 in).
+- Suite count measured with `--gtest_list_tests` across the 12 executables: 686 → 616 (each commit ogl-debug + ctest 16/16).
+- Next WS2 clusters: load-validate (19→9), workbench persistence refusals (21→12), bound-fit (45→28), workbench input (16→6), WAV (20→13), FogSampling (14→6), then the remainder.
