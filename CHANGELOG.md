@@ -14,7 +14,7 @@ Copy-paste release summaries are in `release-notes/`.
 
 ## [Unreleased] (proposed v1.1.9.1-modernized)
 
-Draft changes on local `main` after `origin/main` (`9db51ec`); not part of
+Draft changes on local `main` after `origin/main` (`81fe90b`); not part of
 the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
 The separately labelled workbench preview below is on a feature branch, not main.
@@ -81,7 +81,7 @@ Owner reports gameplay acceptance complete; timing remains open. See
 
 ### Live modder workbench (feature preview, 2026-10-06)
 
-Local `feat/modder-workbench` at `af2aee3` replaces OpenGL F10 with a compact
+Local `feat/modder-workbench` at `4d05faa` replaces OpenGL F10 with a compact
 native Dear ImGui inspector for the same thirteen Fog/Waves/Sun controls.
 Sliders, validated exact entry, loaded resets/comparison, grouped undo/redo and
 help/change review are available. F8 hands input to/from the hunt; Escape from
