@@ -4,11 +4,11 @@
 #include <string_view>
 #include <vector>
 
-// Byte-preserving "key value" merge for config.cfg.
-//
-// Two writers share this file: the menu (Menu/Resources.cpp SaveConfig) and,
-// since the W3 slice, the workbench. This header owns the merge policy so the
-// two cannot drift, and it stays pure -- no I/O, no platform headers -- so the
+// Byte-preserving "key value" merge for config.cfg, used by the workbench's
+// ConfigPersistence save path. The menu's SaveConfig() follows the same policy
+// in intent but still has its own implementation, so the two writers are kept
+// from colliding by a disjoint key set (ConfigRegistry test) rather than by
+// shared code. This header stays pure -- no I/O, no platform headers -- so the
 // rules remain unit-testable without a filesystem.
 //
 // The engine reader (Game/EngineInit.cpp LoadConfig) splits on \r and \n, skips

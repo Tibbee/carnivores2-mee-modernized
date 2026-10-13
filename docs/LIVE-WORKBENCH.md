@@ -73,7 +73,8 @@ unsupported backends disable tuning. Reset bank/group, history and comparison us
 loaded config values. Active-bank edits refresh checked EFX without restarting loops.
 Expand Voices/ambient for <=10 Hz observations: playback validity, configured gain,
 relative/world position, listener distance and fade. Gain is not final audible volume.
-Legacy/inactive states stay explicitly unknown. No automatic audition or file writes.
+Legacy/inactive states stay explicitly unknown. No automatic audition; a file
+write happens only through the panel's explicit save review below.
 
 Four build/test presets pass; new listening/owner acceptance remains pending.
 Collision inspection is implemented in the following independent source checkpoint.
@@ -99,16 +100,33 @@ existing camera and clips near plane/viewport. It is explicitly not depth-tested
 F8 Test may retain the overlay; stale session/cell/object/nearby selection clears.
 Closed/collapsed skips scans/projection. No physics, picking, pause or map writes.
 
+## Saving to config.cfg
+
+The panel's **SAVE TO CONFIG.CFG** section writes the changed fields that have a
+recognized config key: the nine night/beam scalars and the 32 effective `envN_*`
+reverb fields. It is a two-step action — **Review changes** shows the resolved
+destination, the exact lines and their old/new values, then **Confirm write**
+performs the save — so closing the panel or moving a slider writes nothing. Only
+the changed keys' own value tokens are rewritten; comments, unknown keys,
+duplicate earlier lines and every terminator survive byte for byte. A numbered
+`config.cfg.before-workbench.bak` snapshot is kept beside the file, and a
+refused save leaves the original untouched and no litter behind. The values
+apply on the **next launch**; the running scene is unchanged and there is no
+in-engine reload yet. The legacy 13 fields and the RGB tint have no loader key,
+so the review lists them as unpublishable rather than writing a setting the
+loader ignores.
+
 ## What is not saved
 
-All 57 scalar/channel descriptors are global runtime tuning, not per-area definitions.
-Closing keeps applied values until the hunt's ordinary reset, **not a file save**.
-No config, profile, trophy or resource files are rewritten by editing. ImGui layout
-is session-only. Night/beam and 32 effective audio scalar keys already exist in config and are
-labelled as such, but the tool never writes them. Legacy dump/tint identifiers
-are not config keys. D deliberately keeps the original 13-field log dump unchanged.
-No picking, pause/step, docking or creature/weapon/region editing. Spatial occlusion
-remain outside this implementation; collision inspection is strictly read-only.
+All 57 scalar/channel descriptors are global runtime tuning, not per-area
+definitions. Editing a value changes the running session; closing keeps applied
+values until the hunt's ordinary reset. The review save above is the only path
+that writes a file, and it writes only `config.cfg`; no profile, trophy or
+resource file is rewritten. ImGui layout is session-only. Legacy dump/tint
+identifiers are not config keys. D deliberately keeps the original 13-field log
+dump unchanged. No picking, pause/step, docking or creature/weapon/region
+editing. Spatial occlusion remain outside this implementation; collision
+inspection is strictly read-only.
 
 ## Owner acceptance and performance
 

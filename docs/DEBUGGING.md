@@ -183,8 +183,11 @@ Audio reverb is tuned with commented-out `env0_*` overrides (`decay`, `decayhf`,
 8 Underwater. Needs OpenAL EFX and a restart. Uncomment one to override the
 compiled default.
 
-The engine only writes `config.cfg` when the file doesn't exist, so a config
-that predates a new feature keeps silently running that key on its default. To check effective settings, read the startup `Config effective:` entries in
+The engine creates `config.cfg` only when the file doesn't exist, so a config
+that predates a new feature keeps silently running that key on its default. The
+menu and the OpenGL F10 workbench can also rewrite it on request — the menu when
+you change a setting it owns, the workbench through its explicit save review and
+only for the keys it recognizes. To check effective settings, read the startup `Config effective:` entries in
 `render.log`, then compare omitted keys with the documented defaults and
 `CreateDefaultConfig()` in `Hunt/Game/EngineInit.cpp`. A local development-only
 config comparison script is not part of this repository's distributed tools.
