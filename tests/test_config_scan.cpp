@@ -123,6 +123,14 @@ TEST(ConfigScan, PinsTheEqualsGrammarOfTheLoadPolicyPreRead) {
     ExpectFields("=load_mode strict\n", Separator::WhitespaceOrEquals, {});
 }
 
+TEST(ConfigScan, KeyEqualsIsAsciiCaseInsensitive) {
+    EXPECT_TRUE(configscan::KeyEquals("FOV", "fov"));
+    EXPECT_TRUE(configscan::KeyEquals("env0_decay", "ENV0_DECAY"));
+    EXPECT_FALSE(configscan::KeyEquals("fov", "fovv"));
+    EXPECT_FALSE(configscan::KeyEquals("fo", "fov"));
+    EXPECT_FALSE(configscan::KeyEquals("f0v", "fov"));
+}
+
 TEST(ConfigScan, PreReaderMatchesTheEqualsScanOverTheCorpus) {
     for (const char* text : kCorpus) {
         std::string value;

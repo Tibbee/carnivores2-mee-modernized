@@ -46,6 +46,23 @@ enum class Separator {
 	WhitespaceOrEquals, // Load-policy pre-reader.
 };
 
+// ASCII case-insensitive key compare: the rule the engine reader (_stricmp)
+// and the load-policy pre-reader (_strnicmp) already apply. Config keys are
+// ASCII and every shipped file spells them lowercase, so the locale's
+// _stricmp edge cases cannot appear; a hand-written mixed-case key still
+// matches, which is what the engine does.
+inline bool KeyEquals(std::string_view key, std::string_view name)
+{
+	if (key.size() != name.size()) return false;
+	for (std::size_t i = 0; i < key.size(); ++i) {
+		char a = key[i], b = name[i];
+		if (a >= 'A' && a <= 'Z') a = static_cast<char>(a - 'A' + 'a');
+		if (b >= 'A' && b <= 'Z') b = static_cast<char>(b - 'A' + 'a');
+		if (a != b) return false;
+	}
+	return true;
+}
+
 inline std::vector<Field> Scan(std::string_view text,
                                Separator separator = Separator::Whitespace)
 {

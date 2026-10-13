@@ -25,6 +25,7 @@
 #include <vector>
 #include "../Hunt/Core/Flashlight.h"
 #include "Core/ConfigPath.h"
+#include "Core/ConfigScan.h"
 #include "Core/ConfigText.h"
 #include "ListMath.h"
 #include "Loaders/LoadDiagnostics.h"
@@ -2106,7 +2107,9 @@ void SaveConfig()
 	std::cout << "Config Saved (" << configPath << ")." << std::endl;
 }
 
-// Parse a single "key value" line.  Returns true if the key was recognised.
+// Parse a single "key value" line. Keys match case-insensitively, like the
+// engine loader, so a hand-written "FOV 62" is not silently ignored here while
+// the engine honours it. Returns true if the key was recognised.
 static bool ParseConfigLine(const std::string& line)
 {
 	std::istringstream iss(line);
@@ -2114,7 +2117,7 @@ static bool ParseConfigLine(const std::string& line)
 	if (!(iss >> key)) return false;
 	if (key[0] == '#') return false;  // comment
 
-	if (key == "renderer") {
+	if (configscan::KeyEquals(key, "renderer")) {
 		int v;
 		if (iss >> v) {
 			// 0=Software, 1=OpenGL. Legacy Direct3D values are normalized
@@ -2124,7 +2127,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (key == "fov") {
+	if (configscan::KeyEquals(key, "fov")) {
 		int v;
 		if (iss >> v) {
 			if (v < kFovMin) v = kFovMin;
@@ -2134,7 +2137,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (key == "object_detail") {
+	if (configscan::KeyEquals(key, "object_detail")) {
 		int v;
 		if (iss >> v) {
 			v = ClampMenuObjectDetail(v);
@@ -2143,7 +2146,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (key == "fps_limit") {
+	if (configscan::KeyEquals(key, "fps_limit")) {
 		int v;
 		if (iss >> v) {
 			if (v < 0) v = 0;
@@ -2153,7 +2156,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (key == "verbose_logging") {
+	if (configscan::KeyEquals(key, "verbose_logging")) {
 		int v;
 		if (iss >> v) {
 			g_Options.VerboseLogging = (v != 0);
@@ -2161,7 +2164,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (key == "nightvision_key") {
+	if (configscan::KeyEquals(key, "nightvision_key")) {
 		int v;
 		if (iss >> v) {
 			g_Options.NightVisionKey = v;
@@ -2169,7 +2172,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (key == "flashlight_key") {
+	if (configscan::KeyEquals(key, "flashlight_key")) {
 		int v;
 		if (iss >> v) {
 			g_Options.FlashlightKey = ClampFlashlightKey(v);
@@ -2177,7 +2180,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (key == "resolution") {
+	if (configscan::KeyEquals(key, "resolution")) {
 		int w = 0, h = 0;
 		char x = 0;
 		if (iss >> w >> x >> h && (x == 'x' || x == 'X') && w > 0 && h > 0) {
@@ -2192,7 +2195,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (key == "display_mode") {
+	if (configscan::KeyEquals(key, "display_mode")) {
 		int v;
 		if (iss >> v) {
 			if (v >= 0 && v <= 2)
@@ -2204,7 +2207,7 @@ static bool ParseConfigLine(const std::string& line)
 	// Last hunt setup (see SaveConfig). Everything is validated again
 	// against the live lists on restore, so stale/modded values can only
 	// fall back to defaults, never select out of range.
-	if (key == "hunt_area") {
+	if (configscan::KeyEquals(key, "hunt_area")) {
 		std::string v;
 		if (iss >> v && v.size() < 128) {
 			g_SavedHuntArea = v;
@@ -2212,17 +2215,17 @@ static bool ParseConfigLine(const std::string& line)
 		}
 		return true;
 	}
-	if (key == "hunt_dinos" || key == "hunt_weapons" || key == "hunt_utils") {
+	if (configscan::KeyEquals(key, "hunt_dinos") || configscan::KeyEquals(key, "hunt_weapons") || configscan::KeyEquals(key, "hunt_utils")) {
 		unsigned long long v;
 		if (iss >> v) {
-			if (key == "hunt_dinos") g_SavedHuntDinos = v;
-			else if (key == "hunt_weapons") g_SavedHuntWeapons = v;
+			if (configscan::KeyEquals(key, "hunt_dinos")) g_SavedHuntDinos = v;
+			else if (configscan::KeyEquals(key, "hunt_weapons")) g_SavedHuntWeapons = v;
 			else g_SavedHuntUtils = v;
 			g_HasSavedHunt = true;
 		}
 		return true;
 	}
-	if (key == "hunt_time") {
+	if (configscan::KeyEquals(key, "hunt_time")) {
 		int v;
 		if (iss >> v && v >= HUNT_DAWN && v <= HUNT_NIGHT) {
 			g_SavedHuntTime = v;

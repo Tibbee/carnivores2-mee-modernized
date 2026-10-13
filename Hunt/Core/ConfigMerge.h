@@ -4,6 +4,8 @@
 #include <string_view>
 #include <vector>
 
+#include "Core/ConfigScan.h"
+
 // Byte-preserving "key value" merge for config.cfg, used by the workbench's
 // ConfigPersistence save path. The menu's SaveConfig() follows the same policy
 // in intent but still has its own implementation, so the two writers are kept
@@ -63,20 +65,6 @@ inline bool IsBlank(char c)
 	// would miss -- and a missed occurrence can let a later line silently
 	// override a value this writer just reported as updated.
 	return c == ' ' || c == '\t' || c == '\v' || c == '\f';
-}
-
-// ASCII case-insensitive compare, matching the loader's _stricmp for the ASCII
-// key tokens config.cfg actually contains.
-inline bool EqualKey(std::string_view a, std::string_view b)
-{
-	if (a.size() != b.size()) return false;
-	for (std::size_t i = 0; i < a.size(); ++i) {
-		char x = a[i], y = b[i];
-		if (x >= 'A' && x <= 'Z') x = static_cast<char>(x - 'A' + 'a');
-		if (y >= 'A' && y <= 'Z') y = static_cast<char>(y - 'A' + 'a');
-		if (x != y) return false;
-	}
-	return true;
 }
 
 // A line retains its own terminator so an untouched line can be copied out
@@ -194,7 +182,7 @@ inline Result Merge(std::string_view text, const std::vector<Entry>& owned)
 		if (found.comment || !found.key || !found.value) continue;
 		const auto token = body.substr(found.keyBegin, found.keyEnd - found.keyBegin);
 		for (std::size_t slot = 0; slot < owned.size(); ++slot) {
-			if (!EqualKey(token, owned[slot].key)) continue;
+			if (!configscan::KeyEquals(token, owned[slot].key)) continue;
 			++seen[slot];
 			target[slot] = index;
 			break;
