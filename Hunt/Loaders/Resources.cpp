@@ -717,11 +717,7 @@ void ReleaseGlobalResources()
   TrophyPic.lpImage.reset();
   TrophyNoCollectPic.lpImage.reset();
   ScorePic.lpImage.reset();
-  LandPic.lpImage.reset();
-  DinoPic.lpImage.reset();
-  DinoPicM.lpImage.reset();
   MapPic.lpImage.reset();
-  WepPic.lpImage.reset();
 
   // OpenGL/D3D/3DFX effect lookup textures loaded once in WinMain().
   TFX_SPECULAR.lpImage.reset();

@@ -51,13 +51,6 @@ GLOBAL   struct addrinfo *result;
 
 GLOBAL   struct addrinfo hints;
 
-GLOBAL   int iSendResult;
-
-
-
-
-
-
 GLOBAL   HWND    hwndMain;
 
 GLOBAL   HINSTANCE  hInst;
@@ -153,6 +146,14 @@ GLOBAL   WORD SkyFade[9][128*128];
 
 GLOBAL   BYTE SkyMap[128*128];
 
+// Phase 5B.2: Textures is now std::array<unique_obj_ptr<TEXTURE>, 1024>.
+// std::array is used (not a raw C array) so the size is fixed at
+// compile time (matching the original 1024-element behavior) and the
+// type system enforces it. All elements default-construct to null
+// unique_ptrs, matching the old BSS zero-initialization. Access
+// pattern is unchanged: Textures[t] returns a unique_obj_ptr<TEXTURE>&
+// that supports operator bool, operator->, and .reset() the same way
+// a raw TEXTURE* did.
 GLOBAL   std::array<unique_obj_ptr<TEXTURE>, 1024> Textures;
 
 GLOBAL   TAmbient Ambient[256];
@@ -167,6 +168,7 @@ GLOBAL int TargetDino, TargetArea, TargetWeapon, WeaponPres, TargetCall,
           ObservMode, CamSpin, CamFixed, CamTravel, Tranq, ObjectsOnLook, RenderHitBox,
           CurrentWeapon, ShotsLeft[10], AmmoMag[10],
 	MagShotsLeft[10], Chambered[10], FiringMode[10]; //TrophyTime,
+// FiringMode: 0 = semiauto, 1 = fullauto.
 
 GLOBAL bool alreadyFired;
 
@@ -184,6 +186,12 @@ GLOBAL BOOL ScentMode, CamoMode,
           PlayersCount,
           ScannerMode, SurvivalMode;
 
+// Score multipliers for accessories. Defaults are set in InitEngine()
+// (Hunt/Game/EngineInit.cpp) and match the legacy hardcoded values from
+// SubmitDinoScore() so a hunt launched without a Menu-supplied 'smod='
+// argument behaves identically to the original game. The Menu passes
+// 'smod=camo,radar,scent,double,tranq,observer' in the same order to
+// override these from _RES.TXT (see Menu/Resources.cpp ReadAccessories()).
 GLOBAL float ScoreMod_Camo;
 
 GLOBAL float ScoreMod_Radar;
@@ -202,7 +210,7 @@ GLOBAL TTrophyRoom TrophyRoom;
 
 GLOBAL TTrophyRoom2 TrophyRoom2;
 
-GLOBAL TPicture LandPic,DinoPic,DinoPicM, MapPic, WepPic;
+GLOBAL TPicture MapPic;
 
 GLOBAL HFONT fnt_BIG, fnt_Small, fnt_Midd;
 
@@ -313,8 +321,6 @@ GLOBAL TTrophyItem TrophyDisplayBody;
 
 GLOBAL TCharacterInfo WindModel;
 
-GLOBAL TCharacterInfo PlayerInfo;
-
 GLOBAL TCharacterInfo ChInfo[DINOINFO_MAX];
 
 GLOBAL TCharacterInfo MPlayerInfo[3]; //multiplayer
@@ -365,17 +371,9 @@ GLOBAL TCharacter     *killerDino;
 
 GLOBAL BOOL			 killedwater;
 
-GLOBAL TPlayer        Players[16];
-
 GLOBAL Vector3d       PlayerPos, CameraPos;
 
 GLOBAL   LPDIRECTDRAW lpDD;
-
-GLOBAL   LPDIRECTDRAW2 lpDD2;
-
-GLOBAL   void* lpVideoRAM;
-
-GLOBAL   LPDIRECTDRAWSURFACE lpddsPrimary;
 
 GLOBAL   BOOL DirectActive, FULLSCREEN, BORDERLESS, RestartMode;
 
@@ -415,8 +413,6 @@ GLOBAL   ClipPoint cp[16];
 GLOBAL   ClipPoint hleft,hright;
 
 GLOBAL   void  *HLineT;
-
-GLOBAL   int   rTColor;
 
 GLOBAL   int   SKYMin, SKYDTime, GlassL, ctViewR, ctViewRM, charViewR,
             dFacesCount, ReverseOn, TDirection;

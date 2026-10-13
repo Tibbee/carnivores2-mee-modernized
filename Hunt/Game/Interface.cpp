@@ -1,6 +1,7 @@
 #define INITGUID
 #include "Hunt.h"
 #include "Core/UnattendedCapture.h"
+#include "Network/NetworkManager.h"
 #ifdef _gl
 #include "Renderer/GLRenderer.h"
 #endif
@@ -58,10 +59,10 @@ int GetTextW(HDC hdc, LPSTR s)
 {
 	if (Multiplayer) {
 		if (Host) {
-			ShutDownServer();
+			g_Network.StopServer();
 		}
 		else {
-			ShutDownClient();
+			g_Network.StopClient();
 		}
 	}
 
@@ -178,8 +179,6 @@ void SetFullScreen()
       sprintf_s(logt, sizeof(logt), "DDRAW: Error set video mode %dx%d\n", WinW, WinH);
       PrintLog(logt);
     }
-
-    lpVideoRAM = 0;
   }
 #endif
 

@@ -61,9 +61,6 @@ private:
     char m_recvBuf[DEFAULT_BUFLEN];
     int m_recvbuflen = 0;
 
-    void StartupServer();
-    void StartupClient();
-
     static DWORD WINAPI ServerThreadProc(LPVOID param);
     static DWORD WINAPI ClientThreadProc(LPVOID param);
 

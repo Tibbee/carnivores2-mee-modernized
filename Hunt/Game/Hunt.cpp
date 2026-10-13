@@ -2,6 +2,7 @@
 #include "Core/KeyBindings.h"
 #include "Core/TerrainFog.h"
 #include "Core/UnattendedCapture.h"
+#include "Network/NetworkManager.h"
 #include "Workbench/TuningRuntime.h"
 #include "stdio.h"
 #ifdef _gl
@@ -1657,9 +1658,9 @@ void ProcessGame()
 		if (!_MultiplayerState) {
 
 			if (Host) {
-				StartupServerCommsThread();
+				g_Network.StartServerCommsThread();
 			} else {
-				StartupClientCommsThread();
+				g_Network.StartClientCommsThread();
 			}
 
 		}
@@ -1915,10 +1916,10 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
   if (Multiplayer) {
 	  if (Host) {
-		  ShutDownServer();
+		  g_Network.StopServer();
 	  }
 	  else {
-		  ShutDownClient();
+		  g_Network.StopClient();
 	  }
   }
 

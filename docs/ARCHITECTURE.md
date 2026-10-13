@@ -82,7 +82,7 @@ Hunt/                              engine
 ├── Math/                          Math.cpp, Vector.cpp
 ├── Audio/                         Audio_DLL.cpp, OpenAL_Loader.cpp/.h
 ├── Network/                       NetworkManager.cpp/.h, inherited
-└── Debug/                         Log.cpp/.h, Assert.h
+└── Debug/                         Log.cpp/.h
 
 shaders/            12 GLSL files, loaded from disk at runtime
 ├── terrain, model, instanced_model, ui, night_desat, sky

@@ -92,7 +92,6 @@ void DrawFlash		 (int x, int y, int w, int h, TPicture &pic);
 
 void InitClips();
 void InitDirectDraw();
-void WaitRetrace();
 
 void Characters_AddSecondaryOne(TCharacter *cptr);
 void AddDeadBody(TCharacter *cptr, int, bool);
@@ -207,7 +206,6 @@ float GetLandHObj(float CameraX, float CameraZ);
 float GetLandQHNoObj(float CameraX, float CameraZ);
 float GetLandLt(float x, float y);
 bool waterNear(float x, float y, float maxDist);
-void CalcModelGroundLight(TModel *mptr, float x0, float z0, int FI);
 BOOL PointOnBound(float &H, float px, float py, float cx, float cy, float oy, TBound *bound, int angle);
 BOOL PointUnBound(float &H, float px, float py, float cx, float cy, float oy, TBound *bound, int angle);
 
@@ -222,8 +220,6 @@ void InitShip(int cindex);
 void ProcessCommandLine();
 
 // === GAME CONTROLS / MOVEMENT (Hunt split) ===
-void CaptureMouse(BOOL capture);
-void ResetMousePos();
 void SwitchMode(LPSTR lps, BOOL& b);
 void ChangeViewR(int d1, int d2, int d3);
 void ChangeCall();
@@ -253,11 +249,7 @@ void CreateVideoDIB();
 void CreateVideoDIB(int W, int H);
 void RenderLightMap();
 
-void MulVectorsVect(const Vector3d& v1, const Vector3d& v2, Vector3d& r );
-void MulVectorsScal(const Vector3d& v1, const Vector3d& v2, float& r);
-Vector3d SubVectors( Vector3d& v1, Vector3d& v2 );
 Vector3d SubVectors2d(Vector3d& v1, Vector3d& v2);
-void NormVector(Vector3d& v, float Scale);
 
 #ifdef MEM_DEBUG
 // Park the Memory.h call-site macro while declaring the underlying
@@ -290,25 +282,11 @@ void NormVector(Vector3d& v, float Scale);
 // sites are bit-for-bit unaffected.
 
 //============ game ===========================//
-float GetLandCeilH(float, float);
-float GetLandH(float, float);
-float GetLandOH(int, int);
-float GetLandLt(float, float);
-float GetLandUpH(float, float);
-float GetLandQH(float, float);
-float GetLandQHNoObj(float, float);
-float GetLandHObj(float, float);
-bool waterNear(float, float, float);
 
 void LoadResourcesScript();
 void InitEngine();
-void ShutDownServer();
-void ShutDownClient();
 void ShutDownEngine();
 void ProcessSyncro();
-void AddShipSupply(float,float);
-void AddShipTask(int);
-void SubmitDinoScore(int);
 void LoadTrophy();
 void SaveTrophy();
 void RemoveCurrentTrophy();
@@ -328,7 +306,6 @@ void AddBloodTrail(TCharacter *cptr);
 void AnimateBloodTrails();
 void AddElements(float, float, float, int, int);
 void AddElementsA(float, float, float, int, int, int, bool, float);
-void AddWCircle(float, float, float);
 void AnimateProcesses();
 [[noreturn]] void DoHalt(LPSTR);
 [[noreturn]] void DoHalt2(LPSTR);
@@ -353,126 +330,6 @@ void CloseLog();
 // back to the file the engine will load, rather than guessing at a location that
 // silently has no effect.
 void GetEngineConfigPath(char* buf, size_t bufsz);
-
-
-
-//========== multiplayer =============//
-
-
-
-
-
-
-void StartupServerCommsThread();
-void StartupClientCommsThread();
-
-
-
-
-//========== common ==================//
-
-
-//========== map =====================//
-
-
-
-
-
-// Phase 5B.2: Textures is now std::array<unique_obj_ptr<TEXTURE>, 1024>.
-// std::array is used (not a raw C array) so the size is fixed at
-// compile time (matching the original 1024-element behavior) and the
-// type system enforces it. All elements default-construct to null
-// unique_ptrs, matching the old BSS zero-initialization. Access
-// pattern is unchanged: Textures[t] returns a unique_obj_ptr<TEXTURE>&
-// that supports operator bool, operator->, and .reset() the same way
-// a raw TEXTURE* did.
-
-//========= WEATHER =================//
-
-
-//========= GAME ====================//
-
-//firing mode 0-semiauto 1-fullauto
-
-
-
-
-
-// Score multipliers for accessories. Defaults are set in InitEngine()
-// (Hunt/Game/EngineInit.cpp) and match the legacy hardcoded values from
-// SubmitDinoScore() so a hunt launched without a Menu-supplied 'smod='
-// argument behaves identically to the original game. The Menu passes
-// 'smod=camo,radar,scent,double,tranq,observer' in the same order to
-// override these from _RES.TXT (see Menu/Resources.cpp ReadAccessories()).
-
-
-
-
-
-
-//======== MODEL ======================//
-
-
-
-
-
-
-//Add these after dino positions alligned
-
-
-
-
-
-
-
-
-
-
-//========== Render ==================//
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//#define AI_FINAL	  29 //Last AI of max huntable roster (menu can only display 10)
-
-//#define AI_POACHER    22
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 //========== for audio ==============//
 void  AddVoicev  (int, short int*, int);

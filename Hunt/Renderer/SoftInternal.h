@@ -85,8 +85,6 @@ extern void RenderSkyLine(int);
 // Internal function forward declarations
 // ============================================================================
 
-void RenderBMPModel2(TBMPModel*, float, float, float, int);
-
 // Render list management (defined in SoftEntities.cpp, called from SoftTerrain.cpp)
 void RenderChList(int r);
 

@@ -825,8 +825,6 @@ bool LoadWave(SoundFX& sfx, const std::string& path);
 /*** Networking ***/
 void InitNetwork();
 void ShutdownNetwork();
-void NetworkGet(LPSTR url, LPSTR host, LPSTR data);
-void NetworkPost(LPSTR url, LPSTR host, LPSTR data);
 
 /*** Audio ***/
 void Audio_Shutdown();

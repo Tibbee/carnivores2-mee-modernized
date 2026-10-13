@@ -197,7 +197,6 @@ set(CORE_FILES
     Hunt/Game/Controls.cpp
     Hunt/Game/PlayerMovement.cpp
     Hunt/Game/Effects.cpp
-    Hunt/Game/Network.cpp
     Hunt/Network/NetworkManager.cpp
     Hunt/Debug/Log.cpp
     Hunt/Workbench/TuningSession.h
