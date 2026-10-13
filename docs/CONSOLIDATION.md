@@ -1,6 +1,6 @@
 # Consolidation Pass — C2 MEE
 
-> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 in progress (10 clusters landed, 686 → 558 cases); two four-preset checkpoints green, hygiene re-run logged 2 pre-existing findings.
+> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 in progress (10 clusters landed, 686 → 558 cases); two four-preset checkpoints green; hygiene has 1 open finding (Defect 6, WS4-owned).
 > **Branch:** `refactor/consolidation-pass`, worktree `Carnivores2MEE1.11/build/consolidation-pass`, based on `feat/modder-workbench` @ `4d05faa`.
 > **Status:** in progress. Owner approved the plan and the deletion of the disabled-species animation bundle. Only the Progress log and the task list below are authoritative for what is done; the ranked estimates come from the Phase 1 hunts.
 
@@ -93,7 +93,7 @@ GLSL include refactor · config-scanner staging policy.
 2. `g_KeyNames[256]` definition vs `extern char g_KeyNames[128]` (`Menu/Hunt.h:857/998`) — declaration-size mismatch; unverified, needs a look.
 3. `CreateLog` prints "Build v2.04. Sep.24 1999" (`Hunt/Loaders/Resources.cpp:1244`) — intentional legacy or fix? **Resolved 2026-10-13:** owner chose replace; `3182616` now prints `VERSION_STRING` from `Core/Version.h`.
 4. **Line-ending anomaly** — 7 files carry doubled-CR (`\r\r\n`) endings in committed blobs (CharacterCollision 682, CharacterTargeting 505, Trophy 444, Projectiles 397, Ships 359, CharacterMovement 173, Vector 150), and this environment runs `core.autocrlf=true` against mixed-normalization blobs. Handling for this pass: stage affected files byte-faithfully (`git hash-object -w --no-filters` + `git update-index --cacheinfo`) and verify `git diff --cached --stat` shows the intended minimal diff. A repo-wide normalization pass is proposed as a separate owner-approved item — not silently done here.
-5. **Comment hygiene finding (pre-existing)** — `Hunt/Core/AIBehavior.h:64` references `hunter-awareness-review.md`, which exists in both `CarnivoresDoc/architecture/` and `CarnivoresDoc/archive/`; `tools/check_comment_hygiene.ps1` rejects the ambiguity. The comment predates this pass (last touched by `fix(ai): restore dangerous brachi aggression range`); needs an owner/doc-tree call on which copy is canonical before a one-line fix.
+5. **Comment hygiene finding (pre-existing)** — `Hunt/Core/AIBehavior.h:64` references `hunter-awareness-review.md`, which exists in both `CarnivoresDoc/architecture/` and `CarnivoresDoc/archive/`; `tools/check_comment_hygiene.ps1` rejects the ambiguity. **Resolved 2026-10-14:** owner chose the `architecture/` copy; `e7de326` qualifies the reference and the hygiene scan now reports 1 problem (Defect 6 only).
 6. **Comment hygiene finding (pre-existing)** — `tools/release/make-c2-package.ps1:93` mentions `RELEASE-NOTES.md`, which the current doc tree does not contain; the script is a listed WS4 owner item (embedded config template / packaging), so the reference is left for that work rather than reworded here.
 
 ## Progress log
@@ -149,4 +149,5 @@ GLSL include refactor · config-scanner staging policy.
 - `91d2e51` test(renderer): consolidate the fog-sampling cases into six tests — 14→6; the inline/public equivalence sweep and the underwater reference formula stay intact, the routing/skip/variant cases are grouped with counter resets between scenarios. −8.
 - Suite count measured across the 12 executables: 581 → 558 (each commit ogl-debug + ctest 16/16, staged-diff checked).
 - Checkpoint (second): all four presets build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15.
+- Defect 5 resolved by owner call: `e7de326` docs(ai) qualifies the AIBehavior.h review reference with `architecture/`; the hygiene scan now reports only the WS4-owned packaging reference (Defect 6).
 - Next WS2 clusters: AI tables, water color/waves, menu resource/price, terrain fog, uniform cache, CLI helpers, workbench three-layer (≈15).
