@@ -61,7 +61,8 @@ inline bool ShouldInitializeDirectHitAlert(bool survived, bool wasAware)
 }
 
 // One authored-fear rule shared by the hunter-event classifiers and the
-// per-frame flee decision (structural issue S1 in hunter-awareness-review.md):
+// per-frame flee decision (structural issue S1 in
+// architecture/hunter-awareness-review.md):
 // a defensive species at full health, a species that fears injury once hurt,
 // and a species that fears shot sounds always flee from the stimulus instead
 // of investigating or retaliating. Evaluating the same inputs at event time
