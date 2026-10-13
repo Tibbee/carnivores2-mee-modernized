@@ -1,6 +1,6 @@
 # Consolidation Pass — C2 MEE
 
-> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 in progress (16 clusters landed, 686 → 490 cases); four four-preset checkpoints green; hygiene has 1 open finding (Defect 6, WS4-owned); clang-tidy runs locally (VS Code cpptools LLVM 23.1.0) and is clean on the latest changed files.
+> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 complete (17 clusters, 686 → 469 cases; plan target ~480); five four-preset checkpoints green; hygiene has 1 open finding (Defect 6, WS4-owned); clang-tidy runs locally (VS Code cpptools LLVM 23.1.0) and is clean on the latest changed files.
 > **Branch:** `refactor/consolidation-pass`, worktree `Carnivores2MEE1.11/build/consolidation-pass`, based on `feat/modder-workbench` @ `4d05faa`.
 > **Status:** in progress. Owner approved the plan and the deletion of the disabled-species animation bundle. Only the Progress log and the task list below are authoritative for what is done; the ranked estimates come from the Phase 1 hunts.
 
@@ -67,6 +67,8 @@ Landed (2026-10-14, second batch): workbench input 14→6 (`ff26580`; re-verific
 Landed (2026-10-14, third batch): AI tables 35→15 (`1c678f4`; the behavior-math file became fifteen grouped tests with all 171 assertion statements preserved) · water color/waves 19→11 across `test_water_color.cpp`, `test_water_wave_cache.cpp` and `test_water_wave_fade.cpp` (`d5dd1bf`; 27+15+17 statements preserved) · menu resource/price 41→20 (`b16be7b`; 197 statements preserved). Suite: 558 → 509 cases. Third four-preset checkpoint green; clang-tidy now runs locally against `build/clang-tidy` and reported no blocking findings on the five changed files.
 
 Landed (2026-10-14, fourth batch): terrain fog 18→8 across `test_terrain_fog.cpp` and `test_terrain_fog_smoothing.cpp` (`f838e27`; 33+3 statements and all 8 SameColor call sites preserved) · uniform cache 6→3 (`daa2172`; 31 statements preserved) · CLI helpers 11→5 across `test_command_line_parse.cpp` and `test_command_line_entry.cpp` (`13c0b28`; 33+52 statements preserved). Suite: 509 → 490 cases. Fourth four-preset checkpoint green.
+
+Landed (2026-10-14, fifth batch — WS2 close): workbench session/runtime layers 52→31 across `test_workbench_session.cpp` and `test_workbench_runtime.cpp` (`429a0e5`; 182+192 statements preserved; merged scenarios keep fixture continuity by ordering or explicit seam resets). Suite: 490 → 469 cases. Fifth four-preset checkpoint green. WS2 closed at 469 cases (17 clusters).
 
 ### WS3 — Unified implementations (~1,300 LOC)
 
@@ -173,3 +175,10 @@ GLSL include refactor · config-scanner staging policy.
 - Checkpoint (fourth): all four presets build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Release flags clean (`/GS`, no `/GS-`). Comment hygiene: 263 files scanned, only the WS4-owned Defect 6 finding (unchanged).
 - clang-tidy: ran again on the five changed files — exit 0, no errors and no blocking-check hits.
 - Next WS2 cluster: workbench three-layer (≈15 est.), which closes WS2; then WS3 unified implementations and WS4 build/tooling.
+
+### 2026-10-14 — WS2 closer + fifth checkpoint
+
+- `429a0e5` test(workbench): consolidate the session and runtime cases into thirty-one tests — 52→31 across `test_workbench_session.cpp` (27→14) and `test_workbench_runtime.cpp` (25→17); all 182+192 assertions preserved. Merged scenarios keep fixture continuity either by ordering (external-write invalidation relative to sync cases, dump inventory before the byte-exact legacy block) or by explicit seam resets (`workbench_test::ResetAudio()` plus `ResetRuntimeForHunt()` in the audio-fault pair) where the per-test fixture previously supplied them. Suite 490→469.
+- Note: the "workbench three-layer" cluster was interpreted as the two remaining layers of the tuning stack (session + runtime) because the persistence layer was already consolidated as the workbench-persistence cluster; collision/GPU layers are separate features and were left alone.
+- Checkpoint (fifth): all four presets build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Release flags clean (`/GS`, no `/GS-`). Comment hygiene: 263 files scanned, only the WS4-owned Defect 6 finding (unchanged). clang-tidy: exit 0, no errors and no blocking-check hits on the two changed files. The C4459 warnings in the workbench runtime translation unit (`NightLighting.h` ×3 plus the `v`/`nv` locals) reproduce on HEAD and are pre-existing.
+- WS2 closes at 686 → 469 cases in 17 clusters (plan target ~480). Next: WS3 unified implementations — foundational first (config path resolution ×4, load-policy wrapper ×2, ConfigPersistence classifier, then the staged config-scanner unification), then WS4 build/tooling.
