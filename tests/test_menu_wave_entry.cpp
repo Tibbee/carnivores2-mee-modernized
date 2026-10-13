@@ -15,12 +15,16 @@ protected:
     void TearDown() override {std::error_code e;std::filesystem::remove(path,e);}
     void Write(const std::string& data) {std::ofstream f(path,std::ios::binary);f.write(data.data(),data.size());}
 };
-TEST_F(MenuWaveTest, ValidStockSoundIsExact) {
+TEST_F(MenuWaveTest, ValidAndNormalizedStockSoundsLoadExactly) {
     Write(wav_fixture::Pcm16({123,-456}));SoundFX s;
     ASSERT_TRUE(LoadWave(s,path.string()));ASSERT_EQ(s.m_Length,4u);
     EXPECT_EQ(s.m_Data[0],123);EXPECT_EQ(s.m_Data[1],-456);EXPECT_EQ(s.m_Frequency,22050u);
+
+    Write(wav_fixture::Pcm16({100,300,200,400,300,500,400,600},2,44100));SoundFX stereo;
+    ASSERT_TRUE(LoadWave(stereo,path.string()));ASSERT_EQ(stereo.m_Length,4u);
+    EXPECT_EQ(stereo.m_Data[0],200);EXPECT_EQ(stereo.m_Data[1],400);EXPECT_EQ(stereo.m_Frequency,22050u);
 }
-TEST_F(MenuWaveTest, MissingDataAndEveryTruncationReturnWithoutMutatingExistingSound) {
+TEST_F(MenuWaveTest, RejectedWaveformsLeaveTheExistingSoundUntouched) {
     SoundFX s;s.m_Data=new int16_t[1]{42};s.m_Length=2;auto* original=s.m_Data;
     const auto valid=wav_fixture::Pcm16({123,-456});
     for(size_t n=0;n<valid.size();++n) {
@@ -28,17 +32,12 @@ TEST_F(MenuWaveTest, MissingDataAndEveryTruncationReturnWithoutMutatingExistingS
         EXPECT_EQ(s.m_Data,original);EXPECT_EQ(s.m_Length,2u);EXPECT_EQ(s.m_Data[0],42);
     }
     Write(wav_fixture::Riff(wav_fixture::Format()));EXPECT_FALSE(LoadWave(s,path.string()));
-}
-TEST_F(MenuWaveTest, Stereo44100IsNormalizedRatherThanPlayedAtTheWrongSpeed) {
-    Write(wav_fixture::Pcm16({100,300,200,400,300,500,400,600},2,44100));SoundFX s;
-    ASSERT_TRUE(LoadWave(s,path.string()));ASSERT_EQ(s.m_Length,4u);
-    EXPECT_EQ(s.m_Data[0],200);EXPECT_EQ(s.m_Data[1],400);EXPECT_EQ(s.m_Frequency,22050u);
-}
-TEST_F(MenuWaveTest, Odd16BitLengthIsRejectedButPadded8BitIsDecodedSafely) {
+
+    // An odd 16-bit payload is rejected; a padded 8-bit payload decodes safely.
     Write(wav_fixture::Riff(wav_fixture::Format()+wav_fixture::Chunk("data","x")));
-    SoundFX s;EXPECT_FALSE(LoadWave(s,path.string()));EXPECT_EQ(s.m_Data,nullptr);
+    SoundFX odd;EXPECT_FALSE(LoadWave(odd,path.string()));EXPECT_EQ(odd.m_Data,nullptr);
     Write(wav_fixture::Riff(wav_fixture::Format(1,8)+wav_fixture::Chunk("data",std::string("\x80",1))));
-    ASSERT_TRUE(LoadWave(s,path.string()));ASSERT_EQ(s.m_Length,2u);EXPECT_EQ(s.m_Data[0],0);
+    ASSERT_TRUE(LoadWave(odd,path.string()));ASSERT_EQ(odd.m_Length,2u);EXPECT_EQ(odd.m_Data[0],0);
 }
 TEST_F(MenuWaveTest, EmptySoundCopyIsInitializedAndValidCopyIsIndependent) {
     SoundFX empty;SoundFX copy(empty);EXPECT_EQ(copy.m_Data,nullptr);EXPECT_EQ(copy.m_Length,0u);
