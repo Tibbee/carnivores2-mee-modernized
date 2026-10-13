@@ -33,8 +33,10 @@
 #include <cstring>
 #include <fstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include "Core/ConfigScan.h"
 #include "Core/ConfigText.h"
 
 enum class LoadMode
@@ -174,60 +176,35 @@ private:
     std::vector<LoadDiagnostic> m_entries;
 };
 
-// True when `[begin, end)` equals `name` (case-insensitive). Used by the
-// config pre-reader, which runs before the engine's config parser exists.
-inline bool LoadKeyEquals(const char* begin, const char* end, const char* name)
+// True when `key` equals `name` (case-insensitive), matching the loader's
+// _stricmp key compares. The key is a scanner token, so it is not
+// null-terminated; _strnicmp only reads the `length` bytes it compares.
+inline bool LoadKeyEquals(std::string_view key, const char* name)
 {
-    const std::size_t length = static_cast<std::size_t>(end - begin);
-    return length == strlen(name) && _strnicmp(begin, name, length) == 0;
+    const std::size_t length = key.size();
+    return length == strlen(name) && _strnicmp(key.data(), name, length) == 0;
 }
 
 // Scan a config.cfg text body for `load_mode <mode>` and set the diagnostics
 // mode. Comments (#) and unrelated keys are ignored; `key=value` spelling is
-// accepted as well. Returns true when the key was found and understood.
+// accepted as well (the pre-reader's separator, pinned in test_config_scan).
+// Returns true when the key was found and understood.
 inline bool InitLoadPolicyFromConfigText(const char* text)
 {
     if (!text)
         return false;
 
     bool found = false;
-    const char* cursor = text;
-    while (*cursor)
+    for (const configscan::Field& field : configscan::Scan(text, configscan::Separator::WhitespaceOrEquals))
     {
-        const char* eol = cursor;
-        while (*eol && *eol != '\r' && *eol != '\n')
-            ++eol;
-
-        const char* p = cursor;
-        while (*p == ' ' || *p == '\t')
-            ++p;
-
-        if (*p != '#' && *p != '\0')
+        if (!field.hasValue || !LoadKeyEquals(field.key, "load_mode"))
+            continue;
+        LoadMode mode = LoadMode::Lenient;
+        if (ParseLoadMode(std::string(field.value).c_str(), mode))
         {
-            const char* keyBegin = p;
-            while (*p && *p != ' ' && *p != '\t' && *p != '=')
-                ++p;
-            const char* keyEnd = p;
-            while (*p == ' ' || *p == '\t' || *p == '=')
-                ++p;
-            const char* valueBegin = p;
-            while (*p && *p != ' ' && *p != '\t' && *p != '\r' && *p != '\n')
-                ++p;
-            const char* valueEnd = p;
-
-            if (LoadKeyEquals(keyBegin, keyEnd, "load_mode") &&
-                valueEnd > valueBegin)
-            {
-                LoadMode mode = LoadMode::Lenient;
-                if (ParseLoadMode(std::string(valueBegin, valueEnd).c_str(), mode))
-                {
-                    LoadDiagnostics::Instance().SetMode(mode);
-                    found = true;
-                }
-            }
+            LoadDiagnostics::Instance().SetMode(mode);
+            found = true;
         }
-
-        cursor = (*eol) ? eol + 1 : eol;
     }
     return found;
 }
