@@ -76,32 +76,30 @@ c2bound::FitBox MakeBox(float a, float b, float cosAng, float sinAng) {
 
 }  // namespace
 
-TEST(BoundFit, MinAreaPicks45ForDiagonalRectangle) {
+TEST(BoundFit, MinAreaMatchesKnownRectangleAngles) {
     float xs[4], zs[4];
+
+    // 45°: the diagonal seed is the exact minimum-area fit.
     RectPoints(2048.0f, 256.0f, 45.0f, xs, zs);
-    const c2bound::FitBox f = c2bound::FitMinArea(xs, zs, 4, c2bound::kPad);
-    EXPECT_FLOAT_EQ(f.cos, c2bound::kSqrt1_2);
-    EXPECT_FLOAT_EQ(f.sin, c2bound::kSqrt1_2);
-    EXPECT_NEAR(f.a, 1024.0f + c2bound::kPad, 0.05f);
-    EXPECT_NEAR(f.b, 128.0f + c2bound::kPad, 0.05f);
-    EXPECT_NEAR(f.cx, 0.0f, 0.05f);
-    EXPECT_NEAR(f.cz, 0.0f, 0.05f);
-}
+    const c2bound::FitBox diagonal = c2bound::FitMinArea(xs, zs, 4, c2bound::kPad);
+    EXPECT_FLOAT_EQ(diagonal.cos, c2bound::kSqrt1_2);
+    EXPECT_FLOAT_EQ(diagonal.sin, c2bound::kSqrt1_2);
+    EXPECT_NEAR(diagonal.a, 1024.0f + c2bound::kPad, 0.05f);
+    EXPECT_NEAR(diagonal.b, 128.0f + c2bound::kPad, 0.05f);
+    EXPECT_NEAR(diagonal.cx, 0.0f, 0.05f);
+    EXPECT_NEAR(diagonal.cz, 0.0f, 0.05f);
 
-TEST(BoundFit, MinAreaKeepsLegacyBoxWhenAxisAligned) {
-    float xs[4], zs[4];
+    // Axis aligned: the legacy box is kept, and its zero win fails the gate.
     RectPoints(2048.0f, 256.0f, 0.0f, xs, zs);
-    const c2bound::FitBox f = c2bound::FitMinArea(xs, zs, 4, c2bound::kPad);
-    EXPECT_FLOAT_EQ(f.cos, 1.0f);
-    EXPECT_FLOAT_EQ(f.sin, 0.0f);
-    EXPECT_NEAR(f.a, 1024.0f + c2bound::kPad, 0.01f);
-    EXPECT_NEAR(f.b, 128.0f + c2bound::kPad, 0.01f);
+    const c2bound::FitBox axis = c2bound::FitMinArea(xs, zs, 4, c2bound::kPad);
+    EXPECT_FLOAT_EQ(axis.cos, 1.0f);
+    EXPECT_FLOAT_EQ(axis.sin, 0.0f);
+    EXPECT_NEAR(axis.a, 1024.0f + c2bound::kPad, 0.01f);
+    EXPECT_NEAR(axis.b, 128.0f + c2bound::kPad, 0.01f);
     const float aabbArea = (2048.0f + 2.0f * c2bound::kPad) * (256.0f + 2.0f * c2bound::kPad);
-    EXPECT_FALSE(c2bound::FitAccepts(f.Area(), aabbArea, 20));
-}
+    EXPECT_FALSE(c2bound::FitAccepts(axis.Area(), aabbArea, 20));
 
-TEST(BoundFit, MinAreaFollowsTheBakedAngle) {
-    float xs[4], zs[4];
+    // 30°: the fit follows the baked angle; either flipped frame is valid.
     RectPoints(2048.0f, 256.0f, 30.0f, xs, zs);
     const c2bound::FitBox f = c2bound::FitMinArea(xs, zs, 4, c2bound::kPad);
     EXPECT_NEAR(f.Area(), (2048.0f + 2.0f * c2bound::kPad) * (256.0f + 2.0f * c2bound::kPad), 100.0f);
@@ -170,7 +168,7 @@ TEST(BoundFit, AcceptThresholdBoundaries) {
     EXPECT_FALSE(c2bound::FitAccepts(10.0f, 0.0f, 20));     // no base area
 }
 
-TEST(BoundFit, WallPushFacePushAndMiss) {
+TEST(BoundFit, WallPushFacePushMissAndLeastPenetration) {
     const c2bound::FitBox box = MakeBox(100.0f, 50.0f, 1.0f, 0.0f);
     float px = 95.0f, pz = 0.0f;
     EXPECT_TRUE(c2bound::WallPushOriented(px, pz, 0.0f, 0.0f, box, 0, 2.0f));
@@ -181,16 +179,13 @@ TEST(BoundFit, WallPushFacePushAndMiss) {
     EXPECT_FALSE(c2bound::WallPushOriented(nx, nz, 0.0f, 0.0f, box, 0, 2.0f));
     EXPECT_FLOAT_EQ(nx, 105.0f);
     EXPECT_FLOAT_EQ(nz, 0.0f);
-}
 
-TEST(BoundFit, WallPushLeastPenetrationAndSgnZero) {
-    const c2bound::FitBox box = MakeBox(100.0f, 50.0f, 1.0f, 0.0f);
     // Near the centre both faces are far; the least-penetration axis is the
     // near one (z), and qy == 0 must push to +h, never NaN (SGN never 0).
-    float px = -3.0f, pz = 0.0f;
-    EXPECT_TRUE(c2bound::WallPushOriented(px, pz, 0.0f, 0.0f, box, 0, 2.0f));
-    EXPECT_FLOAT_EQ(px, -3.0f);
-    EXPECT_FLOAT_EQ(pz, 52.0f);
+    float cx = -3.0f, cz = 0.0f;
+    EXPECT_TRUE(c2bound::WallPushOriented(cx, cz, 0.0f, 0.0f, box, 0, 2.0f));
+    EXPECT_FLOAT_EQ(cx, -3.0f);
+    EXPECT_FLOAT_EQ(cz, 52.0f);
 }
 
 TEST(BoundFit, WallPushMatchesLegacyForAxisAlignedBoxes) {
@@ -217,7 +212,7 @@ TEST(BoundFit, WallPushMatchesLegacyForAxisAlignedBoxes) {
     }
 }
 
-TEST(BoundFit, MapRotationComposesWithFitAngle) {
+TEST(BoundFit, RotationComposesWithTheFitFrame) {
     // φ = 45° at map rotation 90° is the same box as φ = -45° unrotated.
     const c2bound::FitBox f45 = MakeBox(1096.0f, 200.0f, c2bound::kSqrt1_2, c2bound::kSqrt1_2);
     const c2bound::FitBox fm45 = MakeBox(1096.0f, 200.0f, c2bound::kSqrt1_2, -c2bound::kSqrt1_2);
@@ -229,9 +224,7 @@ TEST(BoundFit, MapRotationComposesWithFitAngle) {
     ASSERT_TRUE(hb);
     EXPECT_NEAR(ax, bx, 1e-3f);
     EXPECT_NEAR(az, bz, 1e-3f);
-}
 
-TEST(BoundFit, OrientedContainsRotatedFrame) {
     const c2bound::FitBox f = MakeBox(1096.0f, 200.0f, c2bound::kSqrt1_2, c2bound::kSqrt1_2);
     // On the u axis: inside at 1000, outside at 1200.
     EXPECT_TRUE(c2bound::OrientedContains(1000.0f * c2bound::kSqrt1_2,
@@ -249,7 +242,7 @@ TEST(BoundFit, OrientedContainsRotatedFrame) {
     EXPECT_TRUE(c2bound::OrientedContains(rx, rz, 0.0f, 0.0f, f, 1));
 }
 
-TEST(BoundFit, DegenerateInputsAreSafe) {
+TEST(BoundFit, MinAreaDegenerateInputsKeepTheSafeSeed) {
     const c2bound::FitBox empty = c2bound::FitMinArea(nullptr, nullptr, 0, c2bound::kPad);
     EXPECT_FLOAT_EQ(empty.Area(), 0.0f);
 
@@ -283,6 +276,15 @@ TEST(BoundFit, DegenerateInputsAreSafe) {
     EXPECT_FLOAT_EQ(l.cos, c2bound::kSqrt1_2);
     EXPECT_FLOAT_EQ(l.sin, c2bound::kSqrt1_2);
     EXPECT_FLOAT_EQ(l.Area(), pair.Area());
+
+    // The edge-normalization guard must also avoid tiny divisors.
+    const float tinyX[2] = {0.0f, 2e-7f}, tinyZ[2] = {0.0f, 1e-7f};
+    const c2bound::FitBox tiny = c2bound::FitMinArea(tinyX, tinyZ, 2, c2bound::kPad);
+    const c2bound::FitBox tinyAxis = c2bound::FitBoxAlong(tinyX, tinyZ, 2, 1.0f, 0.0f, c2bound::kPad);
+    EXPECT_TRUE(std::isfinite(tiny.cx) && std::isfinite(tiny.cz));
+    EXPECT_FLOAT_EQ(tiny.Area(), tinyAxis.Area());
+    EXPECT_FLOAT_EQ(tiny.cos, 1.0f);
+    EXPECT_FLOAT_EQ(tiny.sin, 0.0f);
 }
 
 TEST(BoundFit, MinAreaFitsTwoPointSegmentsAtArbitraryAngles) {
@@ -344,61 +346,105 @@ TEST(BoundFit, MinAreaFitsCollinearPointsWithDuplicates) {
     }
 }
 
-TEST(BoundFit, MinAreaKeepsSeedForSubToleranceSegments) {
-    // The existing edge-normalization guard must still avoid tiny divisors.
-    const float xs[2] = {0.0f, 2e-7f}, zs[2] = {0.0f, 1e-7f};
-    const c2bound::FitBox fit = c2bound::FitMinArea(xs, zs, 2, c2bound::kPad);
-    const c2bound::FitBox axis = c2bound::FitBoxAlong(xs, zs, 2, 1.0f, 0.0f, c2bound::kPad);
-    EXPECT_TRUE(std::isfinite(fit.cx) && std::isfinite(fit.cz));
-    EXPECT_FLOAT_EQ(fit.Area(), axis.Area());
-    EXPECT_FLOAT_EQ(fit.cos, 1.0f);
-    EXPECT_FLOAT_EQ(fit.sin, 0.0f);
-}
-
 // ===================== top-plane (slope) fit =====================
 
-TEST(BoundFit, TopPlaneFitsSlopedDeckAt30) {
+TEST(BoundFit, TopPlaneFitsSlopedAndFlatDecks) {
     // 30° planar top y = 100 + tan30°·u over a 2048 x 256 footprint.
-    const float grade = std::tan(30.0f * kDeg2Rad);
-    std::vector<float> us, vs, ys;
-    for (int i = 0; i < 33; ++i) {
-        for (int j = 0; j < 5; ++j) {
-            const float u = -1024.0f + 2048.0f * static_cast<float>(i) / 32.0f;
-            const float v = -128.0f + 256.0f * static_cast<float>(j) / 4.0f;
-            us.push_back(u);
-            vs.push_back(v);
-            ys.push_back(100.0f + grade * u);
+    {
+        const float grade = std::tan(30.0f * kDeg2Rad);
+        std::vector<float> us, vs, ys;
+        for (int i = 0; i < 33; ++i) {
+            for (int j = 0; j < 5; ++j) {
+                const float u = -1024.0f + 2048.0f * static_cast<float>(i) / 32.0f;
+                const float v = -128.0f + 256.0f * static_cast<float>(j) / 4.0f;
+                us.push_back(u);
+                vs.push_back(v);
+                ys.push_back(100.0f + grade * u);
+            }
         }
+        const c2bound::TopPlane p = c2bound::FitTopPlane(
+            us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
+            c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
+        ASSERT_TRUE(p.ok);
+        EXPECT_NEAR(p.gx, grade, 1e-4f);
+        EXPECT_NEAR(p.gz, 0.0f, 1e-4f);
+        EXPECT_NEAR(p.c0, 100.0f, 0.1f);
     }
-    const c2bound::TopPlane p = c2bound::FitTopPlane(
-        us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
-        c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
-    ASSERT_TRUE(p.ok);
-    EXPECT_NEAR(p.gx, grade, 1e-4f);
-    EXPECT_NEAR(p.gz, 0.0f, 1e-4f);
-    EXPECT_NEAR(p.c0, 100.0f, 0.1f);
+
+    // Flat top at zero grade: selectable, but below kSlopeMinGrade the
+    // producer collapses back to the legacy flat box.
+    {
+        std::vector<float> us, vs, ys;
+        for (int i = 0; i < 20; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                us.push_back(-500.0f + 50.0f * static_cast<float>(i));
+                vs.push_back(-100.0f + 50.0f * static_cast<float>(j));
+                ys.push_back(64.0f);
+            }
+        }
+        const c2bound::TopPlane p = c2bound::FitTopPlane(
+            us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
+            c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
+        ASSERT_TRUE(p.ok);
+        EXPECT_NEAR(p.gx, 0.0f, 1e-6f);
+        EXPECT_NEAR(p.gz, 0.0f, 1e-6f);
+        EXPECT_LT(std::sqrt(p.gx * p.gx + p.gz * p.gz), c2bound::kSlopeMinGrade);
+    }
 }
 
-TEST(BoundFit, TopPlaneAcceptsFlatTopAtZeroGrade) {
-    std::vector<float> us, vs, ys;
-    for (int i = 0; i < 20; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            us.push_back(-500.0f + 50.0f * static_cast<float>(i));
-            vs.push_back(-100.0f + 50.0f * static_cast<float>(j));
-            ys.push_back(64.0f);
+TEST(BoundFit, TopPlaneFitsTiltedSlabsWithUnderSurfaceFringe) {
+    // A 30°-pitched slab with top AND bottom faces. The bottom face's
+    // projection fringes past the top at the high end; without the trimmed
+    // fit those cells rejected every slab that has a bottom face.
+    const float c30 = std::cos(30.0f * kDeg2Rad);
+    const float s30 = std::sin(30.0f * kDeg2Rad);
+    const float L = 1500.0f, W = 400.0f, T = 96.0f;
+    {
+        std::vector<float> us, vs, ys;
+        const float yRows[2] = {0.0f, T};
+        for (float yLocal : yRows) {
+            for (float sx : {-1.0f, 1.0f}) {
+                for (float sz : {-1.0f, 1.0f}) {
+                    const float x = sx * L * 0.5f;
+                    us.push_back(x * c30 - yLocal * s30);
+                    vs.push_back(sz * W * 0.5f);
+                    ys.push_back(x * s30 + yLocal * c30);
+                }
+            }
         }
+        const c2bound::TopPlane p = c2bound::FitTopPlane(
+            us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
+            c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
+        ASSERT_TRUE(p.ok);
+        EXPECT_NEAR(p.gx, std::tan(30.0f * kDeg2Rad), 1e-3f);
+        EXPECT_NEAR(p.gz, 0.0f, 1e-3f);
     }
-    const c2bound::TopPlane p = c2bound::FitTopPlane(
-        us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
-        c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
-    ASSERT_TRUE(p.ok);
-    EXPECT_NEAR(p.gx, 0.0f, 1e-6f);
-    EXPECT_NEAR(p.gz, 0.0f, 1e-6f);
-    // Below kSlopeMinGrade the producer collapses back to the legacy flat box.
-    EXPECT_LT(std::sqrt(p.gx * p.gx + p.gz * p.gz), c2bound::kSlopeMinGrade);
+
+    // Same slab tessellated on both faces: the under-surface fringe is a
+    // full bucket row here; the trimmed fit must still recover the plane.
+    {
+        std::vector<float> us, vs, ys;
+        const float yRows[2] = {0.0f, T};
+        for (float yLocal : yRows) {
+            for (int i = 0; i <= 16; ++i) {
+                for (int j = 0; j <= 4; ++j) {
+                    const float x = -L * 0.5f + L * static_cast<float>(i) / 16.0f;
+                    us.push_back(x * c30 - yLocal * s30);
+                    vs.push_back(-W * 0.5f + W * static_cast<float>(j) / 4.0f);
+                    ys.push_back(x * s30 + yLocal * c30);
+                }
+            }
+        }
+        const c2bound::TopPlane p = c2bound::FitTopPlane(
+            us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
+            c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
+        ASSERT_TRUE(p.ok);
+        EXPECT_NEAR(p.gx, std::tan(30.0f * kDeg2Rad), 1e-3f);
+        EXPECT_NEAR(p.gz, 0.0f, 1e-3f);
+    }
 }
 
-TEST(BoundFit, TopPlaneRejectsSteepNonPlanarAndDegenerateTops) {
+TEST(BoundFit, TopPlaneRejectsSteepSpikedCollinearAndCurvedTops) {
     // 65° from horizontal exceeds the tan-60° grade cap (planar, 2D spread).
     {
         const float steep = std::tan(65.0f * kDeg2Rad);
@@ -444,13 +490,31 @@ TEST(BoundFit, TopPlaneRejectsSteepNonPlanarAndDegenerateTops) {
             c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
         EXPECT_FALSE(p.ok);
     }
+    // A hemisphere-like top: trimming cannot rescue it, and the majority
+    // guard / residual gate must reject it so organic parts stay flat.
+    {
+        const float R = 300.0f, span = 1200.0f;
+        std::vector<float> us, vs, ys;
+        for (int i = 0; i <= 24; ++i) {
+            for (int j = 0; j <= 24; ++j) {
+                const float nx = static_cast<float>(i) / 24.0f - 0.5f;
+                const float nz = static_cast<float>(j) / 24.0f - 0.5f;
+                const float rn = std::min(1.0f, std::sqrt(nx * nx + nz * nz) * 2.0f / 0.9f);
+                us.push_back(nx * span);
+                vs.push_back(nz * span);
+                ys.push_back(std::sqrt(std::max(0.0f, 1.0f - rn * rn)) * R);
+            }
+        }
+        const c2bound::TopPlane p = c2bound::FitTopPlane(
+            us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
+            c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
+        EXPECT_FALSE(p.ok);
+    }
 }
 
-TEST(BoundFit, TopAtEvaluatesTheSurfacePlane) {
+TEST(BoundFit, TopAtAndLocalOfReadTheFittedFrame) {
     EXPECT_FLOAT_EQ(c2bound::TopAt(100.0f, 0.5f, -0.25f, 8.0f, 4.0f), 103.0f);
-}
 
-TEST(BoundFit, LocalOfMatchesTheBoxFrameUnderMapRotation) {
     // A 45°-fitted box viewed at map rotation 1: the model-space point
     // (1000·c, 1000·s) lands at R1(p) = (1000·s, -1000·c) and must read back
     // as the pure u coordinate.
@@ -465,78 +529,4 @@ TEST(BoundFit, LocalOfMatchesTheBoxFrameUnderMapRotation) {
     c2bound::LocalOf(300.0f, 0.0f, 0.0f, 0.0f, 100.0f, 0.0f, 1.0f, 0.0f, 0, qx, qy);
     EXPECT_FLOAT_EQ(qx, 200.0f);
     EXPECT_FLOAT_EQ(qy, 0.0f);
-}
-
-TEST(BoundFit, TopPlaneIgnoresUnderSurfaceFringeOfATiltedSlab) {
-    // A 30°-pitched slab with top AND bottom faces. The bottom face's
-    // projection fringes past the top at the high end; without the trimmed
-    // fit those cells rejected every slab that has a bottom face.
-    const float c30 = std::cos(30.0f * kDeg2Rad);
-    const float s30 = std::sin(30.0f * kDeg2Rad);
-    const float L = 1500.0f, W = 400.0f, T = 96.0f;
-    std::vector<float> us, vs, ys;
-    const float yRows[2] = {0.0f, T};
-    for (float yLocal : yRows) {
-        for (float sx : {-1.0f, 1.0f}) {
-            for (float sz : {-1.0f, 1.0f}) {
-                const float x = sx * L * 0.5f;
-                us.push_back(x * c30 - yLocal * s30);
-                vs.push_back(sz * W * 0.5f);
-                ys.push_back(x * s30 + yLocal * c30);
-            }
-        }
-    }
-    const c2bound::TopPlane p = c2bound::FitTopPlane(
-        us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
-        c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
-    ASSERT_TRUE(p.ok);
-    EXPECT_NEAR(p.gx, std::tan(30.0f * kDeg2Rad), 1e-3f);
-    EXPECT_NEAR(p.gz, 0.0f, 1e-3f);
-}
-
-TEST(BoundFit, TopPlaneFitsTessellatedTiltedSlab) {
-    // Same slab tessellated on both faces: the under-surface fringe is a
-    // full bucket row here; the trimmed fit must still recover the plane.
-    const float c30 = std::cos(30.0f * kDeg2Rad);
-    const float s30 = std::sin(30.0f * kDeg2Rad);
-    const float L = 1500.0f, W = 400.0f, T = 96.0f;
-    std::vector<float> us, vs, ys;
-    const float yRows[2] = {0.0f, T};
-    for (float yLocal : yRows) {
-        for (int i = 0; i <= 16; ++i) {
-            for (int j = 0; j <= 4; ++j) {
-                const float x = -L * 0.5f + L * static_cast<float>(i) / 16.0f;
-                us.push_back(x * c30 - yLocal * s30);
-                vs.push_back(-W * 0.5f + W * static_cast<float>(j) / 4.0f);
-                ys.push_back(x * s30 + yLocal * c30);
-            }
-        }
-    }
-    const c2bound::TopPlane p = c2bound::FitTopPlane(
-        us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
-        c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
-    ASSERT_TRUE(p.ok);
-    EXPECT_NEAR(p.gx, std::tan(30.0f * kDeg2Rad), 1e-3f);
-    EXPECT_NEAR(p.gz, 0.0f, 1e-3f);
-}
-
-TEST(BoundFit, TopPlaneRejectsCurvedDome) {
-    // A hemisphere-like top: trimming cannot rescue it, and the majority
-    // guard / residual gate must reject it so organic parts stay flat.
-    const float R = 300.0f, span = 1200.0f;
-    std::vector<float> us, vs, ys;
-    for (int i = 0; i <= 24; ++i) {
-        for (int j = 0; j <= 24; ++j) {
-            const float nx = static_cast<float>(i) / 24.0f - 0.5f;
-            const float nz = static_cast<float>(j) / 24.0f - 0.5f;
-            const float rn = std::min(1.0f, std::sqrt(nx * nx + nz * nz) * 2.0f / 0.9f);
-            us.push_back(nx * span);
-            vs.push_back(nz * span);
-            ys.push_back(std::sqrt(std::max(0.0f, 1.0f - rn * rn)) * R);
-        }
-    }
-    const c2bound::TopPlane p = c2bound::FitTopPlane(
-        us.data(), vs.data(), ys.data(), static_cast<int>(us.size()),
-        c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade);
-    EXPECT_FALSE(p.ok);
 }

@@ -197,7 +197,7 @@ TEST_F(ObjectBoundsTest, UndersideWorksWithoutOrientedFootprintFitting) {
                 kBaseY + std::tan(30.0f * kRadians) * 400.0f, 0.2f);
 }
 
-TEST_F(ObjectBoundsTest, DisabledSlopeAndFlatSlabsKeepLegacyLimits) {
+TEST_F(ObjectBoundsTest, DisabledSlopeAndRebuildsClearOldSurfaceGradients) {
     for (float pitch : {0.0f, 30.0f}) {
         auto model = ModelOf(SlabPoints(pitch, 0.0f, 16));
         TBound legacy[8]{}, enabled[8]{};
@@ -218,9 +218,10 @@ TEST_F(ObjectBoundsTest, DisabledSlopeAndFlatSlabsKeepLegacyLimits) {
             EXPECT_FLOAT_EQ(enabled[0].bottomGz, 0.0f);
         }
     }
-}
 
-TEST_F(ObjectBoundsTest, RebuildingWithSlopeDisabledClearsOldSurfaceGradients) {
+    // Rebuilding with the slope mode off must clear gradients a previous fit
+    // left on the same record.
+    OptBoundBoxSlope = 1;
     auto model = ModelOf(SlabPoints(30.0f, 30.0f, 16));
     TBound bounds[8]{};
     CalcBoundBox(model.get(), bounds);
@@ -260,7 +261,7 @@ TEST_F(ObjectBoundsTest, PartsAndHiddenVerticesDoNotContaminateEachOther) {
     for (int i = 1; i < 7; ++i) EXPECT_LT(bounds[i].a, 0.0f);
 }
 
-TEST_F(ObjectBoundsTest, CeilingPreservesStrictFootprintAndEqualityGates) {
+TEST_F(ObjectBoundsTest, CeilingPreservesStrictFootprintAndSelectsTheLowestValidPart) {
     TBound bounds[8]{};
     for (auto& b : bounds) b.a = -1.0f;
     bounds[0] = {0.0f, 0.0f, 100.0f, 100.0f, 500.0f, 700.0f,
@@ -281,55 +282,72 @@ TEST_F(ObjectBoundsTest, CeilingPreservesStrictFootprintAndEqualityGates) {
     CheckBoundCollision(x, z, 0.0f, 0.0f, 0.0f, bounds, 0);
     EXPECT_FLOAT_EQ(x, 0.0f);
     EXPECT_FLOAT_EQ(z, 0.0f);
+
+    // With two valid parts the ceiling is the lowest valid underside, with no
+    // arbitrary height cap.
+    TBound stacked[8]{};
+    for (auto& b : stacked) b.a = -1.0f;
+    stacked[0] = {0.0f, 0.0f, 100.0f, 100.0f, 1600.0f, 1800.0f,
+                  1.0f, 0.0f, 0.5f, 0.0f, 0.5f, 0.0f};
+    stacked[7] = stacked[0];
+    stacked[7].y1 = 1200.0f;
+    stacked[7].y2 = 1400.0f;
+    PlayerY = 800.0f;
+    ASSERT_TRUE(PointUnBound(ceiling, 50.0f, 0.0f, 0.0f, 0.0f, 0.0f, stacked, 0));
+    EXPECT_FLOAT_EQ(ceiling, 1225.0f);
 }
 
-TEST_F(ObjectBoundsTest, LowerPlaneCanFitWhenUpperPlaneIsRejected) {
-    auto points = LayerPoints(0.5f, 0.0f, 0.5f, 0.0f);
-    points.push_back({0.0f, 2000.0f, 0.0f, 0, 0}); // upper spike only
-    auto model = ModelOf(points);
-    TBound bounds[8]{};
-    CalcBoundBox(model.get(), bounds);
-    EXPECT_FLOAT_EQ(bounds[0].gx, 0.0f);
-    EXPECT_FLOAT_EQ(bounds[0].gz, 0.0f);
-    EXPECT_FLOAT_EQ(bounds[0].y2, 2000.0f);
-    EXPECT_NEAR(bounds[0].bottomGx, 0.5f, 1e-4f);
-    EXPECT_NEAR(bounds[0].bottomGz, 0.0f, 1e-4f);
+TEST_F(ObjectBoundsTest, UpperPlaneRejectionAndLowerSpikeKeepTheOtherSurface) {
+    {
+        auto points = LayerPoints(0.5f, 0.0f, 0.5f, 0.0f);
+        points.push_back({0.0f, 2000.0f, 0.0f, 0, 0}); // upper spike only
+        auto model = ModelOf(points);
+        TBound bounds[8]{};
+        CalcBoundBox(model.get(), bounds);
+        EXPECT_FLOAT_EQ(bounds[0].gx, 0.0f);
+        EXPECT_FLOAT_EQ(bounds[0].gz, 0.0f);
+        EXPECT_FLOAT_EQ(bounds[0].y2, 2000.0f);
+        EXPECT_NEAR(bounds[0].bottomGx, 0.5f, 1e-4f);
+        EXPECT_NEAR(bounds[0].bottomGz, 0.0f, 1e-4f);
+    }
+    // A lower spike must not reject a good top; the flat minimum is kept.
+    {
+        auto points = LayerPoints(0.5f, 0.0f, 0.5f, 0.0f);
+        points.push_back({0.0f, 100.0f, 0.0f, 0, 0});
+        auto model = ModelOf(points);
+        TBound bounds[8]{};
+        CalcBoundBox(model.get(), bounds);
+        EXPECT_FLOAT_EQ(bounds[0].bottomGx, 0.0f);
+        EXPECT_FLOAT_EQ(bounds[0].bottomGz, 0.0f);
+        EXPECT_FLOAT_EQ(bounds[0].y1, 100.0f);
+        EXPECT_NEAR(bounds[0].gx, 0.5f, 1e-4f);
+    }
 }
 
-TEST_F(ObjectBoundsTest, LowerSpikeRetainsFlatMinimumWithoutRejectingGoodTop) {
-    auto points = LayerPoints(0.5f, 0.0f, 0.5f, 0.0f);
-    points.push_back({0.0f, 100.0f, 0.0f, 0, 0});
-    auto model = ModelOf(points);
-    TBound bounds[8]{};
-    CalcBoundBox(model.get(), bounds);
-    EXPECT_FLOAT_EQ(bounds[0].bottomGx, 0.0f);
-    EXPECT_FLOAT_EQ(bounds[0].bottomGz, 0.0f);
-    EXPECT_FLOAT_EQ(bounds[0].y1, 100.0f);
-    EXPECT_NEAR(bounds[0].gx, 0.5f, 1e-4f);
-}
-
-TEST_F(ObjectBoundsTest, RejectsUndersideThatCrossesTopOnlyAfterPadding) {
-    auto points = LayerPoints(0.75f, 0.0f, 0.0f, 0.0f);
-    for (auto& p : points) if (p.y == 1000.0f) p.y = 900.0f;
-    auto model = ModelOf(points);
-    TBound bounds[8]{};
-    CalcBoundBox(model.get(), bounds);
+TEST_F(ObjectBoundsTest, UndersideOrderingGatesKeepLegacyMinimums) {
     // Bottom <= 875 on the real mesh, but exceeds 900 when extrapolated
     // to the padded right edge. The whole-footprint order guard rejects it.
-    EXPECT_FLOAT_EQ(bounds[0].bottomGx, 0.0f);
-    EXPECT_FLOAT_EQ(bounds[0].bottomGz, 0.0f);
-    EXPECT_FLOAT_EQ(bounds[0].y1, 724.0f); // original first-vertex -1 rule
-    EXPECT_FLOAT_EQ(bounds[0].y2, 900.0f);
-}
-
-TEST_F(ObjectBoundsTest, FlatUndersideRetainsOriginalMinimumUnderSlopedTop) {
-    auto model = ModelOf(LayerPoints(0.0f, 0.0f, 0.5f, 0.0f));
-    TBound bounds[8]{};
-    CalcBoundBox(model.get(), bounds);
-    EXPECT_FLOAT_EQ(bounds[0].bottomGx, 0.0f);
-    EXPECT_FLOAT_EQ(bounds[0].bottomGz, 0.0f);
-    EXPECT_FLOAT_EQ(bounds[0].y1, 799.0f);
-    EXPECT_NEAR(bounds[0].gx, 0.5f, 1e-4f);
+    {
+        auto points = LayerPoints(0.75f, 0.0f, 0.0f, 0.0f);
+        for (auto& p : points) if (p.y == 1000.0f) p.y = 900.0f;
+        auto model = ModelOf(points);
+        TBound bounds[8]{};
+        CalcBoundBox(model.get(), bounds);
+        EXPECT_FLOAT_EQ(bounds[0].bottomGx, 0.0f);
+        EXPECT_FLOAT_EQ(bounds[0].bottomGz, 0.0f);
+        EXPECT_FLOAT_EQ(bounds[0].y1, 724.0f); // original first-vertex -1 rule
+        EXPECT_FLOAT_EQ(bounds[0].y2, 900.0f);
+    }
+    // A flat underside keeps its original minimum under a sloped top.
+    {
+        auto model = ModelOf(LayerPoints(0.0f, 0.0f, 0.5f, 0.0f));
+        TBound bounds[8]{};
+        CalcBoundBox(model.get(), bounds);
+        EXPECT_FLOAT_EQ(bounds[0].bottomGx, 0.0f);
+        EXPECT_FLOAT_EQ(bounds[0].bottomGz, 0.0f);
+        EXPECT_FLOAT_EQ(bounds[0].y1, 799.0f);
+        EXPECT_NEAR(bounds[0].gx, 0.5f, 1e-4f);
+    }
 }
 
 TEST_F(ObjectBoundsTest, SteepOrCollinearSurfacesRetainLegacyLimits) {
@@ -351,7 +369,7 @@ TEST_F(ObjectBoundsTest, SteepOrCollinearSurfacesRetainLegacyLimits) {
     }
 }
 
-TEST_F(ObjectBoundsTest, WallClampsUndersideToFootprintBeforeMarginTest) {
+TEST_F(ObjectBoundsTest, WallUndersideClampsBeforeTheMarginTest) {
     TBound bounds[8]{};
     for (auto& b : bounds) b.a = -1.0f;
     bounds[0] = {0.0f, 0.0f, 100.0f, 100.0f, 500.0f, 900.0f,
@@ -361,30 +379,24 @@ TEST_F(ObjectBoundsTest, WallClampsUndersideToFootprintBeforeMarginTest) {
     CheckBoundCollision(x, z, 0.0f, 0.0f, 0.0f, bounds, 0);
     EXPECT_FLOAT_EQ(x, 102.0f);
     EXPECT_FLOAT_EQ(z, 0.0f);
+
+    // Even with a flat top, the wall test reads the underside plane.
+    PlayerY = 280.0f; // head at 536; underside at x=90 is 545
+    x = 90.0f;
+    z = 0.0f;
+    CheckBoundCollision(x, z, 0.0f, 0.0f, 0.0f, bounds, 0);
+    EXPECT_FLOAT_EQ(x, 90.0f);
+    EXPECT_FLOAT_EQ(z, 0.0f);
 }
 
-TEST_F(ObjectBoundsTest, CeilingSelectsLowestValidPartWithoutAnArbitraryHeightCap) {
-    TBound bounds[8]{};
-    for (auto& b : bounds) b.a = -1.0f;
-    bounds[0] = {0.0f, 0.0f, 100.0f, 100.0f, 1600.0f, 1800.0f,
-                 1.0f, 0.0f, 0.5f, 0.0f, 0.5f, 0.0f};
-    bounds[7] = bounds[0];
-    bounds[7].y1 = 1200.0f;
-    bounds[7].y2 = 1400.0f;
-    PlayerY = 800.0f;
-    float ceiling;
-    ASSERT_TRUE(PointUnBound(ceiling, 50.0f, 0.0f, 0.0f, 0.0f, 0.0f, bounds, 0));
-    EXPECT_FLOAT_EQ(ceiling, 1225.0f);
-}
-
-TEST(BoundSurfaces, PlaneOrderingChecksBothGradientsAcrossAllCorners) {
+TEST(BoundSurfaces, PlaneOrderingAndBottomEnvelopeHelpers) {
+    // PlaneOrdering checks both gradients across every footprint corner.
     EXPECT_TRUE(c2bound::PlanesOrdered(200.0f, 0.5f, 0.2f, 100.0f, 0.5f, 0.2f, 100.0f, 50.0f));
     EXPECT_FALSE(c2bound::PlanesOrdered(200.0f, 0.0f, 0.0f, 100.0f, 1.0f, 0.1f, 100.0f, 50.0f));
     EXPECT_TRUE(c2bound::PlanesOrdered(200.0f, 0.0f, 0.0f, 100.0f, 0.5f, 1.0f, 100.0f, 50.0f));
     EXPECT_FALSE(c2bound::PlanesOrdered(99.0f, 0.5f, 0.2f, 100.0f, 0.5f, 0.2f, 100.0f, 50.0f));
-}
 
-TEST(BoundSurfaces, BottomEnvelopeRecoversBothGradientSigns) {
+    // The bottom envelope recovers both gradient signs and rejects empty input.
     auto points = LayerPoints(0.25f, -0.2f, 0.0f, 0.0f);
     std::vector<float> us, vs, ys;
     for (const auto& p : points) { us.push_back(p.x); vs.push_back(p.z); ys.push_back(p.y); }
@@ -398,16 +410,4 @@ TEST(BoundSurfaces, BottomEnvelopeRecoversBothGradientSigns) {
     EXPECT_FLOAT_EQ(c2bound::BottomAt(800.0f, 0.25f, -0.2f, 40.0f, 50.0f), 800.0f);
     EXPECT_FALSE(c2bound::FitBottomPlane(nullptr, nullptr, nullptr, 0,
                  c2bound::kSlopeBucket, c2bound::kSlopeMaxResidual, c2bound::kSlopeMaxGrade).ok);
-}
-
-TEST_F(ObjectBoundsTest, WallUsesUndersideEvenWhenTopIsFlat) {
-    TBound bounds[8]{};
-    for (auto& b : bounds) b.a = -1.0f;
-    bounds[0] = {0.0f, 0.0f, 100.0f, 100.0f, 500.0f, 900.0f,
-                 1.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f};
-    PlayerY = 280.0f; // head at 536; underside at x=90 is 545
-    float x = 90.0f, z = 0.0f;
-    CheckBoundCollision(x, z, 0.0f, 0.0f, 0.0f, bounds, 0);
-    EXPECT_FLOAT_EQ(x, 90.0f);
-    EXPECT_FLOAT_EQ(z, 0.0f);
 }
