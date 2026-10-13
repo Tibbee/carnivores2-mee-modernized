@@ -1,6 +1,6 @@
 # Consolidation Pass — C2 MEE
 
-> **Last verified:** 2026-10-13 — Phase 0 baseline and Phase 1 inventory complete; WS1 slices landed (see Progress log).
+> **Last verified:** 2026-10-13 — WS1 complete (1a-1g); four-preset checkpoint green (see Progress log).
 > **Branch:** `refactor/consolidation-pass`, worktree `Carnivores2MEE1.11/build/consolidation-pass`, based on `feat/modder-workbench` @ `4d05faa`.
 > **Status:** in progress. Owner approved the plan and the deletion of the disabled-species animation bundle. Only the Progress log and the task list below are authoritative for what is done; the ranked estimates come from the Phase 1 hunts.
 
@@ -41,13 +41,13 @@ additions, CI-contract changes and deletions of files with unclear provenance.
 
 | # | Item | Est. | State |
 |---|---|---:|---|
-| 1a | Disabled-species animation bundle: `AnimateMicro/Titan/Poacher/Huntdog/huntDogSearch` + CMake entries + fwd decls | ~1,774 | **approved**, see Progress |
-| 1b | 12 functions with no caller (`ModelLoader.cpp:72,103,126,175,187,583`; `Resources.cpp:1065,1072`; `Interface.cpp:48,63`; `TerrainQueries.cpp:12`; `SoftWater.cpp:34`; `SoftTerrain.cpp:538`) | ~196 | pending |
+| 1a | Disabled-species animation bundle: `AnimateMicro/Titan/Poacher/Huntdog/huntDogSearch` + CMake entries + fwd decls | ~1,774 | **done** — `9ff0122` |
+| 1b | 12 functions with no caller (`ModelLoader.cpp:72,103,126,175,187,583`; `Resources.cpp:1065,1072`; `Interface.cpp:48,63`; `TerrainQueries.cpp:12`; `SoftWater.cpp:34`; `SoftTerrain.cpp:538`) | ~196 | **done** — `f3b60a3` |
 | 1c | `_d3d`/`_3dfx`/`__rus` dead branches + no-op alpha-flag scaffold | ~110 | **done** — `376daeb` |
 | 1d | Dead targeting/pack helpers (`CharacterTargeting.cpp:80,119,404`; `CharacterInternal.h:67,236,247`) | ~120 | **done** — `ca4c57e` |
 | 1e | Commented-out "Superseded" state defines (`Characters.cpp`) | ~159 | **done** — `183fcc1` |
 | 1f | Unused globals (`GameState.h:54,205,316,368,374,376,378,419`), dead declarations (`EngineAPI.h:95`, dup `:210/:304`; `Menu/Hunt.h:828`; `SoftInternal.h:88`; `NetworkManager.h:64-65`), split leftovers, unused `Hunt/Debug/Assert.h`, `Network.cpp` forwarding layer | ~120 | **done** — `a6ea274` |
-| 1g | Stale comments/docs (`Resources.cpp:1244` 1999 build string, `README.md:141` F10 claims, `CHANGELOG.md:20,84`, `docs/ARCHITECTURE.md:13,143-146`, `Projectiles.cpp:1-4` header) | docs | pending |
+| 1g | Stale comments/docs (`Resources.cpp:1244` 1999 build string, `README.md:141` F10 claims, `CHANGELOG.md:20,84`, `docs/ARCHITECTURE.md:13,143-146`, `Projectiles.cpp:1-4` header) | docs | **done** — `944ec20`, `3182616`, `a506ea4` |
 
 ### WS2 — Test-suite consolidation (686 → ~480 cases, ~20 clusters)
 
@@ -85,7 +85,7 @@ GLSL include refactor · config-scanner staging policy.
 
 1. **Trophy filename divergence at profile ≥10** — menu `trophy10.sav` (`Menu/Resources.cpp:1508`) vs engine `trophy010.sav` (`Trophy.cpp:383`); reachable via the `reg=` command-line option (menu UI is profiles 0-7). Classified: partial-launch/latent.
 2. `g_KeyNames[256]` definition vs `extern char g_KeyNames[128]` (`Menu/Hunt.h:857/998`) — declaration-size mismatch; unverified, needs a look.
-3. `CreateLog` prints "Build v2.04. Sep.24 1999" (`Hunt/Loaders/Resources.cpp:1244`) — intentional legacy or fix?
+3. `CreateLog` prints "Build v2.04. Sep.24 1999" (`Hunt/Loaders/Resources.cpp:1244`) — intentional legacy or fix? **Resolved 2026-10-13:** owner chose replace; `3182616` now prints `VERSION_STRING` from `Core/Version.h`.
 4. **Line-ending anomaly** — 7 files carry doubled-CR (`\r\r\n`) endings in committed blobs (CharacterCollision 682, CharacterTargeting 505, Trophy 444, Projectiles 397, Ships 359, CharacterMovement 173, Vector 150), and this environment runs `core.autocrlf=true` against mixed-normalization blobs. Handling for this pass: stage affected files byte-faithfully (`git hash-object -w --no-filters` + `git update-index --cacheinfo`) and verify `git diff --cached --stat` shows the intended minimal diff. A repo-wide normalization pass is proposed as a separate owner-approved item — not silently done here.
 
 ## Progress log
@@ -106,3 +106,11 @@ GLSL include refactor · config-scanner staging policy.
 - `ca4c57e` refactor(hunt): remove dead targeting and pack helpers — deleted SetNewTargetPlace_IcthOld, SetNewTargetPlaceVanilla and SetNewTargetPlaceMosasaurus, the unused inline GetAngleDifference/AnimatePackFollow/AnimatePackFollowSq helpers and their orphaned comments; `CharacterTargeting.cpp` staged byte-faithfully (doubled-CR preserved, deletions only). ogl-debug build and ctest 16/16.
 - `a6ea274` refactor(hunt): remove unused globals, dead declarations and network wrappers — 11 unused `GameState.h` globals, 20 duplicate + 1 redundant `EngineAPI.h` declarations, the empty split-scaffolding sections (Textures/ScoreMod/FiringMode notes moved onto their declarations in `GameState.h`), the `Network.cpp` forwarding layer replaced by direct `g_Network` calls, and the unused `Hunt/Debug/Assert.h`, `NetworkGet/NetworkPost`, `RenderBMPModel2` and `StartupServer/StartupClient` declarations; `docs/ARCHITECTURE.md` tree updated. 12 files, −228 lines. ogl-debug build and ctest 16/16.
 - Next slices: 1g (stale comments/docs), then WS2 clusters, then WS3/W4. Four-preset checkpoint pending once 1g completes WS1.
+
+### 2026-10-13 — WS1 slice 7 (1g) + WS1 checkpoint
+
+- `944ec20` docs(repo): fix stale F10 and layout descriptions — README/DEBUGGING now describe the native OpenGL workbench and the software legacy panel; `docs/ARCHITECTURE.md` drops the "Core/ headers only" claim (StateDefs.cpp) and refreshes the split counts (Characters 427, Hunt 1,944, 13 animation files, 360-line dispatcher, 9 Soft*.cpp, 3,906 lines); `Projectiles.cpp` gets a normal three-line banner (byte-faithful staging, mixed endings preserved). ogl-debug build and ctest 16/16.
+- `3182616` fix(log): report the modernized build version — `CreateLog` prints `VERSION_STRING` (1.1.9.1) instead of "Build v2.04. Sep.24 1999" (owner call, closes defect #3). ogl-debug build and ctest 16/16.
+- `a506ea4` docs(repo): refresh the stale changelog refs — origin/main pinned as `81fe90b`, workbench preview branch head as `4d05faa` (owner call); historical post-tag `9db51ec` references left alone. CHANGELOG:20,84 re-verified as dated history otherwise.
+- WS1 checkpoint (completes 1c-1g group): all four presets configure and build clean (ogl-release, soft-release, menu-release re-run; ogl-debug current). ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Comment hygiene clean (263 files scanned). Release flags clean (`/GS`, no `/GS-`) in ogl-release and soft-release. clang-tidy not installed locally (CI-only check).
+- Next slices: WS2 test-suite clusters, then WS3 unified implementations, then WS4 build/tooling. Owner decisions still open: menu `SaveConfig` unification, trophy format/filename fix, packaging Python dependency, `C2_BUILD_TESTS` trade, PGO removal/labelling, `comments.py` delete vs document, GLSL include refactor, config-scanner staging policy.
