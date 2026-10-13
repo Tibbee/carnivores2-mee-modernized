@@ -346,6 +346,40 @@ TEST(AIBehaviorMathTest, SpeciesAggressMultiOverrideWinsWhenPresent)
     EXPECT_EQ(EffectiveAggressMulti(-4, 8), 8);
 }
 
+TEST(AIBehaviorMathTest, LegacyBrachiosaurusRangeBelongsToDangerousSlots)
+{
+    EXPECT_TRUE(UsesLegacyBrachiosaurusAggressionRange(AI_BRACHDANGER));
+    EXPECT_TRUE(UsesLegacyBrachiosaurusAggressionRange(AI_LANDBRACH));
+    EXPECT_FALSE(UsesLegacyBrachiosaurusAggressionRange(AI_BRACH));
+    EXPECT_FALSE(UsesLegacyBrachiosaurusAggressionRange(AI_BRONT));
+    EXPECT_FALSE(UsesLegacyBrachiosaurusAggressionRange(AI_ALLO));
+    for (int clone = 0; clone < 64; ++clone)
+        EXPECT_EQ(UsesLegacyBrachiosaurusAggressionRange(clone),
+                  clone == AI_BRACHDANGER || clone == AI_LANDBRACH);
+}
+
+TEST(AIBehaviorMathTest, DangerousBrachiosaurusRetainsAuthoredAggressionRange)
+{
+    // Deployed Brontosaurus (35) and Amphicoelias (34). Their AIInfo
+    // multipliers are zero, so using the generic formula reduced the range
+    // to just OptAgres / 8 and made ordinary surviving hits cause flight.
+    EXPECT_FLOAT_EQ(LegacyBrachiosaurusAggressionRange(64, 128), 8208.0f);
+    EXPECT_FLOAT_EQ(LegacyBrachiosaurusAggressionRange(85, 128), 10896.0f);
+    EXPECT_FLOAT_EQ(LegacyBrachiosaurusAggressionRange(64, 0), 8192.0f);
+    EXPECT_FLOAT_EQ(LegacyBrachiosaurusAggressionRange(0, 128), 16.0f);
+
+    for (int aggression : {64, 85}) {
+        const float eventRange = LegacyBrachiosaurusAggressionRange(aggression, 128)
+            * kHunterEventRangeScale;
+        EXPECT_FALSE(ShouldFleeFromHunterEvent(aggression, false, 5000.0f, eventRange));
+        EXPECT_FALSE(ShouldFleeFromHunterEvent(aggression, false, eventRange, eventRange));
+        EXPECT_TRUE(ShouldFleeFromHunterEvent(aggression, false, eventRange + 1.0f, eventRange));
+        // Defensive-at-full-health and passive animals still flee.
+        EXPECT_TRUE(ShouldFleeFromHunterEvent(aggression, true, 5000.0f, eventRange));
+        EXPECT_TRUE(ShouldFleeFromHunterEvent(0, false, 10.0f, eventRange));
+    }
+}
+
 TEST(AIBehaviorMathTest, HunterStimulusEligibilityRules)
 {
     // Gunshots: aquatic species ignore them, except the T-Rex; the hunt dog

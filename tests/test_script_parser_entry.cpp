@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "Hunt.h"
+#include "Game/CharacterInternal.h"
 #include "Loaders/LoadDiagnostics.h"
 
 // Production entry points defined in Hunt/Loaders/ScriptParser.cpp.
@@ -282,6 +283,38 @@ protected:
 };
 
 }  // namespace
+
+TEST(BrachiosaurusRangeContractTest, ProductionRangeUsesDangerousSlotsWithoutCloneDefaults)
+{
+    const TDinoInfo savedDino = DinoInfo[0];
+    const int savedOverride = DinoAggressMulti[0];
+    const int savedOption = OptAgres;
+    OptAgres = 128;
+    DinoInfo[0] = {};
+    TCharacter character = {};
+    character.CType = 0;
+
+    for (int clone : {AI_BRACHDANGER, AI_LANDBRACH}) {
+        const TAIInfo savedBehavior = AIInfo[clone];
+        AIInfo[clone] = {};
+        character.Clone = clone;
+        DinoInfo[0].aggress = clone == AI_LANDBRACH ? 64 : 85;
+        const float expected = clone == AI_LANDBRACH ? 8208.0f : 10896.0f;
+        for (int overrideValue : {0, 7}) {
+            DinoAggressMulti[0] = overrideValue;
+            EXPECT_FLOAT_EQ(GetCharacterAggressionRange(&character), expected);
+            const float eventRange = GetCharacterHunterEventRange(&character);
+            EXPECT_FLOAT_EQ(eventRange, expected * kHunterEventRangeScale);
+            EXPECT_FALSE(ShouldFleeFromHunterEvent(DinoInfo[0].aggress, false,
+                                                   5000.0f, eventRange));
+        }
+        AIInfo[clone] = savedBehavior;
+    }
+
+    DinoInfo[0] = savedDino;
+    DinoAggressMulti[0] = savedOverride;
+    OptAgres = savedOption;
+}
 
 TEST_F(ScriptPolicyTest, LegacyScalarCorpusLoadsWithoutDiagnostics)
 {

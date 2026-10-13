@@ -143,6 +143,19 @@ inline int EffectiveAggressMulti(int speciesOverride, int cloneDefault)
     return speciesOverride >= 1 ? speciesOverride : cloneDefault;
 }
 
+// AnimateBrahi owns the dangerous sauropods, not the passive classic slot.
+// These families historically used a fixed multiplier rather than AIInfo.
+inline bool UsesLegacyBrachiosaurusAggressionRange(int clone)
+{
+    return clone == AI_BRACHDANGER || clone == AI_LANDBRACH;
+}
+
+inline float LegacyBrachiosaurusAggressionRange(int aggression,
+                                               int optionAggression)
+{
+    return 128.0f * aggression + optionAggression / 8.0f;
+}
+
 // A tracking pack member publishes its own position as the pack's hunt
 // anchor. The anchor is fresh while the tracker keeps reporting; once it goes
 // stale the pack falls back to the leader position. reportedAt == 0 means no
