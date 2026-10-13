@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <fstream>
 #include "Core/ConfigParse.h"
+#include "Core/ConfigPath.h"
 #include "Core/ConfigText.h"
 #include "Core/TerrainMip.h"
 #include "Core/WaterWaveFade.h"
@@ -287,15 +288,13 @@ void InitGameInfo()
 
 static void CreateDefaultConfig();
 static void LoadConfig();
-static void GetConfigPath(char* buf, size_t bufsz);
 
 // The load policy must be known before InitGameInfo() parses _RES.TXT.
 // config.cfg is re-read here for just this key (the full LoadConfig() runs
 // later in InitEngine); C2_STRICT_DATA overrides it for CI/mod authoring.
 static void LoadLoadPolicy()
 {
-  char configPath[MAX_PATH];
-  GetConfigPath(configPath, sizeof(configPath));
+  const std::string configPath = configpath::ResolveReadPath();
 
   std::ifstream input(configPath, std::ios::binary);
   if (input)
@@ -736,61 +735,26 @@ void MakeCall()
   }
 
 }
-static void GetConfigPath(char* buf, size_t bufsz)
-{
-  // Try EXE directory first
-  char mod[MAX_PATH];
-  DWORD len = GetModuleFileNameA(nullptr, mod, sizeof(mod));
-  if (len > 0 && len < sizeof(mod)) {
-    char* sep = strrchr(mod, '\\');
-    if (sep) {
-      *(sep + 1) = '\0';
-      strcat_s(mod, sizeof(mod), "config.cfg");
-      if (GetFileAttributesA(mod) != INVALID_FILE_ATTRIBUTES) {
-        strcpy_s(buf, bufsz, mod);
-        return;
-      }
-    }
-  }
-  // Fall back to CWD
-  strcpy_s(buf, bufsz, "config.cfg");
-}
-
 // Read-only accessor for the same resolution the loader uses. The workbench
 // writes back to the file the engine reads instead of guessing a path.
 void GetEngineConfigPath(char* buf, size_t bufsz)
 {
-  GetConfigPath(buf, bufsz);
+  const std::string path = configpath::ResolveReadPath();
+  strcpy_s(buf, bufsz, path.c_str());
 }
 
 // Create a default config.cfg with all available settings documented.
 // Called when no config file exists (first launch or manual deletion).
 static void CreateDefaultConfig()
 {
-  char configPath[MAX_PATH];
-
-  // Prefer EXE directory (shared with Carnivores2Menu), fall back to CWD
-  char mod[MAX_PATH];
-  DWORD len = GetModuleFileNameA(nullptr, mod, sizeof(mod));
-  char* writePath = configPath;
-  if (len > 0 && len < sizeof(mod)) {
-    char* sep = strrchr(mod, '\\');
-    if (sep) {
-      *(sep + 1) = '\0';
-      strcat_s(mod, sizeof(mod), "config.cfg");
-      writePath = mod;
-    }
-  }
-  if (writePath == configPath) {
-    strcpy_s(configPath, sizeof(configPath), "config.cfg");
-  }
+  const std::string writePath = configpath::ResolveWritePath();
 
   // Don't overwrite if file already exists (e.g. created by menu)
-  if (GetFileAttributesA(writePath) != INVALID_FILE_ATTRIBUTES) {
+  if (GetFileAttributesA(writePath.c_str()) != INVALID_FILE_ATTRIBUTES) {
     return;
   }
 
-  HANDLE hfile = CreateFileA(writePath, GENERIC_WRITE, 0, nullptr,
+  HANDLE hfile = CreateFileA(writePath.c_str(), GENERIC_WRITE, 0, nullptr,
                              CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (hfile == INVALID_HANDLE_VALUE) {
     return;
@@ -998,7 +962,7 @@ static void CreateDefaultConfig()
   if (len2 < 0 || static_cast<size_t>(len2) >= sizeof(buf)) {
     PrintLog("Config: default template exceeds the write buffer; config.cfg not written.\n");
     CloseHandle(hfile);
-    DeleteFileA(writePath);
+    DeleteFileA(writePath.c_str());
     return;
   }
 
@@ -1007,14 +971,13 @@ static void CreateDefaultConfig()
   CloseHandle(hfile);
 
   char msg[MAX_PATH + 64];
-  sprintf_s(msg, sizeof(msg), "Config: Created default config.cfg at %s\n", writePath);
+  sprintf_s(msg, sizeof(msg), "Config: Created default config.cfg at %s\n", writePath.c_str());
   PrintLog(msg);
 }
 
 static void LoadConfig()
 {
-  char configPath[MAX_PATH];
-  GetConfigPath(configPath, sizeof(configPath));
+  const std::string configPath = configpath::ResolveReadPath();
 
   std::ifstream input(configPath, std::ios::binary);
   if (!input) {

@@ -24,6 +24,7 @@
 #include <set>
 #include <vector>
 #include "../Hunt/Core/Flashlight.h"
+#include "Core/ConfigPath.h"
 #include "Core/ConfigText.h"
 #include "ListMath.h"
 #include "Loaders/LoadDiagnostics.h"
@@ -1223,14 +1224,12 @@ void LoadC2Maps()
 }
 
 
-static std::string GetConfigPath();
-
 // The menu parses _MENU.TXT/_RES.TXT before its own LoadConfig() runs, so the
 // load policy is applied here from config.cfg (`load_mode`) with the
 // C2_STRICT_DATA environment override. Default is lenient.
 static void InitMenuLoadPolicy()
 {
-	std::string configPath = GetConfigPath();
+	std::string configPath = configpath::ResolveReadPath();
 	std::ifstream fs(configPath);
 	if (fs.is_open()) {
 		std::string whole;
@@ -2023,45 +2022,11 @@ bool Picture::IsValid() const
 // not part of the legacy binary trophy format.
 // ================================================================
 
-// Resolve config.cfg relative to the EXE directory first, falling back
-// to the current working directory.  Both the Menu and the game engine
-// use the same strategy so they share the same file regardless of which
-// directory each EXE is launched from.
-static std::string GetConfigPath()
-{
-	char mod[MAX_PATH];
-	DWORD len = GetModuleFileNameA(nullptr, mod, sizeof(mod));
-	if (len > 0 && len < sizeof(mod)) {
-		char* sep = strrchr(mod, '\\');
-		if (sep) {
-			*(sep + 1) = '\0';
-			strcat_s(mod, sizeof(mod), "config.cfg");
-			if (GetFileAttributesA(mod) != INVALID_FILE_ATTRIBUTES)
-				return std::string(mod);
-		}
-	}
-	return "config.cfg";
-}
-
-static std::string GetConfigWritePath()
-{
-	char mod[MAX_PATH];
-	DWORD len = GetModuleFileNameA(nullptr, mod, sizeof(mod));
-	if (len > 0 && len < sizeof(mod)) {
-		char* sep = strrchr(mod, '\\');
-		if (sep) {
-			*(sep + 1) = '\0';
-			return std::string(mod) + "config.cfg";
-		}
-	}
-	return "config.cfg";
-}
-
 // Write the current settings to config.cfg (EXE-directory based, shared
 // with the game engine).
 void SaveConfig()
 {
-	std::string configPath = GetConfigWritePath();
+	std::string configPath = configpath::ResolveWritePath();
 
 	// Snapshot lines this build does not own (user comments, game-side
 	// envN_* audio keys, future keys) so the rewrite preserves them
@@ -2287,7 +2252,7 @@ static bool ParseConfigLine(const std::string& line)
 // If the file does not exist, write defaults (first-run migration).
 void LoadConfig()
 {
-	std::string configPath = GetConfigPath();
+	std::string configPath = configpath::ResolveReadPath();
 	std::ifstream fs(configPath);
 	if (!fs.is_open()) {
 		std::cout << "Config: " << configPath << " not found — writing defaults." << std::endl;
