@@ -90,11 +90,13 @@ GLSL include refactor · config-scanner staging policy.
 
 ## Progress log
 
-### 2026-10-13 — baseline + inventory + first slices
+### 2026-10-13 — baseline + inventory + WS1 slices 1-4
 
 - Phase 0 baseline recorded (above); four read-only inventory hunts run; ~12 top claims spot-checked against source.
 - `376daeb` refactor(hunt): remove dead D3D/3DFX branches and no-op alpha-flag scaffold — 8 files, −140 lines; all four presets build, ctest 16/16.
 - `183fcc1` refactor(hunt): drop superseded commented-out state defines — `Characters.cpp`, −161 lines; ogl-debug build and ctest 16/16.
+- `9ff0122` refactor(ai): remove disabled-species animations — 5 unreachable files plus call-site cleanup, −1,812 lines; all four presets build, ctest 16/16.
+- `f3b60a3` refactor(hunt): remove twelve functions with no remaining callers — 7 files, −211 lines; all four presets build, ctest 16/16.
 - Group checkpoint: comment hygiene clean (270 files); release flags clean (`/GS`, no `/GS-`); clang-tidy not installed locally (CI-only check).
-- Owner decisions recorded: plan approved; disabled-species bundle approved for deletion; pass record persisted as this file.
-- Next slices: 1a (species bundle), then 1b, 1d, 1f, 1g, then WS2 clusters, then WS3/W4.
+- Owner decisions recorded: plan approved; disabled-species bundle deleted (owner confirmed it was upstream in-progress content to be reimplemented differently if ever needed); pass record persisted as this file.
+- Next slices: 1d (dead targeting/pack helpers — note `CharacterTargeting.cpp` is one of the doubled-CR files, stage byte-faithfully), then 1f, 1g, then WS2 clusters, then WS3/W4.
