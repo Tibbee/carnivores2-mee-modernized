@@ -210,6 +210,8 @@ set(CORE_FILES
     Hunt/Workbench/TuningRuntime.h
     Hunt/Workbench/TuningRuntime.cpp
     Hunt/Workbench/CollisionInspection.cpp
+    Hunt/Workbench/ConfigPersistence.h
+    Hunt/Workbench/ConfigPersistence.cpp
     Hunt/Game/TerrainQueries.cpp
     Hunt/Game/ObjectBounds.cpp
     Hunt/Game/Ship.cpp
@@ -493,6 +495,7 @@ if(MSVC)
         tests/test_workbench_collision.cpp
         tests/test_workbench_config.cpp
         Hunt/Workbench/CollisionInspection.cpp
+        Hunt/Workbench/ConfigPersistence.cpp
         Hunt/Game/TerrainQueries.cpp
         Hunt/Game/ObjectBounds.cpp
         Hunt/Math/Vector.cpp
@@ -513,6 +516,7 @@ if(MSVC)
         add_executable(Carnivores2WorkbenchGPUTests
             tests/test_workbench_gpu.cpp
             Hunt/Workbench/CollisionInspection.cpp
+            Hunt/Workbench/ConfigPersistence.cpp
             Hunt/Game/TerrainQueries.cpp
             Hunt/Game/ObjectBounds.cpp
             Hunt/Math/Vector.cpp

@@ -1,5 +1,15 @@
 #include <gtest/gtest.h>
 #include "Core/ConfigMerge.h"
+#include "Workbench/ConfigPersistence.h"
+
+#include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <string>
+#include <vector>
 
 // The merge is the risky part of the W3 write path: it decides which bytes of a
 // hand-edited config.cfg survive a save. These cases pin the rules that follow
@@ -11,6 +21,7 @@
 // something else on a differently-configured working tree.
 namespace {
 using namespace configmerge;
+using namespace workbench;
 
 // A file with every shape the merge must leave alone, used by several cases.
 const std::string kAwkward =
@@ -308,4 +319,403 @@ TEST(ConfigMerge, SeveralKeysUpdateAndAppendInOnePass) {
 	EXPECT_EQ(result.report.changes[1].key, "night_moon_brightness");
 	EXPECT_EQ(result.report.changes[2].action, Action::Appended);
 	EXPECT_EQ(result.report.changes[2].key, "env0_decay");
+}
+
+// ---------------------------------------------------------------------------
+// The write protocol: what the panel does when the operator confirms a review.
+// These run against real files in the system temp directory. Each case gets its
+// own directory so a failure cannot be blamed on a neighbour.
+// ---------------------------------------------------------------------------
+
+namespace {
+namespace fs = std::filesystem;
+
+std::string ReadFileText(const std::string& path)
+{
+	std::ifstream input(path, std::ios::binary);
+	return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+}
+
+// The value the engine loader would take for a key: the second token of the LAST
+// line whose first token is not a comment and matches. Mirrors LoadConfig.
+std::string LoadedToken(const std::string& text, const std::string& key)
+{
+	std::string found;
+	std::size_t start = 0;
+	while (start <= text.size()) {
+		std::size_t end = text.find_first_of("\r\n", start);
+		if (end == std::string::npos) end = text.size();
+		std::string line = text.substr(start, end - start);
+		start = end + 1;
+		if (line.empty()) continue;
+		std::size_t first = line.find_first_not_of(" \t");
+		if (first == std::string::npos || line[first] == '#') continue;
+		std::size_t keyEnd = line.find_first_of(" \t", first);
+		if (keyEnd == std::string::npos) continue;
+		if (line.substr(first, keyEnd - first) != key) continue;
+		std::size_t valueBegin = line.find_first_not_of(" \t", keyEnd);
+		if (valueBegin == std::string::npos) continue;
+		std::size_t valueEnd = line.find_first_of(" \t", valueBegin);
+		found = line.substr(valueBegin, valueEnd == std::string::npos ? valueEnd : valueEnd - valueBegin);
+	}
+	return found;
+}
+
+class ConfigPersistence : public ::testing::Test {
+protected:
+	std::string dir;
+
+	void SetUp() override
+	{
+		dir = ::testing::TempDir() + "c2_w3_" + std::to_string(reinterpret_cast<std::uintptr_t>(this));
+		std::error_code ignored;
+		fs::remove_all(dir, ignored);
+		fs::create_directories(dir);
+	}
+	void TearDown() override
+	{
+		std::error_code ignored;
+		fs::remove_all(dir, ignored);
+	}
+
+	std::string Path(const std::string& name = "config.cfg") const { return dir + "/" + name; }
+	void Write(const std::string& path, const std::string& bytes) const
+	{
+		std::ofstream output(path, std::ios::binary | std::ios::trunc);
+		output.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+	}
+	bool Exists(const std::string& path) const { return fs::exists(path); }
+
+	// A captured session with one reverb field changed to 1.6.
+	static Session SessionWithEnv0Decay(float value)
+	{
+		Session session;
+		EXPECT_EQ(session.Capture(CompiledDefaults()), Error::None);
+		EXPECT_EQ(session.Edit(Parameter::Env0Decay, value), Error::None);
+		return session;
+	}
+};
+
+const std::string kOriginal = "renderer 1\r\nenv0_decay 1.490\r\n";
+} // namespace
+
+TEST_F(ConfigPersistence, PreviewReadsAndWritesNothing) {
+	const std::string path = Path();
+	Write(path, kOriginal);
+	auto session = SessionWithEnv0Decay(1.6f);
+
+	const auto preview = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(preview.ok()) << preview.message;
+	EXPECT_EQ(ReadFileText(path), kOriginal) << "a preview must not touch the file";
+	// GetFullPathNameA returns the native form, so compare identity rather than
+	// spelling: resolution must point at the same file it was given.
+	EXPECT_EQ(fs::weakly_canonical(preview.path), fs::weakly_canonical(path))
+		<< "an already-absolute path must survive resolution";
+	EXPECT_EQ(preview.bytesBefore, kOriginal.size());
+	// Replacing a value of equal width must not resize the file.
+	EXPECT_EQ(preview.bytesAfter, kOriginal.size());
+	EXPECT_NE(preview.merged, preview.source);
+	ASSERT_EQ(preview.fields.size(), 1u);
+	EXPECT_EQ(preview.fields[0].key, "env0_decay");
+	EXPECT_EQ(preview.fields[0].oldValue, "1.490");
+	EXPECT_EQ(preview.fields[0].newValue, "1.600");
+	EXPECT_FALSE(preview.fields[0].appended);
+	EXPECT_TRUE(preview.unpublishable.empty());
+}
+
+TEST_F(ConfigPersistence, ApplyWritesTheReviewedBytesAndKeepsTheOriginalAsABackup) {
+	const std::string path = Path();
+	Write(path, kOriginal);
+	auto session = SessionWithEnv0Decay(1.6f);
+
+	const auto preview = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(preview.ok()) << preview.message;
+	const auto write = ApplyConfigWrite(path, session, preview);
+	ASSERT_TRUE(write.ok()) << write.message;
+	EXPECT_EQ(write.keysWritten, 1u);
+	EXPECT_EQ(write.backup, ".before-workbench.bak");
+	EXPECT_EQ(ReadFileText(path), preview.merged);
+	EXPECT_EQ(ReadFileText(path + ".before-workbench.bak"), kOriginal);
+	EXPECT_FALSE(Exists(path + ".workbench.tmp")) << "the temp must not survive a clean save";
+}
+
+TEST_F(ConfigPersistence, WhatWasWrittenIsWhatTheLoaderWouldReadBack) {
+	const std::string path = Path();
+	Write(path, kOriginal);
+	auto session = SessionWithEnv0Decay(17.25f);
+
+	const auto preview = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(preview.ok()) << preview.message;
+	ASSERT_TRUE(ApplyConfigWrite(path, session, preview).ok());
+
+	// End to end: the token in the file must parse back to the edited value.
+	const std::string token = LoadedToken(ReadFileText(path), "env0_decay");
+	ASSERT_FALSE(token.empty());
+	float parsed = 0.f;
+	ASSERT_EQ(ParseValue(Parameter::Env0Decay, token, parsed), Error::None) << "token was " << token;
+	EXPECT_TRUE(SameValue(parsed, 17.25f)) << "token was " << token;
+}
+
+TEST_F(ConfigPersistence, ASecondSaveKeepsTheFirstBackup) {
+	const std::string path = Path();
+	Write(path, kOriginal);
+	auto session = SessionWithEnv0Decay(1.6f);
+	const auto first = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(first.ok()) << first.message;
+	ASSERT_TRUE(ApplyConfigWrite(path, session, first).ok());
+
+	ASSERT_EQ(session.Edit(Parameter::Env0Decay, 1.7f), Error::None);
+	const auto second = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(second.ok()) << second.message;
+	const auto write = ApplyConfigWrite(path, session, second);
+	ASSERT_TRUE(write.ok()) << write.message;
+	EXPECT_EQ(write.backup, ".before-workbench.1.bak");
+	// The first snapshot still holds the file as it was before any save.
+	EXPECT_EQ(ReadFileText(path + ".before-workbench.bak"), kOriginal);
+	EXPECT_EQ(ReadFileText(path + ".before-workbench.1.bak"), first.merged);
+}
+
+TEST_F(ConfigPersistence, AConcurrentEditBetweenReviewAndSaveRefuses) {
+	const std::string path = Path();
+	Write(path, kOriginal);
+	auto session = SessionWithEnv0Decay(1.6f);
+	const auto preview = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(preview.ok()) << preview.message;
+
+	const std::string someoneElse = std::string(kOriginal) + "fov 62\r\n";
+	Write(path, someoneElse);
+	const auto write = ApplyConfigWrite(path, session, preview);
+	EXPECT_EQ(write.refusal, PersistRefusal::FileMoved);
+	EXPECT_EQ(ReadFileText(path), someoneElse);
+	EXPECT_FALSE(Exists(path + ".before-workbench.bak")) << "a refusal must leave nothing behind";
+	EXPECT_FALSE(Exists(path + ".workbench.tmp"));
+}
+
+TEST_F(ConfigPersistence, AnEditAfterTheReviewRefuses) {
+	const std::string path = Path();
+	Write(path, kOriginal);
+	auto session = SessionWithEnv0Decay(1.6f);
+	const auto preview = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(preview.ok()) << preview.message;
+
+	ASSERT_EQ(session.Edit(Parameter::Env1Decay, 2.0f), Error::None);
+	const auto write = ApplyConfigWrite(path, session, preview);
+	EXPECT_EQ(write.refusal, PersistRefusal::SessionMoved);
+	EXPECT_EQ(ReadFileText(path), kOriginal);
+	EXPECT_FALSE(Exists(path + ".before-workbench.bak"));
+}
+
+TEST_F(ConfigPersistence, AStaleTempFileIsLeftAloneAndRefuses) {
+	const std::string path = Path();
+	Write(path, kOriginal);
+	Write(path + ".workbench.tmp", "left by a crash");
+	auto session = SessionWithEnv0Decay(1.6f);
+	const auto preview = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(preview.ok()) << preview.message;
+
+	const auto write = ApplyConfigWrite(path, session, preview);
+	EXPECT_EQ(write.refusal, PersistRefusal::TempExists);
+	// The stale file is the operator's to remove; this must never delete it.
+	EXPECT_EQ(ReadFileText(path + ".workbench.tmp"), "left by a crash");
+	EXPECT_EQ(ReadFileText(path), kOriginal);
+	EXPECT_FALSE(Exists(path + ".before-workbench.bak"));
+}
+
+TEST_F(ConfigPersistence, ARefusedPreviewNeverReportsReady) {
+	const std::string path = Path();
+	Write(path, kOriginal);
+	auto clean = SessionWithEnv0Decay(1.490f); // same as the file: nothing to write
+	const auto unchanged = PreviewConfigWrite(path, clean);
+	EXPECT_EQ(unchanged.refusal, PersistRefusal::NothingToWrite);
+	EXPECT_FALSE(unchanged.ok());
+	EXPECT_FALSE(unchanged.message.empty());
+
+	Session unloaded;
+	EXPECT_EQ(PreviewConfigWrite(path, unloaded).refusal, PersistRefusal::NoSession);
+
+	auto comparing = SessionWithEnv0Decay(1.6f);
+	ASSERT_EQ(comparing.Compare(true), Error::None);
+	EXPECT_EQ(PreviewConfigWrite(path, comparing).refusal, PersistRefusal::Comparing);
+}
+
+TEST_F(ConfigPersistence, UnreadableAndUnsupportedFilesAreRefused) {
+	auto session = SessionWithEnv0Decay(1.6f);
+
+	const std::string missing = Path("absent.cfg");
+	EXPECT_EQ(PreviewConfigWrite(missing, session).refusal, PersistRefusal::ReadFailed);
+
+	const std::string utf16 = Path("utf16.cfg");
+	Write(utf16, std::string("\xFF\xFE") + "r\x00e\x00");
+	EXPECT_EQ(PreviewConfigWrite(utf16, session).refusal, PersistRefusal::UnsupportedEncoding);
+
+	const std::string padded = Path("pad.cfg");
+	Write(padded, std::string("renderer 1\r\n\0\0\0", 16));
+	EXPECT_EQ(PreviewConfigWrite(padded, session).refusal, PersistRefusal::NulBytes);
+
+	const std::string huge = Path("huge.cfg");
+	Write(huge, "renderer 1\r\n" + std::string(1024 * 1024 + 1, 'x'));
+	EXPECT_EQ(PreviewConfigWrite(huge, session).refusal, PersistRefusal::TooLarge);
+}
+
+TEST_F(ConfigPersistence, AChangedLegacyFieldIsReportedAndNotWritten) {
+	const std::string path = Path();
+	Write(path, kOriginal);
+	Session session;
+	ASSERT_EQ(session.Capture(CompiledDefaults()), Error::None);
+	ASSERT_EQ(session.Edit(Parameter::FogDensity, 0.9f), Error::None);
+
+	const auto preview = PreviewConfigWrite(path, session);
+	// The only changed field has no loader key, so there is nothing to write and
+	// the file must be untouched rather than carrying a key the loader ignores.
+	EXPECT_EQ(preview.refusal, PersistRefusal::NothingToWrite);
+	ASSERT_EQ(preview.unpublishable.size(), 1u);
+	EXPECT_EQ(preview.unpublishable[0], Parameter::FogDensity);
+	EXPECT_EQ(ReadFileText(path), kOriginal);
+}
+
+TEST_F(ConfigPersistence, ALegacyEditAlongsideAPublishableOneIsListedSeparately) {
+	const std::string path = Path();
+	Write(path, kOriginal);
+	Session session;
+	ASSERT_EQ(session.Capture(CompiledDefaults()), Error::None);
+	ASSERT_EQ(session.Edit(Parameter::FogDensity, 0.9f), Error::None);
+	ASSERT_EQ(session.Edit(Parameter::Env0Decay, 1.6f), Error::None);
+
+	const auto preview = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(preview.ok()) << preview.message;
+	ASSERT_EQ(preview.fields.size(), 1u);
+	EXPECT_EQ(preview.fields[0].key, "env0_decay");
+	ASSERT_EQ(preview.unpublishable.size(), 1u);
+	EXPECT_EQ(preview.unpublishable[0], Parameter::FogDensity);
+}
+
+TEST_F(ConfigPersistence, DuplicateOwnedKeysAreReportedButTheEarlierLineIsPreserved) {
+	const std::string path = Path();
+	const std::string text =
+		"env0_decay 1.000\r\n"
+		"env0_decay 1.490\r\n";
+	Write(path, text);
+	auto session = SessionWithEnv0Decay(1.6f);
+
+	const auto preview = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(preview.ok()) << preview.message;
+	ASSERT_EQ(preview.duplicates.size(), 1u);
+	EXPECT_EQ(preview.duplicates[0], "env0_decay");
+	ASSERT_TRUE(ApplyConfigWrite(path, session, preview).ok());
+	// The inert first line survives; only the line the loader honours moved.
+	EXPECT_EQ(ReadFileText(path), "env0_decay 1.000\r\nenv0_decay 1.600\r\n");
+}
+
+// ---------------------------------------------------------------------------
+// Registry invariants. These are what make the write set trustworthy: only a
+// key the loader actually reads, spelled the way the loader expects, may reach
+// the file. Source checks mirror tools/c2_config_defaults.py, which validates
+// the same contract for the offline tool.
+// ---------------------------------------------------------------------------
+
+namespace {
+std::string ReadSource(const std::string& relative)
+{
+	std::ifstream input(std::string(C2_SOURCE_ROOT) + "/" + relative, std::ios::binary);
+	EXPECT_TRUE(input.is_open()) << relative;
+	return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+}
+
+std::vector<const Descriptor*> Publishable()
+{
+	std::vector<const Descriptor*> found;
+	for (const auto& descriptor : Descriptors())
+		if (descriptor.persist == PersistPolicy::RecognizedConfigKey) found.push_back(&descriptor);
+	return found;
+}
+} // namespace
+
+TEST(ConfigRegistry, EveryPublishableKeyRoundTripsThroughTheLoaderParser) {
+	const auto publishable = Publishable();
+	ASSERT_EQ(publishable.size(), 41u) << "the write set size is part of the contract";
+	for (const auto* descriptor : publishable) {
+		for (const float value : {descriptor->minimum, descriptor->maximum, descriptor->compiledDefault}) {
+			// The production formatter, not a copy of its rule: a precision loss
+			// here is what would make a saved value drift on the next launch.
+			const std::string token = FormatConfigValue(*descriptor, value);
+			float parsed = 0.f;
+			EXPECT_EQ(ParseValue(descriptor->id, token, parsed), Error::None)
+				<< descriptor->key << " token=" << token;
+			EXPECT_TRUE(SameValue(parsed, value))
+				<< descriptor->key << " token=" << token << " value=" << value;
+		}
+	}
+}
+
+TEST(ConfigRegistry, PublishableKeysAreUniqueAndTokenSafe) {
+	std::vector<std::string> keys;
+	for (const auto* descriptor : Publishable()) {
+		const std::string key = descriptor->key;
+		ASSERT_FALSE(key.empty()) << "a recognized key needs a name";
+		for (const char c : key)
+			EXPECT_TRUE((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')
+				<< "unexpected character in " << key;
+		EXPECT_NE(key.front(), '#') << key;
+		keys.push_back(key);
+	}
+	const auto sorted = [&] { auto copy = keys; std::sort(copy.begin(), copy.end()); return copy; }();
+	EXPECT_EQ(std::adjacent_find(sorted.begin(), sorted.end()), sorted.end())
+		<< "two descriptors claim the same config key";
+}
+
+TEST(ConfigRegistry, EveryPublishableKeyIsReadByTheEngineLoader) {
+	const std::string engine = ReadSource("Hunt/Game/EngineInit.cpp");
+	// Env keys are read by a prefix branch that then matches the field name.
+	EXPECT_NE(engine.find("_strnicmp(key, \"env\", 3)"), std::string::npos);
+	for (const auto* descriptor : Publishable()) {
+		const std::string key = descriptor->key;
+		if (key.rfind("env", 0) == 0) {
+			const std::string field = key.substr(5); // env<N>_
+			EXPECT_NE(engine.find("_stricmp(field, \"" + field + "\")"), std::string::npos) << key;
+			continue;
+		}
+		EXPECT_NE(engine.find("_stricmp(key, \"" + key + "\")"), std::string::npos)
+			<< key << " is written but never read";
+	}
+}
+
+TEST(ConfigRegistry, TheWorkbenchAndTheMenuNeverOwnTheSameKey) {
+	// Two writers share config.cfg. If both claimed a key they would overwrite
+	// each other, so the sets must stay disjoint.
+	const std::string menu = ReadSource("Menu/Resources.cpp");
+	const std::size_t begin = menu.find("void SaveConfig()");
+	ASSERT_NE(begin, std::string::npos);
+	const std::string body = menu.substr(begin);
+	for (const auto* descriptor : Publishable()) {
+		EXPECT_EQ(body.find("fresh.emplace_back(\"" + std::string(descriptor->key) + "\""), std::string::npos)
+			<< descriptor->key << " is owned by both writers";
+	}
+}
+
+TEST(ConfigRegistry, NoDescriptorWritesTheDryReverbEnvironment) {
+	// Environment 7 intentionally does nothing, so the backend rejects it.
+	for (const auto* descriptor : Publishable())
+		EXPECT_NE(std::string(descriptor->key).rfind("env7_", 0), 0u) << descriptor->key;
+}
+
+TEST(ConfigRegistry, AChangedFieldWithoutALoaderKeyIsNeverWritten) {
+	const std::string path = ::testing::TempDir() + "c2_w3_registry_probe.cfg";
+	{
+		std::ofstream output(path, std::ios::binary | std::ios::trunc);
+		output << "renderer 1\r\n";
+	}
+	Session session;
+	ASSERT_EQ(session.Capture(CompiledDefaults()), Error::None);
+	ASSERT_EQ(session.Edit(Parameter::Env0Decay, 1.6f), Error::None);
+	ASSERT_EQ(session.Edit(Parameter::FlashlightRed, 0.5f), Error::None); // RuntimeOnly
+
+	const auto preview = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(preview.ok()) << preview.message;
+	for (const auto& field : preview.fields) {
+		const auto* descriptor = FindDescriptor(field.id);
+		ASSERT_NE(descriptor, nullptr) << field.key;
+		EXPECT_EQ(descriptor->persist, PersistPolicy::RecognizedConfigKey) << field.key;
+	}
+	std::error_code ignored;
+	fs::remove(path, ignored);
 }
