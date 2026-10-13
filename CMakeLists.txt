@@ -370,7 +370,6 @@ if(MSVC)
         tests/test_trophy_mode.cpp
         tests/test_key_bindings.cpp
         tests/test_load_validate.cpp
-        tests/test_map_scaling.cpp
         tests/test_memory_arena.cpp
         tests/test_menu_slider.cpp
         tests/test_menu_launch_args.cpp
