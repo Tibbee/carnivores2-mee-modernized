@@ -650,6 +650,22 @@ TEST_F(ConfigPersistence, UnreadableAndUnsupportedFilesAreRefused) {
 	EXPECT_EQ(PreviewConfigWrite(huge, session).refusal, PersistRefusal::TooLarge);
 }
 
+TEST_F(ConfigPersistence, ExactlyTheByteLimitIsAcceptedAndOneMoreIsRefused) {
+	// ReadConfigText accepts a file of exactly 1 MiB and rejects one byte more;
+	// the protocol must draw the same line, or a readable config would refuse.
+	const std::string path = Path();
+	std::string text = kOriginal;
+	text.resize(1024 * 1024, ' '); // trailing whitespace line, no terminator
+	Write(path, text);
+	auto session = SessionWithEnv0Decay(1.6f);
+	const auto preview = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(preview.ok()) << preview.message;
+	EXPECT_EQ(preview.bytesBefore, 1024u * 1024u);
+
+	Write(path, text + "x");
+	EXPECT_EQ(PreviewConfigWrite(path, session).refusal, PersistRefusal::TooLarge);
+}
+
 TEST_F(ConfigPersistence, AChangedLegacyFieldIsReportedAndNotWritten) {
 	const std::string path = Path();
 	Write(path, kOriginal);
