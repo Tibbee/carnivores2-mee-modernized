@@ -9,14 +9,6 @@ float GetLandOH(int x, int y)
   return static_cast<float>((HMapO[y][x])) * ctHScale;
 }
 
-float GetLandOUH(int x, int y)
-{
-  if (FMap[y][x] & fmReverse)
-    return static_cast<float>((static_cast<int>((HMap[y][x+1]+HMap[y+1][x]))/2.f))*ctHScale;
-  else
-    return static_cast<float>((static_cast<int>((HMap[y][x]+HMap[y+1][x+1]))/2.f))*ctHScale;
-}
-
 float GetLandUpH(float x, float y)
 {
 

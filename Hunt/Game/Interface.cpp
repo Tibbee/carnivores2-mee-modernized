@@ -45,32 +45,11 @@ int OptMode = 0;
 int OptLine = 0;
 
 
-void wait_mouse_release()
-{
-  while (GetAsyncKeyState(VK_RBUTTON) & 0x80000000);
-  while (GetAsyncKeyState(VK_LBUTTON) & 0x80000000);
-
-}
-
-
 int GetTextW(HDC hdc, LPSTR s)
 {
   SIZE sz;
   GetTextExtentPoint(hdc, s, strlen(s), &sz);
   return sz.cx;
-}
-
-void PrintText(LPSTR s, int x, int y, int rgb)
-{
-  HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain,hbmpVideoBuf));
-  SetBkMode(hdcCMain, TRANSPARENT);
-
-  SetTextColor(hdcCMain, 0x00000000);
-  TextOut(hdcCMain, x+1, y+1, s, strlen(s));
-  SetTextColor(hdcCMain, rgb);
-  TextOut(hdcCMain, x, y, s, strlen(s));
-
-  SelectObject(hdcCMain,hbmpOld);
 }
 
 // Teardown shared by the fault path (DoHalt) and normal session exits

@@ -31,59 +31,6 @@ void RenderWater()
   }
 }
 
-void ProcessWaterMap(int x, int y, int r)
-{
-  if (x < 0 || y < 0 || x >= ctMapSize - 1 || y >= ctMapSize - 1) return;
-
-  //WATERREVERSE = true;
-  ReverseOn = (FMap[y][x] & fmReverse);
-  TDirection = (FMap[y][x] & 3);
-
-  int t1 = TMap1[y][x];
-  int t2 = TMap2[y][x];
-
-  x = x - CCX + 64;
-  y = y - CCY + 64;
-
-  if ((VMap2[y][x].DFlags & VMap2[y][x+1].DFlags & VMap2[y+1][x+1].DFlags & VMap2[y+1][x].DFlags) == 0xFFFF) return;
-
-  if (VMap2[y][x].DFlags!=0xFFFF) ev[0] = VMap2[y][x];
-  else ev[0] = VMap[y][x];
-  if (VMap2[y][x+1].DFlags!=0xFFFF) ev[1] = VMap2[y][x+1];
-  else ev[1] = VMap[y][x+1];
-
-  if (ReverseOn)
-    if (VMap2[y+1][x].DFlags!=0xFFFF) ev[2] = VMap2[y+1][x];
-    else ev[2] = VMap[y+1][x];
-  else if (VMap2[y+1][x+1].DFlags!=0xFFFF) ev[2] = VMap2[y+1][x+1];
-  else ev[2] = VMap[y+1][x+1];
-
-  lpTextureAddr = &(Textures[0]->DataB[0]);
-  HLineT = (void*) HLineTBGlass25;
-
-  if (!t1)
-    if (r>4) DrawTPlane(false);
-    else DrawTPlaneClip(false);
-
-  if (ReverseOn)
-  {
-    ev[0] = ev[2];
-    if (VMap2[y+1][x+1].DFlags!=0xFFFF) ev[2] = VMap2[y+1][x+1];
-    else ev[2] = VMap[y+1][x+1];
-  }
-  else
-  {
-    ev[1] = ev[2];
-    if (VMap2[y+1][x].DFlags!=0xFFFF) ev[2] = VMap2[y+1][x];
-    else ev[2] = VMap[y+1][x];
-  }
-
-
-  if (!t2)
-    if (r>4) DrawTPlane(true);
-    else DrawTPlaneClip(true);
-}
-
 void ProcessMapW(int x, int y, int r)
 {
   //if (RunMode) return;

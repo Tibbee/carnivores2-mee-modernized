@@ -67,67 +67,6 @@ int DitherHi(int C)
 void GenerateModelMipMaps(TModel *mptr, MemoryTag tag);
 
 
-void CreateMipMap(WORD* src, WORD* dst, int Ls, int Ld)
-{
-  int scale = Ls / Ld;
-
-  int R[64][64], G[64][64], B[64][64];
-
-  FillMemory(R, sizeof(R), 0);
-  FillMemory(G, sizeof(R), 0);
-  FillMemory(B, sizeof(R), 0);
-
-  for (int y=0; y<Ls; y++)
-    for (int x=0; x<Ls; x++)
-    {
-      WORD C = *(src + x + y*Ls);
-      B[ y/scale ][ x/scale ]+= (C>> 0) & 31;
-      G[ y/scale ][ x/scale ]+= (C>> 5) & 31;
-      R[ y/scale ][ x/scale ]+= (C>>10) & 31;
-    }
-
-  scale*=scale;
-
-  for (int y=0; y<Ld; y++)
-    for (int x=0; x<Ld; x++)
-    {
-      R[y][x]/=scale;
-      G[y][x]/=scale;
-      B[y][x]/=scale;
-      *(dst + x + y*Ld) = (R[y][x]<<10) + (G[y][x]<<5) + B[y][x];
-    }
-}
-
-int CalcImageDifference(WORD* A, WORD* B, int L)
-{
-  int r = 0;
-  L*=L;
-  for (int l=0; l<L; l++)
-  {
-    WORD C1 = *(A + l);
-    WORD C2 = *(B + l);
-    int R1 = (C1>>10) & 31;
-    int G1 = (C1>> 5) & 31;
-    int B1 = (C1>> 0) & 31;
-    int R2 = (C2>>10) & 31;
-    int G2 = (C2>> 5) & 31;
-    int B2 = (C2>> 0) & 31;
-
-    r+=(R1-R2)*(R1-R2) +
-       (G1-G2)*(G1-G2) +
-       (B1-B2)*(B1-B2);
-  }
-
-  return r;
-}
-
-void RotateImage(WORD* src, WORD* dst, int L)
-{
-  for (int y=0; y<L; y++)
-    for (int x=0; x<L; x++)
-      *(dst + x*L + (L-1-y) ) = *(src + x + y*L);
-}
-
 void BrightenTexture(WORD* A, int L)
 {
   int factor=OptBrightness + 128;
@@ -168,32 +107,6 @@ void GenerateMipMap(WORD* A, WORD* D, int L)
       int R = ( ((C1>>10) & 31) + ((C2>>10) & 31) + ((C3>>10) & 31) + ((C4>>10) & 31) +2 ) >> 2;
       *(D + x + y * L) = HiColor(R,G,B);
     }
-}
-
-int CalcColorSum(WORD* A, int L)
-{
-  int R = 0, G = 0, B = 0;
-  for (int x=0; x<L; x++)
-  {
-    B+= (*(A+x) >> 0) & 31;
-    G+= (*(A+x) >> 5) & 31;
-    R+= (*(A+x) >>10) & 31;
-  }
-  return HiColor(R/L, G/L, B/L);
-}
-
-void GenerateShadedMipMap(WORD* src, WORD* dst, int L)
-{
-  for (int x=0; x<16*16; x++)
-  {
-    int B = (*(src+x) >> 0) & 31;
-    int G = (*(src+x) >> 5) & 31;
-    int R = (*(src+x) >>10) & 31;
-    R=DitherHi(SkyR*L/8 + R*(256-L)+6);
-    G=DitherHi(SkyG*L/8 + G*(256-L)+6);
-    B=DitherHi(SkyB*L/8 + B*(256-L)+6);
-    *(dst + x) = HiColor(R,G,B);
-  }
 }
 
 void GenerateShadedSkyMipMap(WORD* src, WORD* dst, int L)
@@ -559,18 +472,6 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName, MemoryTag tag)
 
   DATASHIFT(mptr->lpTexture.get(), mptr->TextureSize);
   GenerateModelMipMaps(mptr.get(), tag);
-}
-
-void GetObjectCaracteristics(TModel* mptr, int& ylo, int& yhi)
-{
-  ylo = 10241024;
-  yhi =-10241024;
-  for (int v=0; v<mptr->VCount; v++)
-  {
-    if (mptr->gVertex[v].y < ylo) ylo = static_cast<int>(mptr->gVertex[v].y);
-    if (mptr->gVertex[v].y > yhi) yhi = static_cast<int>(mptr->gVertex[v].y);
-  }
-  if (yhi<ylo) yhi=ylo+1;
 }
 
 void GenerateModelMipMaps(TModel *mptr, MemoryTag tag)

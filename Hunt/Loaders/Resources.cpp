@@ -1051,28 +1051,6 @@ void LoadResources()
 
 //================ light map ========================//
 
-void FillVector(int x, int y, Vector3d& v)
-{
-  v.x = static_cast<float>(x)*256;
-  v.z = static_cast<float>(y)*256;
-  v.y = static_cast<float>((static_cast<int>(HMap[y][x])))*ctHScale;
-}
-
-BOOL TraceVector(Vector3d v, Vector3d lv)
-{
-  v.y+=4;
-  NormVector(lv,64);
-  for (int l=0; l<32; l++)
-  {
-    v.x-=lv.x;
-    v.y-=lv.y/6;
-    v.z-=lv.z;
-    if (v.y>255 * ctHScale) return true;
-    if (GetLandH(v.x, v.z) > v.y) return false;
-  }
-  return true;
-}
-
 void AddShadow(int x, int y, int d)
 {
   if (x<0 || y<0 || x>1023 || y>1023) return;

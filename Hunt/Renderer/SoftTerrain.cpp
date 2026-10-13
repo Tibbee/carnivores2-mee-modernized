@@ -535,13 +535,6 @@ void ClipVector(CLIPPLANE& C, int vn)
 
 
 
-int  SGNi(int f)
-{
-  if (f<0) return -1;
-  else return  1;
-}
-
-
 void DrawTPlaneClip(BOOL SECONT)
 {
   int n;

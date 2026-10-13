@@ -35,7 +35,6 @@ void ResetMousePos();
 void CreateDivTable();
 void DrawTexturedFace();
 int GetTextW(HDC, LPSTR);
-void wait_mouse_release();
 
 void ShowControlElements();
 void InsertModelList(TModel* mptr, float x0, float y0, float z0, int light, float al, float bt);
