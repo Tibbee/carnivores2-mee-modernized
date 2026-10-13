@@ -11,12 +11,19 @@ void SameColor(const Vector3d& a, const Vector3d& b) {
 }
 }
 
-TEST(TerrainFogSmoothing, KeepsOriginalThirtyPercentTileAverage) {
-    const auto result = SmoothedTileFogColors({1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {0, 0, 0});
-    SameColor(result[0], {0.775f, 0.075f, 0.075f});
-    SameColor(result[1], {0.075f, 0.775f, 0.075f});
-    SameColor(result[2], {0.075f, 0.075f, 0.775f});
-    SameColor(result[3], {0.075f, 0.075f, 0.075f});
+TEST(TerrainFogSmoothing, TileAverageAndUniformColorsArePreserved) {
+    {
+        const auto result = SmoothedTileFogColors({1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {0, 0, 0});
+        SameColor(result[0], {0.775f, 0.075f, 0.075f});
+        SameColor(result[1], {0.075f, 0.775f, 0.075f});
+        SameColor(result[2], {0.075f, 0.075f, 0.775f});
+        SameColor(result[3], {0.075f, 0.075f, 0.075f});
+    }
+
+    for (Vector3d color : {Vector3d{0,0,0}, Vector3d{0.2f,0.4f,0.8f}}) {
+        const auto result = SmoothedTileFogColors(color, color, color, color);
+        for (const auto& actual : result) SameColor(actual, color);
+    }
 }
 
 TEST(TerrainFogSmoothing, ChunkTilesMatchStandaloneRegardlessOfOrderOrCullMask) {
@@ -45,11 +52,4 @@ TEST(TerrainFogSmoothing, ChunkTilesMatchStandaloneRegardlessOfOrderOrCullMask) 
     }
     for (int y = 0; y < 3; ++y)
         for (int x = 0; x < 3; ++x) SameColor(grid[y][x], original[y][x]);
-}
-
-TEST(TerrainFogSmoothing, UniformAndClearColorsArePreserved) {
-    for (Vector3d color : {Vector3d{0,0,0}, Vector3d{0.2f,0.4f,0.8f}}) {
-        const auto result = SmoothedTileFogColors(color, color, color, color);
-        for (const auto& actual : result) SameColor(actual, color);
-    }
 }
