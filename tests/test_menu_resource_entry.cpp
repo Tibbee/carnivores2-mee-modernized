@@ -92,84 +92,84 @@ void ResetMenuState()
 
 }  // namespace
 
-TEST(MenuResourceEntry, LegacyResCharactersBlockParsesStockLineShapes)
+TEST(MenuResourceEntry, CharacterBlockParsesStockLineShapes)
 {
-    ResetMenuState();
     // ReadCharacters is called after the caller consumed the `characters {`
     // line, so the stream starts with the first dino block opener.
-    TempScript script(
-        "{\n"
-        " name    = 'Massospondylus'\n"
-        " file    = 'models/main_hunt/para.car'\n"
-        " ai      = 10\n"
-        " health  = 13.5\n"
-        " basescore = 9\n"
-        " smellK  = 0.8\n"
-        " hearK   = 0.75\n"
-        " lookK   = 0.5\n"
-        " scale0  = 980\n"
-        "}\n"
-        "}\n");
-    ASSERT_NE(script.stream, nullptr);
+    {
+        ResetMenuState();
+        TempScript script(
+            "{\n"
+            " name    = 'Massospondylus'\n"
+            " file    = 'models/main_hunt/para.car'\n"
+            " ai      = 10\n"
+            " health  = 13.5\n"
+            " basescore = 9\n"
+            " smellK  = 0.8\n"
+            " hearK   = 0.75\n"
+            " lookK   = 0.5\n"
+            " scale0  = 980\n"
+            "}\n"
+            "}\n");
+        ASSERT_NE(script.stream, nullptr);
 
-    // The name and path values contain numeric field keys as substrings
-    // ("Massospondylus" -> mass, "main_hunt" -> ai); health is a decimal
-    // literal. None of them may be read as a numeric field.
-    EXPECT_NO_THROW(ReadCharacters(script.stream));
+        // The name and path values contain numeric field keys as substrings
+        // ("Massospondylus" -> mass, "main_hunt" -> ai); health is a decimal
+        // literal. None of them may be read as a numeric field.
+        EXPECT_NO_THROW(ReadCharacters(script.stream));
 
-    ASSERT_EQ(g_DinoInfo.size(), 1u);
-    const DinoInfo& dino = g_DinoInfo[0];
-    EXPECT_EQ(dino.m_Name, "Massospondylus");
-    EXPECT_EQ(dino.m_FilePath, "models/main_hunt/para.car");
-    EXPECT_EQ(dino.m_AI, 10);
-    EXPECT_EQ(dino.m_BaseHealth, 13);  // legacy atoi truncation of 13.5
-    EXPECT_EQ(dino.m_BaseScore, 9);
-    EXPECT_FLOAT_EQ(dino.m_SmellK, 0.8f);
-    EXPECT_FLOAT_EQ(dino.m_HearK, 0.75f);
-    EXPECT_FLOAT_EQ(dino.m_LookK, 0.5f);
-    EXPECT_EQ(dino.m_BaseScale, 980);
-}
+        ASSERT_EQ(g_DinoInfo.size(), 1u);
+        const DinoInfo& dino = g_DinoInfo[0];
+        EXPECT_EQ(dino.m_Name, "Massospondylus");
+        EXPECT_EQ(dino.m_FilePath, "models/main_hunt/para.car");
+        EXPECT_EQ(dino.m_AI, 10);
+        EXPECT_EQ(dino.m_BaseHealth, 13);  // legacy atoi truncation of 13.5
+        EXPECT_EQ(dino.m_BaseScore, 9);
+        EXPECT_FLOAT_EQ(dino.m_SmellK, 0.8f);
+        EXPECT_FLOAT_EQ(dino.m_HearK, 0.75f);
+        EXPECT_FLOAT_EQ(dino.m_LookK, 0.5f);
+        EXPECT_EQ(dino.m_BaseScale, 980);
+    }
 
-TEST(MenuResourceEntry, MenuTxtAcceptsBothSensitivityKeySpellings)
-{
-    ResetMenuState();
     // _MENU.TXT uses the bare keys plus capital-K variants (Velociraptor),
     // while _RES.TXT uses only the capital-K variants.
-    TempScript script(
-        "{\n"
-        " name = 'Velociraptor'\n"
-        " ai = 15\n"
-        " smell = 1.0\n"
-        " hearK = 0.7\n"
-        " lookK = 0.5\n"
-        "}\n"
-        "}\n");
-    ASSERT_NE(script.stream, nullptr);
+    {
+        ResetMenuState();
+        TempScript script(
+            "{\n"
+            " name = 'Velociraptor'\n"
+            " ai = 15\n"
+            " smell = 1.0\n"
+            " hearK = 0.7\n"
+            " lookK = 0.5\n"
+            "}\n"
+            "}\n");
+        ASSERT_NE(script.stream, nullptr);
 
-    EXPECT_NO_THROW(ReadCharacters(script.stream));
+        EXPECT_NO_THROW(ReadCharacters(script.stream));
 
-    ASSERT_EQ(g_DinoInfo.size(), 1u);
-    const DinoInfo& dino = g_DinoInfo[0];
-    EXPECT_EQ(dino.m_AI, 15);
-    EXPECT_FLOAT_EQ(dino.m_SmellK, 1.0f);
-    EXPECT_FLOAT_EQ(dino.m_HearK, 0.7f);
-    EXPECT_FLOAT_EQ(dino.m_LookK, 0.5f);
-}
+        ASSERT_EQ(g_DinoInfo.size(), 1u);
+        const DinoInfo& dino = g_DinoInfo[0];
+        EXPECT_EQ(dino.m_AI, 15);
+        EXPECT_FLOAT_EQ(dino.m_SmellK, 1.0f);
+        EXPECT_FLOAT_EQ(dino.m_HearK, 0.7f);
+        EXPECT_FLOAT_EQ(dino.m_LookK, 0.5f);
+    }
 
-TEST(MenuResourceEntry, LegacyHealthAcceptsLongSuffix)
-{
-    ResetMenuState();
-    TempScript script(
-        "{\n"
-        " name = 'Dsungaripterus'\n"
-        " ai = 3\n"
-        " health = 1l\n"
-        "}\n"
-        "}\n");
-    ASSERT_NE(script.stream, nullptr);
+    {
+        ResetMenuState();
+        TempScript script(
+            "{\n"
+            " name = 'Dsungaripterus'\n"
+            " ai = 3\n"
+            " health = 1l\n"
+            "}\n"
+            "}\n");
+        ASSERT_NE(script.stream, nullptr);
 
-    EXPECT_NO_THROW(ReadCharacters(script.stream));
-    EXPECT_TRUE(g_DinoInfo.empty());  // Ambient AI is parsed but not listed.
+        EXPECT_NO_THROW(ReadCharacters(script.stream));
+        EXPECT_TRUE(g_DinoInfo.empty());  // Ambient AI is parsed but not listed.
+    }
 }
 
 TEST(MenuResourceEntry, WeaponValuesDoNotSelectOtherFields)
@@ -201,202 +201,276 @@ TEST(MenuResourceEntry, WeaponValuesDoNotSelectOtherFields)
     EXPECT_EQ(weapon.m_BulletFilePath, "ammo/bullet1.tga");
 }
 
-TEST(MenuResourceEntry, PricesBlockKeepsLegacyKeys)
+TEST(MenuResourceEntry, HuntableThumbnailsFollowTheRoster)
 {
-    ResetMenuState();
-    TempScript script(
-        "prices {\n"
-        " start = 100\n"
-        "}\n");
-    ASSERT_NE(script.stream, nullptr);
+    // The stock _MENU.TXT roster: ten huntables whose AI values are not
+    // unique (Iguanodon and Carnotaurus both use 17, T-Rex uses 18). Each
+    // entry must resolve to its own numbered picture, not its predecessor's.
+    {
+        ResetMenuState();
+        TempScript script(
+            "{\n name = 'Parasaurolophus'\n ai = 10\n}\n"
+            "{\n name = 'Pachycephalosaurus'\n ai = 11\n}\n"
+            "{\n name = 'Stegosaurus'\n ai = 12\n}\n"
+            "{\n name = 'Allosaurus'\n ai = 13\n}\n"
+            "{\n name = 'Triceratops'\n ai = 14\n}\n"
+            "{\n name = 'Velociraptor'\n ai = 15\n}\n"
+            "{\n name = 'Dilophosaurus'\n ai = 16\n}\n"
+            "{\n name = 'Iguanodon'\n ai = 17\n}\n"
+            "{\n name = 'Carnotaurus'\n ai = 17\n}\n"
+            "{\n name = 'Tyrannosaurus Rex'\n ai = 18\n}\n"
+            "}\n");
+        ASSERT_NE(script.stream, nullptr);
 
-    EXPECT_NO_THROW(ReadPrices(script.stream));
-    EXPECT_EQ(g_StartCredits, 100u);
+        EXPECT_NO_THROW(ReadCharacters(script.stream));
+
+        ASSERT_EQ(g_DinoInfo.size(), 10u);
+        EXPECT_EQ(g_DinoInfo[7].m_PicturePath, "huntdat/menu/pics/dino8.tga");
+        EXPECT_EQ(g_DinoInfo[8].m_PicturePath, "huntdat/menu/pics/dino9.tga");
+        EXPECT_EQ(g_DinoInfo[9].m_PicturePath, "huntdat/menu/pics/dino10.tga");
+    }
+
+    {
+        ResetMenuState();
+        TempScript script(
+            "{\n"
+            " name = 'Custom'\n"
+            " ai = 10\n"
+            " pic = 'huntdat/menu/pics/custom.tga'\n"
+            "}\n"
+            "}\n");
+        ASSERT_NE(script.stream, nullptr);
+
+        EXPECT_NO_THROW(ReadCharacters(script.stream));
+
+        ASSERT_EQ(g_DinoInfo.size(), 1u);
+        EXPECT_EQ(g_DinoInfo[0].m_PicturePath, "huntdat/menu/pics/custom.tga");
+    }
 }
 
-TEST(MenuResourceEntry, PricesWithinCapacityAreAssigned)
+TEST(MenuResourceEntry, PricesBlockAssignsLegacyAndKeyedEntries)
 {
-    ResetMenuState();
-    g_DinoInfo.resize(2);
-    g_WeapInfo.resize(1);
-    g_DinoInfo[0].m_AI = 10;  // CurD starts at the first huntable index
-    TempScript script(
-        "prices {\n"
-        " dino = 10\n"
-        " dino = 30\n"
-        " weapon = 20\n"
-        "}\n");
-    ASSERT_NE(script.stream, nullptr);
+    {
+        ResetMenuState();
+        TempScript script(
+            "prices {\n"
+            " start = 100\n"
+            "}\n");
+        ASSERT_NE(script.stream, nullptr);
 
-    EXPECT_NO_THROW(ReadPrices(script.stream));
-    EXPECT_EQ(g_DinoInfo[0].m_Price, 10);
-    EXPECT_EQ(g_DinoInfo[1].m_Price, 30);
-    EXPECT_EQ(g_WeapInfo[0].m_Price, 20);
+        EXPECT_NO_THROW(ReadPrices(script.stream));
+        EXPECT_EQ(g_StartCredits, 100u);
+    }
+
+    {
+        ResetMenuState();
+        g_DinoInfo.resize(2);
+        g_WeapInfo.resize(1);
+        g_DinoInfo[0].m_AI = 10;  // CurD starts at the first huntable index
+        TempScript script(
+            "prices {\n"
+            " dino = 10\n"
+            " dino = 30\n"
+            " weapon = 20\n"
+            "}\n");
+        ASSERT_NE(script.stream, nullptr);
+
+        EXPECT_NO_THROW(ReadPrices(script.stream));
+        EXPECT_EQ(g_DinoInfo[0].m_Price, 10);
+        EXPECT_EQ(g_DinoInfo[1].m_Price, 30);
+        EXPECT_EQ(g_WeapInfo[0].m_Price, 20);
+    }
 }
 
 TEST(MenuResourceEntry, ExcessPriceEntriesAreRejected)
 {
-    ResetMenuState();
-    g_DinoInfo.resize(1);
-    TempScript script(
-        "prices {\n"
-        " dino = 10\n"
-        " dino = 30\n"
-        "}\n");
-    ASSERT_NE(script.stream, nullptr);
+    // The prices block lists one entry per roster item; a malformed script
+    // with more entries than loaded items must fail instead of indexing past
+    // the vector.
+    {
+        ResetMenuState();
+        g_DinoInfo.resize(1);
+        TempScript script(
+            "prices {\n"
+            " dino = 10\n"
+            " dino = 30\n"
+            "}\n");
+        ASSERT_NE(script.stream, nullptr);
 
-    // The prices block lists one entry per roster item; a malformed script with
-    // more entries than loaded dinos must fail instead of indexing past the
-    // vector.
-    EXPECT_THROW(ReadPrices(script.stream), std::exception);
-}
+        EXPECT_THROW(ReadPrices(script.stream), std::exception);
+    }
 
-TEST(MenuResourceEntry, ExcessWeaponPricesAreRejected)
-{
-    ResetMenuState();
-    g_WeapInfo.resize(1);
-    TempScript script(
-        "prices {\n"
-        " weapon = 10\n"
-        " weapon = 30\n"
-        "}\n");
-    ASSERT_NE(script.stream, nullptr);
+    {
+        ResetMenuState();
+        g_WeapInfo.resize(1);
+        TempScript script(
+            "prices {\n"
+            " weapon = 10\n"
+            " weapon = 30\n"
+            "}\n");
+        ASSERT_NE(script.stream, nullptr);
 
-    EXPECT_THROW(ReadPrices(script.stream), std::exception);
-}
-
-TEST(MenuResourceEntry, MalformedNumericValuesFailInStrictMode)
-{
-    ResetMenuState();
-    LoadDiagnostics::Instance().Clear();
-    LoadDiagnostics::Instance().SetMode(LoadMode::Strict);
-    TempScript script(
-        "{\n"
-        " ai = ten\n"
-        "}\n"
-        "}\n");
-    ASSERT_NE(script.stream, nullptr);
-
-    // Exact key matching must not weaken the value validation itself: strict
-    // mode (CI / mod authoring) still stops at the first bad value.
-    EXPECT_THROW(ReadCharacters(script.stream), std::exception);
-
-    LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
-    LoadDiagnostics::Instance().Clear();
-}
-
-TEST(MenuResourceEntry, MalformedNumericValuesRecoverInLenientMode)
-{
-    ResetMenuState();
-    LoadDiagnostics::Instance().Clear();
-    TempScript script(
-        "{\n"
-        " ai = ten\n"
-        "}\n"
-        "}\n");
-    ASSERT_NE(script.stream, nullptr);
-
-    // The player default accepts the file, falls back to 0 for the bad value
-    // and records a diagnostic instead of aborting the menu.
-    EXPECT_NO_THROW(ReadCharacters(script.stream));
-    EXPECT_GE(LoadDiagnostics::Instance().Count(), 1u);
-    LoadDiagnostics::Instance().Clear();
-}
-
-TEST(MenuResourceEntry, HuntableThumbnailFollowsListPositionNotAiSlot)
-{
-    ResetMenuState();
-    // The stock _MENU.TXT roster: ten huntables whose AI values are not
-    // unique (Iguanodon and Carnotaurus both use 17, T-Rex uses 18). Each
-    // entry must resolve to its own numbered picture, not its predecessor's.
-    TempScript script(
-        "{\n name = 'Parasaurolophus'\n ai = 10\n}\n"
-        "{\n name = 'Pachycephalosaurus'\n ai = 11\n}\n"
-        "{\n name = 'Stegosaurus'\n ai = 12\n}\n"
-        "{\n name = 'Allosaurus'\n ai = 13\n}\n"
-        "{\n name = 'Triceratops'\n ai = 14\n}\n"
-        "{\n name = 'Velociraptor'\n ai = 15\n}\n"
-        "{\n name = 'Dilophosaurus'\n ai = 16\n}\n"
-        "{\n name = 'Iguanodon'\n ai = 17\n}\n"
-        "{\n name = 'Carnotaurus'\n ai = 17\n}\n"
-        "{\n name = 'Tyrannosaurus Rex'\n ai = 18\n}\n"
-        "}\n");
-    ASSERT_NE(script.stream, nullptr);
-
-    EXPECT_NO_THROW(ReadCharacters(script.stream));
-
-    ASSERT_EQ(g_DinoInfo.size(), 10u);
-    EXPECT_EQ(g_DinoInfo[7].m_PicturePath, "huntdat/menu/pics/dino8.tga");
-    EXPECT_EQ(g_DinoInfo[8].m_PicturePath, "huntdat/menu/pics/dino9.tga");
-    EXPECT_EQ(g_DinoInfo[9].m_PicturePath, "huntdat/menu/pics/dino10.tga");
-}
-
-TEST(MenuResourceEntry, AccessoryDescriptionPrefersTheShippedFile)
-{
-    // The rule every optional row goes through: a .nfo in the user's HUNTDAT
-    // replaces the built-in blurb outright, so a mod can reword the row.
-    const char* path = "node_such_dir_but_exists.nfo";
-    std::ofstream out(path, std::ios::binary);
-    ASSERT_TRUE(out.is_open());
-    out << "Mod-supplied blurb.\r\n";
-    out.close();
-
-    const std::vector<std::string> builtin{ "built-in blurb" };
-    std::vector<std::string> lines;
-    LoadAccessoryDescription(lines, path, &builtin);
-    std::remove(path);
-
-    ASSERT_FALSE(lines.empty());
-    EXPECT_EQ(lines[0], "Mod-supplied blurb.");
-}
-
-TEST(MenuResourceEntry, AccessoryDescriptionFallsBackOnlyWhenTheFileIsMissing)
-{
-    const std::vector<std::string> builtin{ "built-in blurb", "second line" };
-    std::vector<std::string> lines;
-    LoadAccessoryDescription(lines, "huntdat/menu/txt/no_such_accessory.nfo", &builtin);
-    EXPECT_EQ(lines, builtin);
-
-    std::vector<std::string> noFallback;
-    LoadAccessoryDescription(noFallback, "huntdat/menu/txt/no_such_accessory.nfo", nullptr);
-    EXPECT_TRUE(noFallback.empty());
-}
-
-TEST(MenuResourceEntry, ExistingDescriptionFileSuppliesTheLines)
-{
-    // The other half of the same branch: when the mod does ship a .nfo its
-    // text is what reaches the panel, overriding nothing but replacing the
-    // built-in blurb entirely.
-    const char* path = "node_such_dir_but_exists.nfo";
-    std::ofstream out(path, std::ios::binary);
-    ASSERT_TRUE(out.is_open());
-    out << "Accessory : Something Else\r\n"
-        << "\r\n"
-        << "Mod-supplied text.\r\n";
-    out.close();
-
-    std::vector<std::string> lines;
-    EXPECT_TRUE(LoadText(lines, path));
-    std::remove(path);
-
-    // CRLF terminators are stripped by the text-mode stream, so no line may
-    // carry a trailing '\r' into TextOut (which would draw a junk glyph).
-    ASSERT_GE(lines.size(), 2u);
-    EXPECT_EQ(lines[0], "Accessory : Something Else");
-    for (const std::string& line : lines) {
-        EXPECT_EQ(line.find('\r'), std::string::npos);
+        EXPECT_THROW(ReadPrices(script.stream), std::exception);
     }
 }
 
-TEST(MenuResourceEntry, MissingDescriptionFileIsReportedAndAppendsNothing)
+TEST(MenuResourceEntry, MalformedNumericValuesRecoverOrHaltByMode)
 {
+    // Exact key matching must not weaken the value validation itself: strict
+    // mode (CI / mod authoring) still stops at the first bad value.
+    {
+        ResetMenuState();
+        LoadDiagnostics::Instance().Clear();
+        LoadDiagnostics::Instance().SetMode(LoadMode::Strict);
+        TempScript script(
+            "{\n"
+            " ai = ten\n"
+            "}\n"
+            "}\n");
+        ASSERT_NE(script.stream, nullptr);
+
+        EXPECT_THROW(ReadCharacters(script.stream), std::exception);
+
+        LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+        LoadDiagnostics::Instance().Clear();
+    }
+
+    // The player default accepts the file, falls back to 0 for the bad value
+    // and records a diagnostic instead of aborting the menu.
+    {
+        ResetMenuState();
+        LoadDiagnostics::Instance().Clear();
+        TempScript script(
+            "{\n"
+            " ai = ten\n"
+            "}\n"
+            "}\n");
+        ASSERT_NE(script.stream, nullptr);
+
+        EXPECT_NO_THROW(ReadCharacters(script.stream));
+        EXPECT_GE(LoadDiagnostics::Instance().Count(), 1u);
+        LoadDiagnostics::Instance().Clear();
+    }
+}
+
+TEST(MenuResourceEntry, OverrideDescriptionFilesSupplyTheLines)
+{
+    // The rule every optional row goes through: a .nfo in the user's HUNTDAT
+    // replaces the built-in blurb outright, so a mod can reword the row.
+    {
+        const char* path = "node_such_dir_but_exists.nfo";
+        std::ofstream out(path, std::ios::binary);
+        ASSERT_TRUE(out.is_open());
+        out << "Mod-supplied blurb.\r\n";
+        out.close();
+
+        const std::vector<std::string> builtin{ "built-in blurb" };
+        std::vector<std::string> lines;
+        LoadAccessoryDescription(lines, path, &builtin);
+        std::remove(path);
+
+        ASSERT_FALSE(lines.empty());
+        EXPECT_EQ(lines[0], "Mod-supplied blurb.");
+    }
+
+    // The other half of the same branch: when the mod does ship a .nfo its
+    // text is what reaches the panel, overriding nothing but replacing the
+    // built-in blurb entirely.
+    {
+        const char* path = "node_such_dir_but_exists.nfo";
+        std::ofstream out(path, std::ios::binary);
+        ASSERT_TRUE(out.is_open());
+        out << "Accessory : Something Else\r\n"
+            << "\r\n"
+            << "Mod-supplied text.\r\n";
+        out.close();
+
+        std::vector<std::string> lines;
+        EXPECT_TRUE(LoadText(lines, path));
+        std::remove(path);
+
+        // CRLF terminators are stripped by the text-mode stream, so no line may
+        // carry a trailing '\r' into TextOut (which would draw a junk glyph).
+        ASSERT_GE(lines.size(), 2u);
+        EXPECT_EQ(lines[0], "Accessory : Something Else");
+        for (const std::string& line : lines) {
+            EXPECT_EQ(line.find('\r'), std::string::npos);
+        }
+    }
+
+    // A mod's redirect wins over both the stock .nfo path and the built-in
+    // blurb when the file it names exists.
+    {
+        ResetMenuState();
+        const char* path = "mod_override_desc.nfo";
+        std::ofstream out(path, std::ios::binary);
+        ASSERT_TRUE(out.is_open());
+        out << "Mod-supplied flashlight blurb.\r\n";
+        out.close();
+
+        TempScript script((std::string("flashlight = '") + path + "'\n.\n").c_str());
+        ASSERT_NE(script.stream, nullptr);
+        EXPECT_NO_THROW(ReadAccessoryDescriptions(script.stream));
+
+        std::vector<std::string> lines;
+        LoadAccessoryDescription(lines,
+                                  LookupAccessoryText("flashlight", "Flashlight", "-flashlight",
+                                                      "huntdat/menu/txt/flashlight.nfo"),
+                                  &kFlashlightDescription);
+        std::remove(path);
+
+        ASSERT_FALSE(lines.empty());
+        EXPECT_EQ(lines[0], "Mod-supplied flashlight blurb.");
+    }
+}
+
+TEST(MenuResourceEntry, MissingOrEmptyDescriptionFilesFallBack)
+{
+    {
+        const std::vector<std::string> builtin{ "built-in blurb", "second line" };
+        std::vector<std::string> lines;
+        LoadAccessoryDescription(lines, "huntdat/menu/txt/no_such_accessory.nfo", &builtin);
+        EXPECT_EQ(lines, builtin);
+
+        std::vector<std::string> noFallback;
+        LoadAccessoryDescription(noFallback, "huntdat/menu/txt/no_such_accessory.nfo", nullptr);
+        EXPECT_TRUE(noFallback.empty());
+    }
+
     // Every accessory blurb comes from HUNTDAT via LoadText(); modernization
     // accessories rely on its false branch to fall back to a built-in
     // description, so that path has to stay a real, detectable failure.
-    std::vector<std::string> lines{ "untouched" };
-    EXPECT_FALSE(LoadText(lines, "huntdat/menu/txt/no_such_accessory.nfo"));
-    ASSERT_EQ(lines.size(), 1u);
-    EXPECT_EQ(lines[0], "untouched");
+    {
+        std::vector<std::string> lines{ "untouched" };
+        EXPECT_FALSE(LoadText(lines, "huntdat/menu/txt/no_such_accessory.nfo"));
+        ASSERT_EQ(lines.size(), 1u);
+        EXPECT_EQ(lines[0], "untouched");
+    }
+
+    {
+        TempMenuDirectory fixture;
+        std::ofstream("empty.nfo");
+        std::vector<std::string> lines;
+        ASSERT_TRUE(LoadText(lines, "empty.nfo"));
+        EXPECT_TRUE(lines.empty());
+    }
+
+    // A text override must point at an existing file: a missing one is
+    // reported and the row keeps its default .nfo. Built-in text covers
+    // modernization rows when that default file is also absent.
+    {
+        ResetMenuState();
+        LoadDiagnostics::Instance().Clear();
+        TempScript script("flashlight = 'no/such/mod_text.nfo'\n.\n");
+        ASSERT_NE(script.stream, nullptr);
+        EXPECT_NO_THROW(ReadAccessoryDescriptions(script.stream));
+
+        EXPECT_EQ(LookupAccessoryText("flashlight", "Flashlight", "-flashlight",
+                                      "huntdat/menu/txt/flashlight.nfo"),
+                  "huntdat/menu/txt/flashlight.nfo");
+        EXPECT_GE(LoadDiagnostics::Instance().Count(), 1u);
+        LoadDiagnostics::Instance().Clear();
+    }
 }
 
 TEST(MenuResourceEntry, BuiltInFlashlightBlurbFitsTheShopPanel)
@@ -422,125 +496,231 @@ TEST(MenuResourceEntry, BuiltInFlashlightBlurbFitsTheShopPanel)
     EXPECT_NE(joined.find("score"), std::string::npos);
 }
 
-TEST(MenuResourceEntry, ExplicitPicturePathOverridesTheDefaultThumbnail)
+TEST(MenuResourceEntry, ShopScanSkipsCommentsAndNeedsBlockDots)
 {
-    ResetMenuState();
-    TempScript script(
-        "{\n"
-        " name = 'Custom'\n"
-        " ai = 10\n"
-        " pic = 'huntdat/menu/pics/custom.tga'\n"
-        "}\n"
-        "}\n");
-    ASSERT_NE(script.stream, nullptr);
-
-    EXPECT_NO_THROW(ReadCharacters(script.stream));
-
-    ASSERT_EQ(g_DinoInfo.size(), 1u);
-    EXPECT_EQ(g_DinoInfo[0].m_PicturePath, "huntdat/menu/pics/custom.tga");
-}
-
-TEST(MenuResourceEntry, ShopHeadersIgnoreCommentsAndSubstringMentions)
-{
-    ResetMenuState();
-    TempMenuDirectory fixture;
-    std::ofstream menu("huntdat/_menu.txt");
-    menu << "common {\n.\n}\n"
-            "// accessory_descriptions is only a comment\n"
-            "  # accessory_prices = mentioned in a comment\n"
-            "  ; accessory_icons is also a comment\n"
-            "not_accessory_prices\n"
-            "accessory_icons\n{\nflashlight = 'lamp#1.tga' # actual comment\n}\n.\n"
-            "accessory_prices\n{\n; flashlight = 900\n// radar = 800\nflashlight = -0\n}\n.\n.\n";
-    menu.close();
-    ASSERT_NO_THROW(LoadResourcesScript());
-    EXPECT_EQ(g_AccessoryIcons["flashlight"], "lamp#1.tga");
-    EXPECT_TRUE(g_AccessoryDescriptions.empty());
-    ASSERT_EQ(g_AccessoryPriceOverrides.size(), 1u);
-    EXPECT_EQ(g_AccessoryPriceOverrides["flashlight"], 0);
-}
-
-TEST(MenuResourceEntry, ShopAssignmentsReadCompleteLinesAndBoundExcessiveLines)
-{
-    ResetMenuState();
-    LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
-    LoadDiagnostics::Instance().Clear();
-    const std::string text = "flashlight =" + std::string(300, ' ') + "'long#path.tga'\n"
-        "radar =" + std::string(4100, ' ') + "'ignored.tga'\n"
-        "scent = 'after.tga'\n.\n";
-    TempScript script(text.c_str());
-    ASSERT_NE(script.stream, nullptr);
-    ReadAccessoryIcons(script.stream);
-    EXPECT_EQ(g_AccessoryIcons["flashlight"], "long#path.tga");
-    EXPECT_EQ(g_AccessoryIcons.count("radar"), 0u);
-    EXPECT_EQ(g_AccessoryIcons["scent"], "after.tga");
-    EXPECT_EQ(LoadDiagnostics::Instance().Count(), 1u);
-    TempScript prices(("flashlight =" + std::string(300, ' ') + "7\n.\n").c_str());
-    ReadAccessoryPrices(prices.stream);
-    EXPECT_EQ(g_AccessoryPriceOverrides["flashlight"], 7);
-    LoadDiagnostics::Instance().SetMode(LoadMode::Strict);
-    TempScript strict(("radar =" + std::string(4100, ' ') + "9\n.\n").c_str());
-    EXPECT_THROW(ReadAccessoryPrices(strict.stream), std::exception);
-    LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
-    LoadDiagnostics::Instance().Clear();
-}
-
-TEST(MenuResourceEntry, InvalidLaterNamedPriceDoesNotEraseTheValidOverride)
-{
-    ResetMenuState();
-    LoadDiagnostics::Instance().Clear();
-    LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
-    TempScript prices("camo = 7\ncamo = 999999999999\n.\n");
-    ReadAccessoryPrices(prices.stream);
-    EXPECT_EQ(g_AccessoryPriceOverrides["camo"], 7);
-    EXPECT_EQ(LoadDiagnostics::Instance().Count(), 1u);
-    LoadDiagnostics::Instance().Clear();
-}
-
-TEST(MenuResourceEntry, InlineShopAssignmentReportsInsteadOfSilentlySucceeding)
-{
-    ResetMenuState();
-    TempMenuDirectory fixture;
-    std::ofstream("huntdat/_menu.txt") << "accessory_prices { flashlight = 7 }\n.\n.\n";
-    std::ostringstream log;
-    auto* previous = std::cout.rdbuf(log.rdbuf());
-    EXPECT_NO_THROW(LoadResourcesScript());
-    std::cout.rdbuf(previous);
-    EXPECT_TRUE(g_AccessoryPriceOverrides.empty());
-    EXPECT_NE(log.str().find("put assignments on separate lines"), std::string::npos);
-}
-
-TEST(MenuResourceEntry, BackgroundDimensionsAreValidatedBeforeFixedSizeCopies)
-{
-    TempMenuDirectory fixture;
-    LoadDiagnostics::Instance().Clear();
-    for (unsigned width : {1u, 800u}) {
-        const unsigned height = width == 1 ? 1 : 600;
-        unsigned char header[18] = {0,0,2};
-        header[12] = static_cast<unsigned char>(width);
-        header[13] = static_cast<unsigned char>(width >> 8);
-        header[14] = static_cast<unsigned char>(height);
-        header[15] = static_cast<unsigned char>(height >> 8);
-        header[16] = 16;
-        std::ofstream out("background.tga", std::ios::binary);
-        out.write(reinterpret_cast<char*>(header), sizeof header);
-        std::vector<char> pixels(width * height * 2, 0);
-        out.write(pixels.data(), pixels.size());
-        out.close();
-        TargaImage image;
-        EXPECT_EQ(LoadMenuBackground("background.tga", image), width == 800);
+    {
+        ResetMenuState();
+        TempMenuDirectory fixture;
+        std::ofstream menu("huntdat/_menu.txt");
+        menu << "common {\n.\n}\n"
+                "// accessory_descriptions is only a comment\n"
+                "  # accessory_prices = mentioned in a comment\n"
+                "  ; accessory_icons is also a comment\n"
+                "not_accessory_prices\n"
+                "accessory_icons\n{\nflashlight = 'lamp#1.tga' # actual comment\n}\n.\n"
+                "accessory_prices\n{\n; flashlight = 900\n// radar = 800\nflashlight = -0\n}\n.\n.\n";
+        menu.close();
+        ASSERT_NO_THROW(LoadResourcesScript());
+        EXPECT_EQ(g_AccessoryIcons["flashlight"], "lamp#1.tga");
+        EXPECT_TRUE(g_AccessoryDescriptions.empty());
+        ASSERT_EQ(g_AccessoryPriceOverrides.size(), 1u);
+        EXPECT_EQ(g_AccessoryPriceOverrides["flashlight"], 0);
     }
-    EXPECT_EQ(LoadDiagnostics::Instance().Count(), 1u);
-    LoadDiagnostics::Instance().Clear();
+
+    // The shipped accessories block ends at its first dot, not its '}'; a
+    // missing score-block dot swallows the next section. Legacy behavior is
+    // deliberately preserved; the checker detects this bad insertion and
+    // directs authors to add the missing dot.
+    {
+        ResetMenuState();
+        LoadDiagnostics::Instance().Clear();
+        LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+        TempMenuDirectory fixture;
+        std::ofstream menu("huntdat/_menu.txt");
+        ASSERT_TRUE(menu.is_open());
+        menu << "accessories\n{\n camo = 0.85\n}\n"
+                "accessory_icons\n{\n scent = 'mod_scent.tga'\n}\n.\n.\n";
+        menu.close();
+        EXPECT_NO_THROW(LoadResourcesScript());
+        EXPECT_TRUE(g_AccessoryIcons.empty());
+        EXPECT_EQ(g_AccessoryScoreMods.count("scent"), 1u);
+        LoadDiagnostics::Instance().Clear();
+    }
 }
 
-TEST(MenuResourceEntry, EmptyDescriptionFileIsAnIntentionalBlankOverride)
+TEST(MenuResourceEntry, ShopAssignmentsReadWholeLinesAndReportInlineForms)
 {
-    TempMenuDirectory fixture;
-    std::ofstream("empty.nfo");
-    std::vector<std::string> lines;
-    ASSERT_TRUE(LoadText(lines, "empty.nfo"));
-    EXPECT_TRUE(lines.empty());
+    {
+        ResetMenuState();
+        LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+        LoadDiagnostics::Instance().Clear();
+        const std::string text = "flashlight =" + std::string(300, ' ') + "'long#path.tga'\n"
+            "radar =" + std::string(4100, ' ') + "'ignored.tga'\n"
+            "scent = 'after.tga'\n.\n";
+        TempScript script(text.c_str());
+        ASSERT_NE(script.stream, nullptr);
+        ReadAccessoryIcons(script.stream);
+        EXPECT_EQ(g_AccessoryIcons["flashlight"], "long#path.tga");
+        EXPECT_EQ(g_AccessoryIcons.count("radar"), 0u);
+        EXPECT_EQ(g_AccessoryIcons["scent"], "after.tga");
+        EXPECT_EQ(LoadDiagnostics::Instance().Count(), 1u);
+        TempScript prices(("flashlight =" + std::string(300, ' ') + "7\n.\n").c_str());
+        ReadAccessoryPrices(prices.stream);
+        EXPECT_EQ(g_AccessoryPriceOverrides["flashlight"], 7);
+        LoadDiagnostics::Instance().SetMode(LoadMode::Strict);
+        TempScript strict(("radar =" + std::string(4100, ' ') + "9\n.\n").c_str());
+        EXPECT_THROW(ReadAccessoryPrices(strict.stream), std::exception);
+        LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+        LoadDiagnostics::Instance().Clear();
+    }
+
+    // An inline `key = value }` form cannot be read as an assignment; it must
+    // be reported instead of silently succeeding.
+    {
+        ResetMenuState();
+        TempMenuDirectory fixture;
+        std::ofstream("huntdat/_menu.txt") << "accessory_prices { flashlight = 7 }\n.\n.\n";
+        std::ostringstream log;
+        auto* previous = std::cout.rdbuf(log.rdbuf());
+        EXPECT_NO_THROW(LoadResourcesScript());
+        std::cout.rdbuf(previous);
+        EXPECT_TRUE(g_AccessoryPriceOverrides.empty());
+        EXPECT_NE(log.str().find("put assignments on separate lines"), std::string::npos);
+    }
+}
+
+TEST(MenuResourceEntry, BackgroundDimensionsAndTruncationAreValidated)
+{
+    {
+        TempMenuDirectory fixture;
+        LoadDiagnostics::Instance().Clear();
+        for (unsigned width : {1u, 800u}) {
+            const unsigned height = width == 1 ? 1 : 600;
+            unsigned char header[18] = {0,0,2};
+            header[12] = static_cast<unsigned char>(width);
+            header[13] = static_cast<unsigned char>(width >> 8);
+            header[14] = static_cast<unsigned char>(height);
+            header[15] = static_cast<unsigned char>(height >> 8);
+            header[16] = 16;
+            std::ofstream out("background.tga", std::ios::binary);
+            out.write(reinterpret_cast<char*>(header), sizeof header);
+            std::vector<char> pixels(width * height * 2, 0);
+            out.write(pixels.data(), pixels.size());
+            out.close();
+            TargaImage image;
+            EXPECT_EQ(LoadMenuBackground("background.tga", image), width == 800);
+        }
+        EXPECT_EQ(LoadDiagnostics::Instance().Count(), 1u);
+        LoadDiagnostics::Instance().Clear();
+    }
+
+    {
+        LoadDiagnostics::Instance().Clear();
+        const char* path = "mod_truncated_icon.tga";
+        const unsigned char header[] = {
+            0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            1, 0, 1, 0, 16, 0
+        };
+        for (size_t length : {size_t(9), sizeof(header)}) {
+            std::ofstream out(path, std::ios::binary);
+            ASSERT_TRUE(out.is_open());
+            out.write(reinterpret_cast<const char*>(header), length);
+            out.close();
+            Picture pic;
+            EXPECT_FALSE(LoadPicture(pic, path));
+            EXPECT_FALSE(pic.IsValid());
+        }
+        std::remove(path);
+        EXPECT_EQ(LoadDiagnostics::Instance().Count(), 2u);
+        LoadDiagnostics::Instance().Clear();
+    }
+}
+
+TEST(MenuResourceEntry, NamedPricesResolveByKeyAndRejectInvalidValues)
+{
+    // Keyed entries follow the names, not the entry order.
+    {
+        ResetMenuState();
+        TempScript prices(
+            "flashlight = 7\ntranq = 6\nnightvision = 5\n'Double ammo' = 4\n"
+            "'Cover scent' = 3\nRadar = 2\nCamouflage = 1\n.\n");
+        ASSERT_NE(prices.stream, nullptr);
+        ReadAccessoryPrices(prices.stream);
+        LoadResources();
+        ASSERT_EQ(g_UtilInfo.size(), 7u);
+        for (size_t i = 0; i < g_UtilInfo.size(); ++i)
+            EXPECT_EQ(g_UtilInfo[i].m_Price, static_cast<int32_t>(i + 1));
+    }
+
+    // When a mod fills several spellings for the same row, the probe order
+    // decides: canonical score key, then display name, then legacy key.
+    {
+        ResetMenuState();
+        TempScript script("Tranquilizers = 13\ntranq -tranquilizer = 15\ntranq = 17\n.\n");
+        ASSERT_NE(script.stream, nullptr);
+        ReadAccessoryPrices(script.stream);
+        LoadResources();
+        ASSERT_EQ(g_UtilInfo.size(), 7u);
+        EXPECT_EQ(g_UtilInfo[5].m_Price, 17);
+        g_UtilInfo.clear();
+        g_AccessoryPriceOverrides.erase("tranq");
+        LoadResources();
+        EXPECT_EQ(g_UtilInfo[5].m_Price, 13);
+        g_UtilInfo.clear();
+        g_AccessoryPriceOverrides.erase("tranquilizers");
+        LoadResources();
+        EXPECT_EQ(g_UtilInfo[5].m_Price, 15);
+    }
+
+    // A later invalid value must not erase an earlier valid override.
+    {
+        ResetMenuState();
+        LoadDiagnostics::Instance().Clear();
+        LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+        TempScript prices("camo = 7\ncamo = 999999999999\n.\n");
+        ReadAccessoryPrices(prices.stream);
+        EXPECT_EQ(g_AccessoryPriceOverrides["camo"], 7);
+        EXPECT_EQ(LoadDiagnostics::Instance().Count(), 1u);
+        LoadDiagnostics::Instance().Clear();
+    }
+
+    // Negative, non-numeric and fractional values are rejected (strict mode
+    // halts on them); the display-name alias still normalizes.
+    {
+        ResetMenuState();
+        LoadDiagnostics::Instance().Clear();
+        LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+        TempScript script("'Cover scent' = 12\ntranq = -2\nflashlight = xyz\nradar = 12.5\n.\n");
+        ASSERT_NE(script.stream, nullptr);
+        EXPECT_NO_THROW(ReadAccessoryPrices(script.stream));
+        EXPECT_EQ(g_AccessoryPriceOverrides["coverscent"], 12);
+        EXPECT_EQ(g_AccessoryPriceOverrides.count("tranq"), 0u);
+        EXPECT_EQ(g_AccessoryPriceOverrides.count("flashlight"), 0u);
+        EXPECT_EQ(g_AccessoryPriceOverrides.count("radar"), 0u);
+        EXPECT_EQ(LoadDiagnostics::Instance().Count(), 3u);
+        LoadDiagnostics::Instance().Clear();
+
+        TempScript strict("camo = -1\n.\n");
+        ASSERT_NE(strict.stream, nullptr);
+        LoadDiagnostics::Instance().SetMode(LoadMode::Strict);
+        EXPECT_THROW(ReadAccessoryPrices(strict.stream), std::exception);
+        LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+        LoadDiagnostics::Instance().Clear();
+    }
+}
+
+TEST(MenuResourceEntry, NamedPricesDoNotShiftLegacyRows)
+{
+    ResetMenuState();
+    g_AccessoryPrices = { 1, 2, 3, 4, 5 };
+    g_AccessoryPriceOverrides["nightvision"] = 77;
+    LoadResources();
+    ASSERT_EQ(g_UtilInfo.size(), 7u);
+    EXPECT_EQ(g_UtilInfo[4].m_Price, 77);
+    EXPECT_EQ(g_UtilInfo[5].m_Price, 5);
+    EXPECT_EQ(g_UtilInfo[6].m_Price, 30);
+    g_UtilInfo.clear();
+    g_AccessoryPriceOverrides.clear();
+    LoadResources();
+    ASSERT_EQ(g_UtilInfo.size(), 7u);
+    EXPECT_EQ(g_UtilInfo[4].m_Price, 50);
+    EXPECT_EQ(g_UtilInfo[5].m_Price, 5);
+    g_UtilInfo.clear();
+    g_AccessoryPrices = { 1, 2, 3, 4, 5, 6, 7 };
+    LoadResources();
+    EXPECT_EQ(g_UtilInfo[4].m_Price, 5);
+    EXPECT_EQ(g_UtilInfo[5].m_Price, 6);
+    EXPECT_EQ(g_UtilInfo[6].m_Price, 7);
 }
 
 TEST(MenuResourceEntry, StockShapedScriptLoadsBlocksAndNamedPrices)
@@ -577,309 +757,6 @@ TEST(MenuResourceEntry, StockShapedScriptLoadsBlocksAndNamedPrices)
     EXPECT_EQ(g_UtilInfo[4].m_Price, 70);
     EXPECT_EQ(g_UtilInfo[5].m_Price, 15);
     EXPECT_EQ(g_UtilInfo[6].m_Price, 0);
-    LoadDiagnostics::Instance().Clear();
-}
-
-TEST(MenuResourceEntry, MissingScoreBlockDotSwallowsTheNewSection)
-{
-    ResetMenuState();
-    LoadDiagnostics::Instance().Clear();
-    LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
-    TempMenuDirectory fixture;
-    std::ofstream menu("huntdat/_menu.txt");
-    ASSERT_TRUE(menu.is_open());
-    menu << "accessories\n{\n camo = 0.85\n}\n"
-            "accessory_icons\n{\n scent = 'mod_scent.tga'\n}\n.\n.\n";
-    menu.close();
-    EXPECT_NO_THROW(LoadResourcesScript());
-    // Legacy behavior is deliberately preserved; the checker detects this
-    // bad insertion and directs authors to add the missing score-block dot.
-    EXPECT_TRUE(g_AccessoryIcons.empty());
-    EXPECT_EQ(g_AccessoryScoreMods.count("scent"), 1u);
-    LoadDiagnostics::Instance().Clear();
-}
-
-TEST(MenuResourceEntry, KeyedOnlyPricesFollowNamesNotEntryOrder)
-{
-    ResetMenuState();
-    TempScript prices(
-        "flashlight = 7\ntranq = 6\nnightvision = 5\n'Double ammo' = 4\n"
-        "'Cover scent' = 3\nRadar = 2\nCamouflage = 1\n.\n");
-    ASSERT_NE(prices.stream, nullptr);
-    ReadAccessoryPrices(prices.stream);
-    LoadResources();
-    ASSERT_EQ(g_UtilInfo.size(), 7u);
-    for (size_t i = 0; i < g_UtilInfo.size(); ++i)
-        EXPECT_EQ(g_UtilInfo[i].m_Price, static_cast<int32_t>(i + 1));
-}
-
-TEST(MenuResourceEntry, NamedPricesDoNotShiftFiveLineLegacyPrices)
-{
-    ResetMenuState();
-    g_AccessoryPrices = { 1, 2, 3, 4, 5 };
-    g_AccessoryPriceOverrides["nightvision"] = 77;
-    LoadResources();
-    ASSERT_EQ(g_UtilInfo.size(), 7u);
-    EXPECT_EQ(g_UtilInfo[4].m_Price, 77);
-    EXPECT_EQ(g_UtilInfo[5].m_Price, 5);
-    EXPECT_EQ(g_UtilInfo[6].m_Price, 30);
-    g_UtilInfo.clear();
-    g_AccessoryPriceOverrides.clear();
-    LoadResources();
-    ASSERT_EQ(g_UtilInfo.size(), 7u);
-    EXPECT_EQ(g_UtilInfo[4].m_Price, 50);
-    EXPECT_EQ(g_UtilInfo[5].m_Price, 5);
-    g_UtilInfo.clear();
-    g_AccessoryPrices = { 1, 2, 3, 4, 5, 6, 7 };
-    LoadResources();
-    EXPECT_EQ(g_UtilInfo[4].m_Price, 5);
-    EXPECT_EQ(g_UtilInfo[5].m_Price, 6);
-    EXPECT_EQ(g_UtilInfo[6].m_Price, 7);
-}
-
-TEST(MenuResourceEntry, NamedPricesPreferCanonicalThenDisplayThenLegacyKey)
-{
-    ResetMenuState();
-    TempScript script("Tranquilizers = 13\ntranq -tranquilizer = 15\ntranq = 17\n.\n");
-    ASSERT_NE(script.stream, nullptr);
-    ReadAccessoryPrices(script.stream);
-    LoadResources();
-    ASSERT_EQ(g_UtilInfo.size(), 7u);
-    EXPECT_EQ(g_UtilInfo[5].m_Price, 17);
-    g_UtilInfo.clear();
-    g_AccessoryPriceOverrides.erase("tranq");
-    LoadResources();
-    EXPECT_EQ(g_UtilInfo[5].m_Price, 13);
-    g_UtilInfo.clear();
-    g_AccessoryPriceOverrides.erase("tranquilizers");
-    LoadResources();
-    EXPECT_EQ(g_UtilInfo[5].m_Price, 15);
-}
-
-TEST(MenuResourceEntry, NamedPricesRejectInvalidValuesAndHonorAliases)
-{
-    ResetMenuState();
-    LoadDiagnostics::Instance().Clear();
-    LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
-    TempScript script("'Cover scent' = 12\ntranq = -2\nflashlight = xyz\nradar = 12.5\n.\n");
-    ASSERT_NE(script.stream, nullptr);
-    EXPECT_NO_THROW(ReadAccessoryPrices(script.stream));
-    EXPECT_EQ(g_AccessoryPriceOverrides["coverscent"], 12);
-    EXPECT_EQ(g_AccessoryPriceOverrides.count("tranq"), 0u);
-    EXPECT_EQ(g_AccessoryPriceOverrides.count("flashlight"), 0u);
-    EXPECT_EQ(g_AccessoryPriceOverrides.count("radar"), 0u);
-    EXPECT_EQ(LoadDiagnostics::Instance().Count(), 3u);
-    LoadDiagnostics::Instance().Clear();
-
-    TempScript strict("camo = -1\n.\n");
-    ASSERT_NE(strict.stream, nullptr);
-    LoadDiagnostics::Instance().SetMode(LoadMode::Strict);
-    EXPECT_THROW(ReadAccessoryPrices(strict.stream), std::exception);
-    LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
-    LoadDiagnostics::Instance().Clear();
-}
-
-TEST(MenuResourceEntry, AccessoryIconBlockNormalizesKeysAndStripsQuotes)
-{
-    // The block accepts the score key, the display name or any spelling that
-    // differs only in case/spacing, and the same quoted 'path' form every
-    // other script text value uses. The first implementation stored keys
-    // verbatim and kept the quote characters inside the path, so both the
-    // documented example keys and the documented example values broke.
-    ResetMenuState();
-    TempScript script(
-        "Flashlight = 'huntdat/menu/pics/mod_fl.tga'\n"
-        "'Cover scent' = huntdat/menu/pics/mod_scent.tga\n"
-        "Night_Vision = 'huntdat/menu/pics/mod_nv.tga'\n"
-        "# comment = 'not an entry'\n"
-        "emptyvalue =\n"
-        ".\n");
-    ASSERT_NE(script.stream, nullptr);
-
-    EXPECT_NO_THROW(ReadAccessoryIcons(script.stream));
-
-    EXPECT_EQ(g_AccessoryIcons.size(), 3u);
-    EXPECT_EQ(g_AccessoryIcons["flashlight"], "huntdat/menu/pics/mod_fl.tga");
-    EXPECT_EQ(g_AccessoryIcons["coverscent"], "huntdat/menu/pics/mod_scent.tga");
-    EXPECT_EQ(g_AccessoryIcons["nightvision"], "huntdat/menu/pics/mod_nv.tga");
-}
-
-TEST(MenuResourceEntry, AccessoryDescriptionBlockMirrorsTheIconBlock)
-{
-    // Same reader, same grammar, second map. The score key and the display
-    // name stay two separate stored keys ('tranq' and 'tranquilizers'); the
-    // row's probe order decides which one wins -- the score key first.
-    ResetMenuState();
-    TempScript script(
-        "tranq = 'huntdat/menu/txt/mod_tranq.nfo'\n"
-        "Tranquilizers = huntdat/menu/txt/mod_tranq2.nfo\n"
-        ".\n");
-    ASSERT_NE(script.stream, nullptr);
-
-    EXPECT_NO_THROW(ReadAccessoryDescriptions(script.stream));
-
-    EXPECT_EQ(g_AccessoryDescriptions.size(), 2u);
-    EXPECT_EQ(g_AccessoryDescriptions["tranq"], "huntdat/menu/txt/mod_tranq.nfo");
-    EXPECT_EQ(g_AccessoryDescriptions["tranquilizers"], "huntdat/menu/txt/mod_tranq2.nfo");
-    // A text override must point at an existing file (the policy tests below
-    // cover both sides); these paths do not exist, so the row would keep its
-    // default .nfo. The icon block carries no such requirement.
-}
-
-TEST(MenuResourceEntry, IconProbeOrderIsScoreKeyThenDisplayNameThenLegacy)
-{
-    // When a mod fills several spellings for the same row, the probe order
-    // decides: score key first, then the display name, then the legacy
-    // command-derived key.
-    ResetMenuState();
-    TempScript script(
-        "tranq = 'm/score_key.tga'\n"
-        "Tranquilizers = 'm/display_name.tga'\n"
-        "tranq -tranquilizer = 'm/legacy.tga'\n"
-        ".\n");
-    ASSERT_NE(script.stream, nullptr);
-    EXPECT_NO_THROW(ReadAccessoryIcons(script.stream));
-
-    EXPECT_EQ(LookupAccessoryIcon("tranq", "Tranquilizers", "-tranq -tranquilizer", "default.tga"),
-              "m/score_key.tga");
-
-    // Removing the winner promotes the display name, then the legacy key.
-    g_AccessoryIcons.erase("tranq");
-    EXPECT_EQ(LookupAccessoryIcon("tranq", "Tranquilizers", "-tranq -tranquilizer", "default.tga"),
-              "m/display_name.tga");
-
-    g_AccessoryIcons.erase("tranquilizers");
-    EXPECT_EQ(LookupAccessoryIcon("tranq", "Tranquilizers", "-tranq -tranquilizer", "default.tga"),
-              "m/legacy.tga");
-}
-
-TEST(MenuResourceEntry, IconLookupAcceptsEveryKeySpelling)
-{
-    // One row, every accepted spelling: 'tranq' is the canonical score key,
-    // 'Tranquilizers' the display name, and 'tranq -tranquilizer' the legacy
-    // compound key the first implementation accidentally required.
-    for (const char* key : { "tranq", "Tranquilizers", "tranq -tranquilizer" }) {
-        ResetMenuState();
-        TempScript script((std::string(key) + " = 'm/mod_tranq.tga'\n.\n").c_str());
-        ASSERT_NE(script.stream, nullptr);
-        EXPECT_NO_THROW(ReadAccessoryIcons(script.stream));
-
-        EXPECT_EQ(LookupAccessoryIcon("tranq", "Tranquilizers", "-tranq -tranquilizer",
-                                      "huntdat/menu/pics/equip6.tga"),
-                  "m/mod_tranq.tga") << key;
-    }
-}
-
-TEST(MenuResourceEntry, IconLookupFallsBackToTheBuiltInPathWithoutOverrides)
-{
-    ResetMenuState();
-    EXPECT_EQ(LookupAccessoryIcon("tranq", "Tranquilizers", "-tranq -tranquilizer",
-                                  "huntdat/menu/pics/equip6.tga"),
-              "huntdat/menu/pics/equip6.tga");
-}
-
-TEST(MenuResourceEntry, EveryAccessoryRowIsIconAddressable)
-{
-    // The seven shop rows under their score keys. Cover scent (empty flag,
-    // so the first implementation derived an empty key) and night vision
-    // (whose icon load bypassed the lookup entirely) were unaddressable
-    // before the normalized keys.
-    ResetMenuState();
-    TempScript script(
-        "camo = 'm/camo.tga'\n"
-        "radar = 'm/radar.tga'\n"
-        "scent = 'm/scent.tga'\n"
-        "double = 'm/double.tga'\n"
-        "nightvision = 'm/nv.tga'\n"
-        "tranq = 'm/tranq.tga'\n"
-        "flashlight = 'm/fl.tga'\n"
-        ".\n");
-    ASSERT_NE(script.stream, nullptr);
-    EXPECT_NO_THROW(ReadAccessoryIcons(script.stream));
-
-    struct Row { const char* scoreKey; const char* name; const char* cmd; const char* expect; };
-    const Row rows[] = {
-        { "camo", "Camouflage", "-camo", "m/camo.tga" },
-        { "radar", "Radar", "-radar", "m/radar.tga" },
-        { "scent", "Cover scent", "", "m/scent.tga" },
-        { "double", "Double ammo", "-double", "m/double.tga" },
-        { "nightvision", "Night vision", "-nightvision", "m/nv.tga" },
-        { "tranq", "Tranquilizers", "-tranq -tranquilizer", "m/tranq.tga" },
-        { "flashlight", "Flashlight", "-flashlight", "m/fl.tga" },
-    };
-    for (const Row& row : rows) {
-        EXPECT_EQ(LookupAccessoryIcon(row.scoreKey, row.name, row.cmd, "default.tga"),
-                  row.expect) << row.name;
-    }
-}
-
-TEST(MenuResourceEntry, IconLookupForgivesCaseAndSpacing)
-{
-    for (const char* spelling : { "Cover scent", "cover  scent", "COVER-SCENT", "cover_scent" }) {
-        ResetMenuState();
-        TempScript script((std::string(spelling) + " = 'm/scent.tga'\n.\n").c_str());
-        ASSERT_NE(script.stream, nullptr);
-        EXPECT_NO_THROW(ReadAccessoryIcons(script.stream));
-
-        EXPECT_EQ(LookupAccessoryIcon("scent", "Cover scent", "", "default.tga"),
-                  "m/scent.tga") << spelling;
-    }
-}
-
-TEST(MenuResourceEntry, MissingIconOverrideKeepsTheOverrideAndReports)
-{
-    // Unchanged original behavior: an override wins even when its file is
-    // missing, so the row shows the empty icon box -- but the failure now
-    // reaches the load summary instead of dying silently.
-    ResetMenuState();
-    LoadDiagnostics::Instance().Clear();
-    TempScript script("camo = 'no/such/mod_icon.tga'\n.\n");
-    ASSERT_NE(script.stream, nullptr);
-    EXPECT_NO_THROW(ReadAccessoryIcons(script.stream));
-
-    EXPECT_EQ(LookupAccessoryIcon("camo", "Camouflage", "-camo", "huntdat/menu/pics/equip1.tga"),
-              "no/such/mod_icon.tga");
-    EXPECT_GE(LoadDiagnostics::Instance().Count(), 1u);
-    LoadDiagnostics::Instance().Clear();
-}
-
-TEST(MenuResourceEntry, MissingTextOverrideFallsBackAndReports)
-{
-    // A text override must point at an existing file: a missing one is
-    // reported and the row keeps its default .nfo. Built-in text covers
-    // modernization rows when that default file is also absent.
-    ResetMenuState();
-    LoadDiagnostics::Instance().Clear();
-    TempScript script("flashlight = 'no/such/mod_text.nfo'\n.\n");
-    ASSERT_NE(script.stream, nullptr);
-    EXPECT_NO_THROW(ReadAccessoryDescriptions(script.stream));
-
-    EXPECT_EQ(LookupAccessoryText("flashlight", "Flashlight", "-flashlight",
-                                  "huntdat/menu/txt/flashlight.nfo"),
-              "huntdat/menu/txt/flashlight.nfo");
-    EXPECT_GE(LoadDiagnostics::Instance().Count(), 1u);
-    LoadDiagnostics::Instance().Clear();
-}
-
-TEST(MenuResourceEntry, TruncatedTgaIsRejectedBeforeReadingPixels)
-{
-    LoadDiagnostics::Instance().Clear();
-    const char* path = "mod_truncated_icon.tga";
-    const unsigned char header[] = {
-        0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        1, 0, 1, 0, 16, 0
-    };
-    for (size_t length : {size_t(9), sizeof(header)}) {
-        std::ofstream out(path, std::ios::binary);
-        ASSERT_TRUE(out.is_open());
-        out.write(reinterpret_cast<const char*>(header), length);
-        out.close();
-        Picture pic;
-        EXPECT_FALSE(LoadPicture(pic, path));
-        EXPECT_FALSE(pic.IsValid());
-    }
-    std::remove(path);
-    EXPECT_EQ(LoadDiagnostics::Instance().Count(), 2u);
     LoadDiagnostics::Instance().Clear();
 }
 
@@ -922,28 +799,163 @@ TEST(MenuResourceEntry, MissingIconNeverInheritsThePreviousRowsPicture)
     EXPECT_EQ(LoadDiagnostics::Instance().Count(), 0u);
 }
 
-TEST(MenuResourceEntry, TextOverrideRedirectsTheDescriptionFile)
+TEST(MenuResourceEntry, IconBlockNormalizesKeysAndProbeOrder)
 {
-    // A mod's redirect wins over both the stock .nfo path and the built-in
-    // blurb when the file it names exists.
-    ResetMenuState();
-    const char* path = "mod_override_desc.nfo";
-    std::ofstream out(path, std::ios::binary);
-    ASSERT_TRUE(out.is_open());
-    out << "Mod-supplied flashlight blurb.\r\n";
-    out.close();
+    // The block accepts the score key, the display name or any spelling that
+    // differs only in case/spacing, and the same quoted 'path' form every
+    // other script text value uses. The first implementation stored keys
+    // verbatim and kept the quote characters inside the path, so both the
+    // documented example keys and the documented example values broke.
+    {
+        ResetMenuState();
+        TempScript script(
+            "Flashlight = 'huntdat/menu/pics/mod_fl.tga'\n"
+            "'Cover scent' = huntdat/menu/pics/mod_scent.tga\n"
+            "Night_Vision = 'huntdat/menu/pics/mod_nv.tga'\n"
+            "# comment = 'not an entry'\n"
+            "emptyvalue =\n"
+            ".\n");
+        ASSERT_NE(script.stream, nullptr);
 
-    TempScript script((std::string("flashlight = '") + path + "'\n.\n").c_str());
+        EXPECT_NO_THROW(ReadAccessoryIcons(script.stream));
+
+        EXPECT_EQ(g_AccessoryIcons.size(), 3u);
+        EXPECT_EQ(g_AccessoryIcons["flashlight"], "huntdat/menu/pics/mod_fl.tga");
+        EXPECT_EQ(g_AccessoryIcons["coverscent"], "huntdat/menu/pics/mod_scent.tga");
+        EXPECT_EQ(g_AccessoryIcons["nightvision"], "huntdat/menu/pics/mod_nv.tga");
+    }
+
+    // When a mod fills several spellings for the same row, the probe order
+    // decides: score key first, then the display name, then the legacy
+    // command-derived key.
+    {
+        ResetMenuState();
+        TempScript script(
+            "tranq = 'm/score_key.tga'\n"
+            "Tranquilizers = 'm/display_name.tga'\n"
+            "tranq -tranquilizer = 'm/legacy.tga'\n"
+            ".\n");
+        ASSERT_NE(script.stream, nullptr);
+        EXPECT_NO_THROW(ReadAccessoryIcons(script.stream));
+
+        EXPECT_EQ(LookupAccessoryIcon("tranq", "Tranquilizers", "-tranq -tranquilizer", "default.tga"),
+                  "m/score_key.tga");
+
+        // Removing the winner promotes the display name, then the legacy key.
+        g_AccessoryIcons.erase("tranq");
+        EXPECT_EQ(LookupAccessoryIcon("tranq", "Tranquilizers", "-tranq -tranquilizer", "default.tga"),
+                  "m/display_name.tga");
+
+        g_AccessoryIcons.erase("tranquilizers");
+        EXPECT_EQ(LookupAccessoryIcon("tranq", "Tranquilizers", "-tranq -tranquilizer", "default.tga"),
+                  "m/legacy.tga");
+    }
+}
+
+TEST(MenuResourceEntry, IconLookupFindsEveryRowThroughAnySpelling)
+{
+    // One row, every accepted spelling: 'tranq' is the canonical score key,
+    // 'Tranquilizers' the display name, and 'tranq -tranquilizer' the legacy
+    // compound key the first implementation accidentally required.
+    for (const char* key : { "tranq", "Tranquilizers", "tranq -tranquilizer" }) {
+        ResetMenuState();
+        TempScript script((std::string(key) + " = 'm/mod_tranq.tga'\n.\n").c_str());
+        ASSERT_NE(script.stream, nullptr);
+        EXPECT_NO_THROW(ReadAccessoryIcons(script.stream));
+
+        EXPECT_EQ(LookupAccessoryIcon("tranq", "Tranquilizers", "-tranq -tranquilizer",
+                                      "huntdat/menu/pics/equip6.tga"),
+                  "m/mod_tranq.tga") << key;
+    }
+
+    {
+        ResetMenuState();
+        EXPECT_EQ(LookupAccessoryIcon("tranq", "Tranquilizers", "-tranq -tranquilizer",
+                                      "huntdat/menu/pics/equip6.tga"),
+                  "huntdat/menu/pics/equip6.tga");
+    }
+
+    // Case and spacing do not matter on the block keys either.
+    for (const char* spelling : { "Cover scent", "cover  scent", "COVER-SCENT", "cover_scent" }) {
+        ResetMenuState();
+        TempScript script((std::string(spelling) + " = 'm/scent.tga'\n.\n").c_str());
+        ASSERT_NE(script.stream, nullptr);
+        EXPECT_NO_THROW(ReadAccessoryIcons(script.stream));
+
+        EXPECT_EQ(LookupAccessoryIcon("scent", "Cover scent", "", "default.tga"),
+                  "m/scent.tga") << spelling;
+    }
+
+    // The seven shop rows under their score keys. Cover scent (empty flag,
+    // so the first implementation derived an empty key) and night vision
+    // (whose icon load bypassed the lookup entirely) were unaddressable
+    // before the normalized keys.
+    {
+        ResetMenuState();
+        TempScript script(
+            "camo = 'm/camo.tga'\n"
+            "radar = 'm/radar.tga'\n"
+            "scent = 'm/scent.tga'\n"
+            "double = 'm/double.tga'\n"
+            "nightvision = 'm/nv.tga'\n"
+            "tranq = 'm/tranq.tga'\n"
+            "flashlight = 'm/fl.tga'\n"
+            ".\n");
+        ASSERT_NE(script.stream, nullptr);
+        EXPECT_NO_THROW(ReadAccessoryIcons(script.stream));
+
+        struct Row { const char* scoreKey; const char* name; const char* cmd; const char* expect; };
+        const Row rows[] = {
+            { "camo", "Camouflage", "-camo", "m/camo.tga" },
+            { "radar", "Radar", "-radar", "m/radar.tga" },
+            { "scent", "Cover scent", "", "m/scent.tga" },
+            { "double", "Double ammo", "-double", "m/double.tga" },
+            { "nightvision", "Night vision", "-nightvision", "m/nv.tga" },
+            { "tranq", "Tranquilizers", "-tranq -tranquilizer", "m/tranq.tga" },
+            { "flashlight", "Flashlight", "-flashlight", "m/fl.tga" },
+        };
+        for (const Row& row : rows) {
+            EXPECT_EQ(LookupAccessoryIcon(row.scoreKey, row.name, row.cmd, "default.tga"),
+                      row.expect) << row.name;
+        }
+    }
+}
+
+TEST(MenuResourceEntry, MissingIconOverrideKeepsTheOverrideAndReports)
+{
+    // Unchanged original behavior: an override wins even when its file is
+    // missing, so the row shows the empty icon box -- but the failure now
+    // reaches the load summary instead of dying silently.
+    ResetMenuState();
+    LoadDiagnostics::Instance().Clear();
+    TempScript script("camo = 'no/such/mod_icon.tga'\n.\n");
     ASSERT_NE(script.stream, nullptr);
+    EXPECT_NO_THROW(ReadAccessoryIcons(script.stream));
+
+    EXPECT_EQ(LookupAccessoryIcon("camo", "Camouflage", "-camo", "huntdat/menu/pics/equip1.tga"),
+              "no/such/mod_icon.tga");
+    EXPECT_GE(LoadDiagnostics::Instance().Count(), 1u);
+    LoadDiagnostics::Instance().Clear();
+}
+
+TEST(MenuResourceEntry, AccessoryDescriptionBlockMirrorsTheIconBlock)
+{
+    // Same reader, same grammar, second map. The score key and the display
+    // name stay two separate stored keys ('tranq' and 'tranquilizers'); the
+    // row's probe order decides which one wins -- the score key first.
+    ResetMenuState();
+    TempScript script(
+        "tranq = 'huntdat/menu/txt/mod_tranq.nfo'\n"
+        "Tranquilizers = huntdat/menu/txt/mod_tranq2.nfo\n"
+        ".\n");
+    ASSERT_NE(script.stream, nullptr);
+
     EXPECT_NO_THROW(ReadAccessoryDescriptions(script.stream));
 
-    std::vector<std::string> lines;
-    LoadAccessoryDescription(lines,
-                              LookupAccessoryText("flashlight", "Flashlight", "-flashlight",
-                                                  "huntdat/menu/txt/flashlight.nfo"),
-                              &kFlashlightDescription);
-    std::remove(path);
-
-    ASSERT_FALSE(lines.empty());
-    EXPECT_EQ(lines[0], "Mod-supplied flashlight blurb.");
+    EXPECT_EQ(g_AccessoryDescriptions.size(), 2u);
+    EXPECT_EQ(g_AccessoryDescriptions["tranq"], "huntdat/menu/txt/mod_tranq.nfo");
+    EXPECT_EQ(g_AccessoryDescriptions["tranquilizers"], "huntdat/menu/txt/mod_tranq2.nfo");
+    // A text override must point at an existing file (the fallback cases
+    // cover both sides); these paths do not exist, so the row would keep its
+    // default .nfo. The icon block carries no such requirement.
 }
