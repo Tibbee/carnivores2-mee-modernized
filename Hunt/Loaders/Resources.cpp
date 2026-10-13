@@ -74,7 +74,6 @@ std::map<void*, AllocationInfo>* g_Allocations = nullptr;
 #endif
 
 void GenerateModelMipMaps(TModel *mptr, MemoryTag tag);
-void GenerateAlphaFlags(TModel *mptr);
 
 // Phase 5A: the 3-arg _HeapAlloc is preserved as a one-line forwarder to
 // the new 4-arg overload that takes a MemoryTag. Call sites can be migrated
@@ -868,7 +867,6 @@ void LoadResources()
       CalcBoundBox(MObjects[mm].model.get(), MObjects[mm].bound);
 
     GenerateModelMipMaps(MObjects[mm].model.get(), MemoryTag::Level);
-    GenerateAlphaFlags(MObjects[mm].model.get());
   }
   PrintLog(" Done.\n");
 
@@ -891,9 +889,6 @@ void LoadResources()
     int fb = (FogsList[f].fogRGB >> 00) & 0xFF;
     int fg = (FogsList[f].fogRGB >>  8) & 0xFF;
     int fr = (FogsList[f].fogRGB >> 16) & 0xFF;
-#ifdef _d3d
-    FogsList[f].fogRGB = (fr) + (fg<<8) + (fb<<16);
-#endif
     // Night vision green fog tint removed -- handled by per-frame overlay
   }
 
@@ -973,15 +968,9 @@ void LoadResources()
     // tindex comes from the file; Textures[] has tc live entries.
     if (WaterList[w].tindex < 0 || WaterList[w].tindex >= tc)
       RscLoadFail("water texture index out of range", WaterList[w].tindex, tc);
-#ifdef _3dfx
-    WaterList[w].fogRGB = (Textures[WaterList[w].tindex]->mR) +
-                          (Textures[WaterList[w].tindex]->mG<<8) +
-                          (Textures[WaterList[w].tindex]->mB<<16);
-#else
     WaterList[w].fogRGB = (Textures[WaterList[w].tindex]->mB) +
                           (Textures[WaterList[w].tindex]->mG<<8) +
                           (Textures[WaterList[w].tindex]->mR<<16);
-#endif
   }
   CloseHandle(hfile);
   PrintLog(" Done.\n");
@@ -1229,14 +1218,6 @@ void CreateLog()
                     GENERIC_WRITE,
                     FILE_SHARE_READ, nullptr,
                     CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-
-#ifdef _d3d
-  PrintLog("CarnivoresII  D3D video driver.");
-#endif
-
-#ifdef _3dfx
-  PrintLog("CarnivoresII 3DFX video driver.");
-#endif
 
 #ifdef _soft
   PrintLog("CarnivoresII Soft video driver.");

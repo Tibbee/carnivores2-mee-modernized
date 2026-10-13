@@ -43,11 +43,7 @@ HFONT FontFor(int px)
     cached = CreateFont(
         px, width, 0, 0,
         100, 0, 0, 0,
-#ifdef __rus
-        RUSSIAN_CHARSET,
-#else
         ANSI_CHARSET,
-#endif
         OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
         DEFAULT_PITCH | FF_SWISS, nullptr);
     cachedPx = px;

@@ -379,11 +379,7 @@ void InitEngine()
   fnt_BIG = CreateFont(
               static_cast<int>((23 * UIScale)), static_cast<int>((10 * UIScale)), 0, 0,
               600, 0,0,0,
-#ifdef __rus
-              RUSSIAN_CHARSET,
-#else
               ANSI_CHARSET,
-#endif
               OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
 
@@ -395,22 +391,14 @@ void InitEngine()
 	  
 	  //14, 5, 0, 0,
 	  //100, 0, 0, 0,
-#ifdef __rus
-                RUSSIAN_CHARSET,
-#else
                 ANSI_CHARSET,
-#endif
                 OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
 
   fnt_Midd  = CreateFont(
 			    static_cast<int>((16 * UIScale)), static_cast<int>((7 * UIScale)), 0, 0,
 	            550, 0, 0, 0,
-#ifdef __rus
-                RUSSIAN_CHARSET,
-#else
                 ANSI_CHARSET,
-#endif
                 OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
 

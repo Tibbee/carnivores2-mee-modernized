@@ -51,7 +51,6 @@ static void ValidateFaceIndices(const TModel* mptr)
 
 // Forward declarations (from original Resources.cpp)
 void GenerateModelMipMaps(TModel *mptr, MemoryTag tag);
-void GenerateAlphaFlags(TModel *mptr);
 void CreateMipMapMT(WORD* dst, WORD* src, int H);
 void CreateMipMapMT2(WORD* dst, WORD* src, int H);
 
@@ -66,7 +65,6 @@ int DitherHi(int C)
 
 
 void GenerateModelMipMaps(TModel *mptr, MemoryTag tag);
-void GenerateAlphaFlags(TModel *mptr);
 
 
 void CreateMipMap(WORD* src, WORD* dst, int Ls, int Ld)
@@ -226,14 +224,6 @@ void DATASHIFT(WORD* d, int cnt)
 
 }
 
-void ApplyAlphaFlags(WORD* tptr, int cnt)
-{
-#ifdef _d3d
-  for (int w=0; w<cnt; w++)
-    *(tptr+w)|=0x8000;
-#endif
-}
-
 void CalcMidColor(WORD* tptr, int l, int &mr, int &mg, int &mb)
 {
   for (int w=0; w<l; w++)
@@ -274,9 +264,6 @@ void LoadTexture(unique_obj_ptr<TEXTURE> &T)
   for (int w=0; w<32*32; w++)
     T->SDataC[1][w] = FadeTab[48][T->SDataC[1][w]>>1];
 
-  ApplyAlphaFlags(T->DataA, 128*128);
-  ApplyAlphaFlags(T->DataB, 64*64);
-  ApplyAlphaFlags(T->DataC, 32*32);
 }
 
 void LoadSky()
@@ -294,7 +281,6 @@ void LoadSky()
   for (int l=1; l<8; l++)
     GenerateShadedSkyMipMap(SkyFade[0], SkyFade[l], l*32-16);
   GenerateShadedSkyMipMap(SkyFade[0], SkyFade[8], 250);
-  ApplyAlphaFlags(SkyPic, 256*256);
   //DATASHIFT(SkyPic, 256*256*2);
 }
 
@@ -308,11 +294,7 @@ void fp_conv(LPVOID d)
   int i;
   float f;
   memcpy(&i, d, 4);
-#ifdef _d3d
-  f = (static_cast<float>(i)) / 256.f;
-#else
   f = (static_cast<float>(i));
-#endif
   memcpy(d, &f, 4);
 }
 
@@ -577,7 +559,6 @@ void LoadModelEx(unique_obj_ptr<TModel> &mptr, char* FName, MemoryTag tag)
 
   DATASHIFT(mptr->lpTexture.get(), mptr->TextureSize);
   GenerateModelMipMaps(mptr.get(), tag);
-  GenerateAlphaFlags(mptr.get());
 }
 
 void GetObjectCaracteristics(TModel* mptr, int& ylo, int& yhi)
@@ -590,53 +571,6 @@ void GetObjectCaracteristics(TModel* mptr, int& ylo, int& yhi)
     if (mptr->gVertex[v].y > yhi) yhi = static_cast<int>(mptr->gVertex[v].y);
   }
   if (yhi<ylo) yhi=ylo+1;
-}
-
-void GenerateAlphaFlags(TModel *mptr)
-{
-#ifdef _d3d
-
-  int w;
-  BOOL Opacity = false;
-  WORD* tptr = mptr->lpTexture.get();
-
-  for (w=0; w<mptr->FCount; w++)
-    if ((mptr->gFace[w].Flags & sfOpacity)>0) Opacity = true;
-
-  if (Opacity)
-  {
-    for (w=0; w<256*256; w++)
-      if ( *(tptr+w)>0 ) *(tptr+w)=(*(tptr+w)) + 0x8000;
-  }
-  else
-    for (w=0; w<256*256; w++)
-      *(tptr+w)=(*(tptr+w)) + 0x8000;
-
-  tptr = mptr->lpTexture2.get();
-  if (tptr==nullptr) return;
-
-  if (Opacity)
-  {
-    for (w=0; w<128*128; w++)
-      if ( (*(tptr+w))>0 ) *(tptr+w)=(*(tptr+w)) + 0x8000;
-  }
-  else
-    for (w=0; w<128*128; w++)
-      *(tptr+w)=(*(tptr+w)) + 0x8000;
-
-  tptr = mptr->lpTexture3.get();
-  if (tptr==nullptr) return;
-
-  if (Opacity)
-  {
-    for (w=0; w<64*64; w++)
-      if ( (*(tptr+w))>0 ) *(tptr+w)=(*(tptr+w)) + 0x8000;
-  }
-  else
-    for (w=0; w<64*64; w++)
-      *(tptr+w)=(*(tptr+w)) + 0x8000;
-
-#endif
 }
 
 void GenerateModelMipMaps(TModel *mptr, MemoryTag tag)
@@ -881,11 +815,7 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag, const
 
   DATASHIFT(chinfo.mptr->lpTexture.get(), chinfo.mptr->TextureSize);
   GenerateModelMipMaps(chinfo.mptr.get(), tag);
-  GenerateAlphaFlags(chinfo.mptr.get());
   //CalcLights(chinfo.mptr.get());
-
-  //ApplyAlphaFlags(chinfo.mptr->lpTexture, 256*256);
-  //ApplyAlphaFlags(chinfo.mptr->lpTexture2, 128*128);
 //============= read animations =============//
   double maxAnimationRadiusSq = 0.0;
   for (int a=0; a<chinfo.AniCount; a++)

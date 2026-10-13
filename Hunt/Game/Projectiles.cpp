@@ -42,18 +42,6 @@ void AddElementsA(float x, float y, float z, int etype, int cnt, int mag, bool a
   switch (etype)
   {
   case partBlood:
-#ifdef _d3d
-    //Elements[ElCount].RGBA = 0xE0600000;
-    //Elements[ElCount].RGBA2= 0x20300000;
-	  Elements[ElCount].RGBA = 0xE0000000 +
-		  (DinoInfo[Characters[ShotDino].CType].bloodRed << 16) +
-		  (DinoInfo[Characters[ShotDino].CType].bloodGreen << 8) +
-		  DinoInfo[Characters[ShotDino].CType].bloodBlue;
-	  Elements[ElCount].RGBA2 = 0x20000000 +
-		  (DinoInfo[Characters[ShotDino].CType].bloodRed / 2 << 16) +
-		  (DinoInfo[Characters[ShotDino].CType].bloodGreen / 2 << 8) +
-		  DinoInfo[Characters[ShotDino].CType].bloodBlue / 2;
-#else
   //Elements[ElCount].RGBA = 0xE0000060;
   //Elements[ElCount].RGBA2= 0x20000030;
 	Elements[ElCount].RGBA = 0xE0000000 +
@@ -64,38 +52,24 @@ void AddElementsA(float x, float y, float z, int etype, int cnt, int mag, bool a
 		(DinoInfo[Characters[ShotDino].CType].bloodBlue/2 << 16) +
 		(DinoInfo[Characters[ShotDino].CType].bloodGreen/2 << 8) +
 		DinoInfo[Characters[ShotDino].CType].bloodRed/2;
-#endif
     break;
 
   case partGround:
-#ifdef _d3d
-    Elements[ElCount].RGBA = 0xF0F09E55;
-    Elements[ElCount].RGBA2= 0x10F09E55;
-#else
     Elements[ElCount].RGBA = 0xF0559EF0;
     Elements[ElCount].RGBA2= 0x10559EF0;
-#endif
     break;
 
 
   case partBubble:
     c = WaterList[ WMap[ static_cast<int>(z) / 256][ static_cast<int>(x) / 256] ].fogRGB;
-#ifdef _d3d
-    c = ColorSum( ((c & 0xFEFEFE)>>1), 0x152020);
-#else
     c = ColorSum( ((c & 0xFEFEFE)>>1), 0x202015);
-#endif
     Elements[ElCount].RGBA = 0x70000000 + (ColorSum(c, ColorSum(c,c)));
     Elements[ElCount].RGBA2= 0x40000000 + (ColorSum(c, c));
     break;
 
   case partWater:
     c = WaterList[ WMap[ static_cast<int>(z) / 256][ static_cast<int>(x) / 256] ].fogRGB;
-#ifdef _d3d
-    c = ColorSum( ((c & 0xFEFEFE)>>1), 0x152020);
-#else
     c = ColorSum( ((c & 0xFEFEFE)>>1), 0x202015);
-#endif
     Elements[ElCount].RGBA  = 0xB0000000 + ( ColorSum(c, ColorSum(c,c)) );
     Elements[ElCount].RGBA2 = 0x40000000 + (c);
     break;

@@ -1877,9 +1877,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   conv_pic(MapPic);
 
   LoadPictureTGA(TFX_ENVMAP,    "HUNTDAT\\FX\\envmap.tga", MemoryTag::Global);
-  ApplyAlphaFlags(TFX_ENVMAP.lpImage.get(), TFX_ENVMAP.W*TFX_ENVMAP.W);
   LoadPictureTGA(TFX_SPECULAR,  "HUNTDAT\\FX\\specular.tga", MemoryTag::Global);
-  ApplyAlphaFlags(TFX_SPECULAR.lpImage.get(), TFX_SPECULAR.W*TFX_SPECULAR.W);
 
 
   PrintLog(" Done.\n");

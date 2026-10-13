@@ -158,9 +158,6 @@ void LoadSky();
 void LoadSkyMap();
 void LoadTexture(unique_obj_ptr<TEXTURE>&);
 void LoadWav(char* FName, TSFX &sfx);
-
-
-void ApplyAlphaFlags(WORD*, int);
 WORD conv_565(WORD c);
 int  conv_xGx(int);
 void conv_pic(TPicture &pic);

@@ -44,10 +44,6 @@
 #include "Renderer/SoftRenderer.h"
 #endif
 
-#ifdef _d3d
-#include "d3d.h"
-#endif
-
 // ----------------------------------------------------------------------------
 // Phase 5 sizeof() verification (Gap #3 follow-up)
 //
