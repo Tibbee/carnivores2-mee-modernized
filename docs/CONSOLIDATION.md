@@ -1,6 +1,6 @@
 # Consolidation Pass — C2 MEE
 
-> **Last verified:** 2026-10-13 — WS1 complete (1a-1g); WS2 in progress (4 clusters landed, 686 → 616 cases); four-preset WS1 checkpoint green.
+> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 in progress (7 clusters landed, 686 → 581 cases); four-preset WS2 checkpoint green, hygiene re-run logged 2 pre-existing findings.
 > **Branch:** `refactor/consolidation-pass`, worktree `Carnivores2MEE1.11/build/consolidation-pass`, based on `feat/modder-workbench` @ `4d05faa`.
 > **Status:** in progress. Owner approved the plan and the deletion of the disabled-species animation bundle. Only the Progress log and the task list below are authoritative for what is done; the ranked estimates come from the Phase 1 hunts.
 
@@ -60,6 +60,8 @@ workbench three-layer (≈15) — combined ≈ −79.
 
 Landed (2026-10-13): `test_map_scaling.cpp` deleted (−6, `d252d78`) · `test_math.cpp` 26→5 (`5259a6c`) · ConfigMerge 29→5 (`674b4c6`) · source-string genre: 23 source-only cases merged into four grouped `SourceContracts` tests, the hybrid workbench case stripped to its runtime checks (`bfb301e`). Suite: 686 → 616 cases.
 
+Landed (2026-10-14): load-validate 19→9 (`a218fea`) · workbench persistence 21→12 across `test_workbench_config.cpp` and `test_workbench_gpu.cpp` (`bfa544d`) · bound-fit geometry 44→28 across `test_bound_fit.cpp`, `test_object_bounds.cpp` and the `ConfigParseBoundBoxFit` pair (`26e1222`; re-verification counted 44, not the estimated 45). Suite: 616 → 581 cases. Four-preset checkpoint green; hygiene re-run surfaced 2 pre-existing findings (see Defects 5-6).
+
 ### WS3 — Unified implementations (~1,300 LOC)
 
 Foundational first: config path resolution ×4 (~45) · load-policy wrapper ×2 (~15) · ConfigPersistence classifier (~20) ·
@@ -89,6 +91,8 @@ GLSL include refactor · config-scanner staging policy.
 2. `g_KeyNames[256]` definition vs `extern char g_KeyNames[128]` (`Menu/Hunt.h:857/998`) — declaration-size mismatch; unverified, needs a look.
 3. `CreateLog` prints "Build v2.04. Sep.24 1999" (`Hunt/Loaders/Resources.cpp:1244`) — intentional legacy or fix? **Resolved 2026-10-13:** owner chose replace; `3182616` now prints `VERSION_STRING` from `Core/Version.h`.
 4. **Line-ending anomaly** — 7 files carry doubled-CR (`\r\r\n`) endings in committed blobs (CharacterCollision 682, CharacterTargeting 505, Trophy 444, Projectiles 397, Ships 359, CharacterMovement 173, Vector 150), and this environment runs `core.autocrlf=true` against mixed-normalization blobs. Handling for this pass: stage affected files byte-faithfully (`git hash-object -w --no-filters` + `git update-index --cacheinfo`) and verify `git diff --cached --stat` shows the intended minimal diff. A repo-wide normalization pass is proposed as a separate owner-approved item — not silently done here.
+5. **Comment hygiene finding (pre-existing)** — `Hunt/Core/AIBehavior.h:64` references `hunter-awareness-review.md`, which exists in both `CarnivoresDoc/architecture/` and `CarnivoresDoc/archive/`; `tools/check_comment_hygiene.ps1` rejects the ambiguity. The comment predates this pass (last touched by `fix(ai): restore dangerous brachi aggression range`); needs an owner/doc-tree call on which copy is canonical before a one-line fix.
+6. **Comment hygiene finding (pre-existing)** — `tools/release/make-c2-package.ps1:93` mentions `RELEASE-NOTES.md`, which the current doc tree does not contain; the script is a listed WS4 owner item (embedded config template / packaging), so the reference is left for that work rather than reworded here.
 
 ## Progress log
 
@@ -125,3 +129,13 @@ GLSL include refactor · config-scanner staging policy.
 - `bfb301e` test(renderer): consolidate the source-string contract cases into four tests — a read-only hunt inventoried 24 source-text cases (22 pure, 1 hybrid, 2 registry-driven); 23 merged into `SourceContracts` (new `tests/test_source_contracts.cpp` for three groups + one in `test_workbench_config.cpp`), exact duplicates deduplicated, and the hybrid workbench-runtime case kept as runtime-only. −19 net (23 cases out, 4 in).
 - Suite count measured with `--gtest_list_tests` across the 12 executables: 686 → 616 (each commit ogl-debug + ctest 16/16).
 - Next WS2 clusters: load-validate (19→9), workbench persistence refusals (21→12), bound-fit (45→28), workbench input (16→6), WAV (20→13), FogSampling (14→6), then the remainder.
+
+### 2026-10-14 — WS2 clusters 5-7 + four-preset checkpoint
+
+- `a218fea` test(loaders): consolidate the load-validate cases into nine tests — 19→9; every production helper keeps its boundary rows and the tool-checked assertion set is identical (157 statements before/after). −10.
+- `bfa544d` test(workbench): consolidate the persistence cases into twelve tests — the 15 `ConfigPersistence` cases became 8 and the 6 `WorkbenchPersistGPU` cases became 4; only duplicated setup assertions were absorbed, no expectation value lost. 21→12. −9.
+- `26e1222` test(collision): consolidate the bound-fit geometry cases into twenty-eight tests — 13 `BoundFit` + 14 `ObjectBounds`/`BoundSurfaces` + 1 `ConfigParseBoundBoxFit`; re-verification counted the cluster at 44 cases (hunt estimated 45) and the assertion/token sets are identical. 44→28. −16.
+- Suite count measured across the 12 executables: 616 → 581 (each commit ogl-debug + ctest 16/16, staged-diff checked).
+- Checkpoint: all four presets configure and build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Release flags clean (`/GS`, no `/GS-`) in ogl-release and soft-release. clang-tidy not installed locally (CI-only check).
+- Comment hygiene re-run: 263 files scanned, 2 findings logged as Defects 5-6 — both code references predate this pass and the doc tree state is unchanged since 2026-10-03, so the earlier "clean" record missed them; no fix without an owner/doc-tree call.
+- Next WS2 clusters: workbench input (16→6), WAV triple coverage (20→13), FogSampling (14→6), then AI tables, water color/waves, menu resource/price, terrain fog, uniform cache, CLI helpers, workbench three-layer (≈15).
