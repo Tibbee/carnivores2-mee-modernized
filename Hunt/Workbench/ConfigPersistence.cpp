@@ -86,6 +86,9 @@ bool CreateExclusive(const std::string& path, const std::string& bytes, std::str
 		if (!WriteFile(file, cursor, chunk, &written, nullptr) || written == 0) {
 			error = LastErrorMessage("write");
 			CloseHandle(file);
+			// CREATE_NEW proves this call created the file, so a partial write
+			// must not be mistaken for an earlier snapshot or a stale temp.
+			DeleteFileA(path.c_str());
 			return false;
 		}
 		cursor += written;
@@ -94,6 +97,7 @@ bool CreateExclusive(const std::string& path, const std::string& bytes, std::str
 	if (!FlushFileBuffers(file)) {
 		error = LastErrorMessage("flush");
 		CloseHandle(file);
+		DeleteFileA(path.c_str());
 		return false;
 	}
 	CloseHandle(file);
@@ -286,6 +290,9 @@ PersistWrite ApplyConfigWrite(const std::string& path, const Session& session,
 	result.backup = backup.substr(result.path.size());
 
 	if (!CreateExclusive(temp, merge.text, error)) {
+		// The backup was this call's own snapshot of an original the temp
+		// failure never touched; remove it so a failed save leaves no litter.
+		DeleteFileA(backup.c_str());
 		result.refusal = PersistRefusal::WriteFailed;
 		result.message = std::string(RefusalMessage(result.refusal)) + " " + error;
 		return result;
@@ -293,6 +300,7 @@ PersistWrite ApplyConfigWrite(const std::string& path, const Session& session,
 	if (!MoveFileExA(temp.c_str(), result.path.c_str(), MOVEFILE_REPLACE_EXISTING)) {
 		const std::string why = LastErrorMessage("replace");
 		(void)DeleteFileA(temp.c_str());
+		DeleteFileA(backup.c_str());
 		result.refusal = PersistRefusal::ReplaceFailed;
 		result.message = std::string(RefusalMessage(result.refusal)) + " " + why;
 		return result;

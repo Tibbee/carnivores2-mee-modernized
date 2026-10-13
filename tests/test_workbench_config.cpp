@@ -594,6 +594,26 @@ TEST_F(ConfigPersistence, AStaleTempFileIsLeftAloneAndRefuses) {
 	EXPECT_FALSE(Exists(path + ".before-workbench.bak"));
 }
 
+TEST_F(ConfigPersistence, ARefusedReplaceRemovesItsOwnBackupAndTemp) {
+	const std::string path = Path();
+	Write(path, kOriginal);
+	// A read-only destination is the deterministic way to make MoveFileExA fail
+	// after the backup and temp have been written.
+	fs::permissions(path, fs::perms::owner_read, fs::perm_options::replace);
+	auto session = SessionWithEnv0Decay(1.6f);
+	const auto preview = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(preview.ok()) << preview.message;
+
+	const auto write = ApplyConfigWrite(path, session, preview);
+	EXPECT_EQ(write.refusal, PersistRefusal::ReplaceFailed);
+	EXPECT_EQ(ReadFileText(path), kOriginal) << "the original must be untouched";
+	EXPECT_FALSE(Exists(path + ".workbench.tmp")) << "the temp must not outlive the failure";
+	EXPECT_FALSE(Exists(path + ".before-workbench.bak"))
+		<< "a backup this call created for a write that failed must not be left behind";
+
+	fs::permissions(path, fs::perms::owner_read | fs::perms::owner_write, fs::perm_options::replace);
+}
+
 TEST_F(ConfigPersistence, ARefusedPreviewNeverReportsReady) {
 	const std::string path = Path();
 	Write(path, kOriginal);
