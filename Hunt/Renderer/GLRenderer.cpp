@@ -364,6 +364,11 @@ bool GLRenderer::Initialize()
     m_Initialized = true;
     // Hidden captures need the same attached backend as ordinary hunts, even
     // when closed. CaptureMouse and ReconcileInput retain no-desktop-input guards.
+    {
+        char configPath[MAX_PATH];
+        GetEngineConfigPath(configPath, sizeof(configPath));
+        workbench::SetConfigPath(configPath);
+    }
     if (!workbench::InitializeUI(m_hwnd, [](bool ownsInput) {
         KeyFlags = 0;
         for (auto& key : KeyboardState) key &= 127; // Release downs, retain toggle bits.

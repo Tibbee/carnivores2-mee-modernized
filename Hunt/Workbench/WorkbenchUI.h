@@ -6,6 +6,9 @@ namespace workbench {
 // OpenGL-only shell. CPU/session state survives renderer recreation; GPU and
 // Win32 backend objects are detached before the owning GL context is deleted.
 bool InitializeUI(HWND window, void (*inputChanged)(bool ownsInput), void (*dumpSink)(char*));
+// Where config.cfg lives, resolved by the engine so a save lands on the file the
+// loader reads. Empty means persistence is unavailable and the panel says so.
+void SetConfigPath(const char* path);
 void DetachUI();
 void ShutdownUI();
 void RenderUI();

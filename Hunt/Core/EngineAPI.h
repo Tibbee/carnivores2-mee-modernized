@@ -352,6 +352,12 @@ bool IsAILoggingEnabled();
 void PrintLogAI(LPSTR l);
 void CloseLog();
 
+// The path LoadConfig() actually read, resolved the same way (executable
+// directory first, then the working directory). The workbench needs it to write
+// back to the file the engine will load, rather than guessing at a location that
+// silently has no effect.
+void GetEngineConfigPath(char* buf, size_t bufsz);
+
 
 
 //========== multiplayer =============//

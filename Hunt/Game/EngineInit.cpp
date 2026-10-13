@@ -768,6 +768,13 @@ static void GetConfigPath(char* buf, size_t bufsz)
   strcpy_s(buf, bufsz, "config.cfg");
 }
 
+// Read-only accessor for the same resolution the loader uses. The workbench
+// writes back to the file the engine reads instead of guessing a path.
+void GetEngineConfigPath(char* buf, size_t bufsz)
+{
+  GetConfigPath(buf, bufsz);
+}
+
 // Create a default config.cfg with all available settings documented.
 // Called when no config file exists (first launch or manual deletion).
 static void CreateDefaultConfig()

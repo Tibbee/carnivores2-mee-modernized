@@ -6,6 +6,7 @@
 #include <imgui_internal.h> // Test-only settled window scrolling before widget input.
 #include <array>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <string>
@@ -560,4 +561,119 @@ TEST_F(WorkbenchGPU, OptionalSyntheticInspectorScreenshot) {
 	std::ofstream file(output, std::ios::binary);
 	file.write(reinterpret_cast<const char*>(&header), sizeof(header)); file.write(reinterpret_cast<const char*>(&image), sizeof(image));
 	file.write(reinterpret_cast<const char*>(pixels.data()), pixels.size()); ASSERT_TRUE(file.good());
+}
+
+// ---------------------------------------------------------------------------
+// The persist review is the panel's only file-writing path, so these cases pin
+// what the operator can reach: nothing is offered until a review succeeds, only
+// fields with a loader key are offered at all, and a reviewed write does not
+// survive leaving the editing mode or the session it was reviewed against.
+// ---------------------------------------------------------------------------
+namespace {
+namespace fs = std::filesystem;
+
+std::string ReadText(const std::string& path) {
+	std::ifstream input(path, std::ios::binary);
+	return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+}
+void WriteText(const std::string& path, const std::string& bytes) {
+	std::ofstream output(path, std::ios::binary | std::ios::trunc);
+	output.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+}
+} // namespace
+
+class WorkbenchPersistGPU : public WorkbenchGPU {
+protected:
+	std::string dir, config;
+	void SetUp() override {
+		WorkbenchGPU::SetUp();
+		dir = ::testing::TempDir() + "c2_w3_gpu_" + std::to_string(reinterpret_cast<std::uintptr_t>(this));
+		std::error_code ignored; fs::remove_all(dir, ignored); fs::create_directories(dir);
+		config = dir + "/config.cfg";
+		WriteText(config, "renderer 1\r\nenv0_decay 1.490\r\n");
+		workbench::SetConfigPath(config.c_str());
+	}
+	void TearDown() override { std::error_code ignored; fs::remove_all(dir, ignored); WorkbenchGPU::TearDown(); }
+	void Redraw() { rectangles.clear(); workbench::RenderUI(); workbench::RenderUI(); }
+	bool Drawn(const char* role) const { return rectangles.count({role, -1}) != 0; }
+};
+
+TEST_F(WorkbenchPersistGPU, NoWriteIsOfferedBeforeAReview) {
+	Open(); Redraw();
+	EXPECT_EQ(workbench::RuntimeSession().ChangedCount(), 0u);
+	EXPECT_FALSE(Drawn("persist-save"));
+	EXPECT_FALSE(Drawn("persist-confirm"));
+}
+
+TEST_F(WorkbenchPersistGPU, AReviewOfAPublishableChangeRevealsTheWrite) {
+	Open(); workbench::RenderUI(); workbench::RenderUI();
+	ASSERT_EQ(workbench::EditRuntime(workbench::Parameter::Env0Decay, 1.6f), workbench::Error::None);
+	Redraw();
+	EXPECT_FALSE(Drawn("persist-save")) << "a review must be requested before the write is offered";
+	Click("persist-review");
+	EXPECT_TRUE(Drawn("persist-save"));
+	EXPECT_FALSE(Drawn("persist-confirm")) << "the write is armed by its own click";
+	Click("persist-save");
+	EXPECT_TRUE(Drawn("persist-confirm"));
+}
+
+TEST_F(WorkbenchPersistGPU, NothingIsWrittenUntilTheConfirmation) {
+	Open(); workbench::RenderUI(); workbench::RenderUI();
+	ASSERT_EQ(workbench::EditRuntime(workbench::Parameter::Env0Decay, 1.6f), workbench::Error::None);
+	const std::string original = ReadText(config);
+	Redraw();
+	Click("persist-review");
+	Click("persist-save");
+	EXPECT_EQ(ReadText(config), original) << "arming must not touch the file";
+	Click("persist-confirm");
+	EXPECT_NE(ReadText(config), original);
+	EXPECT_EQ(ReadText(config + ".before-workbench.bak"), original);
+}
+
+TEST_F(WorkbenchPersistGPU, OnlyKeylessChangesOfferNoWrite) {
+	Open(); workbench::RenderUI(); workbench::RenderUI();
+	// Legacy tuning has no config key, so there is nothing a save could do.
+	ASSERT_EQ(workbench::EditRuntime(workbench::Parameter::FogDensity, 0.9f), workbench::Error::None);
+	Redraw();
+	Click("persist-review");
+	EXPECT_FALSE(Drawn("persist-save"));
+}
+
+TEST_F(WorkbenchPersistGPU, LeavingTheEditingModeDisarmsAReviewedWrite) {
+	Open(); workbench::RenderUI(); workbench::RenderUI();
+	ASSERT_EQ(workbench::EditRuntime(workbench::Parameter::Env0Decay, 1.6f), workbench::Error::None);
+	Redraw();
+	Click("persist-review");
+	Click("persist-save");
+	ASSERT_TRUE(Drawn("persist-confirm"));
+	Click("test-scene");
+	EXPECT_EQ(workbench::UIBlocksLook(), true);
+	// Back to editing: the review must not still be armed behind the operator.
+	ASSERT_TRUE(workbench::HandleUIMessage(window, WM_SYSKEYDOWN, VK_ESCAPE, 0, true));
+	Redraw();
+	EXPECT_FALSE(Drawn("persist-confirm"));
+}
+
+TEST_F(WorkbenchPersistGPU, AStaleReviewCannotBeConfirmed) {
+	Open(); workbench::RenderUI(); workbench::RenderUI();
+	ASSERT_EQ(workbench::EditRuntime(workbench::Parameter::Env0Decay, 1.6f), workbench::Error::None);
+	Redraw();
+	Click("persist-review");
+	Click("persist-save");
+	EXPECT_FALSE(Drawn("persist-stale")) << "a fresh review is not stale";
+	const std::string original = ReadText(config);
+
+	// Moving an edit after the review must be visible before the operator acts,
+	// not only refused after they try. The refusal is the guard; this is the
+	// warning that stops the attempt.
+	ASSERT_EQ(workbench::EditRuntime(workbench::Parameter::Env0Decay, 1.55f), workbench::Error::None);
+	Redraw();
+	EXPECT_TRUE(Drawn("persist-stale"));
+
+	// A hunt restart discards the session the review was taken against.
+	ASSERT_EQ(workbench::ResetRuntimeForHunt(), workbench::Error::None);
+	ASSERT_EQ(workbench::EditRuntime(workbench::Parameter::Env0Decay, 2.0f), workbench::Error::None);
+	Redraw();
+	if (Drawn("persist-confirm")) Click("persist-confirm");
+	EXPECT_EQ(ReadText(config), original) << "a review of a dead session must not write";
 }

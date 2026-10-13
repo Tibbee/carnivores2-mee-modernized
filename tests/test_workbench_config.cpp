@@ -606,6 +606,21 @@ TEST_F(ConfigPersistence, DuplicateOwnedKeysAreReportedButTheEarlierLineIsPreser
 	EXPECT_EQ(ReadFileText(path), "env0_decay 1.000\r\nenv0_decay 1.600\r\n");
 }
 
+TEST_F(ConfigPersistence, ASaveReportsThatTheFileAlreadyHoldsTheValues) {
+	const std::string path = Path();
+	Write(path, kOriginal);
+	auto session = SessionWithEnv0Decay(1.6f);
+	const auto preview = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(preview.ok()) << preview.message;
+	ASSERT_TRUE(ApplyConfigWrite(path, session, preview).ok());
+
+	// A second review must not claim there is nothing to save for the same reason
+	// as "this field has no key": it must say the file already matches.
+	const auto again = PreviewConfigWrite(path, session);
+	EXPECT_EQ(again.refusal, PersistRefusal::NothingToWrite);
+	EXPECT_NE(again.message.find("already holds"), std::string::npos) << again.message;
+}
+
 // ---------------------------------------------------------------------------
 // Registry invariants. These are what make the write set trustworthy: only a
 // key the loader actually reads, spelled the way the loader expects, may reach

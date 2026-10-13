@@ -195,9 +195,11 @@ PersistPreview PreviewConfigWrite(const std::string& path, const Session& sessio
 		return preview;
 	}
 	if (merge.report.changes.empty()) {
-		// Every changed value is already spelled the same way on disk.
+		// Every changed value is already spelled the same way on disk, which is
+		// what a successful save leaves behind. Say so rather than reusing the
+		// "nothing has a key" wording, so the operator can tell the two apart.
 		preview.refusal = PersistRefusal::NothingToWrite;
-		preview.message = RefusalMessage(preview.refusal);
+		preview.message = "config.cfg already holds every changed value; there is nothing to write.";
 		return preview;
 	}
 

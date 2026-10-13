@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <string>
 #include <glad/glad.h>
 #include <imgui.h>
 #include <imgui_internal.h> // ClearActiveID on ownership/session generation changes.
@@ -10,6 +11,7 @@
 #include <backends/imgui_impl_opengl3.h>
 #include "WorkbenchUI.h"
 #include "CollisionInspection.h"
+#include "ConfigPersistence.h"
 #include "Core/Constants.h"
 #include "TuningRuntime.h"
 #include "Audio/AudioInspection.h"
@@ -37,6 +39,33 @@ std::uint64_t generation = 0;
 Error lastError = Error::None;
 struct FieldInput { char text[64]{}; bool dirty = false; Error error = Error::None; };
 std::array<FieldInput, kParameterCount> fields;
+
+// Persistence is a two-step action: the review is computed on request, and the
+// write happens only on a second, explicit confirmation. Nothing here runs on
+// the render path, so the panel adds no per-frame file access to the game loop.
+std::string configPath;
+PersistPreview persistReview;
+bool persistArmed = false;
+std::string persistStatus;
+std::uint64_t persistReviewGeneration = 0;
+Values persistReviewedEdits{};
+
+void DisarmPersist() {
+	persistArmed = false;
+	persistReview = PersistPreview();
+	persistReviewGeneration = 0;
+	persistReviewedEdits = {};
+}
+
+// A visible review must not describe values that have since moved. Comparing the
+// edited set is 57 float compares and no file access, so it can run every frame;
+// ApplyConfigWrite re-derives the bytes anyway, so this is the early warning,
+// not the guard.
+bool ReviewIsStale() {
+	if (!persistReview.ok()) return false;
+	if (persistReviewGeneration != RuntimeSession().Generation()) return true;
+	return !SameValues(persistReviewedEdits, RuntimeSession().Edited());
+}
 #ifdef C2_WORKBENCH_UI_PROBE
 void (*itemObserver)(const char*, int, float, float, float, float) = nullptr;
 #endif
@@ -93,10 +122,14 @@ void ReconcileInput() {
 }
 void Close() {
 	FinishPreview();
+	DisarmPersist();
 	if (boundary.SetOpen(false, PhysicalKeys())) ReconcileInput();
 }
 void SwitchInputMode() {
 	FinishPreview();
+	// A reviewed write must not stay armed across an input-mode change: the
+	// operator is no longer looking at the review they armed.
+	DisarmPersist();
 	const auto mode = boundary.Mode() == InputMode::UI ? InputMode::Test : InputMode::UI;
 	if (boundary.SetMode(mode, PhysicalKeys())) ReconcileInput();
 }
@@ -123,6 +156,95 @@ const char* PersistNote(PersistPolicy policy) {
 		case PersistPolicy::RuntimeOnly: return "session only, no config key";
 		default: return "log dump only, no config key";
 	}
+}
+
+// The persist review: destination, the exact lines a save would change, the
+// fields a save cannot reproduce, and a two-step confirmation. A write cannot
+// reach the running scene, so the wording says so rather than implying a live
+// effect.
+void DrawPersist() {
+	ImGui::Separator();
+	ImGui::TextDisabled("SAVE TO CONFIG.CFG");
+	if (configPath.empty()) {
+		ImGui::TextWrapped("Unavailable: the engine has not reported a config path.");
+		return;
+	}
+	const bool loaded = RuntimeSession().IsLoaded();
+	const bool comparing = RuntimeSession().IsComparing();
+	ImGui::TextWrapped("Next launch reads this file. The running scene is unchanged.");
+	ImGui::TextWrapped("%s", configPath.c_str());
+
+	if (ImGui::Button("Review changes")) {
+		DisarmPersist();
+		persistReview = PreviewConfigWrite(configPath, RuntimeSession());
+		persistReviewGeneration = RuntimeSession().Generation();
+		persistReviewedEdits = RuntimeSession().Edited();
+		persistStatus = persistReview.message;
+		if (persistReview.ok()) Result(Error::None);
+	}
+	ProbeItem("persist-review");
+	if (!persistReview.ok()) {
+		ImGui::TextWrapped("%s", persistStatus.c_str());
+		return;
+	}
+
+	ImGui::TextWrapped("%zu field(s) would be written; %zu byte(s) become %zu.",
+		persistReview.fields.size(), persistReview.bytesBefore, persistReview.bytesAfter);
+	for (const auto& field : persistReview.fields) {
+		if (field.appended)
+			ImGui::TextWrapped("  %s: (absent) -> %s", field.key.c_str(), field.newValue.c_str());
+		else
+			ImGui::TextWrapped("  %s: %s -> %s  (line %zu)", field.key.c_str(), field.oldValue.c_str(),
+				field.newValue.c_str(), field.line + 1);
+	}
+	for (const auto& key : persistReview.duplicates)
+		ImGui::TextWrapped("  note: %s appears more than once; only the last line takes effect and only it changes.",
+			key.c_str());
+	if (!persistReview.unpublishable.empty()) {
+		ImGui::TextWrapped("%zu changed field(s) have no config key and cannot be saved:", persistReview.unpublishable.size());
+		for (const auto parameter : persistReview.unpublishable) {
+			const auto* descriptor = FindDescriptor(parameter);
+			ImGui::TextWrapped("  %s (%s)", descriptor ? descriptor->label : "?", descriptor ? descriptor->key : "?");
+		}
+	}
+
+	const bool stale = ReviewIsStale();
+	if (stale) {
+		ImGui::TextWrapped("These edits changed since the review; review again before saving.");
+		ProbeItem("persist-stale");
+	}
+	if (!persistStatus.empty() && !persistArmed) ImGui::TextWrapped("%s", persistStatus.c_str());
+
+	ImGui::BeginDisabled(!loaded || comparing || stale);
+	if (!persistArmed) {
+		if (ImGui::Button("Save to config.cfg")) {
+			persistArmed = true;
+			persistStatus = "Ready to write " + persistReview.path + " . Confirm or cancel.";
+		}
+		ProbeItem("persist-save");
+	} else {
+		ImGui::TextWrapped("Write %zu field(s) to %s now?", persistReview.fields.size(), persistReview.path.c_str());
+		if (ImGui::Button("Confirm write")) {
+			const auto write = ApplyConfigWrite(configPath, RuntimeSession(), persistReview);
+			persistArmed = false;
+			if (write.ok()) {
+				persistStatus = write.message + " Backup: "
+					+ (write.backup.empty() ? std::string("none") : write.backup) + ".";
+				DisarmPersist();
+				Result(Error::None);
+			} else {
+				persistStatus = write.message;
+			}
+		}
+		ProbeItem("persist-confirm");
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel")) {
+			persistArmed = false;
+			persistStatus = "Cancelled; nothing was written.";
+		}
+		ProbeItem("persist-cancel");
+	}
+	ImGui::EndDisabled();
 }
 
 // Upstream saves draw state, but its font upload assumes default pixel-store
@@ -224,7 +346,7 @@ void DrawField(const Descriptor& descriptor) {
 		if (input.error == Error::None) input.dirty = false;
 	}
 	ImGui::TextDisabled("Loaded %.5g %s", RuntimeSession().Loaded()[index], descriptor.unit);
-	ImGui::TextDisabled("Live / %s / no file writes", PersistNote(descriptor.persist));
+	ImGui::TextDisabled("Live / %s", PersistNote(descriptor.persist));
 	ImGui::SameLine();
 	if (ImGui::SmallButton("Reset")) {
 		Result(EndRuntimeGesture()); Result(ResetRuntime(descriptor.id));
@@ -322,7 +444,7 @@ void DrawAudio() {
 	if (ImGui::Button("Edit scene-requested preset")) {
 		Result(EndRuntimeGesture()); audioBank=scene.requestedEnvironment; fields={};
 	} ProbeItem("audioEditLive"); ImGui::EndDisabled();
-	ImGui::TextWrapped("Live tuning / existing config keys / no file saves. Loaded reset, history and comparison apply.");
+	ImGui::TextWrapped("Live tuning / existing config keys / save through the review below. Loaded reset, history and comparison apply.");
 	if (audioBank == 7) ImGui::TextWrapped("Environment 7 is intentionally dry and has no effective reverb controls.");
 	else {
 		if (!available) ImGui::TextWrapped("Read-only: live tuning needs an active OpenAL EFX backend.");
@@ -449,13 +571,15 @@ void DrawInspector() {
 	inspectorExpanded=false;
 	if (ImGui::Begin("Modder workbench", &visible, flags)) {
 		inspectorExpanded=true;
-		ImGui::TextDisabled("OpenGL / global runtime tuning / no file saves");
+		ImGui::TextDisabled("OpenGL / global runtime tuning / config.cfg on request");
 		if (testing) {
 			ImGui::TextWrapped("Test scene: gameplay owns input. F8 or Escape returns to editing; F10 closes.");
 			if (collisionNote) ImGui::TextWrapped("Collision X-ray stopped: %s", collisionNote);
 		} else {
 			if (ImGui::Button("Test scene (F8)")) SwitchInputMode();
+			ProbeItem("test-scene");
 			ImGui::SameLine(); if (ImGui::Button("Close (F10)")) visible = false;
+			ProbeItem("close");
 			ImGui::TextWrapped("UI owns input. Simulation is still running; this is not pause.");
 			ImGui::SetNextItemWidth(145 * uiScale);
 			ImGui::SliderFloat("UI scale", &uiScale, .8f, 1.6f, "%.2fx", ImGuiSliderFlags_AlwaysClamp | ImGuiSliderFlags_NoInput);
@@ -497,7 +621,7 @@ void DrawInspector() {
 				DrawBeamColor();
 			}
 			if (selectedGroup == Group::Fog || selectedGroup == Group::Waves || selectedGroup == Group::Sun)
-				ImGui::TextWrapped("Legacy tuning has no config key and a hunt restart restores the compiled defaults. Press D to log every value.");
+				ImGui::TextWrapped("Legacy tuning has no config key and a hunt restart restores the compiled defaults. Press D to log every value; these fields cannot be saved to config.cfg.");
 			if (selectedGroup == Group::Audio) DrawAudio();
 			if (selectedGroup == Group::Collision) DrawCollision();
 			for (const auto& descriptor : Descriptors())
@@ -510,13 +634,14 @@ void DrawInspector() {
 			if (ImGui::Button("Reset all")) { Result(EndRuntimeGesture()); Result(ResetRuntimeAll()); fields = {}; }
 			ImGui::EndDisabled();
 			if (ImGui::Button("Dump legacy tuning to log (D)")) EmitRuntimeDump(logSink);
+			DrawPersist();
 			if (showChanges && RuntimeSession().IsLoaded()) {
 				ImGui::Separator();
 				for (const auto& d : Descriptors()) if (RuntimeSession().Changed(d.id)) {
 					const auto i = static_cast<std::size_t>(d.id);
 					ImGui::TextWrapped("%s: %.6g -> %.6g", d.key, RuntimeSession().Loaded()[i], RuntimeSession().Edited()[i]);
 				}
-				ImGui::TextWrapped("Session edits only; no file writes. Press D to log every value, including a config.cfg block for fields that have a recognized key.");
+				ImGui::TextWrapped("Session edits only until a save is confirmed below. Press D to log every value, including a config.cfg block for fields that have a recognized key.");
 			}
 			if (lastError != Error::None) ImGui::TextWrapped("%s", ErrorMessage(lastError));
 		}
@@ -535,8 +660,16 @@ unsigned int MouseKey(UINT message, WPARAM key) {
 }
 }
 
+void SetConfigPath(const char* path) {
+	configPath = path ? path : "";
+	DisarmPersist();
+	persistStatus.clear();
+}
+
 bool InitializeUI(HWND window, void (*inputChanged)(bool), void (*dumpSink)(char*)) {
 	if (attached) return true;
+	DisarmPersist();
+	persistStatus.clear();
 	windowHandle = window; captureHook = inputChanged; logSink = dumpSink;
 	if (!context) {
 		IMGUI_CHECKVERSION(); context = ImGui::CreateContext(); SelectContext();
