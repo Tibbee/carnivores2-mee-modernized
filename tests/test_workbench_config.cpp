@@ -35,77 +35,68 @@ const std::string kAwkward =
 	"MY_MOD_KEY x\r\n";
 } // namespace
 
-TEST(ConfigMerge, NoChangesLeaveEveryByteIdentical) {
-	const std::string text = kAwkward;
-	const auto result = Merge(text, {{"env0_decay", "1.000"}, {"night_sky_brightness", "85"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, text);
-	EXPECT_TRUE(result.report.changes.empty());
-	EXPECT_TRUE(result.report.duplicates.empty());
+TEST(ConfigMerge, NoopSavesKeepEveryByte) {
+	// A save with no dirty fields, and a merge with no entries, must be
+	// byte-identical even on a file full of awkward shapes.
+	const auto untouched = Merge(kAwkward, {{"env0_decay", "1.000"}, {"night_sky_brightness", "85"}});
+	ASSERT_TRUE(untouched.ok) << untouched.error;
+	EXPECT_EQ(untouched.text, kAwkward);
+	EXPECT_TRUE(untouched.report.changes.empty());
+	EXPECT_TRUE(untouched.report.duplicates.empty());
+
+	const auto noEntries = Merge(kAwkward, {});
+	ASSERT_TRUE(noEntries.ok) << noEntries.error;
+	EXPECT_EQ(noEntries.text, kAwkward);
+	EXPECT_TRUE(noEntries.report.changes.empty());
+
+	// A missing final terminator stays missing when nothing changes.
+	const std::string noFinal = "renderer 1\r\nenv0_decay 1.400";
+	const auto unchanged = Merge(noFinal, {{"env0_decay", "1.400"}});
+	ASSERT_TRUE(unchanged.ok) << unchanged.error;
+	EXPECT_EQ(unchanged.text, noFinal);
 }
 
-TEST(ConfigMerge, AnUnrelatedKeyNeverMoves) {
-	const std::string text =
+TEST(ConfigMerge, RewritesMoveOnlyTheValueToken) {
+	// An unrelated key must not move; the updated line reports its action,
+	// key, old and new value and one-based line number.
+	const std::string lines =
 		"renderer 1\r\n"
 		"night_world_brightness 15\r\n"
 		"fov 62\r\n";
-	const auto result = Merge(text, {{"night_world_brightness", "16"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "renderer 1\r\nnight_world_brightness 16\r\nfov 62\r\n");
-	ASSERT_EQ(result.report.changes.size(), 1u);
-	EXPECT_EQ(result.report.changes[0].action, Action::Updated);
-	EXPECT_EQ(result.report.changes[0].key, "night_world_brightness");
-	EXPECT_EQ(result.report.changes[0].oldValue, "15");
-	EXPECT_EQ(result.report.changes[0].newValue, "16");
-	EXPECT_EQ(result.report.changes[0].line, 1u);
-}
+	const auto unrelated = Merge(lines, {{"night_world_brightness", "16"}});
+	ASSERT_TRUE(unrelated.ok) << unrelated.error;
+	EXPECT_EQ(unrelated.text, "renderer 1\r\nnight_world_brightness 16\r\nfov 62\r\n");
+	ASSERT_EQ(unrelated.report.changes.size(), 1u);
+	EXPECT_EQ(unrelated.report.changes[0].action, Action::Updated);
+	EXPECT_EQ(unrelated.report.changes[0].key, "night_world_brightness");
+	EXPECT_EQ(unrelated.report.changes[0].oldValue, "15");
+	EXPECT_EQ(unrelated.report.changes[0].newValue, "16");
+	EXPECT_EQ(unrelated.report.changes[0].line, 1u);
 
-TEST(ConfigMerge, CROnlyFilesKeepCROnEveryLine) {
-	// Classic Mac terminators: the loader splits on \r just as on \n.
-	const std::string text = "renderer 1\renv0_decay 1.0\rb 2\r";
-	const auto result = Merge(text, {{"env0_decay", "1.5"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "renderer 1\renv0_decay 1.5\rb 2\r");
-
-	const std::string append = "renderer 1\r";
-	const auto appended = Merge(append, {{"env0_decay", "1.5"}});
-	ASSERT_TRUE(appended.ok) << appended.error;
-	EXPECT_EQ(appended.text, "renderer 1\renv0_decay 1.5\r");
-}
-
-TEST(ConfigMerge, TrailingWhitespaceAndTrailingTokensSurviveAValueRewrite) {
-	const std::string text =
-		"env0_decay 1.000   \r\n"
-		"env0_decay 1.000 2.0\r\n";
-	const auto result = Merge(text, {{"env0_decay", "1.5"}});
-	ASSERT_TRUE(result.ok) << result.error;
 	// Only the value token of the reader's last active occurrence moves: the
 	// trailing spaces after the first line and the trailing token on the second
 	// are not this writer's to clean up.
-	EXPECT_EQ(result.text, "env0_decay 1.000   \r\nenv0_decay 1.5 2.0\r\n");
-	ASSERT_EQ(result.report.changes.size(), 1u);
-	EXPECT_EQ(result.report.changes[0].line, 1u);
-	ASSERT_EQ(result.report.duplicates.size(), 1u);
-}
+	const auto trailing = Merge("env0_decay 1.000   \r\nenv0_decay 1.000 2.0\r\n", {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(trailing.ok) << trailing.error;
+	EXPECT_EQ(trailing.text, "env0_decay 1.000   \r\nenv0_decay 1.5 2.0\r\n");
+	ASSERT_EQ(trailing.report.changes.size(), 1u);
+	EXPECT_EQ(trailing.report.changes[0].line, 1u);
+	ASSERT_EQ(trailing.report.duplicates.size(), 1u);
 
-TEST(ConfigMerge, AValueContainingHashIsReplacedByTheNewToken) {
 	// LoadConfig rejects "1.5#x" (strtof does not consume the whole token), so
 	// the old line was inert; replacing the whole token makes the new value the
 	// one the loader reads instead of appending a second live key.
-	const std::string text = "env0_decay 1.5#x\r\n";
-	const auto result = Merge(text, {{"env0_decay", "1.6"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "env0_decay 1.6\r\n");
-	ASSERT_EQ(result.report.changes.size(), 1u);
-	EXPECT_EQ(result.report.changes[0].action, Action::Updated);
-}
+	const auto hash = Merge("env0_decay 1.5#x\r\n", {{"env0_decay", "1.6"}});
+	ASSERT_TRUE(hash.ok) << hash.error;
+	EXPECT_EQ(hash.text, "env0_decay 1.6\r\n");
+	ASSERT_EQ(hash.report.changes.size(), 1u);
+	EXPECT_EQ(hash.report.changes[0].action, Action::Updated);
 
-TEST(ConfigMerge, OnlyValueTokensChangeInAFileOfAwkwardShapes) {
-	const auto result = Merge(kAwkward, {{"env0_decay", "1.500"}, {"night_sky_brightness", "90"}});
-	ASSERT_TRUE(result.ok) << result.error;
 	// Indent, key case, the tab separator and the trailing hand comment survive;
 	// the commented example, the "key=value" line and the bare "key" line do not
 	// become occurrences, and the mid-file unknown key is untouched.
+	const auto awkward = Merge(kAwkward, {{"env0_decay", "1.500"}, {"night_sky_brightness", "90"}});
+	ASSERT_TRUE(awkward.ok) << awkward.error;
 	const std::string expected =
 		"\xEF\xBB\xBF" "# comment\r\n"
 		"   \t \r\n"
@@ -115,229 +106,198 @@ TEST(ConfigMerge, OnlyValueTokensChangeInAFileOfAwkwardShapes) {
 		"env0_decay=2.0\r\n"
 		"env0_decay\r\n"
 		"MY_MOD_KEY x\r\n";
-	EXPECT_EQ(result.text, expected);
-	ASSERT_EQ(result.report.changes.size(), 2u);
-	EXPECT_EQ(result.report.changes[0].key, "env0_decay");
-	EXPECT_EQ(result.report.changes[0].line, 2u);
-	EXPECT_EQ(result.report.changes[1].key, "night_sky_brightness");
-	EXPECT_EQ(result.report.changes[1].line, 3u);
-	EXPECT_TRUE(result.report.duplicates.empty());
+	EXPECT_EQ(awkward.text, expected);
+	ASSERT_EQ(awkward.report.changes.size(), 2u);
+	EXPECT_EQ(awkward.report.changes[0].key, "env0_decay");
+	EXPECT_EQ(awkward.report.changes[0].line, 2u);
+	EXPECT_EQ(awkward.report.changes[1].key, "night_sky_brightness");
+	EXPECT_EQ(awkward.report.changes[1].line, 3u);
+	EXPECT_TRUE(awkward.report.duplicates.empty());
+
+	// A file-leading BOM is stripped by the reader, so the first key still
+	// matches and the BOM survives the rewrite.
+	const auto bom = Merge("\xEF\xBB\xBF" "env0_decay 1.0\r\n", {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(bom.ok) << bom.error;
+	EXPECT_EQ(bom.text, "\xEF\xBB\xBF" "env0_decay 1.5\r\n");
+	ASSERT_EQ(bom.report.changes.size(), 1u);
+	EXPECT_EQ(bom.report.changes[0].action, Action::Updated);
+
+	// Keys match case-insensitively; the operator's spelling is preserved and
+	// only the value moves.
+	const auto upper = Merge("ENV0_DECAY 1.0\r\n", {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(upper.ok) << upper.error;
+	EXPECT_EQ(upper.text, "ENV0_DECAY 1.5\r\n");
+	ASSERT_EQ(upper.report.changes.size(), 1u);
+	EXPECT_EQ(upper.report.changes[0].action, Action::Updated);
+
+	// LoadConfig rejects "abc" and keeps the compiled default, so the field can
+	// only become dirty if the operator changed it; the dead token is replaced.
+	const auto unparseable = Merge("env0_decay abc\r\n", {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(unparseable.ok) << unparseable.error;
+	EXPECT_EQ(unparseable.text, "env0_decay 1.5\r\n");
+	ASSERT_EQ(unparseable.report.changes.size(), 1u);
+	EXPECT_EQ(unparseable.report.changes[0].oldValue, "abc");
 }
 
-TEST(ConfigMerge, AUtf8BomIsPreservedAndDoesNotHideTheFirstKey) {
-	const std::string text = "\xEF\xBB\xBF" "env0_decay 1.0\r\n";
-	const auto result = Merge(text, {{"env0_decay", "1.5"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "\xEF\xBB\xBF" "env0_decay 1.5\r\n");
-	ASSERT_EQ(result.report.changes.size(), 1u);
-	EXPECT_EQ(result.report.changes[0].action, Action::Updated);
+TEST(ConfigMerge, TerminatorsMatchTheFile) {
+	// Classic Mac terminators: the loader splits on \r just as on \n.
+	const std::string crOnly = "renderer 1\renv0_decay 1.0\rb 2\r";
+	const auto crUpdated = Merge(crOnly, {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(crUpdated.ok) << crUpdated.error;
+	EXPECT_EQ(crUpdated.text, "renderer 1\renv0_decay 1.5\rb 2\r");
+	const auto crAppended = Merge("renderer 1\r", {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(crAppended.ok) << crAppended.error;
+	EXPECT_EQ(crAppended.text, "renderer 1\renv0_decay 1.5\r");
+
+	// Menu/Resources.cpp SaveConfig rewrites owned keys with a bare LF while
+	// passing other lines through with their CR. This writer must not: a save
+	// may not silently mix terminators on the lines it touches.
+	const auto crlf = Merge("a 1\r\nenv0_decay 1.0\r\nb 2\r\n", {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(crlf.ok) << crlf.error;
+	EXPECT_EQ(crlf.text, "a 1\r\nenv0_decay 1.5\r\nb 2\r\n");
+	EXPECT_NE(crlf.text.find("1.5\r\n"), std::string::npos);
+	// A bare LF after the value would be the menu's mixed-ending bug: "1.5\r\n"
+	// does not contain "1.5\n", so npos here means the terminator really is CRLF.
+	EXPECT_EQ(crlf.text.find("1.5\n"), std::string::npos);
+
+	const auto lf = Merge("env0_decay 1.0\nrenderer 1\n", {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(lf.ok) << lf.error;
+	EXPECT_EQ(lf.text, "env0_decay 1.5\nrenderer 1\n");
+	EXPECT_EQ(lf.text.find('\r'), std::string::npos);
+
+	// A missing final terminator is not invented for an update ...
+	const std::string noFinal = "renderer 1\r\nenv0_decay 1.400";
+	const auto updated = Merge(noFinal, {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(updated.ok) << updated.error;
+	EXPECT_EQ(updated.text, "renderer 1\r\nenv0_decay 1.5");
+
+	// ... but an append needs one and adopts the file's own terminator.
+	const auto completed = Merge("renderer 1", {{"env0_decay", "1.4"}});
+	ASSERT_TRUE(completed.ok) << completed.error;
+	EXPECT_EQ(completed.text, "renderer 1\r\nenv0_decay 1.4\r\n");
+	const auto adopted = Merge("renderer 1\nfov 62\n", {{"env0_decay", "1.4"}});
+	ASSERT_TRUE(adopted.ok) << adopted.error;
+	EXPECT_EQ(adopted.text, "renderer 1\nfov 62\nenv0_decay 1.4\n");
 }
 
-TEST(ConfigMerge, ABomAfterTheFirstLineIsPartOfTheKey) {
-	// ReadConfigText strips only a file-leading BOM, so a stray one later is data.
-	const std::string text = "renderer 1\r\n" "\xEF\xBB\xBF" "env0_decay 1.0\r\n";
-	const auto result = Merge(text, {{"env0_decay", "1.5"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "renderer 1\r\n" "\xEF\xBB\xBF" "env0_decay 1.0\r\nenv0_decay 1.5\r\n");
-	ASSERT_EQ(result.report.changes.size(), 1u);
-	EXPECT_EQ(result.report.changes[0].action, Action::Appended);
-}
-
-TEST(ConfigMerge, TheLastActiveOccurrenceWinsAndEarlierDuplicatesAreReported) {
-	const std::string text =
-		"env0_decay 1.0\r\n"
-		"env0_decay 1.2\r\n"
-		"env0_decay 1.4\r\n";
-	const auto result = Merge(text, {{"env0_decay", "1.6"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	// The reader assigns as it walks, so line 3 is the one that has to move.
-	EXPECT_EQ(result.text, "env0_decay 1.0\r\nenv0_decay 1.2\r\nenv0_decay 1.6\r\n");
-	ASSERT_EQ(result.report.changes.size(), 1u);
-	EXPECT_EQ(result.report.changes[0].line, 2u);
-	ASSERT_EQ(result.report.duplicates.size(), 1u);
-	EXPECT_EQ(result.report.duplicates[0], "env0_decay");
-}
-
-TEST(ConfigMerge, DuplicatesAreReportedOnlyForOwnedKeys) {
-	const std::string text =
-		"my_mod_key 1\r\n"
-		"my_mod_key 2\r\n"
-		"env0_decay 1.0\r\n";
-	const auto result = Merge(text, {{"env0_decay", "1.5"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_TRUE(result.report.duplicates.empty());
-}
-
-TEST(ConfigMerge, ACommentedKeyIsAbsentAndIsAppendedWithoutUncommenting) {
-	const std::string text =
-		"#env0_decay 1.49\r\n"
-		"renderer 1\r\n";
-	const auto result = Merge(text, {{"env0_decay", "1.60"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	// The example line is a doc comment; the real setting is appended.
-	EXPECT_EQ(result.text, "#env0_decay 1.49\r\nrenderer 1\r\nenv0_decay 1.60\r\n");
-	ASSERT_EQ(result.report.changes.size(), 1u);
-	EXPECT_EQ(result.report.changes[0].action, Action::Appended);
-}
-
-TEST(ConfigMerge, AnIndentedCommentIsNotAnOccurrence) {
-	const std::string text = "   #env0_decay 1.49\r\n";
-	const auto result = Merge(text, {{"env0_decay", "1.60"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "   #env0_decay 1.49\r\nenv0_decay 1.60\r\n");
-	ASSERT_EQ(result.report.changes.size(), 1u);
-	EXPECT_EQ(result.report.changes[0].action, Action::Appended);
-}
-
-TEST(ConfigMerge, VerticalTabAndFormFeedSeparateTokensLikeTheLoader) {
+TEST(ConfigMerge, OccurrenceDetectionMatchesTheLoader) {
 	// sscanf_s treats '\v' and '\f' as whitespace, so the loader reads both
 	// spellings as an active env0_decay. If the merge did not, it would rewrite
 	// an earlier line and leave a later \v/\f line to override the saved value
 	// on the next launch, telling the operator the write had taken effect.
-	const std::string tabbed = "env0_decay\v1.2\r\n";
-	const auto inner = Merge(tabbed, {{"env0_decay", "1.6"}});
-	ASSERT_TRUE(inner.ok) << inner.error;
-	EXPECT_EQ(inner.text, "env0_decay\v1.6\r\n");
-	ASSERT_EQ(inner.report.changes.size(), 1u);
-	EXPECT_EQ(inner.report.changes[0].action, Action::Updated);
-	EXPECT_EQ(inner.report.changes[0].oldValue, "1.2");
-
-	const std::string fed =
-		"env0_decay 1.0\r\n"
-		"env0_decay\f1.4\r\n";
-	const auto result = Merge(fed, {{"env0_decay", "1.6"}});
-	ASSERT_TRUE(result.ok) << result.error;
+	const auto vertical = Merge("env0_decay\v1.2\r\n", {{"env0_decay", "1.6"}});
+	ASSERT_TRUE(vertical.ok) << vertical.error;
+	EXPECT_EQ(vertical.text, "env0_decay\v1.6\r\n");
+	ASSERT_EQ(vertical.report.changes.size(), 1u);
+	EXPECT_EQ(vertical.report.changes[0].action, Action::Updated);
+	EXPECT_EQ(vertical.report.changes[0].oldValue, "1.2");
+	const auto formFeed = Merge("env0_decay 1.0\r\nenv0_decay\f1.4\r\n", {{"env0_decay", "1.6"}});
+	ASSERT_TRUE(formFeed.ok) << formFeed.error;
 	// The loader's last active occurrence is the form-feed line, so that is the
 	// line that must move; the earlier value survives byte-identical.
-	EXPECT_EQ(result.text, "env0_decay 1.0\r\nenv0_decay\f1.6\r\n");
-	ASSERT_EQ(result.report.changes.size(), 1u);
-	EXPECT_EQ(result.report.changes[0].line, 1u);
-	ASSERT_EQ(result.report.duplicates.size(), 1u);
-}
+	EXPECT_EQ(formFeed.text, "env0_decay 1.0\r\nenv0_decay\f1.6\r\n");
+	ASSERT_EQ(formFeed.report.changes.size(), 1u);
+	EXPECT_EQ(formFeed.report.changes[0].line, 1u);
+	ASSERT_EQ(formFeed.report.duplicates.size(), 1u);
 
-TEST(ConfigMerge, AnEqualsSeparatedLineIsNotAnOccurrence) {
+	// ReadConfigText strips only a file-leading BOM, so a stray one later is data.
+	const auto laterBom = Merge("renderer 1\r\n" "\xEF\xBB\xBF" "env0_decay 1.0\r\n", {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(laterBom.ok) << laterBom.error;
+	EXPECT_EQ(laterBom.text, "renderer 1\r\n" "\xEF\xBB\xBF" "env0_decay 1.0\r\nenv0_decay 1.5\r\n");
+	ASSERT_EQ(laterBom.report.changes.size(), 1u);
+	EXPECT_EQ(laterBom.report.changes[0].action, Action::Appended);
+
+	// Commented (even indented) examples are documentation, not settings.
+	const auto commented = Merge("#env0_decay 1.49\r\nrenderer 1\r\n", {{"env0_decay", "1.60"}});
+	ASSERT_TRUE(commented.ok) << commented.error;
+	EXPECT_EQ(commented.text, "#env0_decay 1.49\r\nrenderer 1\r\nenv0_decay 1.60\r\n");
+	ASSERT_EQ(commented.report.changes.size(), 1u);
+	EXPECT_EQ(commented.report.changes[0].action, Action::Appended);
+	const auto indented = Merge("   #env0_decay 1.49\r\n", {{"env0_decay", "1.60"}});
+	ASSERT_TRUE(indented.ok) << indented.error;
+	EXPECT_EQ(indented.text, "   #env0_decay 1.49\r\nenv0_decay 1.60\r\n");
+	ASSERT_EQ(indented.report.changes.size(), 1u);
+	EXPECT_EQ(indented.report.changes[0].action, Action::Appended);
+
 	// The loader reads one token, "env0_decay=1.0", which matches no key, so the
 	// line is inert: append a real setting rather than rewriting dead text.
-	const std::string text = "env0_decay=1.0\r\n";
-	const auto result = Merge(text, {{"env0_decay", "1.5"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "env0_decay=1.0\r\nenv0_decay 1.5\r\n");
-	ASSERT_EQ(result.report.changes.size(), 1u);
-	EXPECT_EQ(result.report.changes[0].action, Action::Appended);
-}
+	const auto equals = Merge("env0_decay=1.0\r\n", {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(equals.ok) << equals.error;
+	EXPECT_EQ(equals.text, "env0_decay=1.0\r\nenv0_decay 1.5\r\n");
+	ASSERT_EQ(equals.report.changes.size(), 1u);
+	EXPECT_EQ(equals.report.changes[0].action, Action::Appended);
 
-TEST(ConfigMerge, AKeyWithoutAValueIsNotAnOccurrence) {
 	// LoadConfig logs "missing value, ignoring" for a one-token line.
-	const std::string text = "env0_decay\r\n";
-	const auto result = Merge(text, {{"env0_decay", "1.5"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "env0_decay\r\nenv0_decay 1.5\r\n");
-	ASSERT_EQ(result.report.changes.size(), 1u);
-	EXPECT_EQ(result.report.changes[0].action, Action::Appended);
+	const auto bare = Merge("env0_decay\r\n", {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(bare.ok) << bare.error;
+	EXPECT_EQ(bare.text, "env0_decay\r\nenv0_decay 1.5\r\n");
+	ASSERT_EQ(bare.report.changes.size(), 1u);
+	EXPECT_EQ(bare.report.changes[0].action, Action::Appended);
 }
 
-TEST(ConfigMerge, CRLFSurvivesOnUpdatedLines) {
-	// Menu/Resources.cpp SaveConfig rewrites owned keys with a bare LF while
-	// passing other lines through with their CR. This writer must not: a save
-	// may not silently mix terminators on the lines it touches.
-	const std::string text = "a 1\r\nenv0_decay 1.0\r\nb 2\r\n";
-	const auto result = Merge(text, {{"env0_decay", "1.5"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "a 1\r\nenv0_decay 1.5\r\nb 2\r\n");
-	EXPECT_NE(result.text.find("1.5\r\n"), std::string::npos);
-	// A bare LF after the value would be the menu's mixed-ending bug: "1.5\r\n"
-	// does not contain "1.5\n", so npos here means the terminator really is CRLF.
-	EXPECT_EQ(result.text.find("1.5\n"), std::string::npos);
-}
+TEST(ConfigMerge, AppendsAndReportsFollowTheLoader) {
+	// The reader assigns as it walks, so the last active occurrence is the one
+	// that moves, and earlier duplicates are reported by key.
+	const auto lastWins = Merge("env0_decay 1.0\r\nenv0_decay 1.2\r\nenv0_decay 1.4\r\n", {{"env0_decay", "1.6"}});
+	ASSERT_TRUE(lastWins.ok) << lastWins.error;
+	EXPECT_EQ(lastWins.text, "env0_decay 1.0\r\nenv0_decay 1.2\r\nenv0_decay 1.6\r\n");
+	ASSERT_EQ(lastWins.report.changes.size(), 1u);
+	EXPECT_EQ(lastWins.report.changes[0].line, 2u);
+	ASSERT_EQ(lastWins.report.duplicates.size(), 1u);
+	EXPECT_EQ(lastWins.report.duplicates[0], "env0_decay");
 
-TEST(ConfigMerge, LFFilesStayLF) {
-	const std::string text = "env0_decay 1.0\nrenderer 1\n";
-	const auto result = Merge(text, {{"env0_decay", "1.5"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "env0_decay 1.5\nrenderer 1\n");
-	EXPECT_EQ(result.text.find('\r'), std::string::npos);
-}
+	// Duplicates of keys this writer does not own are none of its business.
+	const auto foreign = Merge("my_mod_key 1\r\nmy_mod_key 2\r\nenv0_decay 1.0\r\n", {{"env0_decay", "1.5"}});
+	ASSERT_TRUE(foreign.ok) << foreign.error;
+	EXPECT_TRUE(foreign.report.duplicates.empty());
 
-TEST(ConfigMerge, AMissingFinalTerminatorIsPreservedWhenNothingChanges) {
-	const std::string text = "renderer 1\r\nenv0_decay 1.400";
-	const auto result = Merge(text, {{"env0_decay", "1.400"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, text);
-}
+	// An absent key appends exactly once, after the existing content.
+	const auto absent = Merge("renderer 1\r\n", {{"env0_decay", "1.4"}});
+	ASSERT_TRUE(absent.ok) << absent.error;
+	EXPECT_EQ(absent.text, "renderer 1\r\nenv0_decay 1.4\r\n");
+	ASSERT_EQ(absent.report.changes.size(), 1u);
+	EXPECT_EQ(absent.report.changes[0].line, 1u);
 
-TEST(ConfigMerge, AMissingFinalTerminatorSurvivesAnUpdate) {
-	const std::string text = "renderer 1\r\nenv0_decay 1.400";
-	const auto result = Merge(text, {{"env0_decay", "1.5"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "renderer 1\r\nenv0_decay 1.5");
-}
-
-TEST(ConfigMerge, AMissingFinalTerminatorIsCompletedBeforeAnAppend) {
-	const std::string text = "renderer 1";
-	const auto result = Merge(text, {{"env0_decay", "1.4"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "renderer 1\r\nenv0_decay 1.4\r\n");
-}
-
-TEST(ConfigMerge, AnAppendAdoptsTheFilesOwnTerminator) {
-	const std::string text = "renderer 1\nfov 62\n";
-	const auto result = Merge(text, {{"env0_decay", "1.4"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "renderer 1\nfov 62\nenv0_decay 1.4\n");
-}
-
-TEST(ConfigMerge, AnEmptyFileAndACommentsOnlyFileBothAppend) {
+	// An empty file and a comments-only file both append.
 	const auto empty = Merge("", {{"env0_decay", "1.4"}});
 	ASSERT_TRUE(empty.ok) << empty.error;
 	EXPECT_EQ(empty.text, "env0_decay 1.4\r\n");
 	ASSERT_EQ(empty.report.changes.size(), 1u);
 	EXPECT_EQ(empty.report.changes[0].action, Action::Appended);
-
 	const auto comments = Merge("# nothing here\r\n", {{"env0_decay", "1.4"}});
 	ASSERT_TRUE(comments.ok) << comments.error;
 	EXPECT_EQ(comments.text, "# nothing here\r\nenv0_decay 1.4\r\n");
-}
 
-TEST(ConfigMerge, AnAbsentKeyAppendsExactlyOnce) {
-	const std::string text = "renderer 1\r\n";
-	const auto result = Merge(text, {{"env0_decay", "1.4"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "renderer 1\r\nenv0_decay 1.4\r\n");
-	ASSERT_EQ(result.report.changes.size(), 1u);
-	EXPECT_EQ(result.report.changes[0].line, 1u);
-}
+	// Appended keys follow caller order, not alphabetical order.
+	const auto order = Merge("", {{"env8_reverb", "0.4"}, {"env0_decay", "1.4"}});
+	ASSERT_TRUE(order.ok) << order.error;
+	EXPECT_EQ(order.text, "env8_reverb 0.4\r\nenv0_decay 1.4\r\n");
+	ASSERT_EQ(order.report.changes.size(), 2u);
+	EXPECT_EQ(order.report.changes[0].key, "env8_reverb");
+	EXPECT_EQ(order.report.changes[1].key, "env0_decay");
 
-TEST(ConfigMerge, AppendedKeysFollowCallerOrderNotAlphabeticalOrder) {
-	const auto result = Merge("", {{"env8_reverb", "0.4"}, {"env0_decay", "1.4"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "env8_reverb 0.4\r\nenv0_decay 1.4\r\n");
-	ASSERT_EQ(result.report.changes.size(), 2u);
-	EXPECT_EQ(result.report.changes[0].key, "env8_reverb");
-	EXPECT_EQ(result.report.changes[1].key, "env0_decay");
-}
+	// Combined pass: file order for updates, caller order for appends.
+	const auto several = Merge(
+		"renderer 1\r\n"
+		"env3_reverb 0.275\r\n"
+		"# comment\r\n"
+		"night_moon_brightness 200\r\n",
+		{{"env3_reverb", "0.400"}, {"env0_decay", "1.490"}, {"night_moon_brightness", "220"}});
+	ASSERT_TRUE(several.ok) << several.error;
+	EXPECT_EQ(several.text,
+		"renderer 1\r\n"
+		"env3_reverb 0.400\r\n"
+		"# comment\r\n"
+		"night_moon_brightness 220\r\n"
+		"env0_decay 1.490\r\n");
+	ASSERT_EQ(several.report.changes.size(), 3u);
+	EXPECT_EQ(several.report.changes[0].key, "env3_reverb");
+	EXPECT_EQ(several.report.changes[1].key, "night_moon_brightness");
+	EXPECT_EQ(several.report.changes[2].action, Action::Appended);
+	EXPECT_EQ(several.report.changes[2].key, "env0_decay");
 
-TEST(ConfigMerge, KeysMatchCaseInsensitivelyLikeTheLoader) {
-	const std::string text = "ENV0_DECAY 1.0\r\n";
-	const auto result = Merge(text, {{"env0_decay", "1.5"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	// The operator's spelling is preserved; only the value moves.
-	EXPECT_EQ(result.text, "ENV0_DECAY 1.5\r\n");
-	ASSERT_EQ(result.report.changes.size(), 1u);
-	EXPECT_EQ(result.report.changes[0].action, Action::Updated);
-}
-
-TEST(ConfigMerge, AnUnparseableValueIsStillUpdatedInPlace) {
-	// LoadConfig rejects "abc" and keeps the compiled default, so the field can
-	// only become dirty if the operator changed it; the dead token is replaced.
-	const std::string text = "env0_decay abc\r\n";
-	const auto result = Merge(text, {{"env0_decay", "1.5"}});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, "env0_decay 1.5\r\n");
-	ASSERT_EQ(result.report.changes.size(), 1u);
-	EXPECT_EQ(result.report.changes[0].oldValue, "abc");
-}
-
-TEST(ConfigMerge, EntriesThatCannotBeTokenisedAreRejected) {
+	// Entries with an empty or multi-token key/value are rejected up front and
+	// leave the destination untouched; a '#' key could never be read back.
 	const Entry rejected[] = {
 		{"env0_decay", ""},
 		{"", "1.0"},
@@ -358,40 +318,6 @@ TEST(ConfigMerge, EntriesThatCannotBeTokenisedAreRejected) {
 		EXPECT_FALSE(result.error.empty());
 		EXPECT_TRUE(result.text.empty());
 	}
-}
-
-TEST(ConfigMerge, NoEntriesLeavesTheFileUntouched) {
-	const std::string text = kAwkward;
-	const auto result = Merge(text, {});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text, text);
-	EXPECT_TRUE(result.report.changes.empty());
-}
-
-TEST(ConfigMerge, SeveralKeysUpdateAndAppendInOnePass) {
-	const std::string text =
-		"renderer 1\r\n"
-		"env3_reverb 0.275\r\n"
-		"# comment\r\n"
-		"night_moon_brightness 200\r\n";
-	const auto result = Merge(text, {
-		{"env3_reverb", "0.400"},
-		{"env0_decay", "1.490"},
-		{"night_moon_brightness", "220"},
-	});
-	ASSERT_TRUE(result.ok) << result.error;
-	EXPECT_EQ(result.text,
-		"renderer 1\r\n"
-		"env3_reverb 0.400\r\n"
-		"# comment\r\n"
-		"night_moon_brightness 220\r\n"
-		"env0_decay 1.490\r\n");
-	ASSERT_EQ(result.report.changes.size(), 3u);
-	// File order for updates, caller order for appends.
-	EXPECT_EQ(result.report.changes[0].key, "env3_reverb");
-	EXPECT_EQ(result.report.changes[1].key, "night_moon_brightness");
-	EXPECT_EQ(result.report.changes[2].action, Action::Appended);
-	EXPECT_EQ(result.report.changes[2].key, "env0_decay");
 }
 
 // ---------------------------------------------------------------------------
