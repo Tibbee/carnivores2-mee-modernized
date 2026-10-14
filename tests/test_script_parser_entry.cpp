@@ -19,6 +19,7 @@
 #include "Hunt.h"
 #include "Game/CharacterInternal.h"
 #include "Loaders/LoadDiagnostics.h"
+#include "test_support.h"
 
 // Production entry points defined in Hunt/Loaders/ScriptParser.cpp.
 void ReadWeaponLine(FILE* stream, char* _value, char line[256]);
@@ -53,26 +54,7 @@ private:
     std::vector<char> m_text;
 };
 
-class TempScript final
-{
-public:
-    explicit TempScript(const char* text)
-        : stream(tmpfile())
-    {
-        if (stream) {
-            fputs(text, stream);
-            rewind(stream);
-        }
-    }
-
-    ~TempScript()
-    {
-        if (stream)
-            fclose(stream);
-    }
-
-    FILE* stream;
-};
+using test_support::TempScript;
 
 void CallWeaponLine(FILE* stream, const char* text)
 {

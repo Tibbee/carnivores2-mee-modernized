@@ -6,24 +6,11 @@
 
 #include "Loaders/ScriptBlockParse.h"
 #include "Loaders/ScriptValueParse.h"
+#include "test_support.h"
 
 namespace {
 
-class TempScript final
-{
-public:
-    TempScript()
-        : stream(tmpfile())
-    {}
-
-    ~TempScript()
-    {
-        if (stream)
-            fclose(stream);
-    }
-
-    FILE* stream;
-};
+using test_support::TempScript;
 
 }  // namespace
 

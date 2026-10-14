@@ -5,21 +5,14 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
-#include <stdexcept>
 
 #include "Hunt.h"
 #include "Loaders/TgaFormat.h"
+#include "test_support.h"
 
 namespace {
 
-class LoaderHalt final : public std::runtime_error
-{
-public:
-    explicit LoaderHalt(const char* message)
-        : std::runtime_error(message ? message : "loader halt")
-    {}
-};
+using test_support::LoaderHalt;
 
 void WriteBmp(const char* path, LONG width, LONG height, bool writePixels)
 {

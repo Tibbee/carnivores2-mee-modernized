@@ -4,21 +4,15 @@
 
 #include <cstdio>
 #include <cstring>
-#include <stdexcept>
 #include <string>
 
 #include "Hunt.h"
 #include "wav_fixture.h"
+#include "test_support.h"
 
 namespace {
 
-class LoaderHalt final : public std::runtime_error
-{
-public:
-    explicit LoaderHalt(const char* message)
-        : std::runtime_error(message ? message : "loader halt")
-    {}
-};
+using test_support::LoaderHalt;
 
 }  // namespace
 

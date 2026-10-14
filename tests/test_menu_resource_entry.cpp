@@ -18,6 +18,7 @@
 
 #include "Hunt.h"
 #include "Loaders/LoadDiagnostics.h"
+#include "test_support.h"
 
 // Production entry points defined in Menu/Resources.cpp.
 void ReadCharacters(FILE* stream);
@@ -55,26 +56,7 @@ private:
     std::filesystem::path root;
 };
 
-class TempScript final
-{
-public:
-    explicit TempScript(const char* text)
-        : stream(tmpfile())
-    {
-        if (stream) {
-            fputs(text, stream);
-            rewind(stream);
-        }
-    }
-
-    ~TempScript()
-    {
-        if (stream)
-            fclose(stream);
-    }
-
-    FILE* stream;
-};
+using test_support::TempScript;
 
 void ResetMenuState()
 {
