@@ -898,5 +898,5 @@ EXTERNAL char g_KeyNames[256][24] = {
 "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
 };
 #else
-EXTERNAL char g_KeyNames[128][24];
+EXTERNAL char g_KeyNames[256][24];
 #endif
