@@ -186,37 +186,10 @@ TBEGIN:
 
 					if (DinoInfo[cptr->CType].idle2GroupCount) {
 
-						if (cptr->currentIdle2Group >= 0) {
-							if (rRand(127) + 1 > (1 - DinoInfo[cptr->CType].idle2Group[cptr->currentIdle2Group].end) * 128
-								&& (DinoInfo[cptr->CType].idle2Group[cptr->currentIdle2Group].endOnAny
-									|| cptr->Phase == DinoInfo[cptr->CType].idle2Group[cptr->currentIdle2Group].anim[DinoInfo[cptr->CType].idle2Group[cptr->currentIdle2Group].count - 1])) {
-								cptr->Phase = DinoInfo[cptr->CType].swimAnim;
-								if (DinoInfo[cptr->CType].idle2Group[cptr->currentIdle2Group].instantRepeat) {
-									cptr->currentIdle2Group = -1; //this must be done inside the if statement
-								}
-								else {
-									cptr->currentIdle2Group = -1; //this must be done inside the if statement
-									goto ENDPSELECT;
-								}
-							}
-							else {
-								cptr->Phase = DinoInfo[cptr->CType].idle2Group[cptr->currentIdle2Group].anim[rRand(DinoInfo[cptr->CType].idle2Group[cptr->currentIdle2Group].count - 1)];
-								goto ENDPSELECT;
-							}
-						}
-
-						for (int idle2GroupNo = 0; idle2GroupNo < DinoInfo[cptr->CType].idle2GroupCount; idle2GroupNo++) {
-							if (rRand(127) + 1 > (1 - DinoInfo[cptr->CType].idle2Group[idle2GroupNo].start) * 128) cptr->currentIdle2Group = idle2GroupNo;
-						}
-						if (cptr->currentIdle2Group >= 0) {
-							if (DinoInfo[cptr->CType].idle2Group[cptr->currentIdle2Group].startOnAny)
-								cptr->Phase = DinoInfo[cptr->CType].idle2Group[cptr->currentIdle2Group].anim[rRand(DinoInfo[cptr->CType].idle2Group[cptr->currentIdle2Group].count - 1)];
-							else
-								cptr->Phase = DinoInfo[cptr->CType].idle2Group[cptr->currentIdle2Group].anim[0];
+						if (SelectIdleGroupPhase(cptr->Phase, DinoInfo[cptr->CType].idle2Group,
+								DinoInfo[cptr->CType].idle2GroupCount, cptr->currentIdle2Group,
+								DinoInfo[cptr->CType].swimAnim))
 							goto ENDPSELECT;
-						}
-						else cptr->Phase = DinoInfo[cptr->CType].swimAnim;
-
 					}
 					else cptr->Phase = DinoInfo[cptr->CType].swimAnim;
 
@@ -228,38 +201,10 @@ TBEGIN:
 
 					if (DinoInfo[cptr->CType].idleGroupCount) {
 
-						if (cptr->currentIdleGroup >= 0) {
-							if (rRand(127) + 1 > (1 - DinoInfo[cptr->CType].idleGroup[cptr->currentIdleGroup].end) * 128
-								&& (DinoInfo[cptr->CType].idleGroup[cptr->currentIdleGroup].endOnAny
-									|| cptr->Phase == DinoInfo[cptr->CType].idleGroup[cptr->currentIdleGroup].anim[DinoInfo[cptr->CType].idleGroup[cptr->currentIdleGroup].count - 1])) {
-								cptr->Phase = DinoInfo[cptr->CType].walkAnim;
-								if (DinoInfo[cptr->CType].idleGroup[cptr->currentIdleGroup].instantRepeat) {
-									cptr->currentIdleGroup = -1; //this must be done inside the if statement
-								}
-								else {
-									cptr->currentIdleGroup = -1; //this must be done inside the if statement
-									goto ENDPSELECT;
-								}
-							}
-							else {
-								cptr->Phase = DinoInfo[cptr->CType].idleGroup[cptr->currentIdleGroup].anim[rRand(DinoInfo[cptr->CType].idleGroup[cptr->currentIdleGroup].count - 1)];
-								goto ENDPSELECT;
-							}
-						}
-
-						for (int idleGroupNo = 0; idleGroupNo < DinoInfo[cptr->CType].idleGroupCount; idleGroupNo++) {
-							if (rRand(127) + 1 > (1 - DinoInfo[cptr->CType].idleGroup[idleGroupNo].start) * 128) cptr->currentIdleGroup = idleGroupNo;
-						}
-						if (cptr->currentIdleGroup >= 0) {
-							if (DinoInfo[cptr->CType].idleGroup[cptr->currentIdleGroup].startOnAny)
-								cptr->Phase = DinoInfo[cptr->CType].idleGroup[cptr->currentIdleGroup].anim[rRand(DinoInfo[cptr->CType].idleGroup[cptr->currentIdleGroup].count - 1)];
-							else
-								cptr->Phase = DinoInfo[cptr->CType].idleGroup[cptr->currentIdleGroup].anim[0];
+						if (SelectIdleGroupPhase(cptr->Phase, DinoInfo[cptr->CType].idleGroup,
+								DinoInfo[cptr->CType].idleGroupCount, cptr->currentIdleGroup,
+								DinoInfo[cptr->CType].walkAnim))
 							goto ENDPSELECT;
-						}
-						else cptr->Phase = DinoInfo[cptr->CType].walkAnim;
-
-
 					}
 					else {
 						cptr->Phase = DinoInfo[cptr->CType].walkAnim;

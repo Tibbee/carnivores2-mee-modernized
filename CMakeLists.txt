@@ -343,6 +343,7 @@ if(MSVC)
 
     add_executable(Carnivores2Tests
         tests/test_ai_behavior_math.cpp
+        tests/test_idle_group_select.cpp
         tests/test_audio_math.cpp
         tests/test_wave_reader.cpp
         tests/test_billboard_math.cpp

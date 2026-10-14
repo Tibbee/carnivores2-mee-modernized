@@ -62,6 +62,56 @@ Vector3d CheckForATree(TCharacter *cptr);
 float AngleDifference(float a, float b);
 float CorrectedAlpha(float a, float b);
 
+// Picks the next phase from an idle-group set when a phase finishes: rolls the
+// current group's end chance, then starts a new group by its start chance.
+// `groups`/`groupCount` are `DinoInfo[...].idleGroup` with `idleGroupCount`
+// (or the idle2 pair); `currentGroup` is the matching
+// `cptr->currentIdleGroup`/`currentIdle2Group`. Returns true when the phase
+// came from a group -- the caller must then skip the rest of its phase
+// selection; false when no group started and `fallbackPhase` was assigned.
+// Callers keep their own gate (state, corpse-carried, water).
+inline bool SelectIdleGroupPhase(int& phase, const TDinoIdleType* groups,
+                                 int groupCount, int& currentGroup,
+                                 int fallbackPhase)
+{
+    if (currentGroup >= 0) {
+        const TDinoIdleType& group = groups[currentGroup];
+        if (rRand(127) + 1 > (1 - group.end) * 128
+            && (group.endOnAny || phase == group.anim[group.count - 1])) {
+            phase = fallbackPhase;
+            // The id clears before the instant-repeat case falls through and
+            // starts a new group.
+            currentGroup = -1;
+            if (!group.instantRepeat) {
+                return true;
+            }
+        }
+        else {
+            phase = group.anim[rRand(group.count - 1)];
+            return true;
+        }
+    }
+
+    for (int idleGroupNo = 0; idleGroupNo < groupCount; idleGroupNo++) {
+        if (rRand(127) + 1 > (1 - groups[idleGroupNo].start) * 128) {
+            currentGroup = idleGroupNo;
+        }
+    }
+    if (currentGroup >= 0) {
+        const TDinoIdleType& group = groups[currentGroup];
+        if (group.startOnAny) {
+            phase = group.anim[rRand(group.count - 1)];
+        }
+        else {
+            phase = group.anim[0];
+        }
+        return true;
+    }
+
+    phase = fallbackPhase;
+    return false;
+}
+
 // Keep normal tracking and fixed event reactions on the same authored range.
 inline float GetCharacterAggressionRange(const TCharacter* cptr)
 {
