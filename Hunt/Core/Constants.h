@@ -240,11 +240,8 @@ inline int NormalizeAudioBackend(int driver)
     // Legacy saved values:
     // 0..3 = software / DirectSound / A3D / EAX -> DirectSound
     // 4..5 = OpenAL / XAudio2 -> OpenAL Soft
-    if (driver >= 0 && driver < AUDIO_OPENALSOFT)
-        return AUDIO_DIRECTSOUND;
-    if (driver >= AUDIO_OPENALSOFT && driver < AUDIO_BACKEND_COUNT)
-        return AUDIO_OPENALSOFT;
-    return AUDIO_DIRECTSOUND; // fallback
+    return (driver == AUDIO_OPENALSOFT || driver >= 4) ? AUDIO_OPENALSOFT
+                                                       : AUDIO_DIRECTSOUND;
 }
 
 // ===================== AI Type Constants =====================

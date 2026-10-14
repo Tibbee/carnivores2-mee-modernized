@@ -3,6 +3,7 @@
 #include "../Hunt/Audio/Audio_DLL.cpp"
 #include "fake_openal.h"
 #include "Workbench/TuningRuntime.h"
+#include "Core/Constants.h"
 #include "Core/NightLighting.h"
 #include <cstdlib>
 #include <limits>
@@ -294,4 +295,18 @@ TEST_F(AudioBackendTest, RuntimeSessionUsesRealConfiguredBanksHistoryCompareAndR
 	EXPECT_FLOAT_EQ(c2audio::ReadEnvironments()[8][0],3.25f);ASSERT_EQ(CompareRuntime(false),Error::None);
 	EXPECT_FLOAT_EQ(c2audio::ReadEnvironments()[8][0],4.75f);ASSERT_EQ(ResetRuntimeForHunt(),Error::None);
 	EXPECT_FLOAT_EQ(c2audio::ReadEnvironments()[8][0],3.25f);
+}
+TEST(AudioBackendNormalizeTest, LegacySavedDriverValuesKeepThePreExtractionMapping) {
+	// 0..3 = software / DirectSound / A3D / EAX -> DirectSound
+	EXPECT_EQ(AUDIO_DIRECTSOUND, NormalizeAudioBackend(0));
+	EXPECT_EQ(AUDIO_DIRECTSOUND, NormalizeAudioBackend(2));
+	EXPECT_EQ(AUDIO_DIRECTSOUND, NormalizeAudioBackend(3));
+	// 1 = the stored OpenAL Soft index; the historical rule maps everything
+	// >= 4 (legacy OpenAL / XAudio2 and unknown values) to OpenAL Soft.
+	EXPECT_EQ(AUDIO_OPENALSOFT, NormalizeAudioBackend(AUDIO_OPENALSOFT));
+	EXPECT_EQ(AUDIO_OPENALSOFT, NormalizeAudioBackend(4));
+	EXPECT_EQ(AUDIO_OPENALSOFT, NormalizeAudioBackend(5));
+	EXPECT_EQ(AUDIO_OPENALSOFT, NormalizeAudioBackend(6));
+	// Negative values are not a stored backend and fall back to DirectSound.
+	EXPECT_EQ(AUDIO_DIRECTSOUND, NormalizeAudioBackend(-1));
 }
