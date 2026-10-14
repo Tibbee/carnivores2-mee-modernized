@@ -231,3 +231,18 @@ must rise when the light is switched on. It fell (`-2.6`) while the beam was
 evaluated from per-vertex scalars, and rose to `+28.0` once the shaders derived
 the beam from the interpolated view position. Treat a negative crosshair delta
 as a beam regression, not as noise.
+
+## Sky mode probe
+
+`c2_capture_sky_modes.ps1` is a behavioural harness for the sky cloud-texture
+placement. It seeds `sky_mode` (OpenGL) or `sky_mode_soft` (software) into the
+deployed `config.cfg`, runs the fixed `area1_spawn` scenario once per mode
+through the capture matrix, and copies each `frame.png` into
+`tools/artifacts/sky-current/staging-<renderer>/`. Modes 0 and 1 are captured
+for both renderers; the dome (2) is OpenGL-only. The original `config.cfg`
+bytes are restored afterwards.
+
+The matrix is invoked with `-Foreground`: unattended software captures are
+rejected, and the desktop-pixel frame is the image the modes are compared on,
+so the game window is visible while the probe runs. Judge a change by
+comparing the mode folders of one run side by side.

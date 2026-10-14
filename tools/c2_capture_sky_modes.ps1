@@ -15,9 +15,10 @@ if (-not $GameDir) { $GameDir = "E:/Games/CarnivoresLegacy" }
 if (-not [System.IO.Path]::IsPathRooted($OutDir)) { $OutDir = Join-Path $repoRoot $OutDir }
 $matrix = Join-Path $repoRoot "tools/c2_capture_matrix.ps1"
 
-# sky_mode values to capture. The dome mode is OpenGL-only.
+# sky_mode values to capture. The dome mode is OpenGL-only. The software
+# renderer reads sky_mode_soft, so the key follows the renderer.
 $modes = if ($Renderer -eq "gl") { @(0, 1, 2) } else { @(0, 1) }
-$skyDir = Join-Path (Split-Path -Parent $GameDir) ""
+$skyKey = if ($Renderer -eq "gl") { "sky_mode" } else { "sky_mode_soft" }
 $staging = Join-Path $OutDir ("staging-" + $Renderer)
 New-Item -ItemType Directory -Path $staging -Force | Out-Null
 
@@ -31,9 +32,9 @@ try {
         $lines = @($text -split "`r?`n")
         $found = $false
         for ($i = 0; $i -lt $lines.Count; $i++) {
-            if ($lines[$i] -match "^\s*sky_mode\s+") { $lines[$i] = "sky_mode $mode"; $found = $true }
+            if ($lines[$i] -match "^\s*$skyKey\s+") { $lines[$i] = "$skyKey $mode"; $found = $true }
         }
-        if (-not $found) { $lines += "sky_mode $mode" }
+        if (-not $found) { $lines += "$skyKey $mode" }
         if ($HorizonDrop -gt 0) {
             $foundDrop = $false
             for ($i = 0; $i -lt $lines.Count; $i++) {
@@ -45,8 +46,10 @@ try {
 
         $tag = if ($HorizonDrop -gt 0) { "sky_mode$mode" + "drop$HorizonDrop" } else { "sky_mode$mode" }
         $runOut = Join-Path $OutDir $tag
+        # -Foreground is required: unattended software runs are rejected by the
+        # matrix, and the desktop-pixel capture is what the modes compare.
         & $matrix -Renderer $Renderer -Scenario area1_spawn -Resolution $Resolution `
-            -WarmupSeconds $WarmupSeconds -PostCaptureSeconds 1 -OutDir $runOut `
+            -WarmupSeconds $WarmupSeconds -PostCaptureSeconds 1 -Foreground -OutDir $runOut `
             -AllowDirtyBuildInputs | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "Capture failed for $tag" }
         $frame = Get-ChildItem -LiteralPath $runOut -Recurse -Filter "frame.png" |
