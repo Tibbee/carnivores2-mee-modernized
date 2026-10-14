@@ -1,6 +1,7 @@
 // Production backend + strict AL seams; no DLL/device/hardware is required.
 #include <gtest/gtest.h>
 #include "../Hunt/Audio/Audio_DLL.cpp"
+#include "Audio/OpenALDevice.h"
 #include "fake_openal.h"
 #include "Workbench/TuningRuntime.h"
 #include "Core/Constants.h"
