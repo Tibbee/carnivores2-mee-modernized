@@ -1,6 +1,6 @@
 # Consolidation Pass — C2 MEE
 
-> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 complete (17 clusters, 686 → 469 cases); WS3 foundational slices and the staged config-scanner unification landed (menu/engine/pre-reader/merge now share the ConfigScan + ConfigMerge rules); seventh four-preset checkpoint green; hygiene has 1 open finding (Defect 6, WS4-owned); clang-tidy runs locally (VS Code cpptools LLVM 23.1.0) and is clean on the latest changed files.
+> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 complete (17 clusters, 686 → 469 cases); WS3 foundational slices, the staged config-scanner unification and the first three follow-on slices landed (shadow text, menu constants, resolution list); eighth four-preset checkpoint green; hygiene has 1 open finding (Defect 6, WS4-owned); clang-tidy runs locally (VS Code cpptools LLVM 23.1.0) and is clean on the latest changed files.
 > **Branch:** `refactor/consolidation-pass`, worktree `Carnivores2MEE1.11/build/consolidation-pass`, based on `feat/modder-workbench` @ `4d05faa`.
 > **Status:** in progress. Owner approved the plan and the deletion of the disabled-species animation bundle. Only the Progress log and the task list below are authoritative for what is done; the ranked estimates come from the Phase 1 hunts.
 
@@ -84,7 +84,13 @@ load-policy pre-read ×2 → `ApplyLoadPolicyFromConfigFile` in `Loaders/LoadDia
 ConfigPersistence classifier → shared `kMaxConfigBytes` + `IsUtf16ConfigText` in `Core/ConfigText.h` (`ae57db8`).
 Config-scanner unification (owner call: harness first, one consumer per commit): harness `e79b7d3` (`Core/ConfigScan.h` + parity corpus) ·
 pre-reader `c4020f7` · menu key-case fix `37cabec` · menu reader + `SaveConfig` merge `ae2613a` · engine reader `9bb92da`.
-Seventh four-preset checkpoint green; suite 472 cases. WS3 continues with the remaining unified-implementation items.
+Seventh four-preset checkpoint green; suite 472 cases.
+
+Continued (2026-10-14): shadow-TextOut ×6 → `Core/ShadowText.h` (`f6f5942`) ·
+legacy audio normalization fix (`fefc4b3`, owner call — Defect 7) ·
+menu constants vs `Core/Constants.h` (`e1016c3`) ·
+resolution list ×2 → `Core/ResolutionList.h` (`a8b60d4`).
+Eighth four-preset checkpoint green; suite 473 cases. WS3 continues with the remaining unified-implementation items.
 
 ### WS4 — Build & tooling (~900 LOC)
 
@@ -98,7 +104,8 @@ PGO presets (owner) · flashlight GLSL tri-copy (~90, high risk, needs owner vis
 
 Trophy format/filename fix · packaging Python dependency ·
 `C2_BUILD_TESTS` CI build-time trade · PGO removal or experimental labelling · `comments.py` delete vs document ·
-GLSL include refactor. (`config-scanner staging policy` and the menu `SaveConfig` unification resolved 2026-10-14 — see the progress log.)
+GLSL include refactor. (The `config-scanner staging policy`, the menu `SaveConfig` unification and the legacy
+audio 4–5 mapping resolved 2026-10-14 — see the progress log and Defect 7.)
 
 ## Defects logged (not fixed without an owner call)
 
@@ -108,6 +115,7 @@ GLSL include refactor. (`config-scanner staging policy` and the menu `SaveConfig
 4. **Line-ending anomaly** — 7 files carry doubled-CR (`\r\r\n`) endings in committed blobs (CharacterCollision 682, CharacterTargeting 505, Trophy 444, Projectiles 397, Ships 359, CharacterMovement 173, Vector 150), and this environment runs `core.autocrlf=true` against mixed-normalization blobs. Handling for this pass: stage affected files byte-faithfully (`git hash-object -w --no-filters` + `git update-index --cacheinfo`) and verify `git diff --cached --stat` shows the intended minimal diff. A repo-wide normalization pass is proposed as a separate owner-approved item — not silently done here.
 5. **Comment hygiene finding (pre-existing)** — `Hunt/Core/AIBehavior.h:64` references `hunter-awareness-review.md`, which exists in both `CarnivoresDoc/architecture/` and `CarnivoresDoc/archive/`; `tools/check_comment_hygiene.ps1` rejects the ambiguity. **Resolved 2026-10-14:** owner chose the `architecture/` copy; `e7de326` qualifies the reference and the hygiene scan now reports 1 problem (Defect 6 only).
 6. **Comment hygiene finding (pre-existing)** — `tools/release/make-c2-package.ps1:93` mentions `RELEASE-NOTES.md`, which the current doc tree does not contain; the script is a listed WS4 owner item (embedded config template / packaging), so the reference is left for that work rather than reworded here.
+7. **Legacy audio backend normalization divergence (regression)** — `Core/Constants.h`'s `NormalizeAudioBackend` mapped saved driver values 4–5 (old OpenAL / XAudio2) to DirectSound, contradicting its own comment and the menu's still-original copy; the rewrite happened silently during the `db96ce7` Constants.h extraction, so a legacy profile selected a different backend per EXE. Reachable via legacy `trophy0N.sav` (engine, `Trophy.cpp:442`) and menu profile saves (`Resources.cpp:1595`). **Resolved 2026-10-14:** owner chose the original menu behavior (4–5 → OpenAL Soft); `fefc4b3` restores the pre-extraction body and pins the mapping table in `tests/test_audio_backend.cpp`.
 
 ## Progress log
 
@@ -214,3 +222,14 @@ GLSL include refactor. (`config-scanner staging policy` and the menu `SaveConfig
 - Owner calls (all recorded above): staging — harness first, one consumer per commit; grammar — both spellings pinned; menu keys — case-insensitive like the engine; invalid save values — skip the entry, save the rest.
 - Checkpoint (seventh): all four presets configure and build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Suite 472 cases across the 12 executables. Release flags clean (`/GS`, no `/GS-`) in ogl-release and soft-release. Comment hygiene: 266 files scanned, only the WS4-owned Defect 6 finding (unchanged). clang-tidy (LLVM 23.1.0): exit 0 on the changed TUs, advisory legacy diagnostics only.
 - Next: WS3 continues with the remaining unified-implementation items — shadow-TextOut ×6, menu constants vs `Core/Constants.h`, resolution list ×2, FPS limiter ×2, DPI/VK helpers ×2, ship spawn ×2, script-key predicate, F10 overlay GL+Soft, bound-fit merge, idle-group selector, menu OpenAL plumbing, TGA reader ×2, env presets triple-source, test fixtures/helpers.
+
+### 2026-10-14 — WS3 slices (shadow text, menu constants, resolution list) + audio fix + eighth checkpoint
+
+- `f6f5942` refactor(ui): share the shadow text drawing across the EXEs and renderers — new `Hunt/Core/ShadowText.h` holds the one shadow-then-main TextOut rule (transparent background, shadow at (+1, +1), shadow colour as a parameter because the menu / GL life-info / soft HUD use black while the GL overlay and box text use the near-black 0x00101010); Menu `DrawTextShadow`, the GLHUD life-info and GLUI control-overlay lambdas, SoftHUD's `STTextOut` and UIText `DrawBox` collapse onto it (GLUI keeps its `ProtectHUDRect` extent pass at the call site), and the commented-out sixth copy in `Interface.cpp` is deleted. 7 files, +39/−25.
+- Owner call (2026-10-14): legacy audio values 4–5 map to OpenAL Soft (the original `24c1620` behavior) — logged as Defect 7.
+- `fefc4b3` fix(audio): restore the legacy OpenAL mapping for saved driver values 4-5 — `NormalizeAudioBackend` in `Core/Constants.h` had silently changed to DirectSound during the `db96ce7` extraction while the comment kept the old rule; the pre-extraction body is restored and the mapping table (0/2/3 → DirectSound, 1/4+ → OpenAL Soft, negatives → DirectSound) is pinned in `tests/test_audio_backend.cpp`. Suite 472 → 473.
+- `e1016c3` refactor(menu): consume the shared option constants from Core/Constants.h — Menu/Hunt.h drops its FOV, view-distance and object-detail copies plus `ClampMenuViewOpt`, `ViewOptToCtViewR` (no callers) and `ClampMenuObjectDetail` (−87 lines); Resources.cpp calls the shared `ClampViewOpt`/`ClampObjectDetail`; the dead `AIIndexEnum` (no references, stale values that collided with Core's AI_* constants), the exact-duplicate `AudioSystemEnum`/`NormalizeAudioBackend` and the unused `HIRGB`/`TRURGB`/`HIRGBA`/`TRURGBA` macros go away (`HiColor` at the single call site).
+- `a8b60d4` refactor(core): share the runtime resolution list between the EXEs — new `Hunt/Core/ResolutionList.h` owns `TRes`, `kMaxResolutions` and the `Add`/`Enumerate` rules both EXEs previously carried; each binary keeps its storage and a one-line `EnumerateResolutions` wrapper; `RenderTypes.h` and `Menu/Hunt.h` stop defining `TRes`, and both storages plus the menu test seam size themselves from `kMaxResolutions`.
+- Checkpoint (eighth): all four presets configure and build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Suite 473 cases across the 12 executables. Release flags clean (`/GS`, no `/GS-`) in ogl-release and soft-release. Comment hygiene: 268 files scanned plus a 211-file doc tree, only the WS4-owned Defect 6 finding. clang-tidy (LLVM 23.1.0): exit 0 on the eleven changed TUs, advisory diagnostics only — the two new include-cleaner hits on the audio test were silenced with a direct `Core/Constants.h` include before the checkpoint.
+- Observation: `PrintLoad`'s `loadtxt` (`Hunt/Game/Interface.cpp`) is write-only now that the commented-out copy is gone — a candidate for a later dead-code pass. The menu's `kFpsLimit*` defines stay put for the upcoming FPS-limiter slice, which should decide their shared home.
+- Next: WS3 continues — FPS limiter ×2, DPI/VK helpers ×2, ship spawn ×2, script-key predicate, F10 overlay GL+Soft, bound-fit merge, idle-group selector, menu OpenAL plumbing, TGA reader ×2, env presets triple-source, test fixtures/helpers.
