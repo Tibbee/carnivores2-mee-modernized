@@ -6,6 +6,20 @@
 #include "LoadValidate.h"
 #include "TgaFormat.h"
 
+namespace {
+// DoHalt never returns in production, but the test halt seam throws; close the
+// picture file on every exit path so a halt cannot leak the OS handle and
+// leave the temp file locked for the rest of the test process.
+struct PictureFileHandle final
+{
+  explicit PictureFileHandle(HANDLE handle) : handle(handle) {}
+  ~PictureFileHandle() { if (handle != INVALID_HANDLE_VALUE) CloseHandle(handle); }
+  PictureFileHandle(const PictureFileHandle&) = delete;
+  PictureFileHandle& operator=(const PictureFileHandle&) = delete;
+  HANDLE handle;
+};
+} // namespace
+
 static void PicLoadFail(const char* what, int value, int limit)
 {
   char sz[256];
@@ -45,6 +59,7 @@ void LoadPicture(TPicture &pic, LPSTR pname, MemoryTag tag)
   HANDLE hfile;
 
   hfile = CreateFile(pname, GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr );
+  PictureFileHandle file(hfile);
   if( hfile==INVALID_HANDLE_VALUE )
   {
     char sz[512];
@@ -84,7 +99,6 @@ void LoadPicture(TPicture &pic, LPSTR pname, MemoryTag tag)
     }
   }
 
-  CloseHandle( hfile );
 }
 
 void LoadPictureTGA(TPicture &pic, LPSTR pname, MemoryTag tag)
@@ -92,6 +106,7 @@ void LoadPictureTGA(TPicture &pic, LPSTR pname, MemoryTag tag)
   HANDLE hfile;
 
   hfile = CreateFile(pname, GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr );
+  PictureFileHandle file(hfile);
   if( hfile==INVALID_HANDLE_VALUE )
   {
     char sz[512];
@@ -136,6 +151,4 @@ void LoadPictureTGA(TPicture &pic, LPSTR pname, MemoryTag tag)
                    (void*)(pic.lpImage.get() + (pic.H-y-1)*pic.W),
                    (DWORD)(2*pic.W)))
       DoHalt("Picture loading error: truncated TGA rows.");
-
-  CloseHandle( hfile );
 }

@@ -132,7 +132,7 @@ TEST(PictureLoaderEntry, TruncatedBmpUsesProductionFailurePath)
     TPicture picture{};
     EXPECT_THROW(LoadPicture(picture, mutablePath, MemoryTag::Global), LoaderHalt);
 
-    remove(path);
+    EXPECT_EQ(remove(path), 0);
 }
 
 TEST(PictureLoaderEntry, RejectsBmpRowWidthThatExceedsStackBuffer)
@@ -144,7 +144,7 @@ TEST(PictureLoaderEntry, RejectsBmpRowWidthThatExceedsStackBuffer)
     TPicture picture{};
     EXPECT_THROW(LoadPicture(picture, mutablePath, MemoryTag::Global), LoaderHalt);
 
-    remove(path);
+    EXPECT_EQ(remove(path), 0);
 }
 
 TEST(PictureLoaderEntry, ValidBmpUsesProductionEntryPoint)
@@ -174,7 +174,7 @@ TEST(PictureLoaderEntry, RejectsPalettedTga)
     TPicture picture{};
     EXPECT_THROW(LoadPictureTGA(picture, mutablePath, MemoryTag::Global), LoaderHalt);
 
-    remove(path);
+    EXPECT_EQ(remove(path), 0);
 }
 
 TEST(PictureLoaderEntry, RejectsNonTruecolorTga)
@@ -186,7 +186,7 @@ TEST(PictureLoaderEntry, RejectsNonTruecolorTga)
     TPicture picture{};
     EXPECT_THROW(LoadPictureTGA(picture, mutablePath, MemoryTag::Global), LoaderHalt);
 
-    remove(path);
+    EXPECT_EQ(remove(path), 0);
 }
 
 TEST(PictureLoaderEntry, RejectsNonSixteenBitTga)
@@ -198,7 +198,7 @@ TEST(PictureLoaderEntry, RejectsNonSixteenBitTga)
     TPicture picture{};
     EXPECT_THROW(LoadPictureTGA(picture, mutablePath, MemoryTag::Global), LoaderHalt);
 
-    remove(path);
+    EXPECT_EQ(remove(path), 0);
 }
 
 TEST(PictureLoaderEntry, ValidTgaUsesProductionEntryPointAndFlipsRowsBottomUp)
@@ -246,5 +246,5 @@ TEST(PictureLoaderEntry, TruncatedTgaPayloadUsesProductionFailurePath)
     TPicture picture{};
     EXPECT_THROW(LoadPictureTGA(picture, mutablePath, MemoryTag::Global), LoaderHalt);
 
-    remove(path);
+    EXPECT_EQ(remove(path), 0);
 }
