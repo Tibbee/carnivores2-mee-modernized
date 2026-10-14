@@ -12,6 +12,7 @@
 
 #include "Hunt.h"
 #include "Workbench/WorkbenchUI.h"
+#include "Workbench/TuningOverlay.h"
 #include "GLRenderer.h"
 #include "Renderer/UIText.h"
 #include "Core/ShadowText.h"
@@ -957,82 +958,28 @@ void ShowControlElements()
     // ── Underwater debug menu ─────────────────────────────────────
     if (UnderwaterDebugMenu)
     {
-        int dx = 10;
-        int dy = 40;
-        int lineH = 16;
-        int selected = UnderwaterDebugSelected;
+        const int selected = UnderwaterDebugSelected;
+        int dx = workbench::kOverlayX;
+        int dy = workbench::kOverlayY;
 
-        // Tab header
-        const char* tabName = (UnderwaterDebugTab == 0) ? "FOG" : (UnderwaterDebugTab == 1) ? "WAVES" : "SUN";
         char header[128];
-        sprintf_s(header, sizeof(header), "=== %s DEBUG (F10=close, PgUp/PgDn=tab, D=dump) ===", tabName);
-        textOut(dx, dy, header, 0x00FFFFFF);
-        dy += lineH + 4;
+        workbench::FormatOverlayHeader(header, sizeof(header), UnderwaterDebugTab);
+        textOut(dx, dy, header, workbench::kOverlayHeaderColor);
+        dy += workbench::kOverlayLineH + 4;
 
-        if (UnderwaterDebugTab == 0) {
-            // ── Fog tab ──
-            const char* names[] = { "BaseDensity", "CamDepthMult", "VertRange", "VertStrength", "CurveExp", "CapBase", "CapCamBoost" };
-            float values[] = { UWFog_BaseDensityMult, UWFog_CameraDepthMult, UWFog_VertRange, UWFog_VertStrength, UWFog_CurveExp, UWFog_CapBase, UWFog_CapCameraBoost };
-            const char* descs[] = { "(1.0=normal)", "(Beer-Lambert)", "(units)", "(fog units)", "(exponent)", "(added to FLimit)", "(camera boost)" };
-
-            for (int i = 0; i < 7; i++)
-            {
-                char line[128];
-                sprintf_s(line, sizeof(line), "%s = %.2f  %s", names[i], values[i], descs[i]);
-                int color = (i == selected) ? 0x0000FFFF : 0x00C0C0C0;
-                if (i == selected) {
-                    char selLine[132];
-                    sprintf_s(selLine, sizeof(selLine), "> %s", line);
-                    textOut(dx, dy, selLine, color);
-                } else {
-                    textOut(dx + 10, dy, line, color);
-                }
-                dy += lineH;
-            }
-        } else if (UnderwaterDebugTab == 1) {
-            // ── Waves tab ──
-            const char* names[] = { "Wave1Amp", "Wave2Amp", "Wave3Amp", "WaveSpeed" };
-            float values[] = { WWave1Amp, WWave2Amp, WWave3Amp, WWaveSpeed };
-            const char* descs[] = { "(primary swell)", "(cross-wave)", "(fine detail)", "(time mult)" };
-
-            for (int i = 0; i < 4; i++)
-            {
-                char line[128];
-                sprintf_s(line, sizeof(line), "%s = %.2f  %s", names[i], values[i], descs[i]);
-                int color = (i == selected) ? 0x0000FFFF : 0x00C0C0C0;
-                if (i == selected) {
-                    char selLine[132];
-                    sprintf_s(selLine, sizeof(selLine), "> %s", line);
-                    textOut(dx, dy, selLine, color);
-                } else {
-                    textOut(dx + 10, dy, line, color);
-                }
-                dy += lineH;
-            }
-        } else {
-            // ── Sun tab ──
-            const char* names[] = { "GlareMaster", "GlareDisc" };
-            float values[] = { SunGlare_Master, SunGlare_Disc };
-            const char* descs[] = { "(blinding, 0=off)", "(sun/moon disc)" };
-
-            for (int i = 0; i < 2; i++)
-            {
-                char line[128];
-                sprintf_s(line, sizeof(line), "%s = %.2f  %s", names[i], values[i], descs[i]);
-                int color = (i == selected) ? 0x0000FFFF : 0x00C0C0C0;
-                if (i == selected) {
-                    char selLine[132];
-                    sprintf_s(selLine, sizeof(selLine), "> %s", line);
-                    textOut(dx, dy, selLine, color);
-                } else {
-                    textOut(dx + 10, dy, line, color);
-                }
-                dy += lineH;
-            }
+        workbench::OverlayRow rows[workbench::kOverlayMaxRows];
+        const int rowCount = workbench::FillOverlayRows(UnderwaterDebugTab, rows, workbench::kOverlayMaxRows);
+        for (int i = 0; i < rowCount; i++)
+        {
+            char line[132];
+            workbench::FormatOverlayRow(line, sizeof(line), rows[i], i == selected);
+            const int color = (i == selected) ? workbench::kOverlaySelectedColor : workbench::kOverlayRowColor;
+            textOut(i == selected ? dx : dx + workbench::kOverlayIndent, dy, line, color);
+            dy += workbench::kOverlayLineH;
         }
 
         dy += 4;
-        textOut(dx, dy, "Arrows: select +/-: adjust", 0x00808080);
+        textOut(dx, dy, workbench::kOverlayHint, workbench::kOverlayHintColor);
 
         if (g_GLRenderer) g_GLRenderer->MarkDirtyRect(dx - 2, 38, 450, 200);
     }

@@ -9,9 +9,10 @@
 #include "Renderer/SoftRenderer.h"
 #include "Renderer/UIText.h"
 #include "Core/ShadowText.h"
+#include "Workbench/TuningOverlay.h"
 
 #ifdef _soft
-void STTextOut(int x, int y, LPSTR t, int color)
+void STTextOut(int x, int y, const char* t, int color)
 {
   shadowtext::Draw(hdcCMain, x, y, t, static_cast<int>(strlen(t)), color);
 }
@@ -25,69 +26,32 @@ void STTextOut(int x, int y, LPSTR t, int color)
 // amplitudes -- with nothing on screen showing it, which made F10 look broken
 // while it was silently changing state.
 //
-// Keeping the two copies in sync: both must list the same parameters in the
-// same order, because UnderwaterDebugSelected indexes these arrays positionally.
+// The parameter rows come from Workbench/TuningOverlay.h, the same provider
+// GLUI draws, so both renderers list the same parameters in the same order.
 static void DrawUnderwaterDebugMenu()
 {
-  int dx = 10;
-  int dy = 40;
-  const int lineH = 16;
   const int selected = UnderwaterDebugSelected;
+  int dx = workbench::kOverlayX;
+  int dy = workbench::kOverlayY;
 
-  const char* tabName = (UnderwaterDebugTab == 0) ? "FOG"
-                      : (UnderwaterDebugTab == 1) ? "WAVES" : "SUN";
   char header[128];
-  sprintf_s(header, sizeof(header), "=== %s DEBUG (F10=close, PgUp/PgDn=tab, D=dump) ===", tabName);
-  STTextOut(dx, dy, header, 0x00FFFFFF);
-  dy += lineH + 4;
+  workbench::FormatOverlayHeader(header, sizeof(header), UnderwaterDebugTab);
+  STTextOut(dx, dy, header, workbench::kOverlayHeaderColor);
+  dy += workbench::kOverlayLineH + 4;
 
-  const char* names[7] = { nullptr };
-  float values[7] = { 0.0f };
-  const char* descs[7] = { nullptr };
-  int count = 0;
-
-  if (UnderwaterDebugTab == 0) {
-    // ── Fog tab ──
-    static const char* fogNames[] = { "BaseDensity", "CamDepthMult", "VertRange", "VertStrength", "CurveExp", "CapBase", "CapCamBoost" };
-    static const char* fogDescs[] = { "(1.0=normal)", "(Beer-Lambert)", "(units)", "(fog units)", "(exponent)", "(added to FLimit)", "(camera boost)" };
-    const float fogValues[] = { UWFog_BaseDensityMult, UWFog_CameraDepthMult, UWFog_VertRange, UWFog_VertStrength, UWFog_CurveExp, UWFog_CapBase, UWFog_CapCameraBoost };
-    count = 7;
-    for (int i = 0; i < count; ++i) { names[i] = fogNames[i]; values[i] = fogValues[i]; descs[i] = fogDescs[i]; }
-  } else if (UnderwaterDebugTab == 1) {
-    // ── Waves tab ──
-    static const char* waveNames[] = { "Wave1Amp", "Wave2Amp", "Wave3Amp", "WaveSpeed" };
-    static const char* waveDescs[] = { "(primary swell)", "(cross-wave)", "(fine detail)", "(time mult)" };
-    const float waveValues[] = { WWave1Amp, WWave2Amp, WWave3Amp, WWaveSpeed };
-    count = 4;
-    for (int i = 0; i < count; ++i) { names[i] = waveNames[i]; values[i] = waveValues[i]; descs[i] = waveDescs[i]; }
-  } else {
-    // ── Sun tab ──
-    static const char* sunNames[] = { "GlareMaster", "GlareDisc" };
-    static const char* sunDescs[] = { "(blinding, 0=off)", "(sun/moon disc)" };
-    const float sunValues[] = { SunGlare_Master, SunGlare_Disc };
-    count = 2;
-    for (int i = 0; i < count; ++i) { names[i] = sunNames[i]; values[i] = sunValues[i]; descs[i] = sunDescs[i]; }
-  }
-
-  for (int i = 0; i < count; i++)
+  workbench::OverlayRow rows[workbench::kOverlayMaxRows];
+  const int rowCount = workbench::FillOverlayRows(UnderwaterDebugTab, rows, workbench::kOverlayMaxRows);
+  for (int i = 0; i < rowCount; i++)
   {
-    char line[128];
-    sprintf_s(line, sizeof(line), "%s = %.2f  %s", names[i], values[i], descs[i]);
-    const int color = (i == selected) ? 0x0000FFFF : 0x00C0C0C0;
-    if (i == selected) {
-      char selLine[132];
-      sprintf_s(selLine, sizeof(selLine), "> %s", line);
-      STTextOut(dx, dy, selLine, color);
-    } else {
-      STTextOut(dx + 10, dy, line, color);
-    }
-    dy += lineH;
+    char line[132];
+    workbench::FormatOverlayRow(line, sizeof(line), rows[i], i == selected);
+    const int color = (i == selected) ? workbench::kOverlaySelectedColor : workbench::kOverlayRowColor;
+    STTextOut(i == selected ? dx : dx + workbench::kOverlayIndent, dy, line, color);
+    dy += workbench::kOverlayLineH;
   }
 
   dy += 4;
-  char hint[64];
-  sprintf_s(hint, sizeof(hint), "Arrows: select +/-: adjust");
-  STTextOut(dx, dy, hint, 0x00808080);
+  STTextOut(dx, dy, workbench::kOverlayHint, workbench::kOverlayHintColor);
 }
 
 void ShowControlElements()
