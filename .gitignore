@@ -32,7 +32,6 @@ tools/perf/*
 !tools/check_comment_hygiene.ps1
 !tools/check_huntdat.ps1
 !tools/check_mod_assets.ps1
-!tools/comments.py
 !tools/run_clang_tidy.ps1
 !tools/clang-tidy.md
 !tools/check_release_flags.ps1
