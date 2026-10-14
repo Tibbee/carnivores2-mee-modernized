@@ -68,4 +68,3 @@ TEST(PerFrameUpload, PartialWaterWriteMustNotSuppressRestoringTheFullPacket) {
     EXPECT_EQ(simulatedBuffer, world);
     EXPECT_FALSE(cache.shouldUpload(world));
 }
-

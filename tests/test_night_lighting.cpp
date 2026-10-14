@@ -220,4 +220,3 @@ TEST(NightLighting, SkyIsReadableWithDarkerZenithAndMatchingFogGrade) {
 	EXPECT_EQ(GradeNightSkyFog(NightRgb{}, 2, false, settings), NightRgb{});
 	EXPECT_EQ(GradeNightSkyFog(fog, 1, false, settings), fog);
 }
-

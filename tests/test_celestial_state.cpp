@@ -82,4 +82,3 @@ TEST(CelestialState, MoonStartsAtItsClearSkyRemapRatherThanTheSunBaseline) {
     EXPECT_FLOAT_EQ(alpha, NightCelestialDiscAlpha(2) * std::pow(CelestialVisibilityFromSkySample(2, 1), .6f));
     EXPECT_LT(alpha, NightCelestialDiscAlpha(2));
 }
-

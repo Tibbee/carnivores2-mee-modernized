@@ -111,4 +111,3 @@ TEST(NightPresentation, RegionOverflowFailsReadableRatherThanDroppingControls) {
 	regions.Add(0, 20, 1, 1, 100, 100);
 	EXPECT_EQ(regions.count, 1);
 }
-
