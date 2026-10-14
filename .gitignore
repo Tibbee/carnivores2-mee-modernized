@@ -4,6 +4,7 @@ doc/
 .vscode/
 deps/Glide2/
 bin/
+obj/
 .commit*/
 C2MenuAttempt/
 carnivores_menu_mee/
