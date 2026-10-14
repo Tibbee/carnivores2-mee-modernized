@@ -17,7 +17,23 @@ Copy-paste release summaries are in `release-notes/`.
 Draft changes on local `main` after `origin/main` (`81fe90b`); not part of
 the published v1.1.9 tag or its refreshed archive. This is a follow-up
 compatibility/gameplay package candidate, not an already published hotfix.
-The separately labelled workbench preview below is on a feature branch, not main.
+The separately labelled workbench preview below is part of this line of work;
+the consolidation pass brings it onto main.
+
+### Consolidation pass (2026-10-14)
+
+Bring the modder workbench previews onto main and consolidate the engine, menu,
+tests and tooling around them. Redundant test cases drop from 686 to 487 while
+every contract assertion survives. Shared owners replace duplicated code for
+config scanning/paths/text, resolution lists, frame limiting, DPI/VK mapping,
+ship spawn, shadow text, the OpenAL device lifecycle and the TGA format; the
+flashlight GLSL tri-copy becomes one included fragment, LTO is scoped to the
+shipped targets and the packaged config is emitted from the engine template.
+Owner-approved fixes: two-digit trophy names at profile 10+, legacy audio 4-5
+back to OpenAL Soft, case-insensitive menu config keys, strict 16-bit engine TGA
+validation and the F10 panel's PgDn stepping backwards. Four presets and the
+487-case suite pass; comment hygiene is clean. No file-format, config-key or
+deployed-layout change.
 
 ### Workbench inspector corrections (2026-10-09)
 
