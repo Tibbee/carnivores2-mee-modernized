@@ -81,9 +81,11 @@ def check_coverage(root: Path = ROOT) -> None:
         raise ValueError("Obsolete selector in defaults")
     if defaults.keys() & OPTIONAL:
         raise ValueError("Conditional selection must not be forced by a default")
-    audio = (root / "Hunt/Audio/Audio_DLL.cpp").read_text(encoding="utf-8")
-    table = audio[audio.index("static const EAX2ENV g_EnvPresets[9]"):]
-    rows = re.findall(r"\{\s*\d+,\s*-?\d+,\s*([\d.]+)f,\s*([\d.]+)f,\s*([\d.]+)f,\s*(-?\d+)\s*\}", table)
+    # The compiled preset table lives in c2audio::Defaults(); the runtime copy
+    # and the workbench registry are both derived from it.
+    audio = (root / "Hunt/Audio/AudioInspection.h").read_text(encoding="utf-8")
+    table = audio[audio.index("Environments Defaults()"):audio.index("EnvironmentLabel")]
+    rows = re.findall(r"\{\s*(-?[\d.]+)f?,\s*(-?[\d.]+)f?,\s*(-?[\d.]+)f?,\s*(-?\d+)\s*\}", table)
     if len(rows) != 9:
         raise ValueError("Cannot read the nine reverb presets")
     for env, row in enumerate(rows):

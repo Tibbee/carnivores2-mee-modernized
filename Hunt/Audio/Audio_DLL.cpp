@@ -74,41 +74,20 @@ static c2audio::Application g_Application = c2audio::Application::Pending;
 static std::array<float, 4> g_AppliedValues{};
 
 // ---------------------------------------------------------------------------
-// EAX 2.0 environment presets  (values match original EAX2Audio/Audio3d.cpp)
+// EAX 2.0 environment presets
 // ---------------------------------------------------------------------------
-struct EAX2ENV {
-    int   envID;      // EAX preset enum (unused in EFX path)
-    int   room;       // mB  (-10000 … 0)
-    float decay;      // seconds
-    float decayHF;    // ratio
-    float diffusion;  // 0.0 … 1.0
-    int   reverb;     // mB  (-10000 … 0)
-};
-
-static const EAX2ENV g_EnvPresets[9] = {
-    { 0, -400, 1.49f,  0.3f,   0.4f,   -620 },  // 0  Generic
-    { 1, -400, 1.2f,  0.2f,   0.2f,   -600 },  // 1  Plate
-    { 2, -400, 1.49f,  0.18f,  0.3f,   -700 },  // 2  Forest
-    { 3, -200, 2.6f,  0.2f,   0.326f, -500 },  // 3  Mountain
-    { 4, -400, 1.1f,  0.6f,   0.275f, -700 },  // 4  Canyon
-    { 5, -300, 3.2f,  0.6f,   0.9f,   -200 },  // 5  Cave
-    { 6, -400, 1.8f,  0.4f,   0.4f,   -400 },  // 6  Special 2
-    { 7,    0, 0.0f,  0.0f,   0.0f,      0 },  // 7  Special 3 (dry)
-    { 8, -400, 1.5f,  0.1f,   0.1f,   -200 },  // 8  Underwater
-};
-
 // Convert EAX mB to linear gain (OpenAL EFX uses 0.0-1.0)
 static float mBToGain(int mB) {
     return std::pow(10.0f, mB / 2000.0f);
 }
 
-// Runtime-tunable copy of the preset table (config.cfg envN_* keys).
-// Untouched entries read exactly the compiled defaults above.
-static EAX2ENV g_EnvRuntime[9];
+// Runtime-tunable copy of the preset bank (config.cfg envN_* keys). Untouched
+// entries read exactly c2audio::Defaults(), the one owner of the table.
+static c2audio::Environments g_EnvRuntime;
 static bool g_EnvRuntimeInit = false;
 static void EnsureEnvRuntime() {
     if (!g_EnvRuntimeInit) {
-        memcpy(g_EnvRuntime, g_EnvPresets, sizeof(g_EnvPresets));
+        g_EnvRuntime = c2audio::Defaults();
         g_EnvRuntimeInit = true;
     }
 }
@@ -124,10 +103,10 @@ bool Audio_SetEnvParam(int env, int field, float v)
     std::lock_guard<std::recursive_mutex> presetLock(g_EnvironmentMutex);
     EnsureEnvRuntime();
     switch (field) {
-    case 0: if (v < 0.1f || v > 20.0f) return false; g_EnvRuntime[env].decay = v; break;
-    case 1: if (v < 0.1f || v > 2.0f) return false; g_EnvRuntime[env].decayHF = v; break;
-    case 2: if (v < 0.0f || v > 1.0f) return false; g_EnvRuntime[env].diffusion = v; break;
-    case 3: if (v < -10000.0f || v > 0.0f) return false; g_EnvRuntime[env].reverb = static_cast<int>(v); break;
+    case 0: if (v < 0.1f || v > 20.0f) return false; g_EnvRuntime[env][0] = v; break;
+    case 1: if (v < 0.1f || v > 2.0f) return false; g_EnvRuntime[env][1] = v; break;
+    case 2: if (v < 0.0f || v > 1.0f) return false; g_EnvRuntime[env][2] = v; break;
+    case 3: if (v < -10000.0f || v > 0.0f) return false; g_EnvRuntime[env][3] = static_cast<float>(static_cast<int>(v)); break;
     default: return false;
     }
     if (env == g_CurrentEnv) {
@@ -720,23 +699,23 @@ void Audio_SetEnvironment(int e, float f)
         }
         return;
     }
-    const EAX2ENV& env = g_EnvRuntime[e];
+    const auto& env = g_EnvRuntime[e];
     // Preserve existing tuning/mix; do not introduce a room-gain balance change.
     if (!AL_CHECK(alEffecti(g_effect, AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB)) ||
         !AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_GAIN, 1.0f)) ||
-        !AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_DECAY_TIME, env.decay)) ||
-        !AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_DECAY_HFRATIO, env.decayHF)) ||
-        !AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_DIFFUSION, env.diffusion)) ||
-        !AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_LATE_REVERB_GAIN, mBToGain(env.reverb))) ||
+        !AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_DECAY_TIME, env[0])) ||
+        !AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_DECAY_HFRATIO, env[1])) ||
+        !AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_DIFFUSION, env[2])) ||
+        !AL_CHECK(alEffectf(g_effect, AL_EAXREVERB_LATE_REVERB_GAIN, mBToGain(static_cast<int>(env[3])))) ||
         !AL_CHECK(alAuxiliaryEffectSloti(g_slot, AL_EFFECTSLOT_EFFECT, g_effect)) ||
         !SetReverbSends(g_slot)) return;
     g_CurrentEnv = g_AppliedEnv = e;
     g_Application = c2audio::Application::Reverb;
-    g_AppliedValues = {env.decay, env.decayHF, env.diffusion, static_cast<float>(env.reverb)};
+    g_AppliedValues = {env[0], env[1], env[2], env[3]};
     char message[160];
     sprintf_s(message, sizeof(message),
         "Audio_SetEnvironment: env=%d decay=%.3f decayHF=%.3f diffusion=%.3f reverb=%d\n",
-        e, env.decay, env.decayHF, env.diffusion, env.reverb);
+        e, env[0], env[1], env[2], static_cast<int>(env[3]));
     PrintLog(message);
 }
 
@@ -760,12 +739,7 @@ namespace c2audio {
 Environments ReadEnvironments() {
 	std::lock_guard<std::recursive_mutex> lock(g_EnvironmentMutex);
 	EnsureEnvRuntime();
-	Environments values{};
-	for (int e = 0; e < 9; ++e) {
-		const auto& p = g_EnvRuntime[e];
-		values[e] = {p.decay, p.decayHF, p.diffusion, static_cast<float>(p.reverb)};
-	}
-	return values;
+	return g_EnvRuntime;
 }
 Snapshot ReadSnapshot(bool details) {
 	std::lock_guard<std::recursive_mutex> presetLock(g_EnvironmentMutex);

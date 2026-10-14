@@ -274,7 +274,7 @@ TEST_F(AudioBackendTest, ActiveBankRefreshDoesNotRestartAndInactiveEditDoesNotSw
 }
 TEST_F(AudioBackendTest, InvalidDiagnosticTableDoesNotBlockOrdinaryLegacyRestart) {
 	ASSERT_FALSE(Audio_SetEnvParam(5,0,40)); // Existing loader range rejection remains.
-	g_EnvRuntime[5].decay=40; // Fault injection, not a reachable config-loader value.
+	g_EnvRuntime[5][0]=40; // Fault injection, not a reachable config-loader value.
 	UWFog_BaseDensityMult=.77f;WWave1Amp=.31f;
 	EXPECT_EQ(workbench::ResetRuntimeForHunt(),workbench::Error::OutOfRange);
 	EXPECT_FLOAT_EQ(UWFog_BaseDensityMult,workbench::CompiledDefaults()[0]);

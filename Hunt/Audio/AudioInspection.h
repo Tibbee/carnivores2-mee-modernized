@@ -4,7 +4,11 @@
 
 namespace c2audio {
 using Environments = std::array<std::array<float, 4>, 9>;
-inline Environments Defaults() {
+// The one owner of the compiled preset table: {decay, decayHF, diffusion,
+// reverb} for presets 0-8 (7 is the intentional dry no-op). The engine seeds
+// its runtime copy from this and the workbench registry reads it for the
+// compiled defaults, so the values cannot drift between the two.
+inline constexpr Environments Defaults() {
 	return {{{1.49f,.3f,.4f,-620}, {1.2f,.2f,.2f,-600}, {1.49f,.18f,.3f,-700},
 		{2.6f,.2f,.326f,-500}, {1.1f,.6f,.275f,-700}, {3.2f,.6f,.9f,-200},
 		{1.8f,.4f,.4f,-400}, {0,0,0,0}, {1.5f,.1f,.1f,-200}}};
