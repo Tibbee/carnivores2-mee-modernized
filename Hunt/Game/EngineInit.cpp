@@ -10,6 +10,7 @@
 #include <fstream>
 #include "Core/ConfigParse.h"
 #include "Core/ConfigPath.h"
+#include "Core/ConfigScan.h"
 #include "Core/ConfigText.h"
 #include "Core/TerrainMip.h"
 #include "Core/WaterWaveFade.h"
@@ -960,6 +961,15 @@ static void CreateDefaultConfig()
   PrintLog(msg);
 }
 
+// Copy a scanned token into the loader's fixed buffer the way sscanf_s's
+// "%63s" did: the first 63 bytes, always terminated.
+static void CopyConfigToken(char (&out)[64], std::string_view token)
+{
+  const std::size_t count = token.size() < sizeof(out) - 1 ? token.size() : sizeof(out) - 1;
+  memcpy(out, token.data(), count);
+  out[count] = '\0';
+}
+
 static void LoadConfig()
 {
   const std::string configPath = configpath::ResolveReadPath();
@@ -984,26 +994,20 @@ static void LoadConfig()
   }
 
   // Simple line-by-line parser: "key value"
-  char* ctx = nullptr;
-  char* line = strtok_s(text.data(), "\r\n", &ctx);
-  while (line) {
-    // Skip comments and empty lines
-    if (line[0] == '#' || line[0] == '\0') {
-      line = strtok_s(nullptr, "\r\n", &ctx);
+  for (const configscan::Field& field : configscan::Scan(text)) {
+    char key[64];
+    CopyConfigToken(key, field.key);
+    if (!field.hasValue) {
+      char msg[96];
+      sprintf_s(msg, sizeof(msg), "Config: '%s' missing value, ignoring.\n", key);
+      PrintLog(msg);
       continue;
     }
 
-    char key[64];
-    char keyval[64] = "";
-    int tokens = sscanf_s(line, "%63s %63s", key, (unsigned)sizeof(key), keyval, (unsigned)sizeof(keyval));
-    if (tokens >= 1) {
-      if (tokens < 2) {
-        char msg[96];
-        sprintf_s(msg, sizeof(msg), "Config: '%s' missing value, ignoring.\n", key);
-        PrintLog(msg);
-      } else {
-      int value = (int)strtol(keyval, nullptr, 10);
-      if (_stricmp(key, "fov") == 0) {
+    char keyval[64];
+    CopyConfigToken(keyval, field.value);
+    int value = (int)strtol(keyval, nullptr, 10);
+    if (_stricmp(key, "fov") == 0) {
         if (value >= kFovMin && value <= kFovMax) {
           OptFov = value;
         } else {
@@ -1055,7 +1059,10 @@ static void LoadConfig()
           ? NightLightingOption::Desaturation : _stricmp(key, "night_sky_brightness") == 0
           ? NightLightingOption::SkyBrightness : _stricmp(key, "night_moon_brightness") == 0
           ? NightLightingOption::MoonBrightness : NightLightingOption::MoonGlowStrength;
-        const bool applied = NightLightingConfigValueFits(line, sizeof(keyval)) &&
+        // The scanner hands over the full authored token; refuse one that
+        // could not fit the 64-byte copy instead of parsing a truncated
+        // scalar (the old %63s guard).
+        const bool applied = field.value.size() < sizeof(keyval) &&
           ParseNightLightingOption(option, keyval, NightLightingOptions());
         char msg[256];
         sprintf_s(msg, sizeof(msg), applied
@@ -1376,10 +1383,6 @@ static void LoadConfig()
         }
       }
       // Future settings: add else-if branches here
-      } // tokens == 2
-    }
-
-    line = strtok_s(nullptr, "\r\n", &ctx);
   }
 
   PrintLog("Config Loaded (config.cfg).\n");

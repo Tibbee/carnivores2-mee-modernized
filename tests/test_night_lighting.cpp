@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include "Core/NightLighting.h"
-#include <string>
 
 TEST(NightLighting, MoonBrightnessBoostLeavesDawnAndDaySunUnchanged) {
 	for (int time : {0, 1}) {
@@ -145,15 +144,6 @@ TEST(NightLighting, StrictSettingsAndInvalidDuplicatesPreserveValues) {
 	EXPECT_FALSE(ParseNightLightingOption(NightLightingOption::Desaturation, "101", settings));
 	EXPECT_EQ(settings.desaturationPct, 100);
 	EXPECT_FALSE(ParseNightLightingOption(NightLightingOption::WorldBrightness, nullptr, settings));
-}
-
-TEST(NightLighting, OversizedConfigTokensCannotBecomeValidPrefixes) {
-	EXPECT_TRUE(NightLightingConfigValueFits(" night_lighting 1 # comment", 64));
-	EXPECT_FALSE(NightLightingConfigValueFits("night_lighting", 64));
-	EXPECT_FALSE(NightLightingConfigValueFits(nullptr, 64));
-	const std::string line = "night_lighting " + std::string(63, '0') + "junk";
-	EXPECT_FALSE(NightLightingConfigValueFits(line.c_str(), 64));
-	NightLightingSettings settings;
 	EXPECT_FALSE(ParseNightLightingOption(static_cast<NightLightingOption>(99), "22", settings));
 }
 

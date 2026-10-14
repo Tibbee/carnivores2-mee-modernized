@@ -101,6 +101,13 @@ TEST(ConfigScan, PinsTheWhitespaceGrammarOfTheReaders) {
     ExpectFields("a 1\rb 2\r", Separator::Whitespace,
                  {{"a", "1", true, 0}, {"b", "2", true, 1}});
     ExpectFields("", Separator::Whitespace, {});
+
+    // A consumer copying into a fixed buffer must length-check the authored
+    // token: the scanner returns it whole, never as a truncated prefix.
+    const std::string oversized = "night_world_brightness " + std::string(70, '0') + "\n";
+    const std::vector<Field> whole = Scan(oversized);
+    ASSERT_EQ(whole.size(), 1u);
+    EXPECT_EQ(whole[0].value.size(), 70u);
 }
 
 TEST(ConfigScan, PinsTheEqualsGrammarOfTheLoadPolicyPreRead) {

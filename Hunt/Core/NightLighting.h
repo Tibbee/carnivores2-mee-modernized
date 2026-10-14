@@ -6,7 +6,6 @@
 #include "Flashlight.h"
 #include <algorithm>
 #include <array>
-#include <cstring>
 
 // Restore the original celestial opacity/glow. Moon brightness is an RGB
 // gain instead, so it does not saturate the packed alpha or defeat fades.
@@ -76,17 +75,6 @@ inline bool ParseNightLightingOption(NightLightingOption option, const char* tex
 	default: return false;
 	}
 	return true;
-}
-
-// LoadConfig's legacy %63s must not turn an oversized token into a valid
-// truncated scalar. Validate the full authored value before parsing the copy.
-inline bool NightLightingConfigValueFits(const char* line, std::size_t capacity) {
-	if (!line) return false;
-	const char* value = line + std::strspn(line, " \t\r\n");
-	value += std::strcspn(value, " \t\r\n");
-	value += std::strspn(value, " \t\r\n");
-	const auto length = std::strcspn(value, " \t\r\n");
-	return length > 0 && length < capacity;
 }
 
 inline bool UseMoonlitNight(int timeOfDay, bool nightVisionOn) {
