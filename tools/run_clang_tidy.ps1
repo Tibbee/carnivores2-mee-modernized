@@ -68,7 +68,12 @@ function Test-ProjectSource {
     return $normalized -match '\.(c|cc|cpp|cxx)$'
 }
 
-$compileEntries = @(Get-Content -LiteralPath $databasePath -Raw | ConvertFrom-Json)
+$compileEntries = Get-Content -LiteralPath $databasePath -Raw | ConvertFrom-Json
+# Windows PowerShell 5.1 writes the parsed array to the pipeline as one
+# object, so @(<pipeline>) would wrap it in a second array and the loop
+# below would see a single element. Collecting first and wrapping the
+# variable keeps both 5.1 and PowerShell 7 iterating the entries.
+$compileEntries = @($compileEntries)
 $compileByPath = @{}
 foreach ($entry in $compileEntries) {
     $relativePath = Get-RepoRelativePath -Path $entry.file
@@ -102,6 +107,7 @@ if ($requestedFiles.Count -eq 0) {
     Write-Host 'No project-owned C/C++ translation units selected.'
     exit 0
 }
+Write-Host "Analyzing $($requestedFiles.Count) translation unit(s)."
 
 $headerFilter = '[\\/]((Hunt|Menu|tests)[\\/]).*'
 # The project and its MSVC compilation database are x86-only. Clang otherwise
