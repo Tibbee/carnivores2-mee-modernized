@@ -5,6 +5,7 @@
 #include "Memory.h"
 #include "Core/Constants.h"
 #include "Core/MathTypes.h"
+#include "Core/ResolutionList.h"
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -20,11 +21,6 @@ struct TRGB
   unsigned char B;
   unsigned char G;
   unsigned char R;
-};
-
-struct TRes
-{
-  int w, h;
 };
 
 struct TEXTURE

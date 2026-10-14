@@ -641,7 +641,7 @@ GLOBAL float UIScale;
 
 GLOBAL int  CurRes, ResCount;
 
-GLOBAL TRes ResolutionList[128];
+GLOBAL TRes ResolutionList[resolutions::kMaxResolutions];
 
 GLOBAL BOOL SHADOWS3D,REVERSEMS;
 

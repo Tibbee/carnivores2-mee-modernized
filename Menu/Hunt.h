@@ -24,6 +24,7 @@
 
 #include "Version.h"
 #include "Core/Constants.h"
+#include "Core/ResolutionList.h"
 
 // FPS limit option indexes
 #define kFpsLimitOff      0   // Unlimited
@@ -79,16 +80,10 @@ enum ResolutionsEnum
 	RES_1024x768 = 5,
 	RES_1280x1024 = 6,
 	RES_1600x1200 = 7,
-	RES_MAX = 128   // matches g_ResolutionList[] capacity
+	RES_MAX = resolutions::kMaxResolutions
 };
 
-// Resolution entry populated by EnumerateResolutions().
-struct TRes
-{
-	int w, h;
-};
-
-extern TRes g_ResolutionList[128];
+extern TRes g_ResolutionList[resolutions::kMaxResolutions];
 extern int  g_ResCount;
 
 void EnumerateResolutions();

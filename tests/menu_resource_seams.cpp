@@ -29,7 +29,7 @@ bool g_HasSavedHunt = false;
 uint32_t g_ProfileIndex = 0;
 uint32_t g_StartCredits = 0;
 int g_ResCount = 0;
-TRes g_ResolutionList[128];
+TRes g_ResolutionList[resolutions::kMaxResolutions];
 SoundFX g_MenuSound_Go;
 SoundFX g_MenuSound_Ambient;
 SoundFX g_MenuSound_Move;

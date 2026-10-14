@@ -12,6 +12,7 @@
 #include "Core/ConfigPath.h"
 #include "Core/ConfigScan.h"
 #include "Core/ConfigText.h"
+#include "Core/ResolutionList.h"
 #include "Core/TerrainMip.h"
 #include "Core/WaterWaveFade.h"
 #include "Core/Flashlight.h"
@@ -97,68 +98,9 @@ void SetupRes()
   WinW = ResolutionList[OptRes].w;
   WinH = ResolutionList[OptRes].h;
 }
-static void AddResolution(int w, int h)
-{
-  // Append (w, h) to ResolutionList[] if not already present.
-  for (int r = 0; r < ResCount; r++) {
-    if (ResolutionList[r].w == w && ResolutionList[r].h == h)
-      return;
-  }
-  if (ResCount >= 128) return;
-  ResolutionList[ResCount].w = w;
-  ResolutionList[ResCount].h = h;
-  ResCount++;
-}
 void EnumerateResolutions()
 {
-  // Populate ResolutionList[] from the display's available modes.
-  // Replaces the old hardcoded 8-entry table in SetupRes(). The list
-  // is built at startup, deduplicated, and capped at 128 entries.
-  // 16-bit minimum (matches the DIB depth in CreateVideoDIB).
-  //
-  // Top cap: the current desktop mode (ENUM_CURRENT_SETTINGS). This is
-  // the monitor's active resolution. We always include it explicitly
-  // even if the driver doesn't report it through the enumeration loop,
-  // so a 2560x1440 native panel always has its native mode selectable.
-  // We never offer modes wider/taller than the desktop because
-  // SetVideoMode() can't actually display them.
-  ResCount = 0;
-
-  int desktopW = GetSystemMetrics(SM_CXSCREEN);
-  int desktopH = GetSystemMetrics(SM_CYSCREEN);
-
-  DEVMODE current;
-  ZeroMemory(&current, sizeof(current));
-  current.dmSize = sizeof(current);
-  if (EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &current)) {
-    // Prefer the DEVMODE values -- they can be slightly different from
-    // GetSystemMetrics in multi-monitor / DPI-scaled setups.
-    desktopW = current.dmPelsWidth;
-    desktopH = current.dmPelsHeight;
-  }
-
-  DEVMODE dm;
-  ZeroMemory(&dm, sizeof(dm));
-  dm.dmSize = sizeof(dm);
-  for (int i = 0; EnumDisplaySettings(nullptr, i, &dm); i++) {
-    if (dm.dmBitsPerPel < 16) continue;
-    if (dm.dmPelsWidth  > desktopW ||
-        dm.dmPelsHeight > desktopH)
-      continue;
-    AddResolution(dm.dmPelsWidth, dm.dmPelsHeight);
-  }
-
-  // Always include the current desktop resolution itself. Some drivers
-  // don't enumerate the native panel mode, so without this the list
-  // would silently cap below the monitor's actual capability.
-  AddResolution(desktopW, desktopH);
-
-  // Guarantee at least one entry: 800x600 (the historical default).
-  if (ResCount == 0) {
-    ResolutionList[0].w = 800;
-    ResolutionList[0].h = 600;
-    ResCount = 1;
-  }
+  resolutions::Enumerate(ResolutionList, ResCount);
 }
 void SubmitDinoScore (int cindex) {
 	float score = DinoInfo[Characters[cindex].CType].BaseScore;
