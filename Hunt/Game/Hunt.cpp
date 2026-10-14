@@ -1218,15 +1218,10 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     {
       char buf[128];
 
-      // Tab switching (PgUp/PgDn)
-      if (static_cast<int>(wParam) == VK_PRIOR) {  // PgUp
-        UnderwaterDebugTab = (UnderwaterDebugTab + 1) % 3;
-        UnderwaterDebugSelected = 0;
-        AddMessage(UnderwaterDebugTab == 0 ? "Tab: FOG" : UnderwaterDebugTab == 1 ? "Tab: WAVES" : "Tab: SUN");
-        return 0;
-      }
-      if (static_cast<int>(wParam) == VK_NEXT) {   // PgDn
-        UnderwaterDebugTab = (UnderwaterDebugTab + 1) % 3;
+      // Tab switching (PgUp/PgDn); PgDn steps back through the three tabs.
+      if (static_cast<int>(wParam) == VK_PRIOR || static_cast<int>(wParam) == VK_NEXT) {
+        const bool backwards = static_cast<int>(wParam) == VK_NEXT;
+        UnderwaterDebugTab = (UnderwaterDebugTab + (backwards ? 2 : 1)) % 3;
         UnderwaterDebugSelected = 0;
         AddMessage(UnderwaterDebugTab == 0 ? "Tab: FOG" : UnderwaterDebugTab == 1 ? "Tab: WAVES" : "Tab: SUN");
         return 0;
