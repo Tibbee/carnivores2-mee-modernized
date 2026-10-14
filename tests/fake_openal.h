@@ -15,7 +15,7 @@ inline std::map<ALuint, bool> effects;
 inline ALuint next=1;
 inline ALenum error=0;
 inline std::string failure, missingProc;
-inline int failSourceAfter=-1, sourceGenerations=0, geometryCalls=0;
+inline int failSourceAfter=-1, sourceGenerations=0, geometryCalls=0, deviceCloses=0, contextDestroys=0;
 inline bool efx=true;
 inline std::vector<std::string> logs;
 inline float orientation[6]{};
@@ -96,11 +96,11 @@ inline void ListenerFV(ALenum parameter,const ALfloat* values) {
 inline void ListenerF(ALenum,ALfloat) {}
 inline void Listener3F(ALenum,ALfloat,ALfloat,ALfloat) {}
 inline void DistanceModel(ALenum) { Fail("distanceModel"); }
-inline ALCdevice* OpenDevice(const ALCchar*) {return reinterpret_cast<ALCdevice*>(1);}
-inline ALCboolean CloseDevice(ALCdevice*) {return AL_TRUE;}
-inline ALCcontext* CreateContext(ALCdevice*,const ALCint*) {return reinterpret_cast<ALCcontext*>(1);}
-inline ALCboolean MakeCurrent(ALCcontext*) {return AL_TRUE;}
-inline void DestroyContext(ALCcontext*) {}
+inline ALCdevice* OpenDevice(const ALCchar*) {return Fail("openDevice") ? nullptr : reinterpret_cast<ALCdevice*>(1);}
+inline ALCboolean CloseDevice(ALCdevice*) {++deviceCloses;return AL_TRUE;}
+inline ALCcontext* CreateContext(ALCdevice*,const ALCint*) {return Fail("createContext") ? nullptr : reinterpret_cast<ALCcontext*>(1);}
+inline ALCboolean MakeCurrent(ALCcontext*) {return Fail("makeCurrent") ? AL_FALSE : AL_TRUE;}
+inline void DestroyContext(ALCcontext*) {++contextDestroys;}
 inline ALCboolean Extension(ALCdevice*,const ALCchar* name) {return efx && std::string(name)=="ALC_EXT_EFX";}
 inline void GenEffects(ALsizei n,ALuint* ids) {
     if(Fail("genEffects")) {for(int i=0;i<n;++i) ids[i]=0;return;}
@@ -130,7 +130,7 @@ inline void* GetProc(const ALchar* name) {
 inline void Install() {
     sources.clear();buffers.clear();slots.clear();effects.clear();logs.clear();
     next=1;error=0;failure.clear();missingProc.clear();efx=true;
-    failSourceAfter=-1;sourceGenerations=geometryCalls=0;
+    failSourceAfter=-1;sourceGenerations=geometryCalls=0;deviceCloses=contextDestroys=0;
     alcOpenDevice=OpenDevice;alcCloseDevice=CloseDevice;alcCreateContext=CreateContext;
     alcMakeContextCurrent=MakeCurrent;alcDestroyContext=DestroyContext;
     alGenBuffers=GenBuffers;alDeleteBuffers=DeleteBuffers;alBufferData=BufferData;

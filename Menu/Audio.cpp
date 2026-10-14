@@ -1,5 +1,6 @@
 #include "Hunt.h"
 #include "../Hunt/Audio/OpenAL_Loader.h"
+#include "../Hunt/Audio/OpenALDevice.h"
 
 #include <iostream>
 
@@ -117,21 +118,12 @@ bool MenuAudioInit()
 		return false;
 	}
 
-	g_MenuAudio.device = alcOpenDevice(nullptr);
-	if (!g_MenuAudio.device) {
-		std::cout << "MenuAudio: no default OpenAL device, audio disabled" << std::endl;
-		UnloadOpenAL();
-		return false;
-	}
-
-	g_MenuAudio.context = alcCreateContext(g_MenuAudio.device, nullptr);
-	if (!g_MenuAudio.context || !alcMakeContextCurrent(g_MenuAudio.context)) {
-		std::cout << "MenuAudio: failed to create OpenAL context, audio disabled" << std::endl;
-		if (g_MenuAudio.context)
-			alcDestroyContext(g_MenuAudio.context);
-		alcCloseDevice(g_MenuAudio.device);
-		g_MenuAudio.device = nullptr;
-		g_MenuAudio.context = nullptr;
+	const OpenALDeviceResult opened = OpenOpenALDevice(g_MenuAudio.device, g_MenuAudio.context);
+	if (opened != OpenALDeviceResult::Ok) {
+		if (opened == OpenALDeviceResult::NoDevice)
+			std::cout << "MenuAudio: no default OpenAL device, audio disabled" << std::endl;
+		else
+			std::cout << "MenuAudio: failed to create OpenAL context, audio disabled" << std::endl;
 		UnloadOpenAL();
 		return false;
 	}
@@ -206,16 +198,7 @@ void MenuAudioShutdown()
 	if (g_MenuAudio.typeGoBuffer)
 		DestroyBuffer(g_MenuAudio.typeGoBuffer);
 
-	if (g_MenuAudio.context) {
-		alcMakeContextCurrent(nullptr);
-		alcDestroyContext(g_MenuAudio.context);
-		g_MenuAudio.context = nullptr;
-	}
-
-	if (g_MenuAudio.device) {
-		alcCloseDevice(g_MenuAudio.device);
-		g_MenuAudio.device = nullptr;
-	}
+	CloseOpenALDevice(g_MenuAudio.device, g_MenuAudio.context);
 
 	UnloadOpenAL();
 	g_MenuAudio.active = false;

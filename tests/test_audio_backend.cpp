@@ -310,3 +310,28 @@ TEST(AudioBackendNormalizeTest, LegacySavedDriverValuesKeepThePreExtractionMappi
 	// Negative values are not a stored backend and fall back to DirectSound.
 	EXPECT_EQ(AUDIO_DIRECTSOUND, NormalizeAudioBackend(-1));
 }
+TEST(OpenALDeviceLifecycleTest, EveryOpenFailureLeavesNoPartialPair) {
+	fakeal::Install();
+	ALCdevice* device=nullptr;ALCcontext* context=nullptr;
+	fakeal::failure="openDevice";
+	EXPECT_EQ(OpenALDeviceResult::NoDevice,OpenOpenALDevice(device,context));
+	EXPECT_EQ(nullptr,device);EXPECT_EQ(nullptr,context);
+	fakeal::failure="createContext";
+	EXPECT_EQ(OpenALDeviceResult::NoContext,OpenOpenALDevice(device,context));
+	EXPECT_EQ(nullptr,device);EXPECT_EQ(nullptr,context);EXPECT_EQ(1,fakeal::deviceCloses);
+	fakeal::failure="makeCurrent";
+	EXPECT_EQ(OpenALDeviceResult::NoContext,OpenOpenALDevice(device,context));
+	EXPECT_EQ(nullptr,device);EXPECT_EQ(nullptr,context);
+	EXPECT_EQ(2,fakeal::deviceCloses);EXPECT_EQ(1,fakeal::contextDestroys);
+}
+TEST(OpenALDeviceLifecycleTest, CloseReleasesBothHandlesAndIsIdempotent) {
+	fakeal::Install();
+	ALCdevice* device=nullptr;ALCcontext* context=nullptr;
+	EXPECT_EQ(OpenALDeviceResult::Ok,OpenOpenALDevice(device,context));
+	EXPECT_NE(nullptr,device);EXPECT_NE(nullptr,context);
+	CloseOpenALDevice(device,context);
+	EXPECT_EQ(nullptr,device);EXPECT_EQ(nullptr,context);
+	EXPECT_EQ(1,fakeal::deviceCloses);EXPECT_EQ(1,fakeal::contextDestroys);
+	CloseOpenALDevice(device,context);
+	EXPECT_EQ(1,fakeal::deviceCloses);EXPECT_EQ(1,fakeal::contextDestroys);
+}

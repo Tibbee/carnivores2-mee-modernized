@@ -6,6 +6,7 @@
 #include "Audio.h"
 #include "AudioMath.h"
 #include "AudioInspection.h"
+#include "OpenALDevice.h"
 #include <mutex>
 #include <cstring>
 #include <unordered_map>
@@ -358,19 +359,12 @@ void InitAudioSystem(HWND hw, HANDLE hlog, int driver)
         PrintLog("OpenAL: loader unavailable — audio disabled\n");
         return;
     }
-    alDevice = alcOpenDevice(nullptr);
-    if (!alDevice) {
-        PrintLog("OpenAL: no default audio device — audio disabled\n");
-        UnloadOpenAL();
-        return;
-    }
-    alContext = alcCreateContext(alDevice, nullptr);
-    if (!alContext || !alcMakeContextCurrent(alContext)) {
-        PrintLog("OpenAL: failed to create context — audio disabled\n");
-        if (alContext) alcDestroyContext(alContext);
-        alcCloseDevice(alDevice);
-        alDevice = nullptr;
-        alContext = nullptr;
+    const OpenALDeviceResult opened = OpenOpenALDevice(alDevice, alContext);
+    if (opened != OpenALDeviceResult::Ok) {
+        if (opened == OpenALDeviceResult::NoDevice)
+            PrintLog("OpenAL: no default audio device — audio disabled\n");
+        else
+            PrintLog("OpenAL: failed to create context — audio disabled\n");
         UnloadOpenAL();
         return;
     }
@@ -450,15 +444,7 @@ void Audio_Shutdown()
 
     LeaveCriticalSection(&AudioCS);
 
-    if (alContext) {
-        alcMakeContextCurrent(nullptr);
-        alcDestroyContext(alContext);
-        alContext = nullptr;
-    }
-    if (alDevice) {
-        alcCloseDevice(alDevice);
-        alDevice = nullptr;
-    }
+    CloseOpenALDevice(alDevice, alContext);
 
     DeleteCriticalSection(&AudioCS);
     UnloadOpenAL();
