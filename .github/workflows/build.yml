@@ -22,8 +22,19 @@ jobs:
   build:
     runs-on: windows-latest
     strategy:
+      # Only the debug leg builds and runs the unit tests; the release legs
+      # skip them (C2_BUILD_TESTS=OFF) because they compile the same test
+      # sources and would not run them.
       matrix:
-        preset: [ogl-debug, ogl-release, soft-release, menu-release]
+        include:
+          - preset: ogl-debug
+            build_tests: ON
+          - preset: ogl-release
+            build_tests: OFF
+          - preset: soft-release
+            build_tests: OFF
+          - preset: menu-release
+            build_tests: OFF
 
     steps:
     - uses: actions/checkout@v4
@@ -38,7 +49,7 @@ jobs:
         arch: x86
 
     - name: Configure CMake
-      run: cmake --preset ${{ matrix.preset }}
+      run: cmake --preset ${{ matrix.preset }} -DC2_BUILD_TESTS=${{ matrix.build_tests }}
 
     - name: Build
       run: cmake --build --preset ${{ matrix.preset }}

@@ -15,7 +15,9 @@ Everything here assumes PowerShell in the repository root.
 Python **3.10 or newer** is required when building the default test configuration
 (`Carnivores2Tests.ConfigDefaults`) and by the VS Code deployment task's
 non-destructive config completion helper. Put `python` on `PATH` for deployment.
-The engine executable itself does not require Python.
+The engine executable itself does not require Python; configure with
+`-DC2_BUILD_TESTS=OFF` to skip the test targets (and this requirement), as the
+CI release legs do.
 
 ### Why 32-bit
 
@@ -54,10 +56,10 @@ by the presets). Each engine binary has a fixed backend. The `renderer` key in
 
 ## Tests
 
-Eight native test executables, two PowerShell validator suites and one Python
-config-defaults suite register with CTest (eleven default suites), plus two
-integration smoke tests that are off
-by default:
+Twelve native test executables, two PowerShell validator suites and two Python
+suites register with CTest (sixteen default suites in a GL build, fifteen
+without the hidden-GPU one), plus two integration smoke tests that are off
+by default. `-DC2_BUILD_TESTS=OFF` skips building the test targets entirely.
 
 ```powershell
 cmake --preset ogl-release-shipping

@@ -32,6 +32,12 @@ option(ENABLE_DEPLOYED_SMOKE_TEST "Register the deployed game integration smoke 
 set(CARNIVORES_LEGACY_DIR "" CACHE PATH
     "Deployed C2 game directory used by the optional smoke test")
 
+# The unit tests (GoogleTest plus the test executables) are gated by this
+# option. It defaults ON so a developer build keeps the full suite; the CI
+# release legs configure with -DC2_BUILD_TESTS=OFF because the ogl-debug leg
+# already compiles and runs every test target.
+option(C2_BUILD_TESTS "Build the unit test targets" ON)
+
 # Renderer and game-only definitions are applied to the game target below;
 # keeping them target-scoped prevents the standalone menu from inheriting
 # _soft/_gl, GL_PERF_HOOKS, or MEM_DEBUG.
@@ -337,7 +343,7 @@ endif()
 # ============================================================
 # Testing
 # ============================================================
-if(MSVC)
+if(MSVC AND C2_BUILD_TESTS)
     enable_testing()
     include(FetchContent)
     FetchContent_Declare(
