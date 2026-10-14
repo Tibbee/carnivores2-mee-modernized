@@ -77,6 +77,11 @@ if (-not $PythonPath) { throw 'python.exe not found - pass -PythonPath or put Py
 $Python = $PythonPath
 
 if (-not $LgplPath) {
+    # The staging folder is created later, but the cached license text lands
+    # directly in the package root, so it has to exist before the fetch.
+    if (-not (Test-Path -LiteralPath $PkgRoot)) {
+        New-Item -ItemType Directory -Force -Path $PkgRoot | Out-Null
+    }
     $LgplPath = Join-Path $PkgRoot 'COPYING.OpenAL-Soft.txt'
     if (-not (Test-Path $LgplPath)) {
         Write-Host 'Fetching LGPL 2.1 license text (OpenAL-Soft official copy)...'
@@ -143,7 +148,7 @@ Copy-Item $lgpl (Join-Path $PkgDir 'THIRD-PARTY-LICENSES\COPYING.OpenAL-Soft.txt
 # --- clean default config.cfg ------------------------------------------
 # The engine's first-run template is the single owner; emit it through the
 # shared defaults tool rather than embedding a second copy here.
-& $Python $configTool (Join-Path $PkgDir 'config.cfg') --apply
+& $Python $configTool (Join-Path $PkgDir 'config.cfg') --apply | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "config.cfg generation failed ($LASTEXITCODE)" }
 
 # --- end-user README.txt ------------------------------------------------
