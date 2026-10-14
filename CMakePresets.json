@@ -80,7 +80,7 @@
     },
     {
       "name": "ogl-pgo-instr",
-      "displayName": "OpenGL PGO (Instrumented)",
+      "displayName": "OpenGL PGO (experimental, instrumented)",
       "inherits": "ogl-release",
       "cacheVariables": {
         "C2_PGO_MODE": "INSTRUMENT",
@@ -89,7 +89,7 @@
     },
     {
       "name": "ogl-pgo-opt",
-      "displayName": "OpenGL PGO (Optimized)",
+      "displayName": "OpenGL PGO (experimental, optimized)",
       "inherits": "ogl-release",
       "cacheVariables": {
         "C2_PGO_MODE": "OPTIMIZE",

@@ -38,8 +38,8 @@ useful is reported.
 | `soft-debug` | Software renderer, Debug, `MEM_DEBUG=ON`, renderer logging on. |
 | `menu-release` | Menu only. No game executable. Fastest build in the repo. |
 | `clang-tidy` | Inherits `ogl-debug`, exports `compile_commands.json`. |
-| `ogl-pgo-instr` | Instrumented PGO build. See below. |
-| `ogl-pgo-opt` | PGO build that links against a trained profile. |
+| `ogl-pgo-instr` | Experimental instrumented PGO build. See below. |
+| `ogl-pgo-opt` | Experimental PGO build that links against a trained profile. |
 
 ```powershell
 cmake --preset ogl-release-shipping
@@ -148,9 +148,11 @@ linking it; without it you get silence rather than an error.
 There's also `tools/check_release_flags.ps1 -BuildDir <dir>` if you want to
 confirm a release binary was linked with the flags it was supposed to be.
 
-## Profile-guided optimization
+## Profile-guided optimization (experimental)
 
-Two presets exist and neither is used by a normal build. `ogl-pgo-instr` links
+Two presets exist, both labelled experimental, and neither is used by a normal
+build. They require an MSVC GL Release configuration and a shared `.pgd` file
+(configured through `C2_PGO_MODE`/`C2_PGO_PGD_FILE`). `ogl-pgo-instr` links
 with `/PGOINSTRUMENT`, `ogl-pgo-opt` with `/PGO` against a profile database.
 
 **I have not measured this.** The instrumented build compiles and produces a
