@@ -8,14 +8,12 @@
 #include "SoftInternal.h"
 #include "Renderer/SoftRenderer.h"
 #include "Renderer/UIText.h"
+#include "Core/ShadowText.h"
 
 #ifdef _soft
 void STTextOut(int x, int y, LPSTR t, int color)
 {
-  SetTextColor(hdcCMain, 0x00000000);
-  TextOut(hdcCMain, x+1, y+1, t, strlen(t));
-  SetTextColor(hdcCMain, color);
-  TextOut(hdcCMain, x, y, t, strlen(t));
+  shadowtext::Draw(hdcCMain, x, y, t, static_cast<int>(strlen(t)), color);
 }
 
 // F10 debug menu, ported from GLUI.cpp :: ShowControlElements.

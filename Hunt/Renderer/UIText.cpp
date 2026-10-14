@@ -5,6 +5,7 @@
 
 #include "Hunt.h"
 #include "Renderer/UIText.h"
+#include "Core/ShadowText.h"
 
 #include <algorithm>
 #include <cmath>
@@ -149,10 +150,7 @@ int DrawBox(HDC hdc, int x, int y,
             const Seg& seg = row.seg[i];
             if (seg.text && seg.text[0]) {
                 const int len = static_cast<int>(strlen(seg.text));
-                SetTextColor(hdc, 0x00101010);
-                TextOut(hdc, cx + 1, cy + 1, seg.text, len);
-                SetTextColor(hdc, seg.color);
-                TextOut(hdc, cx, cy, seg.text, len);
+                shadowtext::Draw(hdc, cx, cy, seg.text, len, seg.color, 0x00101010);
                 cx += TextWidth(hdc, seg.text);
             }
             if (i + 1 < row.count) cx += gap;

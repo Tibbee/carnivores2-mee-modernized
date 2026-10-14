@@ -230,13 +230,6 @@ void UpdateLoadingWindow()
               (LoadWall.W*LoadCount/8)*2);
 
   //FillMemory(lpVideoBuf, 1024*loadwh*2, 1);
-  /*
-      SetBkMode(hdcCMain, TRANSPARENT);
-  	SetTextColor(hdcCMain, 0x000000);
-      TextOut(hdcCMain, 19, LoadWall.H/2-22, loadtxt, strlen(loadtxt) );
-  	SetTextColor(hdcCMain, 0xB0B070);
-      TextOut(hdcCMain, 18, LoadWall.H/2-23, loadtxt, strlen(loadtxt) );
-  */
   BitBlt(hdcMain,0,0,LoadWall.W,LoadWall.H/2, hdcCMain,0,0, SRCCOPY);
 
   SelectObject(hdcCMain,hfntOld);

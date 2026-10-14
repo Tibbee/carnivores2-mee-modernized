@@ -6,6 +6,7 @@
 #include "GLRenderer.h"
 #include "Renderer/GLUtils.h"
 #include "Renderer/UIText.h"
+#include "Core/ShadowText.h"
 
 #ifdef _gl
 
@@ -30,10 +31,7 @@ void GLRenderer::Render_LifeInfo(int index)
     int y = VideoCY + static_cast<int>((WinH / 6.8));
 
     auto textOut = [&](int px, int py, const char* str, int color) {
-        SetTextColor(hdcCMain, 0x00000000);
-        TextOut(hdcCMain, px + 1, py + 1, str, static_cast<int>(strlen(str)));
-        SetTextColor(hdcCMain, color);
-        TextOut(hdcCMain, px, py, str, static_cast<int>(strlen(str)));
+        shadowtext::Draw(hdcCMain, px, py, str, static_cast<int>(strlen(str)), color);
     };
 
     textOut(x, y, DinoInfo[ctype].Name, 0x0000b000);

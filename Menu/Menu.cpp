@@ -12,6 +12,7 @@
 #include "SliderMath.h"
 #include "ShopSafety.h"
 #include "../Hunt/Core/ScoreMod.h"
+#include "../Hunt/Core/ShadowText.h"
 #include <cassert>
 #include <cmath>
 
@@ -1050,8 +1051,7 @@ void DrawTextShadow(int x, int y, const std::string& text, uint32_t color, int a
 		x -= GetTextW(hdcCMain, text);
 	}
 
-	DrawTextColor(x + 1, y + 1, text, RGB(0, 0, 0));
-	DrawTextColor(x, y, text, color);
+	shadowtext::Draw(hdcCMain, x, y, text.c_str(), (int)text.size(), color);
 }
 
 

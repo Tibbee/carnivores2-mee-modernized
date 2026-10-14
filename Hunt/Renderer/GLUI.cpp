@@ -14,6 +14,7 @@
 #include "Workbench/WorkbenchUI.h"
 #include "GLRenderer.h"
 #include "Renderer/UIText.h"
+#include "Core/ShadowText.h"
 #include "Core/UnattendedCapture.h"
 #include "Core/CaptureBitmap.h"
 
@@ -928,10 +929,7 @@ void ShowControlElements()
     if (fnt_Small) oldFont = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
 
     auto textOut = [&](int px, int py, const char* str, int color) {
-        SetTextColor(hdcCMain, 0x00101010);
-        TextOut(hdcCMain, px + 1, py + 1, str, static_cast<int>(strlen(str)));
-        SetTextColor(hdcCMain, color);
-        TextOut(hdcCMain, px, py, str, static_cast<int>(strlen(str)));
+        shadowtext::Draw(hdcCMain, px, py, str, static_cast<int>(strlen(str)), color, 0x00101010);
         SIZE extent{};
         if (g_GLRenderer && GetTextExtentPoint32A(hdcCMain, str,
                 static_cast<int>(strlen(str)), &extent))
