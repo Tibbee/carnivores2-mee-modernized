@@ -42,17 +42,7 @@ param(
     [switch]$Strict
 )
 
-$ErrorActionPreference = 'Stop'
-
-$errors   = New-Object System.Collections.Generic.List[string]
-$warnings = New-Object System.Collections.Generic.List[string]
-
-function Test-GameFile {
-    param([string]$Path)
-    # Literal, wildcard-free check: data-supplied names may contain [ ] which
-    # Test-Path would treat as a pattern.
-    return [System.IO.File]::Exists($Path)
-}
+. (Join-Path $PSScriptRoot 'asset_check_common.ps1')
 
 function Get-RelativePath {
     param([string]$Value)
@@ -63,18 +53,7 @@ function Get-RelativePath {
     return $p
 }
 
-if (-not (Test-Path -LiteralPath $GameDir -PathType Container)) {
-    Write-Output "Game folder not found: $GameDir"
-    exit 1
-}
-$GameDir = (Resolve-Path -LiteralPath $GameDir).Path
-$huntdat = Join-Path $GameDir 'HUNTDAT'
-
-if (-not (Test-Path -LiteralPath $huntdat -PathType Container)) {
-    Write-Output "No HUNTDAT folder in: $GameDir"
-    Write-Output "Run this from the game folder (the one holding the .ren/.exe files)."
-    exit 1
-}
+Resolve-GameRoot -Path $GameDir
 
 # --- HUNTDAT/_RES.TXT --------------------------------------------------------
 # One 'file = <path>' per model. The engine prefixes HUNTDAT for characters and
@@ -243,26 +222,7 @@ if (Test-Path -LiteralPath $areasDir -PathType Container) {
 }
 
 # --- report ------------------------------------------------------------------
-Write-Output "Carnivores 2 data check: $GameDir"
-Write-Output "  _RES.TXT model paths checked: $resChecked"
-Write-Output "  $slotSource area slots: $slotCount; area files: $($areaMaps.Count) .map / $($areaRscs.Count) .rsc"
-
-if ($errors.Count -gt 0) {
-    Write-Output ""
-    Write-Output "ERRORS ($($errors.Count))"
-    foreach ($entry in $errors) { Write-Output "  $entry" }
-}
-if ($warnings.Count -gt 0) {
-    Write-Output ""
-    Write-Output "WARNINGS ($($warnings.Count))"
-    foreach ($entry in $warnings) { Write-Output "  $entry" }
-}
-if ($errors.Count -eq 0 -and $warnings.Count -eq 0) {
-    Write-Output "  No problems found."
-}
-
-Write-Output ""
-Write-Output "$($errors.Count) error(s), $($warnings.Count) warning(s)"
-
-if ($errors.Count -gt 0 -or ($Strict -and $warnings.Count -gt 0)) { exit 1 }
-exit 0
+Write-CheckReport -Title "Carnivores 2 data check: $GameDir" -Details @(
+    "_RES.TXT model paths checked: $resChecked"
+    "$slotSource area slots: $slotCount; area files: $($areaMaps.Count) .map / $($areaRscs.Count) .rsc"
+) -Strict:$Strict

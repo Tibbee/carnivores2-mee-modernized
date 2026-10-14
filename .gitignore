@@ -33,6 +33,7 @@ tools/perf/*
 !tools/c2_native_windows.ps1
 !tools/c2_config_defaults.py
 !tools/c2_config_defaults_README.md
+!tools/asset_check_common.ps1
 !tools/check_comment_hygiene.ps1
 !tools/check_huntdat.ps1
 !tools/check_mod_assets.ps1
