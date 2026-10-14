@@ -27,6 +27,9 @@ function Invoke-SmokeCase {
         LogFile = $logPath
         Duration = 1
         GameArgs = @($FixtureDll, $Mode, $ExitMode, $logPath)
+        # The fixture has no renderer window; the framebuffer assertions belong
+        # to the deployed smoke tier where a real game window exists.
+        SkipFrameCheck = $true
     }
     if ($AllowMissingLog) {
         $parameters.AllowMissingLog = $true
