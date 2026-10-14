@@ -163,6 +163,16 @@ TEST(LoadValidate, ScriptKeyMatchesAssignmentTokenOnly) {
     EXPECT_FALSE(ScriptKeyIs(nullptr, "file"));
     EXPECT_FALSE(ScriptKeyIs("file = 'x'", nullptr));
 
+    // The menu's reader relaxes only letter case; shape and comment rules are
+    // the same, and the default predicate stays case-sensitive.
+    EXPECT_FALSE(ScriptKeyIs("Power = 5", "power"));
+    EXPECT_TRUE(ScriptKeyIsIgnoreCase("Power = 5", "power"));
+    EXPECT_TRUE(ScriptKeyIsIgnoreCase("\tsmellK = 0.8", "smellK"));
+    EXPECT_FALSE(ScriptKeyIsIgnoreCase("filename = 'para.car'", "file"));
+    EXPECT_FALSE(ScriptKeyIsIgnoreCase("// file = 'x'", "file"));
+    EXPECT_FALSE(ScriptKeyIsIgnoreCase(nullptr, "file"));
+    EXPECT_FALSE(ScriptKeyIsIgnoreCase("file = 'x'", nullptr));
+
     // Regression for "Script loading error: Characters file missing, too
     // long, or malformed.": this path contains "name", and the old strstr()
     // key match plus the in-place quote strip made the file branch eat a

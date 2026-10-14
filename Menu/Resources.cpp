@@ -108,31 +108,13 @@ static int ReadScriptLegacyIntValue(const char* value, const char* where)
 // spellings are not consistent between the two files ("smell" vs "smellK",
 // "hear" vs "hearK"). The historical reader matched keys by substring, which
 // is why a line like `file = 'models/main_hunt/para.car'` was read as the AI
-// field. Match the whole key exactly -- only its letter case is relaxed -- so
-// a value can never select a different field.
-static bool MenuScriptKeyIs(const char* line, const char* key)
-{
-	if (!line || !key)
-		return false;
-	const char* eq = strchr(line, '=');
-	if (!eq)
-		return false;
-	const char* begin = line;
-	while (*begin == ' ' || *begin == '\t')
-		++begin;
-	if (begin[0] == '/' && begin[1] == '/')
-		return false;
-	const char* end = eq;
-	while (end > begin && (end[-1] == ' ' || end[-1] == '\t'))
-		--end;
-	const size_t length = static_cast<size_t>(end - begin);
-	return length == strlen(key) && _strnicmp(begin, key, length) == 0;
-}
-
+// field; matching goes through the shared whole-key predicate in
+// LoadValidate.h, relaxing only letter case (ScriptKeyIsIgnoreCase).
+//
 // One field can appear under more than one historical spelling (see above).
 static bool MenuScriptKeyIsAny(const char* line, const char* keyA, const char* keyB)
 {
-	return MenuScriptKeyIs(line, keyA) || MenuScriptKeyIs(line, keyB);
+	return ScriptKeyIsIgnoreCase(line, keyA) || ScriptKeyIsIgnoreCase(line, keyB);
 }
 
 static std::string ReadAssignedText(const char* value, const char* where)
@@ -387,17 +369,17 @@ void ReadWeapons(FILE* stream)
 					throw script_error("Was expecting member assignment.", "ReadWeapons()", g_ScriptLine);
 				value++;
 
-				if (MenuScriptKeyIs(line, "power"))  wi.m_Power = ReadScriptFloatValue(value, "ReadWeapons power");
-				if (MenuScriptKeyIs(line, "prec"))   wi.m_Prec = ReadScriptFloatValue(value, "ReadWeapons precision");
-				if (MenuScriptKeyIs(line, "loud"))   wi.m_Loud = ReadScriptFloatValue(value, "ReadWeapons loudness");
-				if (MenuScriptKeyIs(line, "rate"))   wi.m_Rate = ReadScriptFloatValue(value, "ReadWeapons rate");
-				if (MenuScriptKeyIs(line, "shots"))  wi.m_Shots = ReadScriptIntValue(value, "ReadWeapons shots");
-				if (MenuScriptKeyIs(line, "reload")) wi.m_Reload = ReadScriptIntValue(value, "ReadWeapons reload");
-				if (MenuScriptKeyIs(line, "trace"))  wi.m_TraceC = ReadScriptIntValue(value, "ReadWeapons trace") - 1;
-				if (MenuScriptKeyIs(line, "optic"))  wi.m_Optic = ReadScriptFloatValue(value, "ReadWeapons optic");
-				if (MenuScriptKeyIs(line, "fall"))   wi.m_Fall = ReadScriptIntValue(value, "ReadWeapons fall");
-				if (MenuScriptKeyIs(line, "price"))	wi.m_Price = ReadScriptIntValue(value, "ReadWeapons price");
-				if (MenuScriptKeyIs(line, "rank"))	wi.m_Rank = ReadScriptIntValue(value, "ReadWeapons rank");
+				if (ScriptKeyIsIgnoreCase(line, "power"))  wi.m_Power = ReadScriptFloatValue(value, "ReadWeapons power");
+				if (ScriptKeyIsIgnoreCase(line, "prec"))   wi.m_Prec = ReadScriptFloatValue(value, "ReadWeapons precision");
+				if (ScriptKeyIsIgnoreCase(line, "loud"))   wi.m_Loud = ReadScriptFloatValue(value, "ReadWeapons loudness");
+				if (ScriptKeyIsIgnoreCase(line, "rate"))   wi.m_Rate = ReadScriptFloatValue(value, "ReadWeapons rate");
+				if (ScriptKeyIsIgnoreCase(line, "shots"))  wi.m_Shots = ReadScriptIntValue(value, "ReadWeapons shots");
+				if (ScriptKeyIsIgnoreCase(line, "reload")) wi.m_Reload = ReadScriptIntValue(value, "ReadWeapons reload");
+				if (ScriptKeyIsIgnoreCase(line, "trace"))  wi.m_TraceC = ReadScriptIntValue(value, "ReadWeapons trace") - 1;
+				if (ScriptKeyIsIgnoreCase(line, "optic"))  wi.m_Optic = ReadScriptFloatValue(value, "ReadWeapons optic");
+				if (ScriptKeyIsIgnoreCase(line, "fall"))   wi.m_Fall = ReadScriptIntValue(value, "ReadWeapons fall");
+				if (ScriptKeyIsIgnoreCase(line, "price"))	wi.m_Price = ReadScriptIntValue(value, "ReadWeapons price");
+				if (ScriptKeyIsIgnoreCase(line, "rank"))	wi.m_Rank = ReadScriptIntValue(value, "ReadWeapons rank");
 
 				if (ScriptKeyIs(line, "name"))
 					wi.m_Name = ReadAssignedText(value, "ReadWeapons()");
@@ -467,19 +449,19 @@ void ReadCharacters(FILE* stream)
 					throw script_error("Was expecting member assignment.", "ReadCharacters()", g_ScriptLine);
 				value++;
 
-				if (MenuScriptKeyIs(line, "mass")) di.m_Mass = ReadScriptFloatValue(value, "ReadCharacters mass");
-				if (MenuScriptKeyIs(line, "length")) di.m_Length = ReadScriptFloatValue(value, "ReadCharacters length");
-				if (MenuScriptKeyIs(line, "radius")) di.m_Radius = ReadScriptFloatValue(value, "ReadCharacters radius");
-				if (MenuScriptKeyIs(line, "health")) di.m_BaseHealth = ReadScriptLegacyIntValue(value, "ReadCharacters health");
-				if (MenuScriptKeyIs(line, "basescore")) di.m_BaseScore = ReadScriptIntValue(value, "ReadCharacters base score");
-				if (MenuScriptKeyIs(line, "ai")) di.m_AI = ReadScriptIntValue(value, "ReadCharacters AI");
+				if (ScriptKeyIsIgnoreCase(line, "mass")) di.m_Mass = ReadScriptFloatValue(value, "ReadCharacters mass");
+				if (ScriptKeyIsIgnoreCase(line, "length")) di.m_Length = ReadScriptFloatValue(value, "ReadCharacters length");
+				if (ScriptKeyIsIgnoreCase(line, "radius")) di.m_Radius = ReadScriptFloatValue(value, "ReadCharacters radius");
+				if (ScriptKeyIsIgnoreCase(line, "health")) di.m_BaseHealth = ReadScriptLegacyIntValue(value, "ReadCharacters health");
+				if (ScriptKeyIsIgnoreCase(line, "basescore")) di.m_BaseScore = ReadScriptIntValue(value, "ReadCharacters base score");
+				if (ScriptKeyIsIgnoreCase(line, "ai")) di.m_AI = ReadScriptIntValue(value, "ReadCharacters AI");
 				if (MenuScriptKeyIsAny(line, "smell", "smellK")) di.m_SmellK = ReadScriptFloatValue(value, "ReadCharacters smell");
 				if (MenuScriptKeyIsAny(line, "hear", "hearK")) di.m_HearK = ReadScriptFloatValue(value, "ReadCharacters hearing");
 				if (MenuScriptKeyIsAny(line, "look", "lookK")) di.m_LookK = ReadScriptFloatValue(value, "ReadCharacters sight");
-				if (MenuScriptKeyIs(line, "shipdelta")) di.m_ShDelta = ReadScriptFloatValue(value, "ReadCharacters ship delta");
-				if (MenuScriptKeyIs(line, "scale0")) di.m_BaseScale = ReadScriptIntValue(value, "ReadCharacters scale0");
-				if (MenuScriptKeyIs(line, "scaleA")) di.m_ScaleA = ReadScriptIntValue(value, "ReadCharacters scaleA");
-				if (MenuScriptKeyIs(line, "danger")) di.m_DangerCall = true;
+				if (ScriptKeyIsIgnoreCase(line, "shipdelta")) di.m_ShDelta = ReadScriptFloatValue(value, "ReadCharacters ship delta");
+				if (ScriptKeyIsIgnoreCase(line, "scale0")) di.m_BaseScale = ReadScriptIntValue(value, "ReadCharacters scale0");
+				if (ScriptKeyIsIgnoreCase(line, "scaleA")) di.m_ScaleA = ReadScriptIntValue(value, "ReadCharacters scaleA");
+				if (ScriptKeyIsIgnoreCase(line, "danger")) di.m_DangerCall = true;
 
 				if (ScriptKeyIs(line, "name"))
 					di.m_Name = ReadAssignedText(value, "ReadCharacters()");
@@ -544,8 +526,8 @@ void ReadAreas(FILE* stream)
 					throw std::runtime_error("Script loading error");
 				value++;
 
-				if (MenuScriptKeyIs(line, "price")) area.m_Price = ReadScriptIntValue(value, "ReadAreas price");
-				if (MenuScriptKeyIs(line, "rank"))  area.m_Rank = ReadScriptIntValue(value, "ReadAreas rank");
+				if (ScriptKeyIsIgnoreCase(line, "price")) area.m_Price = ReadScriptIntValue(value, "ReadAreas price");
+				if (ScriptKeyIsIgnoreCase(line, "rank"))  area.m_Rank = ReadScriptIntValue(value, "ReadAreas rank");
 
 				if (ScriptKeyIs(line, "name"))
 					area.m_Name = ReadAssignedText(value, "ReadAreas()");
@@ -956,17 +938,17 @@ void ReadPrices(FILE* stream)
 		// TODO: Add in error checking
 		//throw script_error("Was expecting member assignment.", "ReadPrices()", g_ScriptLine);
 
-		if (MenuScriptKeyIs(line, "start")) {
+		if (ScriptKeyIsIgnoreCase(line, "start")) {
                 g_StartCredits = ReadScriptIntValue(value, "ReadPrices start credits");
 		}
-		else if (MenuScriptKeyIs(line, "area")) {
+		else if (ScriptKeyIsIgnoreCase(line, "area")) {
 			CurA++;  // Area indices start at 1
 			g_AreaInfo.push_back(MakeOldAreaInfo(CurA, ReadScriptIntValue(value, "ReadPrices area price")));
 			auto a = g_AreaInfo.end() - 1;
 			if (!a->m_Valid)
 				g_AreaInfo.pop_back();
 		}
-		else if (MenuScriptKeyIs(line, "dino")) {
+		else if (ScriptKeyIsIgnoreCase(line, "dino")) {
 			// The prices block lists huntable dinos in roster order; more
 			// entries than the loaded roster would write past the vector.
 			if (CurD >= g_DinoInfo.size())
@@ -974,13 +956,13 @@ void ReadPrices(FILE* stream)
 			g_DinoInfo[CurD].m_Price = ReadScriptIntValue(value, "ReadPrices dinosaur price");
 			CurD++;
 		}
-		else if (MenuScriptKeyIs(line, "weapon")) {
+		else if (ScriptKeyIsIgnoreCase(line, "weapon")) {
 			if (CurW >= g_WeapInfo.size())
 				throw script_error("More weapon prices than loaded weapons.", "ReadPrices()", g_ScriptLine);
 			g_WeapInfo[CurW].m_Price = ReadScriptIntValue(value, "ReadPrices weapon price");
 			CurW++;
 		}
-		else if (MenuScriptKeyIs(line, "acces")) {
+		else if (ScriptKeyIsIgnoreCase(line, "acces")) {
 			g_AccessoryPrices.push_back(static_cast<int32_t>(ReadScriptIntValue(value, "ReadPrices accessory price")));
 			CurU++;
 		}

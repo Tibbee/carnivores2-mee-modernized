@@ -162,8 +162,10 @@ inline bool ReadExact(HANDLE hfile, void* buffer, DWORD bytes)
 // touching the line.
 
 // True when the key before the first '=' equals `key`, ignoring spaces and
-// tabs around it. Case-sensitive, matching the script format.
-inline bool ScriptKeyIs(const char* line, const char* key)
+// tabs around it. `ignoreCase` serves the menu's historical reader, which
+// relaxed letter case on hand-authored _MENU.TXT keys (689be6b); the
+// engine's _RES.TXT keys are matched as the format spells them.
+inline bool ScriptKeyMatches(const char* line, const char* key, bool ignoreCase)
 {
     if (!line || !key)
         return false;
@@ -180,7 +182,20 @@ inline bool ScriptKeyIs(const char* line, const char* key)
     while (end > begin && (end[-1] == ' ' || end[-1] == '\t'))
         --end;
     const size_t len = static_cast<size_t>(end - begin);
-    return len == strlen(key) && strncmp(begin, key, len) == 0;
+    if (len != strlen(key))
+        return false;
+    return ignoreCase ? _strnicmp(begin, key, len) == 0 : strncmp(begin, key, len) == 0;
+}
+
+inline bool ScriptKeyIs(const char* line, const char* key)
+{
+    return ScriptKeyMatches(line, key, false);
+}
+
+// Case-relaxed spelling used by the menu's _RES.TXT/_MENU.TXT readers.
+inline bool ScriptKeyIsIgnoreCase(const char* line, const char* key)
+{
+    return ScriptKeyMatches(line, key, true);
 }
 
 // Span of the first quoted value in `text`: between the first quote and the
