@@ -22,9 +22,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "RENDERER": "SOFT",
-        "MEM_DEBUG": "ON",
-        "ENABLE_RENDERER_LOGGING": "ON",
-        "ENABLE_TERRAIN_LOGGING": "OFF"
+        "MEM_DEBUG": "ON"
       }
     },
     {
@@ -43,9 +41,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "RENDERER": "GL",
-        "MEM_DEBUG": "ON",
-        "ENABLE_RENDERER_LOGGING": "ON",
-        "ENABLE_TERRAIN_LOGGING": "OFF"
+        "MEM_DEBUG": "ON"
       }
     },
     {
