@@ -1,8 +1,8 @@
 # Consolidation Pass — C2 MEE
 
-> **Last verified:** 2026-10-14 — WS1–WS4 complete (WS4: twenty-one slices across tooling, build/release and shaders) with one open gate: owner visual verification of the night-hunt flashlight after the GLSL include refactor. WS1: dead code removed; WS2: 686 → 469 cases in 17 clusters; WS3: config scanner unification plus thirteen unified-implementation slices and one owner-approved engine TGA validation fix. WS4 landed the shared Win32 helper, asset-checker prologue, runnable sky-mode harness, a Windows PowerShell-safe clang-tidy runner with pinned LLVM, the c2_test_support library, per-target LTO, the C2_BUILD_TESTS option, the engine-template-based package config, the trophy naming fix and the shared flashlight GLSL fragment. Twelfth four-preset checkpoint green (suite 487 cases); hygiene clean; clang-tidy exit 0 on the six batch TUs (local LLVM 23.1.0; CI pinned to choco 22.1.8).
+> **Last verified:** 2026-10-14 — WS1–WS4 complete. WS4: twenty-one slices across tooling, build/release and shaders; the owner visually verified the night-hunt flashlight unchanged after the GLSL include refactor. WS1: dead code removed; WS2: 686 → 469 cases in 17 clusters; WS3: config scanner unification plus thirteen unified-implementation slices and one owner-approved engine TGA validation fix. WS4 landed the shared Win32 helper, asset-checker prologue, runnable sky-mode harness, a Windows PowerShell-safe clang-tidy runner with pinned LLVM, the c2_test_support library, per-target LTO, the C2_BUILD_TESTS option, the engine-template-based package config, the trophy naming fix and the shared flashlight GLSL fragment. Twelfth four-preset checkpoint green (suite 487 cases); hygiene clean; clang-tidy exit 0 on the six batch TUs (local LLVM 23.1.0; CI pinned to choco 22.1.8).
 > **Branch:** `refactor/consolidation-pass`, worktree `Carnivores2MEE1.11/build/consolidation-pass`, based on `feat/modder-workbench` @ `4d05faa`.
-> **Status:** complete pending the flashlight visual gate; the WS4 owner calls are recorded in the progress log. Only the Progress log and the task list below are authoritative for what is done; the ranked estimates come from the Phase 1 hunts.
+> **Status:** complete. Only the Progress log and the task list below are authoritative for what is done; the ranked estimates come from the Phase 1 hunts.
 
 ## Purpose
 
@@ -119,7 +119,8 @@ from the engine template; add `C2_BUILD_TESTS` with the CI release legs off; lab
 land the GLSL include refactor subject to visual verification; pin CI clang-tidy to choco LLVM 22.1.8 with the
 local 23.1.0 documented; unify trophy naming on the menu's two-digit form. (The config-scanner staging policy,
 the menu `SaveConfig` unification and the legacy audio 4–5 mapping resolved earlier — see the progress log and
-Defect 7.) One gate remains: the owner's in-game night-hunt flashlight check on the `0955d87` deploy.
+Defect 7.) The flashlight visual gate closed 2026-10-14: the owner verified the night-hunt beam unchanged on the
+`0955d87` deploy.
 
 ## Defects logged (not fixed without an owner call)
 
@@ -319,5 +320,5 @@ Defect 7.) One gate remains: the owner's in-game night-hunt flashlight check on 
 - Checkpoint (twelfth): all four presets configure and build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Suite 487 cases across the 12 executables. Release flags clean (/GS, no /GS-) in ogl-release and soft-release. Comment hygiene: 278 files plus the 211-file doc tree, 0 problems. clang-tidy (LLVM 23.1.0): exit 0 on the six batch TUs (Resources, Trophy, GLShader with the new header, the two changed test TUs and Hunt.cpp, which the AddMessage fix cleared).
 - Local tooling note: the ignored .vscode/copy_build.ps1 now deploys *.glsl as well (both the main worktree copy and this worktree's copy); without that the deploy task would drop flashlight.glsl while the shaders require it. The rest of the deploy was verified (shaders copied to the deployed folder and the preset bin).
 - Observation: the capture matrix's dirty-build-input check and tools/perf/workbench_perf.py's copy of it remain duplicated across PowerShell and Python by design of that evidence tool; the changed-file dedup item was interpreted as the CI/runner pair and closed. Defect 9 (F10 PgDn) stays open as recorded in WS3, and the line-ending normalization item stays a separate owner-approved proposal.
-- Only open gate: the owner's visual check of the night-hunt flashlight (beam shape, ground boost, night-vision interaction) on the 0955d87 deploy.
+- Gate closed 2026-10-14: the owner verified the night-hunt flashlight unchanged on the 0955d87 deploy (shaders load, beam shape and ground boost intact); WS4 and the consolidation pass are complete.
 
