@@ -86,7 +86,7 @@ jobs:
 
     - name: Install LLVM
       shell: powershell
-      run: choco install llvm --no-progress
+      run: choco install llvm --version=22.1.8 --no-progress
 
     - name: Configure clang-tidy database
       shell: powershell

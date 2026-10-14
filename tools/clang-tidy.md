@@ -34,6 +34,16 @@ legacy baseline. `/WX` is available through `-DC2_WARNINGS_AS_ERRORS=ON`, but
 remains opt-in. `/permissive` is still retained for compatibility and remains
 target-scoped; replacing it with `/permissive-` is a later focused cleanup.
 
+## Toolchain versions
+
+The runner uses the `clang-tidy` first on `PATH` and prints the resolved
+version and executable before analyzing anything. CI pins the Chocolatey
+package (`choco install llvm --version=22.1.8`, the current choco release);
+local runs commonly use the LLVM bundled with the VS Code C++ extension
+(23.1.0 as of cpptools 1.34.4). The pin keeps the CI baseline reproducible:
+when a local run uses a newer LLVM, compare findings against the checked-in
+`.clang-tidy` config before treating a difference as a regression.
+
 The bundled LLVM 22.1.3 run on 2026-09-19 reported 35,508 advisory diagnostics
 for `Hunt/Game/CommandLine.cpp` with the project-header filter and exited
 successfully. That count is a baseline for legacy cleanup, not a CI failure

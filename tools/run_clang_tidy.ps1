@@ -30,6 +30,12 @@ $clangTidy = Get-Command clang-tidy -ErrorAction SilentlyContinue
 if (-not $clangTidy) {
     throw 'clang-tidy was not found on PATH.'
 }
+# Report the resolved version: CI pins the Chocolatey package while local runs
+# often use the LLVM bundled with the VS Code C++ extension (see clang-tidy.md).
+$clangTidyVersion = @(& $clangTidy.Source --version 2>&1 |
+    Where-Object { $_ -match 'version' } | Select-Object -First 1)
+if (-not $clangTidyVersion) { $clangTidyVersion = 'unknown version' }
+Write-Host "Using clang-tidy: $($clangTidy.Source.Trim()) $($clangTidyVersion.Trim())"
 
 function Get-RepoRelativePath {
     param([string]$Path)
