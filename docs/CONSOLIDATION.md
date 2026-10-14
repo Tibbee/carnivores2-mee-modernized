@@ -1,6 +1,6 @@
 # Consolidation Pass — C2 MEE
 
-> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 complete (17 clusters, 686 → 469 cases); WS3 foundational slices, the staged config-scanner unification and six follow-on slices landed (shadow text, menu constants, resolution list, FPS limiter, DPI/VK helpers, ship spawn); ninth four-preset checkpoint green; hygiene has 1 open finding (Defect 6, WS4-owned); clang-tidy runs locally (VS Code cpptools LLVM 23.1.0) and is clean on the batch TUs except Hunt.cpp's pre-existing clang-only frontend error (Defect 8).
+> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 complete (17 clusters, 686 → 469 cases); WS3 foundational slices, the staged config-scanner unification and eight follow-on slices landed (shadow text, menu constants, resolution list, FPS limiter, DPI/VK helpers, ship spawn, script-key predicate, F10 overlay; the bound-fit merge was re-verified as already unified upstream); tenth four-preset checkpoint green; hygiene has 1 open finding (Defect 6, WS4-owned); clang-tidy runs locally (VS Code cpptools LLVM 23.1.0) and is clean on the batch TUs except Hunt.cpp's pre-existing clang-only frontend error (Defect 8).
 > **Branch:** `refactor/consolidation-pass`, worktree `Carnivores2MEE1.11/build/consolidation-pass`, based on `feat/modder-workbench` @ `4d05faa`.
 > **Status:** in progress. Owner approved the plan and the deletion of the disabled-species animation bundle. Only the Progress log and the task list below are authoritative for what is done; the ranked estimates come from the Phase 1 hunts.
 
@@ -95,7 +95,12 @@ Eighth four-preset checkpoint green; suite 473 cases.
 Continued further (2026-10-14): FPS limiter ×2 → `Core/FrameLimiter.h` (`3b15544`) ·
 DPI/VK helpers ×2 → `Core/DpiAwareness.h` + `Core/KeyBindings.h` (`a763217`) ·
 ship spawn ×2 (`07118a1`).
-Ninth four-preset checkpoint green; suite 473 cases. WS3 continues with the remaining unified-implementation items.
+Ninth four-preset checkpoint green; suite 473 cases.
+
+Continued (2026-10-14, third batch): script-key predicate ×2 → `ScriptKeyMatches`/`ScriptKeyIsIgnoreCase` in `Loaders/LoadValidate.h` (`1c682b5`) ·
+F10 overlay GL+Soft → `Workbench/TuningOverlay.h` (`09b6351`) ·
+bound-fit merge re-verified: the production math is already unified in `Core/BoundFit.h` (`6f525e8` upstream), nothing to merge — item closed without a diff.
+Tenth four-preset checkpoint green; suite 473 cases. WS3 continues with the remaining unified-implementation items.
 
 ### WS4 — Build & tooling (~900 LOC)
 
@@ -250,3 +255,14 @@ audio 4–5 mapping resolved 2026-10-14 — see the progress log and Defect 7.)
 - clang-tidy (LLVM 23.1.0): exit 0 on five of the six changed TUs; `Hunt.cpp` reports two clang-only frontend errors at the `AddMessage` ternary-of-literals calls (1225/1231), introduced `250163bc` on 2026-09-06 and accepted by MSVC — logged as Defect 8 and left for a dedicated fix rather than folded into this batch.
 - Observation (logged as Defect 9): the F10 debug menu's PgUp and PgDn branches both advance the tab with `(tab + 1) % 3` (`Hunt.cpp:1222-1232`), so PgDn never steps backwards; the upcoming F10-overlay slice should confirm the intended cycle.
 - Next: WS3 continues — script-key predicate, F10 overlay GL+Soft, bound-fit merge, idle-group selector, menu OpenAL plumbing, TGA reader ×2, env presets triple-source, test fixtures/helpers.
+
+### 2026-10-14 — WS3 slices (script-key predicate, F10 overlay) + tenth checkpoint
+
+- `1c682b5` refactor(loaders): share the script-key matcher between the engine and the menu — `LoadValidate.h` gains `ScriptKeyMatches` (the whole-key-before-'=' rule with an explicit case mode) plus the new `ScriptKeyIsIgnoreCase`; the menu's local `MenuScriptKeyIs` copy is deleted and its 28 call sites use the shared case-relaxed predicate. Case behavior is preserved on both sides (engine case-sensitive, menu's `689be6b` relaxation kept) and pinned in the existing load-validate test.
+- `09b6351` refactor(workbench): draw the F10 overlay from the tuning model on both renderers — new `Workbench/TuningOverlay.h` builds the rows from `LegacyParameter`/`FindDescriptor` (labels and order) plus `ReadRuntimeValues` (live values), with the frame position, colours, header/hint text and row format moved over verbatim; GLUI's three copy-pasted tab blocks and SoftHUD's parallel arrays are gone, `STTextOut` takes `const char*`. The parameter list can no longer drift between renderers.
+- Bound-fit merge re-verified at slice time: the oriented/sloped ofBOUND math already lives in `Core/BoundFit.h` (`6f525e8` upstream `refactor(collision): unify oriented box fitting`) with `ObjectBounds.cpp` and `CollisionGeometry.h` as consumers; no duplicate remains, item closed without a diff.
+- Checkpoint (tenth): all four presets configure and build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Suite 473 cases. Release flags clean (`/GS`, no `/GS-`).
+- Comment hygiene: 271 files scanned plus the 211-file doc tree, only the WS4-owned Defect 6.
+- clang-tidy (LLVM 23.1.0): exit 0 on the batch TUs (GLUI, SoftHUD, Menu/Resources, the load-validate test; TuningOverlay.h followed through GLUI). The provider header was polished from 9 to 5 advisory diagnostics; the remainder are the codebase-standard array-parameter bounds notes. Hunt.cpp's pre-existing clang-only frontend error (Defect 8) remains the one non-advisory finding and still needs its dedicated fix.
+- Observation: `ShowControlElements` still carries per-renderer copies of the timer / message / exit-countdown text blocks around the now-shared overlay; consolidating those needs the dirty-rect callbacks and is not part of the current WS3 list. Defect 9 (PgUp/PgDn) is input code in `Hunt.cpp`, untouched by the overlay drawing merge.
+- Next: WS3 continues — idle-group selector across the animation files, menu OpenAL plumbing, TGA reader ×2, env presets triple-source, test fixtures/helpers.
