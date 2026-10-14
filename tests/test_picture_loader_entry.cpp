@@ -1,13 +1,15 @@
-// test_picture_loader_entry.cpp -- production BMP-loader contracts
+// test_picture_loader_entry.cpp -- production BMP/TGA-loader contracts
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
 
 #include "Hunt.h"
+#include "Loaders/TgaFormat.h"
 
 namespace {
 
@@ -42,6 +44,40 @@ void WriteBmp(const char* path, LONG width, LONG height, bool writePixels)
     {
         const unsigned char pixels[6] = {0, 0, 255, 0, 255, 0};
         ASSERT_EQ(fwrite(pixels, 1, sizeof(pixels), file), sizeof(pixels));
+    }
+    fclose(file);
+}
+
+// 18-byte TGA header + optional ID field + bottom-up 16-bit pixel rows with
+// increasing values so row orientation stays observable.
+void WriteTga(const char* path, uint16_t width, uint16_t height, uint8_t imageType,
+              uint8_t bits, uint8_t colorMapType, uint8_t identSize, bool writePixels)
+{
+    unsigned char header[18] = {};
+    header[0] = identSize;
+    header[1] = colorMapType;
+    header[2] = imageType;
+    header[12] = static_cast<unsigned char>(width & 0xFF);
+    header[13] = static_cast<unsigned char>(width >> 8);
+    header[14] = static_cast<unsigned char>(height & 0xFF);
+    header[15] = static_cast<unsigned char>(height >> 8);
+    header[16] = bits;
+
+    FILE* file = nullptr;
+    ASSERT_EQ(fopen_s(&file, path, "wb"), 0);
+    ASSERT_EQ(fwrite(header, 1, sizeof(header), file), sizeof(header));
+    for (uint8_t i = 0; i < identSize; ++i)
+    {
+        const unsigned char id = 0;
+        ASSERT_EQ(fwrite(&id, 1, 1, file), 1u);
+    }
+    if (writePixels)
+    {
+        for (int p = 0; p < width * height; ++p)
+        {
+            const uint16_t pixel = static_cast<uint16_t>(0x1000 + p);
+            ASSERT_EQ(fwrite(&pixel, 1, sizeof(pixel), file), sizeof(pixel));
+        }
     }
     fclose(file);
 }
@@ -133,5 +169,89 @@ TEST(PictureLoaderEntry, ValidBmpUsesProductionEntryPoint)
     EXPECT_EQ(picture.lpImage[1], 31u << 5);
 
     picture.lpImage.reset();
+    remove(path);
+}
+
+TEST(PictureLoaderEntry, RejectsPalettedTga)
+{
+    const char* path = "__c2_picture_contract_paletted__.tga";
+    WriteTga(path, 1, 1, TGA_IMAGETYPE_RGB, 16, /*colorMapType=*/1, 0, false);
+
+    char mutablePath[] = "__c2_picture_contract_paletted__.tga";
+    TPicture picture{};
+    EXPECT_THROW(LoadPictureTGA(picture, mutablePath, MemoryTag::Global), LoaderHalt);
+
+    remove(path);
+}
+
+TEST(PictureLoaderEntry, RejectsNonTruecolorTga)
+{
+    const char* path = "__c2_picture_contract_rle__.tga";
+    WriteTga(path, 1, 1, /*imageType=*/10, 16, 0, 0, false);
+
+    char mutablePath[] = "__c2_picture_contract_rle__.tga";
+    TPicture picture{};
+    EXPECT_THROW(LoadPictureTGA(picture, mutablePath, MemoryTag::Global), LoaderHalt);
+
+    remove(path);
+}
+
+TEST(PictureLoaderEntry, RejectsNonSixteenBitTga)
+{
+    const char* path = "__c2_picture_contract_24bit__.tga";
+    WriteTga(path, 1, 1, TGA_IMAGETYPE_RGB, /*bits=*/24, 0, 0, false);
+
+    char mutablePath[] = "__c2_picture_contract_24bit__.tga";
+    TPicture picture{};
+    EXPECT_THROW(LoadPictureTGA(picture, mutablePath, MemoryTag::Global), LoaderHalt);
+
+    remove(path);
+}
+
+TEST(PictureLoaderEntry, ValidTgaUsesProductionEntryPointAndFlipsRowsBottomUp)
+{
+    const char* path = "__c2_picture_contract_valid__.tga";
+    WriteTga(path, 1, 2, TGA_IMAGETYPE_RGB, 16, 0, 0, true);
+
+    char mutablePath[] = "__c2_picture_contract_valid__.tga";
+    TPicture picture{};
+    EXPECT_NO_THROW(LoadPictureTGA(picture, mutablePath, MemoryTag::Global));
+    EXPECT_EQ(picture.W, 1);
+    EXPECT_EQ(picture.H, 2);
+    ASSERT_NE(picture.lpImage, nullptr);
+    // File rows are bottom-up: the last file row lands first in memory.
+    EXPECT_EQ(picture.lpImage[0], 0x1001);
+    EXPECT_EQ(picture.lpImage[1], 0x1000);
+
+    picture.lpImage.reset();
+    remove(path);
+}
+
+TEST(PictureLoaderEntry, TgaIdentFieldIsSkippedBeforePixelRows)
+{
+    const char* path = "__c2_picture_contract_ident__.tga";
+    WriteTga(path, 1, 1, TGA_IMAGETYPE_RGB, 16, 0, /*identSize=*/5, true);
+
+    char mutablePath[] = "__c2_picture_contract_ident__.tga";
+    TPicture picture{};
+    EXPECT_NO_THROW(LoadPictureTGA(picture, mutablePath, MemoryTag::Global));
+    EXPECT_EQ(picture.W, 1);
+    EXPECT_EQ(picture.H, 1);
+    ASSERT_NE(picture.lpImage, nullptr);
+    EXPECT_EQ(picture.lpImage[0], 0x1000);
+
+    picture.lpImage.reset();
+    remove(path);
+}
+
+TEST(PictureLoaderEntry, TruncatedTgaPayloadUsesProductionFailurePath)
+{
+    const char* path = "__c2_picture_contract_truncated__.tga";
+    WriteTga(path, 2, 2, TGA_IMAGETYPE_RGB, 16, 0, 0, false);
+
+    char mutablePath[] = "__c2_picture_contract_truncated__.tga";
+    TPicture picture{};
+    EXPECT_THROW(LoadPictureTGA(picture, mutablePath, MemoryTag::Global), LoaderHalt);
+
     remove(path);
 }

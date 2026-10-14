@@ -4,6 +4,7 @@
 
 #include "Hunt.h"
 #include "LoadValidate.h"
+#include "TgaFormat.h"
 
 static void PicLoadFail(const char* what, int value, int limit)
 {
@@ -88,7 +89,6 @@ void LoadPicture(TPicture &pic, LPSTR pname, MemoryTag tag)
 
 void LoadPictureTGA(TPicture &pic, LPSTR pname, MemoryTag tag)
 {
-  WORD w = 0, h = 0;
   HANDLE hfile;
 
   hfile = CreateFile(pname, GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr );
@@ -99,18 +99,29 @@ void LoadPictureTGA(TPicture &pic, LPSTR pname, MemoryTag tag)
     DoHalt(sz);
   }
 
-  if (SetFilePointer(hfile, 12, nullptr, FILE_BEGIN) == INVALID_SET_FILE_POINTER ||
-      !ReadExact(hfile, &w, 2) || !ReadExact(hfile, &h, 2))
+  TARGAINFOHEADER header{};
+  if (!ReadExact(hfile, &header, sizeof(header)))
     DoHalt("Picture loading error: truncated TGA header.");
 
-  if (SetFilePointer(hfile, 18, nullptr, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+  if (CheckTgaPictureFormat(header) != TgaPictureFormat::Ok)
+  {
+    char sz[256];
+    sprintf_s(sz, sizeof(sz),
+              "Picture loading error: %s is not a 16-bit uncompressed truecolor TGA (type=%u, colour-map=%u, depth=%u).",
+              pname, header.tgaImageType, header.tgaColorMapType, header.tgaBits);
+    DoHalt(sz);
+  }
+
+  // The optional image-ID field sits between the header and the pixels.
+  if (header.tgaIdentSize &&
+      SetFilePointer(hfile, header.tgaIdentSize, nullptr, FILE_CURRENT) == INVALID_SET_FILE_POINTER)
     DoHalt("Picture loading error: truncated TGA header.");
 
   pic.lpImage.reset();
   pic.lpImage = nullptr;
 
-  pic.W = w;
-  pic.H = h;
+  pic.W = header.tgaWidth;
+  pic.H = header.tgaHeight;
   // w/h are WORDs but their product still overflows 32-bit int arithmetic
   // (65535^2*2); compute checked. Reads go straight to the heap buffer,
   // so no stack width cap applies here.
