@@ -357,7 +357,7 @@ void LoadTrophy2(int RegNumber) {
 	FillMemory(&TrophyRoom2, sizeof(TrophyRoom2), 0);
 	DWORD l;
 	char fname2[128];
-	sprintf_s(fname2, sizeof(fname2), "trophy0%d.sab", RegNumber);
+	sprintf_s(fname2, sizeof(fname2), "trophy%02d.sab", RegNumber);
 	HANDLE hfile2 = CreateFile(fname2, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (hfile2 == INVALID_HANDLE_VALUE)
 	{
@@ -380,7 +380,7 @@ void LoadTrophy()
   DWORD l;
   char fname[128];
   int rn = TrophyRoom.RegNumber;
-  sprintf_s(fname, sizeof(fname), "trophy0%d.sav", TrophyRoom.RegNumber);
+  sprintf_s(fname, sizeof(fname), "trophy%02d.sav", TrophyRoom.RegNumber);
   HANDLE hfile = CreateFile(fname, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (hfile==INVALID_HANDLE_VALUE)
   {
@@ -459,7 +459,7 @@ void LoadTrophy()
 void SaveTrophy2(int RegNumber) {
 	DWORD l2;
 	char fname2[128];
-	sprintf_s(fname2, sizeof(fname2), "trophy0%d.sab", RegNumber);
+	sprintf_s(fname2, sizeof(fname2), "trophy%02d.sab", RegNumber);
 
 	HANDLE hfile2 = CreateFile(fname2, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (hfile2 == INVALID_HANDLE_VALUE)
@@ -478,7 +478,7 @@ void SaveTrophy()
 
   DWORD l;
   char fname[128];
-  sprintf_s(fname, sizeof(fname), "trophy0%d.sav", TrophyRoom.RegNumber);
+  sprintf_s(fname, sizeof(fname), "trophy%02d.sav", TrophyRoom.RegNumber);
 
   int r = TrophyRoom.Rank;
   TrophyRoom.Rank = 0;
