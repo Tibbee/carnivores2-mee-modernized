@@ -10,8 +10,10 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(RENDERER "" CACHE STRING "Select the renderer: SOFT or GL. Leave empty to build the menu only.")
 set_property(CACHE RENDERER PROPERTY STRINGS SOFT GL "")
 
-# Enable LTO for Release builds; CMake supplies MSVC /GL and /LTCG.
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+# Interprocedural optimization (MSVC /GL + /LTCG) is enabled per target on the
+# shipped binaries only: the game, the menu and the vendored ImGui library the
+# game links. The tests and GoogleTest opt out so release builds stay fast.
+# Each target sets INTERPROCEDURAL_OPTIMIZATION_RELEASE where it is defined.
 
 # Phase 0.1 in-engine GL perf harness. Defaults OFF. The ogl-release
 # preset turns this ON because perf measurements must run on the
@@ -140,6 +142,9 @@ if(RENDERER)
         target_compile_features(c2_imgui PUBLIC cxx_std_17)
         target_include_directories(c2_imgui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui
                                             PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/deps)
+        # The UI library ships inside the GL game executable; keep it in the
+        # shipping LTO set.
+        set_property(TARGET c2_imgui PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
         target_compile_definitions(c2_imgui PRIVATE IMGUI_IMPL_OPENGL_LOADER_CUSTOM
                                                   IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
         target_link_libraries(c2_imgui PUBLIC dwmapi)
@@ -317,6 +322,7 @@ if(RENDERER)
     set_target_properties(Carnivores1 PROPERTIES
         OUTPUT_NAME "Carnivores1_${RENDERER}"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+        INTERPROCEDURAL_OPTIMIZATION_RELEASE ON
     )
 
     # Copy shader files to the output directory (for the GL renderer)

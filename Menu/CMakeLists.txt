@@ -36,4 +36,5 @@ target_link_libraries(Carnivores2Menu PRIVATE
 set_target_properties(Carnivores2Menu PROPERTIES
     OUTPUT_NAME "Carnivores2Menu"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE ON
 )
