@@ -8,7 +8,6 @@ set(MENU_SOURCES
     Resources.cpp
     GUI.cpp
     Resolutions.cpp
-    Targa.h
     Hunt.h
     resource.h
     Menu.rc

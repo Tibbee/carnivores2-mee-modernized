@@ -7,7 +7,7 @@
 //#define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#include "Targa.h"
+#include "Loaders/TgaFormat.h"
 
 #include <Windows.h>
 //std

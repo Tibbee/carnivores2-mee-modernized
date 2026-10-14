@@ -7,7 +7,7 @@
 */
 
 #include "Hunt.h"
-#include "Targa.h"
+#include "Loaders/TgaFormat.h"
 #include "../Hunt/Audio/WaveReader.h"
 
 #include <iostream>
@@ -1666,21 +1666,20 @@ bool ReadTGAFile(const std::string& path, TargaImage& tga)
 		return false;
 	}
 
-	if (tga.m_Header.tgaColorMapType) {
+	// Menu pictures are 16-bit throughout, including the full-screen menu
+	// images copied in Menu.cpp. Reject other depths before allocating data.
+	switch (CheckTgaPictureFormat(tga.m_Header)) {
+	case TgaPictureFormat::Ok:
+		break;
+	case TgaPictureFormat::Paletted:
 		LoadDiagnostics::Instance().Report("menu picture", path.c_str(),
 			"TGA has a color palette (16-bit uncompressed truecolor required)", nullptr);
 		return false;
-	}
-
-	if (tga.m_Header.tgaImageType != TGA_IMAGETYPE_RGB) {
+	case TgaPictureFormat::NotTruecolor:
 		LoadDiagnostics::Instance().Report("menu picture", path.c_str(),
 			"TGA is not uncompressed truecolor (16-bit uncompressed truecolor required)", nullptr);
 		return false;
-	}
-
-	// Menu pictures are 16-bit throughout, including the full-screen menu
-	// images copied in Menu.cpp. Reject other depths before allocating data.
-	if (tga.m_Header.tgaBits != 16) {
+	case TgaPictureFormat::Not16Bit:
 		LoadDiagnostics::Instance().Report("menu picture", path.c_str(),
 			"expected a 16-bit TGA (menu art is 16-bit 5551)", nullptr);
 		return false;
