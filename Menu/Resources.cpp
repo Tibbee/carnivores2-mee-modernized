@@ -1574,7 +1574,7 @@ void TrophyLoad(Profile& profile, int pr)
 	{ int32_t tmp; fs.read(reinterpret_cast<char*>(&tmp), 4); g_Options.Fog = (bool)tmp; }
 	fs.read(reinterpret_cast<char*>(&g_Options.Textures), 4);
 	fs.read(reinterpret_cast<char*>(&g_Options.ViewRange), 4);
-	g_Options.ViewRange = ClampMenuViewOpt(g_Options.ViewRange);
+	g_Options.ViewRange = ClampViewOpt(g_Options.ViewRange);
 	{ int32_t tmp; fs.read(reinterpret_cast<char*>(&tmp), 4); g_Options.Shadows = (bool)tmp; }
 	fs.read(reinterpret_cast<char*>(&g_Options.MouseSensitivity), 4);
 	fs.read(reinterpret_cast<char*>(&g_Options.Brightness), 4);
@@ -1597,7 +1597,7 @@ void TrophyLoad(Profile& profile, int pr)
 	// FOV and other extended settings are now in config.cfg, not here.
 	// Set defaults; LoadConfig() will override if the config file exists.
 	g_Options.FOV = kFovDefault;
-	g_Options.ViewRange = ClampMenuViewOpt(g_Options.ViewRange);
+	g_Options.ViewRange = ClampViewOpt(g_Options.ViewRange);
 	g_Options.ObjectDetail = kObjectDetailDefault;
 	g_Options.NightVisionKey = 0x4E; // Default: 'N' key
 	g_Options.FlashlightKey = kFlashlightKeyDefault; // Default: 'F' key
@@ -2150,7 +2150,7 @@ static bool ParseConfigField(const configscan::Field& field)
 	if (configscan::KeyEquals(field.key, "object_detail")) {
 		int v;
 		if (iss >> v) {
-			v = ClampMenuObjectDetail(v);
+			v = ClampObjectDetail(v);
 			g_Options.ObjectDetail = v;
 		}
 		return true;

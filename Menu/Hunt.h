@@ -23,13 +23,7 @@
 
 
 #include "Version.h"
-
-// Field of view (vertical, degrees) -- modder-editable range
-// Kept in sync with Hunt/Hunt.h's kFov* defines.
-#define kFovMin      35
-#define kFovMax      90
-#define kFovStep     2
-#define kFovDefault  62
+#include "Core/Constants.h"
 
 // FPS limit option indexes
 #define kFpsLimitOff      0   // Unlimited
@@ -38,46 +32,6 @@
 #define kFpsLimit240      3
 #define kFpsLimitCount    4
 #define kFpsLimitDefault  kFpsLimit60
-
-// View distance option stored as OptViewR in trophy0N.sav.
-// Kept in sync with Hunt/Hunt.h's view distance constants.
-#define kViewOptMin      0
-#define kViewOptMax      255
-#define kViewOptDefault  128
-#define kViewDistanceMin 42
-#define kViewDistanceMax 230
-
-// Bitmap sprite LOD distance stored in config.cfg.
-#define kObjectDetailMin     24
-#define kObjectDetailMax     96
-#define kObjectDetailStep    4
-#define kObjectDetailDefault 48
-
-inline int ClampMenuViewOpt(int value)
-{
-	if (value < kViewOptMin) return kViewOptMin;
-	if (value > kViewOptMax) return kViewOptMax;
-	return value;
-}
-
-inline int ViewOptToCtViewR(int opt)
-{
-	opt = ClampMenuViewOpt(opt);
-
-	// Preserve the legacy 0..127 OptViewR curve, then use the upper half
-	// of the menu's 0..255 range for the extended view-distance cap.
-	if (opt <= 127)
-		return 42 + (opt / 8) * 2;
-
-	return 72 + ((opt - 127) * (kViewDistanceMax - 72)) / (kViewOptMax - 127);
-}
-
-inline int ClampMenuObjectDetail(int value)
-{
-	if (value < kObjectDetailMin) return kObjectDetailMin;
-	if (value > kObjectDetailMax) return kObjectDetailMax;
-	return value;
-}
 
 enum HuntTimeEnum {
 	HUNT_DAWN = 0,
@@ -92,11 +46,6 @@ enum HuntTimeEnum {
 #endif
 
 
-#define HIRGB(r,g,b) ((uint16_t)( (b) | (g<<5) | (r<<10) ))
-#define TRURGB(r,g,b) ((uint32_t)( (b) | (g<<8) | (r<<16) | (0xFF<<24) ) )
-#define HIRGBA(r,g,b,a) ((uint16_t)( (b) | (g<<5) | (r<<10) ) | (a<<15) )
-#define TRURGBA(r,g,b,a) ((uint32_t)( (b) | (g<<8) | (r<<16) | (a<<24) ) )
-
 // ======================================================================= //
 // Global Enumerators
 // ======================================================================= //
@@ -109,23 +58,6 @@ enum RankEnum
 	RANK_MASTER = 2,
 	RANK_EXPERT = 2,
 	RANK_MAX
-};
-
-enum AIIndexEnum
-{
-	AI_HUNTER = 0,
-
-	AI_BRACH = 9,
-
-	AI_PARA = 10,
-	AI_ANKY = 11,
-	AI_STEGO = 12,
-	AI_ALLO = 13,
-	AI_CHASMO = 14,
-	AI_VELO = 15,
-	AI_SPINO = 16,
-	AI_CERA = 17,
-	AI_TREX = 18
 };
 
 // ResolutionsEnum is kept as a documentation/legacy reference only.
@@ -171,20 +103,6 @@ if (OptRes==5) { WinW =1024; WinH=768; }
 if (OptRes==6) { WinW =1280; WinH=1024; }
 if (OptRes==7) { WinW =1600; WinH=1200; }
 */
-
-enum AudioSystemEnum {
-	AUDIO_DIRECTSOUND = 0,
-	AUDIO_OPENALSOFT = 1,
-	AUDIO_BACKEND_COUNT = 2
-};
-
-inline int NormalizeAudioBackend(int driver)
-{
-	// Legacy saved values:
-	// 0..3 = software / DirectSound / A3D / EAX → DirectSound
-	// 4..5 = OpenAL / XAudio2 → OpenAL Soft
-	return (driver == AUDIO_OPENALSOFT || driver >= 4) ? AUDIO_OPENALSOFT : AUDIO_DIRECTSOUND;
-}
 
 // ======================================================================= //
 // Global Types & Classes

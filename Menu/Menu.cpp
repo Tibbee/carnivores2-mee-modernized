@@ -2857,7 +2857,7 @@ void ProcessMenu()
 	MenuEventInput(g_MenuState);
 
 	// Clear the video buffer and then draw the menu background
-	InterfaceClear(HIRGB(0, 0, 10));
+	InterfaceClear(HiColor(0, 0, 10));
 	DrawMenuBg(g_MenuItem);
 
 	// Draw menus
