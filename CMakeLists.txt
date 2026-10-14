@@ -341,6 +341,28 @@ if(MSVC)
     set(FETCHCONTENT_QUIET OFF)
     FetchContent_MakeAvailable(googletest)
 
+    # Production translation units that several test executables need. The
+    # static library compiles each of them once per build tree instead of once
+    # per target, and keeps the test targets' source lists to their own files.
+    # Tests that replace audio calls with their own seams (the workbench
+    # targets) keep those seam files local, because they define the same
+    # symbols as the real OpenAL loader.
+    add_library(c2_test_support STATIC
+        Hunt/Audio/OpenAL_Loader.cpp
+        Hunt/Core/StateDefs.cpp
+        Hunt/Game/ObjectBounds.cpp
+        Hunt/Game/TerrainQueries.cpp
+        Hunt/Math/Vector.cpp
+        Hunt/Workbench/CollisionInspection.cpp
+        Hunt/Workbench/ConfigPersistence.cpp
+        Hunt/Workbench/InputBoundary.cpp
+        Hunt/Workbench/TuningRuntime.cpp
+        Hunt/Workbench/TuningSession.cpp
+    )
+    target_include_directories(c2_test_support PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/Hunt
+    )
+
     add_executable(Carnivores2Tests
         tests/test_ai_behavior_math.cpp
         tests/test_idle_group_select.cpp
@@ -355,8 +377,6 @@ if(MSVC)
         tests/test_uniform_value_cache.cpp
         tests/test_workbench_session.cpp
         tests/test_workbench_input.cpp
-        Hunt/Workbench/TuningSession.cpp
-        Hunt/Workbench/InputBoundary.cpp
         tests/test_per_frame_upload.cpp
         tests/test_night_lighting.cpp
         tests/test_night_presentation.cpp
@@ -368,8 +388,6 @@ if(MSVC)
         tests/test_math.cpp
         tests/test_bound_fit.cpp
         tests/test_object_bounds.cpp
-        Hunt/Game/ObjectBounds.cpp
-        Hunt/Math/Vector.cpp
         tests/test_trophy_mode.cpp
         tests/test_key_bindings.cpp
         tests/test_load_validate.cpp
@@ -401,7 +419,7 @@ if(MSVC)
     )
     target_compile_definitions(Carnivores2Tests PRIVATE
         C2_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(Carnivores2Tests PRIVATE gtest_main)
+    target_link_libraries(Carnivores2Tests PRIVATE gtest_main c2_test_support)
     add_test(NAME Carnivores2Tests COMMAND Carnivores2Tests)
 
     # Exercise the production world-model sampler without a GL context.
@@ -457,12 +475,11 @@ if(MSVC)
     add_executable(Carnivores2CommandLineContractTests
         tests/test_command_line_entry.cpp
         Hunt/Game/CommandLine.cpp
-        Hunt/Core/StateDefs.cpp
     )
     target_include_directories(Carnivores2CommandLineContractTests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Hunt
     )
-    target_link_libraries(Carnivores2CommandLineContractTests PRIVATE gtest_main)
+    target_link_libraries(Carnivores2CommandLineContractTests PRIVATE gtest_main c2_test_support)
     add_test(NAME Carnivores2Tests.CommandLineContracts
              COMMAND Carnivores2CommandLineContractTests)
 
@@ -490,44 +507,27 @@ if(MSVC)
         tests/test_workbench_runtime.cpp
         tests/test_workbench_collision.cpp
         tests/test_workbench_config.cpp
-        Hunt/Workbench/CollisionInspection.cpp
-        Hunt/Workbench/ConfigPersistence.cpp
-        Hunt/Game/TerrainQueries.cpp
-        Hunt/Game/ObjectBounds.cpp
-        Hunt/Math/Vector.cpp
         tests/workbench_audio_seams.cpp
-        Hunt/Workbench/TuningSession.cpp
-        Hunt/Workbench/TuningRuntime.cpp
-        Hunt/Core/StateDefs.cpp
     )
     target_include_directories(Carnivores2WorkbenchTests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Hunt)
     target_compile_definitions(Carnivores2WorkbenchTests PRIVATE
         C2_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(Carnivores2WorkbenchTests PRIVATE gtest_main)
+    target_link_libraries(Carnivores2WorkbenchTests PRIVATE gtest_main c2_test_support)
     add_test(NAME Carnivores2Tests.WorkbenchRuntime COMMAND Carnivores2WorkbenchTests)
 
     if(RENDERER STREQUAL "GL")
         # Hidden owned window/context only: no game, assets, focus or OS input.
         add_executable(Carnivores2WorkbenchGPUTests
             tests/test_workbench_gpu.cpp
-            Hunt/Workbench/CollisionInspection.cpp
-            Hunt/Workbench/ConfigPersistence.cpp
-            Hunt/Game/TerrainQueries.cpp
-            Hunt/Game/ObjectBounds.cpp
-            Hunt/Math/Vector.cpp
             tests/workbench_audio_seams.cpp
             Hunt/Workbench/WorkbenchUI.cpp
-            Hunt/Workbench/InputBoundary.cpp
-            Hunt/Workbench/TuningSession.cpp
-            Hunt/Workbench/TuningRuntime.cpp
-            Hunt/Core/StateDefs.cpp
             deps/glad/glad.c)
         target_include_directories(Carnivores2WorkbenchGPUTests PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/Hunt ${CMAKE_CURRENT_SOURCE_DIR}/deps)
         target_compile_definitions(Carnivores2WorkbenchGPUTests PRIVATE C2_WORKBENCH_UI_PROBE)
         target_link_libraries(Carnivores2WorkbenchGPUTests PRIVATE
-            gtest_main c2_imgui opengl32 gdi32 user32)
+            gtest_main c2_test_support c2_imgui opengl32 gdi32 user32)
         add_test(NAME Carnivores2Tests.WorkbenchGPU COMMAND Carnivores2WorkbenchGPUTests)
         set_tests_properties(Carnivores2Tests.WorkbenchGPU PROPERTIES TIMEOUT 30 LABELS "hidden-gpu")
     endif()
@@ -536,26 +536,21 @@ if(MSVC)
     # seams: these tests neither require a DLL nor open a playback device.
     add_executable(Carnivores2AudioBackendTests
         tests/test_audio_backend.cpp
-        Hunt/Workbench/TuningRuntime.cpp
-        Hunt/Workbench/TuningSession.cpp
-        Hunt/Core/StateDefs.cpp
-        Hunt/Audio/OpenAL_Loader.cpp
     )
     target_include_directories(Carnivores2AudioBackendTests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Hunt)
-    target_link_libraries(Carnivores2AudioBackendTests PRIVATE gtest_main)
+    target_link_libraries(Carnivores2AudioBackendTests PRIVATE gtest_main c2_test_support)
     add_test(NAME Carnivores2Tests.AudioBackend COMMAND Carnivores2AudioBackendTests)
 
     add_executable(Carnivores2MenuAudioBackendTests
         tests/test_menu_audio_backend.cpp
         tests/menu_resource_seams.cpp
         Menu/Resources.cpp
-        Hunt/Audio/OpenAL_Loader.cpp
     )
     target_include_directories(Carnivores2MenuAudioBackendTests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Menu
         ${CMAKE_CURRENT_SOURCE_DIR}/Hunt)
-    target_link_libraries(Carnivores2MenuAudioBackendTests PRIVATE gtest_main)
+    target_link_libraries(Carnivores2MenuAudioBackendTests PRIVATE gtest_main c2_test_support)
     add_test(NAME Carnivores2Tests.MenuAudioBackend COMMAND Carnivores2MenuAudioBackendTests)
     set_tests_properties(Carnivores2Tests.AudioBackend Carnivores2Tests.MenuAudioBackend
                          Carnivores2Tests.MenuResourceContracts PROPERTIES TIMEOUT 30)
@@ -567,12 +562,11 @@ if(MSVC)
     add_executable(Carnivores2ScriptParserContractTests
         tests/test_script_parser_entry.cpp
         Hunt/Loaders/ScriptParser.cpp
-        Hunt/Core/StateDefs.cpp
     )
     target_include_directories(Carnivores2ScriptParserContractTests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Hunt
     )
-    target_link_libraries(Carnivores2ScriptParserContractTests PRIVATE gtest_main)
+    target_link_libraries(Carnivores2ScriptParserContractTests PRIVATE gtest_main c2_test_support)
     add_test(NAME Carnivores2Tests.ScriptParserContracts
              COMMAND Carnivores2ScriptParserContractTests)
 
@@ -627,7 +621,7 @@ endif()
 
 # Apply the project warning policy only to project-owned targets. GoogleTest
 # and vendored loader targets retain their own upstream compiler settings.
-foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests Carnivores2LoaderContractTests Carnivores2PictureLoaderContractTests Carnivores2CommandLineContractTests Carnivores2MenuResourceTests Carnivores2ScriptParserContractTests Carnivores2AudioBackendTests Carnivores2MenuAudioBackendTests Carnivores2WorkbenchTests Carnivores2WorkbenchGPUTests)
+foreach(C2_TARGET Carnivores1 Carnivores2Menu Carnivores2Tests Carnivores2FogTests Carnivores2UITests Carnivores2LoaderContractTests Carnivores2PictureLoaderContractTests Carnivores2CommandLineContractTests Carnivores2MenuResourceTests Carnivores2ScriptParserContractTests Carnivores2AudioBackendTests Carnivores2MenuAudioBackendTests Carnivores2WorkbenchTests Carnivores2WorkbenchGPUTests c2_test_support)
     if(TARGET ${C2_TARGET})
         c2_apply_msvc_compile_policy(${C2_TARGET})
     endif()
