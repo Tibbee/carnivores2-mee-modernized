@@ -11,6 +11,7 @@
 #include "ListMath.h"
 #include "SliderMath.h"
 #include "ShopSafety.h"
+#include "../Hunt/Core/KeyBindings.h"
 #include "../Hunt/Core/ScoreMod.h"
 #include "../Hunt/Core/ShadowText.h"
 #include <cassert>
@@ -305,9 +306,6 @@ Layout::Column g_ControlsLabels, g_ControlsValues;
 Layout::Column g_VideoLabels, g_VideoValues;
 
 
-int MapVKKey(int k);
-
-
 bool IsPointInRect(POINT& p, RECT& rc)
 {
 	return (p.x > rc.left && p.y > rc.top && p.x < rc.right&& p.y < rc.bottom);
@@ -450,20 +448,6 @@ int GetTextH(HDC hdc, const std::string& s)
 	SIZE sz;
 	GetTextExtentPoint(hdc, s.c_str(), (int)s.length(), &sz);
 	return sz.cy;
-}
-
-
-/*
-Map the virtual-key-code to a scan-code
-*/
-int MapVKKey(int k)
-{
-	if (k == VK_LBUTTON) return 124;
-	if (k == VK_RBUTTON) return 125;
-	if (k == VK_MBUTTON) return 126;
-	if (k == VK_XBUTTON1) return 128;
-	if (k == VK_XBUTTON2) return 129;
-	return MapVirtualKey(k, MAPVK_VK_TO_VSC);
 }
 
 

@@ -1,4 +1,5 @@
 #include "Hunt.h"
+#include "Core/DpiAwareness.h"
 #include "Core/FrameLimiter.h"
 #include "Core/KeyBindings.h"
 #include "Core/TerrainFog.h"
@@ -13,10 +14,6 @@
 #include <cmath>
 #include <algorithm>
 
-#ifndef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
-#define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 ((DPI_AWARENESS_CONTEXT)-4)
-#endif
-
 // Near-model overlays were authored for a 4:3 viewport. Scale them far
 // enough to cover wider viewports without changing their vertical framing.
 static float GetScopeAspectFillScale()
@@ -24,18 +21,6 @@ static float GetScopeAspectFillScale()
   constexpr float kReferenceAspect = 4.0f / 3.0f;
   if (WinH <= 0) return 1.0f;
   return (std::max)(1.0f, (static_cast<float>(WinW) / static_cast<float>(WinH)) / kReferenceAspect);
-}
-
-static void EnablePerMonitorV2DpiAwareness()
-{
-  using SetProcessDpiAwarenessContextProc = BOOL(WINAPI*)(DPI_AWARENESS_CONTEXT);
-  auto setProcessDpiAwarenessContext =
-    reinterpret_cast<SetProcessDpiAwarenessContextProc>(
-      GetProcAddress(GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessContext"));
-
-  if (setProcessDpiAwarenessContext) {
-    setProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-  }
 }
 
 #ifdef _soft

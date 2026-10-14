@@ -31,16 +31,6 @@ int MaxDino, AreaMax, LoadCount;
 
 BOOL NEWPLAYER = false;
 
-int  MapVKKey(int k)
-{
-  if (k==VK_LBUTTON) return 124;
-  if (k==VK_RBUTTON) return 125;
-  return MapVirtualKey(k, 0);
-}
-
-
-
-
 POINT p;
 int OptMode = 0;
 int OptLine = 0;

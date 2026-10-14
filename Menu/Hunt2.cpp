@@ -8,6 +8,7 @@
 
 #define _MAIN_
 #include "Hunt.h"
+#include "Core/DpiAwareness.h"
 #include "Core/FrameLimiter.h"
 
 #include "resource.h" // For IDI_ICON1
@@ -26,23 +27,6 @@ void ShutdownNetwork();
 std::streambuf* g_COutBuf = nullptr;
 std::ofstream g_LogFile;
 std::chrono::steady_clock::duration Timer::m_TimeStart;
-
-#ifndef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
-#define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 ((DPI_AWARENESS_CONTEXT)-4)
-#endif
-
-static void EnablePerMonitorV2DpiAwareness()
-{
-	using SetProcessDpiAwarenessContextProc = BOOL(WINAPI*)(DPI_AWARENESS_CONTEXT);
-	auto setProcessDpiAwarenessContext =
-		reinterpret_cast<SetProcessDpiAwarenessContextProc>(
-			GetProcAddress(GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessContext"));
-
-	if (setProcessDpiAwarenessContext) {
-		setProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-	}
-}
-
 
 void CreateLog()
 {

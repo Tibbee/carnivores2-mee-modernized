@@ -22,3 +22,16 @@ inline bool IsInitialKeyDown(unsigned int keyData)
 {
     return (keyData & (1u << 30)) == 0;
 }
+
+// Map a virtual-key code to the scan code used by the key-name tables.
+// The mouse buttons have no MapVirtualKey code, so they keep the legacy
+// 124..129 range that the menu's key display expects.
+inline int MapVKKey(int k)
+{
+    if (k == VK_LBUTTON) return 124;
+    if (k == VK_RBUTTON) return 125;
+    if (k == VK_MBUTTON) return 126;
+    if (k == VK_XBUTTON1) return 128;
+    if (k == VK_XBUTTON2) return 129;
+    return MapVirtualKey(k, MAPVK_VK_TO_VSC);
+}
