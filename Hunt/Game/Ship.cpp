@@ -97,6 +97,20 @@ void AddShipTask(int cindex)
   }
 }
 
+// Places a flying ship beyond the visible range so it cannot pop in. The old
+// fixed 90-cell offset predates the increased view distance, and the SShip
+// copy used to test Ship.pos here (fixed once; one rule keeps it fixed).
+static void PlaceShipBeyondView(TShip& ship)
+{
+	int spawnCells = ctViewR + 30;
+	if (spawnCells < 90) spawnCells = 90;
+	ship.pos.x = PlayerX - spawnCells * 256;
+	if (ship.pos.x < 256) ship.pos.x = PlayerX + spawnCells * 256;
+	ship.pos.z = PlayerZ - spawnCells * 256;
+	if (ship.pos.z < 256) ship.pos.z = PlayerZ + spawnCells * 256;
+	ship.pos.y = GetLandUpH(ship.pos.x, ship.pos.z) + ship.DeltaY + 1024;
+}
+
 void AddShipSupply(float tx, float tz) {
 
 	if (SShip.State != 0) return;
@@ -107,16 +121,7 @@ void AddShipSupply(float tx, float tz) {
 
 	SShip.DeltaY = 7048.f;
 
-	// Spawn beyond visibility: the old fixed 90-cell offset predates the
-	// increased view distance, so the ship visibly popped in mid-air.
-	// (Also fixes a copy/paste slip that tested Ship.pos for SShip.pos.)
-	int spawnCells = ctViewR + 30;
-	if (spawnCells < 90) spawnCells = 90;
-	SShip.pos.x = PlayerX - spawnCells * 256;
-	if (SShip.pos.x < 256) SShip.pos.x = PlayerX + spawnCells * 256;
-	SShip.pos.z = PlayerZ - spawnCells * 256;
-	if (SShip.pos.z < 256) SShip.pos.z = PlayerZ + spawnCells * 256;
-	SShip.pos.y = GetLandUpH(SShip.pos.x, SShip.pos.z) + SShip.DeltaY + 1024;
+	PlaceShipBeyondView(SShip);
 
 	SShip.tgpos.x = tx;
 	SShip.tgpos.z = tz;
@@ -133,14 +138,7 @@ void InitShip(int cindex){
 
   Ship.DeltaY = 2048.f + DinoInfo[cptr->CType].ShDelta * cptr->scale;
 
-  // Same beyond-visibility rule as the resupply ship (see AddShipSupply).
-  int spawnCells = ctViewR + 30;
-  if (spawnCells < 90) spawnCells = 90;
-  Ship.pos.x = PlayerX - spawnCells*256;
-  if (Ship.pos.x < 256) Ship.pos.x = PlayerX + spawnCells*256;
-  Ship.pos.z = PlayerZ - spawnCells*256;
-  if (Ship.pos.z < 256) Ship.pos.z = PlayerZ + spawnCells*256;
-  Ship.pos.y = GetLandUpH(Ship.pos.x, Ship.pos.z)  + Ship.DeltaY + 1024;
+  PlaceShipBeyondView(Ship);
 
   Ship.tgpos.x = cptr->pos.x;
   Ship.tgpos.z = cptr->pos.z;
