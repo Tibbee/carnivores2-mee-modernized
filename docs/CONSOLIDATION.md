@@ -1,6 +1,6 @@
 # Consolidation Pass — C2 MEE
 
-> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 complete (17 clusters, 686 → 469 cases); WS3 foundational slices, the staged config-scanner unification and the first three follow-on slices landed (shadow text, menu constants, resolution list); eighth four-preset checkpoint green; hygiene has 1 open finding (Defect 6, WS4-owned); clang-tidy runs locally (VS Code cpptools LLVM 23.1.0) and is clean on the latest changed files.
+> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 complete (17 clusters, 686 → 469 cases); WS3 foundational slices, the staged config-scanner unification and six follow-on slices landed (shadow text, menu constants, resolution list, FPS limiter, DPI/VK helpers, ship spawn); ninth four-preset checkpoint green; hygiene has 1 open finding (Defect 6, WS4-owned); clang-tidy runs locally (VS Code cpptools LLVM 23.1.0) and is clean on the batch TUs except Hunt.cpp's pre-existing clang-only frontend error (Defect 8).
 > **Branch:** `refactor/consolidation-pass`, worktree `Carnivores2MEE1.11/build/consolidation-pass`, based on `feat/modder-workbench` @ `4d05faa`.
 > **Status:** in progress. Owner approved the plan and the deletion of the disabled-species animation bundle. Only the Progress log and the task list below are authoritative for what is done; the ranked estimates come from the Phase 1 hunts.
 
@@ -90,7 +90,12 @@ Continued (2026-10-14): shadow-TextOut ×6 → `Core/ShadowText.h` (`f6f5942`) �
 legacy audio normalization fix (`fefc4b3`, owner call — Defect 7) ·
 menu constants vs `Core/Constants.h` (`e1016c3`) ·
 resolution list ×2 → `Core/ResolutionList.h` (`a8b60d4`).
-Eighth four-preset checkpoint green; suite 473 cases. WS3 continues with the remaining unified-implementation items.
+Eighth four-preset checkpoint green; suite 473 cases.
+
+Continued further (2026-10-14): FPS limiter ×2 → `Core/FrameLimiter.h` (`3b15544`) ·
+DPI/VK helpers ×2 → `Core/DpiAwareness.h` + `Core/KeyBindings.h` (`a763217`) ·
+ship spawn ×2 (`07118a1`).
+Ninth four-preset checkpoint green; suite 473 cases. WS3 continues with the remaining unified-implementation items.
 
 ### WS4 — Build & tooling (~900 LOC)
 
@@ -116,6 +121,8 @@ audio 4–5 mapping resolved 2026-10-14 — see the progress log and Defect 7.)
 5. **Comment hygiene finding (pre-existing)** — `Hunt/Core/AIBehavior.h:64` references `hunter-awareness-review.md`, which exists in both `CarnivoresDoc/architecture/` and `CarnivoresDoc/archive/`; `tools/check_comment_hygiene.ps1` rejects the ambiguity. **Resolved 2026-10-14:** owner chose the `architecture/` copy; `e7de326` qualifies the reference and the hygiene scan now reports 1 problem (Defect 6 only).
 6. **Comment hygiene finding (pre-existing)** — `tools/release/make-c2-package.ps1:93` mentions `RELEASE-NOTES.md`, which the current doc tree does not contain; the script is a listed WS4 owner item (embedded config template / packaging), so the reference is left for that work rather than reworded here.
 7. **Legacy audio backend normalization divergence (regression)** — `Core/Constants.h`'s `NormalizeAudioBackend` mapped saved driver values 4–5 (old OpenAL / XAudio2) to DirectSound, contradicting its own comment and the menu's still-original copy; the rewrite happened silently during the `db96ce7` Constants.h extraction, so a legacy profile selected a different backend per EXE. Reachable via legacy `trophy0N.sav` (engine, `Trophy.cpp:442`) and menu profile saves (`Resources.cpp:1595`). **Resolved 2026-10-14:** owner chose the original menu behavior (4–5 → OpenAL Soft); `fefc4b3` restores the pre-extraction body and pins the mapping table in `tests/test_audio_backend.cpp`.
+8. **clang-only frontend error at `AddMessage` call sites (pre-existing)** — `Hunt.cpp:1225,1231` pass a ternary of string literals into `AddMessage(LPSTR)`; clang rejects it (`no matching function for call to 'AddMessage'`), MSVC accepts the permissive form, so the product builds. Introduced `250163bc` (2026-09-06), found when clang-tidy first ran over the TU during the ninth checkpoint. Not fixed here: the fix choice (const-qualify the parameter vs restructure the call) belongs in a dedicated `fix(...)` commit.
+9. **F10 debug menu PgDn behaves like PgUp (pre-existing)** — `Hunt.cpp:1222-1232`: both branches set `UnderwaterDebugTab = (UnderwaterDebugTab + 1) % 3`, so PgDn never steps the tab list backwards. Reachable via the F10 underwater debug menu (dev-facing overlay); the WS3 F10-overlay slice is the natural place to confirm the intended cycle.
 
 ## Progress log
 
@@ -233,3 +240,13 @@ audio 4–5 mapping resolved 2026-10-14 — see the progress log and Defect 7.)
 - Checkpoint (eighth): all four presets configure and build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Suite 473 cases across the 12 executables. Release flags clean (`/GS`, no `/GS-`) in ogl-release and soft-release. Comment hygiene: 268 files scanned plus a 211-file doc tree, only the WS4-owned Defect 6 finding. clang-tidy (LLVM 23.1.0): exit 0 on the eleven changed TUs, advisory diagnostics only — the two new include-cleaner hits on the audio test were silenced with a direct `Core/Constants.h` include before the checkpoint.
 - Observation: `PrintLoad`'s `loadtxt` (`Hunt/Game/Interface.cpp`) is write-only now that the commented-out copy is gone — a candidate for a later dead-code pass. The menu's `kFpsLimit*` defines stay put for the upcoming FPS-limiter slice, which should decide their shared home.
 - Next: WS3 continues — FPS limiter ×2, DPI/VK helpers ×2, ship spawn ×2, script-key predicate, F10 overlay GL+Soft, bound-fit merge, idle-group selector, menu OpenAL plumbing, TGA reader ×2, env presets triple-source, test fixtures/helpers.
+
+### 2026-10-14 — WS3 slices (FPS limiter, DPI/VK helpers, ship spawn) + ninth checkpoint
+
+- `3b15544` refactor(core): share the FPS limiter between the EXEs — the option indexes and the target table move into `Core/Constants.h` (`kFpsLimitOff/60/120/240/Count/Default`, `kFpsLimitValues`, `FpsLimitTarget`); the menu's `kFpsLimit*` defines, Hunt.cpp's `kFpsValues` and EngineInit.cpp's local `fpsValues` collapse onto them, and OptFpsLimit's default plus the effective-config log use the named values. New `Core/FrameLimiter.h` carries the queryPerformanceCounter pacer both loops spelled out (sleep whole milliseconds, spin the remainder, `timeBeginPeriod(1)` on first use), one instance per caller. The shared pacer advances the frame phase unconditionally (the menu's behavior); the engine copy skipped the phase update while Unlimited, which only affects the first frame after switching away from it.
+- `a763217` refactor(core): share the DPI-awareness and VK-mapping helpers — new `Core/DpiAwareness.h` holds the guard macro plus the runtime-resolved per-monitor-v2 opt-in both EXEs spelled out; `MapVKKey` moves into `Core/KeyBindings.h` with the menu's full mouse-button mapping. The engine's `Interface.cpp` copy (L/R buttons only, no callers) is deleted rather than merged.
+- `07118a1` refactor(hunt): share the ship spawn placement — file-local `PlaceShipBeyondView(TShip&)` in `Ship.cpp` replaces the two copies in AddShipSupply and InitShip (offset ctViewR+30 cells, floor 90, wrap past the left/top edge, lift to terrain + DeltaY + 1024).
+- Checkpoint (ninth): all four presets configure and build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Suite 473 cases. Release flags clean (`/GS`, no `/GS-`). Comment hygiene: 270 files scanned plus the 211-file doc tree, only the WS4-owned Defect 6.
+- clang-tidy (LLVM 23.1.0): exit 0 on five of the six changed TUs; `Hunt.cpp` reports two clang-only frontend errors at the `AddMessage` ternary-of-literals calls (1225/1231), introduced `250163bc` on 2026-09-06 and accepted by MSVC — logged as Defect 8 and left for a dedicated fix rather than folded into this batch.
+- Observation (logged as Defect 9): the F10 debug menu's PgUp and PgDn branches both advance the tab with `(tab + 1) % 3` (`Hunt.cpp:1222-1232`), so PgDn never steps backwards; the upcoming F10-overlay slice should confirm the intended cycle.
+- Next: WS3 continues — script-key predicate, F10 overlay GL+Soft, bound-fit merge, idle-group selector, menu OpenAL plumbing, TGA reader ×2, env presets triple-source, test fixtures/helpers.
