@@ -95,13 +95,6 @@ def check_coverage(root: Path = ROOT) -> None:
             key = f"env{env}_{field}"
             if key not in defaults or float(defaults[key]) != float(value):
                 raise ValueError(f"Missing/wrong compiled audio default: {key}")
-    package = (root / "tools/release/make-c2-package.ps1").read_text(encoding="utf-8")
-    package = package[package.index('@"', package.index("# Keep this in sync with CreateDefaultConfig")):]
-    package = package.split('"@ | Set-Content', 1)[0]
-    if entries(package) != defaults:
-        raise ValueError("Package and engine default values differ")
-    if {k: v for k, v in entries(package, True).items() if k in OPTIONAL} != {k: v for k, v in examples.items() if k in OPTIONAL}:
-        raise ValueError("Package and engine conditional examples differ")
     capacity = int(re.search(r"char buf\[(\d+)\];\s*int len2 = snprintf", engine)[1])
     if len(template.encode("utf-8")) + 1 > capacity:
         raise ValueError("Engine template exceeds its write buffer")
@@ -149,11 +142,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("config", nargs="?", type=Path)
     parser.add_argument("--apply", action="store_true", help="Append missing defaults; otherwise dry-run")
-    parser.add_argument("--check", action="store_true", help="Verify parser/template/audio/package coverage")
+    parser.add_argument("--check", action="store_true", help="Verify parser/template/audio coverage")
     args = parser.parse_args()
     check_coverage()
     if args.check:
-        print("PASS: supported readers, reverb presets, template capacity and package defaults agree")
+        print("PASS: supported readers, reverb presets and template capacity agree")
     if args.config:
         exists = args.config.exists()
         original = args.config.read_bytes() if exists else b""

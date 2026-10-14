@@ -2,11 +2,12 @@
 
 `c2_config_defaults.py` makes supported config controls discoverable without
 resetting owner settings. Requires Python 3.10 or later. The VS Code deployment
-script calls it automatically after building and before copying binaries.
+script calls it automatically after building and before copying binaries, and
+the release packaging script uses it to emit the packaged `config.cfg`.
 It refuses deployment while the game/menu is running; it never stops them.
 
 ```powershell
-# Inspect only; also checks source/template/package coverage.
+# Inspect only; also checks source/template coverage.
 python tools/c2_config_defaults.py E:/Games/CarnivoresLegacy/config.cfg
 
 # Append missing defaults and create a non-overwriting backup.
@@ -18,10 +19,10 @@ python tools/c2_config_defaults.py --check
 
 Defaults are extracted from `EngineInit.cpp::CreateDefaultConfig`, using the
 compiled FOV/object-detail constants and GPU feature mask. Checks cover the
-current engine and menu config readers, all effective reverb presets, release
-package defaults and first-run buffer capacity. A future key must be added to
-the template/package before the source gate passes. The check intentionally
-scopes the menu config parser, not its unrelated resource-script parsers.
+current engine and menu config readers, all effective reverb presets and the
+first-run buffer capacity. A future key must be added to the template before
+the source gate passes. The check intentionally scopes the menu config parser,
+not its unrelated resource-script parsers.
 
 ## Preservation rules
 
@@ -58,7 +59,7 @@ ctest --test-dir build/ogl-release-shipping --output-on-failure
 ```
 
 `Carnivores2Tests.ConfigDefaults` is registered with CTest. Tests cover
-production reader/package/audio parity, source-key negative control, custom
+production reader/audio parity, source-key negative control, custom
 values, duplicate keys, byte preservation, conditional examples, idempotence,
 unsupported encodings, first-run creation and backup safety. The build/test
 configuration now requires the Python interpreter. Full package assembly is

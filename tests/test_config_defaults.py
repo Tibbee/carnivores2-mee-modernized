@@ -107,7 +107,7 @@ class ConfigDefaultsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             for relative in ("Hunt/Game/EngineInit.cpp", "Hunt/Core/Constants.h", "Hunt/Core/GameState.h",
-                             "Hunt/Audio/Audio_DLL.cpp", "Menu/Resources.cpp", "tools/release/make-c2-package.ps1"):
+                             "Hunt/Audio/AudioInspection.h", "Menu/Resources.cpp"):
                 target = root / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(ROOT / relative, target)

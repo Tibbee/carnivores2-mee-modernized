@@ -110,7 +110,8 @@ redistributable from this repository, so they have to come from your own
 install. `-ReleaseNotesPath` is a markdown file shipped as `RELEASE-NOTES.md`,
 and it has to sit outside the staging folder.
 
-It also needs 7-Zip on `PATH`, or `-SevenZipPath`.
+It also needs 7-Zip on `PATH`, or `-SevenZipPath`, and Python 3.10+ on `PATH`,
+or `-PythonPath`, for the config template.
 
 The result in `pkg/`:
 
@@ -136,10 +137,11 @@ Two things worth knowing about what it does:
   against `VERSION_STRING` in `Hunt/Core/Version.h`, and a mismatch throws
   rather than shipping old code under a new label. If you get that error,
   rebuild the release presets.
-- **`config.cfg` is regenerated, not copied.** The packaging script maintains
-  a separate template that must stay synchronized with `CreateDefaultConfig()`
-  in `Hunt/Game/EngineInit.cpp`; it does not extract that source template.
-  The deployed folder's dev-tweaked `config.cfg` is deliberately never shipped.
+- **`config.cfg` is regenerated, not copied.** The script runs
+  `tools/c2_config_defaults.py`, which emits the engine's first-run template
+  (`CreateDefaultConfig()` in `Hunt/Game/EngineInit.cpp`), so the package and
+  the engine cannot drift apart. The deployed folder's dev-tweaked `config.cfg`
+  is deliberately never shipped.
 
 The package contains no data set. Drop your MEE 1.11 `HUNTDAT` next to the
 menu. `OpenAL32.dll` is there because the engine loads it by name rather than
