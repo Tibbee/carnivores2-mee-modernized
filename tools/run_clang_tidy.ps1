@@ -31,7 +31,8 @@ if (-not $clangTidy) {
     throw 'clang-tidy was not found on PATH.'
 }
 # Report the resolved version: CI pins the Chocolatey package while local runs
-# often use the LLVM bundled with the VS Code C++ extension (see clang-tidy.md).
+# often use the LLVM bundled with the VS Code C++ extension; the clang-tidy
+# notes under tools/ describe the policy.
 $clangTidyVersion = @(& $clangTidy.Source --version 2>&1 |
     Where-Object { $_ -match 'version' } | Select-Object -First 1)
 if (-not $clangTidyVersion) { $clangTidyVersion = 'unknown version' }

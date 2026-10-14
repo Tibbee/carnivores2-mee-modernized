@@ -108,7 +108,7 @@ foreach ($f in @($menuExe, $glExe, $softExe, $openal, $alsoft, $lgpl, $configToo
     if (-not (Test-Path -LiteralPath $f -PathType Leaf)) { throw "Missing required file: $f" }
 }
 # The staging folder is deleted before assembly. Do not accept its existing
-# RELEASE-NOTES.md as an input: it would vanish before Copy-Item reads it.
+# release-notes file as an input: it would vanish before Copy-Item reads it.
 $notesFullPath = (Resolve-Path -LiteralPath $ReleaseNotesPath).Path
 $stagingFullPath = [System.IO.Path]::GetFullPath($PkgDir).TrimEnd('\', '/')
 if ($notesFullPath.StartsWith($stagingFullPath + [System.IO.Path]::DirectorySeparatorChar,
