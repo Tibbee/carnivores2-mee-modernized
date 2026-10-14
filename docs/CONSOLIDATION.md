@@ -1,6 +1,6 @@
 # Consolidation Pass — C2 MEE
 
-> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 complete (17 clusters, 686 → 469 cases); WS3 foundational slices landed (config path resolution, load-policy pre-read, ConfigPersistence classifier); sixth four-preset checkpoint green; hygiene has 1 open finding (Defect 6, WS4-owned); clang-tidy runs locally (VS Code cpptools LLVM 23.1.0) and is clean on the latest changed files.
+> **Last verified:** 2026-10-14 — WS1 complete (1a-1g); WS2 complete (17 clusters, 686 → 469 cases); WS3 foundational slices and the staged config-scanner unification landed (menu/engine/pre-reader/merge now share the ConfigScan + ConfigMerge rules); seventh four-preset checkpoint green; hygiene has 1 open finding (Defect 6, WS4-owned); clang-tidy runs locally (VS Code cpptools LLVM 23.1.0) and is clean on the latest changed files.
 > **Branch:** `refactor/consolidation-pass`, worktree `Carnivores2MEE1.11/build/consolidation-pass`, based on `feat/modder-workbench` @ `4d05faa`.
 > **Status:** in progress. Owner approved the plan and the deletion of the disabled-species animation bundle. Only the Progress log and the task list below are authoritative for what is done; the ranked estimates come from the Phase 1 hunts.
 
@@ -82,7 +82,9 @@ TGA reader ×2 (~60) · env presets triple-source (~30) · test fixtures/helpers
 Landed (2026-10-14): config path resolution ×4 → `Hunt/Core/ConfigPath.h` (`ResolveReadPath`/`ResolveWritePath`; `e38b060`) ·
 load-policy pre-read ×2 → `ApplyLoadPolicyFromConfigFile` in `Loaders/LoadDiagnostics.h` (`f44c1fa`) ·
 ConfigPersistence classifier → shared `kMaxConfigBytes` + `IsUtf16ConfigText` in `Core/ConfigText.h` (`ae57db8`).
-Sixth four-preset checkpoint green. Next is the staged config-scanner unification; its staging policy awaits the owner call.
+Config-scanner unification (owner call: harness first, one consumer per commit): harness `e79b7d3` (`Core/ConfigScan.h` + parity corpus) ·
+pre-reader `c4020f7` · menu key-case fix `37cabec` · menu reader + `SaveConfig` merge `ae2613a` · engine reader `9bb92da`.
+Seventh four-preset checkpoint green; suite 472 cases. WS3 continues with the remaining unified-implementation items.
 
 ### WS4 — Build & tooling (~900 LOC)
 
@@ -201,3 +203,14 @@ GLSL include refactor. (`config-scanner staging policy` resolved 2026-10-14 — 
 
 - Staging policy: harness first — a pure `Core/ConfigScan.h` plus a parity corpus pinning today's engine/menu/pre-read behavior with no behavior change — then one consumer per commit: the load-policy pre-read, the menu (reader + `SaveConfig` merge onto `configmerge::Merge`), the engine reader.
 - Grammar: both spellings stay as-is. `load_mode=strict` keeps working through the pre-reader's `=` separator while every other key keeps the whitespace form; the harness pins both grammars as intentional rather than a bug.
+
+### 2026-10-14 — WS3 config-scanner unification + seventh checkpoint
+
+- `e79b7d3` refactor(config): add the shared config scanner and its parity corpus — `Hunt/Core/ConfigScan.h` yields the key/value fields the engine reader, menu reader and pre-reader each scan for today; `tests/test_config_scan.cpp` pins the readers' whitespace grammar (column-0 comments, \v/\f separators, missing values, `key=value` as one token) and the pre-reader's equals grammar, with a differential over the real `InitLoadPolicyFromConfigText`; no consumer wired yet. Suite 469 → 472.
+- `c4020f7` refactor(config): scan the load policy with the shared field scanner — the pre-reader drops its hand-rolled line/token loop for `configscan::Scan(WhitespaceOrEquals)`; `LoadKeyEquals` compares a scanner token. 1 file, −40/+17 lines.
+- `37cabec` fix(config): match menu keys case-insensitively like the engine (owner call) — `configscan::KeyEquals` becomes the one ASCII case-insensitive rule, ConfigMerge's duplicate `EqualKey` loop is dropped, and the coverage tool plus its test follow the new reader shape; suite 472 → 473.
+- `ae2613a` refactor(config): read and merge the menu config with the shared helpers — menu `LoadConfig` scans with `configscan::Scan`; `SaveConfig`'s merge branch moves onto `configmerge::Merge` (byte-preserving value-token updates, the file's own terminator for appends, earlier duplicates left inert), invalid owned entries are skipped with a notice (owner call), and the read/write turns binary with the first-run template's CRLF spelled out so terminators are never re-translated.
+- `9bb92da` refactor(config): scan the engine config with the shared field scanner — `CopyConfigToken` reproduces the `%63s` copy, the dispatch chain is untouched, and the night-lighting oversized-token guard moves inline (its raw-line helper and test are removed; the invalid-enum assertion moves into the strict-settings test). Suite 473 → 472.
+- Owner calls (all recorded above): staging — harness first, one consumer per commit; grammar — both spellings pinned; menu keys — case-insensitive like the engine; invalid save values — skip the entry, save the rest.
+- Checkpoint (seventh): all four presets configure and build clean. ctest: ogl-debug 16/16, ogl-release 16/16, soft-release 15/15, menu-release 15/15. Suite 472 cases across the 12 executables. Release flags clean (`/GS`, no `/GS-`) in ogl-release and soft-release. Comment hygiene: 266 files scanned, only the WS4-owned Defect 6 finding (unchanged). clang-tidy (LLVM 23.1.0): exit 0 on the changed TUs, advisory legacy diagnostics only.
+- Next: WS3 continues with the remaining unified-implementation items — shadow-TextOut ×6, menu constants vs `Core/Constants.h`, resolution list ×2, FPS limiter ×2, DPI/VK helpers ×2, ship spawn ×2, script-key predicate, F10 overlay GL+Soft, bound-fit merge, idle-group selector, menu OpenAL plumbing, TGA reader ×2, env presets triple-source, test fixtures/helpers.
