@@ -382,7 +382,7 @@ void ClearTagAllocations(MemoryTag tag)
 }
 #endif // MEM_DEBUG
 
-void AddMessage(LPSTR mt)
+void AddMessage(LPCSTR mt)
 {
   MessageList.timeleft = timeGetTime() + 2 * 1000;
   lstrcpy(MessageList.mtext, mt);
