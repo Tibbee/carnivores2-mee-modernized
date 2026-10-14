@@ -113,7 +113,7 @@ class ConfigDefaultsTests(unittest.TestCase):
                 shutil.copyfile(ROOT / relative, target)
             source = root / "Menu/Resources.cpp"
             text = source.read_text(encoding="utf-8")
-            text = text.replace('configscan::KeyEquals(key, "renderer")', 'configscan::KeyEquals(key, "new_config_setting")', 1)
+            text = text.replace('configscan::KeyEquals(field.key, "renderer")', 'configscan::KeyEquals(field.key, "new_config_setting")', 1)
             source.write_text(text, encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "new_config_setting"):
                 config.check_coverage(root)

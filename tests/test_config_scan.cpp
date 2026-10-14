@@ -6,7 +6,7 @@
 //   engine reader  Hunt/Game/EngineInit.cpp LoadConfig()
 //                  (sscanf_s "%63s %63s"; only column 0 starts a comment;
 //                   a missing value is logged and ignored)
-//   menu reader    Menu/Resources.cpp ParseConfigLine()
+//   menu reader    Menu/Resources.cpp ParseConfigField()
 //                  ("iss >> key", then a per-key value read; a '#'-prefixed
 //                   token is treated as a comment)
 //   pre-reader     Hunt/Loaders/LoadDiagnostics.h InitLoadPolicyFromConfigText()

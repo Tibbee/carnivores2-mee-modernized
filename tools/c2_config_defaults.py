@@ -69,10 +69,10 @@ def check_coverage(root: Path = ROOT) -> None:
     engine = (root / "Hunt/Game/EngineInit.cpp").read_text(encoding="utf-8")
     menu = (root / "Menu/Resources.cpp").read_text(encoding="utf-8")
     engine_reader = engine[engine.index("static void LoadConfig()\n{"):]
-    menu_reader = menu[menu.index("static bool ParseConfigLine("):menu.index("// Read config.cfg and override")]
+    menu_reader = menu[menu.index("static bool ParseConfigField("):menu.index("// Read config.cfg and override")]
     keys = set(re.findall(r'_stricmp\(key,\s*"([\w]+)"', engine_reader))
     # The menu reader matches keys through the shared configscan::KeyEquals.
-    keys.update(re.findall(r'KeyEquals\(key,\s*"([\w]+)"', menu_reader))
+    keys.update(re.findall(r'KeyEquals\(field\.key,\s*"([\w]+)"', menu_reader))
     keys.add("load_mode")  # Bootstrap parser runs before the main reader.
     missing = keys - OBSOLETE - defaults.keys() - examples.keys()
     if missing:

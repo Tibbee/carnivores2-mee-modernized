@@ -6,12 +6,11 @@
 
 #include "Core/ConfigScan.h"
 
-// Byte-preserving "key value" merge for config.cfg, used by the workbench's
-// ConfigPersistence save path. The menu's SaveConfig() follows the same policy
-// in intent but still has its own implementation, so the two writers are kept
-// from colliding by a disjoint key set (ConfigRegistry test) rather than by
-// shared code. This header stays pure -- no I/O, no platform headers -- so the
-// rules remain unit-testable without a filesystem.
+// Byte-preserving "key value" merge for config.cfg, used by both writers: the
+// workbench's ConfigPersistence save path and the menu's SaveConfig(). The two
+// writers are kept from colliding by a disjoint key set (ConfigRegistry test).
+// This header stays pure -- no I/O, no platform headers -- so the rules remain
+// unit-testable without a filesystem.
 //
 // The engine reader (Game/EngineInit.cpp LoadConfig) splits on \r and \n, skips
 // a line whose first character is '#', and reads the first two whitespace-

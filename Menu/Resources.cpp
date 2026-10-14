@@ -13,6 +13,7 @@
 #include <iostream>
 #include <filesystem>
 #include <iomanip>
+#include <iterator>
 #include <sstream>
 #include <fstream>
 #include <memory>
@@ -21,9 +22,9 @@
 #include <type_traits>
 #include <cstdlib>
 #include <cctype>
-#include <set>
 #include <vector>
 #include "../Hunt/Core/Flashlight.h"
+#include "Core/ConfigMerge.h"
 #include "Core/ConfigPath.h"
 #include "Core/ConfigScan.h"
 #include "Core/ConfigText.h"
@@ -2016,15 +2017,14 @@ void SaveConfig()
 {
 	std::string configPath = configpath::ResolveWritePath();
 
-	// Snapshot lines this build does not own (user comments, game-side
-	// envN_* audio keys, future keys) so the rewrite preserves them
-	// verbatim, in place. Without this, every save silently deletes hand
-	// edits and the render exe's audio tweaks.
-	std::vector<std::string> oldLines;
+	// Snapshot the existing bytes so everything this build does not own
+	// (user comments, game-side envN_* audio keys, future keys) is carried
+	// through byte-exact by the merge below. Without this, every save
+	// silently deletes hand edits and the render exe's audio tweaks.
+	std::string existing;
 	{
-		std::ifstream in(configPath);
-		std::string l;
-		while (std::getline(in, l)) oldLines.push_back(l);
+		std::ifstream in(configPath, std::ios::binary);
+		existing.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
 	}
 
 	// Fresh renderings of every key this build owns, in canonical order.
@@ -2066,58 +2066,68 @@ void SaveConfig()
 		fresh.emplace_back("hunt_time", std::to_string(g_SavedHuntTime));
 	}
 
-	std::ofstream fs(configPath, std::ios::trunc);
+	std::string output;
+	if (existing.empty()) {
+		// First run: canonical file, exactly as before (CRLF like the engine's
+		// CreateDefaultConfig template; written in binary mode below).
+		output = "# Carnivores 2 Modder's Engine configuration\r\n";
+		output += "# Edit by hand if needed — values are validated on load.\r\n";
+		output += "\r\n";
+		for (const auto& kv : fresh)
+			output += kv.first + " " + kv.second + "\r\n";
+	} else {
+		// Merge with the workbench's byte-preserving policy (Core/ConfigMerge.h):
+		// only an owned key's value token is rewritten, comments and unowned
+		// keys pass through verbatim, and absent keys append once. An earlier
+		// duplicate of an owned key is left alone -- the readers let the last
+		// occurrence win, so it is inert.
+		const auto writable = [](const std::pair<std::string, std::string>& kv) {
+			if (kv.first.empty() || kv.second.empty() || kv.first.front() == '#') return false;
+			return kv.first.find_first_of(" \t\r\n") == std::string::npos &&
+			       kv.second.find_first_of(" \t\r\n") == std::string::npos;
+		};
+		std::vector<configmerge::Entry> entries;
+		for (const auto& kv : fresh) {
+			// A value that cannot round-trip (empty, or a space-containing
+			// hunt_area) is skipped with a notice; the rest of the save lands.
+			if (!writable(kv)) {
+				std::cout << "Config: skipping " << kv.first
+				          << " (not a single-token key value)" << std::endl;
+				continue;
+			}
+			entries.push_back({kv.first, kv.second});
+		}
+		const auto merged = configmerge::Merge(existing, entries);
+		if (!merged.ok) {
+			std::cout << "Config: merge failed (" << merged.error
+			          << "); the file was left unchanged." << std::endl;
+			return;
+		}
+		output = merged.text;
+	}
+
+	// Opened only after the new bytes are known, and binary so the merge's
+	// terminators are written as-is (text mode would double the CRs); a
+	// refusal never leaves a truncated file behind.
+	std::ofstream fs(configPath, std::ios::trunc | std::ios::binary);
 	if (!fs.is_open()) {
 		std::cout << "Config: could not write " << configPath << std::endl;
 		return;
 	}
-
-	if (oldLines.empty()) {
-		// First run: canonical file, exactly as before.
-		fs << "# Carnivores 2 Modder's Engine configuration\n";
-		fs << "# Edit by hand if needed — values are validated on load.\n";
-		fs << "\n";
-		for (const auto& kv : fresh) fs << kv.first << " " << kv.second << "\n";
-	} else {
-		// Merge: owned keys get fresh values in place (comments and
-		// unowned keys pass through verbatim, so hand edits and the
-		// render exe's audio keys survive); brand-new keys append once.
-		// A stale duplicate of an owned key is dropped -- the parser lets
-		// the last line win, so keeping it would override the fresh value.
-		std::set<std::string> written;
-		for (const auto& l : oldLines) {
-			size_t b = l.find_first_not_of(" \t");
-			std::string key;
-			if (b != std::string::npos && l[b] != '#') {
-				size_t e = l.find_first_of(" \t", b);
-				key = l.substr(b, e == std::string::npos ? e : e - b);
-			}
-			auto it = fresh.end();
-			for (auto f = fresh.begin(); f != fresh.end(); ++f)
-				if (f->first == key) { it = f; break; }
-			if (it == fresh.end()) { fs << l << "\n"; continue; }
-			if (written.count(key)) continue;
-			fs << it->first << " " << it->second << "\n";
-			written.insert(key);
-		}
-		for (const auto& kv : fresh)
-			if (!written.count(kv.first)) fs << kv.first << " " << kv.second << "\n";
-	}
+	fs << output;
 
 	std::cout << "Config Saved (" << configPath << ")." << std::endl;
 }
 
-// Parse a single "key value" line. Keys match case-insensitively, like the
+// Apply one scanned config.cfg field. Keys match case-insensitively, like the
 // engine loader, so a hand-written "FOV 62" is not silently ignored here while
-// the engine honours it. Returns true if the key was recognised.
-static bool ParseConfigLine(const std::string& line)
+// the engine honours it; a missing value leaves the setting unchanged.
+// Returns true if the key was recognised.
+static bool ParseConfigField(const configscan::Field& field)
 {
-	std::istringstream iss(line);
-	std::string key;
-	if (!(iss >> key)) return false;
-	if (key[0] == '#') return false;  // comment
+	std::istringstream iss(std::string(field.value));
 
-	if (configscan::KeyEquals(key, "renderer")) {
+	if (configscan::KeyEquals(field.key, "renderer")) {
 		int v;
 		if (iss >> v) {
 			// 0=Software, 1=OpenGL. Legacy Direct3D values are normalized
@@ -2127,7 +2137,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (configscan::KeyEquals(key, "fov")) {
+	if (configscan::KeyEquals(field.key, "fov")) {
 		int v;
 		if (iss >> v) {
 			if (v < kFovMin) v = kFovMin;
@@ -2137,7 +2147,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (configscan::KeyEquals(key, "object_detail")) {
+	if (configscan::KeyEquals(field.key, "object_detail")) {
 		int v;
 		if (iss >> v) {
 			v = ClampMenuObjectDetail(v);
@@ -2146,7 +2156,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (configscan::KeyEquals(key, "fps_limit")) {
+	if (configscan::KeyEquals(field.key, "fps_limit")) {
 		int v;
 		if (iss >> v) {
 			if (v < 0) v = 0;
@@ -2156,7 +2166,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (configscan::KeyEquals(key, "verbose_logging")) {
+	if (configscan::KeyEquals(field.key, "verbose_logging")) {
 		int v;
 		if (iss >> v) {
 			g_Options.VerboseLogging = (v != 0);
@@ -2164,7 +2174,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (configscan::KeyEquals(key, "nightvision_key")) {
+	if (configscan::KeyEquals(field.key, "nightvision_key")) {
 		int v;
 		if (iss >> v) {
 			g_Options.NightVisionKey = v;
@@ -2172,7 +2182,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (configscan::KeyEquals(key, "flashlight_key")) {
+	if (configscan::KeyEquals(field.key, "flashlight_key")) {
 		int v;
 		if (iss >> v) {
 			g_Options.FlashlightKey = ClampFlashlightKey(v);
@@ -2180,7 +2190,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (configscan::KeyEquals(key, "resolution")) {
+	if (configscan::KeyEquals(field.key, "resolution")) {
 		int w = 0, h = 0;
 		char x = 0;
 		if (iss >> w >> x >> h && (x == 'x' || x == 'X') && w > 0 && h > 0) {
@@ -2195,7 +2205,7 @@ static bool ParseConfigLine(const std::string& line)
 		return true;
 	}
 
-	if (configscan::KeyEquals(key, "display_mode")) {
+	if (configscan::KeyEquals(field.key, "display_mode")) {
 		int v;
 		if (iss >> v) {
 			if (v >= 0 && v <= 2)
@@ -2207,7 +2217,7 @@ static bool ParseConfigLine(const std::string& line)
 	// Last hunt setup (see SaveConfig). Everything is validated again
 	// against the live lists on restore, so stale/modded values can only
 	// fall back to defaults, never select out of range.
-	if (configscan::KeyEquals(key, "hunt_area")) {
+	if (configscan::KeyEquals(field.key, "hunt_area")) {
 		std::string v;
 		if (iss >> v && v.size() < 128) {
 			g_SavedHuntArea = v;
@@ -2215,17 +2225,17 @@ static bool ParseConfigLine(const std::string& line)
 		}
 		return true;
 	}
-	if (configscan::KeyEquals(key, "hunt_dinos") || configscan::KeyEquals(key, "hunt_weapons") || configscan::KeyEquals(key, "hunt_utils")) {
+	if (configscan::KeyEquals(field.key, "hunt_dinos") || configscan::KeyEquals(field.key, "hunt_weapons") || configscan::KeyEquals(field.key, "hunt_utils")) {
 		unsigned long long v;
 		if (iss >> v) {
-			if (configscan::KeyEquals(key, "hunt_dinos")) g_SavedHuntDinos = v;
-			else if (configscan::KeyEquals(key, "hunt_weapons")) g_SavedHuntWeapons = v;
+			if (configscan::KeyEquals(field.key, "hunt_dinos")) g_SavedHuntDinos = v;
+			else if (configscan::KeyEquals(field.key, "hunt_weapons")) g_SavedHuntWeapons = v;
 			else g_SavedHuntUtils = v;
 			g_HasSavedHunt = true;
 		}
 		return true;
 	}
-	if (configscan::KeyEquals(key, "hunt_time")) {
+	if (configscan::KeyEquals(field.key, "hunt_time")) {
 		int v;
 		if (iss >> v && v >= HUNT_DAWN && v <= HUNT_NIGHT) {
 			g_SavedHuntTime = v;
@@ -2259,10 +2269,8 @@ void LoadConfig()
 	if (nulBytes) {
 		std::cout << "Config: recovered " << nulBytes << " NUL padding bytes; please resave config.cfg." << std::endl;
 	}
-	std::string line;
-	std::istringstream iss(whole);
-	while (std::getline(iss, line)) {
-		ParseConfigLine(line);
+	for (const configscan::Field& field : configscan::Scan(whole)) {
+		ParseConfigField(field);
 	}
 
 	std::cout << "Config Loaded (" << configPath << ")." << std::endl;

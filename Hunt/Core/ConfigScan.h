@@ -5,7 +5,7 @@
 
 // Shared field scanner for config.cfg: the tokenizer that the engine reader
 // (Game/EngineInit.cpp LoadConfig), the menu reader (Menu/Resources.cpp
-// ParseConfigLine/LoadConfig) and the load-policy pre-reader
+// ParseConfigField/LoadConfig) and the load-policy pre-reader
 // (Loaders/LoadDiagnostics.h InitLoadPolicyFromConfigText) each carry a copy
 // of today. It yields only what those readers agree on structurally; value
 // interpretation (ranges, clamps, strict parsing) stays with the consumer.
