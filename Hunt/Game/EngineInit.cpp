@@ -449,7 +449,7 @@ void InitEngine()
 
   OptViewR = kViewOptDefault;
   OptObjectDetail = kObjectDetailDefault;
-OptFpsLimit = 1;  // 1 = 60 FPS (0 remains available for unlimited)
+OptFpsLimit = kFpsLimitDefault;  // 0 remains available for unlimited
 
   // Default key bindings (mirror Menu Options::Default). LoadTrophy()
   // overwrites these from the save; without defaults a missing/short save
@@ -483,10 +483,9 @@ OptFpsLimit = 1;  // 1 = 60 FPS (0 remains available for unlimited)
   // part of the legacy binary trophy format (e.g. OptFov).
   LoadConfig();
   {
-    const int fpsValues[] = {0, 60, 120, 240};
     char msg[192];
     sprintf_s(msg, sizeof(msg), "Config effective: fps_limit=%d (%d FPS; 0=unlimited), fov=%d, object_detail=%d\n",
-              OptFpsLimit, fpsValues[OptFpsLimit], OptFov, OptObjectDetail);
+              OptFpsLimit, FpsLimitTarget(OptFpsLimit), OptFov, OptObjectDetail);
     PrintLog(msg);
   }
 

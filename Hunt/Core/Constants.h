@@ -207,6 +207,26 @@ inline float FovScaleFromDegrees(int fovDeg)
     return 1.0f / tanf((float)fovDeg * 3.1415926535f / 360.0f);
 }
 
+// ===================== FPS Limit =====================
+
+inline constexpr int kFpsLimitOff     = 0; // Unlimited
+inline constexpr int kFpsLimit60      = 1;
+inline constexpr int kFpsLimit120     = 2;
+inline constexpr int kFpsLimit240     = 3;
+inline constexpr int kFpsLimitCount   = 4;
+inline constexpr int kFpsLimitDefault = kFpsLimit60;
+
+// Option index -> target FPS; 0 = unlimited. Out-of-range indexes read as
+// unlimited, matching the menu's historical fallback for invalid saves.
+inline constexpr int kFpsLimitValues[kFpsLimitCount] = { 0, 60, 120, 240 };
+
+inline int FpsLimitTarget(int optionIndex)
+{
+    if (optionIndex < 0 || optionIndex >= kFpsLimitCount)
+        return kFpsLimitValues[kFpsLimitOff];
+    return kFpsLimitValues[optionIndex];
+}
+
 // ===================== Misc Constants =====================
 
 inline constexpr int PMORPHTIME = 256;

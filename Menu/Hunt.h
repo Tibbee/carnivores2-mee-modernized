@@ -26,14 +26,6 @@
 #include "Core/Constants.h"
 #include "Core/ResolutionList.h"
 
-// FPS limit option indexes
-#define kFpsLimitOff      0   // Unlimited
-#define kFpsLimit60       1
-#define kFpsLimit120      2
-#define kFpsLimit240      3
-#define kFpsLimitCount    4
-#define kFpsLimitDefault  kFpsLimit60
-
 enum HuntTimeEnum {
 	HUNT_DAWN = 0,
 	HUNT_DAY = 1,

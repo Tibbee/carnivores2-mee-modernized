@@ -8,6 +8,7 @@
 
 #define _MAIN_
 #include "Hunt.h"
+#include "Core/FrameLimiter.h"
 
 #include "resource.h" // For IDI_ICON1
 
@@ -17,7 +18,6 @@
 #include <sstream>
 #include <thread>
 #include <chrono>
-#include <timeapi.h>
 
 // Network stubs (menu does not require networking)
 void InitNetwork();
@@ -372,36 +372,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 			{
 				ProcessMenu();
 
-				// FPS limiter -- honours the user's FPS limit setting.
-				// 0=Unlimited, 1=60, 2=120, 3=240.
-				static LARGE_INTEGER menuFreq = { 0 };
-				static LARGE_INTEGER menuFrameStart = { 0 };
-				static bool menuFpsInit = false;
-				static const INT64 kTargetUs[4] = { 0, 16667, 8333, 4167 };
-				if (!menuFpsInit) {
-					QueryPerformanceFrequency(&menuFreq);
-					QueryPerformanceCounter(&menuFrameStart);
-					timeBeginPeriod(1);
-					menuFpsInit = true;
-				}
-				const int fpsIdx = (g_Options.OptFpsLimit >= 0 && g_Options.OptFpsLimit < 4)
-				                   ? g_Options.OptFpsLimit : 0;
-				const INT64 target_us = kTargetUs[fpsIdx];
-				if (target_us > 0) {
-					LARGE_INTEGER now;
-					QueryPerformanceCounter(&now);
-					INT64 elapsed = (now.QuadPart - menuFrameStart.QuadPart) * 1000000 / menuFreq.QuadPart;
-					if (elapsed < target_us) {
-						DWORD sleep_ms = static_cast<DWORD>((target_us - elapsed) / 1000);
-						if (sleep_ms > 0) Sleep(sleep_ms);
-						// Spin for the remaining sub-ms remainder only
-						do {
-							QueryPerformanceCounter(&now);
-							elapsed = (now.QuadPart - menuFrameStart.QuadPart) * 1000000 / menuFreq.QuadPart;
-						} while (elapsed < target_us);
-					}
-				}
-				QueryPerformanceCounter(&menuFrameStart);
+				// FPS limiter -- honours the user's FPS limit setting
+				// through the shared option table (Core/Constants.h).
+				static framelimiter::FrameLimiter frameLimiter;
+				frameLimiter.WaitUntilFrameEnd(FpsLimitTarget(g_Options.OptFpsLimit));
 
 				if (GetActiveWindow() != hwndMain) {
 					// Sleep when the window is not the active one (10 ticks/frames per second)

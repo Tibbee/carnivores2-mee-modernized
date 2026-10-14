@@ -1,4 +1,5 @@
 #include "Hunt.h"
+#include "Core/FrameLimiter.h"
 #include "Core/KeyBindings.h"
 #include "Core/TerrainFog.h"
 #include "Core/UnattendedCapture.h"
@@ -11,7 +12,6 @@
 #endif
 #include <cmath>
 #include <algorithm>
-#include <timeapi.h>
 
 #ifndef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
 #define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 ((DPI_AWARENESS_CONTEXT)-4)
@@ -1586,38 +1586,11 @@ BOOL CreateMainWindow()
 
 
 
-// FPS limit values matching menu indexes: 0=Unlimited, 1=60, 2=120, 3=240
-static const int kFpsValues[] = { 0, 60, 120, 240 };
-
+// Paces the frame from the shared FPS-limit option table (Core/Constants.h).
 static void LimitFPS()
 {
-	int targetFps = kFpsValues[OptFpsLimit];
-	if (targetFps <= 0) return;
-
-	static LARGE_INTEGER freq = { 0 };
-	static LARGE_INTEGER frameStart = { 0 };
-	static bool init = false;
-
-	if (!init) {
-		QueryPerformanceFrequency(&freq);
-		QueryPerformanceCounter(&frameStart);
-		timeBeginPeriod(1);
-		init = true;
-	}
-
-	INT64 target_us = 1000000 / targetFps;
-	LARGE_INTEGER now;
-	QueryPerformanceCounter(&now);
-	INT64 elapsed_us = (now.QuadPart - frameStart.QuadPart) * 1000000 / freq.QuadPart;
-
-	while (elapsed_us < target_us) {
-		if (target_us - elapsed_us > 2000)
-			Sleep(1);
-		QueryPerformanceCounter(&now);
-		elapsed_us = (now.QuadPart - frameStart.QuadPart) * 1000000 / freq.QuadPart;
-	}
-
-	QueryPerformanceCounter(&frameStart);
+	static framelimiter::FrameLimiter limiter;
+	limiter.WaitUntilFrameEnd(FpsLimitTarget(OptFpsLimit));
 }
 
 void ProcessGame()
