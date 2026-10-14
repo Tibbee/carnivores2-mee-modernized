@@ -96,9 +96,9 @@ PGO presets (owner) · flashlight GLSL tri-copy (~90, high risk, needs owner vis
 
 ### Owner decisions still open
 
-Menu `SaveConfig` unification · trophy format/filename fix · packaging Python dependency ·
+Trophy format/filename fix · packaging Python dependency ·
 `C2_BUILD_TESTS` CI build-time trade · PGO removal or experimental labelling · `comments.py` delete vs document ·
-GLSL include refactor. (`config-scanner staging policy` resolved 2026-10-14 — see the progress log.)
+GLSL include refactor. (`config-scanner staging policy` and the menu `SaveConfig` unification resolved 2026-10-14 — see the progress log.)
 
 ## Defects logged (not fixed without an owner call)
 
