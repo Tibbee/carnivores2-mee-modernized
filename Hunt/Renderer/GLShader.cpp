@@ -7,51 +7,11 @@
 
 #include "Hunt.h"
 #include "GLShader.h"
+#include "ShaderIncludes.h"
 
 #ifdef _gl
 
-#include <cstdio>
-#include <vector>
-
-// --------------------------------------------------------------------------
-// Internal helper: read an entire text file into a std::string.
-// Returns an empty string on failure (and logs the error).
-// --------------------------------------------------------------------------
-static std::string ReadTextFile(const char* path)
-{
-    FILE* fp = std::fopen(path, "rb");
-    if (!fp) {
-        LOG_ERROR("GLShader: failed to open '%s'", path);
-        return {};
-    }
-
-    // Seek to end to determine size
-    std::fseek(fp, 0, SEEK_END);
-    long size = std::ftell(fp);
-    std::fseek(fp, 0, SEEK_SET);
-
-    if (size <= 0) {
-        LOG_ERROR("GLShader: '%s' is empty", path);
-        std::fclose(fp);
-        return {};
-    }
-
-    std::string contents;
-    contents.resize(static_cast<size_t>(size));
-    size_t bytesRead = std::fread(&contents[0], 1, static_cast<size_t>(size), fp);
-    std::fclose(fp);
-
-    if (bytesRead != static_cast<size_t>(size)) {
-        LOG_ERROR("GLShader: short read on '%s' (%zu of %ld)", path, bytesRead, size);
-        return {};
-    }
-
-    // Strip trailing nulls and carriage returns (Windows line endings)
-    while (!contents.empty() && (contents.back() == '\0' || contents.back() == '\r'))
-        contents.pop_back();
-
-    return contents;
-}
+#include <string>
 
 // ==========================================================================
 // GLShader implementation
@@ -92,19 +52,19 @@ bool GLShader::LoadFromFile(const char* vertPath, const char* fragPath)
 {
     Release();
 
-    std::string vertSrc = ReadTextFile(vertPath);
-    if (vertSrc.empty()) {
-        LOG_ERROR("GLShader: failed to read vertex shader '%s'", vertPath);
+    const shaderinclude::Result vert = shaderinclude::ExpandFile(vertPath);
+    if (!vert.ok) {
+        LOG_ERROR("GLShader: failed to load vertex shader '%s': %s", vertPath, vert.error.c_str());
         return false;
     }
 
-    std::string fragSrc = ReadTextFile(fragPath);
-    if (fragSrc.empty()) {
-        LOG_ERROR("GLShader: failed to read fragment shader '%s'", fragPath);
+    const shaderinclude::Result frag = shaderinclude::ExpandFile(fragPath);
+    if (!frag.ok) {
+        LOG_ERROR("GLShader: failed to load fragment shader '%s': %s", fragPath, frag.error.c_str());
         return false;
     }
 
-    return LoadFromSource(vertSrc.c_str(), fragSrc.c_str());
+    return LoadFromSource(vert.text.c_str(), frag.text.c_str());
 }
 
 // --------------------------------------------------------------------------

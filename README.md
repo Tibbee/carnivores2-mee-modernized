@@ -36,7 +36,8 @@ The rendering and audio stack is the biggest change:
   are gone, along with the need to install either. Software rendering is also
   still there and was reworked rather than replaced. It is a real fallback, not
   a stub.
-- **Shaders live on disk** in `shaders/`, twelve files. You can edit fog, water
+- **Shaders live on disk** in `shaders/`, twelve shader programs plus one
+  shared include. You can edit fog, water
   or sky behaviour without recompiling.
 - **OpenAL audio** loaded by name at runtime, so swapping the DLL is enough.
   Reverb presets are tunable per environment from `config.cfg`.

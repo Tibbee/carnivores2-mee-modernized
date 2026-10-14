@@ -130,6 +130,7 @@ if(RENDERER)
             Hunt/Renderer/GLWater.cpp
             Hunt/Renderer/GLShader.h
             Hunt/Renderer/GLShader.cpp
+            Hunt/Renderer/ShaderIncludes.h
             Hunt/Renderer/GLPerf.h
             Hunt/Renderer/GLPerf.cpp
             Hunt/Renderer/GLUI.cpp
@@ -335,7 +336,8 @@ if(RENDERER)
     # Keep configure-time copies fresh during incremental shader iteration.
     file(GLOB C2_SHADER_INPUTS CONFIGURE_DEPENDS
         ${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.vert
-        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.frag)
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.frag
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.glsl)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${C2_SHADER_INPUTS})
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders DESTINATION ${CMAKE_BINARY_DIR}/bin)
 endif()
@@ -396,6 +398,7 @@ if(MSVC AND C2_BUILD_TESTS)
         tests/test_legacy_scalar_differential.cpp
         tests/test_load_diagnostics.cpp
         tests/test_script_value_parse.cpp
+        tests/test_shader_includes.cpp
         tests/test_game_mode.cpp
         tests/test_math.cpp
         tests/test_bound_fit.cpp

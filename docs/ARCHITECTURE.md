@@ -84,9 +84,10 @@ Hunt/                              engine
 ├── Network/                       NetworkManager.cpp/.h, inherited
 └── Debug/                         Log.cpp/.h
 
-shaders/            12 GLSL files, loaded from disk at runtime
+shaders/            13 GLSL files, loaded from disk at runtime
 ├── terrain, model, instanced_model, ui, night_desat, sky
-└── each as a .vert / .frag pair
+├── each as a .vert / .frag pair
+└── flashlight.glsl — one shared fragment included by the three world shaders
 
 Menu/               the standalone menu (Carnivores2Menu.exe)
 tests/              unit and contract tests, plus the smoke test harness
@@ -147,7 +148,7 @@ enormous and several of them doing more than one job.
 | `Render3DFX.cpp` (Glide) | 5,054 lines | deleted |
 | `RendererD3D.cpp` (Direct3D) | 6,238 lines | deleted |
 | `RenderSoft.cpp` | 3,363 lines | `RenderSoft.cpp` + 9 `Soft*.cpp` files |
-| Shaders | inline C++ strings | 12 files in `shaders/` |
+| Shaders | inline C++ strings | 12 shader programs plus one shared include in `shaders/` |
 | Audio | `Audio_DLL.cpp`, 175 lines | `Audio/` with a real OpenAL loader |
 | Software renderer | 3,363 lines in one file | 3,906 lines across `RenderSoft.cpp` + 9 `Soft*.cpp` files, with its own HUD and debug menu |
 | OpenGL | none | new `GLRenderer` and 14 `GL*.cpp` files |

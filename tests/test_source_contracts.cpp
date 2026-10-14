@@ -122,23 +122,23 @@ TEST(SourceContracts, SkyAndMoonWiring) {
 }
 
 TEST(SourceContracts, DrawPassAndShaderWiring) {
-    // The night-lighting and flashlight blocks are byte-identical across the
-    // three world shaders, and restoration runs before re-illumination.
+    // The night-lighting and flashlight blocks live in one included file that
+    // every world shader pulls in; restoration still runs before re-illumination.
+    const auto sharedLighting = Source("shaders/flashlight.glsl");
     const auto terrain = Source("shaders/terrain.frag");
     const auto model = Source("shaders/model.frag");
     const auto instanced = Source("shaders/instanced_model.frag");
-    const auto nightBlock = Block(terrain, "// BEGIN NIGHT LIGHTING", "// END NIGHT LIGHTING");
-    const auto beamBlock = Block(terrain, "void ApplyFlashlight(", "// Night defaults");
-    ASSERT_FALSE(nightBlock.empty());
-    ASSERT_FALSE(beamBlock.empty());
-    EXPECT_NE(nightBlock.find("uNightSettings.y * uNightStrength"), std::string::npos);
-    EXPECT_NE(nightBlock.find("mix(1.0, uNightSettings.x, uNightStrength)"), std::string::npos);
-    EXPECT_NE(nightBlock.find("clamp(uFlashlight.x * cone * atten, 0.0, 1.0)"), std::string::npos);
-    EXPECT_NE(nightBlock.find("mix(color, originalColor, restoration)"), std::string::npos);
+    EXPECT_NE(sharedLighting.find("uNightSettings.y * uNightStrength"), std::string::npos);
+    EXPECT_NE(sharedLighting.find("mix(1.0, uNightSettings.x, uNightStrength)"), std::string::npos);
+    EXPECT_NE(sharedLighting.find("clamp(uFlashlight.x * cone * atten, 0.0, 1.0)"), std::string::npos);
+    EXPECT_NE(sharedLighting.find("mix(color, originalColor, restoration)"), std::string::npos);
+    EXPECT_NE(sharedLighting.find("void ApplyFlashlight("), std::string::npos);
+    EXPECT_NE(sharedLighting.find("void ApplyNightLighting("), std::string::npos);
+    EXPECT_NE(sharedLighting.find("uNightSettings = vec4(0.22, 0.85, 0.60, 1.0)"), std::string::npos);
     for (const auto* shader : {&terrain, &model, &instanced}) {
-        EXPECT_EQ(Block(*shader, "// BEGIN NIGHT LIGHTING", "// END NIGHT LIGHTING"), nightBlock);
-        EXPECT_EQ(Block(*shader, "void ApplyFlashlight(", "// Night defaults"), beamBlock);
-        EXPECT_NE(shader->find("uNightSettings = vec4(0.22, 0.85, 0.60, 1.0)"), std::string::npos);
+        EXPECT_NE(shader->find("#include \"flashlight.glsl\""), std::string::npos);
+        EXPECT_EQ(shader->find("void ApplyFlashlight("), std::string::npos);
+        EXPECT_EQ(shader->find("void ApplyNightLighting("), std::string::npos);
         const auto restore = shader->find("ApplyNightLighting(finalColor, beamDistance, beamCos);");
         const auto illuminate = shader->find("ApplyFlashlight(finalColor, beamDistance, beamCos);");
         ASSERT_NE(restore, std::string::npos);
