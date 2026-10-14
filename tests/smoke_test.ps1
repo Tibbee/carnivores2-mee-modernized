@@ -108,41 +108,13 @@ if ($running) {
 # on the pixels.
 #
 # This uses the same window discovery and client capture as
-# tools/c2_capture_matrix.ps1, so both agree on what the engine client is.
+# tools/c2_capture_matrix.ps1 (both dot-source tools/c2_native_windows.ps1),
+# so they agree on what the engine client is by construction.
 # ---------------------------------------------------------------------------
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-using System.Text;
-public static class C2SmokeNative {
-    public delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
-    [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
-    [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
-    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
-    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr hwnd, StringBuilder className, int maxCount);
-    [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr hwnd, out RECT rect);
-    [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr hwnd, ref POINT point);
-    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
-    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hwnd, int command);
-    [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hwnd);
-    [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
-    public static IntPtr FindHuntWindowForProcess(int processId) {
-        IntPtr found = IntPtr.Zero;
-        EnumWindows(delegate(IntPtr hwnd, IntPtr ignored) {
-            uint owner; GetWindowThreadProcessId(hwnd, out owner);
-            if (owner != (uint)processId) return true;
-            StringBuilder name = new StringBuilder(128); GetClassName(hwnd, name, name.Capacity);
-            if (name.ToString() != "HuntRenderWindow") return true;
-            found = hwnd; return false;
-        }, IntPtr.Zero);
-        return found;
-    }
-}
-"@
-try { [C2SmokeNative]::SetProcessDpiAwarenessContext([IntPtr]::new(-4)) | Out-Null } catch { }
+. (Join-Path $PSScriptRoot '../tools/c2_native_windows.ps1')
+try { [C2NativeWindows]::SetProcessDpiAwarenessContext([IntPtr]::new(-4)) | Out-Null } catch { }
 
 $SW_MINIMIZE = 6
 $SW_RESTORE = 9
@@ -151,7 +123,7 @@ function Resolve-RenderHwnd {
     param([System.Diagnostics.Process]$Process)
     # C2 keeps a separate loading/progress window that can also be
     # MainWindowHandle. Only the renderer class owned by this process counts.
-    return [C2SmokeNative]::FindHuntWindowForProcess($Process.Id)
+    return [C2NativeWindows]::FindHuntWindowForProcess($Process.Id)
 }
 
 function Wait-RenderHwnd {
@@ -161,8 +133,8 @@ function Wait-RenderHwnd {
         if ($Process.HasExited) { throw "Game exited before its renderer window appeared (exit $($Process.ExitCode))." }
         $hwnd = Resolve-RenderHwnd $Process
         if ($hwnd -ne [IntPtr]::Zero) {
-            $rect = New-Object C2SmokeNative+RECT
-            if ([C2SmokeNative]::GetClientRect($hwnd, [ref]$rect) -and ($rect.R - $rect.L) -gt 1 -and ($rect.B - $rect.T) -gt 1) {
+            $rect = New-Object C2NativeWindows+RECT
+            if ([C2NativeWindows]::GetClientRect($hwnd, [ref]$rect) -and ($rect.R - $rect.L) -gt 1 -and ($rect.B - $rect.T) -gt 1) {
                 return [pscustomobject]@{ Hwnd = $hwnd; Width = $rect.R - $rect.L; Height = $rect.B - $rect.T }
             }
         }
@@ -178,8 +150,8 @@ function Get-ClientLuminance {
       failure this exists to catch.
     #>
     param([IntPtr]$Hwnd, [int]$Width, [int]$Height, [string]$OutPng = "")
-    $origin = New-Object C2SmokeNative+POINT
-    if (-not [C2SmokeNative]::ClientToScreen($Hwnd, [ref]$origin)) { throw "ClientToScreen failed." }
+    $origin = New-Object C2NativeWindows+POINT
+    if (-not [C2NativeWindows]::ClientToScreen($Hwnd, [ref]$origin)) { throw "ClientToScreen failed." }
     $screen = [System.Windows.Forms.SystemInformation]::VirtualScreen
     if ($origin.X -lt $screen.Left -or $origin.Y -lt $screen.Top -or
         ($origin.X + $Width) -gt $screen.Right -or ($origin.Y + $Height) -gt $screen.Bottom) {
@@ -261,17 +233,17 @@ function Invoke-FrameChecks {
 
     $window = Wait-RenderHwnd $Process ([Math]::Max(5, [int]($BudgetSeconds * 0.5)))
     Write-Host "  Renderer client: $($window.Width)x$($window.Height)"
-    [C2SmokeNative]::SetForegroundWindow($window.Hwnd) | Out-Null
+    [C2NativeWindows]::SetForegroundWindow($window.Hwnd) | Out-Null
     # Let the first world frame land before judging it.
     Start-Sleep -Seconds 2
     $null = Assert-FrameNotBlack $window 'boot' $OutDir $Threshold
 
     $before = Wait-ForLogCount $LogPath 'Activate3DHardware' 1 10 $Process
     Write-Host "  Driving a renderer restart (minimize/restore)..."
-    [C2SmokeNative]::ShowWindow($window.Hwnd, $SW_MINIMIZE) | Out-Null
+    [C2NativeWindows]::ShowWindow($window.Hwnd, $SW_MINIMIZE) | Out-Null
     Start-Sleep -Milliseconds 1200
-    [C2SmokeNative]::ShowWindow($window.Hwnd, $SW_RESTORE) | Out-Null
-    [C2SmokeNative]::SetForegroundWindow($window.Hwnd) | Out-Null
+    [C2NativeWindows]::ShowWindow($window.Hwnd, $SW_RESTORE) | Out-Null
+    [C2NativeWindows]::SetForegroundWindow($window.Hwnd) | Out-Null
 
     $after = Wait-ForLogCount $LogPath 'Activate3DHardware' ($before + 1) 20 $Process
     if ($after -lt 0) {
@@ -282,7 +254,7 @@ function Invoke-FrameChecks {
     Write-Host "  Restart confirmed in log; settling..."
     Start-Sleep -Seconds 2
     $window = Wait-RenderHwnd $Process 10
-    [C2SmokeNative]::SetForegroundWindow($window.Hwnd) | Out-Null
+    [C2NativeWindows]::SetForegroundWindow($window.Hwnd) | Out-Null
     $null = Assert-FrameNotBlack $window 'reload' $OutDir $Threshold
 }
 

@@ -6,41 +6,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-
-$native = @'
-using System;
-using System.Runtime.InteropServices;
-using System.Text;
-public class C2PitchNative {
-    [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
-    [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
-    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc cb, IntPtr l);
-    [DllImport("user32.dll")] public static extern int GetWindowThreadProcessId(IntPtr h, out int pid);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr h, StringBuilder s, int n);
-    [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr h, ref RECT r);
-    [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h, ref POINT p);
-    [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
-    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
-    [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
-    public delegate bool EnumWindowsProc(IntPtr h, IntPtr l);
-    public static IntPtr FindHuntWindow(int pid) {
-        IntPtr found = IntPtr.Zero;
-        EnumWindows(delegate (IntPtr h, IntPtr lp) {
-            int p; GetWindowThreadProcessId(h, out p);
-            if (p != pid) return true;
-            var sb = new StringBuilder(256); GetClassName(h, sb, 256);
-            if (sb.ToString() == "HuntRenderWindow") { found = h; return false; }
-            return true;
-        }, IntPtr.Zero);
-        return found;
-    }
-}
-'@
-Add-Type -TypeDefinition $native -Language CSharp
+. (Join-Path $PSScriptRoot 'c2_native_windows.ps1')
 
 function Save-Frame([IntPtr]$Hwnd, [int]$W, [int]$H, [string]$Png) {
-    $o = New-Object C2PitchNative+POINT
-    [void][C2PitchNative]::ClientToScreen($Hwnd, [ref]$o)
+    $o = New-Object C2NativeWindows+POINT
+    [void][C2NativeWindows]::ClientToScreen($Hwnd, [ref]$o)
     $b = New-Object System.Drawing.Bitmap $W, $H
     $g = [System.Drawing.Graphics]::FromImage($b)
     $g.CopyFromScreen($o.X, $o.Y, 0, 0, [System.Drawing.Size]::new($W, $H),
@@ -49,12 +19,12 @@ function Save-Frame([IntPtr]$Hwnd, [int]$W, [int]$H, [string]$Png) {
     $g.Dispose(); $b.Dispose()
 }
 function Send-Key([IntPtr]$Hwnd, [int]$Vk, [int]$Scan) {
-    [void][C2PitchNative]::SetForegroundWindow($Hwnd)
+    [void][C2NativeWindows]::SetForegroundWindow($Hwnd)
     $d = [IntPtr](1 -bor ($Scan -shl 16))
     $u = [IntPtr](1 -bor ($Scan -shl 16) -bor (1 -shl 30) -bor (1 -shl 31))
-    [void][C2PitchNative]::PostMessage($Hwnd, 0x0100, [IntPtr]$Vk, $d)
+    [void][C2NativeWindows]::PostMessage($Hwnd, 0x0100, [IntPtr]$Vk, $d)
     Start-Sleep -Milliseconds 100
-    [void][C2PitchNative]::PostMessage($Hwnd, 0x0101, [IntPtr]$Vk, $u)
+    [void][C2NativeWindows]::PostMessage($Hwnd, 0x0101, [IntPtr]$Vk, $u)
     Start-Sleep -Seconds 2
 }
 function Region-Stats([string]$Png, [int]$W, [int]$H) {
@@ -88,14 +58,14 @@ $proc = [System.Diagnostics.Process]::Start($psi)
 
 try {
     Start-Sleep -Seconds 9
-    $hwnd = [C2PitchNative]::FindHuntWindow($proc.Id)
-    $rect = New-Object C2PitchNative+RECT
-    [void][C2PitchNative]::GetClientRect($hwnd, [ref]$rect)
+    $hwnd = [C2NativeWindows]::FindHuntWindowForProcess($proc.Id)
+    $rect = New-Object C2NativeWindows+RECT
+    [void][C2NativeWindows]::GetClientRect($hwnd, [ref]$rect)
     $w = $rect.R - $rect.L; $h = $rect.B - $rect.T
     Write-Host "Client ${w}x${h}"
-    $centre = New-Object C2PitchNative+POINT
+    $centre = New-Object C2NativeWindows+POINT
     $centre.X = [int]($w/2); $centre.Y = [int]($h/2)
-    [void][C2PitchNative]::ClientToScreen($hwnd, [ref]$centre)
+    [void][C2NativeWindows]::ClientToScreen($hwnd, [ref]$centre)
 
     Start-Sleep -Seconds 2
     Save-Frame $hwnd $w $h (Join-Path $OutDir "level_off.png")
@@ -105,9 +75,9 @@ try {
 
     # Pitch down: the game reads the cursor delta each frame and resets it, so
     # park the pointer below centre repeatedly to accumulate PlayerBeta.
-    [void][C2PitchNative]::SetForegroundWindow($hwnd)
+    [void][C2NativeWindows]::SetForegroundWindow($hwnd)
     for ($i = 0; $i -lt 90; $i++) {
-        [void][C2PitchNative]::SetCursorPos($centre.X, $centre.Y + 70)
+        [void][C2NativeWindows]::SetCursorPos($centre.X, $centre.Y + 70)
         Start-Sleep -Milliseconds 16
     }
     Start-Sleep -Seconds 1

@@ -246,45 +246,14 @@ function Get-ChangedGLPerfFiles {
 }
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-using System.Text;
-public static class C2CaptureNative {
-    public delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
-    [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
-    [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
-    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
-    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr hwnd, StringBuilder className, int maxCount);
-    [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr hwnd, out RECT rect);
-    [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr hwnd, ref POINT point);
-    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
-    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
-    [DllImport("user32.dll")] public static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
-    [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
-    [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
-    public static IntPtr FindHuntWindowForProcess(int processId) {
-        IntPtr found = IntPtr.Zero;
-        EnumWindows(delegate(IntPtr hwnd, IntPtr ignored) {
-            uint owner; GetWindowThreadProcessId(hwnd, out owner);
-            if (owner != (uint)processId) return true;
-            StringBuilder name = new StringBuilder(128); GetClassName(hwnd, name, name.Capacity);
-            if (name.ToString() != "HuntRenderWindow") return true;
-            found = hwnd; return false;
-        }, IntPtr.Zero);
-        return found;
-    }
-}
-"@
-try { [C2CaptureNative]::SetProcessDpiAwarenessContext([IntPtr]::new(-4)) | Out-Null } catch { }
+. (Join-Path $PSScriptRoot 'c2_native_windows.ps1')
+try { [C2NativeWindows]::SetProcessDpiAwarenessContext([IntPtr]::new(-4)) | Out-Null } catch { }
 
 function Resolve-GameHwnd {
     param([System.Diagnostics.Process]$Process)
     # C2 keeps a small loading/progress window that may become
     # MainWindowHandle. Only the renderer's process-owned class is valid.
-    return [C2CaptureNative]::FindHuntWindowForProcess($Process.Id)
+    return [C2NativeWindows]::FindHuntWindowForProcess($Process.Id)
 }
 
 function Wait-GameHwnd {
@@ -300,11 +269,11 @@ function Wait-GameHwnd {
         if ($Process.HasExited) { throw "Game exited before its renderer window became ready (exit $($Process.ExitCode))." }
         $hwnd = Resolve-GameHwnd $Process
         if ($hwnd -ne [IntPtr]::Zero) {
-            if ($background -and ([C2CaptureNative]::IsWindowVisible($hwnd) -or [C2CaptureNative]::GetForegroundWindow() -eq $hwnd)) {
+            if ($background -and ([C2NativeWindows]::IsWindowVisible($hwnd) -or [C2NativeWindows]::GetForegroundWindow() -eq $hwnd)) {
                 throw 'Unattended renderer became visible or took focus during startup.'
             }
-            $rect = New-Object C2CaptureNative+RECT
-            if ([C2CaptureNative]::GetClientRect($hwnd, [ref]$rect)) {
+            $rect = New-Object C2NativeWindows+RECT
+            if ([C2NativeWindows]::GetClientRect($hwnd, [ref]$rect)) {
                 $actualWidth = $rect.R - $rect.L
                 $actualHeight = $rect.B - $rect.T
                 $lastSize = "${actualWidth}x${actualHeight}"
@@ -318,9 +287,9 @@ function Wait-GameHwnd {
 
 function Assert-CaptureWindowSize {
     param([IntPtr]$Hwnd, [int]$Width, [int]$Height)
-    [C2CaptureNative]::SetForegroundWindow($Hwnd) | Out-Null
-    $rect = New-Object C2CaptureNative+RECT
-    if (-not [C2CaptureNative]::GetClientRect($Hwnd, [ref]$rect)) { throw "GetClientRect failed." }
+    [C2NativeWindows]::SetForegroundWindow($Hwnd) | Out-Null
+    $rect = New-Object C2NativeWindows+RECT
+    if (-not [C2NativeWindows]::GetClientRect($Hwnd, [ref]$rect)) { throw "GetClientRect failed." }
     $actualWidth = $rect.R - $rect.L
     $actualHeight = $rect.B - $rect.T
     if ($actualWidth -ne $Width -or $actualHeight -ne $Height) {
@@ -348,11 +317,11 @@ function Assert-ReShadeDisabled {
 
 function Trigger-GLPerfCapture {
     param([IntPtr]$Hwnd)
-    [C2CaptureNative]::SetForegroundWindow($Hwnd) | Out-Null
+    [C2NativeWindows]::SetForegroundWindow($Hwnd) | Out-Null
     Start-Sleep -Milliseconds 150
-    [C2CaptureNative]::keybd_event(0x7A, 0, 0, [UIntPtr]::Zero)
+    [C2NativeWindows]::keybd_event(0x7A, 0, 0, [UIntPtr]::Zero)
     Start-Sleep -Milliseconds 350
-    [C2CaptureNative]::keybd_event(0x7A, 0, 2, [UIntPtr]::Zero)
+    [C2NativeWindows]::keybd_event(0x7A, 0, 2, [UIntPtr]::Zero)
 }
 
 function Wait-GLPerfCapture {
@@ -377,7 +346,7 @@ function Wait-UnattendedCapture {
     param([System.Diagnostics.Process]$Process, [IntPtr]$Hwnd)
     $timer = [System.Diagnostics.Stopwatch]::StartNew()
     while (-not $Process.HasExited) {
-        if ([C2CaptureNative]::IsWindowVisible($Hwnd) -or [C2CaptureNative]::GetForegroundWindow() -eq $Hwnd) {
+        if ([C2NativeWindows]::IsWindowVisible($Hwnd) -or [C2NativeWindows]::GetForegroundWindow() -eq $Hwnd) {
             throw 'Unattended renderer became visible or took focus.'
         }
         if ($timer.Elapsed.TotalSeconds -gt ($WarmupSeconds + 90)) { throw 'Unattended capture did not exit within its time budget.' }
@@ -409,8 +378,8 @@ function Convert-FramebufferCapture {
 
 function Capture-GameClientPng {
     param([IntPtr]$Hwnd, [string]$OutPng, [int]$Width, [int]$Height)
-    $origin = New-Object C2CaptureNative+POINT
-    if (-not [C2CaptureNative]::ClientToScreen($Hwnd, [ref]$origin)) { throw "ClientToScreen failed." }
+    $origin = New-Object C2NativeWindows+POINT
+    if (-not [C2NativeWindows]::ClientToScreen($Hwnd, [ref]$origin)) { throw "ClientToScreen failed." }
     $screen = [System.Windows.Forms.SystemInformation]::VirtualScreen
     if ($origin.X -lt $screen.Left -or $origin.Y -lt $screen.Top -or
         ($origin.X + $Width) -gt $screen.Right -or ($origin.Y + $Height) -gt $screen.Bottom) {
@@ -433,7 +402,7 @@ function Stop-CaptureProcess {
     if (-not $Process -or $Process.HasExited) { return }
     if (-not $Process.CloseMainWindow()) {
         $hwnd = Resolve-GameHwnd $Process
-        if ($hwnd -ne [IntPtr]::Zero) { [C2CaptureNative]::PostMessage($hwnd, $WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null }
+        if ($hwnd -ne [IntPtr]::Zero) { [C2NativeWindows]::PostMessage($hwnd, $WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null }
     }
     if (-not $Process.WaitForExit(10000)) {
         Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
