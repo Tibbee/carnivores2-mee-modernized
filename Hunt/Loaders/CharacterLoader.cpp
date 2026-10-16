@@ -270,6 +270,8 @@ void ReInitGame()
   refillWeapons(true);
 
   CurrentWeapon = TargetWeapon;
+  if (CurrentWeapon < 0)
+    DoHalt("No weapon is available for this hunt (empty weapon selection).");
 
   Weapon.state = 0;
   Weapon.FTime = 0;
