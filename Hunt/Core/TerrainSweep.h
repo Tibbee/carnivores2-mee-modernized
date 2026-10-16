@@ -76,7 +76,7 @@ struct Bounds {
             static_cast<float>(ccy) + residualY + viewRadius)));
         for (int y = yLo; y <= yHi; y += 2) {
             const int rows = y + 1 <= yHi ? 2 : 1;
-            float lo0, hi0, lo1, hi1;
+            float lo0 = 0.f, hi0 = 0.f, lo1 = 0.f, hi1 = 0.f;
             const bool ok0 = rowRange(y, lo0, hi0);
             const bool ok1 = rows == 2 && rowRange(y + 1, lo1, hi1);
             if (!ok0 && !ok1) continue;

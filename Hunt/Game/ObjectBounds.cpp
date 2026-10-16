@@ -236,7 +236,7 @@ BOOL PointUnBound(float &H, float px, float py, float cx, float cy, float oy, TB
 
 void CalcBoundBox(TModel* mptr, TBound *bound)
 {
-  float x1, x2, y1, y2, z1, z2;
+  float x1 = 0.f, x2 = 0.f, y1 = 0.f, y2 = 0.f, z1 = 0.f, z2 = 0.f;
   std::vector<float> fitX, fitZ;   // per-part footprint for the optional fit
   std::vector<float> fitY;         // per-part heights for the optional slope fit
   BOOL first;

@@ -51,7 +51,7 @@ void CreateChMorphedModel(TCharacter *cptr)
 		PSplineD = 0;
 	}
 
-	float k1, k2, pk1, pk2, pmk1, pmk2;
+	float k1, k2, pk1 = 0.f, pk2 = 0.f, pmk1 = 0.f, pmk2 = 0.f;
 
 	k2 = static_cast<float>((SplineD)) / 256.f;
 	k1 = 1.0f - k2;
@@ -172,7 +172,7 @@ void CreateMorphedModelBetaGamma(TModel* mptr, TAni *aptr, int FTime, float scal
 		PSplineD = 0;
 	}
 
-	float k1, k2, pk1, pk2, pmk1, pmk2;
+	float k1, k2, pk1 = 0.f, pk2 = 0.f, pmk1 = 0.f, pmk2 = 0.f;
 
 	k2 = static_cast<float>((SplineD)) / 256.f;
 	k1 = 1.0f - k2;
