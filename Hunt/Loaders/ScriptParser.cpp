@@ -41,8 +41,8 @@ static void FlushScriptDiagnostics()
 // mode the value is truncated to the field with a diagnostic; strict mode
 // halts. The offending line goes into the message as well: the field name
 // alone left modders hunting through the whole script for the bad entry.
-static void ScriptFieldFail(const char* what, const char* line,
-                            const char* reason = nullptr)
+[[noreturn]] static void ScriptFieldFail(const char* what, const char* line,
+                                         const char* reason = nullptr)
 {
   char bad[256];
   bad[0] = 0;
