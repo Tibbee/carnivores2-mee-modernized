@@ -15,9 +15,13 @@
 inline void EnablePerMonitorV2DpiAwareness()
 {
 	using SetProcessDpiAwarenessContextProc = BOOL(WINAPI*)(DPI_AWARENESS_CONTEXT);
+	HMODULE user32 = GetModuleHandleA("user32.dll");
+	if (!user32) {
+		return;
+	}
 	auto setProcessDpiAwarenessContext =
 		reinterpret_cast<SetProcessDpiAwarenessContextProc>(
-			GetProcAddress(GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessContext"));
+			GetProcAddress(user32, "SetProcessDpiAwarenessContext"));
 
 	if (setProcessDpiAwarenessContext) {
 		setProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);

@@ -274,6 +274,10 @@ void SetVideoMode(int W, int H)
   // loading screen only.
   if (hwndMain) CreateVideoDIB(WinW, WinH);
 
+  // The first call happens before the window exists; the style and position
+  // calls below need a real handle.
+  if (!hwndMain) return;
+
   if (unattended_capture::options.enabled) {
     // A hidden, non-activating popup has an exact-size client at any
     // resolution, without changing the desktop mode or occupying it.

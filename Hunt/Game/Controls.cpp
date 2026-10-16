@@ -263,7 +263,11 @@ void ProcessControls()
   int _KeyFlags = KeyFlags;
   KeyFlags = 0;
   if (unattended_capture::options.enabled) ZeroMemory(KeyboardState, sizeof(KeyboardState));
-  else GetKeyboardState(KeyboardState);
+  else if (!GetKeyboardState(KeyboardState)) {
+    // GetKeyboardState fails only when the thread has no input queue; fall
+    // back to the unattended path instead of keeping stale key state.
+    ZeroMemory(KeyboardState, sizeof(KeyboardState));
+  }
 #ifdef _gl
   workbench::FilterGameplayKeys(KeyboardState);
 #endif
