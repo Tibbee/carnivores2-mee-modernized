@@ -479,7 +479,7 @@ void DrawPostObjects()
   if (g_GameMode == GameMode::Binocular || embeddedScopeActive) goto SKIPWIND;
 
   if (g_GameMode != GameMode::TrophyMode && g_GameMode != GameMode::SurvivalMode)
-    if (!KeyboardState[VK_CAPITAL] & 1)
+    if (!(KeyboardState[VK_CAPITAL] & 1))
     {
       BOOL lr = LOWRESTX;
       LOWRESTX = true;
