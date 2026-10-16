@@ -426,6 +426,10 @@ void DrawPostObjects()
 {
   float b;
   TWeapon* wptr = &Weapon;
+  // Weapon animation phase for the morph/HUD sections below. Declared above
+  // the SKIPWEAPON jumps so no path can skip it; the state switch further
+  // down assigns the active animation.
+  int phas = WeapInfo[CurrentWeapon].getAnim;
 
   Hardware_ZBuffer(false);
 
@@ -689,7 +693,6 @@ SKIPWIND:
   }
   */
 
-  int phas;
   switch (wptr->state)
   {
   case 1:

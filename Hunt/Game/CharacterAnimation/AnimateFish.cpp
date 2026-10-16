@@ -56,7 +56,7 @@ TBEGIN:
 	//	cptr->State = 1;
 	//}
 
-	float tv;
+	float tv = 1024.f;   // AI_FISH default; AI_MOSA overrides below
 	switch (cptr->Clone) {
 	 case AI_FISH: tv = 1024.f; break;
 	 case AI_MOSA: tv = 5024.f;
