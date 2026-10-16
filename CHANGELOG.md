@@ -35,6 +35,20 @@ validation and the F10 panel's PgDn stepping backwards. Four presets and the
 487-case suite pass; comment hygiene is clean. No file-format, config-key or
 deployed-layout change.
 
+### MSVC code analysis fixes (2026-10-17)
+
+Fix the findings from a full `/analyze` pass over the game and menu translation
+units. Restore the intended caps-lock HUD gate (`!(state & 1)`), define the
+weapon morph phase above the SKIPWEAPON jumps and default the fish target range,
+and drop the Q branch whose pre-enum `EXITMODE && SurvivalMode` condition became
+unsatisfiable in the GameMode migration. Trophy saves use checked reads
+(truncated files log and keep defaults), the empty weapon selection halts
+instead of reading `WeapInfo[-1]`, and the remaining Win32 results (DPI lookup,
+window handles, keyboard state, model-loader reads) are guarded. False-positive
+findings are silenced by initializing the flag-guarded locals and marking
+`ScriptFieldFail` `[[noreturn]]`. No behavior change on covered paths; the
+analyzer's C6288/C6290/C4701/C6031/C6385 findings on the touched units are gone.
+
 ### Workbench inspector corrections (2026-10-09)
 
 Separate a prominent live scene/backend audio card from the manually selected
