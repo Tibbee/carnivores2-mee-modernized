@@ -5,6 +5,7 @@
 
 #include "Hunt.h"
 #include <mmsystem.h>
+#include "Loaders/LoadValidate.h"
 
 // Constants from Projectiles.cpp
 #define partBlood   1
@@ -355,7 +356,6 @@ void RemoveCurrentTrophy()
 void LoadTrophy2(int RegNumber) {
 
 	FillMemory(&TrophyRoom2, sizeof(TrophyRoom2), 0);
-	DWORD l;
 	char fname2[128];
 	sprintf_s(fname2, sizeof(fname2), "trophy%02d.sab", RegNumber);
 	HANDLE hfile2 = CreateFile(fname2, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -364,7 +364,12 @@ void LoadTrophy2(int RegNumber) {
 		PrintLog("===> Error loading trophyB!\n");
 		return;
 	}
-	ReadFile(hfile2, &TrophyRoom2, sizeof(TrophyRoom2), &l, nullptr);
+	if (!ReadExact(hfile2, &TrophyRoom2, sizeof(TrophyRoom2))) {
+		PrintLog("===> TrophyB save truncated; defaults kept.\n");
+		FillMemory(&TrophyRoom2, sizeof(TrophyRoom2), 0);
+		CloseHandle(hfile2);
+		return;
+	}
 
 	CloseHandle(hfile2);
 
@@ -377,7 +382,6 @@ void LoadTrophy()
   int pr = TrophyRoom.RegNumber;
   FillMemory(&TrophyRoom, sizeof(TrophyRoom), 0);
   TrophyRoom.RegNumber = pr;
-  DWORD l;
   char fname[128];
   int rn = TrophyRoom.RegNumber;
   sprintf_s(fname, sizeof(fname), "trophy%02d.sav", TrophyRoom.RegNumber);
@@ -387,23 +391,31 @@ void LoadTrophy()
     PrintLog("===> Error loading trophy!\n");
     return;
   }
-  ReadFile(hfile, &TrophyRoom, sizeof(TrophyRoom), &l, nullptr);
+  if (!ReadExact(hfile, &TrophyRoom, sizeof(TrophyRoom))) {
+    PrintLog("===> Trophy save truncated; defaults kept.\n");
+    FillMemory(&TrophyRoom, sizeof(TrophyRoom), 0);
+    CloseHandle(hfile);
+    TrophyRoom.RegNumber = rn;
+    SetupRes();
+    TrophyRoom.Body[0].ctype = 1;
+    return;
+  }
 
-  ReadFile(hfile, &OptAgres, 4, &l, nullptr);
-  ReadFile(hfile, &OptDens, 4, &l, nullptr);
-  ReadFile(hfile, &OptSens, 4, &l, nullptr);
+  bool tailOk = true;
+  if (!ReadExact(hfile, &OptAgres, 4)) tailOk = false;
+  if (!ReadExact(hfile, &OptDens, 4)) tailOk = false;
+  if (!ReadExact(hfile, &OptSens, 4)) tailOk = false;
 
   if (Multiplayer) OptDens = 128;
 
-  ReadFile(hfile, &OptRes, 4, &l, nullptr);
-  ReadFile(hfile, &FOGENABLE, 4, &l, nullptr);
-  ReadFile(hfile, &OptText, 4, &l, nullptr);
-  ReadFile(hfile, &OptViewR, 4, &l, nullptr);
-  if (l != 4) OptViewR = kViewOptDefault;
+  if (!ReadExact(hfile, &OptRes, 4)) tailOk = false;
+  if (!ReadExact(hfile, &FOGENABLE, 4)) tailOk = false;
+  if (!ReadExact(hfile, &OptText, 4)) tailOk = false;
+  if (!ReadExact(hfile, &OptViewR, 4)) { OptViewR = kViewOptDefault; tailOk = false; }
   OptViewR = ClampViewOpt(OptViewR);
-  ReadFile(hfile, &SHADOWS3D, 4, &l, nullptr);
-  ReadFile(hfile, &OptMsSens, 4, &l, nullptr);
-  ReadFile(hfile, &OptBrightness, 4, &l, nullptr);
+  if (!ReadExact(hfile, &SHADOWS3D, 4)) tailOk = false;
+  if (!ReadExact(hfile, &OptMsSens, 4)) tailOk = false;
+  if (!ReadExact(hfile, &OptBrightness, 4)) tailOk = false;
 
 
   {
@@ -413,14 +425,12 @@ void LoadTrophy()
     // (sprint was the visible one: fkRun read as 0). Keep the InitEngine
     // defaults unless the file actually holds a full KeyMap.
     struct _t savedKeys;
-    DWORD kl = 0;
-    ReadFile(hfile, &savedKeys, sizeof(savedKeys), &kl, nullptr);
-    if (kl == sizeof(savedKeys)) {
+    if (ReadExact(hfile, &savedKeys, sizeof(savedKeys))) {
       KeyMap = savedKeys;
     } else {
       char msg[128];
-      sprintf_s(msg, sizeof(msg), "Trophy: short KeyMap read (%u of %u), keeping defaults.\n",
-                (unsigned)kl, (unsigned)sizeof(savedKeys));
+      sprintf_s(msg, sizeof(msg), "Trophy: short KeyMap read (need %u bytes), keeping defaults.\n",
+                (unsigned)sizeof(savedKeys));
       PrintLog(msg);
       CloseHandle(hfile);
       TrophyRoom.RegNumber = rn;
@@ -431,15 +441,16 @@ void LoadTrophy()
       return;
     }
   }
-  ReadFile(hfile, &REVERSEMS, 4, &l, nullptr);
+  if (!ReadExact(hfile, &REVERSEMS, 4)) tailOk = false;
   //  Ignore savefile settings for equipment -- skip 4 DWORDs
   SetFilePointer(hfile, 16, nullptr, FILE_CURRENT);
-  ReadFile(hfile, &OPT_ALPHA_COLORKEY, 4, &l, nullptr);
+  if (!ReadExact(hfile, &OPT_ALPHA_COLORKEY, 4)) tailOk = false;
 
-  ReadFile(hfile, &OptSys, 4, &l, nullptr);
-  ReadFile(hfile, &OptSound, 4, &l, nullptr);
-  ReadFile(hfile, &OptRender, 4, &l, nullptr);
+  if (!ReadExact(hfile, &OptSys, 4)) tailOk = false;
+  if (!ReadExact(hfile, &OptSound, 4)) tailOk = false;
+  if (!ReadExact(hfile, &OptRender, 4)) tailOk = false;
   OptSound = NormalizeAudioBackend(OptSound);
+  if (!tailOk) PrintLog("Trophy: save ends early; trailing settings not updated.\n");
 
   // OptFov and other extended settings are now in config.cfg.
   // LoadConfig() in InitEngine() will override OptFov after this point.
