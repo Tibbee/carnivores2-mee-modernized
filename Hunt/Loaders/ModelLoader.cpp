@@ -801,8 +801,8 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag, const
   CorrectModel(chinfo.mptr.get(), tag);
 
 
-  ReadFile(hfile, chinfo.Anifx, 64*4, &l, nullptr);
-  if (l!=256)
+  l = 0;
+  if (!ReadFile(hfile, chinfo.Anifx, 64*4, &l, nullptr) || l != 256)
     for (l=0; l<64; l++) chinfo.Anifx[l] = -1;
   CloseHandle(hfile); 
 }
