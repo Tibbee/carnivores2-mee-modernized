@@ -1423,13 +1423,8 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       }
       break;
 
-	case 'Q':
-		if (g_GameMode == GameMode::ExitCountdown && g_GameMode == GameMode::SurvivalMode)
-		{
-			ExitTime = 1;
-			g_GameMode = GameMode::Normal;
-		}
-		break;
+	// case 'Q' was removed with the GameMode migration: its pre-enum
+	// `EXITMODE && SurvivalMode` condition became unsatisfiable (a37091fc).
 
     case 'R':
 	if (TrophyBody!=-1) RemoveCurrentTrophy();
