@@ -1,7 +1,7 @@
 # C2 performance tools
 
 > **Last verified:** 2026-10-09
-> **Applies to:** [C2], OpenGL `feat/modder-workbench`
+> **Applies to:** [C2], OpenGL `main`
 > **Status:** Asset-backed hidden captures validated; 25 offline cases/four matrices pass. Old/new comparison is noise-limited, not a definitive overhead or foreground FPS result.
 
 ## CSV helper

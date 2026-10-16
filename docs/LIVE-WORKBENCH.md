@@ -1,19 +1,22 @@
 # Live modder workbench — local preview
 
-OpenGL only, on `feat/modder-workbench`. Overlay began at `af2aee3` (2026-10-06);
-atmosphere controls at `2b53b5d` and combined collision preview at `38efa89` (2026-10-08).
-This is a tested local Shipping preview, not a published release. Software keeps
-the original F10 text panel. The separate MEE 1.2 migration is not required.
+OpenGL only. Overlay began at `af2aee3` (2026-10-06); atmosphere controls at
+`2b53b5d` and combined collision preview at `38efa89` (2026-10-08). The feature
+is merged to `main` (fast-forward via `feat/modder-workbench` and the
+consolidation pass, `5deb8b0` on 2026-10-16; MSVC-analysis fixes on top,
+`6c51c70`). It is a tested local Shipping preview, not a published release.
+Software keeps the original F10 text panel. The separate MEE 1.2 migration is
+not required.
 
-The deployed combined build includes main's reviewed collision checkpoint `598924f`,
-Audio `75db99a`, Collision inspection `e931f13` and lifecycle isolation `201ffd8`.
-The October 9 deployment preserves all 639 protected files; new listening/real-map
-visual acceptance remains separate. See the
-[delivery record](../../CarnivoresDoc/working/sessions/c2-workbench-audio-collision-2026-10-09.md).
-Source/builds now live in `Carnivores2MEE1.11/`, checked out on `feat/modder-workbench`.
-The temporary sibling worktree was removed at owner request; its evidence was archived.
-Main remains collision-only. In this single folder, commit changes before switching
-branches; integrate/test future main updates on the feature before combined deployment.
+The current deployed preview at `E:/Games/CarnivoresLegacy` is the analysis-fix
+build of `main` and includes the workbench. The earlier October 9 combined build
+(`598924f` collision checkpoint, Audio `75db99a`, Collision inspection `e931f13`,
+lifecycle isolation `201ffd8`) preserved all 639 protected files, and its
+[delivery record](../../CarnivoresDoc/working/sessions/c2-workbench-audio-collision-2026-10-09.md)
+remains the integration/deployment evidence. New listening/real-map visual
+acceptance remains separate from the merged state. Source and builds live in
+`Carnivores2MEE1.11/` on `main`; the temporary sibling worktree was removed at
+owner request and its evidence is archived.
 
 ## Quick start
 
@@ -137,7 +140,7 @@ This is owner-reported acceptance, not assistant-observed testing. The
 owner-authorized hidden/silent series on 2026-10-09 against collision/audio main
 without the workbench. Captures/modes validate, but several-ms closed drift exceeds
 the estimated +0.311 ms UI cost; stable overhead/foreground timing remain unresolved.
-Precache stays ~1.9 ms. Installed preview is not replaced. Hidden GPU/widget tests
+Precache stays ~1.9 ms. That series did not replace the installed preview. Hidden GPU/widget tests
 and hidden captures are not foreground gameplay FPS/input-latency evidence.
 
 [Canonical behavior](../../CarnivoresDoc/architecture/live-modder-workbench.md)
