@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdio>
+#include <cstring>
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -940,4 +941,115 @@ TEST(MenuResourceEntry, AccessoryDescriptionBlockMirrorsTheIconBlock)
     // A text override must point at an existing file (the fallback cases
     // cover both sides); these paths do not exist, so the row would keep its
     // default .nfo. The icon block carries no such requirement.
+}
+
+// The legacy profile blob is a fixed 1660-byte layout (1664 in Ice Age) that
+// stock saves and the engine's TrophyLoad share. Pin the round trip before
+// the IO moves TUs: every stored field must survive save -> load, and the
+// file size must stay exact, so a field reorder or size drift cannot pass.
+TEST(MenuProfileIO, TrophySaveLoadRoundTripsThe1660ByteFormat)
+{
+    TempMenuDirectory dir;
+
+    Profile saved;
+    memset(&saved, 0, sizeof(saved));
+    strcpy_s(saved.Name, sizeof(saved.Name), "Round Trip");
+    saved.RegNumber = 7;
+    saved.Score = 350;
+    saved.Last.smade = 3;
+    saved.Last.success = 2;
+    saved.Last.path = 1.5f;
+    saved.Last.time = 2.25f;
+    saved.Total.smade = 9;
+    saved.Total.success = 7;
+    saved.Total.path = 42.5f;
+    saved.Total.time = 13.75f;
+    saved.Body[0].m_CType = 4;
+    saved.Body[0].m_Weapon = 2;
+    saved.Body[0].m_Phase = 1;
+    saved.Body[0].m_Height = 3;
+    saved.Body[0].m_Weight = 180;
+    saved.Body[0].m_Score = 11;
+    saved.Body[0].m_Date = 20261017;
+    saved.Body[0].m_Time = 1234;
+    saved.Body[0].m_Scale = 0.75f;
+    saved.Body[0].m_Range = 64.0f;
+
+    Options savedOptions;
+    memset(&savedOptions, 0, sizeof(savedOptions));
+    savedOptions.Default();
+    savedOptions.Aggression = 3;
+    savedOptions.Density = 4;
+    savedOptions.Sensitivity = 5;
+    savedOptions.Resolution = 0;
+    savedOptions.Fog = false;
+    savedOptions.Textures = 2;
+    savedOptions.ViewRange = 44;
+    savedOptions.Shadows = false;
+    savedOptions.MouseSensitivity = 6;
+    savedOptions.Brightness = 7;
+    savedOptions.MouseInvert = true;
+    savedOptions.ScentMode = true;
+    savedOptions.CamoMode = true;
+    savedOptions.RadarMode = true;
+    savedOptions.TranqMode = true;
+    savedOptions.AlphaColorKey = 0;
+    savedOptions.OptSys = 0;
+    savedOptions.SoundAPI = AUDIO_OPENALSOFT;
+    savedOptions.RenderAPI = 1;
+    savedOptions.KeyMap.fkFire = VK_F1;
+    savedOptions.KeyMap.fkCCall = 'X';
+    g_Options = savedOptions;
+
+    TrophyDelete(7);
+    ASSERT_NO_THROW(TrophySave(saved));
+    ASSERT_TRUE(std::filesystem::exists("trophy07.sav"));
+    EXPECT_EQ(std::filesystem::file_size("trophy07.sav"), 1660u);
+
+    // Wipe both structs so the load must restore every field instead of
+    // reading leftover state.
+    Profile loaded;
+    memset(&loaded, 0, sizeof(loaded));
+    memset(&g_Options, 0, sizeof(g_Options));
+    ASSERT_NO_THROW(TrophyLoad(loaded, 7));
+
+    EXPECT_STREQ(loaded.Name, "Round Trip");
+    EXPECT_EQ(loaded.RegNumber, 7);
+    EXPECT_EQ(loaded.Score, 350);
+    EXPECT_EQ(loaded.Rank, RANK_MASTER);  // recomputed from Score on save/load
+    EXPECT_EQ(loaded.Last.smade, 3);
+    EXPECT_EQ(loaded.Last.success, 2);
+    EXPECT_FLOAT_EQ(loaded.Last.path, 1.5f);
+    EXPECT_FLOAT_EQ(loaded.Last.time, 2.25f);
+    EXPECT_EQ(loaded.Total.smade, 9);
+    EXPECT_EQ(loaded.Total.success, 7);
+    EXPECT_FLOAT_EQ(loaded.Total.path, 42.5f);
+    EXPECT_FLOAT_EQ(loaded.Total.time, 13.75f);
+    EXPECT_EQ(loaded.Body[0].m_CType, 4);
+    EXPECT_EQ(loaded.Body[0].m_Weapon, 2);
+    EXPECT_EQ(loaded.Body[0].m_Score, 11);
+    EXPECT_FLOAT_EQ(loaded.Body[0].m_Scale, 0.75f);
+    EXPECT_FLOAT_EQ(loaded.Body[0].m_Range, 64.0f);
+
+    EXPECT_EQ(g_Options.Aggression, 3);
+    EXPECT_EQ(g_Options.Density, 4);
+    EXPECT_EQ(g_Options.Sensitivity, 5);
+    EXPECT_EQ(g_Options.Resolution, 0);  // old-index 0 falls back with no list
+    EXPECT_EQ(g_Options.Fog, false);
+    EXPECT_EQ(g_Options.Textures, 2);
+    EXPECT_EQ(g_Options.ViewRange, 44);
+    EXPECT_EQ(g_Options.Shadows, false);
+    EXPECT_EQ(g_Options.MouseSensitivity, 6);
+    EXPECT_EQ(g_Options.Brightness, 7);
+    EXPECT_EQ(g_Options.MouseInvert, true);
+    EXPECT_EQ(g_Options.ScentMode, true);
+    EXPECT_EQ(g_Options.CamoMode, true);
+    EXPECT_EQ(g_Options.RadarMode, true);
+    EXPECT_EQ(g_Options.TranqMode, true);
+    EXPECT_EQ(g_Options.AlphaColorKey, 0);
+    EXPECT_EQ(g_Options.OptSys, 0);
+    EXPECT_EQ(g_Options.SoundAPI, NormalizeAudioBackend(AUDIO_OPENALSOFT));
+    EXPECT_EQ(g_Options.RenderAPI, NormalizeMenuRenderAPI(1));
+    EXPECT_EQ(g_Options.KeyMap.fkFire, VK_F1);
+    EXPECT_EQ(g_Options.KeyMap.fkCCall, 'X');
 }
