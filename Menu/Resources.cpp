@@ -53,10 +53,6 @@ void LoadResources()
 {
 	//TODO use this and ignore old _RES stuff
 
-	// TODO: enable these and use them instead of GDI drawing for the trackbars
-	//LoadPicture(g_TrackBar[0], "huntdat/menu/sl_bar.tga");
-	//LoadPicture(g_TrackBar[1], "huntdat/menu/sl_but.tga");
-
 	size_t accIdx = 0;
 	auto addUtil = [&](const char* name, const char* descFile, const char* cmd, const char* scoreKey, float scoreDefault, int32_t defaultPrice, const char* pic, const std::vector<std::string>* builtinDesc = nullptr) {
 		// Fresh picture per row: a missing file must not inherit the prior row's art.

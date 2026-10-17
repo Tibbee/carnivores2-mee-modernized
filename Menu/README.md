@@ -39,7 +39,7 @@ The menu now matches or exceeds the `carnivores_menu_mee` reference in every tra
 
 ## Known compatibility notes
 
-- The bundled `Menu/Resources.cpp` parser handles vanilla Carnivores 2 `_RES.TXT` and all C2ME-era `_MENU.TXT` extensions (`overwrite{…}` blocks inside `characters`, `accessories{}`, `prices{}`). C2ME-specific sub-blocks in `characters` (`spawninfo`, `spawngroup`, `killtype`, `tropinfo`, `deathtype`, `idlegroup`, `packinfo`, `packgroup`, `waterIgroup`) are skipped via `SkipNestedBlock()`.
+- The bundled `Menu/ScriptParse.cpp` parser handles vanilla Carnivores 2 `_RES.TXT` and all C2ME-era `_MENU.TXT` extensions (`overwrite{…}` blocks inside `characters`, `accessories{}`, `prices{}`). C2ME-specific sub-blocks in `characters` (`spawninfo`, `spawngroup`, `killtype`, `tropinfo`, `deathtype`, `idlegroup`, `packinfo`, `packgroup`, `waterIgroup`) are skipped via `SkipNestedBlock()`.
 - Audio selection is trimmed to the two supported backends: DirectSound and OpenAL Soft.
 - Menu audio feedback is enabled via OpenAL Soft: ambient music on main menu, hover and click sounds.
 - `config.cfg` (text-based, in working directory) stores FOV and other extended settings not in the legacy binary trophy format. Written on change, read at menu startup.

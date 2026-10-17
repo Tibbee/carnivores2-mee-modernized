@@ -224,7 +224,7 @@ void ProcessCommandLine()
     // smod=camo,radar,scent,double,tranq,observer. The order lives in
     // Hunt/Core/ScoreMod.h and is shared with the Menu's assembly, so the two
     // cannot drift apart. Modders can override these via the 'accessories {}'
-    // block in _RES.TXT (parsed by Menu/Resources.cpp ReadAccessories()).
+    // block in _RES.TXT (parsed by Menu/ScriptParse.cpp ReadAccessories()).
     if (CommandLineOptionValue(s, "smod=", &value)) {
       float mods[kScoreModSlotCount] = {0};
       const int got = ParseScoreModPayload(value, mods);

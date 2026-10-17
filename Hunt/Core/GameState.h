@@ -191,7 +191,7 @@ GLOBAL BOOL ScentMode, CamoMode,
 // SubmitDinoScore() so a hunt launched without a Menu-supplied 'smod='
 // argument behaves identically to the original game. The Menu passes
 // 'smod=camo,radar,scent,double,tranq,observer' in the same order to
-// override these from _RES.TXT (see Menu/Resources.cpp ReadAccessories()).
+// override these from _RES.TXT (see Menu/ScriptParse.cpp ReadAccessories()).
 GLOBAL float ScoreMod_Camo;
 
 GLOBAL float ScoreMod_Radar;

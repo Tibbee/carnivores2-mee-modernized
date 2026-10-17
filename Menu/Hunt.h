@@ -635,7 +635,7 @@ EXTERNAL std::map<std::string, std::string> g_AccessoryDescriptions; // populate
 EXTERNAL std::map<std::string, int32_t> g_AccessoryPriceOverrides; // accessory_prices block: named prices override positional values
 EXTERNAL std::vector<int32_t> g_AccessoryPrices; // parsed from 'acces' lines in _MENU.TXT prices block
 // Built-in shop blurb for the flashlight, used only when the loaded HUNTDAT
-// ships no huntdat/menu/txt/flashlight.nfo. Defined in Menu/Resources.cpp (not
+// ships no huntdat/menu/txt/flashlight.nfo. Defined in Menu/AssetLoad.cpp (not
 // Hunt2.cpp) so the menu resource test target can read it without linking the
 // Win32 menu against it. See tests/test_menu_resource_entry.cpp for the width
 // contract its lines have to satisfy.
@@ -706,8 +706,6 @@ void ShutdownInterface();
 void InterfaceClear(uint16_t);
 void InterfaceBlt();
 void InterfaceSetFont(HFONT);
-void DrawRectangle(int, int, int, int, Color16);
-void DrawPicture(int, int, int, int, uint16_t*);
 void DrawTextShadow(int x, int y, const std::string& text, uint32_t color, int align);
 void LoadGameMenu(int32_t);
 void ChangeMenuState(int32_t);

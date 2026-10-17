@@ -211,7 +211,6 @@ enum DrawTextAlignEnum {
 
 
 std::pair<unsigned, unsigned> g_HuntInfo;
-Picture g_TrackBar[2];
 MenuSet MenuOptions[3];
 MenuSet MenuRegistry;
 MenuSet MenuHunt[4];
@@ -236,7 +235,6 @@ static int g_LastListClickIndex = -1;
 const char g_GitHubURL[] = "https://github.com/carnivores-cpe/Carn2-Menu";
 const char st_BoolText[2][4] = { "Off", "On" };
 const char st_UnitText[2][10] = { "Metric", "Imperial" };
-const char st_HMLText[4][8] = { "Low", "Medium", "High", "Ultra" };
 const char st_TextureText[3][5] = { "Low", "High", "Auto" };
 const char st_AlphaKeyText[2][14] = { "Color Key", "Alpha Channel" };
 // The new menu exposes only Software and OpenGL. Legacy Direct3D values are
@@ -874,19 +872,6 @@ void DrawProgressBar(int x, int y, float l)
 	DeleteObject(wb);
 }
 
-
-void DrawRectangle(int x, int y, int w, int h, Color16 c)
-{
-	Color16* back_buffer = static_cast<Color16*>(lpVideoBuf);
-	for (int i = y; i < y + h; i++)
-		for (int j = x; j < x + w; j++)
-		{
-			back_buffer[(j)+(i * 800)] = Color16(c, 1);
-			//*((uint16_t*)lpVideoBuf + (j)+(i) * 800) = c | 0x8000;
-		}
-}
-
-
 void DrawSliderBar(int x, int y, int w, float v, int slider_rgb = RGB(239, 228, 176))
 {
 	if (v < 0.0f)
@@ -943,15 +928,6 @@ void DrawPicture(int x, int y, Picture& pic)
 	BlitMenuPicture(static_cast<uint16_t*>(lpVideoBuf), 800, 600,
 		x, y, pic.m_Data, pic.m_Width, pic.m_Height);
 }
-
-
-void DrawPicture(int x, int y, int w, int h, uint16_t* lpImage)
-{
-	if (w > 0 && h > 0)
-		BlitMenuPicture(static_cast<uint16_t*>(lpVideoBuf), 800, 600,
-			x, y, lpImage, static_cast<unsigned>(w), static_cast<unsigned>(h));
-}
-
 
 /*
 Draw the menu background and overlay the 'on' layer

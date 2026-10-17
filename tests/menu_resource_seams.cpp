@@ -1,7 +1,8 @@
 // menu_resource_seams.cpp -- narrow test doubles for the production menu
 // resource readers.
 //
-// Menu/Resources.cpp references exactly these globals and ShowErrorMessage();
+// The menu resource translation units reference exactly these globals and
+// ShowErrorMessage();
 // defining them here lets the real translation unit link into a test without
 // creating a menu window, a profile, or any Win32 state. Keep this list to the
 // symbols the readers actually touch: growing it means the test is drifting
