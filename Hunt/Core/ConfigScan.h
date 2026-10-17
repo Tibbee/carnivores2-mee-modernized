@@ -4,7 +4,7 @@
 #include <vector>
 
 // Shared field scanner for config.cfg: the tokenizer that the engine reader
-// (Game/ConfigFile.cpp LoadConfig), the menu reader (Menu/Resources.cpp
+// (Game/ConfigFile.cpp LoadConfig), the menu reader (Menu/ConfigIO.cpp
 // ParseConfigField/LoadConfig) and the load-policy pre-reader
 // (Loaders/LoadDiagnostics.h InitLoadPolicyFromConfigText) each carry a copy
 // of today. It yields only what those readers agree on structurally; value

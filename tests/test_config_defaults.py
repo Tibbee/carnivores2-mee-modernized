@@ -107,11 +107,11 @@ class ConfigDefaultsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             for relative in ("Hunt/Game/ConfigFile.cpp", "Hunt/Core/Constants.h", "Hunt/Core/GameState.h",
-                             "Hunt/Audio/AudioInspection.h", "Menu/Resources.cpp"):
+                             "Hunt/Audio/AudioInspection.h", "Menu/ConfigIO.cpp"):
                 target = root / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(ROOT / relative, target)
-            source = root / "Menu/Resources.cpp"
+            source = root / "Menu/ConfigIO.cpp"
             text = source.read_text(encoding="utf-8")
             text = text.replace('configscan::KeyEquals(field.key, "renderer")', 'configscan::KeyEquals(field.key, "new_config_setting")', 1)
             source.write_text(text, encoding="utf-8")

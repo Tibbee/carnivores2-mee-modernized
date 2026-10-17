@@ -6,6 +6,7 @@ set(MENU_SOURCES
     Menu.cpp
     Audio.cpp
     Resources.cpp
+    ConfigIO.cpp
     GUI.cpp
     Resolutions.cpp
     Hunt.h

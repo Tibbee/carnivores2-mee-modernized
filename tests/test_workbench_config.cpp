@@ -149,7 +149,7 @@ TEST(ConfigMerge, TerminatorsMatchTheFile) {
 	ASSERT_TRUE(crAppended.ok) << crAppended.error;
 	EXPECT_EQ(crAppended.text, "renderer 1\renv0_decay 1.5\r");
 
-	// Menu/Resources.cpp SaveConfig rewrites owned keys with a bare LF while
+	// Menu/ConfigIO.cpp SaveConfig rewrites owned keys with a bare LF while
 	// passing other lines through with their CR. This writer must not: a save
 	// may not silently mix terminators on the lines it touches.
 	const auto crlf = Merge("a 1\r\nenv0_decay 1.0\r\nb 2\r\n", {{"env0_decay", "1.5"}});
@@ -695,7 +695,7 @@ TEST(SourceContracts, WorkbenchWiring) {
 
 	// The workbench and the menu both write config.cfg, so their key sets must
 	// stay disjoint.
-	const std::string menu = ReadSource("Menu/Resources.cpp");
+	const std::string menu = ReadSource("Menu/ConfigIO.cpp");
 	const std::size_t begin = menu.find("void SaveConfig()");
 	ASSERT_NE(begin, std::string::npos);
 	const std::string body = menu.substr(begin);

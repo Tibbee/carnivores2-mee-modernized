@@ -67,7 +67,7 @@ def check_coverage(root: Path = ROOT) -> None:
     defaults = entries(template)
     examples = entries(template, commented=True)
     engine = (root / "Hunt/Game/ConfigFile.cpp").read_text(encoding="utf-8")
-    menu = (root / "Menu/Resources.cpp").read_text(encoding="utf-8")
+    menu = (root / "Menu/ConfigIO.cpp").read_text(encoding="utf-8")
     engine_reader = engine[engine.index("void LoadConfig()\n{"):]
     menu_reader = menu[menu.index("static bool ParseConfigField("):menu.index("// Read config.cfg and override")]
     keys = set(re.findall(r'_stricmp\(key,\s*"([\w]+)"', engine_reader))
