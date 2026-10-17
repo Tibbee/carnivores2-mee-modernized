@@ -103,7 +103,7 @@ TEST(SourceContracts, SkyAndMoonWiring) {
     const auto modelShader = Source("shaders/model.frag");
     EXPECT_NE(modelShader.find("uniform float uMoonBrightness = 1.0;"), std::string::npos);
     EXPECT_NE(modelShader.find("vec4(finalColor * uMoonBrightness, texColor.a * vAlpha)"), std::string::npos);
-    const auto engine = Source("Hunt/Game/EngineInit.cpp");
+    const auto engine = Source("Hunt/Game/ConfigFile.cpp");
     EXPECT_NE(engine.find("NightLightingOption::MoonBrightness"), std::string::npos);
     EXPECT_NE(engine.find("NightLightingOption::MoonGlowStrength"), std::string::npos);
 

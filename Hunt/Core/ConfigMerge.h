@@ -12,7 +12,7 @@
 // This header stays pure -- no I/O, no platform headers -- so the rules remain
 // unit-testable without a filesystem.
 //
-// The engine reader (Game/EngineInit.cpp LoadConfig) splits on \r and \n, skips
+// The engine reader (Game/ConfigFile.cpp LoadConfig) splits on \r and \n, skips
 // a line whose first character is '#', and reads the first two whitespace-
 // delimited tokens; a line with only one token is logged as "missing value" and
 // ignored. It assigns as it walks the file, so the LAST active occurrence of a

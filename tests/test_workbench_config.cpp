@@ -13,7 +13,7 @@
 
 // The merge is the risky part of the W3 write path: it decides which bytes of a
 // hand-edited config.cfg survive a save. These cases pin the rules that follow
-// from the engine loader (Game/EngineInit.cpp LoadConfig) rather than from
+// from the engine loader (Game/ConfigFile.cpp LoadConfig) rather than from
 // preference, so a regression has to argue with the reader, not with this file.
 //
 // Line endings are always written with explicit escapes. Raw string literals
@@ -680,7 +680,7 @@ TEST(ConfigRegistry, PublishableKeysAreUniqueAndTokenSafe) {
 TEST(SourceContracts, WorkbenchWiring) {
 	// Every publishable key must be read by the engine loader: the write set
 	// cannot contain a key no configuration could supply.
-	const std::string engine = ReadSource("Hunt/Game/EngineInit.cpp");
+	const std::string engine = ReadSource("Hunt/Game/ConfigFile.cpp");
 	EXPECT_NE(engine.find("_strnicmp(key, \"env\", 3)"), std::string::npos);
 	for (const auto* descriptor : Publishable()) {
 		const std::string key = descriptor->key;

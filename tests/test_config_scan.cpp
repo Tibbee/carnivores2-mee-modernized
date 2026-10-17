@@ -3,7 +3,7 @@
 // shared by the readers. Every expectation mirrors the behavior of the code
 // the scanner will replace, so each migration commit can prove it changed
 // nothing:
-//   engine reader  Hunt/Game/EngineInit.cpp LoadConfig()
+//   engine reader  Hunt/Game/ConfigFile.cpp LoadConfig()
 //                  (sscanf_s "%63s %63s"; only column 0 starts a comment;
 //                   a missing value is logged and ignored)
 //   menu reader    Menu/Resources.cpp ParseConfigField()

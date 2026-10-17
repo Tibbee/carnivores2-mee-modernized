@@ -39,7 +39,7 @@ extern "C" void glperf_set_logging(bool) {}
 #include <unordered_set>
 #include <vector>
 
-// External config variable set by LoadConfig() in EngineInit.cpp.
+// External config variable set by LoadConfig() in ConfigFile.cpp.
 // Declared here (outside anonymous namespace) for proper external linkage.
 extern bool g_glperfLoggingEnabled;
 

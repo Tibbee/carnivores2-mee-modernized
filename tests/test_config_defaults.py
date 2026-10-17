@@ -106,7 +106,7 @@ class ConfigDefaultsTests(unittest.TestCase):
     def test_new_reader_key_fails_coverage_until_documented(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for relative in ("Hunt/Game/EngineInit.cpp", "Hunt/Core/Constants.h", "Hunt/Core/GameState.h",
+            for relative in ("Hunt/Game/ConfigFile.cpp", "Hunt/Core/Constants.h", "Hunt/Core/GameState.h",
                              "Hunt/Audio/AudioInspection.h", "Menu/Resources.cpp"):
                 target = root / relative
                 target.parent.mkdir(parents=True, exist_ok=True)

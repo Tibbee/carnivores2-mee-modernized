@@ -223,6 +223,8 @@ set(CORE_FILES
     Hunt/Game/Ship.cpp
     Hunt/Game/CommandLine.cpp
     Hunt/Game/Config.cpp
+    Hunt/Game/ConfigFile.h
+    Hunt/Game/ConfigFile.cpp
     Hunt/Game/EngineInit.cpp
     Hunt/Game/Projectiles.cpp
     Hunt/Game/Ships.cpp

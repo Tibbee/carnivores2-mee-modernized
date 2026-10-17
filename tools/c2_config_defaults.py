@@ -14,7 +14,7 @@ OBSOLETE = {"night_lighting"}
 
 
 def engine_template(root: Path = ROOT) -> str:
-    source = (root / "Hunt/Game/EngineInit.cpp").read_text(encoding="utf-8")
+    source = (root / "Hunt/Game/ConfigFile.cpp").read_text(encoding="utf-8")
     start = source.index("int len2 = snprintf")
     end = source.index("  // A truncated template", start)
     text = "".join(json.loads(s) for s in re.findall(r'"(?:[^"\\]|\\.)*"', source[start:end]))
@@ -66,9 +66,9 @@ def check_coverage(root: Path = ROOT) -> None:
     template = engine_template(root)
     defaults = entries(template)
     examples = entries(template, commented=True)
-    engine = (root / "Hunt/Game/EngineInit.cpp").read_text(encoding="utf-8")
+    engine = (root / "Hunt/Game/ConfigFile.cpp").read_text(encoding="utf-8")
     menu = (root / "Menu/Resources.cpp").read_text(encoding="utf-8")
-    engine_reader = engine[engine.index("static void LoadConfig()\n{"):]
+    engine_reader = engine[engine.index("void LoadConfig()\n{"):]
     menu_reader = menu[menu.index("static bool ParseConfigField("):menu.index("// Read config.cfg and override")]
     keys = set(re.findall(r'_stricmp\(key,\s*"([\w]+)"', engine_reader))
     # The menu reader matches keys through the shared configscan::KeyEquals.

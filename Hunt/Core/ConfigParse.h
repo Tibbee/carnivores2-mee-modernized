@@ -3,7 +3,7 @@
 #include <cstdlib>
 
 // Strict scalar parsing for config.cfg values (engine loader: LoadConfig in
-// Game/EngineInit.cpp).  A bare strtol/strtof accepts "abc" (0) and "1abc"
+// Game/ConfigFile.cpp).  A bare strtol/strtof accepts "abc" (0) and "1abc"
 // (1) without reporting a problem, which would silently select a valid but
 // unintended setting; every value must consume the whole token and then pass
 // an inclusive range check.  Pure header so the rules stay unit-testable.
