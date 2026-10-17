@@ -7,6 +7,7 @@ set(MENU_SOURCES
     Audio.cpp
     Resources.cpp
     ConfigIO.cpp
+    ProfileIO.cpp
     GUI.cpp
     Resolutions.cpp
     Hunt.h

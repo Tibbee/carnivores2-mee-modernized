@@ -511,6 +511,7 @@ if(MSVC AND C2_BUILD_TESTS)
         tests/test_menu_wave_entry.cpp
         tests/menu_resource_seams.cpp
         Menu/Resources.cpp
+        Menu/ProfileIO.cpp
     )
     target_include_directories(Carnivores2MenuResourceTests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Menu
