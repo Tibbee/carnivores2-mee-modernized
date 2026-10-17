@@ -119,7 +119,7 @@ if (Test-Path -LiteralPath $areasDir -PathType Container) {
 }
 
 # --- HUNTDAT menu price list -------------------------------------------------
-# The menu uses _RES.TXT if _MENU.TXT cannot be opened (Menu/Resources.cpp).
+# The menu uses _RES.TXT if _MENU.TXT cannot be opened (Menu/ScriptParse.cpp).
 # Read the same source to count its 'area = <price>' entries.
 $menuTxt = Join-Path $huntdat '_MENU.TXT'
 $slotScript = $menuTxt

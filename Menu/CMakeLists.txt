@@ -9,6 +9,7 @@ set(MENU_SOURCES
     ConfigIO.cpp
     ProfileIO.cpp
     AssetLoad.cpp
+    ScriptParse.cpp
     GUI.cpp
     Resolutions.cpp
     Hunt.h

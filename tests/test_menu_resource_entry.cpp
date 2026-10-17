@@ -21,7 +21,7 @@
 #include "Loaders/LoadDiagnostics.h"
 #include "test_support.h"
 
-// Production entry points defined in Menu/Resources.cpp.
+// Production entry points defined in Menu/ScriptParse.cpp.
 void ReadCharacters(FILE* stream);
 void ReadWeapons(FILE* stream);
 void ReadPrices(FILE* stream);

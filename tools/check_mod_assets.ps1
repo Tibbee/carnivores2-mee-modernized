@@ -81,7 +81,7 @@ function Get-RelativePath {
     return $Value
 }
 
-# One pair of surrounding single quotes, the way Menu/Resources.cpp strips
+# One pair of surrounding single quotes, the way Menu/ScriptParse.cpp strips
 # script values. Trim("'") would eat runs of quotes; the menu eats exactly one.
 function Get-Unquoted {
     param([string]$Value)
@@ -93,7 +93,7 @@ function Get-Unquoted {
 }
 
 # The menu's key normalization: lowercase, spaces/tabs/hyphens/underscores
-# ignored (Menu/Resources.cpp NormalizeAccessoryKey).
+# ignored (Menu/ScriptParse.cpp NormalizeAccessoryKey).
 function Get-NormalizedKey {
     param([string]$Key)
     return ((Get-Unquoted $Key) -replace '[ \t_-]', '').ToLowerInvariant()

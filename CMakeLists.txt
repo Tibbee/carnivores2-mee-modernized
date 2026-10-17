@@ -513,6 +513,7 @@ if(MSVC AND C2_BUILD_TESTS)
         Menu/Resources.cpp
         Menu/ProfileIO.cpp
         Menu/AssetLoad.cpp
+        Menu/ScriptParse.cpp
     )
     target_include_directories(Carnivores2MenuResourceTests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Menu
@@ -568,6 +569,7 @@ if(MSVC AND C2_BUILD_TESTS)
         tests/menu_resource_seams.cpp
         Menu/Resources.cpp
         Menu/AssetLoad.cpp
+        Menu/ScriptParse.cpp
     )
     target_include_directories(Carnivores2MenuAudioBackendTests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Menu
