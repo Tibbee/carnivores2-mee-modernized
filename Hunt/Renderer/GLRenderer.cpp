@@ -1620,46 +1620,6 @@ void GLRenderer::PostProcess()
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ============================================================================
-// HUD Pipeline
-// ============================================================================
-
-
-
-
-
-
-
-
-// ======================================================================
-// Night desaturation + darkness overlay
-// ======================================================================
-
-
-
-
-
-
-
-
-
 // Copy picture pixels directly to lpVideoBuf (matching C1 and D3D/3DFX approach).
 // lpVideoBuf is a 16-bit DIB section, pictures are already in 565 format after conv_pic.
 
@@ -1667,10 +1627,6 @@ void GLRenderer::PostProcess()
 // Phase 2.20: upload lpVideoBuf directly as GL_RGB5 texture.
 // lpVideoBuf is 16-bit X1R5G5B5, top-down, stride = VideoPitch.
 // The fragment shader converts 555→RGBA8 and handles transparency.
-
-
-
-
 
 void GLRenderer::SetVideoMode(int w, int h)
 {
