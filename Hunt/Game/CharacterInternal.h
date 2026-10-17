@@ -39,10 +39,8 @@ void LookForAWay(TCharacter *cptr, BOOL wc, BOOL mc);
 void TraceHunterEvent(const TCharacter *cptr, const char *kind, float distance,
                       float eventRange, float hearingRange);
 void SetNewTargetPlace(TCharacter *cptr, float R);
-void SetNewTargetPlaceVanilla(TCharacter *cptr, float R);
 void SetNewTargetPlaceRegion(TCharacter *cptr, float R);
 void SetNewTargetPlace_Icth(TCharacter *cptr, float R);
-void SetNewTargetPlace_IcthOld(TCharacter *cptr, float R);
 void SetNewTargetPlace_Brahi(TCharacter *cptr, float R);
 void SetNewTargetPlaceFish(TCharacter *cptr, float R);
 void SetNewTargetPlaceMosasaurus(TCharacter *cptr, float R);
@@ -148,11 +146,6 @@ inline float GetCharacterAggressionRange(const TCharacter* cptr)
 inline float GetCharacterHunterEventRange(const TCharacter* cptr)
 {
     return GetCharacterAggressionRange(cptr) * kHunterEventRangeScale;
-}
-
-inline bool IsInvestigatingShot(const TCharacter* cptr)
-{
-    return cptr->hunterAwareness == HunterAwarenessState::InvestigatingShot;
 }
 
 inline bool IsFixedHunterPursuit(const TCharacter* cptr)

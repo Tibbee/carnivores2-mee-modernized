@@ -138,14 +138,6 @@ void CheckAfraid()
 
 			isAfraid:
 
-			//MessageBeep(0xFFFFFFFF);
-			char t[128];
-			if (kALook < kASmell)
-				sprintf(t, "LOOK: KR: %f  Tr: %d  K: %f", kR, ObjectsOnLook, kALook);
-			else
-				sprintf(t, "SMELL: KR: %f  Tr: %d  K: %f", kR, ObjectsOnLook, kASmell);
-			//AddMessage(t);
-
 			//MESSAGE REMOVED
 
 			kRes = MIN(kRes, kR);

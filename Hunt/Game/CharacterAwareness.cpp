@@ -394,7 +394,6 @@ void UpdateLiveHunterNavigation(TCharacter* cptr, HunterAIFamily family)
 	if (cptr->State == 0 && !packWake)
 		return;
 
-	const bool fixedPursuit = IsFixedHunterPursuit(cptr);
 	const bool fixedFlee = IsFixedHunterFlee(cptr);
 	const bool tracksHunter = TracksHunterExactly(cptr);
 
@@ -413,7 +412,7 @@ void UpdateLiveHunterNavigation(TCharacter* cptr, HunterAIFamily family)
 					SetPackLeaderTarget(cptr, true);
 			}
 		}
-		else if (!fixedPursuit) {
+		else {
 			if (tracksHunter || cptr->packId < 0)
 				SetHunterPlayerTarget(cptr);
 			else
@@ -422,16 +421,14 @@ void UpdateLiveHunterNavigation(TCharacter* cptr, HunterAIFamily family)
 		break;
 	}
 	case HunterAIFamily::TRex:
-		if (!fixedPursuit) {
-			if (tracksHunter)
-				SetHunterPlayerTarget(cptr);
-			else
-				SetPackLeaderTarget(cptr, false);
-		}
+		if (tracksHunter)
+			SetHunterPlayerTarget(cptr);
+		else
+			SetPackLeaderTarget(cptr, false);
 		break;
 	case HunterAIFamily::Fish: {
 		const THunterGeometry hunter = GetHunterGeometry(cptr);
-		if (!fixedPursuit && tracksHunter
+		if (tracksHunter
 			&& (DinoInfo[cptr->CType].DangerFish
 				|| g_GameMode == GameMode::SurvivalMode)) {
 			SetHunterPlayerTarget(cptr);
@@ -447,7 +444,7 @@ void UpdateLiveHunterNavigation(TCharacter* cptr, HunterAIFamily family)
 				cptr->tdepth += (cptr->tdepth - cptr->depth) * 3;
 			}
 		}
-		else if (!fixedPursuit && !fixedFlee) {
+		else if (!fixedFlee) {
 			SetHunterFleeTarget(cptr, hunter.dx, hunter.dz);
 			cptr->tdepth = GetLandH(cptr->pos.x, cptr->pos.z) +
 				((GetLandUpH(cptr->pos.x, cptr->pos.z) - GetLandH(cptr->pos.x, cptr->pos.z)) / 2);
