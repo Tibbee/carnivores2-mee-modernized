@@ -538,6 +538,29 @@ void GLRenderer::RebuildWaterBlockBits()
 // The original 3-arg version delegates to these for backward compat.
 // ---------------------------------------------------------------------------
 
+// Coarse (HMapO-only) frustum pre-test shared by the 1x1 and 2x2 paths.
+// Only a tile behind the camera and outside the FOV-scaled cone is rejected.
+// The lateral MUST be scaled by FOVK so this cone matches the precise
+// 4-corner check (and the GPU projection); without FOVK the bound assumes a
+// ~90-degree frustum and visibly clips the sides at wide FOV. The
+// backR*2+2048 margin keeps it a safe superset of the per-corner test at
+// every FOV: it only absorbs tile-center-vs-corner and HMapO-vs-VMap height
+// slop, never real rejections.
+static bool TerrainTilePassesCoarseTest(int x, int y, float& backRadius)
+{
+    backRadius = BackViewR;
+    if (OMap[y][x] != 255) {
+        backRadius += MObjects[OMap[y][x]].info.BoundR;
+    }
+    const float wx = static_cast<float>(x * 256 + 128) - CameraX;
+    const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
+    const float wy = static_cast<float>(HMapO[y][x]) * ctHScale - CameraY;
+    const float cx = wx * ca + wz * sa;
+    const float cz1 = wz * ca - wx * sa;
+    const float cz = cz1 * cb + wy * sb;
+    return !(cz < 0.0f && std::fabs(cx * FOVK) > -cz + backRadius * 2.0f + 2048.0f);
+}
+
 // Sun-fog forward-scatter glow and colour shift.
 // Sun-fog forward-scatter glow.
 void GLRenderer::CollectTerrainTile(int x, int y, int r,
@@ -549,10 +572,6 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
         return;
     }
 
-    float backR = BackViewR;
-    if (OMap[y][x] != 255) {
-        backR += MObjects[OMap[y][x]].info.BoundR;
-    }
 
     const int localX = x - CCX + kViewGridCenter;
     const int localY = y - CCY + kViewGridCenter;
@@ -563,27 +582,12 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     ++m_terrainPerf.tileCandidates;
 #endif
 
-    // Coarse frustum pre-test -- SAFEGUARD: only reject when cz < 0.
-    // The lateral MUST be scaled by FOVK so this cone matches the precise
-    // 4-corner check below (and the GPU projection).  Without FOVK the
-    // bound assumes a ~90-degree frustum: at wide FOV (FOVK < 1) it is far
-    // narrower than the true frustum and visibly clips the left/right of
-    // the view.  The backR*2+2048 margin keeps it a safe superset of the
-    // per-corner test at every FOV (it only absorbs tile-center-vs-corner
-    // and HMapO-vs-VMap height slop, never real rejections).
-    {
-        const float wx = static_cast<float>(x * 256 + 128) - CameraX;
-        const float wz = static_cast<float>(y * 256 + 128) - CameraZ;
-        const float wy = static_cast<float>(HMapO[y][x]) * ctHScale - CameraY;
-        const float cx  = wx * ca + wz * sa;
-        const float cz1 = wz * ca - wx * sa;
-        const float cz  = cz1 * cb + wy * sb;
-        if (cz < 0.0f && std::fabs(cx * FOVK) > -cz + backR * 2.0f + 2048.0f) {
+    float backR = 0.0f;
+    if (!TerrainTilePassesCoarseTest(x, y, backR)) {
 #ifdef GL_PERF_HOOKS
-            ++m_terrainPerf.coarseCulled;
+        ++m_terrainPerf.coarseCulled;
 #endif
-            return;
-        }
+        return;
     }
 
 #ifdef GL_PERF_HOOKS
@@ -784,18 +788,7 @@ void GLRenderer::CollectTerrainChunk2x2(int x, int y,
     bool  anyCoarse = false;
     for (int dj = 0; dj < 2; ++dj) {
         for (int di = 0; di < 2; ++di) {
-            const int cx = x + di;
-            const int cy = y + dj;
-            float br = BackViewR;
-            if (OMap[cy][cx] != 255) br += MObjects[OMap[cy][cx]].info.BoundR;
-            backR[dj][di] = br;
-            const float wx  = static_cast<float>(cx * 256 + 128) - CameraX;
-            const float wz  = static_cast<float>(cy * 256 + 128) - CameraZ;
-            const float wy  = static_cast<float>(HMapO[cy][cx]) * ctHScale - CameraY;
-            const float cxc = wx * ca + wz * sa;
-            const float cz1 = wz * ca - wx * sa;
-            const float cz  = cz1 * cb + wy * sb;
-            const bool pass = !(cz < 0.0f && std::fabs(cxc * FOVK) > -cz + br * 2.0f + 2048.0f);
+            const bool pass = TerrainTilePassesCoarseTest(x + di, y + dj, backR[dj][di]);
             coarsePass[dj][di] = pass;
             if (pass) {
                 anyCoarse = true;
