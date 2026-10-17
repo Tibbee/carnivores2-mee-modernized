@@ -2497,29 +2497,14 @@ void MenuEventInput(int32_t menu)
 						params << " " << g_UtilInfo[kAccNV].m_Command;
 				}
 
-				if (MenuHunt[3].Item[kAccCamo].second) {
-					g_Options.CamoMode = true;
-					params << " -camo";
-				}
-				else {
-					g_Options.CamoMode = true;
-				}
-
-				if (MenuHunt[3].Item[kAccRadar].second) {
-					g_Options.RadarMode = true;
-					params << " -radar";
-				}
-				else {
-					g_Options.RadarMode = true;
-				}
-
-				if (MenuHunt[3].Item[kAccScent].second) {
-					g_Options.ScentMode = true;
-					params << " -scent";
-				}
-				else {
-					g_Options.ScentMode = true;
-				}
+				// These three persist as owned regardless of selection; only
+				// the launch flags depend on what is ticked.
+				g_Options.CamoMode = true;
+				g_Options.RadarMode = true;
+				g_Options.ScentMode = true;
+				if (MenuHunt[3].Item[kAccCamo].second) params << " -camo";
+				if (MenuHunt[3].Item[kAccRadar].second) params << " -radar";
+				if (MenuHunt[3].Item[kAccScent].second) params << " -scent";
 
 				// Tranquilizers
 				{
