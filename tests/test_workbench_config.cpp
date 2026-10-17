@@ -712,9 +712,11 @@ TEST(SourceContracts, WorkbenchWiring) {
 	EXPECT_LT(reset, loader.find("  PlaceHunter();", reset));
 	EXPECT_EQ(loader.find("UWFog_BaseDensityMult ="), std::string::npos);
 	const std::string hunt = ReadSource("Hunt/Game/Hunt.cpp");
-	EXPECT_NE(hunt.find("workbench::AdjustLegacyRuntime(parameter, right)"), std::string::npos);
-	EXPECT_NE(hunt.find("workbench::EmitRuntimeDump(PrintLog)"), std::string::npos);
+	const std::string wndproc = ReadSource("Hunt/Game/WndProc.cpp");
+	EXPECT_NE(wndproc.find("workbench::AdjustLegacyRuntime(parameter, right)"), std::string::npos);
+	EXPECT_NE(wndproc.find("workbench::EmitRuntimeDump(PrintLog)"), std::string::npos);
 	EXPECT_EQ(hunt.find("float* params[]"), std::string::npos);
+	EXPECT_EQ(wndproc.find("float* params[]"), std::string::npos);
 }
 
 TEST(ConfigRegistry, NoDescriptorWritesTheDryReverbEnvironment) {

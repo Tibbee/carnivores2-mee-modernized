@@ -37,12 +37,12 @@ extern GameMode g_GameMode;
 // map view that was up (the original engine kept EXITMODE/PAUSE as
 // independent flags and never lost it). Only meaningful while the menu is
 // up; cleared on dismiss and wherever ExitCountdown is entered outside the
-// menu (death flow). See DismissMenuRestore() in Hunt/Game/Hunt.cpp.
+// menu (death flow). See DismissMenuRestore() in Hunt/Game/WndProc.cpp.
 extern GameMode g_SavedOverlayMode;
 // Non-menu entry into ExitCountdown (death demo): clears the stash first so
 // a later dismiss restores Normal instead of resurrecting a stale overlay.
 // Lives here so every translation unit enters ExitCountdown outside the menu
-// through the same choke point (see EnterMenuMode() in Hunt/Game/Hunt.cpp).
+// through the same choke point (see EnterMenuMode() in Hunt/Game/WndProc.cpp).
 inline void EnterExitCountdownNoStash() {
   g_SavedOverlayMode = GameMode::Normal;
   g_GameMode = GameMode::ExitCountdown;

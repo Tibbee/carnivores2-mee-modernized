@@ -234,7 +234,7 @@ TEST(SourceContracts, CallSitesAndOrdering) {
     ASSERT_NE(camera, std::string::npos);
     EXPECT_LT(health, off);
     EXPECT_LT(off, camera);
-    EXPECT_NE(Source("Hunt/Game/Hunt.cpp").find("if (pressed(FlashlightKey) && FlashlightMode && MyHealth > 0) {"), std::string::npos);
+    EXPECT_NE(Source("Hunt/Game/WndProc.cpp").find("if (pressed(FlashlightKey) && FlashlightMode && MyHealth > 0) {"), std::string::npos);
 
     // The per-frame UBO guard follows fresh packing, is invalidated by every
     // renderer lifecycle change, and precedes the water partial subdata.
@@ -276,12 +276,12 @@ TEST(SourceContracts, CallSitesAndOrdering) {
     // The workbench message gate runs before every legacy key action and
     // forwards focus; gameplay polling, look and UI draw stay gated without
     // pausing simulation.
-    const auto hunt = Source("Hunt/Game/Hunt.cpp");
-    const auto route = hunt.find("workbench::HandleUIMessage(hWnd");
+    const auto wndproc = Source("Hunt/Game/WndProc.cpp");
+    const auto route = wndproc.find("workbench::HandleUIMessage(hWnd");
     ASSERT_NE(route, std::string::npos);
-    EXPECT_LT(route, hunt.find("if (pressed(KeyMap.fkBinoc)"));
-    EXPECT_LT(route, hunt.find("switch (message)", route));
-    EXPECT_NE(hunt.find("workbench::NotifyUIFocus(blActive != 0)"), std::string::npos);
+    EXPECT_LT(route, wndproc.find("if (pressed(KeyMap.fkBinoc)"));
+    EXPECT_LT(route, wndproc.find("switch (message)", route));
+    EXPECT_NE(wndproc.find("workbench::NotifyUIFocus(blActive != 0)"), std::string::npos);
     const auto controls = Source("Hunt/Game/Controls.cpp");
     EXPECT_LT(controls.find("workbench::FilterGameplayKeys(KeyboardState)"), controls.find("KeyboardState[KeyMap.fkReload]"));
     EXPECT_NE(controls.find("if (workbench::UIOwnsInput()) capture = false;"), std::string::npos);
