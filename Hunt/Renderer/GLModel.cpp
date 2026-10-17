@@ -57,8 +57,13 @@ void GLRenderer::RegisterTexture(TEXTURE* tptr)
     (void)tptr;
 }
 
-void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z0,
-                                       float al, float bt)
+// Draw one viewmodel effect overlay (env map or specular) in the near depth
+// slice. The two overlays differ only in texture, vertex colour and effect
+// flag; the mesh upload, projection and night kind are shared.
+void GLRenderer::DrawModelEffectOverlay(TModel* mptr, float x0, float y0, float z0,
+                                        float al, float bt, unsigned int& textureCache,
+                                        const TPicture& picture, int effect,
+                                        const Vector3d& color)
 {
     UploadStaticMesh(mptr);
 
@@ -66,18 +71,17 @@ void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z
         return;
     }
 
-    GLuint texture = m_envTexture;
+    GLuint texture = textureCache;
     if (!texture) {
-        texture = UploadPictureTexture(TFX_ENVMAP);
+        texture = UploadPictureTexture(picture);
         if (!texture) {
             return;
         }
-        m_envTexture = texture;
+        textureCache = texture;
     }
 
     std::vector<ModelVertex> vertices;
-    const Vector3d white = {1.0f, 1.0f, 1.0f};
-    if (!BuildModelEffectVertices(vertices, mptr, x0, y0, z0, al, bt, sfEnvMap, white)) {
+    if (!BuildModelEffectVertices(vertices, mptr, x0, y0, z0, al, bt, effect, color)) {
         return;
     }
 
@@ -90,30 +94,25 @@ void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z
     // its window depth is ~20x the stored value and GL_LEQUAL discards every
     // fragment, which silently killed the env-map reflection.
     glDepthRange(0.0, kViewmodelDepthRangeMax);
+    // Weapon overlays ride the camera a few hundred units out, i.e. always at
+    // point-blank beam range, so they opt out of the geometric beam. Their
+    // equipment-dependent visibility matches the weapon body instead.
     DrawModelVertices(texture, vertices, projection, true, true, true, true,
                        /*worldLit=*/false, NightDrawKind::Viewmodel);
     glDepthRange(0.0, 1.0);
 }
 
+void GLRenderer::RenderModelClipEnvMap(TModel* mptr, float x0, float y0, float z0,
+                                       float al, float bt)
+{
+    const Vector3d white = {1.0f, 1.0f, 1.0f};
+    DrawModelEffectOverlay(mptr, x0, y0, z0, al, bt, m_envTexture, TFX_ENVMAP,
+                           sfEnvMap, white);
+}
+
 void GLRenderer::RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float z0,
                                          float al, float bt)
 {
-    UploadStaticMesh(mptr);
-
-    if (!m_modelShader.IsValid() || !m_modelVAO || !m_modelVBO) {
-        return;
-    }
-
-    GLuint texture = m_phongTexture;
-    if (!texture) {
-        texture = UploadPictureTexture(TFX_SPECULAR);
-        if (!texture) {
-            return;
-        }
-        m_phongTexture = texture;
-    }
-
-    std::vector<ModelVertex> vertices;
     const auto clampSkyChannel = [](int value) -> float {
         return static_cast<float>(value > 255 ? 255 : value) / 255.0f;
     };
@@ -122,23 +121,8 @@ void GLRenderer::RenderModelClipPhongMap(TModel* mptr, float x0, float y0, float
         clampSkyChannel(SkyG + 64),
         clampSkyChannel(SkyB + 64)
     };
-    if (!BuildModelEffectVertices(vertices, mptr, x0, y0, z0, al, bt, sfPhong, color)) {
-        return;
-    }
-
-    const auto projection = m_hasLastNearModelProjection
-        ? m_lastNearModelProjection
-        : BuildLegacyProjection();
-    // Same near-slice requirement as the env-map overlay above: the body's
-    // depth lives in the viewmodel depth range, so drawing the specular pass
-    // at (0, 1) put it behind the body it belongs to and GL_LEQUAL dropped it.
-    glDepthRange(0.0, kViewmodelDepthRangeMax);
-    // Weapon overlays ride the camera a few hundred units out, i.e. always at
-    // point-blank beam range, so they opt out of the geometric beam. Their
-    // equipment-dependent visibility matches the weapon body instead.
-    DrawModelVertices(texture, vertices, projection, true, true, true, true,
-                       /*worldLit=*/false, NightDrawKind::Viewmodel);
-    glDepthRange(0.0, 1.0);
+    DrawModelEffectOverlay(mptr, x0, y0, z0, al, bt, m_phongTexture, TFX_SPECULAR,
+                           sfPhong, color);
 }
 
 void GLRenderer::RenderNearModel(TModel* mptr, float x0, float y0, float z0,

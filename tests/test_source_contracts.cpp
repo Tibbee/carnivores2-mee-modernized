@@ -179,7 +179,7 @@ TEST(SourceContracts, DrawPassAndShaderWiring) {
     // stay ungraded.
     std::size_t viewmodelCount = 0, pos = 0;
     while ((pos = gpuModel.find("NightDrawKind::Viewmodel", pos)) != std::string::npos) { ++viewmodelCount; ++pos; }
-    EXPECT_EQ(viewmodelCount, 5u); // diffuse, cutout, transparent, env and specular
+    EXPECT_EQ(viewmodelCount, 4u); // diffuse, cutout, transparent and the shared env/specular overlay
     const auto night = Source("Hunt/Renderer/GLNight.cpp");
     EXPECT_NE(night.find("FlashlightEnabled(), NightLightingOptions(), kind"), std::string::npos);
     EXPECT_NE(night.find("!presentationEnabled"), std::string::npos);

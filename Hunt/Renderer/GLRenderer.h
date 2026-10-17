@@ -307,6 +307,12 @@ private:
                                   float bt,
                                   int flagMask,
                                   const Vector3d& fogColor) const;
+    // One viewmodel effect overlay (env map / specular): same mesh, near
+    // depth slice and night kind; texture, vertex colour and flag mask differ.
+    void DrawModelEffectOverlay(TModel* mptr, float x0, float y0, float z0,
+                                float al, float bt, unsigned int& textureCache,
+                                const TPicture& picture, int effect,
+                                const Vector3d& color);
     bool BuildModelDrawItem(ModelDrawItem& outItem,
                             TModel* mptr,
                             float x0,
