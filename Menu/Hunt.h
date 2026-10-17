@@ -719,6 +719,7 @@ void LoadResourcesScript();
 void ReleaseResources();
 void TrophyLoad(Profile& profile, int pr);
 void TrophySave(Profile& profile);
+void LoadProfileSummaries();
 void LoadConfig();
 void SaveConfig();
 void RequestMenuExit(int exitCode = 0);

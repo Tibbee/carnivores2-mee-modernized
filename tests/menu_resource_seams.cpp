@@ -28,6 +28,7 @@ unsigned long long g_SavedHuntUtils = 0;
 int32_t g_SavedHuntTime = 0;
 bool g_HasSavedHunt = false;
 uint32_t g_ProfileIndex = 0;
+ProfileShort g_Profiles[10];
 uint32_t g_StartCredits = 0;
 int g_ResCount = 0;
 TRes g_ResolutionList[resolutions::kMaxResolutions];

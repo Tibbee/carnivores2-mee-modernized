@@ -1159,26 +1159,7 @@ void MenuEventStart(int32_t menu_state)
 		MenuRegistry.AddItem("");
 		g_LastListClickTime = 0;
 		g_LastListClickIndex = -1;
-		char tname[128];
-		for (auto i = 0U; i < 8U; i++) {
-			g_Profiles[i].m_Name = "";
-			g_Profiles[i].m_RegNumber = i;
-			g_Profiles[i].m_Rank = RANK_BEGINNER;
-			g_Profiles[i].m_Score = 0U;
-
-			std::stringstream sn;
-			sn << "trophy" << std::setfill('0') << std::setw(2) << i << ".sav";
-
-			std::ifstream fs(sn.str());
-			if (!fs.is_open()) { continue; }
-
-			fs.read(tname, 128);
-			fs.read(reinterpret_cast<char*>(&g_Profiles[i].m_RegNumber), 4);
-			fs.read(reinterpret_cast<char*>(&g_Profiles[i].m_Score), 4);
-			fs.read(reinterpret_cast<char*>(&g_Profiles[i].m_Rank), 4);
-
-			g_Profiles[i].m_Name = tname;
-		}
+		LoadProfileSummaries();
 	} break;
 	case MENU_OPTIONS: {
 		g_WaitKey = -1;

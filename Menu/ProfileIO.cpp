@@ -223,3 +223,31 @@ void Profile::New(const std::string& name, int32_t index)
 	memset(&Total, 0, sizeof(ProfileStats));
 	memset(Body, 0, sizeof(TrophyItem) * 24);
 }
+
+// Fill g_Profiles[0..7] with the registry summaries the menu lists. This is
+// the same fixed prefix TrophySave writes (name[128] + RegNumber/Score/Rank);
+// missing files keep the beginner defaults. The stream stays in text mode, as
+// it always was, so existing profiles read identically.
+void LoadProfileSummaries()
+{
+	char tname[128];
+	for (auto i = 0U; i < 8U; i++) {
+		g_Profiles[i].m_Name = "";
+		g_Profiles[i].m_RegNumber = i;
+		g_Profiles[i].m_Rank = RANK_BEGINNER;
+		g_Profiles[i].m_Score = 0U;
+
+		std::stringstream sn;
+		sn << "trophy" << std::setfill('0') << std::setw(2) << i << ".sav";
+
+		std::ifstream fs(sn.str());
+		if (!fs.is_open()) { continue; }
+
+		fs.read(tname, 128);
+		fs.read(reinterpret_cast<char*>(&g_Profiles[i].m_RegNumber), 4);
+		fs.read(reinterpret_cast<char*>(&g_Profiles[i].m_Score), 4);
+		fs.read(reinterpret_cast<char*>(&g_Profiles[i].m_Rank), 4);
+
+		g_Profiles[i].m_Name = tname;
+	}
+}
