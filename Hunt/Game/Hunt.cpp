@@ -546,10 +546,12 @@ SKIPWIND:
 	  if (wptr->shakel > 4.0f) wptr->shakel = 4.0f;
   }
 
+  // Underwater halves the viewmodel animation rate; compute once per frame.
+  const float frameAdvance = IsUnderwater() ? TimeDt / 2.f : static_cast<float>(TimeDt);
+
   if (wptr->state == 1)
   {
-	  if (IsUnderwater()) wptr->FTime += TimeDt/2.f;
-	  else wptr->FTime+=TimeDt;
+	  wptr->FTime += frameAdvance;
     if (wptr->FTime >= RequireCurrentWeaponAnimation(WeapInfo[CurrentWeapon].getAnim)->AniTime)
     {
       wptr->FTime = 0;
@@ -559,8 +561,7 @@ SKIPWIND:
 
   if (wptr->state == 4)
   {
-	  if (IsUnderwater()) wptr->FTime += TimeDt / 2.f;
-	  else wptr->FTime += TimeDt;
+	  wptr->FTime += frameAdvance;
 	  if (wptr->FTime >= RequireCurrentWeaponAnimation(WeapInfo[CurrentWeapon].rldAnim)->AniTime)
 	  {
 		wptr->FTime = 0;
@@ -586,8 +587,7 @@ SKIPWIND:
 
   if (wptr->state == 5)
   {
-	  if (IsUnderwater()) wptr->FTime += TimeDt / 2.f;
-	  else wptr->FTime += TimeDt;
+	  wptr->FTime += frameAdvance;
 	  if (wptr->FTime >= RequireCurrentWeaponAnimation(WeapInfo[CurrentWeapon].rldAnimPart)->AniTime)
 	  {
 		  wptr->FTime = 0;
@@ -606,8 +606,7 @@ SKIPWIND:
 
   if (wptr->state == 2 && wptr->FTime>0)
   {
-	  if (IsUnderwater()) wptr->FTime += TimeDt / 2.f;
-	  else wptr->FTime += TimeDt;
+	  wptr->FTime += frameAdvance;
 	  if (Muzz && !IsUnderwater()) {
 		if (wptr->FTime > MuzzModel.Animation[0].AniTime) {
 			Muzz = false;
@@ -636,8 +635,7 @@ SKIPWIND:
 
   if (wptr->state == 6)
   {
-	  if (IsUnderwater()) wptr->FTime += TimeDt / 2.f;
-	  else wptr->FTime += TimeDt;
+	  wptr->FTime += frameAdvance;
 	  if (wptr->FTime >= RequireCurrentWeaponAnimation(WeapInfo[CurrentWeapon].pmpAnim)->AniTime)
 	  {
 		  wptr->FTime = 0;
@@ -652,8 +650,7 @@ SKIPWIND:
 
   if (wptr->state == 7)
   {
-	  if (IsUnderwater()) wptr->FTime += TimeDt / 2.f;
-	  else wptr->FTime += TimeDt;
+	  wptr->FTime += frameAdvance;
 	  if (wptr->FTime >= RequireCurrentWeaponAnimation(WeapInfo[CurrentWeapon].modAnim)->AniTime)
 	  {
 		  if (!FiringMode[CurrentWeapon]) FiringMode[CurrentWeapon] = 1; else FiringMode[CurrentWeapon] = 0;
@@ -664,8 +661,7 @@ SKIPWIND:
 
   if (wptr->state == 3)
   {
-	  if (IsUnderwater()) wptr->FTime += TimeDt / 2.f;
-	  else wptr->FTime+=TimeDt;
+	  wptr->FTime += frameAdvance;
     if (wptr->FTime >= RequireCurrentWeaponAnimation(WeapInfo[CurrentWeapon].putAnim)->AniTime)
     {
       wptr->FTime = 0;
@@ -678,20 +674,6 @@ SKIPWIND:
       goto SKIPWEAPON;
     }
   }
-
-
-/*
-  if (!ShotsLeft[CurrentWeapon])
-  {
-    HideWeapon();
-    for (int w=0; w<10; w++)
-      if (ShotsLeft[w])
-      {
-        TargetWeapon=w;
-        break;
-      }
-  }
-  */
 
   switch (wptr->state)
   {
@@ -751,11 +733,6 @@ SKIPWIND:
   if (temp > 4.0f) temp = 4.0f;
   wpnDAlpha = temp * static_cast<float>(sin((static_cast<float>(RealTime)) / 300.f+pi/2)) / 200.f;
   wpnDBeta  = temp * static_cast<float>(sin((static_cast<float>(RealTime)) / 300.f)) / 400.f;
-
-  //if (wptr->shakel < 0.2f) wptr->shakel = 0.2f;
-  //if (wptr->shakel > 4.0f) wptr->shakel = 4.0f;
-  //wpnDAlpha = wptr->shakel * static_cast<float>(sin((static_cast<float>(RealTime)) / 300.f + pi / 2)) / 200.f;
-  //wpnDBeta = wptr->shakel * static_cast<float>(sin((static_cast<float>(RealTime)) / 300.f)) / 400.f;
 
   nv.z = 0;
 
@@ -878,13 +855,6 @@ SKIPWEAPON:
     // was clearly visible on every weapon.
     if (g_GameMode != GameMode::SurvivalMode && wptr->state != 3)
     {
-
-		
-		/*
-		if (WeapInfo[w].Reload || WeapInfo[w].rldAnim < 0) {
-					Chambered[w] = WeapInfo[w].Reload;
-		*/
-
       const float uiscale = static_cast<float>(WinH) / 600.0f * UIScale;
 
 		int ind = 9;
@@ -910,7 +880,6 @@ SKIPWEAPON:
 				float d = -cos(pi/2+(pi/2 * (static_cast<float>(wptr->FTime) / static_cast<float>(animation->AniTime))));
 				if (WeapInfo[CurrentWeapon].Reload) {
 					x1 -= d * bulletW * wptr->ammoIn;
-					//x2 -= d * ((Weapon.BulletPic[CurrentWeapon].W * wptr->ammoIn) + 3);
 					x2 -= d * ((bulletW * (WeapInfo[CurrentWeapon].Reload - Chambered[CurrentWeapon])) + hudGap);
 				} else {
 					d *= (y2 - y1);
@@ -1030,25 +999,6 @@ SKIPWEAPON:
   }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // Restore the overlay (scope, binoculars, map) stashed when the menu took
 // over the mode slot; anything else returns to Normal. Single-use (cleared
@@ -1315,26 +1265,12 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     case 'O':
       if (DEBUG) ChangeViewR(0, -2, 0);
       break;
-    //case 'P': if (DEBUG) ChangeViewR(0, +2, 0); break;
     case 219:
       if (DEBUG) ChangeViewR(-2, 0, 0);
       break;
     case 221:
       if (DEBUG) ChangeViewR(+2, 0, 0);
       break;
-
-    /*
-    case '0': wpshy=0; wpshz=0; wpnb=0; break;
-    case '7': if (CTRL) wpshy-=0.25; else wpshy+=0.25;
-           ShowShifts();
-           break;
-    case '8': if (CTRL) wpshz-=0.25; else wpshz+=0.25;
-           ShowShifts();
-           break;
-    case '9': if (CTRL) wpnb-=0.005; else wpnb+=0.005;
-           ShowShifts();
-           break;*/
-
 
     case 'S':
       if (DEBUG && CTRL) SwitchMode("Slow mode",SLOW);
@@ -1366,14 +1302,6 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     case 'P':
 		if (!CTRL) { if (DEBUG) ChangeViewR(0, +2, 0); } else if (DEBUG) SwitchMode("Phong Mapping", PHONG);
 		break;
-
-//	case VK_UP:
-
-//	case VK_RIGHT:
-
-//	case VK_LEFT:
-
-//	case VK_DOWN:
 
     case VK_TAB:
       ToggleMapMode();
@@ -1535,35 +1463,6 @@ BOOL CreateMainWindow()
   return true;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // Paces the frame from the shared FPS-limit option table (Core/Constants.h).
 static void LimitFPS()
 {
@@ -1584,23 +1483,6 @@ void ProcessGame()
   if (!_GameState)
   {
 
-	  /*
-	  for (int di = 0; di < DINOINFO_MAX; di++) {
-		  DinoInfo[di].trophyLocTotal1 = 0;
-		  DinoInfo[di].trophyLocTotal2 = 0;
-	  }
-
-	  char Buff[100];
-	  for (int c = 0; c < TROPHY2_COUNT; c++) {
-		  sprintf(Buff, "SETTING LOC TOTAL INC %i", c);
-		  PrintLog(Buff);
-		  sprintf(Buff, " = %i\n", TrophyIndex[c]);
-		  PrintLog(Buff);
-		  DinoInfo[TrophyIndex[c]].trophyLocTotal1++;
-		  DinoInfo[TrophyIndex[c]].trophyLocTotal2++;
-	  }
-	  */
-
     PrintLog("Entered game\n");
     ReInitGame();
     CaptureMouse(true);
@@ -1617,41 +1499,6 @@ void ProcessGame()
 		}
 		_MultiplayerState = 1;
 	}
-
-
-//test
-	/*
-	long long_data = PlayerX;
-
-	char printable2[25];
-	_itoa(long_data, printable2, 10);
-	PrintLog("SENDINGVALUE:");
-	PrintLog(printable2);
-	PrintLog("\n");
-
-	byte tdata[4];
-	tdata[0] = static_cast<int>(((long_data >> 24) & 0xFF));
-	tdata[1] = static_cast<int>(((long_data >> 16) & 0xFF));
-	tdata[2] = static_cast<int>(((long_data >> 8) & 0XFF));
-	tdata[3] = static_cast<int>(((long_data & 0XFF)));
-
-	const char *p = reinterpret_cast<const char*>(tdata);
-	const byte *tdata2 = reinterpret_cast<const byte*>(p);
-
-	long anotherLongInt = ((tdata2[0] << 24)
-		+ (tdata2[1] << 16)
-		+ (tdata2[2] << 8)
-		+ (tdata2[3]));
-
-	char printable[25];
-	_itoa(anotherLongInt, printable, 10);
-
-	PrintLog("SENTVALUE:");
-	PrintLog(printable);
-	PrintLog("\n");
-	*/
-
-
 
   }
 
