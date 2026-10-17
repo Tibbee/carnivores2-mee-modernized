@@ -1843,80 +1843,6 @@ void ReadKillTypeInfo(FILE *stream)
 	}
 }
 
-
-
-
-
-
-
-/*
-// Superseded: the original C1 spawn-info parser, reading spawnrate/
-// spawnmax/spawnmin into Region[]. The live parser reads the C2 format
-// (spawnratio into DinoInfo[].SpawnInfo[]) instead.
-void ReadSpawnInfo(FILE *stream)
-{
-	char *value;
-	char line[256];
-
-	while (fgets(line, 255, stream)) {
-		if (strstr(line, "}")) {
-			DinoInfo[TotalC].RType0[DinoInfo[TotalC].RegionCount] = TotalRegion;
-			DinoInfo[TotalC].RegionCount++;
-			TotalRegion++;
-			break;
-		}
-		value = strstr(line, "=");
-		if (!value)
-			DoHalt("Script loading error");
-		value++;
-
-		if (strstr(line, "spawnrate")) Region[TotalRegion].SpawnRate = static_cast<float>(atof(value));
-		if (strstr(line, "spawnmax")) Region[TotalRegion].SpawnMax = atoi(value);
-		if (strstr(line, "spawnmin")) Region[TotalRegion].SpawnMin = atoi(value);
-
-		if (strstr(line, "xmax")) Region[TotalRegion].XMax = atoi(value);
-		if (strstr(line, "xmin")) Region[TotalRegion].XMin = atoi(value);
-		if (strstr(line, "ymax")) Region[TotalRegion].YMax = atoi(value);
-		if (strstr(line, "ymin")) Region[TotalRegion].YMin = atoi(value);
-		if (strstr(line, "styInRgn")) readBool(value, Region[TotalRegion].stayInRegion);
-
-	}
-}
-
-void ReadAvoidInfo(FILE *stream)
-{
-	char *value;
-	char line[256];
-
-	while (fgets(line, 255, stream)) {
-		if (strstr(line, "}")) {
-			if (Avoid[TotalAvoid].XMax ||
-				Avoid[TotalAvoid].YMax ||
-				Avoid[TotalAvoid].XMin ||
-				Avoid[TotalAvoid].YMin) {
-				DinoInfo[TotalC].Avoidances[DinoInfo[TotalC].AvoidCount] = TotalAvoid;
-				DinoInfo[TotalC].AvoidCount++;
-				TotalAvoid++;
-			}
-			break;
-		}
-		value = strstr(line, "=");
-		if (!value)
-			DoHalt("Script loading error");
-		value++;
-
-		if (strstr(line, "xmax")) Avoid[TotalAvoid].XMax = atoi(value);
-		if (strstr(line, "xmin")) Avoid[TotalAvoid].XMin = atoi(value);
-		if (strstr(line, "ymax")) Avoid[TotalAvoid].YMax = atoi(value);
-		if (strstr(line, "ymin")) Avoid[TotalAvoid].YMin = atoi(value);
-
-	}
-
-}
-*/
-
-
-
 void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnInfoOverwrite, bool &spawnGroupOverwrite,
 	bool &idleOverwrite, bool &idle2Overwrite, bool &roarOverwrite, bool &killOverwrite, bool &waterDieOverwrite,
 	bool &deathTypeOverwrite, bool &trophyTypeOverwrite, bool &idleGroupOverwrite, bool &idle2GroupOverwrite,
@@ -2240,19 +2166,6 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 			ReadSpawnGroup(stream, line, 1);
 		}
 	}
-
-	/*
-	if (strstr(line, "avoid")) {
-
-		if (avoidOverwrite) {
-			WipeAvoidances();
-			avoidOverwrite = false;
-		}
-		ReadAvoidInfo(stream);
-		
-	}
-	*/
-
 
 }
 
