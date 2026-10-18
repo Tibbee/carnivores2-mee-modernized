@@ -2,15 +2,6 @@
 #include "Game/CharacterInternal.h"
 #include "stdio.h"
 
-#define fx_DIE    0
-
-#define MOSA_RUN    0
-#define MOSA_WALK   1
-#define MOSA_JUMP   2
-#define MOSA_DIE    3
-#define MOSA_EAT    4
-#define MOSA_SLP    5
-
 void SetNewTargetPlace(TCharacter *cptr, float R);
 void SetNewTargetPlaceRegion(TCharacter *cptr, float R);
 

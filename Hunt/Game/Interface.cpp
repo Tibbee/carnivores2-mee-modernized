@@ -25,9 +25,6 @@ char Systxt[2][12];
 int CurPlayer = -1;
 int MaxDino, AreaMax, LoadCount;
 
-#define REGLISTX 320
-#define REGLISTY 370
-
 BOOL NEWPLAYER = false;
 
 POINT p;

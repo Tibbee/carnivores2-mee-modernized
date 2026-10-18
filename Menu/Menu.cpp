@@ -570,10 +570,6 @@ bool RegistryRowContains(const POINT& p, unsigned row)
 	return p.x >= 308 && p.y >= (368 + (16 * row)) && p.x <= 408 && p.y <= (368 + (16 * row) + 16);
 }
 
-// TODO: Move these to Hunt.h
-#define FPS_TARGET 60L
-#define FRAME_TIME_DELTA (1000L / FPS_TARGET) // The time in milliseconds a frame takes to process to achieve FPS_TARGET
-
 int64_t g_PrevFrameTime = 0;
 #ifdef _DEBUG
 int32_t g_Frames = 0;
