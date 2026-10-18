@@ -113,3 +113,16 @@ void ReadSnowType(FILE* stream);
 void ReadAreaTable(FILE* stream, int areaNumber);
 void ReadWeaponLine(FILE* stream, char* value, char line[256]);
 void ReadWeapons(FILE* stream);
+
+// Spawn group (ScriptParserSpawn.cpp): per-character spawn/pack info, the
+// spawn-group region/avoid readers, and the spawn/pack tables. The character
+// group calls the per-character readers; the driver calls the top-level
+// tables. The remaining spawn readers are internal to that translation unit.
+void WipePackMembers2();
+void WipeSpawnInfo();
+void ReadSpawnInfo(FILE* stream);
+void ReadPackMember2(FILE* stream);
+void ReadSpawnGroup(FILE* stream, char line[256], int mode);
+void ReadPackGroup(FILE* stream, char line[256], int mode);
+void ReadSpawnTable(FILE* stream);
+void ReadPackTable(FILE* stream);
