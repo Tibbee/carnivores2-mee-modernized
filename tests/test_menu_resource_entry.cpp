@@ -18,6 +18,7 @@
 #include <sstream>
 
 #include "Hunt.h"
+#include "Core/Flashlight.h"
 #include "Loaders/LoadDiagnostics.h"
 #include "test_support.h"
 
@@ -974,6 +975,18 @@ TEST(MenuProfileIO, TrophySaveLoadRoundTripsThe1660ByteFormat)
     saved.Body[0].m_Time = 1234;
     saved.Body[0].m_Scale = 0.75f;
     saved.Body[0].m_Range = 64.0f;
+    // The last slot proves the whole 24-entry body array is written and read,
+    // not just the prefix the menu happens to display first.
+    saved.Body[23].m_CType = 9;
+    saved.Body[23].m_Weapon = 7;
+    saved.Body[23].m_Phase = 2;
+    saved.Body[23].m_Height = 4;
+    saved.Body[23].m_Weight = 900;
+    saved.Body[23].m_Score = 22;
+    saved.Body[23].m_Date = 20261018;
+    saved.Body[23].m_Time = 4321;
+    saved.Body[23].m_Scale = 1.25f;
+    saved.Body[23].m_Range = 128.0f;
 
     Options savedOptions;
     memset(&savedOptions, 0, sizeof(savedOptions));
@@ -993,12 +1006,43 @@ TEST(MenuProfileIO, TrophySaveLoadRoundTripsThe1660ByteFormat)
     savedOptions.CamoMode = true;
     savedOptions.RadarMode = true;
     savedOptions.TranqMode = true;
-    savedOptions.AlphaColorKey = 0;
-    savedOptions.OptSys = 0;
+    savedOptions.AlphaColorKey = 1;
+    savedOptions.OptSys = 1;
     savedOptions.SoundAPI = AUDIO_OPENALSOFT;
     savedOptions.RenderAPI = 1;
+
+    // Config-only fields: set them before save so the load can prove it does
+    // not pull them out of the profile blob.
+    savedOptions.DisplayMode = 2;
+    savedOptions.FOV = 75;
+    savedOptions.ObjectDetail = 80;
+    savedOptions.OptFpsLimit = 3;
+    savedOptions.VerboseLogging = true;
+    savedOptions.NightVisionKey = 'Q';
+    savedOptions.FlashlightKey = 'R';
+
+    // Every TKeyMap field, each deliberately different from Options::Default(),
+    // so a field reorder or a truncated write cannot pass unnoticed.
+    savedOptions.KeyMap.fkForward = 'I';
+    savedOptions.KeyMap.fkBackward = 'K';
+    savedOptions.KeyMap.fkReload = 'Q';
+    savedOptions.KeyMap.fkResupply = 'Y';
+    savedOptions.KeyMap.fkHoldBreath = VK_RCONTROL;
+    savedOptions.KeyMap.fkFiringMode = 'H';
     savedOptions.KeyMap.fkFire = VK_F1;
+    savedOptions.KeyMap.fkShow = VK_F2;
+    savedOptions.KeyMap.fkSLeft = 'J';
+    savedOptions.KeyMap.fkSRight = 'L';
+    savedOptions.KeyMap.fkStrafe = 'U';
+    savedOptions.KeyMap.fkJump = 'N';
+    savedOptions.KeyMap.fkRun = VK_RSHIFT;
+    savedOptions.KeyMap.fkCrouch = 'M';
+    savedOptions.KeyMap.fkCall = 'P';
     savedOptions.KeyMap.fkCCall = 'X';
+    savedOptions.KeyMap.fkBinoc = 'Z';
+#ifdef _iceage
+    savedOptions.KeyMap.fkSupply = '9';
+#endif
     g_Options = savedOptions;
 
     TrophyDelete(7);
@@ -1035,6 +1079,16 @@ TEST(MenuProfileIO, TrophySaveLoadRoundTripsThe1660ByteFormat)
     EXPECT_EQ(loaded.Body[0].m_Time, 1234);
     EXPECT_FLOAT_EQ(loaded.Body[0].m_Scale, 0.75f);
     EXPECT_FLOAT_EQ(loaded.Body[0].m_Range, 64.0f);
+    EXPECT_EQ(loaded.Body[23].m_CType, 9);
+    EXPECT_EQ(loaded.Body[23].m_Weapon, 7);
+    EXPECT_EQ(loaded.Body[23].m_Phase, 2);
+    EXPECT_EQ(loaded.Body[23].m_Height, 4);
+    EXPECT_EQ(loaded.Body[23].m_Weight, 900);
+    EXPECT_EQ(loaded.Body[23].m_Score, 22);
+    EXPECT_EQ(loaded.Body[23].m_Date, 20261018);
+    EXPECT_EQ(loaded.Body[23].m_Time, 4321);
+    EXPECT_FLOAT_EQ(loaded.Body[23].m_Scale, 1.25f);
+    EXPECT_FLOAT_EQ(loaded.Body[23].m_Range, 128.0f);
 
     EXPECT_EQ(g_Options.Aggression, 3);
     EXPECT_EQ(g_Options.Density, 4);
@@ -1051,10 +1105,38 @@ TEST(MenuProfileIO, TrophySaveLoadRoundTripsThe1660ByteFormat)
     EXPECT_EQ(g_Options.CamoMode, true);
     EXPECT_EQ(g_Options.RadarMode, true);
     EXPECT_EQ(g_Options.TranqMode, true);
-    EXPECT_EQ(g_Options.AlphaColorKey, 0);
-    EXPECT_EQ(g_Options.OptSys, 0);
+    EXPECT_EQ(g_Options.AlphaColorKey, 1);
+    EXPECT_EQ(g_Options.OptSys, 1);
     EXPECT_EQ(g_Options.SoundAPI, NormalizeAudioBackend(AUDIO_OPENALSOFT));
     EXPECT_EQ(g_Options.RenderAPI, NormalizeMenuRenderAPI(1));
+
+    // Config-only fields are deliberately not part of the 1660-byte blob.
+    EXPECT_EQ(g_Options.FOV, kFovDefault);
+    EXPECT_EQ(g_Options.ObjectDetail, kObjectDetailDefault);
+    EXPECT_EQ(g_Options.NightVisionKey, 0x4E);
+    EXPECT_EQ(g_Options.FlashlightKey, kFlashlightKeyDefault);
+    EXPECT_EQ(g_Options.DisplayMode, 0);
+    EXPECT_EQ(g_Options.OptFpsLimit, 0);
+    EXPECT_FALSE(g_Options.VerboseLogging);
+
+    EXPECT_EQ(g_Options.KeyMap.fkForward, 'I');
+    EXPECT_EQ(g_Options.KeyMap.fkBackward, 'K');
+    EXPECT_EQ(g_Options.KeyMap.fkReload, 'Q');
+    EXPECT_EQ(g_Options.KeyMap.fkResupply, 'Y');
+    EXPECT_EQ(g_Options.KeyMap.fkHoldBreath, VK_RCONTROL);
+    EXPECT_EQ(g_Options.KeyMap.fkFiringMode, 'H');
     EXPECT_EQ(g_Options.KeyMap.fkFire, VK_F1);
+    EXPECT_EQ(g_Options.KeyMap.fkShow, VK_F2);
+    EXPECT_EQ(g_Options.KeyMap.fkSLeft, 'J');
+    EXPECT_EQ(g_Options.KeyMap.fkSRight, 'L');
+    EXPECT_EQ(g_Options.KeyMap.fkStrafe, 'U');
+    EXPECT_EQ(g_Options.KeyMap.fkJump, 'N');
+    EXPECT_EQ(g_Options.KeyMap.fkRun, VK_RSHIFT);
+    EXPECT_EQ(g_Options.KeyMap.fkCrouch, 'M');
+    EXPECT_EQ(g_Options.KeyMap.fkCall, 'P');
     EXPECT_EQ(g_Options.KeyMap.fkCCall, 'X');
+    EXPECT_EQ(g_Options.KeyMap.fkBinoc, 'Z');
+#ifdef _iceage
+    EXPECT_EQ(g_Options.KeyMap.fkSupply, '9');
+#endif
 }

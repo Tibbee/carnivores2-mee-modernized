@@ -5,6 +5,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -15,6 +16,34 @@
 #include <string>
 
 #include "Core/Flashlight.h"
+
+// The legacy trophy blob stores TKeyMap as a raw int32_t block. Pin the
+// declaration order as well as the size: a reorder would silently change
+// every existing profile even though sizeof(TKeyMap) stayed the same.
+#define C2_KEYMAP_OFFSET(field, index) \
+	static_assert(offsetof(TKeyMap, field) == (index) * sizeof(int32_t), \
+		"TKeyMap field order changed; trophy profiles would break")
+C2_KEYMAP_OFFSET(fkForward, 0);
+C2_KEYMAP_OFFSET(fkBackward, 1);
+C2_KEYMAP_OFFSET(fkReload, 2);
+C2_KEYMAP_OFFSET(fkResupply, 3);
+C2_KEYMAP_OFFSET(fkHoldBreath, 4);
+C2_KEYMAP_OFFSET(fkFiringMode, 5);
+C2_KEYMAP_OFFSET(fkFire, 6);
+C2_KEYMAP_OFFSET(fkShow, 7);
+C2_KEYMAP_OFFSET(fkSLeft, 8);
+C2_KEYMAP_OFFSET(fkSRight, 9);
+C2_KEYMAP_OFFSET(fkStrafe, 10);
+C2_KEYMAP_OFFSET(fkJump, 11);
+C2_KEYMAP_OFFSET(fkRun, 12);
+C2_KEYMAP_OFFSET(fkCrouch, 13);
+C2_KEYMAP_OFFSET(fkCall, 14);
+C2_KEYMAP_OFFSET(fkCCall, 15);
+C2_KEYMAP_OFFSET(fkBinoc, 16);
+#ifdef _iceage
+C2_KEYMAP_OFFSET(fkSupply, 17);
+#endif
+#undef C2_KEYMAP_OFFSET
 
 void TrophyLoad(Profile& profile, int pr)
 {
