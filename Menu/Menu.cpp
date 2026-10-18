@@ -1694,6 +1694,15 @@ void DrawMenuHunt()
 }
 
 /*
+The registry name-list rows share one hit-test rectangle between the
+draw-side hover highlight and the input-side double-click test.
+*/
+static bool RegistryRowContains(const POINT& p, unsigned row)
+{
+	return p.x >= 308 && p.y >= (368 + (16 * row)) && p.x <= 408 && p.y <= (368 + (16 * row) + 16);
+}
+
+/*
 Draw the save file 'registry' menu
 */
 void DrawMenuRegistry()
@@ -1730,7 +1739,7 @@ void DrawMenuRegistry()
 			if (i == g_HiliteProfileIndex)
 				color = RGB(255, 170, 10);
 
-			if (p.x >= 308 && p.y >= (368 + (16 * i)) && p.x <= 408 && p.y <= (368 + (16 * i) + 16)) {
+			if (RegistryRowContains(p, i)) {
 				g_HiliteProfileIndex = i; //temporary, move to another function for user input
 #ifdef _DEBUG
 				color = RGB(42, 255, 42);
@@ -1857,8 +1866,7 @@ void MenuEventInput(int32_t menu)
 				DWORD now = timeGetTime();
 				bool inList = false;
 				for (auto i = 0U; i < 7U; i++) {
-					if (g_CursorPos.x >= 308 && g_CursorPos.y >= (368 + (16 * i)) &&
-						g_CursorPos.x <= 408 && g_CursorPos.y <= (368 + (16 * i) + 16)) {
+					if (RegistryRowContains(g_CursorPos, i)) {
 						inList = true;
 						break;
 					}
