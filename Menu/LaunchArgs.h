@@ -44,6 +44,23 @@ inline bool BuildHuntLaunchArguments(const HuntLaunchRequest& request,
     return true;
 }
 
+// Map the menu's display-mode choice to the renderer launch flag. The engine
+// also reads display_mode from config.cfg; this flag makes the intent explicit
+// for config-less launches. The software renderer has no borderless
+// presentation, so its "borderless" choice maps to exclusive fullscreen (its
+// classic behavior). Values other than 0/1/2 fall back to the same default as
+// the original menu switch.
+inline const char* DisplayModeLaunchFlag(int displayMode, bool supportsBorderless)
+{
+    switch (displayMode) {
+    case 0: return " -windowed";
+    case 1: return " -fullscreen";
+    case 2:
+    default:
+        return supportsBorderless ? " -borderless" : " -fullscreen";
+    }
+}
+
 // The menu builds the full command line by appending accessories, score mods,
 // and the display-mode flag to the base arguments. Those appends must go into
 // an empty stream that takes the base arguments as its first write: a

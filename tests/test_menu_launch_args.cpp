@@ -90,4 +90,16 @@ TEST(MenuLaunchArgs, RejectsMalformedRequests)
     EXPECT_EQ(output, "unchanged");
 }
 
+TEST(MenuLaunchArgs, DisplayModeFlagsMatchTheMenuSwitch)
+{
+    EXPECT_STREQ(DisplayModeLaunchFlag(0, true), " -windowed");
+    EXPECT_STREQ(DisplayModeLaunchFlag(1, true), " -fullscreen");
+    EXPECT_STREQ(DisplayModeLaunchFlag(2, true), " -borderless");
+    EXPECT_STREQ(DisplayModeLaunchFlag(2, false), " -fullscreen");
+
+    // The original menu switch used case 2/default for every other value.
+    EXPECT_STREQ(DisplayModeLaunchFlag(-1, true), " -borderless");
+    EXPECT_STREQ(DisplayModeLaunchFlag(99, false), " -fullscreen");
+}
+
 }  // namespace
