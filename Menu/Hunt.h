@@ -658,12 +658,18 @@ EXTERNAL int64_t				g_ScoreDebit; // current setup cost, never stored in the pro
 // Last hunt setup, persisted in config.cfg so the hunt screen reselects it
 // on entry instead of resetting to defaults. Menu.cpp owns capture/restore
 // (MenuHunt lists are file-local there); Resources.cpp owns the file format.
-EXTERNAL std::string			g_SavedHuntArea;
-EXTERNAL unsigned long long		g_SavedHuntDinos;
-EXTERNAL unsigned long long		g_SavedHuntWeapons;
-EXTERNAL unsigned long long		g_SavedHuntUtils;
-EXTERNAL int32_t				g_SavedHuntTime;
-EXTERNAL bool					g_HasSavedHunt;
+struct SavedHuntSetup
+{
+	std::string			area;			// selected area project name (hunt_area)
+	unsigned long long	dinos = 0;		// selection masks, one bit per list entry
+	unsigned long long	weapons = 0;
+	unsigned long long	utils = 0;
+	int32_t				time = 0;		// HuntTimeEnum value
+	bool				has = false;	// any hunt_* key present / setup captured
+
+	void Reset() { *this = SavedHuntSetup{}; }
+};
+EXTERNAL SavedHuntSetup g_SavedHunt;
 
 EXTERNAL uint8_t                g_KeyboardState[256];
 

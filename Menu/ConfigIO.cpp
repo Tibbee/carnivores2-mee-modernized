@@ -75,12 +75,12 @@ void SaveConfig()
 	// lists). Guarded: the lists only exist after the first hunt-screen
 	// visit, so a fresh boot or options-only session never clobbers the file
 	// with empty defaults.
-	if (g_HasSavedHunt) {
-		fresh.emplace_back("hunt_area", g_SavedHuntArea);
-		fresh.emplace_back("hunt_dinos", std::to_string(g_SavedHuntDinos));
-		fresh.emplace_back("hunt_weapons", std::to_string(g_SavedHuntWeapons));
-		fresh.emplace_back("hunt_utils", std::to_string(g_SavedHuntUtils));
-		fresh.emplace_back("hunt_time", std::to_string(g_SavedHuntTime));
+	if (g_SavedHunt.has) {
+		fresh.emplace_back("hunt_area", g_SavedHunt.area);
+		fresh.emplace_back("hunt_dinos", std::to_string(g_SavedHunt.dinos));
+		fresh.emplace_back("hunt_weapons", std::to_string(g_SavedHunt.weapons));
+		fresh.emplace_back("hunt_utils", std::to_string(g_SavedHunt.utils));
+		fresh.emplace_back("hunt_time", std::to_string(g_SavedHunt.time));
 	}
 
 	std::string output;
@@ -237,26 +237,26 @@ static bool ParseConfigField(const configscan::Field& field)
 	if (configscan::KeyEquals(field.key, "hunt_area")) {
 		std::string v;
 		if (iss >> v && v.size() < 128) {
-			g_SavedHuntArea = v;
-			g_HasSavedHunt = true;
+			g_SavedHunt.area = v;
+			g_SavedHunt.has = true;
 		}
 		return true;
 	}
 	if (configscan::KeyEquals(field.key, "hunt_dinos") || configscan::KeyEquals(field.key, "hunt_weapons") || configscan::KeyEquals(field.key, "hunt_utils")) {
 		unsigned long long v;
 		if (iss >> v) {
-			if (configscan::KeyEquals(field.key, "hunt_dinos")) g_SavedHuntDinos = v;
-			else if (configscan::KeyEquals(field.key, "hunt_weapons")) g_SavedHuntWeapons = v;
-			else g_SavedHuntUtils = v;
-			g_HasSavedHunt = true;
+			if (configscan::KeyEquals(field.key, "hunt_dinos")) g_SavedHunt.dinos = v;
+			else if (configscan::KeyEquals(field.key, "hunt_weapons")) g_SavedHunt.weapons = v;
+			else g_SavedHunt.utils = v;
+			g_SavedHunt.has = true;
 		}
 		return true;
 	}
 	if (configscan::KeyEquals(field.key, "hunt_time")) {
 		int v;
 		if (iss >> v && v >= HUNT_DAWN && v <= HUNT_NIGHT) {
-			g_SavedHuntTime = v;
-			g_HasSavedHunt = true;
+			g_SavedHunt.time = v;
+			g_SavedHunt.has = true;
 		}
 		return true;
 	}

@@ -87,12 +87,7 @@ void ResetConfigState()
 {
     g_Options.Default();
     g_ResCount = 0;
-    g_SavedHuntArea.clear();
-    g_SavedHuntDinos = 0;
-    g_SavedHuntWeapons = 0;
-    g_SavedHuntUtils = 0;
-    g_SavedHuntTime = 0;
-    g_HasSavedHunt = false;
+    g_SavedHunt.Reset();
 }
 
 }  // namespace
@@ -129,12 +124,12 @@ TEST(MenuConfigIO, LoadConfigParsesOwnedKeysAndLastDuplicateWins)
     EXPECT_EQ(g_Options.NightVisionKey, 78);
     EXPECT_EQ(g_Options.FlashlightKey, kFlashlightKeyMax);
     EXPECT_EQ(g_Options.DisplayMode, 2);
-    EXPECT_TRUE(g_HasSavedHunt);
-    EXPECT_EQ(g_SavedHuntArea, "area1");
-    EXPECT_EQ(g_SavedHuntDinos, 5ull);
-    EXPECT_EQ(g_SavedHuntWeapons, 3ull);
-    EXPECT_EQ(g_SavedHuntUtils, 2ull);
-    EXPECT_EQ(g_SavedHuntTime, 2);
+    EXPECT_TRUE(g_SavedHunt.has);
+    EXPECT_EQ(g_SavedHunt.area, "area1");
+    EXPECT_EQ(g_SavedHunt.dinos, 5ull);
+    EXPECT_EQ(g_SavedHunt.weapons, 3ull);
+    EXPECT_EQ(g_SavedHunt.utils, 2ull);
+    EXPECT_EQ(g_SavedHunt.time, 2);
 }
 
 TEST(MenuConfigIO, SaveConfigPreservesUnownedTextAndRewritesOwnedKeys)
@@ -158,7 +153,7 @@ TEST(MenuConfigIO, SaveConfigPreservesUnownedTextAndRewritesOwnedKeys)
     g_Options.FlashlightKey = 0x46;
     g_Options.Resolution = 0;
     g_ResCount = 0;
-    g_HasSavedHunt = false;
+    g_SavedHunt.has = false;
 
     SaveConfig();
     const std::string saved = file.Read();
@@ -204,12 +199,12 @@ TEST(MenuConfigIO, SaveConfigAppendsConditionalKeysWhenValid)
     g_ResolutionList[1].w = 1024;
     g_ResolutionList[1].h = 768;
     g_Options.Resolution = 1;
-    g_HasSavedHunt = true;
-    g_SavedHuntArea = "area1";
-    g_SavedHuntDinos = 5;
-    g_SavedHuntWeapons = 3;
-    g_SavedHuntUtils = 2;
-    g_SavedHuntTime = 1;
+    g_SavedHunt.has = true;
+    g_SavedHunt.area = "area1";
+    g_SavedHunt.dinos = 5;
+    g_SavedHunt.weapons = 3;
+    g_SavedHunt.utils = 2;
+    g_SavedHunt.time = 1;
 
     SaveConfig();
     const std::string saved = file.Read();

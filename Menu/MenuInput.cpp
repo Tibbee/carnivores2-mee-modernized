@@ -163,20 +163,20 @@ initialize variables and reset various things.
 static void SaveHuntSelections()
 {
 	if (MenuHunt[0].Item.empty()) return;
-	g_SavedHuntArea.clear();
+	g_SavedHunt.area.clear();
 	if (MenuHunt[0].Selected >= 0 && MenuHunt[0].Selected < (int)g_AreaInfo.size())
-		g_SavedHuntArea = g_AreaInfo[MenuHunt[0].Selected].m_ProjectName;
+		g_SavedHunt.area = g_AreaInfo[MenuHunt[0].Selected].m_ProjectName;
 	auto mask = [](const MenuSet& set) {
 		unsigned long long m = 0;
 		for (size_t i = 0; i < set.Item.size() && i < 64; i++)
 			if (set.Item[i].second) m |= 1ULL << i;
 		return m;
 	};
-	g_SavedHuntDinos = mask(MenuHunt[1]);
-	g_SavedHuntWeapons = mask(MenuHunt[2]);
-	g_SavedHuntUtils = mask(MenuHunt[3]);
-	g_SavedHuntTime = g_TimeOfDay;
-	g_HasSavedHunt = true;
+	g_SavedHunt.dinos = mask(MenuHunt[1]);
+	g_SavedHunt.weapons = mask(MenuHunt[2]);
+	g_SavedHunt.utils = mask(MenuHunt[3]);
+	g_SavedHunt.time = g_TimeOfDay;
+	g_SavedHunt.has = true;
 }
 // Reapply the persisted setup after the entry defaults. Everything is
 // validated against the current data, so mod list changes can only fall
@@ -184,21 +184,21 @@ static void SaveHuntSelections()
 // restored setup always corresponds to a launchable one.
 static void RestoreHuntSelections()
 {
-	if (!g_HasSavedHunt) return;
-	if (!g_SavedHuntArea.empty()) {
+	if (!g_SavedHunt.has) return;
+	if (!g_SavedHunt.area.empty()) {
 		for (size_t i = 0; i < g_AreaInfo.size(); i++)
-			if (g_AreaInfo[i].m_ProjectName == g_SavedHuntArea) { MenuHunt[0].Selected = (int)i; break; }
+			if (g_AreaInfo[i].m_ProjectName == g_SavedHunt.area) { MenuHunt[0].Selected = (int)i; break; }
 	}
 	auto apply = [](MenuSet& set, unsigned long long m) {
 		for (size_t i = 0; i < set.Item.size() && i < 64; i++)
 			set.Item[i].second = ((m >> i) & 1ULL) != 0;
 	};
-	apply(MenuHunt[1], g_SavedHuntDinos);
-	apply(MenuHunt[2], g_SavedHuntWeapons);
-	apply(MenuHunt[3], g_SavedHuntUtils);
-	if (g_SavedHuntTime >= HUNT_DAWN && g_SavedHuntTime <= HUNT_NIGHT && g_SavedHuntTime != g_TimeOfDay) {
+	apply(MenuHunt[1], g_SavedHunt.dinos);
+	apply(MenuHunt[2], g_SavedHunt.weapons);
+	apply(MenuHunt[3], g_SavedHunt.utils);
+	if (g_SavedHunt.time >= HUNT_DAWN && g_SavedHunt.time <= HUNT_NIGHT && g_SavedHunt.time != g_TimeOfDay) {
 		g_MenuItem.SetIsElementSet(g_TimeOfDay + 1, false);
-		g_TimeOfDay = g_SavedHuntTime;
+		g_TimeOfDay = g_SavedHunt.time;
 		g_MenuItem.SetIsElementSet(g_TimeOfDay + 1, true);
 	}
 	if (CalculateDebit() > static_cast<HuntBudget>(g_UserProfile.Score)) {
