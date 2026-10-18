@@ -222,9 +222,10 @@ warnings is always allowed; intentionally accepting new ones requires
 regenerating the baseline with `-UpdateBaseline` and reviewing the diff.
 
 The gate is a measured baseline, not a zero-warning target. At introduction the
-`ogl-debug` baseline was 547 unique sites (mostly C4459 and C4244) and the
-`menu-release` baseline was 137. `-DC2_WARNINGS_AS_ERRORS=ON` remains available
-for focused local work but is not enabled globally.
+`ogl-debug` baseline was 553 unique sites (mostly C4459 and C4244) and the
+`menu-release` baseline was 22 (tests disabled, as in CI).
+`-DC2_WARNINGS_AS_ERRORS=ON` remains available for focused local work but is not
+enabled globally.
 
 ## Third-party build dependencies
 
