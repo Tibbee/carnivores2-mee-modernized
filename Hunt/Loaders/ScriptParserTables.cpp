@@ -296,7 +296,6 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	if (strstr(line, "reload")) WeapInfo[TotalW].Reload = ReadScriptIntField(value, line, "weapon reload");
 	if (strstr(line, "trace"))  WeapInfo[TotalW].TraceC = ReadScriptIntField(value, line, "weapon trace") - 1;
 	if (strstr(line, "optic"))  WeapInfo[TotalW].Optic = ReadScriptFloatField(value, line, "weapon optic");
-	//if (strstr(line, "price")) WeapInfo[TotalW].Price =        atoi(value);
 
 	if (strstr(line, "unzoom")) readBool(value, WeapInfo[TotalW].unzoom);
 	if (strstr(line, "breathaim")) readBool(value, WeapInfo[TotalW].breathaim);

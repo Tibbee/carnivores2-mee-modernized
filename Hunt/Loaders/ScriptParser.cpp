@@ -496,7 +496,6 @@ void LoadResourcesScript()
   FILE *stream;
   char line[256];
 
-//  int nextTrophySlot = 0;
 
   stream = fopen("HUNTDAT\\_res.txt", "r");
   if (!stream) DoHalt("Can't open resources file _res.txt");
@@ -559,11 +558,7 @@ void LoadResourcesScript()
 	if (strstr(line, "trophytable")) ReadTrophyTable(stream);
 	if (strstr(line, "areatable")) ReadAreaTable(stream, areaNumber);
     if (strstr(line, "weapons") ) ReadWeapons(stream);
-	//if (strstr(line, "hunterinfo")) ReadCharacters(stream, false, nextTrophySlot);
-	//if (strstr(line, "oldambients")) ReadCharacters(stream, false, nextTrophySlot);
-	//if (strstr(line, "corpseambients")) ReadCharacters(stream, false, nextTrophySlot);
     if (strstr(line, "characters") ) ReadCharacters(stream);
-	//if (strstr(line, "mapambients")) ReadCharacters(stream, true, nextTrophySlot);
 
   }
 

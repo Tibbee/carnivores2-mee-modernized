@@ -80,8 +80,6 @@ void CreateTMap()
           if (FMap[y][x] & fmWater2)
             if (HMap[y][x] == WaterList[WMap[y][x]].wlevel) HMap[y][x]+=1;
 
-        //if (FMap[y][x] & fmWater2)
-
       }
 
 #ifdef _soft
@@ -134,9 +132,7 @@ void CreateTMap()
         continue;
       }
 
-      //HMapO[y][x] = GetObjectH(x,y);
       if (MObjects[ob].info.flags & ofPLACEGROUND) HMapO[y][x] = GetObjectH(x,y, MObjects[ob].info.GrRad);
-      //if (MObjects[ob].info.flags & ofPLACEWATER)  HMapO[y][x] = GetObjectHWater(x,y);
 
     }
 

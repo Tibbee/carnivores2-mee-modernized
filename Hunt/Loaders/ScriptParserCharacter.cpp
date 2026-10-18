@@ -175,7 +175,6 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 
 	RequireScriptSlot(TotalC, DINOINFO_MAX, "characters");
 	char *value = _value;
-//	bool overwrite = _overwrite;
 
 	// Text fields are handled before the numeric/flag dispatch and before the
 	// block openers: their values are free-form, and a name or path can contain
@@ -273,7 +272,6 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	}
 
 	if (strstr(line, "dontBend")) readBool(value, DinoInfo[TotalC].dontBend);
-	//if (strstr(line, "bendOffset")) DinoInfo[TotalC].bendOffset = atof(value);
 
 	if (strstr(line, "defensive")) readBool(value, DinoInfo[TotalC].defensive);
 	if (strstr(line, "fearShotHear")) readBool(value, DinoInfo[TotalC].fearHearShot);
@@ -281,8 +279,6 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 
 	if (strstr(line, "weaveRange")) DinoInfo[TotalC].weaveRange = ReadScriptFloatField(value, line, "character weave range");
 	if (strstr(line, "dontWeave")) readBool(value, DinoInfo[TotalC].dontWeave);
-
-	//if (strstr(line, "noMoveNoRotate")) readBool(value, DinoInfo[TotalC].noMoveNoRot);
 
 	if (strstr(line, "radR")) DinoInfo[TotalC].radarRed = ReadScriptIntField(value, line, "character radar red");
 	if (strstr(line, "radG")) DinoInfo[TotalC].radarGreen = ReadScriptIntField(value, line, "character radar green");
@@ -511,28 +507,6 @@ void ReadCharacters(FILE *stream)
 				DinoInfo[TotalC].SpawnInfo[0].spawnGroup = 0;
 			}
 
-			/*
-			// if ((tempProjectName[18] == 'h' && !DinoInfo[TotalC].trophyNo) || (!DinoInfo[TotalC].SpawnInfoCh && TotalC > 0)) { //totalc = 0 for hunter char
-		  if (tempProjectName[18] != 'h' && !DinoInfo[TotalC].SpawnInfoCh && TotalC > 0) { //totalc = 0 for hunter char
-				  
-			  //WipeRegions();
-			  //WipeAvoidances();
-
-				  DinoInfo[TotalC] = {};
-				  DinoInfo[TotalC].Scale0 = 800;
-				  DinoInfo[TotalC].ScaleA = 600;
-				  DinoInfo[TotalC].ShDelta = 0;
-				  break;
-		  }
-		  */
-		  
-		  //int _ctype = DinoInfo[TotalC].AI;
-		  //if (mapamb) {
-		  //	TotalMA ++;
-		  //	DinoInfo[TotalC].AI = -TotalMA;
-		  //	_ctype = AI_FINAL + TotalMA;
-		  //}
-          //AI_to_CIndex[_ctype] = TotalC;
 		  if (DinoInfo[TotalC].Clone == AI_MOSA ||
 			  DinoInfo[TotalC].Clone == AI_FISH) {
 			  DinoInfo[TotalC].Aquatic = true;
@@ -559,7 +533,6 @@ void ReadCharacters(FILE *stream)
 				!strstr(line, "spawninfo") &&
 				!strstr(line, "spawngroup") &&
 				!strstr(line, "killtype") &&
-				//!strstr(line, "avoid") &&
 				!strstr(line, "tropinfo") &&
 				!strstr(line, "deathtype") &&
 				!strstr(line, "idlegroup") &&
@@ -590,7 +563,6 @@ void ReadCharacters(FILE *stream)
 
 					bool spawnInfoOverwrite = strstr(line, "overwrite");
 					bool spawnGroupOverwrite = strstr(line, "overwrite");
-					// bool avoidOverwrite = strstr(line, "overwrite");
 					bool idleOverwrite = strstr(line, "overwrite");
 					bool killOverwrite = strstr(line, "overwrite");
 					bool idle2Overwrite = strstr(line, "overwrite");
@@ -609,7 +581,6 @@ void ReadCharacters(FILE *stream)
 						if (!value
 							&& !strstr(line, "spawninfo")
 							&& !strstr(line, "spawngroup")
-							//&& !strstr(line, "avoid")
 							&& !strstr(line, "deathtype")
 							&& !strstr(line, "idlegroup")
 							&& !strstr(line, "waterIgroup")
@@ -631,18 +602,6 @@ void ReadCharacters(FILE *stream)
 					SkipSector(stream);
 				}
 			}
-
-			/*
-			if (strstr(line, "pic"))
-			{
-				value = strstr(line, "'");
-				if (!value) DoHalt("Script loading error");
-				value[strlen(value) - 2] = 0;
-				strcpy(DinoInfo[TotalC].PName, &value[1]);
-			}
-			*/
-
-		//}
 
       }
 
