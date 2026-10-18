@@ -238,6 +238,7 @@ set(CORE_FILES
     Hunt/Math/Vector.cpp
     Hunt/Loaders/Resources.cpp
     Hunt/Loaders/ScriptParser.cpp
+    Hunt/Loaders/ScriptParserCommon.cpp
     Hunt/Loaders/ModelLoader.cpp
     Hunt/Loaders/MapLoader.cpp
     Hunt/Loaders/SoundLoader.cpp
@@ -591,6 +592,7 @@ if(MSVC AND C2_BUILD_TESTS)
     add_executable(Carnivores2ScriptParserContractTests
         tests/test_script_parser_entry.cpp
         Hunt/Loaders/ScriptParser.cpp
+        Hunt/Loaders/ScriptParserCommon.cpp
     )
     target_include_directories(Carnivores2ScriptParserContractTests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Hunt
