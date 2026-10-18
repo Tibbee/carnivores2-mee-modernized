@@ -1027,7 +1027,12 @@ TEST(MenuProfileIO, TrophySaveLoadRoundTripsThe1660ByteFormat)
     EXPECT_FLOAT_EQ(loaded.Total.time, 13.75f);
     EXPECT_EQ(loaded.Body[0].m_CType, 4);
     EXPECT_EQ(loaded.Body[0].m_Weapon, 2);
+    EXPECT_EQ(loaded.Body[0].m_Phase, 1);
+    EXPECT_EQ(loaded.Body[0].m_Height, 3);
+    EXPECT_EQ(loaded.Body[0].m_Weight, 180);
     EXPECT_EQ(loaded.Body[0].m_Score, 11);
+    EXPECT_EQ(loaded.Body[0].m_Date, 20261017);
+    EXPECT_EQ(loaded.Body[0].m_Time, 1234);
     EXPECT_FLOAT_EQ(loaded.Body[0].m_Scale, 0.75f);
     EXPECT_FLOAT_EQ(loaded.Body[0].m_Range, 64.0f);
 
