@@ -227,6 +227,25 @@ The gate is a measured baseline, not a zero-warning target. At introduction the
 `-DC2_WARNINGS_AS_ERRORS=ON` remains available for focused local work but is not
 enabled globally.
 
+### Code coverage
+
+CI runs the debug test suite under OpenCppCoverage and uploads `coverage.xml`
+(Cobertura) plus the HTML report. OpenCppCoverage is archived upstream but is
+still the practical dynamic coverage option for MSVC PDBs; CI pins 0.9.9.0.
+
+The project and its tests are 32-bit, so the x64 collector is required: it
+drives the x64 `ctest` process and instruments the 32-bit test executables
+through `--cover_children`. `tools/run_coverage.ps1` wraps the invocation:
+
+```powershell
+choco install opencppcoverage --version=0.9.9.0
+./tools/run_coverage.ps1 -BuildDir build/ogl-debug
+```
+
+The script writes `coverage.xml` and `coverage-html/`, prints the line rate, and
+appends it to the GitHub step summary. A local full-suite run on 2026-10-18
+reported 86.0% lines (21,603/25,128) across the debug tests.
+
 ## Third-party build dependencies
 
 Vendored under `deps/`: `glad` (OpenGL 3.3 loader) and the Khronos

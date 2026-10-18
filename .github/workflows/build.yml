@@ -76,12 +76,30 @@ jobs:
 
     # Deployed smoke tests require licensed HUNTDAT assets and are registered
     # only when ENABLE_DEPLOYED_SMOKE_TEST is enabled on a developer machine.
-    - name: Unit Tests (debug builds)
+    - name: Install OpenCppCoverage
+      if: matrix.preset == 'ogl-debug'
+      shell: powershell
+      run: choco install opencppcoverage --version=0.9.9.0 --no-progress -y
+
+    - name: Unit tests + coverage (debug builds)
       if: matrix.preset == 'ogl-debug'
       shell: powershell
       run: |
-        cd build/ogl-debug
-        ctest --output-on-failure
+        $occ = Join-Path $env:ProgramFiles 'OpenCppCoverage\OpenCppCoverage.exe'
+        if (-not (Test-Path -LiteralPath $occ -PathType Leaf)) {
+          throw "OpenCppCoverage was not installed at $occ"
+        }
+        ./tools/run_coverage.ps1 -BuildDir build/ogl-debug -OpenCppCoverage $occ
+
+    - name: Upload coverage
+      if: always() && matrix.preset == 'ogl-debug'
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-ogl-debug
+        path: |
+          coverage.xml
+          coverage-html
+        if-no-files-found: warn
 
   comment-hygiene:
     # Separate job so it runs once instead of once per preset. CI checks rules
