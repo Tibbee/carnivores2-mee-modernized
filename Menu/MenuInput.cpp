@@ -771,161 +771,160 @@ static void HandleOptionsInput(uint8_t id)
 	}
 }
 
+static Picture* HuntThumbnailFor(HuntBudget price, Picture& visible, Picture& hidden)
+{
+	// Areas, dinos and weapons show the hidden thumbnail when the item costs
+	// at least 1000 and the account is below 1000. Accessories have no hidden
+	// variant and use m_Thumbnail directly.
+	if (price >= 1000 && g_UserProfile.Score < 1000)
+		return &hidden;
+	return &visible;
+}
+
+static void ToggleBudgetedHuntItem(HuntBudget score, HuntBudget price, bool& selected)
+{
+	// Selecting requires covering the price; deselecting is always free, so
+	// the account can never be driven negative.
+	selected = score >= price && !selected;
+	g_ScoreDebit = CalculateDebit();
+}
+
+static void UpdateHuntAreaHover()
+{
+	WaitForMouseRelease();
+	HuntBudget scorea = 0;
+
+	if (MenuHunt[0].Selected != -1)
+	{
+		scorea = g_AreaInfo[MenuHunt[0].Selected].m_Price;
+	}
+
+	HuntBudget score = RemainingHuntBudget(g_UserProfile.Score, g_ScoreDebit) + scorea;
+	int yd = g_CursorPos.y - MenuHunt[0].Rect.top;
+
+	unsigned index = HuntListDataIndex(yd / 16, MenuHunt[0].Offset);
+
+	if (index < g_AreaInfo.size())
+	{
+		g_HuntSelectPic = HuntThumbnailFor(g_AreaInfo[index].m_Price,
+			g_AreaInfo[index].m_Thumbnail, g_AreaInfo[index].m_ThumbnailHidden);
+		g_HuntInfo.first = 0; // Areas
+		g_HuntInfo.second = index;
+
+		if ((g_KeyboardState[VK_LBUTTON] & 128) && score >= g_AreaInfo[index].m_Price)
+		{
+			WaitForMouseRelease();
+			MenuAudioPlayClick();
+
+			// Reset the states
+			for (auto i = MenuHunt[0].Item.begin(); i != MenuHunt[0].Item.end(); i++)
+			{
+				i->second = false;
+			}
+
+			MenuHunt[0].Item[index].second = true;
+			MenuHunt[0].Selected = index;
+
+			g_ScoreDebit = CalculateDebit();
+		}
+	}
+}
+
+static void UpdateHuntDinoHover()
+{
+	HuntBudget score = RemainingHuntBudget(g_UserProfile.Score, g_ScoreDebit);
+	int yd = g_CursorPos.y - MenuHunt[1].Rect.top;
+
+	unsigned index = yd / 16;
+	unsigned dataIndex = HuntListDataIndex(index, MenuHunt[1].Offset);
+
+	if (dataIndex < g_DinoList.size())
+	{
+		DinoInfo& dino = g_DinoInfo[g_DinoList[dataIndex]];
+		g_HuntSelectPic = HuntThumbnailFor(dino.m_Price, dino.m_Thumbnail, dino.m_ThumbnailHidden);
+		g_HuntInfo.first = 1; // Dinos
+		g_HuntInfo.second = dataIndex;
+
+		if ((g_KeyboardState[VK_LBUTTON] & 128))
+		{
+			WaitForMouseRelease();
+			MenuAudioPlayClick();
+
+			ToggleBudgetedHuntItem(score, dino.m_Price, MenuHunt[1].Item[dataIndex].second);
+		}
+	}
+}
+
+static void UpdateHuntWeaponHover()
+{
+	HuntBudget score = RemainingHuntBudget(g_UserProfile.Score, g_ScoreDebit);
+	int yd = g_CursorPos.y - MenuHunt[2].Rect.top;
+
+	unsigned index = HuntListDataIndex(yd / 16, MenuHunt[2].Offset);
+
+	if (index < MenuHunt[2].Item.size())
+	{
+		WeapInfo& weapon = g_WeapInfo[index];
+		g_HuntSelectPic = HuntThumbnailFor(weapon.m_Price, weapon.m_Thumbnail, weapon.m_ThumbnailHidden);
+		g_HuntInfo.first = 2; // Weapons
+		g_HuntInfo.second = index;
+
+		if ((g_KeyboardState[VK_LBUTTON] & 128))
+		{
+			WaitForMouseRelease();
+			MenuAudioPlayClick();
+
+			ToggleBudgetedHuntItem(score, weapon.m_Price, MenuHunt[2].Item[index].second);
+		}
+	}
+}
+
+static void UpdateHuntAccessoryHover()
+{
+	HuntBudget score = RemainingHuntBudget(g_UserProfile.Score, g_ScoreDebit);
+	int yd = g_CursorPos.y - MenuHunt[3].Rect.top;
+	unsigned accIndex = (unsigned)(yd / 16) + MenuHunt[3].Offset;
+
+	// MenuHunt[3].Item and g_UtilInfo are parallel and fully listed,
+	// so the cursor row maps directly to the accessory index.
+	if (accIndex < MenuHunt[3].Item.size() && accIndex < g_UtilInfo.size())
+	{
+		g_HuntSelectPic = &g_UtilInfo[accIndex].m_Thumbnail;
+		g_HuntInfo.first = 3; // Accessories
+		g_HuntInfo.second = accIndex;
+
+		if ((g_KeyboardState[VK_LBUTTON] & 128))
+		{
+			WaitForMouseRelease();
+			MenuAudioPlayClick();
+
+			ToggleBudgetedHuntItem(score, g_UtilInfo[accIndex].m_Price,
+				MenuHunt[3].Item[accIndex].second);
+		}
+	}
+}
+
+static void UpdateHuntObserverHover()
+{
+	// Observer info panel
+	g_HuntSelectPic = &g_ObserverInfo.m_Thumbnail;
+	g_HuntInfo.first = 3; // Accessories
+	g_HuntInfo.second = 9999;
+}
+
 static void UpdateHuntHover(uint8_t id)
 {
 	// Mouse hover
 	if (IsPointInRect(g_CursorPos, MenuHunt[0].Rect))
-	{
-		WaitForMouseRelease();
-		HuntBudget scorea = 0;
-
-		if (MenuHunt[0].Selected != -1)
-		{
-			scorea = g_AreaInfo[MenuHunt[0].Selected].m_Price;
-		}
-
-		HuntBudget score = RemainingHuntBudget(g_UserProfile.Score, g_ScoreDebit) + scorea;
-		int yd = g_CursorPos.y - MenuHunt[0].Rect.top;
-
-		unsigned index = HuntListDataIndex(yd / 16, MenuHunt[0].Offset);
-
-		if (index < g_AreaInfo.size())
-		{
-			if (g_AreaInfo[index].m_Price >= 1000 && g_UserProfile.Score < 1000)
-				g_HuntSelectPic = &g_AreaInfo[index].m_ThumbnailHidden;
-			else
-				g_HuntSelectPic = &g_AreaInfo[index].m_Thumbnail;
-			g_HuntInfo.first = 0; // Areas
-			g_HuntInfo.second = index;
-
-			if ((g_KeyboardState[VK_LBUTTON] & 128) && score >= g_AreaInfo[index].m_Price)
-			{
-				WaitForMouseRelease();
-				MenuAudioPlayClick();
-
-				// Reset the states
-				for (auto i = MenuHunt[0].Item.begin(); i != MenuHunt[0].Item.end(); i++)
-				{
-					i->second = false;
-				}
-
-				MenuHunt[0].Item[index].second = true;
-				MenuHunt[0].Selected = index;
-
-				g_ScoreDebit = CalculateDebit();
-			}
-		}
-	}
+		UpdateHuntAreaHover();
 	else if (IsPointInRect(g_CursorPos, MenuHunt[1].Rect))
-	{
-		HuntBudget score = RemainingHuntBudget(g_UserProfile.Score, g_ScoreDebit);
-		int yd = g_CursorPos.y - MenuHunt[1].Rect.top;
-
-		unsigned index = yd / 16;
-		unsigned dataIndex = HuntListDataIndex(index, MenuHunt[1].Offset);
-
-		if (dataIndex < g_DinoList.size())
-		{
-			if (g_DinoInfo[g_DinoList[dataIndex]].m_Price >= 1000 && g_UserProfile.Score < 1000)
-				g_HuntSelectPic = &g_DinoInfo[g_DinoList[dataIndex]].m_ThumbnailHidden;
-			else
-				g_HuntSelectPic = &g_DinoInfo[g_DinoList[dataIndex]].m_Thumbnail;
-			g_HuntInfo.first = 1; // Dinos
-			g_HuntInfo.second = dataIndex;
-
-			if ((g_KeyboardState[VK_LBUTTON] & 128))
-			{
-				WaitForMouseRelease();
-				MenuAudioPlayClick();
-
-				if (score >= g_DinoInfo[g_DinoList[dataIndex]].m_Price && !MenuHunt[1].Item[dataIndex].second)
-				{
-					MenuHunt[1].Item[dataIndex].second = true;
-				}
-				else
-				{
-					MenuHunt[1].Item[dataIndex].second = false;
-				}
-
-				g_ScoreDebit = CalculateDebit();
-			}
-		}
-	}
+		UpdateHuntDinoHover();
 	else if (IsPointInRect(g_CursorPos, MenuHunt[2].Rect))
-	{
-		HuntBudget score = RemainingHuntBudget(g_UserProfile.Score, g_ScoreDebit);
-		int yd = g_CursorPos.y - MenuHunt[2].Rect.top;
-
-		unsigned index = HuntListDataIndex(yd / 16, MenuHunt[2].Offset);
-
-		if (index < MenuHunt[2].Item.size())
-		{
-			if (g_WeapInfo[index].m_Price >= 1000 && g_UserProfile.Score < 1000)
-				g_HuntSelectPic = &g_WeapInfo[index].m_ThumbnailHidden;
-			else
-				g_HuntSelectPic = &g_WeapInfo[index].m_Thumbnail;
-			g_HuntInfo.first = 2; // Weapons
-			g_HuntInfo.second = index;
-
-			if ((g_KeyboardState[VK_LBUTTON] & 128))
-			{
-				WaitForMouseRelease();
-				MenuAudioPlayClick();
-
-				if (score >= g_WeapInfo[index].m_Price && !MenuHunt[2].Item[index].second)
-				{
-					MenuHunt[2].Item[index].second = true;
-				}
-				else
-				{
-					MenuHunt[2].Item[index].second = false;
-				}
-
-				g_ScoreDebit = CalculateDebit();
-			}
-		}
-	}
+		UpdateHuntWeaponHover();
 	else if (IsPointInRect(g_CursorPos, MenuHunt[3].Rect))
-	{
-		HuntBudget score = RemainingHuntBudget(g_UserProfile.Score, g_ScoreDebit);
-		int yd = g_CursorPos.y - MenuHunt[3].Rect.top;
-		unsigned accIndex = (unsigned)(yd / 16) + MenuHunt[3].Offset;
-
-		// MenuHunt[3].Item and g_UtilInfo are parallel and fully listed,
-		// so the cursor row maps directly to the accessory index.
-		if (accIndex < MenuHunt[3].Item.size() && accIndex < g_UtilInfo.size())
-		{
-			g_HuntSelectPic = &g_UtilInfo[accIndex].m_Thumbnail;
-			g_HuntInfo.first = 3; // Accessories
-			g_HuntInfo.second = accIndex;
-
-			if ((g_KeyboardState[VK_LBUTTON] & 128))
-			{
-				WaitForMouseRelease();
-				MenuAudioPlayClick();
-
-				// Same affordability gate as dinos/weapons: selecting
-				// requires covering the price, deselecting is always
-				// free -- so the account can never be driven negative.
-				if (score >= g_UtilInfo[accIndex].m_Price && !MenuHunt[3].Item[accIndex].second)
-				{
-					MenuHunt[3].Item[accIndex].second = true;
-				}
-				else
-				{
-					MenuHunt[3].Item[accIndex].second = false;
-				}
-
-				g_ScoreDebit = CalculateDebit();
-			}
-		}
-	}
-	else if (id == 6) {
-		// Observer info panel
-		g_HuntSelectPic = &g_ObserverInfo.m_Thumbnail;
-		g_HuntInfo.first = 3; // Accessories
-		g_HuntInfo.second = 9999;
-	}
+		UpdateHuntAccessoryHover();
+	else if (id == 6)
+		UpdateHuntObserverHover();
 }
 
 static void ToggleHuntSelection(uint8_t id)
@@ -952,28 +951,9 @@ static void ToggleHuntSelection(uint8_t id)
 	}
 }
 
-static void LaunchSelectedHunt()
+static int BuildHuntDinoFlags()
 {
-	// Launch the game
-	WaitForMouseRelease();
-	MenuAudioPlayClick();
-
-	if (MenuHunt[0].Selected == -1)
-	{
-		// -- Don't launch
-		return;
-	}
-
-	// Recheck the whole setup before saving/launching, including restored
-	// selections whose authored prices may have changed since last use.
-	g_ScoreDebit = CalculateDebit();
-	if (g_ScoreDebit > static_cast<HuntBudget>(g_UserProfile.Score)) {
-		ShowErrorMessage("The selected hunt exceeds your setup budget.");
-		return;
-	}
-
 	int din = 0;
-	int wep = 0;
 
 	// Calculate the dinosaur flags
 	for (unsigned i = 0; i < g_DinoList.size(); i++)
@@ -982,6 +962,13 @@ static void LaunchSelectedHunt()
 			din |= 1 << i;
 	}
 
+	return din;
+}
+
+static int BuildHuntWeaponFlags()
+{
+	int wep = 0;
+
 	// Calculate the weapon flags
 	for (unsigned i = 0; i < g_WeapInfo.size(); i++)
 	{
@@ -989,16 +976,20 @@ static void LaunchSelectedHunt()
 			wep |= 1 << i;
 	}
 
+	return wep;
+}
+
+static bool PrepareHuntLaunchRequest(HuntLaunchRequest& launchRequest, int din, int wep)
+{
 	// Initialise the command line parameters through the tested helper. For
 	// slot six, this uses the basename whose files actually exist.
 	if (MenuHunt[0].Selected < 0 ||
 		MenuHunt[0].Selected >= static_cast<int>(g_AreaInfo.size()))
 	{
 		ShowErrorMessage("The selected hunt is invalid.");
-		return;
+		return false;
 	}
 	const AreaInfo& launchArea = g_AreaInfo[MenuHunt[0].Selected];
-	HuntLaunchRequest launchRequest;
 	launchRequest.projectName = launchArea.m_ProjectName;
 	launchRequest.mapFile = launchArea.m_MapFile;
 	launchRequest.registration = g_UserProfile.RegNumber;
@@ -1009,30 +1000,24 @@ static void LaunchSelectedHunt()
 	// The engine opens <basename>.map and <basename>.rsc from this one
 	// name, so refuse here with the missing path named rather than
 	// launching into "Error opening resource file".
+	const std::string launchBase = launchRequest.mapFile.empty()
+		? launchRequest.projectName
+		: launchRequest.mapFile;
+	const std::string missingFile = MissingAreaFile(launchBase);
+	if (!missingFile.empty())
 	{
-		const std::string launchBase = launchRequest.mapFile.empty()
-			? launchRequest.projectName
-			: launchRequest.mapFile;
-		const std::string missingFile = MissingAreaFile(launchBase);
-		if (!missingFile.empty())
-		{
-			ShowErrorMessage("This area cannot be played: " + missingFile +
-				" is missing.\r\n\r\nAn area loads from a pair with the same "
-				"basename: huntdat/areas/" + launchBase + ".map and .rsc.\r\n"
-				"Restore the missing file from your game data, or remove the area.");
-			return;
-		}
+		ShowErrorMessage("This area cannot be played: " + missingFile +
+			" is missing.\r\n\r\nAn area loads from a pair with the same "
+			"basename: huntdat/areas/" + launchBase + ".map and .rsc.\r\n"
+			"Restore the missing file from your game data, or remove the area.");
+		return false;
 	}
-	std::string launchArguments;
-	if (!BuildHuntLaunchArguments(launchRequest, launchArguments))
-	{
-		ShowErrorMessage("The selected hunt has invalid launch data.");
-		return;
-	}
-	// The base arguments must be the first write into an empty stream;
-	// MakeLaunchParamStream owns that contract.
-	std::stringstream params = MakeLaunchParamStream(launchArguments);
 
+	return true;
+}
+
+static void AppendHuntAccessoryArguments(std::stringstream& params)
+{
 #ifdef _iceage
 	// Ice Age resupply
 	if (MenuHunt[3].Item[4].second)
@@ -1043,10 +1028,8 @@ static void LaunchSelectedHunt()
 		params << " " << g_UtilInfo[kAccDouble].m_Command;
 
 	// Night vision goggles
-	{
-		if (kAccNV < static_cast<int>(MenuHunt[3].Item.size()) && MenuHunt[3].Item[kAccNV].second)
-			params << " " << g_UtilInfo[kAccNV].m_Command;
-	}
+	if (kAccNV < static_cast<int>(MenuHunt[3].Item.size()) && MenuHunt[3].Item[kAccNV].second)
+		params << " " << g_UtilInfo[kAccNV].m_Command;
 
 	// These three persist as owned regardless of selection; only
 	// the launch flags depend on what is ticked.
@@ -1058,18 +1041,17 @@ static void LaunchSelectedHunt()
 	if (MenuHunt[3].Item[kAccScent].second) params << " -scent";
 
 	// Tranquilizers
-	{
-		if (kAccTranq < static_cast<int>(MenuHunt[3].Item.size()) && MenuHunt[3].Item[kAccTranq].second)
-			params << " " << g_UtilInfo[kAccTranq].m_Command;
-	}
+	if (kAccTranq < static_cast<int>(MenuHunt[3].Item.size()) && MenuHunt[3].Item[kAccTranq].second)
+		params << " " << g_UtilInfo[kAccTranq].m_Command;
 
 	// Flashlight: like night vision this only unlocks the in-game
 	// toggle; the accessory itself carries no quieter cheat behind it.
-	{
-		if (static_cast<int>(MenuHunt[3].Item.size()) > kAccFlashlight && MenuHunt[3].Item[kAccFlashlight].second)
-			params << " " << g_UtilInfo[kAccFlashlight].m_Command;
-	}
+	if (static_cast<int>(MenuHunt[3].Item.size()) > kAccFlashlight && MenuHunt[3].Item[kAccFlashlight].second)
+		params << " " << g_UtilInfo[kAccFlashlight].m_Command;
+}
 
+static void AppendHuntModeArguments(std::stringstream& params)
+{
 	if (g_ObserverMode)
 		params << " -observ";
 
@@ -1092,13 +1074,16 @@ static void LaunchSelectedHunt()
 #ifdef _DEBUG
 	params << " -debug";
 #endif //_DEBUG
+}
 
+static void LaunchPreparedHunt(std::stringstream& params, bool hasLoadout)
+{
 	std::stringstream renderer("");
 	renderer << g_RendererFile[g_Options.RenderAPI] << ".ren";
 
 	// Observer mode is an exploration session and deliberately permits an
 	// empty creature/weapon loadout, matching the original launcher.
-	if (g_ObserverMode || (wep && din))
+	if (g_ObserverMode || hasLoadout)
 	{
 		TrophySave(g_UserProfile); // Save all the settings
 		AppendDisplayModeLaunchFlag(params);
@@ -1107,12 +1092,54 @@ static void LaunchSelectedHunt()
 		SaveConfig();
 		LaunchProcess(renderer.str(), params.str());
 		TrophyLoad(g_UserProfile, g_UserProfile.RegNumber); // Load the changes
-	LoadConfig();
+		LoadConfig();
 	}
 	else
 	{
 		ShowErrorMessage("You need to select at least:\r\n 1x Creature\r\n 1x Weapon");
 	}
+}
+
+static void LaunchSelectedHunt()
+{
+	// Launch the game
+	WaitForMouseRelease();
+	MenuAudioPlayClick();
+
+	if (MenuHunt[0].Selected == -1)
+	{
+		// -- Don't launch
+		return;
+	}
+
+	// Recheck the whole setup before saving/launching, including restored
+	// selections whose authored prices may have changed since last use.
+	g_ScoreDebit = CalculateDebit();
+	if (g_ScoreDebit > static_cast<HuntBudget>(g_UserProfile.Score)) {
+		ShowErrorMessage("The selected hunt exceeds your setup budget.");
+		return;
+	}
+
+	const int din = BuildHuntDinoFlags();
+	const int wep = BuildHuntWeaponFlags();
+
+	HuntLaunchRequest launchRequest;
+	if (!PrepareHuntLaunchRequest(launchRequest, din, wep))
+		return;
+
+	std::string launchArguments;
+	if (!BuildHuntLaunchArguments(launchRequest, launchArguments))
+	{
+		ShowErrorMessage("The selected hunt has invalid launch data.");
+		return;
+	}
+	// The base arguments must be the first write into an empty stream;
+	// MakeLaunchParamStream owns that contract.
+	std::stringstream params = MakeLaunchParamStream(launchArguments);
+
+	AppendHuntAccessoryArguments(params);
+	AppendHuntModeArguments(params);
+	LaunchPreparedHunt(params, wep && din);
 }
 
 static void HandleHuntInput(uint8_t id)
