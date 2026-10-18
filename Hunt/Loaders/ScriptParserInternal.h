@@ -126,3 +126,16 @@ void ReadSpawnGroup(FILE* stream, char line[256], int mode);
 void ReadPackGroup(FILE* stream, char line[256], int mode);
 void ReadSpawnTable(FILE* stream);
 void ReadPackTable(FILE* stream);
+
+// Character group (ScriptParserCharacter.cpp): per-character line dispatch and
+// the characters section reader. The driver calls ReadCharacters; the contract
+// tests call ReadCharacterLine. The remaining character readers and wipe
+// helpers are internal to that translation unit.
+void ReadCharacterLine(FILE* stream, char* value, char line[256],
+                       bool& spawnInfoOverwrite, bool& spawnGroupOverwrite,
+                       bool& idleOverwrite, bool& idle2Overwrite,
+                       bool& roarOverwrite, bool& killOverwrite,
+                       bool& waterDieOverwrite, bool& deathTypeOverwrite,
+                       bool& trophyTypeOverwrite, bool& idleGroupOverwrite,
+                       bool& idle2GroupOverwrite, bool& memberOverwrite);
+void ReadCharacters(FILE* stream);

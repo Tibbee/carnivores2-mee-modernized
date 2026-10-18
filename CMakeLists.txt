@@ -241,6 +241,7 @@ set(CORE_FILES
     Hunt/Loaders/ScriptParserCommon.cpp
     Hunt/Loaders/ScriptParserTables.cpp
     Hunt/Loaders/ScriptParserSpawn.cpp
+    Hunt/Loaders/ScriptParserCharacter.cpp
     Hunt/Loaders/ModelLoader.cpp
     Hunt/Loaders/MapLoader.cpp
     Hunt/Loaders/SoundLoader.cpp
@@ -597,6 +598,7 @@ if(MSVC AND C2_BUILD_TESTS)
         Hunt/Loaders/ScriptParserCommon.cpp
         Hunt/Loaders/ScriptParserTables.cpp
         Hunt/Loaders/ScriptParserSpawn.cpp
+        Hunt/Loaders/ScriptParserCharacter.cpp
     )
     target_include_directories(Carnivores2ScriptParserContractTests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Hunt
