@@ -15,6 +15,7 @@
 #include "../Hunt/Core/KeyBindings.h"
 #include "../Hunt/Core/ScoreMod.h"
 
+#include <cassert>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -22,6 +23,48 @@
 // Registry name-list double-click tracking (double-click a name to enter).
 static DWORD g_LastListClickTime = 0;
 static int g_LastListClickIndex = -1;
+
+// TKeyMap is a packed block of int32_t fields persisted verbatim in trophy
+// profiles. Address fields through this table instead of casting the object
+// address; the table must stay in TKeyMap declaration order.
+using KeyMapMember = int32_t TKeyMap::*;
+static constexpr KeyMapMember kKeyMapMembers[] = {
+	&TKeyMap::fkForward,
+	&TKeyMap::fkBackward,
+	&TKeyMap::fkReload,
+	&TKeyMap::fkResupply,
+	&TKeyMap::fkHoldBreath,
+	&TKeyMap::fkFiringMode,
+	&TKeyMap::fkFire,
+	&TKeyMap::fkShow,
+	&TKeyMap::fkSLeft,
+	&TKeyMap::fkSRight,
+	&TKeyMap::fkStrafe,
+	&TKeyMap::fkJump,
+	&TKeyMap::fkRun,
+	&TKeyMap::fkCrouch,
+	&TKeyMap::fkCall,
+	&TKeyMap::fkCCall,
+	&TKeyMap::fkBinoc,
+#ifdef _iceage
+	&TKeyMap::fkSupply,
+#endif
+};
+static constexpr int kKeyMapFieldCount = sizeof(kKeyMapMembers) / sizeof(kKeyMapMembers[0]);
+static_assert(sizeof(TKeyMap) == kKeyMapFieldCount * sizeof(int32_t),
+	"TKeyMap must remain a packed int32_t block for profile compatibility");
+
+static int32_t& KeyMapField(int index)
+{
+	return g_Options.KeyMap.*kKeyMapMembers[index];
+}
+
+static void ClearConflictingBinding(int key)
+{
+	for (int i = 0; i < kKeyMapFieldCount; i++)
+		if (KeyMapField(i) == key)
+			KeyMapField(i) = 0;
+}
 
 // Append the flag matching the menu's Display Mode. Borderless is the GL
 // default because DWM-composed fullscreen keeps Windows 11 color management
@@ -55,7 +98,8 @@ void AcceptNewKey()
 			} else if (g_WaitKey == ControlsRowIndex(ControlsRow::Flashlight)) {
 				g_Options.FlashlightKey = 0;
 			} else {
-				*((uint32_t*)(&g_Options.KeyMap) + g_WaitKey) = 0;
+				assert(g_WaitKey >= 0 && g_WaitKey < kKeyMapFieldCount);
+				KeyMapField(g_WaitKey) = 0;
 			}
 			g_WaitKey = -2;
 			return;
@@ -77,12 +121,9 @@ void AcceptNewKey()
 						g_Options.FlashlightKey = k;
 					} else {
 						// Unassign any existing binding that uses the same key
-						const int keyFieldCount = static_cast<int>(sizeof(g_Options.KeyMap) / sizeof(int32_t));
-						for (int t = 0; t < keyFieldCount; t++)
-							if (*((uint32_t*)(&g_Options.KeyMap) + t) == k)
-								*((uint32_t*)(&g_Options.KeyMap) + t) = 0;
-
-						*(reinterpret_cast<int*>((&g_Options.KeyMap)) + g_WaitKey) = k;
+						assert(g_WaitKey >= 0 && g_WaitKey < kKeyMapFieldCount);
+						ClearConflictingBinding(k);
+						KeyMapField(g_WaitKey) = k;
 					}
 
 #ifdef _DEBUG
@@ -182,133 +223,148 @@ static void RestoreHuntSelections()
 		}
 	}
 }
+static void ResetRegistryScreen()
+{
+	MenuRegistry.Offset = 0;
+	MenuRegistry.Count = 0;
+	MenuRegistry.AddItem("");
+	g_LastListClickTime = 0;
+	g_LastListClickIndex = -1;
+	LoadProfileSummaries();
+}
+
+static void ResetOptionsScreen()
+{
+	g_WaitKey = -1;
+
+	for (auto m = 0U; m < OPT_MAX; m++) {
+		MenuOptions[m].Hilite = -1;
+		MenuOptions[m].Selected = -1;
+	}
+}
+
+static void BuildHuntLists()
+{
+	MenuHunt[0].Item.clear();
+	for (auto i = 0U; i < g_AreaInfo.size(); i++)
+	{
+		MenuHunt[0].Item.push_back(std::make_pair(g_AreaInfo[i].m_Name, false));
+	}
+	MenuHunt[0].Count = g_AreaInfo.size();
+
+	g_DinoList.clear();
+	MenuHunt[1].Item.clear();
+	for (auto i = 0U; i < g_DinoInfo.size(); i++)
+	{
+		DinoInfo& dino = g_DinoInfo.at(i);
+
+		if (dino.m_AI >= 10)//&& dino.m_Rank <= g_UserProfile.Rank)
+		{
+			// Add to a list. Presentation assets follow the list position
+			// (see ListMath.h); compute the slot before the push so the text
+			// number matches the thumbnail loaded in ReadCharacters().
+			const std::size_t menuSlot = HuntableMenuSlot(g_DinoList.size());
+			g_DinoList.push_back(i);
+			MenuHunt[1].Item.push_back(std::make_pair(dino.m_Name, false));
+
+			std::stringstream spp;
+
+			// Load appropriate text
+			spp << "huntdat/menu/txt/dino" << menuSlot;
+			if (g_Options.OptSys)
+				spp << ".txu";
+			else
+				spp << ".txm";
+			g_DinoInfo[i].m_Description.clear();
+			LoadText(g_DinoInfo[i].m_Description, spp.str());
+		}
+	}
+	MenuHunt[1].Count = g_DinoList.size();
+
+	MenuHunt[2].Item.clear();
+	for (auto i = 0U; i < g_WeapInfo.size(); i++)
+	{
+		MenuHunt[2].Item.push_back(std::make_pair(g_WeapInfo[i].m_Name, false));
+		// Load appropriate text
+		std::stringstream spp;
+		spp << "huntdat/menu/txt/weapon" << (i + 1) << ".txt";
+		g_WeapInfo[i].m_Description.clear();
+		LoadText(g_WeapInfo[i].m_Description, spp.str());
+	}
+	MenuHunt[2].Count = g_WeapInfo.size();
+
+	/* TODO: In future versions of the menu, support new types of accessories/utilities
+	In the _RES they can have a string that defines the command line toggle to send to
+	the .REN executable, such as '-camo' for camoflauge, or whatever custom accessory
+	the modded .REN allows for. */
+}
+
+static void ResetHuntSelections()
+{
+	// Reset the states
+	for (auto m = 0U; m < 4U; m++)
+	{
+		MenuHunt[m].Selected = -1;
+		for (auto i = MenuHunt[m].Item.begin(); i != MenuHunt[m].Item.end(); i++)
+		{
+			i->second = false;
+		}
+	}
+
+	if (!g_AreaInfo.empty())
+	{
+		MenuHunt[0].Selected = 0;
+	}
+
+	for (auto i = 0U; i < 3U; i++)
+	{
+		if (!MenuHunt[i].Item.empty())
+		{
+			MenuHunt[i].Item[0].second = true;
+		}
+	}
+
+	RestoreHuntSelections();
+	g_ScoreDebit = CalculateDebit();
+}
+
+static void ResetHuntScreen()
+{
+	if (g_TimeOfDay < HUNT_DAWN || g_TimeOfDay > HUNT_NIGHT)
+		g_TimeOfDay = HUNT_DAY;
+
+	g_HuntInfo.first = -1;
+	g_HuntInfo.second = 0;
+
+	for (auto i = 1U; i <= 3U; i++)
+		g_MenuItem.SetIsElementSet(i, false);
+
+	g_MenuItem.SetIsElementSet(g_TimeOfDay + 1, true);
+
+	g_MenuItem.SetIsElementSet(4, false);
+	g_MenuItem.SetIsElementSet(5, g_Options.TranqMode);
+	g_MenuItem.SetIsElementSet(6, g_ObserverMode);
+
+	for (auto i = 0U; i < 4U; i++)
+	{
+		MenuHunt[i].Offset = 0;
+	}
+
+	BuildHuntLists();
+	ResetHuntSelections();
+}
+
 void MenuEventStart(int32_t menu_state)
 {
 	g_MenuItem.ResetElementSet();
 
 	switch (menu_state) {
-	case MENU_REGISTER: {
-		MenuRegistry.Offset = 0;
-		MenuRegistry.Count = 0;
-		MenuRegistry.AddItem("");
-		g_LastListClickTime = 0;
-		g_LastListClickIndex = -1;
-		LoadProfileSummaries();
-	} break;
-	case MENU_OPTIONS: {
-		g_WaitKey = -1;
-
-		for (auto m = 0U; m < OPT_MAX; m++) {
-			MenuOptions[m].Hilite = -1;
-			MenuOptions[m].Selected = -1;
-		}
-	} break;
-	case MENU_MAIN: {
-		MenuAudioStartAmbient();
-	} break;
+	case MENU_REGISTER: ResetRegistryScreen(); break;
+	case MENU_OPTIONS: ResetOptionsScreen(); break;
+	case MENU_MAIN: MenuAudioStartAmbient(); break;
 		/****************************************************
 		Hunt License Menu */
-	case MENU_HUNT:
-	{
-		if (g_TimeOfDay < HUNT_DAWN || g_TimeOfDay > HUNT_NIGHT)
-			g_TimeOfDay = HUNT_DAY;
-
-		g_HuntInfo.first = -1;
-		g_HuntInfo.second = 0;
-
-		for (auto i = 1U; i <= 3U; i++)
-			g_MenuItem.SetIsElementSet(i, false);
-
-		g_MenuItem.SetIsElementSet(g_TimeOfDay + 1, true);
-
-		g_MenuItem.SetIsElementSet(4, false);
-		g_MenuItem.SetIsElementSet(5, g_Options.TranqMode);
-		g_MenuItem.SetIsElementSet(6, g_ObserverMode);
-
-		for (auto i = 0U; i < 4U; i++)
-		{
-			MenuHunt[i].Offset = 0;
-		}
-
-		MenuHunt[0].Item.clear();
-		for (auto i = 0U; i < g_AreaInfo.size(); i++)
-		{
-			MenuHunt[0].Item.push_back(std::make_pair(g_AreaInfo[i].m_Name, false));
-		}
-		MenuHunt[0].Count = g_AreaInfo.size();
-
-		g_DinoList.clear();
-		MenuHunt[1].Item.clear();
-		for (auto i = 0U; i < g_DinoInfo.size(); i++)
-		{
-			DinoInfo& dino = g_DinoInfo.at(i);
-
-			if (dino.m_AI >= 10)//&& dino.m_Rank <= g_UserProfile.Rank)
-			{
-				// Add to a list. Presentation assets follow the list position
-				// (see ListMath.h); compute the slot before the push so the text
-				// number matches the thumbnail loaded in ReadCharacters().
-				const std::size_t menuSlot = HuntableMenuSlot(g_DinoList.size());
-				g_DinoList.push_back(i);
-				MenuHunt[1].Item.push_back(std::make_pair(dino.m_Name, false));
-
-				std::stringstream spp;
-
-				// Load appropriate text
-				spp << "huntdat/menu/txt/dino" << menuSlot;
-				if (g_Options.OptSys)
-					spp << ".txu";
-				else
-					spp << ".txm";
-				g_DinoInfo[i].m_Description.clear();
-				LoadText(g_DinoInfo[i].m_Description, spp.str());
-			}
-		}
-		MenuHunt[1].Count = g_DinoList.size();
-
-		MenuHunt[2].Item.clear();
-		for (auto i = 0U; i < g_WeapInfo.size(); i++)
-		{
-			MenuHunt[2].Item.push_back(std::make_pair(g_WeapInfo[i].m_Name, false));
-			// Load appropriate text
-			std::stringstream spp;
-			spp << "huntdat/menu/txt/weapon" << (i + 1) << ".txt";
-			g_WeapInfo[i].m_Description.clear();
-			LoadText(g_WeapInfo[i].m_Description, spp.str());
-		}
-		MenuHunt[2].Count = g_WeapInfo.size();
-
-		/* TODO: In future versions of the menu, support new types of accessories/utilities
-		In the _RES they can have a string that defines the command line toggle to send to
-		the .REN executable, such as '-camo' for camoflauge, or whatever custom accessory
-		the modded .REN allows for. */
-
-		// Reset the states
-		for (auto m = 0U; m < 4U; m++)
-		{
-			MenuHunt[m].Selected = -1;
-			for (auto i = MenuHunt[m].Item.begin(); i != MenuHunt[m].Item.end(); i++)
-			{
-				i->second = false;
-			}
-		}
-
-		if (!g_AreaInfo.empty())
-		{
-			MenuHunt[0].Selected = 0;
-		}
-
-		for (auto i = 0U; i < 3U; i++)
-		{
-			if (!MenuHunt[i].Item.empty())
-			{
-				MenuHunt[i].Item[0].second = true;
-			}
-		}
-
-		RestoreHuntSelections();
-		g_ScoreDebit = CalculateDebit();
-	} break;
+	case MENU_HUNT: ResetHuntScreen(); break;
 	}
 }
 

@@ -435,6 +435,8 @@ public:
 class TKeyMap
 {
 public:
+	// Field order is persisted in trophy profiles and mirrored by
+	// kKeyMapMembers in MenuInput.cpp; keep both in sync.
 	int32_t	fkForward,
 		fkBackward,
 		fkReload,
