@@ -1,5 +1,5 @@
 // MenuInternal.h -- state shared by the split menu translation units
-// (Menu.cpp keeps the controller; MenuDraw.cpp owns the drawing surface)
+// (Menu.cpp keeps the controller; MenuDraw.cpp owns drawing, MenuInput.cpp input)
 // ==========================================================================
 // The standalone menu's UI shell is split across translation units. This
 // header owns what they share: the MenuSet list widget, the layout
