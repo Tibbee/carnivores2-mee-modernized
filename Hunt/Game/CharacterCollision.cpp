@@ -236,21 +236,6 @@ int CheckPlaceCollisionMosasaurus(TCharacter *cptr, Vector3d &v, float mosaDepth
 				*/
 	return 0;
 }
-bool jumpCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
-{
-	Vector3d p = cptr->pos;
-	float lookx = static_cast<float>(cos(cptr->tgalpha));
-	float lookz = static_cast<float>(sin(cptr->tgalpha));
-	for (int i = 0; i < 10; i++) {
-
-		p.x += lookx * 64.f;
-		p.z += lookz * 64.f;
-		if (CheckPlaceCollision(cptr, p, wc, mc)) {
-			return false;
-		};
-	}
-	return true;
-}
 int CheckPlaceCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 {
 	int ccx = static_cast<int>(v.x) / 256;

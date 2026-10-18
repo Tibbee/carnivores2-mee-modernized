@@ -22,51 +22,6 @@ void _FillMemoryWord(int maddr, int count, WORD w)
   }
 }
 
-void FillMemoryWord(int maddr, int count, WORD w)
-{
-  WORD ww[4];
-  ww[0] = w;
-  ww[1] = w;
-  ww[2] = w;
-  ww[3] = w;
-  __asm
-  {
-    EMMS
-    mov edi,maddr
-    mov ecx,count
-    shr ecx,3
-    MOVQ MM0,ww
-} L1: __asm
-  {
-    MOVQ [edi],MM0
-    add edi,8
-    dec cx
-    jnz L1
-    EMMS
-  }
-}
-
-void _memcpy(void* daddr, void* saddr, int count)
-{
-  __asm
-  {
-    EMMS
-    mov edi,daddr
-    mov esi,saddr
-    mov ecx,count
-    shr ecx,3
-} L1: __asm
-  {
-    MOVQ MM0,[esi]
-    MOVQ [edi],MM0
-    add edi,8
-    add esi,8
-    dec cx
-    jnz L1
-    EMMS
-  }
-}
-
 void ClearVideoBuf()
 {
   WORD w = HiColor(SkyR/8, SkyG/8, SkyB/8);

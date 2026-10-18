@@ -182,12 +182,6 @@ void SetFullScreen()
   ResetMousePos();
 }
 
-void Wait(int time)
-{
-  unsigned int t = timeGetTime() + time;
-  while (t>timeGetTime()) ;
-}
-
 //#define loadww 210
 //#define loadwh 106
 char loadtxt[128];

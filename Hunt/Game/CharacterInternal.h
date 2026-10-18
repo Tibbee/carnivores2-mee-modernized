@@ -15,7 +15,6 @@ int CheckPlaceCollisionP(Vector3d &v, bool aquatic);
 int CheckPlaceCollisionFishP(Vector3d &v, int minDepth, int maxDepth);
 int CheckPlaceCollisionFish(TCharacter *cptr, Vector3d &v, float mosaDepth, int maxDepth, int minDepth);
 int CheckPlaceCollisionMosasaurus(TCharacter *cptr, Vector3d &v, float mosaDepth);
-bool jumpCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc);
 int CheckPlaceCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc);
 int CheckPlaceCollisionMicro(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc);
 int CheckPlaceCollisionLandBrahi(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc);
@@ -26,9 +25,7 @@ int CheckPossiblePath(TCharacter *cptr, BOOL wc, BOOL mc);
 
 // Movement
 void MoveCharacter(TCharacter *cptr, float dx, float dz, BOOL wc, BOOL mc);
-void MoveCharacter2(TCharacter *cptr, float dx, float dz);
 void MoveCharacterFish(TCharacter *cptr, float dx, float dz);
-void MoveCharacterMosasaurus(TCharacter *cptr, float dx, float dz);
 void Characters_AddSecondaryOne(TCharacter *cptr);
 void LookForAWay(TCharacter *cptr, BOOL wc, BOOL mc);
 
@@ -55,8 +52,6 @@ void AddDeadBody(TCharacter *cptr, int phase, bool scream);
 
 // Animation helpers
 void ThinkY_Beta_Gamma(TCharacter *cptr, float blook, float glook, float blim, float glim);
-Vector3d LookForATree(TCharacter *cptr);
-Vector3d CheckForATree(TCharacter *cptr);
 float AngleDifference(float a, float b);
 float CorrectedAlpha(float a, float b);
 

@@ -6,7 +6,6 @@
 
 // Forward declarations
 int GetObjectH(int x, int y, int R);
-int GetObjectHWater(int x, int y);
 
 void CreateTMap()
 {

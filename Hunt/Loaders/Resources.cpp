@@ -521,14 +521,6 @@ int GetObjectH(int x, int y, int R)
   return  static_cast<int>((hr / ctHScale));
 }
 
-int GetObjectHWater(int x, int y)
-{
-  if (FMap[y][x] & fmReverse)
-    return static_cast<int>((HMap[y][x+1]+HMap[y+1][x])) / 2 + 48;
-  else
-    return static_cast<int>((HMap[y][x]+HMap[y+1][x+1])) / 2 + 48;
-}
-
 WORD conv_565(WORD c)
 {
   return (c & 31) + ( (c & 0xFFE0) << 1 );

@@ -106,39 +106,6 @@ void MoveCharacterFish(TCharacter *cptr, float dx, float dz)
 	//if (!CheckPlaceCollision2(p)) cptr->pos = p;
 	cptr->pos = p;
 }
-void MoveCharacterMosasaurus(TCharacter *cptr, float dx, float dz)
-{
-	//return;
-	Vector3d p = cptr->pos;
-
-	if (CheckPlaceCollisionMosasaurus(cptr, p, cptr->depth))
-	{
-		cptr->pos.x += dx / 2;
-		cptr->pos.z += dz / 2;
-		return;
-	}
-
-	p.x += dx;
-	p.z += dz;
-
-	if (!CheckPlaceCollisionMosasaurus(cptr, p, cptr->depth))
-	{
-		cptr->pos = p;
-		return;
-	}
-
-	p = cptr->pos;
-	p.x += dx / 2;
-	p.z += dz / 2;
-	if (!CheckPlaceCollisionMosasaurus(cptr, p, cptr->depth)) cptr->pos = p;
-	p = cptr->pos;
-
-	p.x += dx / 4;
-	//if (!CheckPlaceCollision2(p)) cptr->pos = p;
-	p.z += dz / 4;
-	//if (!CheckPlaceCollision2(p)) cptr->pos = p;
-	cptr->pos = p;
-}
 void MoveCharacter(TCharacter *cptr, float dx, float dz, BOOL wc, BOOL mc)
 {
 	//return;
@@ -171,9 +138,4 @@ void MoveCharacter(TCharacter *cptr, float dx, float dz, BOOL wc, BOOL mc)
 	p.z += dz / 4;
 	//if (!CheckPlaceCollision2(p)) cptr->pos = p;
 	cptr->pos = p;
-}
-void MoveCharacter2(TCharacter *cptr, float dx, float dz)
-{
-	cptr->pos.x += dx;
-	cptr->pos.z += dz;
 }

@@ -89,8 +89,6 @@ extern void RenderSkyLine(int);
 void RenderChList(int r);
 
 void _FillMemoryWord(int maddr, int count, WORD w);
-void FillMemoryWord(int maddr, int count, WORD w);
-void _memcpy(void* daddr, void* saddr, int count);
 
 #endif // _soft
 #endif // SOFTINTERNAL_H

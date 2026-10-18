@@ -15,8 +15,6 @@ namespace {
 // The engine's scale factor, as used by ComputeLegacySkyPitch's caller.
 constexpr float kHeightScale = 0.01f;
 
-float Deg(float radians) { return radians * 57.29577951308232f; }
-
 float Dot(const Vector3d& a, const Vector3d& b)
 {
     return a.x * b.x + a.y * b.y + a.z * b.z;

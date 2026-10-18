@@ -490,47 +490,6 @@ void ReadCharacters(FILE* stream)
 	}
 }
 
-void ReadAreas(FILE* stream)
-{
-	char line[256], * value;
-	while (fgets(line, 255, stream))
-	{
-		if (strstr(line, "}")) break;
-		if (strstr(line, "{"))
-		{
-			AreaInfo area;
-
-			while (fgets(line, 255, stream))
-			{
-				if (strstr(line, "}"))
-				{
-					break;
-				}
-
-				value = strstr(line, "=");
-				if (!value)
-					throw std::runtime_error("Script loading error");
-				value++;
-
-				if (ScriptKeyIsIgnoreCase(line, "price")) area.m_Price = ReadScriptIntValue(value, "ReadAreas price");
-				if (ScriptKeyIsIgnoreCase(line, "rank"))  area.m_Rank = ReadScriptIntValue(value, "ReadAreas rank");
-
-				if (ScriptKeyIs(line, "name"))
-					area.m_Name = ReadAssignedText(value, "ReadAreas()");
-
-				if (ScriptKeyIs(line, "pname"))
-					area.m_ProjectName = ReadAssignedText(value, "ReadAreas()");
-
-				if (ScriptKeyIs(line, "thumbnail"))
-					(void)ReadAssignedText(value, "ReadAreas()"); // TODO: Load TPicture
-			}
-
-			g_AreaInfo.push_back(area);
-		}
-
-	}
-}
-
 /*
  * ReadAccessories()
  *

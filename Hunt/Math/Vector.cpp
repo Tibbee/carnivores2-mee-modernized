@@ -125,33 +125,10 @@ float FindVectorAlpha(float vx, float vy)
   if (alpha < 0) alpha += 2.f * pi;
   return alpha;
 }
-void CalcHitPoint(CLIPPLANE& C, Vector3d& a, Vector3d& b, Vector3d& hp)
-{
-  float SCLN,SCVN;
-  Vector3d lv = SubVectors(b,a);
-  NormVector(lv, 1.0);
-
-  MulVectorsScal(a, C.nv, SCLN);
-  MulVectorsScal(lv,C.nv, SCVN);
-
-  SCLN/=SCVN;
-  SCLN=static_cast<float>(fabs(SCLN));
-  hp.x = a.x + lv.x * SCLN;
-  hp.y = a.y + lv.y * SCLN;
-  hp.z = a.z + lv.z * SCLN;
-}
 float PointToVectorDSq(Vector3d A, Vector3d AB, Vector3d C)
 {
   Vector3d AC = SubVectors(C,A);
   Vector3d vm;
   MulVectorsVect(AB, AC, vm);
   return vm.x*vm.x + vm.y*vm.y + vm.z*vm.z;
-}
-float PointToVectorD(Vector3d A, Vector3d AB, Vector3d C)
-{
-  return static_cast<float>(sqrt(PointToVectorDSq(A, AB, C)));
-}
-float Mul2dVectors(float vx, float vy, float ux, float uy)
-{
-  return vx*uy - ux*vy;
 }

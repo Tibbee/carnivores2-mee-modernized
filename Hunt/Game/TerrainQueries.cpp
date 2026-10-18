@@ -231,40 +231,6 @@ float GetLandQH(float CameraX, float CameraZ)
   return h;
 }
 
-float GetLandHObj(float CameraX, float CameraZ)
-{
-  float h;
-
-  h = 0;
-
-  int ccx = static_cast<int>(CameraX) / 256;
-  int ccz = static_cast<int>(CameraZ) / 256;
-
-  for (int z=-3; z<=3; z++)
-    for (int x=-3; x<=3; x++)
-      if (OMap[ccz+z][ccx+x]!=255)
-      {
-        int ob = OMap[ccz+z][ccx+x];
-        float CR = static_cast<float>(MObjects[ob].info.Radius) - 1.f;
-
-        float oz = (ccz+z) * 256.f + 128.f;
-        float ox = (ccx+x) * 256.f + 128.f;
-
-        if (MObjects[ob].info.YHi + GetLandOH(ccx+x, ccz+z) < h) continue;
-        if (MObjects[ob].info.YLo + GetLandOH(ccx+x, ccz+z) > PlayerY+256) continue;
-        float r;
-        if (MObjects[ob].info.flags & ofCIRCLE)
-          r = static_cast<float>(sqrt( (ox-CameraX)*(ox-CameraX) + (oz-CameraZ)*(oz-CameraZ) ));
-        else
-          r = static_cast<float>(MAX( fabs(ox-CameraX), fabs(oz-CameraZ) ));
-
-        if (r<CR)
-          h = MObjects[ob].info.YHi + GetLandOH(ccx+x, ccz+z);
-      }
-
-  return h;
-}
-
 float GetLandQHNoObj(float CameraX, float CameraZ)
 {
   float h,hh;

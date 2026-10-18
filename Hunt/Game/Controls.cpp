@@ -138,12 +138,6 @@ void ToggleMapMode()
   g_GameMode = (g_GameMode == GameMode::MapMode) ? GameMode::Normal : GameMode::MapMode;
 }
 
-void ShowShifts()
-{
-  sprintf(logt, "Y=%3.4f  Z=%3.4f  A=%3.4f", wpshy/2, wpshz/2, wpnb*180/3.1415);
-  AddMessage(logt);
-}
-
 void ProcessDemoMovement()
 {
   // Bug fix: previously stomped g_GameMode = GameMode::Normal here

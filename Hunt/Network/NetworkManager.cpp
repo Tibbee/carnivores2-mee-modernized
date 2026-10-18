@@ -13,41 +13,10 @@ NetworkManager g_Network;
 
 // --- Serialization helpers (free functions, no class state needed) ---
 
-void putInt(byte data[], int *pos, long in) {
-    data[*pos] = static_cast<int>(((in & 0XFF)));
-    *pos += 1;
-}
-
-void putInt2(byte data[], int *pos, long in) {
-    data[*pos]     = static_cast<int>(((in >> 8) & 0XFF));
-    data[*pos + 1] = static_cast<int>(((in & 0XFF)));
-    *pos += 2;
-}
-
-void putFloat(byte data[], int *pos, long in) {
-    data[*pos]     = static_cast<int>(((in >> 24) & 0xFF));
-    data[*pos + 1] = static_cast<int>(((in >> 16) & 0xFF));
-    data[*pos + 2] = static_cast<int>(((in >> 8) & 0XFF));
-    data[*pos + 3] = static_cast<int>(((in & 0XFF)));
-    *pos += 4;
-}
-
 int readInt(const byte data[], int *pos) {
     int result = data[*pos];
     *pos += 1;
     return result;
-}
-
-int readInt2(const byte data[], int *pos) {
-    int result = (data[*pos] << 8) + data[*pos + 1];
-    *pos += 2;
-    return result;
-}
-
-float readFloat(const byte data[], int *pos) {
-    int v = (data[*pos] << 24) + (data[*pos + 1] << 16) + (data[*pos + 2] << 8) + data[*pos + 3];
-    *pos += 4;
-    return *reinterpret_cast<float*>(&v);
 }
 
 // --- NetworkManager implementation ---
