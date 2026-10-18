@@ -1,0 +1,19 @@
+# MSVC warning baseline for preset: menu-release
+# format: relative/path|code|unique_warning_line_count
+# source: 1c43386
+# updated: 2026-10-18
+# Regenerate intentionally with tools/check_msvc_warnings.ps1 -UpdateBaseline.
+Hunt/Core/ResolutionList.h|C4018|2
+Menu/Hunt.h|C4100|1
+Menu/Hunt2.cpp|C4100|2
+Menu/Hunt2.cpp|C4127|1
+Menu/Hunt2.cpp|C4244|1
+Menu/Menu.cpp|C4018|1
+Menu/Menu.cpp|C4100|1
+Menu/Menu.cpp|C4244|1
+Menu/MenuDraw.cpp|C4100|1
+Menu/MenuDraw.cpp|C4389|4
+Menu/MenuDraw.cpp|C4456|3
+Menu/MenuInput.cpp|C4245|1
+Menu/MenuInput.cpp|C4389|1
+Menu/ProfileIO.cpp|C4189|2

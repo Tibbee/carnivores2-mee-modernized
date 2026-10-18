@@ -52,7 +52,22 @@ jobs:
       run: cmake --preset ${{ matrix.preset }} -DC2_BUILD_TESTS=${{ matrix.build_tests }}
 
     - name: Build
-      run: cmake --build --preset ${{ matrix.preset }}
+      shell: powershell
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $log = 'build-${{ matrix.preset }}.log'
+        cmake --build --preset ${{ matrix.preset }} 2>&1 | Tee-Object -FilePath $log
+        $buildExit = $LASTEXITCODE
+        if ($buildExit -ne 0) { exit $buildExit }
+        ./tools/check_msvc_warnings.ps1 -Log $log -Preset '${{ matrix.preset }}'
+
+    - name: Upload build log
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-log-${{ matrix.preset }}
+        path: build-${{ matrix.preset }}.log
+        if-no-files-found: ignore
 
     - name: Check release stack protection
       if: endsWith(matrix.preset, '-release')

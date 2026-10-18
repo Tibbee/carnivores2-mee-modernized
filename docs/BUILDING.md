@@ -210,6 +210,22 @@ pwsh tools/run_clang_tidy.ps1
 Configuration for the rules is in `.clang-tidy` and notes on running it are in
 `tools/clang-tidy.md`.
 
+### MSVC warning baseline
+
+A global `/WX` is not enabled: the legacy tree still has hundreds of unique
+warning sites, mostly in headers compiled into many translation units. CI
+instead captures each preset's build log and checks it with
+`tools/check_msvc_warnings.ps1` against
+`tools/warning-baseline/<preset>.txt`. A new file/warning-code pair, or a
+higher unique-line count for an existing pair, fails the build. Fixing
+warnings is always allowed; intentionally accepting new ones requires
+regenerating the baseline with `-UpdateBaseline` and reviewing the diff.
+
+The gate is a measured baseline, not a zero-warning target. At introduction the
+`ogl-debug` baseline was 547 unique sites (mostly C4459 and C4244) and the
+`menu-release` baseline was 137. `-DC2_WARNINGS_AS_ERRORS=ON` remains available
+for focused local work but is not enabled globally.
+
 ## Third-party build dependencies
 
 Vendored under `deps/`: `glad` (OpenGL 3.3 loader) and the Khronos

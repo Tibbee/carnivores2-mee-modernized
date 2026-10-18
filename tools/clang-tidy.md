@@ -31,8 +31,12 @@ MSVC warnings use an explicit project-owned `/W4` baseline. Clang-tidy keeps
 the full configured check set advisory except for the high-confidence lifetime
 and memory checks listed under `WarningsAsErrors`; this is the current measured
 legacy baseline. `/WX` is available through `-DC2_WARNINGS_AS_ERRORS=ON`, but
-remains opt-in. `/permissive` is still retained for compatibility and remains
-target-scoped; replacing it with `/permissive-` is a later focused cleanup.
+remains opt-in. The MSVC side is enforced in CI through the checked-in
+per-preset baselines in `tools/warning-baseline/` (see
+`tools/check_msvc_warnings.ps1`); that gate blocks new warning sites without
+requiring a clean legacy tree. `/permissive` is still retained for
+compatibility and remains target-scoped; replacing it with `/permissive-` is a
+later focused cleanup.
 
 ## Toolchain versions
 
