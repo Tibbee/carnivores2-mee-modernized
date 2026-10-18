@@ -503,14 +503,18 @@ if(MSVC AND C2_BUILD_TESTS)
     add_test(NAME Carnivores2Tests.CommandLineContracts
              COMMAND Carnivores2CommandLineContractTests)
 
-    # Link the production menu resource readers with narrow global seams.
-    # The menu prefers _MENU.TXT and falls back to the legacy _RES.TXT; both
-    # grammars are driven through the real ReadCharacters()/ReadWeapons()
-    # entry points so a value can never select a different field.
+    # Link the production menu resource readers and menu config IO with narrow
+    # global seams. The menu prefers _MENU.TXT and falls back to the legacy
+    # _RES.TXT; both grammars are driven through the real ReadCharacters()/
+    # ReadWeapons() entry points so a value can never select a different field.
+    # ConfigIO's file path is the test executable's directory; the tests back
+    # up and restore it.
     add_executable(Carnivores2MenuResourceTests
+        tests/test_menu_config_io.cpp
         tests/test_menu_resource_entry.cpp
         tests/test_menu_wave_entry.cpp
         tests/menu_resource_seams.cpp
+        Menu/ConfigIO.cpp
         Menu/Resources.cpp
         Menu/ProfileIO.cpp
         Menu/AssetLoad.cpp
