@@ -358,17 +358,11 @@ static void ConfirmRegistrySelection()
 Keyboard and Mouse handling for menus
 NOTE: Could move these to individual functions if a state machine is confusing
 */
-void MenuEventInput(int32_t menu)
+// Per-screen input handlers. Each branch used to live inline in
+// MenuEventInput; they are separate functions now so the dispatcher stays
+// readable and each screen's behavior can be reviewed in isolation.
+static void HandleCreditsInput()
 {
-	if (!g_KeyboardUsed) return;
-
-	uint8_t id = g_MenuItem.GetID(g_CursorPos.x / 2, g_CursorPos.y / 2);
-
-	if (g_KeyboardState[VK_LBUTTON] & 128) {
-	}
-
-	if (menu == MENU_CREDITS)
-	{
 		if (g_KeyboardState[VK_RETURN] & 128) {
 			g_KeyboardState[VK_LBUTTON] |= 128;
 		}
@@ -392,8 +386,8 @@ void MenuEventInput(int32_t menu)
 			}
 		}
 	}
-	else if (menu == MENU_REGISTER)
-	{
+static void HandleRegisterInput(uint8_t id)
+{
 		if (g_KeyboardState[VK_RETURN] & 128) {
 			g_KeyboardState[VK_LBUTTON] |= 128;
 			id = 1;
@@ -453,8 +447,8 @@ void MenuEventInput(int32_t menu)
 	}
 	/*
 	*/
-	else if (menu == MENU_REGISTRY_DELETE)
-	{
+static void HandleRegistryDeleteInput(uint8_t id)
+{
 		if (g_KeyboardState[VK_LBUTTON] & 128) {
 			if (id == 1)
 			{
@@ -473,8 +467,8 @@ void MenuEventInput(int32_t menu)
 	}
 	/*
 	*/
-	else if (menu == MENU_REGISTRY_WAIVER)
-	{
+static void HandleRegistryWaiverInput(uint8_t id)
+{
 		if (g_KeyboardState[VK_LBUTTON] & 128) {
 			if (id == 1)
 			{
@@ -494,7 +488,8 @@ void MenuEventInput(int32_t menu)
 	/**************************************
 	* Options Menu
 	*/
-	else if (menu == MENU_OPTIONS) {
+static void HandleOptionsInput(uint8_t id)
+{
 		if (g_WaitKey >= 0)
 		{
 			AcceptNewKey();
@@ -717,7 +712,8 @@ void MenuEventInput(int32_t menu)
 			}
 		}
 	}
-	else if (menu == MENU_HUNT) {
+static void HandleHuntInput(uint8_t id)
+{
 		if (g_KeyboardState[VK_ESCAPE] & 128)
 		{
 			ChangeMenuState(MENU_QUIT);
@@ -1073,8 +1069,8 @@ void MenuEventInput(int32_t menu)
 			}
 		}
 	}
-	else if (menu == MENU_MAIN)
-	{
+static void HandleMainInput(uint8_t id)
+{
 		if (g_KeyboardState[VK_ESCAPE] & 128) {
 			ChangeMenuState(MENU_QUIT);
 		}
@@ -1127,8 +1123,8 @@ void MenuEventInput(int32_t menu)
 			}
 		}
 	}
-	else if (menu == MENU_STATISTICS)
-	{
+static void HandleStatisticsInput()
+{
 		if (g_KeyboardState[VK_ESCAPE] & 128) {
 			ChangeMenuState(MENU_QUIT);
 		}
@@ -1139,8 +1135,8 @@ void MenuEventInput(int32_t menu)
 			ChangeMenuState(MENU_MAIN);
 		}
 	}
-	else if (menu == MENU_QUIT)
-	{
+static void HandleQuitInput(uint8_t id)
+{
 		if (g_KeyboardState[VK_LBUTTON] & 128) {
 			WaitForMouseRelease();
 			MenuAudioPlayClick();
@@ -1148,6 +1144,25 @@ void MenuEventInput(int32_t menu)
 			if (id == 1)      RequestMenuExit(0);
 			else if (id == 2) ChangeMenuState(MENU_MAIN);
 		}
+}
+
+void MenuEventInput(int32_t menu)
+{
+	if (!g_KeyboardUsed) return;
+
+	const uint8_t id = g_MenuItem.GetID(g_CursorPos.x / 2, g_CursorPos.y / 2);
+
+	switch (menu) {
+	case MENU_CREDITS: HandleCreditsInput(); break;
+	case MENU_REGISTER: HandleRegisterInput(id); break;
+	case MENU_REGISTRY_DELETE: HandleRegistryDeleteInput(id); break;
+	case MENU_REGISTRY_WAIVER: HandleRegistryWaiverInput(id); break;
+	case MENU_OPTIONS: HandleOptionsInput(id); break;
+	case MENU_HUNT: HandleHuntInput(id); break;
+	case MENU_MAIN: HandleMainInput(id); break;
+	case MENU_STATISTICS: HandleStatisticsInput(); break;
+	case MENU_QUIT: HandleQuitInput(id); break;
+	default: break;
 	}
 }
 
