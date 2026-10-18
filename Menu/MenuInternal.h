@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Hunt.h"
+#include "ShopSafety.h"
 
 #include <cstdint>
 #include <string>
@@ -217,8 +218,22 @@ const char st_FpsText[kFpsLimitCount][12] = { "Unlimited", "60", "120", "240" };
 const int kDisplayModeCount = 3;
 const char st_DisplayModeText[kDisplayModeCount][16] = { "Windowed", "Fullscreen", "Borderless" };
 
+// Accessory indices. MenuHunt[3].Item and g_UtilInfo stay parallel and fully
+// populated (see UtilInfo note in Hunt.h), so launch/smod code can index
+// both arrays with these. NOTE: _iceage inserts "Supply drop" at slot 4
+// and shifts NV/tranq -- these constants are C2-only.
+constexpr int kAccCamo = 0;
+constexpr int kAccRadar = 1;
+constexpr int kAccScent = 2;
+constexpr int kAccDouble = 3;
+constexpr int kAccNV = 4;
+constexpr int kAccTranq = 5;
+constexpr int kAccFlashlight = 6;
+constexpr int kAccCount = 7;
+
 // State defined in Menu.cpp.
 extern MenuSet MenuOptions[3];
+extern MenuSet MenuRegistry;
 extern MenuSet MenuHunt[4];
 extern void* lpVideoBuf;
 extern HDC hdcCMain;
@@ -228,6 +243,7 @@ extern HFONT hfntOld;
 extern POINT g_CursorPos;
 extern int g_WaitKey;
 extern int g_LastHoverId;
+extern bool g_KeyboardUsed;
 extern std::pair<unsigned, unsigned> g_HuntInfo;
 extern Layout::Column g_GameLabels, g_GameValues;
 extern Layout::Column g_ControlsLabels, g_ControlsValues;
@@ -238,6 +254,7 @@ bool IsPointInRect(POINT& p, RECT& rc);
 int GetTextW(HDC hdc, const std::string& s);
 int GetTextH(HDC hdc, const std::string& s);
 bool RegistryRowContains(const POINT& p, unsigned row);
+HuntBudget CalculateDebit();
 
 // Rows of MenuOptions[OPT_KEYBINDINGS] that do NOT map onto KeyMap fields.
 //
@@ -283,3 +300,7 @@ void DrawMenuCredits();
 void DrawMenuHunt();
 void DrawMenuRegistry();
 void DrawMenuOptions();
+
+// Input entry points (defined in MenuInput.cpp).
+void MenuEventStart(int32_t menu_state);
+void MenuEventInput(int32_t menu);

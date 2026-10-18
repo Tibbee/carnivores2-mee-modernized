@@ -5,6 +5,7 @@ set(MENU_SOURCES
     Hunt2.cpp
     Menu.cpp
     MenuDraw.cpp
+    MenuInput.cpp
     Audio.cpp
     Resources.cpp
     ConfigIO.cpp
