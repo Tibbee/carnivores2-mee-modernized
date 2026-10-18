@@ -281,15 +281,6 @@ void ClipVector(CLIPPLANE& C, int vn)
   {
     ClipRes+=1;
 
-    /*
-    CalcHitPoint(C,cp[vn].ev.v,
-                   cp[vleft].ev.v, hleft.ev.v);
-
-    float ll = VectorLength(SubVectors(cp[vleft].ev.v, cp[vn].ev.v));
-    float lc = VectorLength(SubVectors(hleft.ev.v, cp[vn].ev.v));
-    lc = lc / ll;
-    */
-
     float lc = -s / (s1-s);
     hleft.ev.v.x = cp[vn].ev.v.x + ((cp[vleft].ev.v.x - cp[vn].ev.v.x) * lc);
     hleft.ev.v.y = cp[vn].ev.v.y + ((cp[vleft].ev.v.y - cp[vn].ev.v.y) * lc);
@@ -303,15 +294,6 @@ void ClipVector(CLIPPLANE& C, int vn)
   if (s2>0)
   {
     ClipRes+=2;
-    /*
-    CalcHitPoint(C,cp[vn].ev.v,
-                   cp[vright].ev.v, hright.ev.v);
-
-    float ll = VectorLength(SubVectors(cp[vright].ev.v, cp[vn].ev.v));
-    float lc = VectorLength(SubVectors(hright.ev.v, cp[vn].ev.v));
-    lc = lc / ll;
-     */
-
     float lc = -s / (s2-s);
     hright.ev.v.x = cp[vn].ev.v.x + ((cp[vright].ev.v.x - cp[vn].ev.v.x) * lc);
     hright.ev.v.y = cp[vn].ev.v.y + ((cp[vright].ev.v.y - cp[vn].ev.v.y) * lc);

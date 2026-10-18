@@ -182,13 +182,6 @@ void TrophySave(Profile& profile)
 	if (profile.Score >= 300) profile.Rank = RANK_MASTER;
 	if (profile.Score >= 10000) profile.Rank = 1000;
 
-	/*
-	// Taken from Carnivores 1
-	if (r != TrophyRoom.Rank) {
-		if (profile.Rank == RANK_ADVANCED) MenuState = 112;
-		if (profile.Rank == RANK_MASTER) MenuState = 113;
-	}*/
-
 	std::ofstream fs(fname.str(), std::ios::binary | std::ios::trunc);
 
 	if (!fs.is_open()) {

@@ -32,9 +32,6 @@ void BuildTree()
     {
       sg = (v[1].x-v[0].x)*(v[2].y-v[1].y) - (v[1].y-v[0].y)*(v[2].x-v[1].x);
       if (sg<0) continue;
-      /*
-                if (fptr->Flags & sfNeedVC) { if (sg<0) continue; }
-                                       else if (sg<0) fptr->Flags |= sfDark; */
     }
 
     //if (NODARKBACK) fptr->Flags &= 0x00FF;

@@ -175,10 +175,6 @@ NOBAG:
     if ( fabs(cptr->rpos.x) > -cptr->rpos.z + br ) continue;
     if ( fabs(cptr->rpos.y) > -cptr->rpos.z + br ) continue;
 
-    /*
-          if (cptr->rpos.z > BackViewR + ) continue;
-          if ( fabs(cptr->rpos.x) > -cptr->rpos.z + BackViewR ) continue;
-    */
 //      AddShadowCircle(static_cast<int>(cptr->pos.x)+100, static_cast<int>(cptr->pos.z)+100, 360, 16);
 
     AddChRenderItem(ri, 0, c);
@@ -210,10 +206,6 @@ NOBAG:
 		  if (fabs(cptr->rpos.x) > -cptr->rpos.z + br) continue;
 		  if (fabs(cptr->rpos.y) > -cptr->rpos.z + br) continue;
 
-		  /*
-				if (cptr->rpos.z > BackViewR + ) continue;
-				if ( fabs(cptr->rpos.x) > -cptr->rpos.z + BackViewR ) continue;
-		  */
 		  //      AddShadowCircle(static_cast<int>(cptr->pos.x)+100, static_cast<int>(cptr->pos.z)+100, 360, 16);
 
 		  AddChRenderItem(ri, 4, 0); //increase for each extra player

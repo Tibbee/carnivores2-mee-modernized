@@ -77,19 +77,6 @@ void ProcessReload() {
 		}
 		else if (AmmoMag[CurrentWeapon]) {
 
-			/*
-			int temp = MagShotsLeft[CurrentWeapon];
-			MagShotsLeft[CurrentWeapon] = ShotsLeft[CurrentWeapon];
-			ShotsLeft[CurrentWeapon] = temp;
-
-			if (!MagShotsLeft[CurrentWeapon]) AmmoMag[CurrentWeapon]--;
-
-			if (!Chambered[CurrentWeapon]) {
-				Chambered[CurrentWeapon] = 1;
-				ShotsLeft[CurrentWeapon]--;
-			}
-			*/
-
 			if (Chambered[CurrentWeapon] && WeapInfo[CurrentWeapon].rldAnimPart >= 0) {
 				TAni* animation = FindWeaponAnimation(*wptr, CurrentWeapon,
 					WeapInfo[CurrentWeapon].rldAnimPart);
@@ -312,9 +299,6 @@ void ProcessShoot()
     if (!IsUnderwater())
       MakeNoise(v, GunshotNoiseRangeWorld(ctViewR, WeapInfo[CurrentWeapon].Loud));
     Chambered[CurrentWeapon]-=1;
-//	else if (WeapInfo[CurrentWeapon].Reload) {
-//		if (!Chambered[CurrentWeapon]) Chambered[CurrentWeapon] = WeapInfo[CurrentWeapon].Reload;
-//	}
   }
 }
 
@@ -497,7 +481,6 @@ void ProcessPlayerMovement()
   } else alreadyFired = false;
 
   //STRAFE - PUMP
-//  if (KeyFlags & kfStrafe)
   if (KeyboardState[KeyMap.fkStrafe] & 128) ProcessPump(); 
 
   //FIRING MODE
@@ -593,8 +576,6 @@ void ProcessPlayerMovement()
 //=========  rotation =========//
   if (KeyFlags & kfRight)  PlayerAlpha+=DeltaT*1.5f;
   if (KeyFlags & kfLeft )  PlayerAlpha-=DeltaT*1.5f;
-//  if (KeyFlags & kfLookUp) PlayerBeta-=DeltaT;
-//  if (KeyFlags & kfLookDn) PlayerBeta+=DeltaT;
 
 //========= movement ==========//
 
@@ -636,8 +617,6 @@ void ProcessPlayerMovement()
     TrophyRoom.Last.path+=(TimeDt*VSpeed) / 128.f;
     TrophyRoom.Last.time+=TimeDt/1000.f;
   }
-
-//if (SWIM & (VSpeed>0.1) & (sb>0.60)) HeadY-=40;
 
   int mvi = 1 + TimeDt / 16;
 

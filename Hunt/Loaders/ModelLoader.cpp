@@ -96,10 +96,6 @@ void GenerateMipMap(WORD* A, WORD* D, int L)
       int C3 = *(A + x*2 +   (y*2+1)*2*L);
       int C4 = *(A + x*2+1 + (y*2+1)*2*L);
       //C4 = C1;
-      /*
-      if (L==64)
-       C3=((C3 & 0x7bde) +  (C1 & 0x7bde))>>1;
-       */
       int B = ( ((C1>>0) & 31) + ((C2>>0) & 31) + ((C3>>0) & 31) + ((C4>>0) & 31) +2 ) >> 2;
       int G = ( ((C1>>5) & 31) + ((C2>>5) & 31) + ((C3>>5) & 31) + ((C4>>5) & 31) +2 ) >> 2;
       int R = ( ((C1>>10) & 31) + ((C2>>10) & 31) + ((C3>>10) & 31) + ((C4>>10) & 31) +2 ) >> 2;
@@ -124,10 +120,6 @@ void GenerateShadedSkyMipMap(WORD* src, WORD* dst, int L)
 void DATASHIFT(WORD* d, int cnt)
 {
   cnt>>=1;
-  /*
-  for (int l=0; l<cnt; l++)
-    *(d+l)=(*(d+l)) & 0x3e0;
-  */
   if (HARD3D) return;
 
   for (l=0; l<cnt; l++)
@@ -818,10 +810,6 @@ void CreateMipMapMT(WORD* dst, WORD* src, int H)
         C3>>=1;
         C4>>=1;
       }
-
-      /*if (C1 == 0 && C2!=0) C1 = C2;
-        if (C1 == 0 && C3!=0) C1 = C3;
-        if (C1 == 0 && C4!=0) C1 = C4;*/
 
       if (C1 == 0)
       {

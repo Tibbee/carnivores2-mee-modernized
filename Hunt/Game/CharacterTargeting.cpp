@@ -45,14 +45,6 @@ replace:
 			}
 		}
 	}
-	/*
-	if (stayRegion && outsideRegion && tr > 64) {
-		if (fabs(p.x - cptr->pos.x) + fabs(p.z - cptr->pos.z) > R * 25.f) {
-			stayRegion = false;
-			goto replace;
-		}
-	}
-	*/
 
 	//if (tr < 128)
 	if (tr < 100)
@@ -60,14 +52,6 @@ replace:
 		if (!waterNear(p.x, p.z, 50)) goto replace;
 		if (cptr->spawnAlt + 400 < GetLandUpH(p.x, p.z)) goto replace;
 	}
-	/*
-	else if (R < 10240 && !(tr % 20)) {
-		if (!waterNear(p.x, p.z, 50)) {
-			R *= 2;
-			goto replace;
-		}
-	}
-	*/
 
 	if (tr < 256)
 		if (CheckPlaceCollisionP(p, true)) goto replace;
@@ -199,13 +183,6 @@ void SetNewTargetPlaceFish(TCharacter *cptr, float R)
 replace:
 	//PrintLog("-");//TEST202004091129
 
-	/*
-	p.x = cptr->pos.x + siRand(static_cast<int>((R/3)));
-	p.z = cptr->pos.z + siRand(static_cast<int>((R/3)));
-	if (p.x > cptr->pos.x) p.x += R * (2 / 3); else p.x -= R * (2 / 3);
-	if (p.z > cptr->pos.z) p.z += R * (2 / 3); else p.z -= R * (2 / 3);
-	*/
-
 	p.x = cptr->pos.x + siRand(static_cast<int>((R)));
 	p.z = cptr->pos.z + siRand(static_cast<int>((R)));
 
@@ -247,21 +224,9 @@ replace:
 
 	float targetDepthTemp;
 
-	/*
-	if (cptr->aquaticIdle) {
-		targetDepthTemp = GetLandUpH(p.x, p.z) - (cptr->spcDepth * 0.75);
-		goto skipY;
-	}
-	*/
-
 	float tdistTemp = fabs(static_cast<float>(sqrt(
 		((p.x - cptr->pos.x)*(p.x - cptr->pos.x)) +
 		((p.z - cptr->pos.z) * (p.z - cptr->pos.z)))));
-	/*
-	float tdistTemp = fabs(static_cast<float>(sqrt(
-		((p.x - cptr->pos.x)*(p.x - cptr->pos.x)) +
-		((p.z - cptr->pos.z) * (p.z - cptr->pos.z)))) / 3);
-	*/
 	tr = 0;
 
 	//PrintLog("fTY");//TEST202004091129
@@ -279,16 +244,6 @@ replace2:
 
 	tr++;
 
-	/*
-	if (cptr->aquaticIdle) {
-		if (targetDepthTemp < 0) targetDepthTemp *= -1;
-		if (cptr->depth > GetLandUpH(p.x, p.z) - (cptr->spcDepth * 1.1)) {
-			targetDepthTemp = GetLandUpH(p.x, p.z) - (cptr->spcDepth * 0.75);
-			goto skipY;
-		}
-	}
-	*/
-
 	//PREVENT TOO MUCH TURNING/bending
 	if (tr < 1024) {
 		float tbeta = -atan((targetDepthTemp) / tdistTemp);
@@ -298,19 +253,6 @@ replace2:
 			goto replace2;
 		}
 	}
-
-	/*
-	if (tr < 1024) {
-		if (fabs(targetDepthTemp) > tdistTemp) {
-			if (targetDepthTemp > 0) {
-				targetDepthTemp = tdistTemp;
-			}
-			else {
-				targetDepthTemp = -tdistTemp;
-			}
-		}
-	}
-	*/
 
 	targetDepthTemp = cptr->depth + targetDepthTemp;
 

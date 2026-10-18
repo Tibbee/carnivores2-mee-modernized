@@ -126,11 +126,6 @@ void DrawMenuBg(MenuItem& menu)
 		g_LastHoverId = cursor_id;
 	}
 
-	// OLD: Render background image
-	/*for (int y = 0; y < 600; y++) {
-		memcpy((uint16_t*)lpVideoBuf + (y * 800), &menu.m_Image[(600 - y - 1) * 800], 800 * 2);
-	}*/
-
 	// Render the base background from the on/off states
 	for (int yy = 0; yy < 300; yy++) {
 		for (int xx = 0; xx < 400; xx++)

@@ -16,13 +16,6 @@ void SetNewTargetPlaceRegion(TCharacter *cptr, float R);
 
 void ProcessPrevPhase(TCharacter *cptr)
 {
-/*	char buff[100];
-	sprintf(buff, "\n AI= %i", DinoInfo[cptr->CType].Clone);
-	PrintLog(buff);
-
-	char buff2[100];
-	sprintf(buff2, " Ph= %i", cptr->Phase);
-	PrintLog(buff2);*/
 
 	cptr->PPMorphTime += TimeDt;
 	if (cptr->PPMorphTime > PMORPHTIME) cptr->PrevPhase = cptr->Phase;
@@ -193,22 +186,6 @@ void AddDeadBody(TCharacter *cptr, int phase, bool scream)
 		Characters[ChCount].pos.x = cptr->pos.x + cptr->lookx * pl * cptr->scale;
 		Characters[ChCount].pos.z = cptr->pos.z + cptr->lookz * pl * cptr->scale;
 		Characters[ChCount].pos.y = GetLandQH(Characters[ChCount].pos.x, Characters[ChCount].pos.z);
-		/*
-		if (DinoInfo[cptr->CType].Aquatic) {
-			Characters[ChCount].pos.x = cptr->pos.x + cptr->lookx * pl * cptr->scale * static_cast<float>(cos(cptr->beta));
-			Characters[ChCount].pos.z = cptr->pos.z + cptr->lookz * pl * cptr->scale * static_cast<float>(cos(cptr->beta));
-			Characters[ChCount].pos.y = cptr->pos.y - static_cast<float>(sin(cptr->beta)) * pl * cptr->scale;
-			float ply = DinoInfo[cptr->CType].killType[cptr->killType].yoffset;
-			Characters[ChCount].pos.y += ply * static_cast<float>(cos(cptr->beta));
-			ply *= static_cast<float>(sin(cptr->beta));
-			Characters[ChCount].pos.z += ply * static_cast<float>(sin(cptr->alpha));
-			Characters[ChCount].pos.x += ply * static_cast<float>(cos(cptr->alpha));
-			Characters[ChCount].alpha = cptr->alpha;
-			Characters[ChCount].beta = cptr->beta;
-			Characters[ChCount].gamma = cptr->gamma;
-
-		}
-		*/
 	}
 	else
 	{
@@ -225,16 +202,6 @@ void AddDeadBody(TCharacter *cptr, int phase, bool scream)
 	DemoPoint.pos = Characters[ChCount].pos;
 	DemoPoint.DemoTime = 1;
 	DemoPoint.CIndex = ChCount;
-
-	/*
-	//if (phase > 0) {
-	if (DinoInfo[cptr->CType].killType[cptr->killType].elevate) {
-		Characters[ChCount].scale = cptr->scale;
-		Characters[ChCount].alpha = cptr->alpha;
-		cptr->bend = 0;
-		DemoPoint.CIndex = CurDino;
-	}
-	*/
 
 	ChCount++;
 }
@@ -276,10 +243,6 @@ void ThinkY_Beta_Gamma(TCharacter *cptr, float blook, float glook, float blim, f
 	cptr->tggamma = (hlook - hlook2) / (glook * 3.2f);
 	if (cptr->tggamma > glim) cptr->tggamma = glim;
 	if (cptr->tggamma < -glim) cptr->tggamma = -glim;
-	/*
-	  if (DEBUG) cptr->tggamma = 0;
-	  if (DEBUG) cptr->beta    = 0;
-	  */
 }
 
 //OLD

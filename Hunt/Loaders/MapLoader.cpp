@@ -18,28 +18,6 @@ void CreateTMap()
       if (TMap2[y][x]==0xFFFF) TMap2[y][x] = 1;
     }
 
-  /*
-    for (y=1; y<ctMapSize-1; y++)
-       for (x=1; x<ctMapSize-1; x++)
-  		 if (!(FMap[y][x] & fmWater) ) {
-
-  			 if (FMap[y  ][x+1] & fmWater) { FMap[y][x]|= fmWater2; WMap[y][x] = WMap[y  ][x+1];}
-  			 if (FMap[y+1][x  ] & fmWater) { FMap[y][x]|= fmWater2; WMap[y][x] = WMap[y+1][x  ];}
-  			 if (FMap[y  ][x-1] & fmWater) { FMap[y][x]|= fmWater2; WMap[y][x] = WMap[y  ][x-1];}
-  			 if (FMap[y-1][x  ] & fmWater) { FMap[y][x]|= fmWater2; WMap[y][x] = WMap[y-1][x  ];}
-
-  			 if (FMap[y][x] & fmWater2)
-  			     if (HMap[y][x] > WaterList[WMap[y][x]].wlevel) HMap[y][x]=WaterList[WMap[y][x]].wlevel;
-  		 }
-
-    for (y=1; y<ctMapSize-1; y++)
-       for (x=1; x<ctMapSize-1; x++)
-  		 if (FMap[y][x] & fmWater2) {
-  			 FMap[y][x]-=fmWater2;
-  			 FMap[y][x]+=fmWater;
-  		 }
-  */
-
   for (y=1; y<ctMapSize-1; y++)
     for (x=1; x<ctMapSize-1; x++)
       if (!(FMap[y][x] & fmWater) )
@@ -169,39 +147,5 @@ void CreateTMap()
     LandingList.list[LandingList.PCount].y = 256;
     LandingList.PCount=1;
   }
-
-  /*
-  if (g_GameMode == GameMode::TrophyMode)
-  {
-    LandingList.PCount = 0;
-    for (x=0; x<6; x++)
-    {
-      LandingList.list[LandingList.PCount].x = 69 + x*3;
-      LandingList.list[LandingList.PCount].y = 66;
-      LandingList.PCount++;
-    }
-
-    for (y=0; y<6; y++)
-    {
-      LandingList.list[LandingList.PCount].x = 87;
-      LandingList.list[LandingList.PCount].y = 69 + y*3;
-      LandingList.PCount++;
-    }
-
-    for (x=0; x<6; x++)
-    {
-      LandingList.list[LandingList.PCount].x = 84 - x*3;
-      LandingList.list[LandingList.PCount].y = 87;
-      LandingList.PCount++;
-    }
-
-    for (y=0; y<6; y++)
-    {
-      LandingList.list[LandingList.PCount].x = 66;
-      LandingList.list[LandingList.PCount].y = 84 - y*3;
-      LandingList.PCount++;
-    }
-  }
-  */
 
 }

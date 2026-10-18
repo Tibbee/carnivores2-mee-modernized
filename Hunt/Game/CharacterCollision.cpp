@@ -88,13 +88,6 @@ int CheckPlaceCollisionFish(TCharacter *cptr, Vector3d &v, float mosaDepth, int 
 
 	if (ccx < 4 || ccz < 4 || ccx>1018 || ccz>1018) return 1;
 
-	/*if (wc)
-		if ((FMap[ccz][ccx - 1] | FMap[ccz - 1][ccx] | FMap[ccz - 1][ccx - 1] |
-			FMap[ccz][ccx] |
-			FMap[ccz + 1][ccx] | FMap[ccz][ccx + 1] | FMap[ccz + 1][ccx + 1]) & fmWater)
-			return 1;
-	 */
-
 	if (spawnGroup[cptr->SpawnGroupType].avoidRegionCh) {
 		for (int ar = 0; ar < spawnGroup[cptr->SpawnGroupType].avoidRegionCh; ar++) {
 			if (ccx > spawnGroup[cptr->SpawnGroupType].avoidRegion[ar].XMin &&
@@ -125,42 +118,6 @@ int CheckPlaceCollisionFish(TCharacter *cptr, Vector3d &v, float mosaDepth, int 
 		(GetLandUpH(v.x + 256, v.z - 256) - GetLandH(v.x + 256, v.z - 256)) > maxDepth ||
 		(GetLandUpH(v.x - 256, v.z + 256) - GetLandH(v.x - 256, v.z + 256)) > maxDepth) return 1;
 
-	// #C1 REMOVE THESE
-	//if (mosaDepth > GetLandUpH(v.x, v.z) - 700) return 1;
-	//if (mosaDepth < GetLandH(v.x, v.z) + 500) return 1;
-
-	/*
-	float h = GetLandH(v.x, v.z);
-	if (fabs(h - v.y) > 64) return 1;
-
-	v.y = h;
-
-	float hh = GetLandH(v.x - 64, v.z - 64);
-	if (fabs(hh - h) > 100) return 1;
-	hh = GetLandH(v.x + 64, v.z - 64);
-	if (fabs(hh - h) > 100) return 1;
-	hh = GetLandH(v.x - 64, v.z + 64);
-	if (fabs(hh - h) > 100) return 1;
-	hh = GetLandH(v.x + 64, v.z + 64);
-	if (fabs(hh - h) > 100) return 1;
-
-	if (mc)
-		for (int z = -2; z <= 2; z++)
-			for (int x = -2; x <= 2; x++)
-				if (OMap[ccz + z][ccx + x] != 255)
-				{
-					int ob = OMap[ccz + z][ccx + x];
-					if (MObjects[ob].info.Radius < 10) continue;
-					float CR = static_cast<float>(MObjects[ob].info.Radius) + 64;
-
-					float oz = (ccz + z) * 256.f + 128.f;
-					float ox = (ccx + x) * 256.f + 128.f;
-
-					float r = static_cast<float>(sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z)));
-					if (r < CR) return 1;
-				}
-
-				*/
 	return 0;
 }
 int CheckPlaceCollisionMosasaurus(TCharacter *cptr, Vector3d &v, float mosaDepth)
@@ -170,13 +127,6 @@ int CheckPlaceCollisionMosasaurus(TCharacter *cptr, Vector3d &v, float mosaDepth
 	int ccz = static_cast<int>(v.z) / 256;
 
 	if (ccx < 4 || ccz < 4 || ccx>1018 || ccz>1018) return 1;
-
-	/*if (wc)
-		if ((FMap[ccz][ccx - 1] | FMap[ccz - 1][ccx] | FMap[ccz - 1][ccx - 1] |
-			FMap[ccz][ccx] |
-			FMap[ccz + 1][ccx] | FMap[ccz][ccx + 1] | FMap[ccz + 1][ccx + 1]) & fmWater)
-			return 1;
-	 */
 
 	if (spawnGroup[cptr->SpawnGroupType].avoidRegionCh) {
 		for (int ar = 0; ar < spawnGroup[cptr->SpawnGroupType].avoidRegionCh; ar++) {
@@ -198,42 +148,6 @@ int CheckPlaceCollisionMosasaurus(TCharacter *cptr, Vector3d &v, float mosaDepth
 		(GetLandUpH(v.x + 256, v.z - 256) - GetLandH(v.x + 256, v.z - 256)) < 1500 ||
 		(GetLandUpH(v.x - 256, v.z + 256) - GetLandH(v.x - 256, v.z + 256)) < 1500) return 1;
 
-	// #C1 REMOVE THESE
-	//if (mosaDepth > GetLandUpH(v.x, v.z) - 700) return 1;
-	//if (mosaDepth < GetLandH(v.x, v.z) + 500) return 1;
-
-	/*
-	float h = GetLandH(v.x, v.z);
-	if (fabs(h - v.y) > 64) return 1;
-
-	v.y = h;
-
-	float hh = GetLandH(v.x - 64, v.z - 64);
-	if (fabs(hh - h) > 100) return 1;
-	hh = GetLandH(v.x + 64, v.z - 64);
-	if (fabs(hh - h) > 100) return 1;
-	hh = GetLandH(v.x - 64, v.z + 64);
-	if (fabs(hh - h) > 100) return 1;
-	hh = GetLandH(v.x + 64, v.z + 64);
-	if (fabs(hh - h) > 100) return 1;
-
-	if (mc)
-		for (int z = -2; z <= 2; z++)
-			for (int x = -2; x <= 2; x++)
-				if (OMap[ccz + z][ccx + x] != 255)
-				{
-					int ob = OMap[ccz + z][ccx + x];
-					if (MObjects[ob].info.Radius < 10) continue;
-					float CR = static_cast<float>(MObjects[ob].info.Radius) + 64;
-
-					float oz = (ccz + z) * 256.f + 128.f;
-					float ox = (ccx + x) * 256.f + 128.f;
-
-					float r = static_cast<float>(sqrt((ox - v.x)*(ox - v.x) + (oz - v.z)*(oz - v.z)));
-					if (r < CR) return 1;
-				}
-
-				*/
 	return 0;
 }
 int CheckPlaceCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
@@ -353,13 +267,6 @@ int CheckPlaceCollisionLandBrahi(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc
 
 	if (ccx < 4 || ccz < 4 || ccx>1018 || ccz>1018) return 1;
 
-	/*if (wc)
-		if ((FMap[ccz][ccx - 1] | FMap[ccz - 1][ccx] | FMap[ccz - 1][ccx - 1] |
-			FMap[ccz][ccx] |
-			FMap[ccz + 1][ccx] | FMap[ccz][ccx + 1] | FMap[ccz + 1][ccx + 1]) & fmWater)
-			return 1;
-	 */
-
 	if (spawnGroup[cptr->SpawnGroupType].avoidRegionCh) {
 		for (int ar = 0; ar < spawnGroup[cptr->SpawnGroupType].avoidRegionCh; ar++) {
 			if (ccx > spawnGroup[cptr->SpawnGroupType].avoidRegion[ar].XMin &&
@@ -425,13 +332,6 @@ int CheckPlaceCollisionBrahi(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 	int ccz = static_cast<int>(v.z) / 256;
 
 	if (ccx < 4 || ccz < 4 || ccx>1018 || ccz>1018) return 1;
-
-	/*if (wc)
-		if ((FMap[ccz][ccx - 1] | FMap[ccz - 1][ccx] | FMap[ccz - 1][ccx - 1] |
-			FMap[ccz][ccx] |
-			FMap[ccz + 1][ccx] | FMap[ccz][ccx + 1] | FMap[ccz + 1][ccx + 1]) & fmWater)
-			return 1;
-	 */
 
 	if (spawnGroup[cptr->SpawnGroupType].avoidRegionCh) {
 		for (int ar = 0; ar < spawnGroup[cptr->SpawnGroupType].avoidRegionCh; ar++) {
@@ -565,8 +465,6 @@ int CheckPlaceCollision2(TCharacter *cptr, Vector3d &v, BOOL wc)
 	}
 
 	float h = GetLandH(v.x, v.z);
-	/*if (! (FMap[ccz][ccx] & fmWater) )
-	  if (fabs(h - v.y) > 64) return 1;*/
 	v.y = h;
 
 	float hh = GetLandH(v.x - 64, v.z - 64);

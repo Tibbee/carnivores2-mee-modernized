@@ -3589,10 +3589,6 @@ LBEGIN:
 
     //mov      ebx, iModelBaseFade
     mov      eax, [edi + 0x24]
-    /*test     eax, sfDark
-    jz       DSKIP
-    add      ebx, 12*256*256
-    } DSKIP: __asm {*/
     and      eax, (0x0004+0x0008)
     mov      OpacityMode,eax
     //mov      iModelFade,ebx

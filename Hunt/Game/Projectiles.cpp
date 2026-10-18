@@ -304,15 +304,6 @@ void AnimateBullets() {
 					d = bullet[b].dif;
 				}
 
-			/*
-			if (bullet[b].submerged) {
-
-			//	d.x /= 2;
-			//	d.z /= 2;
-			//	d.y /= 2;
-			}
-   		    */
-
 			int sres = AnimateBullet(
 				bullet[b].a.x,
 				bullet[b].a.y,

@@ -587,15 +587,6 @@ void MakeCall()
 		* (DinoInfo[cptr->CType].HearK * 2);
 	bool canHear = dSq < hearRange * hearRange;
 
-	/*
-    if (DinoInfo[AI_to_CIndex[TargetCall] ].DangerCall)
-      if (cptr->AI<10)
-      {
-        cptr->State=2;
-        cptr->AfraidTime = (10 + rRand(5)) * 1024;
-      }
-	  */
-
 	if (DinoInfo[cptr->CType].menuDino != TargetCall-10) continue;
 	if (cptr->AfraidTime) continue;
     if (cptr->State) continue;

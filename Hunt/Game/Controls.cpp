@@ -177,26 +177,6 @@ void ProcessDemoMovement()
 
   VSpeed = 0.f;
 
-  /*
-  DemoPoint.pos = Characters[DemoPoint.CIndex].pos;
-  DemoPoint.pos.y+=256;
-
-  float base = 824;
-  if (killerDino) {
-	  if (killerDino->Clone == AI_TREX && !killedwater)
-	  {
-		  DemoPoint.pos.y += 512;
-		  base = 1424;
-	  }
-	  if (killerDino->Clone == AI_BRACHDANGER || killerDino->Clone == AI_LANDBRACH)
-	  {
-		  DemoPoint.pos.y += 850;
-		  base = 1424;
-	  }
-
-  }
-  */
-
   DemoPoint.pos = Characters[DemoPoint.CIndex].pos;
   float base;
   if (killerDino) {
@@ -271,18 +251,6 @@ void ProcessControls()
 	if (KeyboardState [KeyMap.fkForward ] & 128) KeyFlags+=kfForward;
 	if (KeyboardState [KeyMap.fkBackward] & 128) KeyFlags+=kfBackward;
 	//if (KeyboardState[KeyMap.fkCrouch] & 128) KeyFlags += kfDown;
-
-	/*
-  if (KeyFlags & kfStrafe)
-  {
-    if (KeyboardState [KeyMap.fkLeft ] & 128)  KeyFlags+=kfSLeft;
-    if (KeyboardState [KeyMap.fkRight] & 128) KeyFlags+=kfSRight;
-  }
-  else
-  {
-    if (KeyboardState [KeyMap.fkLeft ] & 128)  KeyFlags+=kfLeft;
-    if (KeyboardState [KeyMap.fkRight] & 128) KeyFlags+=kfRight;
-  }*/
 
   if (KeyboardState [KeyMap.fkSLeft]  & 128) KeyFlags+=kfSLeft;
   if (KeyboardState [KeyMap.fkSRight] & 128) KeyFlags+=kfSRight;
