@@ -1,6 +1,6 @@
 # MSVC warning baseline for preset: ogl-release
 # format: relative/path|code|unique_warning_line_count
-# source: 1c43386
+# source: af72cb2
 # updated: 2026-10-18
 # Regenerate intentionally with tools/check_msvc_warnings.ps1 -UpdateBaseline.
 Hunt/Audio/Audio_DLL.cpp|C4459|10
@@ -22,22 +22,20 @@ Hunt/Game/CharacterAnimation/AnimateDimor.cpp|C4244|1
 Hunt/Game/CharacterAnimation/AnimateFish.cpp|C4189|3
 Hunt/Game/CharacterAnimation/AnimateFish.cpp|C4244|3
 Hunt/Game/CharacterAnimation/AnimateHuntable.cpp|C4189|1
-Hunt/Game/CharacterAnimation/AnimateHuntable.cpp|C4244|6
 Hunt/Game/CharacterAnimation/AnimateHuntDead.cpp|C4459|1
 Hunt/Game/CharacterAnimation/AnimateIcth.cpp|C4189|1
 Hunt/Game/CharacterAnimation/AnimateIcthDead.cpp|C4244|1
 Hunt/Game/CharacterAnimation/AnimateTRex.cpp|C4189|1
 Hunt/Game/CharacterAwareness.cpp|C4244|3
-Hunt/Game/CharacterCollision.cpp|C4100|3
+Hunt/Game/CharacterCollision.cpp|C4100|2
 Hunt/Game/CharacterCollision.cpp|C4189|1
-Hunt/Game/CharacterCollision.cpp|C4459|17
+Hunt/Game/CharacterCollision.cpp|C4459|16
 Hunt/Game/CharacterMorph.cpp|C4189|2
 Hunt/Game/CharacterMorph.cpp|C4459|11
 Hunt/Game/CharacterMovement.cpp|C4100|1
 Hunt/Game/Characters.cpp|C4189|1
 Hunt/Game/Characters.cpp|C4244|2
 Hunt/Game/Characters.cpp|C4459|3
-Hunt/Game/CharacterSpawn.cpp|C4189|1
 Hunt/Game/CharacterSpawn.cpp|C4244|7
 Hunt/Game/CharacterTargeting.cpp|C4189|1
 Hunt/Game/CharacterTargeting.cpp|C4244|4
@@ -67,7 +65,7 @@ Hunt/Game/TerrainQueries.cpp|C4100|1
 Hunt/Game/TerrainQueries.cpp|C4101|1
 Hunt/Game/TerrainQueries.cpp|C4244|2
 Hunt/Game/TerrainQueries.cpp|C4456|2
-Hunt/Game/TerrainQueries.cpp|C4459|11
+Hunt/Game/TerrainQueries.cpp|C4459|9
 Hunt/Game/Trophy.cpp|C4100|1
 Hunt/Game/Trophy.cpp|C4189|1
 Hunt/Game/Trophy.cpp|C4244|6
@@ -94,7 +92,7 @@ Hunt/Math/Math.cpp|C4244|1
 Hunt/Math/Math.cpp|C4459|32
 Hunt/Math/Vector.cpp|C4459|7
 Hunt/Network/NetworkManager.cpp|C4100|1
-Hunt/Network/NetworkManager.cpp|C4459|21
+Hunt/Network/NetworkManager.cpp|C4459|14
 Hunt/Renderer/GLHUD.cpp|C4459|4
 Hunt/Renderer/GLModel.cpp|C4189|1
 Hunt/Renderer/GLModel.cpp|C4244|1
