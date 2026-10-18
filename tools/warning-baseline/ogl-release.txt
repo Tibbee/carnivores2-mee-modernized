@@ -1,6 +1,6 @@
 # MSVC warning baseline for preset: ogl-release
 # format: relative/path|code|unique_warning_line_count
-# source: dd4b438
+# source: f863082
 # updated: 2026-10-19
 # Regenerate intentionally with tools/check_msvc_warnings.ps1 -UpdateBaseline.
 Hunt/Audio/Audio_DLL.cpp|C4459|10
@@ -84,12 +84,9 @@ Hunt/Loaders/Resources.cpp|C4189|3
 Hunt/Loaders/Resources.cpp|C4244|5
 Hunt/Loaders/Resources.cpp|C4459|12
 Hunt/Loaders/ScriptParserCharacter.cpp|C4100|1
-Hunt/Loaders/ScriptParserCharacter.cpp|C4189|2
 Hunt/Loaders/ScriptParserCharacter.cpp|C4244|6
-Hunt/Loaders/ScriptParserSpawn.cpp|C4189|2
 Hunt/Loaders/ScriptParserTables.cpp|C4100|1
 Hunt/Loaders/ScriptParserTables.cpp|C4101|1
-Hunt/Loaders/ScriptParserTables.cpp|C4189|2
 Hunt/Loaders/ScriptParserTables.cpp|C4244|10
 Hunt/Math/Math.cpp|C4101|2
 Hunt/Math/Math.cpp|C4244|1

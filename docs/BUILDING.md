@@ -222,8 +222,8 @@ warnings is always allowed; intentionally accepting new ones requires
 regenerating the baseline with `-UpdateBaseline` and reviewing the diff.
 
 The gate is a measured baseline, not a zero-warning target. After the
-2026-10-18 dead-code sweep the `ogl-debug` baseline is 535 unique sites (mostly
-C4459 and C4244), `ogl-release` 513, `soft-release` 495, and `menu-release` 22
+2026-10-19 parser cleanup the `ogl-debug` baseline is 529 unique sites (mostly
+C4459 and C4244), `ogl-release` 507, `soft-release` 489, and `menu-release` 22
 (tests disabled, as in CI). `-DC2_WARNINGS_AS_ERRORS=ON` remains available for
 focused local work but is not enabled globally.
 
