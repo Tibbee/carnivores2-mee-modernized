@@ -103,3 +103,13 @@ void readBool(char* value, bool& out);
 // Consume one script sector/block body after its opening line
 // (ScriptBlockParse.h).
 void SkipSector(FILE* stream);
+
+// Tables group (ScriptParserTables.cpp): trophy, snow, area, and weapon
+// tables. ReadTrophyTypeInfo is called by the character group; ReadWeaponLine
+// by the contract tests; the driver calls the remaining readers.
+void ReadTrophyTypeInfo(FILE* stream, int trophyGroup);
+void ReadTrophyTable(FILE* stream);
+void ReadSnowType(FILE* stream);
+void ReadAreaTable(FILE* stream, int areaNumber);
+void ReadWeaponLine(FILE* stream, char* value, char line[256]);
+void ReadWeapons(FILE* stream);
