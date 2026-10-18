@@ -31,6 +31,13 @@ void ReadCharacterLine(FILE* stream, char* _value, char line[256],
                        bool& trophyTypeOverwrite, bool& idleGroupOverwrite,
                        bool& idle2GroupOverwrite, bool& memberOverwrite);
 
+// Section/common entry points exercised by the split characterization tests.
+void ReadWeapons(FILE* stream);
+void ReadCharacters(FILE* stream);
+void readBool(char* value, BOOL& out);
+void readBool(char* value, bool& out);
+void SkipSector(FILE* stream);
+
 namespace {
 
 // Keeps a line and its post-'=' value pointer in stable mutable storage; the
@@ -409,4 +416,116 @@ TEST_F(ScriptPolicyTest, StrictModeStillAcceptsLegacyForms)
     EXPECT_EQ(DinoInfo[0].Health0, 13);
     EXPECT_EQ(DinoInfo[0].Scale0, 1000);
     EXPECT_EQ(LoadDiagnostics::Instance().Count(), 0u);
+}
+
+// ---------------------------------------------------------------------------
+// Section-level and shared-helper characterization for the ScriptParser split.
+// These pin the behavior of the entry points the split moves between TUs:
+// ReadWeapons/ReadCharacters section scanning and capacity, readBool's exact
+// token semantics, and SkipSector's nested-block/marker/EOF policy.
+// ---------------------------------------------------------------------------
+
+TEST(ScriptParserSections, WeaponsSectionReadsMinimalEntry)
+{
+    ResetWeapon();
+    TempScript stream(
+        "{\n"
+        " name = 'Test Gun'\n"
+        " land_veloc = 100\n"
+        "}\n"
+        "}\n");
+    ASSERT_NE(stream.stream, nullptr);
+
+    EXPECT_NO_THROW(ReadWeapons(stream.stream));
+    EXPECT_EQ(TotalW, 1);
+    EXPECT_STREQ(WeapInfo[0].Name, "Test Gun");
+    EXPECT_FLOAT_EQ(WeapInfo[0].Veloc, 100.0f);
+    EXPECT_EQ(WeapInfo[0].aqLow, WeapInfo[0].Veloc > WeapInfo[0].VelocAq);
+}
+
+TEST(ScriptParserSections, WeaponsSectionRejectsEleventhEntry)
+{
+    ResetWeapon();
+    std::string fixture;
+    for (int i = 0; i < 11; i++)
+    {
+        fixture += "{\n name = 'w";
+        fixture += std::to_string(i);
+        fixture += "'\n}\n";
+    }
+    fixture += "}\n";
+    TempScript stream(fixture.c_str());
+    ASSERT_NE(stream.stream, nullptr);
+
+    EXPECT_THROW(ReadWeapons(stream.stream), std::runtime_error);
+}
+
+TEST(ScriptParserSections, CharactersSectionReadsMinimalEntry)
+{
+    ResetCharacter();
+    TempScript stream(
+        "{\n"
+        " name = 'Test Dino'\n"
+        " file = 'models/test.car'\n"
+        " ai = 1\n"
+        " health = 3\n"
+        "}\n"
+        "}\n");
+    ASSERT_NE(stream.stream, nullptr);
+
+    EXPECT_NO_THROW(ReadCharacters(stream.stream));
+    EXPECT_EQ(TotalC, 1);
+    EXPECT_STREQ(DinoInfo[0].Name, "Test Dino");
+    EXPECT_EQ(DinoInfo[0].Health0, 3);
+}
+
+TEST(ScriptParserCommon, ReadBoolOverloadsParseTrueFalse)
+{
+    char trueText[] = "TRUE";
+    char falseText[] = "FALSE";
+    char otherText[] = "maybe";
+
+    BOOL boolResult = false;
+    readBool(trueText, boolResult);
+    EXPECT_TRUE(boolResult);
+
+    readBool(falseText, boolResult);
+    EXPECT_FALSE(boolResult);
+
+    bool cppResult = true;
+    readBool(otherText, cppResult);
+    EXPECT_TRUE(cppResult);  // unchanged when neither token is present
+
+    readBool(falseText, cppResult);
+    EXPECT_FALSE(cppResult);
+}
+
+TEST(ScriptParserCommon, SkipSectorConsumesNestedBlock)
+{
+    TempScript stream(" nested { x }\n}\nafter\n");
+    ASSERT_NE(stream.stream, nullptr);
+
+    EXPECT_NO_THROW(SkipSector(stream.stream));
+    char next[64];
+    ASSERT_NE(fgets(next, sizeof next, stream.stream), nullptr);
+    EXPECT_STREQ(next, "after\n");
+}
+
+TEST(ScriptParserCommon, SkipSectorHonoursSectionMarker)
+{
+    TempScript stream(" data\n//==== end of section\nignored\n");
+    ASSERT_NE(stream.stream, nullptr);
+
+    EXPECT_NO_THROW(SkipSector(stream.stream));
+    char next[64];
+    ASSERT_NE(fgets(next, sizeof next, stream.stream), nullptr);
+    EXPECT_STREQ(next, "ignored\n");
+}
+
+TEST(ScriptParserCommon, SkipSectorHaltsOnUnterminatedBlock)
+{
+    TempScript stream(" no closing brace\n");
+    ASSERT_NE(stream.stream, nullptr);
+
+    EXPECT_THROW(SkipSector(stream.stream), std::runtime_error);
 }
