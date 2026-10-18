@@ -232,6 +232,7 @@ set(CORE_FILES
     Hunt/Game/Hunt.cpp
     Hunt/Game/WndProc.h
     Hunt/Game/WndProc.cpp
+    Hunt/Game/WeaponView.cpp
     Hunt/Game/Interface.cpp
     Hunt/Math/Math.cpp
     Hunt/Math/Vector.cpp
