@@ -100,6 +100,19 @@ int ScriptIndex(const char* value, int capacity, const char* what);
 void readBool(char* value, BOOL& out);
 void readBool(char* value, bool& out);
 
+// Shared slot-wipe body for the parser's fixed-capacity lists: clears the
+// active slots and resets the count. Callers keep their capacity guards and
+// diagnostics.
+template <typename T, typename Count>
+inline void WipeScriptSlots(T* slots, Count& count)
+{
+    if (count) {
+        for (Count i = 0; i < count; i++)
+            slots[i] = {};
+    }
+    count = 0;
+}
+
 // Consume one script sector/block body after its opening line
 // (ScriptBlockParse.h).
 void SkipSector(FILE* stream);
@@ -126,6 +139,13 @@ void ReadSpawnGroup(FILE* stream, char line[256], int mode);
 void ReadPackGroup(FILE* stream, char line[256], int mode);
 void ReadSpawnTable(FILE* stream);
 void ReadPackTable(FILE* stream);
+
+// Shared overwrite/addition filter used by the spawn/pack, weapons and
+// characters readers. Trophy-room projects (projectName[18] == 'h') apply
+// every block; otherwise area/time/character qualifiers must match the
+// active selection.
+bool OverwriteBlockApplies(const char* line, const char* projectName,
+                           int timeOfDay, int dinSelect);
 
 // Character group (ScriptParserCharacter.cpp): per-character line dispatch and
 // the characters section reader. The driver calls ReadCharacters; the contract

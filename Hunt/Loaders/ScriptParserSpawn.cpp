@@ -13,83 +13,66 @@
 #include <cstring>
 
 void WipePackMembers2() {
-	if (DinoInfo[TotalC].packMember2Ch) {
-		for (int i = 0; i < DinoInfo[TotalC].packMember2Ch; i++) {
-			DinoInfo[TotalC].packMember2[i] = {};
-		}
-	}
-	DinoInfo[TotalC].packMember2Ch = 0;
+	WipeScriptSlots(DinoInfo[TotalC].packMember2, DinoInfo[TotalC].packMember2Ch);
 }
 
 void WipeSpawnInfo() {
-	if (DinoInfo[TotalC].SpawnInfoCh) {
-		for (int i = 0; i < DinoInfo[TotalC].SpawnInfoCh; i++) {
-			DinoInfo[TotalC].SpawnInfo[i] = {};
-		}
-	}
-	DinoInfo[TotalC].SpawnInfoCh = 0;
+	WipeScriptSlots(DinoInfo[TotalC].SpawnInfo, DinoInfo[TotalC].SpawnInfoCh);
 }
 
-void ReadSpawnInfo(FILE *stream)
+// Shared body for the character and pack spawn-info blocks: both fill a
+// TSpawnInfo slot list with the same grammar; only the container, the guard
+// label and the diagnostics differ.
+static void ReadSpawnInfoBlock(FILE* stream, TSpawnInfo* info, int& count,
+                               const char* what, const char* errorContext,
+                               const char* ratioLabel, const char* groupLabel)
 {
-	RequireScriptSlot(DinoInfo[TotalC].SpawnInfoCh, 32, "character spawn-info list");
-	char *value;
+	RequireScriptSlot(count, 32, what);
+	char* value;
 	char line[256];
 
 	while (fgets(line, 255, stream)) {
 		if (strstr(line, "}")) {
-			//DinoInfo[TotalC].RType0[DinoInfo[TotalC].RegionCount] = TotalRegion;
-			DinoInfo[TotalC].SpawnInfoCh++;
-			//TotalRegion++;
+			count++;
 			break;
 		}
 		value = strstr(line, "=");
 		if (!value) {
 			char errorBuff[100];
-			sprintf_s(errorBuff, sizeof(errorBuff), "Script loading error: SpawnInfo: %s", DinoInfo[TotalC].Name);
+			sprintf_s(errorBuff, sizeof(errorBuff), "Script loading error: %s", errorContext);
 			DoHalt(errorBuff);
 		}
 		value++;
 
-		if (strstr(line, "spawnratio")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnRatio = ReadScriptFloatField(value, line, "spawn ratio");
-		if (strstr(line, "spawngroup")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnGroup = ReadScriptIndexField(value, line, "spawn group", 256);
-		//if (strstr(line, "spawnmax")) DinoInfo[TotalC].SpawnInfo[DinoInfo[TotalC].SpawnInfoCh].spawnMax = atoi(value);
+		if (strstr(line, "spawnratio")) info[count].spawnRatio = ReadScriptFloatField(value, line, ratioLabel);
+		if (strstr(line, "spawngroup")) info[count].spawnGroup = ReadScriptIndexField(value, line, groupLabel, 256);
 	}
+}
+
+void ReadSpawnInfo(FILE *stream)
+{
+	char errorContext[100];
+	sprintf_s(errorContext, sizeof(errorContext), "SpawnInfo: %s", DinoInfo[TotalC].Name);
+	ReadSpawnInfoBlock(stream, DinoInfo[TotalC].SpawnInfo,
+	                   DinoInfo[TotalC].SpawnInfoCh,
+	                   "character spawn-info list", errorContext,
+	                   "spawn ratio", "spawn group");
 }
 
 void WipeSpawnInfoPack() {
 	RequireScriptSlot(packTypeCount, 1024, "pack types");
-	if (packType[packTypeCount].SpawnInfoCh) {
-		for (int i = 0; i < packType[packTypeCount].SpawnInfoCh; i++) {
-			packType[packTypeCount].SpawnInfo[i] = {};
-		}
-	}
-	packType[packTypeCount].SpawnInfoCh = 0;
+	WipeScriptSlots(packType[packTypeCount].SpawnInfo, packType[packTypeCount].SpawnInfoCh);
 }
 
 void ReadSpawnInfoPack(FILE *stream)
 {
 	RequireScriptSlot(packTypeCount, 1024, "pack types");
-	RequireScriptSlot(packType[packTypeCount].SpawnInfoCh, 32, "pack spawn-info list");
-	char *value;
-	char line[256];
-
-	while (fgets(line, 255, stream)) {
-		if (strstr(line, "}")) {
-			packType[packTypeCount].SpawnInfoCh++;
-			break;
-		}
-		value = strstr(line, "=");
-		if (!value) {
-			char errorBuff[100];
-			sprintf(errorBuff, "Script loading error: SpawnInfo: Pack%i", packTypeCount);
-			DoHalt(errorBuff);
-		}
-		value++;
-
-		if (strstr(line, "spawnratio")) packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnRatio = ReadScriptFloatField(value, line, "pack spawn ratio");
-		if (strstr(line, "spawngroup")) packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnGroup = ReadScriptIndexField(value, line, "pack spawn group", 256);
-	}
+	char errorContext[100];
+	sprintf_s(errorContext, sizeof(errorContext), "SpawnInfo: Pack%i", packTypeCount);
+	ReadSpawnInfoBlock(stream, packType[packTypeCount].SpawnInfo,
+	                   packType[packTypeCount].SpawnInfoCh,
+	                   "pack spawn-info list", errorContext,
+	                   "pack spawn ratio", "pack spawn group");
 }
 
 void ReadPackMember2(FILE *stream) {
@@ -117,89 +100,64 @@ void ReadPackMember2(FILE *stream) {
 	}
 }
 
-void ReadAvoid(FILE *stream)
+// Shared body for the spawn-group region and avoid-region blocks: the C2
+// grammar is identical apart from the target array and the diagnostic labels.
+static void ReadSpawnRegionBlock(FILE* stream, TSpawnRegion* regions, int& count,
+                                 const char* what, const char* label,
+                                 const char* fieldPrefix)
 {
 	RequireScriptSlot(TotalSpawnGroup, 256, "spawn groups");
-	RequireScriptSlot(spawnGroup[TotalSpawnGroup].avoidRegionCh, 16, "spawn-group avoid regions");
-	char *value;
+	RequireScriptSlot(count, 16, what);
+	char* value;
 	char line[256];
 
 	while (fgets(line, 255, stream)) {
 		if (strstr(line, "}")) {
-			spawnGroup[TotalSpawnGroup].avoidRegionCh++;
+			count++;
 			break;
 		}
 		value = strstr(line, "=");
 		if (!value) {
 			char errorBuff[100];
-			sprintf(errorBuff, "Script loading error: Avoid: SpawnGroup %i", TotalSpawnGroup);
+			sprintf_s(errorBuff, sizeof(errorBuff), "Script loading error: %s: SpawnGroup %i", label, TotalSpawnGroup);
 			DoHalt(errorBuff);
 		}
 		value++;
 
-		if (strstr(line, "xmax")) spawnGroup[TotalSpawnGroup].avoidRegion[spawnGroup[TotalSpawnGroup].avoidRegionCh].XMax = ReadScriptIntField(value, line, "avoid xmax");
-		if (strstr(line, "xmin")) spawnGroup[TotalSpawnGroup].avoidRegion[spawnGroup[TotalSpawnGroup].avoidRegionCh].XMin = ReadScriptIntField(value, line, "avoid xmin");
-		if (strstr(line, "ymax")) spawnGroup[TotalSpawnGroup].avoidRegion[spawnGroup[TotalSpawnGroup].avoidRegionCh].YMax = ReadScriptIntField(value, line, "avoid ymax");
-		if (strstr(line, "ymin")) spawnGroup[TotalSpawnGroup].avoidRegion[spawnGroup[TotalSpawnGroup].avoidRegionCh].YMin = ReadScriptIntField(value, line, "avoid ymin");
-
+		char xmaxLabel[32], xminLabel[32], ymaxLabel[32], yminLabel[32];
+		sprintf_s(xmaxLabel, sizeof(xmaxLabel), "%s xmax", fieldPrefix);
+		sprintf_s(xminLabel, sizeof(xminLabel), "%s xmin", fieldPrefix);
+		sprintf_s(ymaxLabel, sizeof(ymaxLabel), "%s ymax", fieldPrefix);
+		sprintf_s(yminLabel, sizeof(yminLabel), "%s ymin", fieldPrefix);
+		if (strstr(line, "xmax")) regions[count].XMax = ReadScriptIntField(value, line, xmaxLabel);
+		if (strstr(line, "xmin")) regions[count].XMin = ReadScriptIntField(value, line, xminLabel);
+		if (strstr(line, "ymax")) regions[count].YMax = ReadScriptIntField(value, line, ymaxLabel);
+		if (strstr(line, "ymin")) regions[count].YMin = ReadScriptIntField(value, line, yminLabel);
 	}
+}
+
+void ReadAvoid(FILE *stream)
+{
+	ReadSpawnRegionBlock(stream, spawnGroup[TotalSpawnGroup].avoidRegion,
+	                     spawnGroup[TotalSpawnGroup].avoidRegionCh,
+	                     "spawn-group avoid regions", "Avoid", "avoid");
 }
 
 void ReadRegion(FILE *stream)
 {
-	RequireScriptSlot(TotalSpawnGroup, 256, "spawn groups");
-	RequireScriptSlot(spawnGroup[TotalSpawnGroup].spawnRegionCh, 16, "spawn-group regions");
-	char *value;
-	char line[256];
-
-	while (fgets(line, 255, stream)) {
-		if (strstr(line, "}")) {
-			spawnGroup[TotalSpawnGroup].spawnRegionCh++;
-			break;
-		}
-		value = strstr(line, "=");
-
-		if (!value) {
-			char errorBuff[100];
-			sprintf(errorBuff, "Script loading error: Region: SpawnGroup %i", TotalSpawnGroup);
-			DoHalt(errorBuff);
-		}
-		value++;
-
-		if (strstr(line, "xmax")) spawnGroup[TotalSpawnGroup].spawnRegion[spawnGroup[TotalSpawnGroup].spawnRegionCh].XMax = ReadScriptIntField(value, line, "region xmax");
-		if (strstr(line, "xmin")) spawnGroup[TotalSpawnGroup].spawnRegion[spawnGroup[TotalSpawnGroup].spawnRegionCh].XMin = ReadScriptIntField(value, line, "region xmin");
-		if (strstr(line, "ymax")) spawnGroup[TotalSpawnGroup].spawnRegion[spawnGroup[TotalSpawnGroup].spawnRegionCh].YMax = ReadScriptIntField(value, line, "region ymax");
-		if (strstr(line, "ymin")) spawnGroup[TotalSpawnGroup].spawnRegion[spawnGroup[TotalSpawnGroup].spawnRegionCh].YMin = ReadScriptIntField(value, line, "region ymin");
-
-	}
+	ReadSpawnRegionBlock(stream, spawnGroup[TotalSpawnGroup].spawnRegion,
+	                     spawnGroup[TotalSpawnGroup].spawnRegionCh,
+	                     "spawn-group regions", "Region", "region");
 }
 
 void WipeAvoidReg() {
 	RequireScriptSlot(TotalSpawnGroup, 256, "spawn groups");
-
-	if (spawnGroup[TotalSpawnGroup].avoidRegionCh) {
-
-		for (int i = 0; i < spawnGroup[TotalSpawnGroup].avoidRegionCh; i++) {
-			spawnGroup[TotalSpawnGroup].avoidRegion[i] = {};
-		}
-		spawnGroup[TotalSpawnGroup].avoidRegionCh = 0;
-
-	}
-
+	WipeScriptSlots(spawnGroup[TotalSpawnGroup].avoidRegion, spawnGroup[TotalSpawnGroup].avoidRegionCh);
 }
 
 void WipeSpawnReg() {
 	RequireScriptSlot(TotalSpawnGroup, 256, "spawn groups");
-
-	if (spawnGroup[TotalSpawnGroup].spawnRegionCh) {
-
-		for (int i = 0; i < spawnGroup[TotalSpawnGroup].spawnRegionCh; i++) {
-			spawnGroup[TotalSpawnGroup].spawnRegion[i] = {};
-		}
-		spawnGroup[TotalSpawnGroup].spawnRegionCh = 0;
-
-	}
-
+	WipeScriptSlots(spawnGroup[TotalSpawnGroup].spawnRegion, spawnGroup[TotalSpawnGroup].spawnRegionCh);
 }
 
 void ReadSpawnTableLine(FILE *stream, char *_value, char line[256], bool &spawnOverwrite, bool &avoidOverwrite) {
@@ -244,7 +202,7 @@ void ReadSpawnTableLine(FILE *stream, char *_value, char line[256], bool &spawnO
 	// time of day and dino selection. Shared by the spawn-table and pack-group
 	// readers (the C2 grammar is identical for both); the trophy room applies
 	// every block without filtering, as it always has.
-	static bool OverwriteBlockApplies(const char* line, const char* projectName,
+	bool OverwriteBlockApplies(const char* line, const char* projectName,
 	                                  int timeOfDay, int dinSelect)
 	{
 		if (projectName[18] == 'h') return true;
@@ -324,12 +282,6 @@ void ReadSpawnGroup(FILE *stream, char line[256], int mode) {
   char tempProjectName[128];
   int timeOfDay, dinSelect;
   ReadScriptCommandLineOptions(tempProjectName, timeOfDay, dinSelect);
-
-	//time
-	for (int a = 0; a < __argc; a++)
-	{
-		LPSTR s = __argv[a];
-	}
 
 	char *value;
 
@@ -465,12 +417,6 @@ void ReadPackGroup(FILE *stream, char line[256], int mode) {
   char tempProjectName[128];
   int timeOfDay, dinSelect;
   ReadScriptCommandLineOptions(tempProjectName, timeOfDay, dinSelect);
-
-	//time
-	for (int a = 0; a < __argc; a++)
-	{
-		LPSTR s = __argv[a];
-	}
 
 	char *value;
 

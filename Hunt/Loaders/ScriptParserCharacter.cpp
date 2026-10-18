@@ -40,117 +40,74 @@ static int CurrentIdlePartIndex()
 }
 
 void WipeKillTypes() {
-	if (DinoInfo[TotalC].killTypeCount) {
-		for (int i = 0; i < DinoInfo[TotalC].killTypeCount; i++) {
-			DinoInfo[TotalC].killType[i] = {};
-		}
-	}
-	DinoInfo[TotalC].killTypeCount = 0;
+	WipeScriptSlots(DinoInfo[TotalC].killType, DinoInfo[TotalC].killTypeCount);
 }
 
 void WipeDeathTypes() {
-	if (DinoInfo[TotalC].deathTypeCount) {
-		for (int i = 0; i < DinoInfo[TotalC].deathTypeCount; i++) {
-			DinoInfo[TotalC].deathType[i] = {};
-		}
-	}
-	DinoInfo[TotalC].deathTypeCount = 0;
+	WipeScriptSlots(DinoInfo[TotalC].deathType, DinoInfo[TotalC].deathTypeCount);
 }
 
 void WipeIdleGroups() {
-	if (DinoInfo[TotalC].idleGroupCount) {
-		for (int i = 0; i < DinoInfo[TotalC].idleGroupCount; i++) {
-			DinoInfo[TotalC].idleGroup[i] = {};
-		}
-	}
-	DinoInfo[TotalC].idleGroupCount = 0;
+	WipeScriptSlots(DinoInfo[TotalC].idleGroup, DinoInfo[TotalC].idleGroupCount);
 }
 
 void WipeIdle2Groups() {
-	if (DinoInfo[TotalC].idle2GroupCount) {
-		for (int i = 0; i < DinoInfo[TotalC].idle2GroupCount; i++) {
-			DinoInfo[TotalC].idle2Group[i] = {};
+	WipeScriptSlots(DinoInfo[TotalC].idle2Group, DinoInfo[TotalC].idle2GroupCount);
+}
+
+// Shared body for the primary and secondary idle-group blocks: both fill a
+// TDinoIdleType slot list with the same grammar; only the container and the
+// diagnostics differ.
+static void ReadIdleGroupBlock(FILE* stream, TDinoIdleType* groups, int& count,
+                               const char* what, const char* errorLabel,
+                               const char* startLabel, const char* endLabel,
+                               const char* animWhat, const char* animLabel)
+{
+	RequireScriptSlot(count, 32, what);
+	char* value;
+	char line[256];
+
+	while (fgets(line, 255, stream)) {
+		if (strstr(line, "}")) {
+			count++;
+			break;
+		}
+		value = strstr(line, "=");
+		if (!value) {
+			char errorBuff[100];
+			sprintf_s(errorBuff, sizeof(errorBuff), "Script loading error: %s: %s", errorLabel, DinoInfo[TotalC].Name);
+			DoHalt(errorBuff);
+		}
+		value++;
+
+		if (strstr(line, "startChance")) groups[count].start = ReadScriptFloatField(value, line, startLabel);
+		if (strstr(line, "endChance")) groups[count].end = ReadScriptFloatField(value, line, endLabel);
+		if (strstr(line, "randomStarting")) readBool(value, groups[count].startOnAny);
+		if (strstr(line, "randomEnding")) readBool(value, groups[count].endOnAny);
+		if (strstr(line, "instantRepeat")) readBool(value, groups[count].instantRepeat);
+
+		if (strstr(line, "anim")) {
+			RequireScriptSlot(groups[count].count, 32, animWhat);
+			groups[count].anim[groups[count].count] = ReadScriptIntField(value, line, animLabel);
+			groups[count].count++;
 		}
 	}
-	DinoInfo[TotalC].idle2GroupCount = 0;
 }
 
 void ReadIdleGroupInfo(FILE *stream)
 {
-	RequireScriptSlot(DinoInfo[TotalC].idleGroupCount, 32, "idle groups");
-	char *value;
-	char line[256];
-
-	while (fgets(line, 255, stream)) {
-		if (strstr(line, "}")) {
-			DinoInfo[TotalC].idleGroupCount++;
-			break;
-		}
-		value = strstr(line, "=");
-		if (!value) {
-			char errorBuff[100];
-			sprintf_s(errorBuff, sizeof(errorBuff), "Script loading error: IdleGroup: %s", DinoInfo[TotalC].Name);
-			DoHalt(errorBuff);
-		}
-		value++;
-
-		if (strstr(line, "startChance")) DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].start = ReadScriptFloatField(value, line, "idle start chance");
-		if (strstr(line, "endChance")) DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].end = ReadScriptFloatField(value, line, "idle end chance");
-		if (strstr(line, "randomStarting")) readBool(value, DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].startOnAny);
-		if (strstr(line, "randomEnding")) readBool(value, DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].endOnAny);
-		if (strstr(line, "instantRepeat")) readBool(value, DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].instantRepeat);
-
-		if (strstr(line, "anim")) {
-			//if (idleOverwrite) {
-			//	DinoInfo[TotalC].idleCount = 0;
-			//	idleOverwrite = false;
-			//}
-			RequireScriptSlot(DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].count,
-			                  32, "idle-group animations");
-			DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].anim[DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].count] = ReadScriptIntField(value, line, "idle-group animation");
-			DinoInfo[TotalC].idleGroup[DinoInfo[TotalC].idleGroupCount].count++;
-		}
-
-	}
+	ReadIdleGroupBlock(stream, DinoInfo[TotalC].idleGroup, DinoInfo[TotalC].idleGroupCount,
+	                   "idle groups", "IdleGroup",
+	                   "idle start chance", "idle end chance",
+	                   "idle-group animations", "idle-group animation");
 }
 
 void ReadIdle2GroupInfo(FILE *stream)
 {
-	RequireScriptSlot(DinoInfo[TotalC].idle2GroupCount, 32, "secondary idle groups");
-	char *value;
-	char line[256];
-
-	while (fgets(line, 255, stream)) {
-		if (strstr(line, "}")) {
-			DinoInfo[TotalC].idle2GroupCount++;
-			break;
-		}
-		value = strstr(line, "=");
-		if (!value) {
-			char errorBuff[100];
-			sprintf_s(errorBuff, sizeof(errorBuff), "Script loading error: IdleGroup2: %s", DinoInfo[TotalC].Name);
-			DoHalt(errorBuff);
-		}
-		value++;
-
-		if (strstr(line, "startChance")) DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].start = ReadScriptFloatField(value, line, "secondary idle start chance");
-		if (strstr(line, "endChance")) DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].end = ReadScriptFloatField(value, line, "secondary idle end chance");
-		if (strstr(line, "randomStarting")) readBool(value, DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].startOnAny);
-		if (strstr(line, "randomEnding")) readBool(value, DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].endOnAny);
-		if (strstr(line, "instantRepeat")) readBool(value, DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].instantRepeat);
-
-		if (strstr(line, "anim")) {
-			//if (idleOverwrite) {
-			//	DinoInfo[TotalC].idleCount = 0;
-			//	idleOverwrite = false;
-			//}
-			RequireScriptSlot(DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].count,
-			                  32, "secondary idle-group animations");
-			DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].anim[DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].count] = ReadScriptIntField(value, line, "secondary idle-group animation");
-			DinoInfo[TotalC].idle2Group[DinoInfo[TotalC].idle2GroupCount].count++;
-		}
-
-	}
+	ReadIdleGroupBlock(stream, DinoInfo[TotalC].idle2Group, DinoInfo[TotalC].idle2GroupCount,
+	                   "secondary idle groups", "IdleGroup2",
+	                   "secondary idle start chance", "secondary idle end chance",
+	                   "secondary idle-group animations", "secondary idle-group animation");
 }
 
 void ReadDeathTypeInfo(FILE *stream)
@@ -534,12 +491,6 @@ void ReadCharacters(FILE *stream)
 	int timeOfDay, dinSelect;
 	ReadScriptCommandLineOptions(tempProjectName, timeOfDay, dinSelect);
 
-	//time
-	for (int a = 0; a < __argc; a++)
-	{
-		LPSTR s = __argv[a];
-	}
-
   char line[256], *value;
   while (fgets( line, 255, stream))
   {
@@ -635,82 +586,7 @@ void ReadCharacters(FILE *stream)
 
 			if (strstr(line, "overwrite") || strstr(line, "addition")) {
 
-				bool readThis = true;
-				char mapNo1 = tempProjectName[18];
-				while (readThis == true) {
-					
-					//trophy
-					if (tempProjectName[18] == 'h') break;
-
-					if (strstr(line, "area")) {
-
-						switch ((char)tempProjectName[18]) {
-						case '1':
-							if (tempProjectName[19]) {
-								if (!strstr(line, "area0")) readThis = false;//area10
-							}
-							else if (!strstr(line, "area1")) readThis = false;
-							break;
-						case '2':
-							if (!strstr(line, "area2")) readThis = false;
-							break;
-						case '3':
-							if (!strstr(line, "area3")) readThis = false;
-							break;
-						case '4':
-							if (!strstr(line, "area4")) readThis = false;
-							break;
-						case '5':
-							if (!strstr(line, "area5")) readThis = false;
-							break;
-						case '6':
-							if (!strstr(line, "area6")) readThis = false;
-							break;
-						case '7':
-							if (!strstr(line, "area7")) readThis = false;
-							break;
-						case '8':
-							if (!strstr(line, "area8")) readThis = false;
-							break;
-						case '9':
-							if (!strstr(line, "area9")) readThis = false;
-							break;
-						}
-					}
-
-					if (strstr(line, "time")) {
-						switch (timeOfDay) {
-						case 0:
-							if (!strstr(line, "time0")) readThis = false;
-							break;
-						case 1:
-							if (!strstr(line, "time1")) readThis = false;
-							break;
-						case 2:
-							if (!strstr(line, "time2")) readThis = false;
-							break;
-						}
-					}
-
-					if (strstr(line, "char")){
-						bool readChar = false;
-						if (strstr(line, "char0") && (dinSelect & (1<<10))) readChar = true;
-						if (strstr(line, "char1") && (dinSelect & (1<<11))) readChar = true;
-						if (strstr(line, "char2") && (dinSelect & (1<<12))) readChar = true;
-						if (strstr(line, "char3") && (dinSelect & (1<<13))) readChar = true;
-						if (strstr(line, "char4") && (dinSelect & (1<<14))) readChar = true;
-						if (strstr(line, "char5") && (dinSelect & (1<<15))) readChar = true;
-						if (strstr(line, "char6") && (dinSelect & (1<<16))) readChar = true;
-						if (strstr(line, "char7") && (dinSelect & (1<<17))) readChar = true;
-						if (strstr(line, "char8") && (dinSelect & (1<<18))) readChar = true;
-						if (strstr(line, "char9") && (dinSelect & (1<<19))) readChar = true;
-						if (!readChar) readThis = false;
-					}
-					
-					break;
-				}
-
-				if (readThis) {
+				if (OverwriteBlockApplies(line, tempProjectName, timeOfDay, dinSelect)) {
 
 					bool spawnInfoOverwrite = strstr(line, "overwrite");
 					bool spawnGroupOverwrite = strstr(line, "overwrite");

@@ -38,6 +38,19 @@ void readBool(char* value, BOOL& out);
 void readBool(char* value, bool& out);
 void SkipSector(FILE* stream);
 
+// Dedup slice: the shared overwrite filter, the paired readers that are
+// folded into shared helpers, and one wipe helper that exercises the shared
+// slot-wipe template.
+bool OverwriteBlockApplies(const char* line, const char* projectName,
+                           int timeOfDay, int dinSelect);
+void ReadAvoid(FILE* stream);
+void ReadRegion(FILE* stream);
+void ReadSpawnInfo(FILE* stream);
+void ReadSpawnInfoPack(FILE* stream);
+void ReadIdleGroupInfo(FILE* stream);
+void ReadIdle2GroupInfo(FILE* stream);
+void WipeKillTypes();
+
 namespace {
 
 // Keeps a line and its post-'=' value pointer in stable mutable storage; the
@@ -92,6 +105,18 @@ void ResetCharacter()
 {
     TotalC = 0;
     DinoInfo[0] = TDinoInfo{};
+}
+
+void ResetSpawnGroup()
+{
+    TotalSpawnGroup = 0;
+    spawnGroup[0] = TSpawnGroup{};
+}
+
+void ResetPackType()
+{
+    packTypeCount = 0;
+    packType[0] = TPackType{};
 }
 
 }  // namespace
@@ -528,4 +553,179 @@ TEST(ScriptParserCommon, SkipSectorHaltsOnUnterminatedBlock)
     ASSERT_NE(stream.stream, nullptr);
 
     EXPECT_THROW(SkipSector(stream.stream), std::runtime_error);
+}
+
+// ---------------------------------------------------------------------------
+// Duplicate-reader characterization for the parser dedup slice. These pin the
+// overwrite/addition filter truth table and the behavior of the reader pairs
+// that are folded into shared helpers.
+// ---------------------------------------------------------------------------
+
+TEST(ScriptParserOverwriteFilter, TrophyRoomAppliesEveryBlock)
+{
+    EXPECT_TRUE(OverwriteBlockApplies("overwrite area1", "huntdat/areas/trophy", 0, 0));
+    EXPECT_TRUE(OverwriteBlockApplies("addition time2", "huntdat/areas/trophy", 2, 0));
+}
+
+TEST(ScriptParserOverwriteFilter, AreaQualifierMatchesSelectedArea)
+{
+    EXPECT_TRUE(OverwriteBlockApplies("overwrite area1", "huntdat/areas/area1", 0, 0));
+    EXPECT_FALSE(OverwriteBlockApplies("overwrite area2", "huntdat/areas/area1", 0, 0));
+    EXPECT_TRUE(OverwriteBlockApplies("overwrite area2", "huntdat/areas/area2", 0, 0));
+}
+
+TEST(ScriptParserOverwriteFilter, Area10UsesTheArea0Token)
+{
+    // Legacy grammar: projectName[18] is the area digit; area10 has a
+    // non-zero projectName[19] and matches the "area0" token, not "area10".
+    EXPECT_TRUE(OverwriteBlockApplies("overwrite area0", "huntdat/areas/area10", 0, 0));
+    EXPECT_FALSE(OverwriteBlockApplies("overwrite area10", "huntdat/areas/area10", 0, 0));
+    EXPECT_FALSE(OverwriteBlockApplies("overwrite area0", "huntdat/areas/area1", 0, 0));
+}
+
+TEST(ScriptParserOverwriteFilter, TimeQualifierMatchesSelectedTime)
+{
+    EXPECT_TRUE(OverwriteBlockApplies("overwrite time0", "huntdat/areas/area1", 0, 0));
+    EXPECT_FALSE(OverwriteBlockApplies("overwrite time0", "huntdat/areas/area1", 1, 0));
+    EXPECT_TRUE(OverwriteBlockApplies("overwrite time2", "huntdat/areas/area1", 2, 0));
+}
+
+TEST(ScriptParserOverwriteFilter, CharacterQualifierMatchesSelectionMask)
+{
+    EXPECT_TRUE(OverwriteBlockApplies("overwrite char0", "huntdat/areas/area1", 0, 1 << 10));
+    EXPECT_FALSE(OverwriteBlockApplies("overwrite char0", "huntdat/areas/area1", 0, 0));
+    EXPECT_TRUE(OverwriteBlockApplies("overwrite char9", "huntdat/areas/area1", 0, 1 << 19));
+    EXPECT_FALSE(OverwriteBlockApplies("overwrite char9", "huntdat/areas/area1", 0, 1 << 18));
+}
+
+TEST(ScriptParserOverwriteFilter, UnqualifiedBlockAlwaysApplies)
+{
+    EXPECT_TRUE(OverwriteBlockApplies("overwrite", "huntdat/areas/area1", 1, 0));
+    EXPECT_TRUE(OverwriteBlockApplies("addition", "huntdat/areas/area2", 2, 0));
+}
+
+TEST(ScriptParserOverwriteFilter, PresentQualifiersAreCombined)
+{
+    const char* project = "huntdat/areas/area3";
+    EXPECT_TRUE(OverwriteBlockApplies("overwrite area3 time1 char2",
+                                      project, 1, 1 << 12));
+    EXPECT_FALSE(OverwriteBlockApplies("overwrite area3 time1 char2",
+                                       project, 0, 1 << 12));
+    EXPECT_FALSE(OverwriteBlockApplies("overwrite area3 time1 char2",
+                                       project, 1, 0));
+}
+
+TEST(ScriptParserReaders, RegionReadersPopulateAndCount)
+{
+    ResetSpawnGroup();
+    TempScript region(" xmin = 10\n xmax = 20\n ymin = 30\n ymax = 40\n}\n");
+    ASSERT_NE(region.stream, nullptr);
+    EXPECT_NO_THROW(ReadRegion(region.stream));
+    EXPECT_EQ(spawnGroup[0].spawnRegionCh, 1);
+    EXPECT_EQ(spawnGroup[0].spawnRegion[0].XMin, 10);
+    EXPECT_EQ(spawnGroup[0].spawnRegion[0].XMax, 20);
+    EXPECT_EQ(spawnGroup[0].spawnRegion[0].YMin, 30);
+    EXPECT_EQ(spawnGroup[0].spawnRegion[0].YMax, 40);
+
+    ResetSpawnGroup();
+    TempScript avoid(" xmin = 1\n xmax = 2\n ymin = 3\n ymax = 4\n}\n");
+    ASSERT_NE(avoid.stream, nullptr);
+    EXPECT_NO_THROW(ReadAvoid(avoid.stream));
+    EXPECT_EQ(spawnGroup[0].avoidRegionCh, 1);
+    EXPECT_EQ(spawnGroup[0].avoidRegion[0].XMin, 1);
+    EXPECT_EQ(spawnGroup[0].avoidRegion[0].XMax, 2);
+    EXPECT_EQ(spawnGroup[0].avoidRegion[0].YMin, 3);
+    EXPECT_EQ(spawnGroup[0].avoidRegion[0].YMax, 4);
+}
+
+TEST(ScriptParserReaders, RegionReadersHaltOnMalformedLine)
+{
+    ResetSpawnGroup();
+    TempScript region(" garbage\n}\n");
+    ASSERT_NE(region.stream, nullptr);
+    EXPECT_THROW(ReadRegion(region.stream), std::runtime_error);
+}
+
+TEST(ScriptParserReaders, SpawnInfoReadersPopulateAndCount)
+{
+    ResetCharacter();
+    TempScript character(" spawnratio = 0.5\n spawngroup = 3\n}\n");
+    ASSERT_NE(character.stream, nullptr);
+    EXPECT_NO_THROW(ReadSpawnInfo(character.stream));
+    EXPECT_EQ(DinoInfo[0].SpawnInfoCh, 1);
+    EXPECT_FLOAT_EQ(DinoInfo[0].SpawnInfo[0].spawnRatio, 0.5f);
+    EXPECT_EQ(DinoInfo[0].SpawnInfo[0].spawnGroup, 3);
+
+    ResetPackType();
+    TempScript pack(" spawnratio = 0.25\n spawngroup = 7\n}\n");
+    ASSERT_NE(pack.stream, nullptr);
+    EXPECT_NO_THROW(ReadSpawnInfoPack(pack.stream));
+    EXPECT_EQ(packType[0].SpawnInfoCh, 1);
+    EXPECT_FLOAT_EQ(packType[0].SpawnInfo[0].spawnRatio, 0.25f);
+    EXPECT_EQ(packType[0].SpawnInfo[0].spawnGroup, 7);
+}
+
+TEST(ScriptParserReaders, SpawnInfoReadersHaltOnMalformedLine)
+{
+    ResetCharacter();
+    TempScript character(" garbage\n}\n");
+    ASSERT_NE(character.stream, nullptr);
+    EXPECT_THROW(ReadSpawnInfo(character.stream), std::runtime_error);
+
+    ResetPackType();
+    TempScript pack(" garbage\n}\n");
+    ASSERT_NE(pack.stream, nullptr);
+    EXPECT_THROW(ReadSpawnInfoPack(pack.stream), std::runtime_error);
+}
+
+TEST(ScriptParserReaders, IdleGroupReadersPopulateAndCount)
+{
+    ResetCharacter();
+    TempScript idle(
+        " startChance = 0.25\n"
+        " endChance = 0.75\n"
+        " randomStarting = TRUE\n"
+        " randomEnding = FALSE\n"
+        " instantRepeat = TRUE\n"
+        " anim = 5\n"
+        "}\n");
+    ASSERT_NE(idle.stream, nullptr);
+    EXPECT_NO_THROW(ReadIdleGroupInfo(idle.stream));
+    EXPECT_EQ(DinoInfo[0].idleGroupCount, 1);
+    EXPECT_FLOAT_EQ(DinoInfo[0].idleGroup[0].start, 0.25f);
+    EXPECT_FLOAT_EQ(DinoInfo[0].idleGroup[0].end, 0.75f);
+    EXPECT_TRUE(DinoInfo[0].idleGroup[0].startOnAny);
+    EXPECT_FALSE(DinoInfo[0].idleGroup[0].endOnAny);
+    EXPECT_TRUE(DinoInfo[0].idleGroup[0].instantRepeat);
+    EXPECT_EQ(DinoInfo[0].idleGroup[0].count, 1);
+    EXPECT_EQ(DinoInfo[0].idleGroup[0].anim[0], 5);
+
+    ResetCharacter();
+    TempScript idle2(" startChance = 0.1\n anim = 9\n}\n");
+    ASSERT_NE(idle2.stream, nullptr);
+    EXPECT_NO_THROW(ReadIdle2GroupInfo(idle2.stream));
+    EXPECT_EQ(DinoInfo[0].idle2GroupCount, 1);
+    EXPECT_FLOAT_EQ(DinoInfo[0].idle2Group[0].start, 0.1f);
+    EXPECT_EQ(DinoInfo[0].idle2Group[0].anim[0], 9);
+}
+
+TEST(ScriptParserReaders, IdleGroupReadersHaltOnMalformedLine)
+{
+    ResetCharacter();
+    TempScript idle(" garbage\n}\n");
+    ASSERT_NE(idle.stream, nullptr);
+    EXPECT_THROW(ReadIdleGroupInfo(idle.stream), std::runtime_error);
+}
+
+TEST(ScriptParserReaders, WipeHelpersClearAndResetCounts)
+{
+    ResetCharacter();
+    DinoInfo[0].killTypeCount = 2;
+    DinoInfo[0].killType[0].hunteranim = 7;
+    DinoInfo[0].killType[1].offset = 3;
+
+    EXPECT_NO_THROW(WipeKillTypes());
+    EXPECT_EQ(DinoInfo[0].killTypeCount, 0);
+    EXPECT_EQ(DinoInfo[0].killType[0].hunteranim, 0);
+    EXPECT_EQ(DinoInfo[0].killType[1].offset, 0);
 }

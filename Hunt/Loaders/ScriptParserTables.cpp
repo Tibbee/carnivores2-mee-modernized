@@ -333,12 +333,6 @@ void ReadWeapons(FILE *stream)
   int timeOfDay, dinSelect;
   ReadScriptCommandLineOptions(tempProjectName, timeOfDay, dinSelect);
 
-	//time
-	for (int a = 0; a < __argc; a++)
-	{
-		LPSTR s = __argv[a];
-	}
-
   TotalW = 0;
 
   char line[256], *value;
@@ -384,82 +378,7 @@ void ReadWeapons(FILE *stream)
 
 		if (strstr(line, "overwrite") || strstr(line, "addition")) {
 
-			bool readThis = true;
-			char mapNo1 = tempProjectName[18];
-			while (readThis == true) {
-
-				//trophy
-				if (tempProjectName[18] == 'h') break;
-
-				if (strstr(line, "area")) {
-
-					switch ((char)tempProjectName[18]) {
-					case '1':
-						if (tempProjectName[19]) {
-							if (!strstr(line, "area0")) readThis = false;//area10
-						}
-						else if (!strstr(line, "area1")) readThis = false;
-						break;
-					case '2':
-						if (!strstr(line, "area2")) readThis = false;
-						break;
-					case '3':
-						if (!strstr(line, "area3")) readThis = false;
-						break;
-					case '4':
-						if (!strstr(line, "area4")) readThis = false;
-						break;
-					case '5':
-						if (!strstr(line, "area5")) readThis = false;
-						break;
-					case '6':
-						if (!strstr(line, "area6")) readThis = false;
-						break;
-					case '7':
-						if (!strstr(line, "area7")) readThis = false;
-						break;
-					case '8':
-						if (!strstr(line, "area8")) readThis = false;
-						break;
-					case '9':
-						if (!strstr(line, "area9")) readThis = false;
-						break;
-					}
-				}
-
-				if (strstr(line, "time")) {
-					switch (timeOfDay) {
-					case 0:
-						if (!strstr(line, "time0")) readThis = false;
-						break;
-					case 1:
-						if (!strstr(line, "time1")) readThis = false;
-						break;
-					case 2:
-						if (!strstr(line, "time2")) readThis = false;
-						break;
-					}
-				}
-
-				if (strstr(line, "char")) {
-					bool readChar = false;
-					if (strstr(line, "char0") && (dinSelect & (1 << 10))) readChar = true;
-					if (strstr(line, "char1") && (dinSelect & (1 << 11))) readChar = true;
-					if (strstr(line, "char2") && (dinSelect & (1 << 12))) readChar = true;
-					if (strstr(line, "char3") && (dinSelect & (1 << 13))) readChar = true;
-					if (strstr(line, "char4") && (dinSelect & (1 << 14))) readChar = true;
-					if (strstr(line, "char5") && (dinSelect & (1 << 15))) readChar = true;
-					if (strstr(line, "char6") && (dinSelect & (1 << 16))) readChar = true;
-					if (strstr(line, "char7") && (dinSelect & (1 << 17))) readChar = true;
-					if (strstr(line, "char8") && (dinSelect & (1 << 18))) readChar = true;
-					if (strstr(line, "char9") && (dinSelect & (1 << 19))) readChar = true;
-					if (!readChar) readThis = false;
-				}
-
-				break;
-			}
-
-			if (readThis) {
+			if (OverwriteBlockApplies(line, tempProjectName, timeOfDay, dinSelect)) {
 
 				while (fgets(line, 255, stream)) {
 					if (strstr(line, "}")) break;
