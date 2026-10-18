@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.15)
 set(MENU_SOURCES
     Hunt2.cpp
     Menu.cpp
+    MenuDraw.cpp
     Audio.cpp
     Resources.cpp
     ConfigIO.cpp
@@ -13,6 +14,7 @@ set(MENU_SOURCES
     GUI.cpp
     Resolutions.cpp
     Hunt.h
+    MenuInternal.h
     resource.h
     Menu.rc
     Version.h

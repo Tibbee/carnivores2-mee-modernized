@@ -1,3 +1,4 @@
+#pragma once
 
 // -- Define UNICODE for Wide Characters WCHAR (extra symbols, Japanese Text, etc)
 //#define UNICODE
