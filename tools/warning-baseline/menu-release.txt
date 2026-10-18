@@ -1,7 +1,7 @@
 # MSVC warning baseline for preset: menu-release
 # format: relative/path|code|unique_warning_line_count
-# source: af72cb2
-# updated: 2026-10-18
+# source: dd4b438
+# updated: 2026-10-19
 # Regenerate intentionally with tools/check_msvc_warnings.ps1 -UpdateBaseline.
 Hunt/Core/ResolutionList.h|C4018|2
 Menu/Hunt.h|C4100|1
