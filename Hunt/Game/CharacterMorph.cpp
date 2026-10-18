@@ -28,7 +28,6 @@ void CreateChMorphedModel(TCharacter *cptr)
 	SplineD = CurFrame & 0xFF;
 	CurFrame = (CurFrame >> 8);
 
-
 	BOOL PMorph = (cptr->Phase != cptr->PrevPhase) && (cptr->PPMorphTime < PMORPHTIME) && (MORPHP);
 
 	// A blank previous phase has no payload to blend from; drop the partial
@@ -42,8 +41,6 @@ void CreateChMorphedModel(TCharacter *cptr)
 		PSplineD = PCurFrame & 0xFF;
 		PCurFrame = (PCurFrame >> 8);
 	}
-
-
 
 	if (!MORPHA)
 	{
@@ -82,8 +79,6 @@ void CreateChMorphedModel(TCharacter *cptr)
 	for (int v = 0; v < VCount; v++)
 	{
 
-		
-
 		float x = *(adptr + v * 3 + 0) * k1 + *(adptr + (v + VCount) * 3 + 0) * k2;
 		float y = *(adptr + v * 3 + 1) * k1 + *(adptr + (v + VCount) * 3 + 1) * k2;
 		float z = -(*(adptr + v * 3 + 2) * k1 + *(adptr + (v + VCount) * 3 + 2) * k2);
@@ -99,11 +94,9 @@ void CreateChMorphedModel(TCharacter *cptr)
 			z = z * pmk1 + pz * pmk2;
 		}
 
-
 		float zz = z;
 		float xx = cg * x - sg * y;
 		float yy = cg * y + sg * x;
-
 
 		//float fi = (z / 400) * (cptr->bend / 1.5f);
 		float fi;
@@ -145,15 +138,12 @@ void CreateChMorphedModel(TCharacter *cptr)
 
 		}
 
-
 		cptr->pinfo->mptr->gVertex[v].x = xx * scale;
 		cptr->pinfo->mptr->gVertex[v].y = cb * yy - sb * zz;
 		cptr->pinfo->mptr->gVertex[v].z = cb * zz + sb * yy;
 
-
 	}
 }
-
 
 void CreateMorphedModelBetaGamma(TModel* mptr, TAni *aptr, int FTime, float scale, float beta, float gamma)
 {
@@ -179,7 +169,6 @@ void CreateMorphedModelBetaGamma(TModel* mptr, TAni *aptr, int FTime, float scal
 	k1 /= 8.f;
 	k2 /= 8.f;
 
-
 	int VCount = mptr->VCount;
 	short int* adptr = aptr->aniData.get() + CurFrame * VCount * 3;
 
@@ -191,17 +180,13 @@ void CreateMorphedModelBetaGamma(TModel* mptr, TAni *aptr, int FTime, float scal
 	for (int v = 0; v < VCount; v++)
 	{
 
-
-
 		float x = *(adptr + v * 3 + 0) * k1 + *(adptr + (v + VCount) * 3 + 0) * k2;
 		float y = *(adptr + v * 3 + 1) * k1 + *(adptr + (v + VCount) * 3 + 1) * k2;
 		float z = -(*(adptr + v * 3 + 2) * k1 + *(adptr + (v + VCount) * 3 + 2) * k2);
 
-
 		float zz = z;
 		float xx = cg * x - sg * y;
 		float yy = cg * y + sg * x;
-
 
 		//float fi = (z / 400) * (cptr->bend / 1.5f);
 		float fi;
@@ -220,10 +205,8 @@ void CreateMorphedModelBetaGamma(TModel* mptr, TAni *aptr, int FTime, float scal
 		mptr->gVertex[v].y = cb * yy - sb * zz;
 		mptr->gVertex[v].z = cb * zz + sb * yy;
 
-
 	}
 }
-
 
 void CreateMorphedModel(TModel* mptr, TAni *aptr, int FTime, float scale)
 {
@@ -249,8 +232,6 @@ void CreateMorphedModel(TModel* mptr, TAni *aptr, int FTime, float scale)
 		mptr->gVertex[v].z = -*(adptr + v * 3 + 2) * k1 - *(adptr + (v + VCount) * 3 + 2) * k2;
 	}
 }
-
-
 
 void CreateMorphedObject(TModel* mptr, TVTL &vtl, int FTime)
 {

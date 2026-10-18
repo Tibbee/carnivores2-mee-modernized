@@ -11,7 +11,6 @@ void SetNewTargetPlace_Icth(TCharacter *cptr, float R)
 	Vector3d p;
 	int tr = 0;
 
-
 	//PrintLog("iT");//TEST20200412
 replace:
 	//PrintLog("-");//TEST20200412
@@ -83,7 +82,6 @@ void SetNewTargetPlace(TCharacter *cptr, float R)
 	//if (cptr->AI < 0) {//STILL NEED THIS FOR CLASSIC AMBIENTS
 	SetNewTargetPlaceRegion(cptr, R);
 	//}
-
 
 }
 void SetNewTargetPlaceRegion(TCharacter *cptr, float R)
@@ -244,7 +242,6 @@ replace:
 	p.y = GetLandH(p.x, p.z);
 	float wy = GetLandUpH(p.x, p.z) - GetLandH(p.x, p.z);
 
-
 	int spcdm = 1;
 	if (cptr->aquaticIdle) spcdm = 0.75;
 
@@ -316,7 +313,6 @@ replace2:
 	*/
 
 	targetDepthTemp = cptr->depth + targetDepthTemp;
-
 
 	if (targetDepthTemp < GetLandH(p.x, p.z) + (cptr->spcDepth * spcdm)) {
 		if (tr < 3024) {

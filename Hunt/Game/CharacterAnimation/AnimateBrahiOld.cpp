@@ -101,7 +101,6 @@ TBEGIN:
 		else cptr->Phase = DinoInfo[cptr->CType].walkAnim;
 	}
 
-
 ENDPSELECT:
 
 	//====== process phase changing ===========//
@@ -120,8 +119,6 @@ ENDPSELECT:
 	}
 
 	cptr->FTime %= cptr->pinfo->Animation[cptr->Phase].AniTime;
-
-
 
 	//========== rotation to tgalpha ===================//
 
@@ -170,7 +167,6 @@ SKIPROT:
 	DeltaFunc(cptr->vspeed, curspeed, TimeDt / 1024.f);
 	cptr->pos.x += cptr->lookx * cptr->vspeed * TimeDt;
 	cptr->pos.z += cptr->lookz * cptr->vspeed * TimeDt;
-	
 
 	ThinkY_Beta_Gamma(cptr, 256, 128, 0.1f, 0.2f);
 	DeltaFunc(cptr->gamma, cptr->tggamma, TimeDt / 4048.f);

@@ -19,8 +19,6 @@ void AnimateTRex(TCharacter *cptr)
 	float _tgalpha = cptr->tgalpha;
 	BOOL LookMode = false;
 
-
-
 TBEGIN:
 	float targetx = cptr->tgx;
 	float targetz = cptr->tgz;
@@ -36,7 +34,6 @@ TBEGIN:
 		? FindVectorAlpha(targetdx, targetdz)
 		: FindVectorAlpha(hunter.dx, hunter.dz);
 	//if (cptr->State==2) { NewPhase=true; cptr->State=1; }
-
 
 	bool alertInit = false;
 	if (cptr->State == 5) alertInit = true;
@@ -60,8 +57,6 @@ TBEGIN:
 
 	if (cptr->State && !fixedPursuit && tracksHunter && cptr->packId >= 0)
 		Packs[cptr->packId].alert = true;
-
-
 
 	if (GetLandUpH(cptr->pos.x, cptr->pos.z) - GetLandH(cptr->pos.x, cptr->pos.z) > DinoInfo[cptr->CType].waterLevel * cptr->scale)
 		cptr->StateF |= csONWATER;
@@ -118,9 +113,6 @@ TBEGIN:
 				cptr->State = 1;
 			}
 
-
-
-
 		if (CanKillHunter(*cptr, hunter)) {
 			if (DinoInfo[cptr->CType].killTypeCount > 0) {
 
@@ -143,8 +135,6 @@ TBEGIN:
 			}
 		}
 
-
-
 	}
 
 	// Step 4: Extend culling distance by 4 units (~1024 world units)
@@ -153,7 +143,6 @@ TBEGIN:
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
 	if (!cptr->State) {
-
 
 		if (cptr->packId >= 0) {
 			float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
@@ -188,7 +177,6 @@ TBEGIN:
 		}
 	}
 
-
 NOTHINK:
 	if (hunter.distanceSquared < 2048 * 2048) cptr->NoFindCnt = 0;
 	if (cptr->NoFindCnt) cptr->NoFindCnt--;
@@ -213,7 +201,6 @@ NOTHINK:
 		cptr->NoFindCnt = 16 + rRand(20);
 	}
 
-
 	if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
 	if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 
@@ -221,10 +208,8 @@ NOTHINK:
 
 	ProcessPrevPhase(cptr);
 
-
 	//======== select new phase =======================//
 
-	
 	for (int i = 0; i < DinoInfo[cptr->CType].lookCount; i++) {
 		if (cptr->Phase == DinoInfo[cptr->CType].lookAnim[i]) LookMode = true;
 	}
@@ -232,7 +217,6 @@ NOTHINK:
 	for (int i = 0; i < DinoInfo[cptr->CType].smellCount; i++) {
 		if (cptr->Phase == DinoInfo[cptr->CType].smellAnim[i]) LookMode = true;
 	}
-	
 
 	cptr->FTime += TimeDt;
 
@@ -247,7 +231,6 @@ NOTHINK:
 			}
 		}
 
-
 		NewPhase = true;
 	}
 
@@ -258,7 +241,6 @@ NOTHINK:
 		
 	if (!cptr->State)
 		if (NewPhase)
-			
 
 			if (DinoInfo[cptr->CType].idleGroupCount
 				&& (MyHealth || !DinoInfo[cptr->CType].killType[cptr->killType].carryCorpse)
@@ -272,7 +254,6 @@ NOTHINK:
 			else {
 				cptr->Phase = DinoInfo[cptr->CType].walkAnim;
 			}
-
 
 	if (!NewPhase) {
 		if (LookMode) goto ENDPSELECT;
@@ -327,8 +308,6 @@ ENDPSELECT:
 
 	cptr->FTime %= cptr->pinfo->Animation[cptr->Phase].AniTime;
 
-
-
 	//========== rotation to tgalpha ===================//
 
 	float rspd, currspeed, tgbend;
@@ -358,13 +337,9 @@ ENDPSELECT:
 	tgbend *= SGN(currspeed);
 	DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 1800.f);
 
-
-
-
 	rspd = cptr->rspeed * TimeDt / 1024.f;
 	if (drspd < fabs(rspd)) cptr->alpha = cptr->tgalpha;
 	else cptr->alpha += rspd;
-
 
 	if (cptr->alpha > pi * 2) cptr->alpha -= pi * 2;
 	if (cptr->alpha < 0) cptr->alpha += pi * 2;
@@ -403,14 +378,11 @@ SKIPROT:
 		ThinkY_Beta_Gamma(cptr, 348, 324, 0.5f, 0.4f);
 	}
 
-
-
 	//=== process to tggamma ===//
 	if (cptr->Phase == DinoInfo[cptr->CType].walkAnim) cptr->tggamma += cptr->rspeed / 16.0f;
 	else cptr->tggamma += cptr->rspeed / 12.0f;
 
 	DeltaFunc(cptr->gamma, cptr->tggamma, TimeDt / 2024.f);
-
 
 	//==================================================//
 

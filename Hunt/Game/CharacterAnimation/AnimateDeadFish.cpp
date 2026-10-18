@@ -37,7 +37,6 @@ void AnimateDeadFish(TCharacter *cptr)
 	cptr->FTime += TimeDt;
 	if (cptr->FTime >= cptr->pinfo->Animation[cptr->Phase].AniTime) cptr->FTime = cptr->pinfo->Animation[cptr->Phase].AniTime - 1;
 
-
 	//======= movement ===========//
 	if (cptr->Phase == DinoInfo[cptr->CType].deathType[cptr->deathType].die)
 		DeltaFunc(cptr->vspeed, 0, TimeDt / 400.f);
@@ -47,7 +46,6 @@ void AnimateDeadFish(TCharacter *cptr)
 		DeltaFunc(cptr->gamma, 0, TimeDt / 1200.f);
 		DeltaFunc(cptr->bend, 0, TimeDt / 1200.f);
 	}
-
 
 	cptr->pos.x += cptr->lookx * cptr->vspeed * TimeDt;
 	cptr->pos.z += cptr->lookz * cptr->vspeed * TimeDt;

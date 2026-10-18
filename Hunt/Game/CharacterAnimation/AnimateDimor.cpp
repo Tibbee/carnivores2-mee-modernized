@@ -17,7 +17,6 @@ void AnimateDimor(TCharacter *cptr)
 	int _FTime = cptr->FTime;
 	float _tgalpha = cptr->tgalpha;
 
-
 TBEGIN:
 	float targetx = cptr->tgx;
 	float targetz = cptr->tgz;
@@ -30,7 +29,6 @@ TBEGIN:
 	float playerdz = PlayerZ - cptr->pos.z;
 	float pdist = static_cast<float>(sqrt(playerdx * playerdx + playerdz * playerdz));
 
-
 	//=========== run away =================//
 
 	// Step 4: Extend culling distance by 4 units (~1024 world units)
@@ -38,11 +36,7 @@ TBEGIN:
 	if (pdist > (charViewR + 20 + 4) * 256)
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
 
-
 	//======== exploring area ===============//
-
-
-
 
 	if (cptr->packId >= 0) {
 		float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
@@ -76,9 +70,7 @@ TBEGIN:
 		goto TBEGIN;
 	}
 
-
 	//============================================//
-
 
 	cptr->tgalpha = CorrectedAlpha(FindVectorAlpha(targetdx, targetdz), cptr->alpha);//FindVectorAlpha(targetdx, targetdz);
 	if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
@@ -108,9 +100,6 @@ TBEGIN:
 				cptr->Phase = DinoInfo[cptr->CType].flyAnim;
 	}
 
-
-
-
 	//====== process phase changing ===========//
 	if ((_Phase != cptr->Phase) || NewPhase)
 		if ((rand() & 1023) > 980)
@@ -127,9 +116,7 @@ TBEGIN:
 		}
 	}
 
-
 	cptr->FTime %= cptr->pinfo->Animation[cptr->Phase].AniTime;
-
 
 	//========== rotation to tgalpha ===================//
 
@@ -137,7 +124,6 @@ TBEGIN:
 	float dalpha = static_cast<float>(fabs(cptr->tgalpha - cptr->alpha));
 	float drspd = dalpha;
 	if (drspd > pi) drspd = 2 * pi - drspd;
-
 
 	if (drspd > 0.02)
 		if (cptr->tgalpha > cptr->alpha) currspeed = 0.6f + drspd * 1.2f;
@@ -154,11 +140,9 @@ TBEGIN:
 	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 800.f);
 	else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 400.f);
 
-
 	rspd = cptr->rspeed * TimeDt / 1024.f;
 	if (drspd < fabs(rspd)) cptr->alpha = cptr->tgalpha;
 	else cptr->alpha += rspd;
-
 
 	if (cptr->alpha > pi * 2) cptr->alpha -= pi * 2;
 	if (cptr->alpha < 0) cptr->alpha += pi * 2;
@@ -178,11 +162,8 @@ TBEGIN:
 	else
 		DeltaFunc(cptr->pos.y, GetLandH(cptr->pos.x, cptr->pos.z), TimeDt / 16.f);
 
-
 	if (cptr->pos.y < GetLandH(cptr->pos.x, cptr->pos.z) + 236)
 		cptr->pos.y = GetLandH(cptr->pos.x, cptr->pos.z) + 256;
-
-
 
 	//========== process speed =============//
 	curspeed *= cptr->scale;

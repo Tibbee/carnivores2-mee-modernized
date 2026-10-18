@@ -115,7 +115,6 @@ void AnimateCharacters()
 
 			AnimateMClientCharacter(cptr);
 		}
-		
 
 		return;
 	}
@@ -130,7 +129,6 @@ void AnimateCharacters()
 			PlaceCharactersSurvival();
 		}
 	}
-
 
 	//packs
 	for (int packN = 0; packN < PackCount; packN++) {
@@ -158,7 +156,6 @@ void AnimateCharacters()
 				cptr->tracker = -1;
 			}
 		}
-
 
 		// replace pack leader
 		if (cptr->Health && cptr->packId >= 0) {
@@ -188,8 +185,6 @@ void AnimateCharacters()
 				SetNewTargetPlace_Icth(cptr, 2048);
 			}
 		}
-
-
 
 		if (GetLandUpH(cptr->pos.x, cptr->pos.z) == GetLandH(cptr->pos.x, cptr->pos.z))
 		  if (cptr->Health)
@@ -268,8 +263,6 @@ void AnimateCharacters()
 				hunter.distance, cptr->AfraidTime);
 			PrintLogAI(aiTrace);
 		}
-
-		
 
 		//disp ship info
 		if (!cptr->Health && DinoInfo[cptr->CType].trophy && g_GameMode != GameMode::SurvivalMode) {

@@ -15,7 +15,6 @@ struct TMenuSet
   char Item[32][32];
 };
 
-
 TMenuSet Options[3];
 char HMLtxt[3][12];
 char CKtxt[2][16];
@@ -34,7 +33,6 @@ BOOL NEWPLAYER = false;
 POINT p;
 int OptMode = 0;
 int OptLine = 0;
-
 
 int GetTextW(HDC hdc, LPSTR s)
 {
@@ -126,14 +124,12 @@ void DoHalt2(LPSTR Mess)
 	TerminateProcess(GetCurrentProcess(), 0);
 }
 
-
 void WaitRetrace()
 {
   BOOL bv = false;
   if (DirectActive)
     while (!bv)  lpDD->GetVerticalBlankStatus(&bv);
 }
-
 
 void SetFullScreen()
 {
@@ -186,14 +182,11 @@ void SetFullScreen()
   ResetMousePos();
 }
 
-
-
 void Wait(int time)
 {
   unsigned int t = timeGetTime() + time;
   while (t>timeGetTime()) ;
 }
-
 
 //#define loadww 210
 //#define loadwh 106
@@ -206,7 +199,6 @@ void UpdateLoadingWindow()
 
   HBITMAP hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, hbmpVideoBuf));
   HFONT   hfntOld = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
-
 
   for (int y=0; y<LoadWall.H/2; y++)
     memcpy( static_cast<WORD*>(lpVideoBuf) + y*VideoPitch,
@@ -225,10 +217,6 @@ void UpdateLoadingWindow()
   SelectObject(hdcCMain,hfntOld);
   SelectObject(hdcCMain,hbmpOld);
 }
-
-
-
-
 
 void StartLoading()
 {
@@ -250,7 +238,6 @@ void EndLoading()
   LoadWall.lpImage.reset();
 }
 
-
 void PrintLoad(char *t)
 {
   strcpy(loadtxt, t);
@@ -258,7 +245,6 @@ void PrintLoad(char *t)
   UpdateLoadingWindow();
 
 }
-
 
 void SetVideoMode(int W, int H)
 {
@@ -416,6 +402,4 @@ void SetVideoMode(int W, int H)
     while (ShowCursor(false)>=0) ;
   }
 }
-
-
 

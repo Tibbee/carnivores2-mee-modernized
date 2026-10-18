@@ -13,71 +13,7 @@ Vector3d TraceA, TraceNv;
 
 int      TraceRes;
 
-
-
 //====================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 void CheckCollision(float &cx, float &cz)
 
@@ -95,8 +31,6 @@ void CheckCollision(float &cx, float &cz)
 
   int ccz = static_cast<int>(cz) / 256;
 
-
-
   for (int z=-4; z<=4; z++)
 
     for (int x=-4; x<=4; x++)
@@ -109,17 +43,11 @@ void CheckCollision(float &cx, float &cz)
 
         float CR = static_cast<float>(MObjects[ob].info.Radius);
 
-
-
         float oz = (ccz+z) * 256.f + 128.f;
 
         float ox = (ccx+x) * 256.f + 128.f;
 
-
-
         float LandY = GetLandOH(ccx+x, ccz+z);
-
-
 
         if (!(MObjects[ob].info.flags & ofBOUND))
 
@@ -130,8 +58,6 @@ void CheckCollision(float &cx, float &cz)
           if (MObjects[ob].info.YLo + LandY > PlayerY + 256) continue;
 
         }
-
-
 
         if (MObjects[ob].info.flags & ofBOUND)
 
@@ -199,8 +125,6 @@ void CheckCollision(float &cx, float &cz)
 
       }
 
-
-
   if (!InTrophyRoom()) return;
 
   for (int c=0; c<ChCount; c++)
@@ -249,19 +173,9 @@ void CheckCollision(float &cx, float &cz)
 
     }
 
-
-
   }
 
-
-
 }
-
-
-
-
-
-
 
 int TraceCheckPlane(Vector3d a, Vector3d b, Vector3d c)
 
@@ -275,27 +189,19 @@ int TraceCheckPlane(Vector3d a, Vector3d b, Vector3d c)
 
   NormVector(pnv, 1.f);
 
-
-
   MulVectorsScal(SubVectors(TraceA,a), pnv, sa);
 
   MulVectorsScal(SubVectors(TraceB,a), pnv, sb);
 
   if (sa*sb>-1.f) return 0;
 
-
-
 //========= calc hit point =======//
 
   float SCLN,SCVN;
 
-
-
   MulVectorsScal(SubVectors(TraceA,a), pnv, SCLN);
 
   MulVectorsScal(TraceNv, pnv, SCVN);
-
-
 
   SCLN/=SCVN;
 
@@ -307,8 +213,6 @@ int TraceCheckPlane(Vector3d a, Vector3d b, Vector3d c)
 
   hp.z = TraceA.z + TraceNv.z * SCLN;
 
-
-
   Vector3d vm;
 
   MulVectorsVect( SubVectors(b,a), SubVectors(hp,a), vm);
@@ -317,25 +221,17 @@ int TraceCheckPlane(Vector3d a, Vector3d b, Vector3d c)
 
   if (sa<0) return 0;
 
-
-
   MulVectorsVect( SubVectors(c,b), SubVectors(hp,b), vm);
 
   MulVectorsScal( vm, pnv, sa);
 
   if (sa<0) return 0;
 
-
-
   MulVectorsVect( SubVectors(a,c), SubVectors(hp,c), vm);
 
   MulVectorsScal( vm, pnv, sa);
 
   if (sa<0) return 0;
-
-
-
-
 
   Vector3d traceDir = SubVectors(TraceB, TraceA);
 
@@ -349,15 +245,9 @@ int TraceCheckPlane(Vector3d a, Vector3d b, Vector3d c)
 
   }
 
-
-
   return 0;
 
 }
-
-
-
-
 
 void TraceModel(int xx, int zz, int o)
 
@@ -371,21 +261,15 @@ void TraceModel(int xx, int zz, int o)
 
   v[0].y = static_cast<float>((HMapO[zz][xx])) * ctHScale;
 
-
-
   v[0].y+=700.f;
 
   if (PointToVectorDSq(TraceA, TraceNv, v[0]) > 1400.f * 1400.f) return;
 
   v[0].y-=700.f;
 
-
-
   const int q = ((FMap[zz][xx] >> 2) & 7);
   const float ca = kOctCos[q];
   const float sa = kOctSin[q];
-
-
 
   for (int vv=0; vv<mptr->VCount; vv++)
 
@@ -398,8 +282,6 @@ void TraceModel(int xx, int zz, int o)
     rVertex[vv].z = mptr->gVertex[vv].z * ca - mptr->gVertex[vv].x * sa  + v[0].z;
 
   }
-
-
 
   for (int f=0; f<mptr->FCount; f++)
 
@@ -423,23 +305,13 @@ void TraceModel(int xx, int zz, int o)
 
 }
 
-
-
-
-
-
-
 void TraceHitBox()
 
 {
 
 	THitBox *cptr = &HitBox;
 
-
-
 	if (PointToVectorDSq(TraceA, TraceNv, cptr->pos) > 1024.f * 1024.f) return;
-
-
 
 	TModel *mptr = HitBoxModel.mptr.get();
 
@@ -472,8 +344,6 @@ void TraceHitBox()
 
 	}
 
-
-
 	for (int f = 0; f < mptr->FCount; f++)
 
 	{
@@ -496,17 +366,9 @@ void TraceHitBox()
 
 		}
 
-
-
 	}
 
 }
-
-
-
-
-
-
 
 void TraceCharacter(int c)
 
@@ -514,11 +376,7 @@ void TraceCharacter(int c)
 
   TCharacter *cptr = &Characters[c];
 
-
-
   if (PointToVectorDSq(TraceA, TraceNv, cptr->pos) > 1024.f * 1024.f) return;
-
-
 
   TModel *mptr = cptr->pinfo->mptr.get();
 
@@ -540,8 +398,6 @@ void TraceCharacter(int c)
     rVertex[vv].z = mptr->gVertex[vv].z * ca - mptr->gVertex[vv].x * sa  + cptr->pos.z;
 
   }
-
-
 
   for (int f=0; f<mptr->FCount; f++)
 
@@ -569,15 +425,9 @@ void TraceCharacter(int c)
 
     }
 
-
-
   }
 
 }
-
-
-
-
 
 void FillVGround(Vector3d &v, int xx, int zz)
 
@@ -591,10 +441,6 @@ void FillVGround(Vector3d &v, int xx, int zz)
 
 }
 
-
-
-
-
 void FillWGround(Vector3d &v, int xx, int zz)
 
 {
@@ -606,10 +452,6 @@ void FillWGround(Vector3d &v, int xx, int zz)
   v.y = static_cast<float>(WaterList[ WMap[zz][xx] ].wlevel)*ctHScale;
 
 }
-
-
-
-
 
 int  TraceLook(float ax, float ay, float az,
 
@@ -629,21 +471,13 @@ int  TraceLook(float ax, float ay, float az,
 
   TraceB.z = bz;
 
-
-
   TraceNv =  SubVectors(TraceB, TraceA);
 
-
-
   Vector3d TraceNvP;
-
-
 
   TraceNvP = TraceNv;
 
   TraceNvP.y = 0;
-
-
 
   NormVector(TraceNv, 1.0f);
 
@@ -651,19 +485,13 @@ int  TraceLook(float ax, float ay, float az,
 
   ObjectsOnLook=0;
 
-
-
   int axi = static_cast<int>((ax/256.f));
 
   int azi = static_cast<int>((az/256.f));
 
-
-
   int bxi = static_cast<int>((bx/256.f));
 
   int bzi = static_cast<int>((bz/256.f));
-
-
 
   int xm1 = MIN(axi, bxi) - 2;
 
@@ -672,8 +500,6 @@ int  TraceLook(float ax, float ay, float az,
   int zm1 = MIN(azi, bzi) - 2;
 
   int zm2 = MAX(azi, bzi) + 2;
-
-
 
 //======== trace ground model and static objects ============//
 
@@ -687,11 +513,7 @@ int  TraceLook(float ax, float ay, float az,
 
       if (zz<2 || zz>1010) continue;
 
-
-
       BOOL ReverseOn = (FMap[zz][xx] & fmReverse);
-
-
 
       FillVGround(v[0], xx, zz);
 
@@ -702,8 +524,6 @@ int  TraceLook(float ax, float ay, float az,
       else FillVGround(v[2], xx+1, zz+1);
 
       if (TraceCheckPlane(v[0], v[1], v[2])) return 1;
-
-
 
       if (ReverseOn)
 
@@ -726,8 +546,6 @@ int  TraceLook(float ax, float ay, float az,
       }
 
       if (TraceCheckPlane(v[0], v[1], v[2])) return 1;
-
-
 
       int o = OMap[zz][xx];
 
@@ -751,8 +569,6 @@ int  TraceLook(float ax, float ay, float az,
 
         MulVectorsScal( SubVectors(v[0], TraceA), TraceNv, s2);
 
-
-
         if (s1>0 && s2>0)
 
           if (PointToVectorDSq(TraceA, TraceNvP, v[0]) < 180.f * 180.f)
@@ -769,17 +585,9 @@ int  TraceLook(float ax, float ay, float az,
 
     }
 
-
-
   return 0;
 
 }
-
-
-
-
-
-
 
 int  TraceShot(float  ax, float  ay, float az,
 
@@ -801,27 +609,19 @@ int  TraceShot(float  ax, float  ay, float az,
 
   TraceB.z = bz;
 
-
-
   TraceNv =  SubVectors(TraceB, TraceA);
 
   NormVector(TraceNv, 1.0f);
 
   TraceRes = -1;
 
-
-
   int axi = static_cast<int>((ax/256.f));
 
   int azi = static_cast<int>((az/256.f));
 
-
-
   int bxi = static_cast<int>((bx/256.f));
 
   int bzi = static_cast<int>((bz/256.f));
-
-
 
   int xm1 = MIN(axi, bxi) - 2;
 
@@ -830,8 +630,6 @@ int  TraceShot(float  ax, float  ay, float az,
   int zm1 = MIN(azi, bzi) - 2;
 
   int zm2 = MAX(azi, bzi) + 2;
-
-
 
 //======== trace ground model and static objects ============//
 
@@ -845,19 +643,9 @@ int  TraceShot(float  ax, float  ay, float az,
 
       if (zz<2 || zz>1010) continue;
 
-
-
       BOOL ReverseOn = (FMap[zz][xx] & fmReverse);
 
-
-
 	  // hunter shot
-
-
-
-
-
-
 
       FillVGround(v[0], xx, zz);
 
@@ -868,8 +656,6 @@ int  TraceShot(float  ax, float  ay, float az,
       else FillVGround(v[2], xx+1, zz+1);
 
 	  if (TraceCheckPlane(v[0], v[1], v[2])) TraceRes = tresGround;
-
-
 
       if (ReverseOn)
 
@@ -893,8 +679,6 @@ int  TraceShot(float  ax, float  ay, float az,
 
       if (TraceCheckPlane(v[0], v[1], v[2])) TraceRes = tresGround;
 
-
-
       if ( (FMap[zz][xx] & fmWaterA)>0)
 
       {
@@ -915,15 +699,11 @@ int  TraceShot(float  ax, float  ay, float az,
 
       }
 
-
-
       if (OMap[zz][xx] !=255)
 
         TraceModel(xx, zz, OMap[zz][xx]);
 
     }
-
-
 
 //======== trace characters ============//
 
@@ -933,13 +713,7 @@ int  TraceShot(float  ax, float  ay, float az,
 
 	    TraceCharacter(c);
 
-
-
-
-
   if (bDanger && MyHealth) TraceHitBox();
-
-
 
   float l;
 
@@ -953,19 +727,9 @@ int  TraceShot(float  ax, float  ay, float az,
 
   bz = TraceB.z - TraceNv.z * l;
 
-
-
   return TraceRes;
 
 }
-
-
-
-
-
-
-
-
 
 void InitClips2()
 
@@ -985,8 +749,6 @@ void InitClips2()
 
   MulVectorsVect(ClipA.v1, ClipA.v2, ClipA.nv);
 
-
-
   ClipC.v1.x = +0.625208f;  // sin(pi/4-0.11)
 
   ClipC.v1.y = 0; /*-constant*/
@@ -1000,10 +762,6 @@ void InitClips2()
   ClipC.v2.z = 0;
 
   MulVectorsVect(ClipC.v1, ClipC.v2, ClipC.nv);
-
-
-
-
 
   ClipB.v1.x = 0;
 
@@ -1019,8 +777,6 @@ void InitClips2()
 
   MulVectorsVect(ClipB.v1, ClipB.v2, ClipB.nv);
 
-
-
   ClipD.v1.x = 0;
 
   ClipD.v1.y = -0.571488f;  // sin(pi/5-0.02)
@@ -1034,8 +790,6 @@ void InitClips2()
   ClipD.v2.z = 0;
 
   MulVectorsVect(ClipD.v1, ClipD.v2, ClipD.nv);
-
-
 
   ClipZ.v1.x = 0;
 
@@ -1051,15 +805,7 @@ void InitClips2()
 
   MulVectorsVect(ClipZ.v1, ClipZ.v2, ClipZ.nv);
 
-
-
 }
-
-
-
-
-
-
 
 void InitClips()
 
@@ -1152,19 +898,7 @@ void InitClips()
   ClipW.nv.y = cb;
   ClipW.nv.z = sb;
 
-
-
 }
-
-
-
-
-
-
-
-
-
-
 
 void CalcLights(TModel* mptr)
 
@@ -1194,13 +928,7 @@ void CalcLights(TModel* mptr)
 
   slight.z =-Sun3dPos.z;
 
-
-
-
-
   NormVector(slight, 1.0f);
-
-
 
   for (int f=0; f<FCount; f++)
 
@@ -1212,15 +940,11 @@ void CalcLights(TModel* mptr)
 
     int v3 = mptr->gFace[f].v3;
 
-
-
     a.x = mptr->gVertex[v2].x - mptr->gVertex[v1].x;
 
     a.y = mptr->gVertex[v2].y - mptr->gVertex[v1].y;
 
     a.z = mptr->gVertex[v2].z - mptr->gVertex[v1].z;
-
-
 
     b.x = mptr->gVertex[v3].x - mptr->gVertex[v1].x;
 
@@ -1228,15 +952,11 @@ void CalcLights(TModel* mptr)
 
     b.z = mptr->gVertex[v3].z - mptr->gVertex[v1].z;
 
-
-
     MulVectorsVect(a, b, norms[f]);
 
     NormVector(norms[f], 1.0f);
 
   }
-
-
 
   for (int VT=0; VT<4; VT++)
 
@@ -1271,8 +991,6 @@ void CalcLights(TModel* mptr)
 
           }
 
-
-
       if (!FUsed) mptr->VLight[VT][v] = 0;
 
       else
@@ -1303,15 +1021,9 @@ void CalcLights(TModel* mptr)
 
   }
 
-
-
   (void)_HeapFree(Heap, 0, norms);
 
 }
-
-
-
-
 
 /*
 // Superseded: averaged per-face normals. The live CalcGouraud below
@@ -1341,11 +1053,7 @@ void CalcGouraud(TModel* mptr, Vecto3d *nvs[])
 
 	slight.z =-Sun3dPos.z;
 
-
-
 	NormVector(slight, 1.0f);
-
-
 
     for (int f=0; f<FCount; f++) {
 
@@ -1355,15 +1063,11 @@ void CalcGouraud(TModel* mptr, Vecto3d *nvs[])
 
 		int v3 = mptr->gFace[f].v3;
 
-
-
 		a.x = mptr->gVertex[v2].x - mptr->gVertex[v1].x;
 
 		a.y = mptr->gVertex[v2].y - mptr->gVertex[v1].y;
 
 		a.z = mptr->gVertex[v2].z - mptr->gVertex[v1].z;
-
-
 
 		b.x = mptr->gVertex[v3].x - mptr->gVertex[v1].x;
 
@@ -1371,15 +1075,11 @@ void CalcGouraud(TModel* mptr, Vecto3d *nvs[])
 
 		b.z = mptr->gVertex[v3].z - mptr->gVertex[v1].z;
 
-
-
 		MulVectorsVect(a, b, norms[f]);
 
 		NormVector(norms[f], 1.0f);
 
 	}
-
-
 
 	for (int v=0; v<VCount; v++) {
 
@@ -1394,8 +1094,6 @@ void CalcGouraud(TModel* mptr, Vecto3d *nvs[])
 			if (mptr->gFace[f].v1 == v || mptr->gFace[f].v2 == v || mptr->gFace[f].v3 == v )
 
 			{ FUsed++;  nv = AddVectors(nv, norms[f]); }
-
-
 
 		if (!FUsed) mptr->VLight[0][v] = 0;
 
@@ -1419,17 +1117,11 @@ void CalcGouraud(TModel* mptr, Vecto3d *nvs[])
 
 		}
 
-
-
 	}
 
 }
 
 */
-
-
-
-
 
 void CalcGouraud(TModel* mptr, Vector3d *nvs)
 
@@ -1447,11 +1139,7 @@ void CalcGouraud(TModel* mptr, Vector3d *nvs)
 
   slight.z =-Sun3dPos.z;
 
-
-
   NormVector(slight, 1.0f);
-
-
 
   for (int v=0; v<VCount; v++)
 
@@ -1477,12 +1165,6 @@ void CalcGouraud(TModel* mptr, Vector3d *nvs)
 
 }
 
-
-
-
-
-
-
 void CalcNormals(TModel* mptr, Vector3d *nvs)
 
 {
@@ -1497,8 +1179,6 @@ void CalcNormals(TModel* mptr, Vector3d *nvs)
 
   FillMemory(nvs,   3*4*VCount, 0);
 
-
-
   for (int f=0; f<FCount; f++)
 
   {
@@ -1511,23 +1191,17 @@ void CalcNormals(TModel* mptr, Vector3d *nvs)
 
     int v3 = mptr->gFace[f].v3;
 
-
-
     a.x = mptr->gVertex[v2].x - mptr->gVertex[v1].x;
 
     a.y = mptr->gVertex[v2].y - mptr->gVertex[v1].y;
 
     a.z = mptr->gVertex[v2].z - mptr->gVertex[v1].z;
 
-
-
     b.x = mptr->gVertex[v3].x - mptr->gVertex[v1].x;
 
     b.y = mptr->gVertex[v3].y - mptr->gVertex[v1].y;
 
     b.z = mptr->gVertex[v3].z - mptr->gVertex[v1].z;
-
-
 
     MulVectorsVect(a, b, nv);
 
@@ -1541,17 +1215,11 @@ void CalcNormals(TModel* mptr, Vector3d *nvs)
 
   }
 
-
-
   for (int v=0; v<VCount; v++)
 
     NormVector(nvs[v], 1.0);
 
 }
-
-
-
-
 
 /*
 // Superseded: companion to the per-face CalcGouraud above. The live
@@ -1581,11 +1249,7 @@ void CalcNormals(TModel* mptr, Vector3d *nvs)
 
 	slight.z =-Sun3dPos.z;
 
-
-
 	NormVector(slight, 1.0f);
-
-
 
     for (int f=0; f<FCount; f++) {
 
@@ -1595,15 +1259,11 @@ void CalcNormals(TModel* mptr, Vector3d *nvs)
 
 		int v3 = mptr->gFace[f].v3;
 
-
-
 		a.x = mptr->gVertex[v2].x - mptr->gVertex[v1].x;
 
 		a.y = mptr->gVertex[v2].y - mptr->gVertex[v1].y;
 
 		a.z = mptr->gVertex[v2].z - mptr->gVertex[v1].z;
-
-
 
 		b.x = mptr->gVertex[v3].x - mptr->gVertex[v1].x;
 
@@ -1611,15 +1271,11 @@ void CalcNormals(TModel* mptr, Vector3d *nvs)
 
 		b.z = mptr->gVertex[v3].z - mptr->gVertex[v1].z;
 
-
-
 		MulVectorsVect(a, b, norms[f]);
 
 		NormVector(norms[f], 1.0f);
 
 	}
-
-
 
 	for (int v=0; v<VCount; v++) {
 
@@ -1635,8 +1291,6 @@ void CalcNormals(TModel* mptr, Vector3d *nvs)
 
 			{ FUsed++;  nv = AddVectors(nv, norms[f]); }
 
-
-
 		if (!FUsed) { nv.x=0; nv.y=1; nv.z=0; }
 
         NormVector(nv, 1.0f);
@@ -1646,12 +1300,6 @@ void CalcNormals(TModel* mptr, Vector3d *nvs)
 	}
 
 } */
-
-
-
-
-
-
 
 void CalcPhongMapping(TModel* mptr, Vector3d *nv)
 
@@ -1667,15 +1315,11 @@ void CalcPhongMapping(TModel* mptr, Vector3d *nv)
 
   l.z =-Sun3dPos.z;
 
-
-
   tv.z = 0;
 
   tv.x = 1;
 
   tv.y = 1;
-
-
 
   NormVector(l, 1.0f);
 
@@ -1695,15 +1339,9 @@ void CalcPhongMapping(TModel* mptr, Vector3d *nv)
 
     NormVector(m, 1.0f);
 
-
-
-
-
     if (l.z < 0) MulVectorsVect(m, tv, tx);
 
     else MulVectorsVect(m, v, tx);
-
-
 
     NormVector(tx, 1.0f);
 
@@ -1722,10 +1360,6 @@ void CalcPhongMapping(TModel* mptr, Vector3d *nv)
   }
 
 }
-
-
-
-
 
 void CalcEnvMapping(TModel* mptr, Vector3d *nv)
 
@@ -1751,13 +1385,9 @@ void CalcEnvMapping(TModel* mptr, Vector3d *nv)
 
   ty.z = cc;
 
-
-
   tx = RotateVector(tx);
 
   ty = RotateVector(ty);
-
-
 
   NormVector(l, 1.0f);
 
@@ -1780,8 +1410,6 @@ void CalcEnvMapping(TModel* mptr, Vector3d *nv)
     m = AddVectors(m, v);
 
     NormVector(m, 1.0f);
-
-
 
     MulVectorsScal(tx, m, x);
 

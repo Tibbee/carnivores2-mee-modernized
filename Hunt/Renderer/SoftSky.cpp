@@ -23,8 +23,6 @@ void RotateVVector(Vector3d& v)
   v.z = xz;
 }
 
-
-
 void RenderSkyPlane()
 {
   ClearVideoBuf();
@@ -221,16 +219,5 @@ void RenderSkyPlane()
     else RenderSkyLine(sky);
   }
 }
-
-
-
-
-
-
-
-
-
-
-
 
 #endif // _soft

@@ -16,7 +16,6 @@ DWORD ColorSum(DWORD C1, DWORD C2)
   return R + (G<<8) + (B<<16);
 }
 
-
 #define partBlood   1
 #define partWater   2
 #define partGround  3
@@ -57,7 +56,6 @@ void AddElementsA(float x, float y, float z, int etype, int cnt, int mag, bool a
     Elements[ElCount].RGBA = 0xF0559EF0;
     Elements[ElCount].RGBA2= 0x10559EF0;
     break;
-
 
   case partBubble:
     c = WaterList[ WMap[ static_cast<int>(z) / 256][ static_cast<int>(x) / 256] ].fogRGB;
@@ -176,8 +174,6 @@ int AnimateBullet(float ax, float ay, float az,
 		  int sNo = rRand(2);
 		  AddVoice3dv(fxImpactWater[sNo].length, fxImpactWater[sNo].lpData.data(), bx, by, bz, 256);
 	  }
-	  
-
 
 	  if (sres != tresChar && sres != tresHunter) return sres;
 	  if (!poon) AddElements(bx, by, bz, partBlood, 4 + powerL * 4);

@@ -7,9 +7,7 @@
 #include <string>
 #include <cstdint>
 
-
 using funcptr_t = void (*)();
-
 
 namespace GUI
 {
@@ -31,7 +29,6 @@ namespace GUI
 		virtual ~Item() {};
 	};
 
-
 	class Image : public Item
 	{
 	public:
@@ -43,7 +40,6 @@ namespace GUI
 	private:
 		void*		m_image;
 	};
-
 
 	class Button : public Item
 	{
@@ -58,7 +54,6 @@ namespace GUI
 		//NOTE: the image data is the 'off' variant above the 'on' variant inside the image data at 16-bit 5551 BGRA
 		void*		m_image;
 	};
-
 
 	class CheckButton : public Item
 	{
@@ -76,7 +71,6 @@ namespace GUI
 		void*		m_image;
 		bool		m_checked;
 	};
-
 
 	class ListBox : public Item
 	{
@@ -98,6 +92,5 @@ namespace GUI
 	};
 
 }; //namespace GUI
-
 
 #endif // MENUWIDGETS_H

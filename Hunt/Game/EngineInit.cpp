@@ -231,7 +231,6 @@ void InitEngine()
   NOCLIP       = false;
   CLIP3D       = true;
 
-
   SLOW         = false;
   LOWRESTX     = false;
   MORPHP       = true;
@@ -276,9 +275,6 @@ void InitEngine()
               ANSI_CHARSET,
               OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
-
-
-
   fnt_Small = CreateFont(
                 static_cast<int>((16 * UIScale)), static_cast<int>((7 * UIScale)), 0, 0,
 				100, 0,0,0,
@@ -288,13 +284,11 @@ void InitEngine()
                 ANSI_CHARSET,
                 OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
 
-
   fnt_Midd  = CreateFont(
 			    static_cast<int>((16 * UIScale)), static_cast<int>((7 * UIScale)), 0, 0,
 	            550, 0, 0, 0,
                 ANSI_CHARSET,
                 OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, nullptr);
-
 
   Heap = HeapCreate( 0, 60000000, 0 );
   if( Heap == nullptr )
@@ -606,7 +600,6 @@ void MakeCall()
 	if (cptr->AfraidTime) continue;
     if (cptr->State) continue;
 
-    
     if (canHear)
     {
       if (rRand(128) > 32)

@@ -128,7 +128,6 @@ static LPVOID AllocDispatch(HANDLE hHeap,
   return res;
 }
 
-
 #ifdef MEM_DEBUG
 // The Memory.h tracking macro reroutes _HeapAlloc call syntax to
 // _HeapAllocImpl. It must not rewrite the function definitions below,
@@ -147,7 +146,6 @@ LPVOID _HeapAlloc(HANDLE hHeap,
 {
   return _HeapAlloc(hHeap, dwFlags, dwBytes, MemoryTag::Global);
 }
-
 
 // 4-arg _HeapAlloc: dispatches between arena and heap based on `tag`.
 //   tag == MemoryTag::Level AND LevelArena != nullptr → allocate from
@@ -531,18 +529,10 @@ int GetObjectHWater(int x, int y)
     return static_cast<int>((HMap[y][x]+HMap[y+1][x+1])) / 2 + 48;
 }
 
-
-
 WORD conv_565(WORD c)
 {
   return (c & 31) + ( (c & 0xFFE0) << 1 );
 }
-
-
-
-
-
-
 
 void ReleaseResources()
 {
@@ -1040,11 +1030,6 @@ void LoadResources()
 
 //    ReInitGame();
 }
-
-
-
-
-
 
 //================ light map ========================//
 

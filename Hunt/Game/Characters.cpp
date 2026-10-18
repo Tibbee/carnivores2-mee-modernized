@@ -11,11 +11,8 @@
 #define MOSA_EAT    4
 #define MOSA_SLP    5
 
-
-
 void SetNewTargetPlace(TCharacter *cptr, float R);
 void SetNewTargetPlaceRegion(TCharacter *cptr, float R);
-
 
 void ProcessPrevPhase(TCharacter *cptr)
 {
@@ -35,7 +32,6 @@ void ProcessPrevPhase(TCharacter *cptr)
 	cptr->PrevPFTime %= cptr->pinfo->Animation[cptr->PrevPhase].AniTime;
 }
 
-
 void ActivateCharacterFxAquatic(TCharacter *cptr)
 {
 	if (cptr->CType) //== not hunter ==//
@@ -49,7 +45,6 @@ void ActivateCharacterFxAquatic(TCharacter *cptr)
 		cptr->pinfo->SoundFX[fx].lpData.data(),
 		cptr->pos.x, cptr->pos.y, cptr->pos.z);
 }
-
 
 void ActivateCharacterFx(TCharacter *cptr)
 {
@@ -74,7 +69,6 @@ void ActivateCharacterFx(TCharacter *cptr)
 		cptr->pos.x, cptr->pos.y, cptr->pos.z);
 		
 }
-
 
 void ResetCharacter(TCharacter *cptr)
 {
@@ -160,7 +154,6 @@ void ResetCharacter(TCharacter *cptr)
 
 }
 
-
 void AddDeadBody(TCharacter *cptr, int phase, bool scream)
 {
 	if (!MyHealth) return;
@@ -229,7 +222,6 @@ void AddDeadBody(TCharacter *cptr, int phase, bool scream)
 
 	ActivateCharacterFx(&Characters[ChCount]);
 
-
 	DemoPoint.pos = Characters[ChCount].pos;
 	DemoPoint.DemoTime = 1;
 	DemoPoint.CIndex = ChCount;
@@ -246,8 +238,6 @@ void AddDeadBody(TCharacter *cptr, int phase, bool scream)
 
 	ChCount++;
 }
-
-
 
 float AngleDifference(float a, float b)
 {
@@ -292,45 +282,12 @@ void ThinkY_Beta_Gamma(TCharacter *cptr, float blook, float glook, float blim, f
 	  */
 }
 
-
-
-
-
-
-
-
-
-
 //OLD
 
 /*
 */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 //OLD
-
 
 BOOL ReplaceCharacterForward(TCharacter *cptr)
 {
@@ -394,34 +351,5 @@ BOOL ReplaceCharacterForward(TCharacter *cptr)
 	return true;
 }
 
-
-
-
-
-
-
-
 //old
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

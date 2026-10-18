@@ -27,8 +27,6 @@ void AnimateHuntDead(TCharacter *cptr)
 		}
 	}
 
-
-
 	cptr->FTime += TimeDt;
 	if (cptr->FTime >= cptr->pinfo->Animation[cptr->Phase].AniTime)
 	{
@@ -70,7 +68,6 @@ void AnimateHuntDead(TCharacter *cptr)
 				//MessageBeep(0xFFFFFFFF);
 			}
 
-
 		if (cptr->pos.y < h + 256)
 		{
 			//=== beta ===//
@@ -92,7 +89,6 @@ void AnimateHuntDead(TCharacter *cptr)
 			DeltaFunc(cptr->gamma, cptr->tggamma, TimeDt / 1800.f);
 		}
 	}
-	
 
 	if (killerDino) {
 

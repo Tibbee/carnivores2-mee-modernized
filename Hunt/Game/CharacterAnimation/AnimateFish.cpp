@@ -92,14 +92,12 @@ TBEGIN:
 		}
 	}
 
-
 	if (GetLandUpH(cptr->pos.x, cptr->pos.z) - GetLandH(cptr->pos.x, cptr->pos.z) > 180 * cptr->scale)
 		cptr->StateF |= csONWATER;
 	else
 		cptr->StateF &= (!csONWATER);
 
 	bool playerInWater = GetLandUpH(PlayerX, PlayerZ) - GetLandH(PlayerX, PlayerZ) > 0;
-
 
 	if (cptr->Phase == DinoInfo[cptr->CType].killType[cptr->killType].anim && DinoInfo[cptr->CType].killTypeCount) goto NOTHINK;
 
@@ -133,7 +131,6 @@ TBEGIN:
 				float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 				float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
 				float leaderdistSq = leaderdx * leaderdx + leaderdz * leaderdz;
-
 
 				if (cptr->followLeader) {
 					if (leaderdistSq < (cptr->packDensity * 128 * 0.6) * (cptr->packDensity * 128 * 0.6))
@@ -210,9 +207,6 @@ TBEGIN:
 				goto TBEGIN;
 			}
 
-
-
-
 		}
 
 		if (!fixedPursuit && tracksHunter
@@ -287,10 +281,8 @@ TBEGIN:
 
 			cptr->aquaticIdle = false;
 		}
-		
 
 	}
-
 
 NOTHINK:
 	if (hunter.distanceSquared < 2048 * 2048) cptr->NoFindCnt = 0;
@@ -314,7 +306,6 @@ NOTHINK:
 		cptr->NoFindCnt = 16 + rRand(20);
 	}
 
-
 	if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
 	if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 
@@ -322,10 +313,8 @@ NOTHINK:
 
 	ProcessPrevPhase(cptr);
 
-
 	//======== select new phase =======================//
 	cptr->FTime += TimeDt;
-
 
 	if (cptr->FTime >= cptr->pinfo->Animation[cptr->Phase].AniTime)
 	{	
@@ -337,7 +326,6 @@ NOTHINK:
 				cptr->State = 0;
 			}
 		}
-
 
 		NewPhase = true;
 	}
@@ -353,8 +341,6 @@ NOTHINK:
 
 		if (cptr->Phase == DinoInfo[cptr->CType].jumpAnim) goto ENDPSELECT;
 	}
-
-	
 
 	if (cptr->State) cptr->aquaticIdle = false;
 	else if (DinoInfo[cptr->CType].lookCount > 0) {
@@ -393,11 +379,8 @@ NOTHINK:
 
 	}
 
-	
-
 	//if (cptr->StateF & csONWATER) cptr->Phase = RAP_SWIM;
 	//if (cptr->Slide > 40) cptr->Phase = RAP_SLIDE;
-
 
 ENDPSELECT:
 
@@ -405,13 +388,10 @@ ENDPSELECT:
 	if ((_Phase != cptr->Phase) || NewPhase)
 	{
 
-		
 		ActivateCharacterFxAquatic(cptr);
 		if (cptr->Phase != DinoInfo[cptr->CType].walkAnim && cptr->Phase != DinoInfo[cptr->CType].runAnim) {
 			ActivateCharacterFx(cptr);
 		}
-
-
 
 	}
 
@@ -439,12 +419,9 @@ ENDPSELECT:
 
 	cptr->FTime %= cptr->pinfo->Animation[cptr->Phase].AniTime;
 
-
-
 	//========== rotation to tgalpha ===================//
 
 	//OLD BACKUP
-	
 
 	float rspd, currspeed, tgbend;
 	float dalpha = static_cast<float>(fabs(cptr->tgalpha - cptr->alpha));
@@ -480,19 +457,14 @@ ENDPSELECT:
 	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 800.f);
 	else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 600.f);
 
-
 	rspd = cptr->rspeed * TimeDt / 1024.f;
 	if (drspd < fabs(rspd)) cptr->alpha = cptr->tgalpha;
 	else cptr->alpha += rspd;
-
 
 	if (cptr->alpha > pi * 2) cptr->alpha -= pi * 2;
 	if (cptr->alpha < 0) cptr->alpha += pi * 2;
 
 SKIPROT:
-
-	
-
 
 		//========== movement ==============================//
 	cptr->lookx = static_cast<float>(cos(cptr->alpha));
@@ -513,7 +485,6 @@ SKIPROT:
 		}
 	}
 
-
 	if (cptr->Phase == DinoInfo[cptr->CType].killType[cptr->killType].anim && DinoInfo[cptr->CType].killTypeCount) curspeed = 0.0f;
 
 	 if (drspd > pi / 2.f) curspeed *= 2.f - 2.f*drspd / pi;
@@ -529,10 +500,7 @@ SKIPROT:
 	MoveCharacterFish(cptr, cptr->lookx * cptr->vspeed * TimeDt * cptr->scale,
 		cptr->lookz * cptr->vspeed * TimeDt * cptr->scale);
 
-	
-
 	//============ Y movement =================//
-
 
 	float tdx2 = cptr->tgx - cptr->pos.x;
 	float tdz2 = cptr->tgz - cptr->pos.z;
@@ -574,8 +542,6 @@ SKIPROT:
 	if (cptr->bdepth > max) cptr->bdepth = max;
 	if (cptr->bdepth < -max) cptr->bdepth = -max;
 
-	
-
 	if (cptr->Phase == DinoInfo[cptr->CType].walkAnim) {
 		cptr->tggamma = cptr->bend;
 	}
@@ -592,7 +558,6 @@ SKIPROT:
 	}
 
 	DeltaFunc(cptr->gamma, cptr->tggamma, TimeDt / 1624.f);
-
 
 	// Mosa Depth Failsafes
 	if (cptr->depth > GetLandUpH(cptr->pos.x, cptr->pos.z) - (cptr->spcDepth / 2)) {

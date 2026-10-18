@@ -59,7 +59,6 @@ void _RenderObject(int x, int y)
         waterclip = true;
       }
 
-
   float zs = VectorLength(v[0]);
 
   if (v[0].y + MObjects[ob].info.YHi < static_cast<int>((HMap[y][x]+HMap[y+1][x+1])) / 2 * ctHScale - CameraY) return;
@@ -72,7 +71,6 @@ void _RenderObject(int x, int y)
 
   if (GlassL==255) return;
 
-
   if (MObjects[ob].info.flags & ofANIMATED)
     if (MObjects[ob].info.LastAniTime!=RealTime)
     {
@@ -82,8 +80,6 @@ void _RenderObject(int x, int y)
                           RealTime % MObjects[ob].vtl.AniTime);
     }
 
-
-
   if (MObjects[ob].info.flags & ofNOBMP) zs = 0;
   if (zs>ctViewRM*256)
     RenderBMPModel(&MObjects[ob].bmpmodel, v[0].x, v[0].y, v[0].z, mlight-16);
@@ -92,11 +88,7 @@ void _RenderObject(int x, int y)
   else
     RenderModelClip(MObjects[ob].model.get(), v[0].x, v[0].y, v[0].z, mlight, FI, fi, CameraBeta);
 
-
 }
-
-
-
 
 void RenderMList()
 {
@@ -108,9 +100,6 @@ void RenderMList()
   ORLCount[rmlistselector] = 0;
 }
 
-
-
-
 void RenderGround()
 {
 
@@ -118,7 +107,6 @@ void RenderGround()
   ORLCount[0] = 0;
   ORLCount[1] = 0;
   LockWater = false;
-
 
   for (r=ctViewR; r>0; r--)
   {
@@ -143,8 +131,6 @@ void RenderGround()
   RenderChList(0);
 }
 
-
-
 void RenderObject(int x, int y)
 {
   if (OMap[y][x]==255) return;
@@ -155,12 +141,6 @@ void RenderObject(int x, int y)
   ORList[rmlistselector][o].y = y;
   ORLCount[rmlistselector]++;
 }
-
-
-
-
-
-
 
 void ProcessMap2(int x, int y, int r)
 {
@@ -174,13 +154,11 @@ void ProcessMap2(int x, int y, int r)
   ev[0] = VMap[y - CCY + kViewGridCenter][x - CCX + kViewGridCenter];
   if (ev[0].v.z>BackR) return;
 
-
   int t1 = TMap2[y][x];
   int hw = WaterList[ WMap[y][x] ].wlevel-1;
 
   ReverseOn = false;
   TDirection = ((FMap[y][x]>>8) & 3);
-
 
   int _x = x;
   int _y = y;
@@ -240,9 +218,6 @@ void ProcessMap2(int x, int y, int r)
         HLineT = (void*) HLineTDGlass75;
   }
 
-
-
-
   if (!IsUnderwater())
     if (ReverseOn)
     {
@@ -294,8 +269,6 @@ S2:
   }
 }
 
-
-
 void ProcessMap(int x, int y, int r)
 {
   if (x>=ctMapSize-1 || y>=ctMapSize-1 ||
@@ -307,7 +280,6 @@ void ProcessMap(int x, int y, int r)
   float xx,yy,zz;
   int hw = WaterList[ WMap[y][x] ].wlevel;
 
-
   ev[0] = VMap[y - CCY + kViewGridCenter][x - CCX + kViewGridCenter];
   if (ev[0].v.z>BackR) return;
 
@@ -316,8 +288,6 @@ void ProcessMap(int x, int y, int r)
          (FMap[y  ][x+1] & fmWaterA) &&
          (FMap[y+1][x  ] & fmWaterA) &&
          (FMap[y+1][x+1] & fmWaterA) );
-
-
 
   int ob = OMap[y][x];
   if (!MODELS) ob=255;
@@ -331,7 +301,6 @@ void ProcessMap(int x, int y, int r)
   x = x - CCX + kViewGridCenter;
   y = y - CCY + kViewGridCenter;
 
-
   ev[1] = VMap[y][x+1];
   if (ReverseOn) ev[2] = VMap[y+1][x];
   else ev[2] = VMap[y+1][x+1];
@@ -339,7 +308,6 @@ void ProcessMap(int x, int y, int r)
   xx = (ev[0].v.x + VMap[y+1][x+1].v.x) / 2;
   yy = (ev[0].v.y + VMap[y+1][x+1].v.y) / 2;
   zz = (ev[0].v.z + VMap[y+1][x+1].v.z) / 2;
-
 
   // FOVK-scaled (see ProcessMap2): without it wide FOV culls visible sides.
   if ( fabs(xx*FOVK) > -zz + BackR) return;
@@ -350,7 +318,6 @@ void ProcessMap(int x, int y, int r)
   zs = static_cast<int>(sqrt(distanceSq));
 
   GlassL = 0;
-
 
   // See ProcessMap2: ComputeMipTexelSize guards the zs divide.
   if (MIPMAP) ts = ComputeMipTexelSize(CameraW, zs);
@@ -382,7 +349,6 @@ void ProcessMap(int x, int y, int r)
       {
         if ( (HMap[_y][_x]<hw) || (HMap[_y][_x+1]<hw) || (HMap[_y+1][_x+1]<hw) )   goto S1;
       }
-
 
   if (r>6) DrawTPlane(false);
   else DrawTPlaneClip(false);
@@ -423,11 +389,6 @@ SKIP:
 
 }
 
-
-
-
-
-
 void ClipVector(CLIPPLANE& C, int vn)
 {
   int ClipRes = 0;
@@ -455,7 +416,6 @@ void ClipVector(CLIPPLANE& C, int vn)
     float lc = VectorLength(SubVectors(hleft.ev.v, cp[vn].ev.v));
     lc = lc / ll;
     */
-
 
     float lc = -s / (s1-s);
     hleft.ev.v.x = cp[vn].ev.v.x + ((cp[vleft].ev.v.x - cp[vn].ev.v.x) * lc);
@@ -525,15 +485,6 @@ void ClipVector(CLIPPLANE& C, int vn)
     cp[vn+1] = hright;
   }
 }
-
-
-
-
-
-
-
-
-
 
 void DrawTPlaneClip(BOOL SECONT)
 {
@@ -749,8 +700,6 @@ void DrawTPlaneClip(BOOL SECONT)
     cp[u].ev.scry = VideoCY + static_cast<int>((cp[u].ev.v.y / cp[u].ev.v.z * CameraH));
   }
 
-
-
   scrp[0].x     = cp[0].ev.scrx;
   scrp[0].y     = cp[0].ev.scry;
   scrp[0].Light = cp[0].ev.Light/4;
@@ -773,8 +722,6 @@ void DrawTPlaneClip(BOOL SECONT)
     else DrawTexturedFace();
   }
 }
-
-
 
 void DrawTPlane(BOOL SECONT)
 {
@@ -955,12 +902,5 @@ void DrawTPlane(BOOL SECONT)
 
   DrawTexturedFace();
 }
-
-
-
-
-
-
-
 
 #endif // _soft

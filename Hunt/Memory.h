@@ -29,7 +29,6 @@
 #include <type_traits>
 #include <utility>
 
-
 // ----------------------------------------------------------------------------
 // Configuration (C2 ME addition -- not present in C1)
 // ----------------------------------------------------------------------------
@@ -41,7 +40,6 @@
 // Phase 5C pass can expose a command-line override
 // (smod=arena=N) and emit peak-usage stats to carnivor.log.
 inline constexpr size_t LEVEL_ARENA_SIZE = 256 * 1024 * 1024;  // 256 MiB
-
 
 // ----------------------------------------------------------------------------
 // Memory tag
@@ -74,7 +72,6 @@ inline bool IsReclaimedByArenaReset(MemoryTag allocationTag,
     return allocationTag == resetTag && backend == AllocBackend::Arena;
 }
 
-
 // ----------------------------------------------------------------------------
 // Forward declarations (match C1)
 // ----------------------------------------------------------------------------
@@ -85,7 +82,6 @@ extern HANDLE Heap;
 [[nodiscard]] BOOL   _HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem);
 [[noreturn]] void   DoHalt(char* msg);
 void   PrintLog(char* msg);
-
 
 // ----------------------------------------------------------------------------
 // Deleter + smart pointer aliases (match C1)
@@ -161,7 +157,6 @@ unique_heap_ptr<T[]> make_heap_array(size_t count)
     return unique_heap_ptr<T[]>(static_cast<T*>(
         _HeapAlloc(Heap, 0, static_cast<DWORD>(count * sizeof(T)), MemoryTag::Global)));
 }
-
 
 // ----------------------------------------------------------------------------
 // Per-level arena (bump allocator backed by VirtualAlloc) -- match C1
@@ -297,7 +292,6 @@ private:
     const char* m_DebugName;
 };
 
-
 // ----------------------------------------------------------------------------
 // Size sanity checks (C2 ME addition -- not present in C1)
 // ----------------------------------------------------------------------------
@@ -315,7 +309,6 @@ static_assert(sizeof(unique_heap_ptr<WORD[]>) == sizeof(void*),
 static_assert(sizeof(unique_obj_ptr<int>) == sizeof(void*),
               "unique_obj_ptr<T> must be the same size as a raw pointer "
               "(empty base optimization on HeapDeleter must apply)");
-
 
 // ----------------------------------------------------------------------------
 // Leak detection (Phase 5F) -- only compiled when MEM_DEBUG is defined
@@ -393,6 +386,5 @@ LPVOID _HeapAllocImpl(HANDLE hHeap, DWORD dwFlags, DWORD dwBytes,
 #define _AllocTrack(size, tag) _HeapAlloc(Heap, 0, (size_t)(size), (tag))
 
 #endif // MEM_DEBUG
-
 
 #endif // HUNT_MEMORY_H

@@ -125,7 +125,6 @@ TBEGIN:
 				cptr->State = 0;
 			}
 
-
 		}
 	}
 
@@ -138,7 +137,6 @@ TBEGIN:
 	{
 		attacking = false;
 		cptr->AfraidTime = 0;
-
 
 		if (cptr->packId >= 0) {
 			float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
@@ -189,7 +187,6 @@ NOTHINK:
 				if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 			}
 
-
 		}
 
 		if (cptr->Clone == AI_LANDBRACH) {
@@ -198,7 +195,6 @@ NOTHINK:
 		else {
 			LookForAWay(cptr, true, true);
 		}
-
 
 		if (cptr->NoWayCnt > 12)
 		{
@@ -215,8 +211,6 @@ NOTHINK:
 			if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 		}
 	}
-
-
 
 	if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
 	if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
@@ -288,8 +282,6 @@ ENDPSELECT:
 
 	cptr->FTime %= cptr->pinfo->Animation[cptr->Phase].AniTime;
 
-
-
 	//========== rotation to tgalpha ===================//
 
 	float rspd, currspeed, tgbend;
@@ -344,7 +336,6 @@ SKIPROT:
 	DeltaFunc(cptr->vspeed, curspeed, TimeDt / 1024.f);
 	cptr->pos.x += cptr->lookx * cptr->vspeed * TimeDt;
 	cptr->pos.z += cptr->lookz * cptr->vspeed * TimeDt;
-	
 
 	ThinkY_Beta_Gamma(cptr, 256, 128, 0.1f, 0.2f);
 	DeltaFunc(cptr->gamma, cptr->tggamma, TimeDt / 4048.f);

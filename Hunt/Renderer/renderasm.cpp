@@ -33,8 +33,6 @@ x1, Y1, tx1, ty1, lt1, zdepth1,
 x2, y2, tx2, ty2, lt2, zdepth2,
 x3, y3, tx3, ty3, lt3, zdepth3;
 
-
-
 extern int dx1, dx2, dx3,
 dtx1, dty1, dlt1,
 dtx2, dty2, dlt2,
@@ -95,7 +93,6 @@ void HLineTDGlass50( void )
       cmp      xa16,0;
       jge L011
 
-
       mov   eax,ctdy;
       imul  xa16
       sub   ebx,eax
@@ -129,7 +126,6 @@ void HLineTDGlass50( void )
       push     ebp
       add      edi,esi
       mov      ebp,lpTextureAddr
-
 
     }
   }
@@ -200,8 +196,6 @@ void HLineTDGlass50( void )
       jz END_PAINT
 } L022:
 
-
-
     __asm
     {
       mov      edi, Y1
@@ -213,7 +207,6 @@ void HLineTDGlass50( void )
       push     ebp
       add      edi,esi
       mov      ebp,lpTextureAddr
-
 
     }
   }
@@ -249,11 +242,6 @@ L9:
 END_PAINT: ;
 
 }
-
-
-
-
-
 
 void HLineTDGlass25( void )
 {
@@ -303,7 +291,6 @@ void HLineTDGlass25( void )
       cmp      xa16,0;
       jge L011
 
-
       mov   eax,ctdy;
       imul  xa16
       sub   ebx,eax
@@ -337,7 +324,6 @@ void HLineTDGlass25( void )
       push     ebp
       add      edi,esi
       mov      ebp,lpTextureAddr
-
 
     }
   }
@@ -408,8 +394,6 @@ void HLineTDGlass25( void )
       jz END_PAINT
 } L022:
 
-
-
     __asm
     {
       mov      edi, Y1
@@ -421,7 +405,6 @@ void HLineTDGlass25( void )
       push     ebp
       add      edi,esi
       mov      ebp,lpTextureAddr
-
 
     }
   }
@@ -459,10 +442,6 @@ L9:
 END_PAINT: ;
 
 }
-
-
-
-
 
 void HLineTDGlass75( void )
 {
@@ -511,7 +490,6 @@ void HLineTDGlass75( void )
       cmp      xa16,0;
       jge L011
 
-
       mov   eax,ctdy;
       imul  xa16
       sub   ebx,eax
@@ -545,7 +523,6 @@ void HLineTDGlass75( void )
       push     ebp
       add      edi,esi
       mov      ebp,lpTextureAddr
-
 
     }
   }
@@ -615,8 +592,6 @@ void HLineTDGlass75( void )
       jz END_PAINT
 } L022:
 
-
-
     __asm
     {
       mov      edi, Y1
@@ -628,7 +603,6 @@ void HLineTDGlass75( void )
       push     ebp
       add      edi,esi
       mov      ebp,lpTextureAddr
-
 
     }
   }
@@ -668,16 +642,6 @@ L9:
 END_PAINT: ;
 
 }
-
-
-
-
-
-
-
-
-
-
 
 void HLineTBGlass25( void )
 {
@@ -726,7 +690,6 @@ void HLineTBGlass25( void )
       cmp      xa16,0;
       jge L011
 
-
       mov   eax,ctdy;
       imul  xa16
       sub   ebx,eax
@@ -760,7 +723,6 @@ void HLineTBGlass25( void )
       push     ebp
       add      edi,esi
       mov      ebp,lpTextureAddr
-
 
     }
   }
@@ -829,8 +791,6 @@ void HLineTBGlass25( void )
       sub ecx,xa16
       jz END_PAINT
 } L022:
-
-
 
     __asm
     {
@@ -882,22 +842,6 @@ L9:
 END_PAINT: ;
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 void HLineTxGOURAUD( void )
 {
@@ -991,7 +935,6 @@ void HLineTxGOURAUD( void )
       add      edi,esi
       mov      esp,lpTextureAddr
 
-
     }
   }
   else
@@ -1070,8 +1013,6 @@ void HLineTxGOURAUD( void )
       jz END_PAINT
 } L022:
 
-
-
     __asm
     {
       mov      edi, Y1
@@ -1113,7 +1054,6 @@ L9:
     mov      word ptr[edi], ax
     add      edi,2
 
-
     dec      ecx
     jnz      L9
     mov esp,_sp
@@ -1122,11 +1062,7 @@ L9:
 END_PAINT:
   __asm pop ebp
 
-
 } // HLineTxA //
-
-
-
 
 void HLineTxB( void )
 {
@@ -1219,7 +1155,6 @@ void HLineTxB( void )
       add      edi,esi
       mov      esp,lpTextureAddr
 
-
     }
   }
   else
@@ -1297,8 +1232,6 @@ void HLineTxB( void )
       jz END_PAINT
 } L022:
 
-
-
     __asm
     {
       mov      edi, Y1
@@ -1310,7 +1243,6 @@ void HLineTxB( void )
       mov      _sp,esp
       add      edi,esi
       mov      esp,lpTextureAddr
-
 
     }
   }
@@ -1348,19 +1280,7 @@ L9:
 END_PAINT:
   __asm pop ebp
 
-
 } // HLineTxA //
-
-
-
-
-
-
-
-
-
-
-
 
 void HLineTxC( void )
 {
@@ -1451,7 +1371,6 @@ void HLineTxC( void )
       add      edi,esi
       mov      esp,lpTextureAddr
 
-
     }
   }
   else
@@ -1527,7 +1446,6 @@ void HLineTxC( void )
       jz END_PAINT
 } L022:
 
-
     __asm
     {
       mov      edi, Y1
@@ -1576,12 +1494,6 @@ L9:
 END_PAINT:
   __asm pop ebp
 } // HLineTxC //
-
-
-
-
-
-
 
 void HLineTxModel( void )
 {
@@ -1660,7 +1572,6 @@ void HLineTxModel( void )
       add      edi,esi
       mov      esp,lpTextureAddr
 
-
     }
   }
   else
@@ -1726,8 +1637,6 @@ void HLineTxModel( void )
       jz END_PAINT
 } L022:
 
-
-
     __asm
     {
       mov      edi, Y1
@@ -1781,7 +1690,6 @@ L9:
     jmp END_PAINT
   }
 
-
 //================ opacity loop ==========================//
 L10:
   __asm
@@ -1807,7 +1715,6 @@ L10:
     mov esp,_sp
     jmp END_PAINT
   }
-
 
 //================ opacity loop ==========================//
 L11:
@@ -1839,14 +1746,9 @@ L11:
     mov esp,_sp
   }
 
-
 END_PAINT:
   __asm pop ebp
 } // HLineTxModel //
-
-
-
-
 
 void HLineTxModel2( void )
 {
@@ -1925,7 +1827,6 @@ void HLineTxModel2( void )
       add      edi,esi
       mov      esp,lpTextureAddr
 
-
     }
   }
   else
@@ -1991,8 +1892,6 @@ void HLineTxModel2( void )
       jz END_PAINT
 } L022:
 
-
-
     __asm
     {
       mov      edi, Y1
@@ -2042,7 +1941,6 @@ L9:
     jmp END_PAINT
   }
 
-
 //================ opacity loop ==========================//
 L10:
   __asm
@@ -2071,12 +1969,6 @@ L10:
 END_PAINT:
   __asm pop ebp
 } // HLineTxModel //
-
-
-
-
-
-
 
 void HLineTxModel3( void )
 {
@@ -2155,7 +2047,6 @@ void HLineTxModel3( void )
       add      edi,esi
       mov      esp,lpTextureAddr
 
-
     }
   }
   else
@@ -2221,8 +2112,6 @@ void HLineTxModel3( void )
       jz END_PAINT
 } L022:
 
-
-
     __asm
     {
       mov      edi, Y1
@@ -2272,7 +2161,6 @@ L9:
     jmp END_PAINT
   }
 
-
 //================ opacity loop ==========================//
 L10:
   __asm
@@ -2301,10 +2189,6 @@ L10:
 END_PAINT:
   __asm pop ebp
 } // HLineTxModel //
-
-
-
-
 
 void HLineTxModelBMP( void )
 {
@@ -2372,7 +2256,6 @@ void HLineTxModelBMP( void )
     add      edi,esi
     mov      esp,lpTextureAddr
 
-
     mov ebp, iModelFade
     sub edi,2
     //shl ebx,7
@@ -2404,13 +2287,6 @@ L10:
 END_PAINT:
   __asm pop ebp
 }
-
-
-
-
-
-
-
 
 void HLineTxModel25( void )
 {
@@ -2492,7 +2368,6 @@ void HLineTxModel25( void )
       add      edi,esi
       mov      esp,lpTextureAddr
 
-
     }
   }
   else
@@ -2560,8 +2435,6 @@ void HLineTxModel25( void )
       jz END_PAINT
 } L022:
 
-
-
     __asm
     {
       mov      edi, Y1
@@ -2593,7 +2466,6 @@ L9:
     cmp      eax,0
     je L10
 
-
     and      eax,0x739c*2
     shr      eax,3
     mov      si,word ptr [edi]
@@ -2609,7 +2481,6 @@ L9:
     add      edx,ctdx
     add      ebx,ctdy
 
-
     dec      ecx
     jnz      L9
     mov esp,_sp
@@ -2618,11 +2489,6 @@ L9:
 END_PAINT:
   __asm pop ebp
 } // HLineTxModel //
-
-
-
-
-
 
 void HLineTxModel50( void )
 {
@@ -2705,7 +2571,6 @@ void HLineTxModel50( void )
       add      edi,esi
       mov      esp,lpTextureAddr
 
-
     }
   }
   else
@@ -2773,8 +2638,6 @@ void HLineTxModel50( void )
       jz END_PAINT
 } L022:
 
-
-
     __asm
     {
       mov      edi, Y1
@@ -2807,7 +2670,6 @@ L9:
     cmp      eax,0
     je L10
 
-
     and      eax,0x7bde*2
     mov      si,word ptr [edi]
     shr      eax,1
@@ -2822,7 +2684,6 @@ L9:
     add      edx,ctdx
     add      ebx,ctdy
 
-
     dec      ecx
     jnz      L9
     mov esp,_sp
@@ -2831,12 +2692,6 @@ L9:
 END_PAINT:
   __asm pop ebp
 } // HLineTxModel //
-
-
-
-
-
-
 
 void HLineTxModel75( void )
 {
@@ -2919,7 +2774,6 @@ void HLineTxModel75( void )
       add      edi,esi
       mov      esp,lpTextureAddr
 
-
     }
   }
   else
@@ -2987,8 +2841,6 @@ void HLineTxModel75( void )
       jz END_PAINT
 } L022:
 
-
-
     __asm
     {
       mov      edi, Y1
@@ -3021,7 +2873,6 @@ L9:
     cmp      eax,0
     je L10
 
-
     and      eax,(0x739c*2)
     shr      eax,2
     neg      eax
@@ -3041,7 +2892,6 @@ L9:
     add      edx,ctdx
     add      ebx,ctdy
 
-
     dec      ecx
     jnz      L9
     mov esp,_sp
@@ -3050,29 +2900,6 @@ L9:
 END_PAINT:
   __asm pop ebp
 } // HLineTxModel //
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 void DrawTexturedFace()
 {
@@ -3130,7 +2957,6 @@ L23:  v3 = 2;
 L24:
 //==== End find v1,v3 ==================================================}
 
-
 //        ;{=== find v2 ====}
 L30:
 
@@ -3178,7 +3004,6 @@ L39:
     add eax,8000h
     mov      lt1,eax
 
-
     mov      ebx,v2
     shl      ebx,5
     mov      eax,dword ptr[offset scrp + ebx]
@@ -3194,7 +3019,6 @@ L39:
     add eax,8000h
     mov      lt2,eax
 
-
     mov      ebx,v3
     shl      ebx,5
     mov      eax,dword ptr[offset scrp + ebx]
@@ -3209,9 +3033,6 @@ L39:
     shl eax,16
     add eax,8000h
     mov      lt3,eax
-
-
-
 
 //======================================== calc l1,l2,l3 =============//
     mov eax,y2
@@ -3434,12 +3255,6 @@ L303:
 L400: ;
 }
 
-
-
-
-
-
-
 void DrawModelFace()
 {
   __asm
@@ -3495,7 +3310,6 @@ L22:
 L23:  v3 = 2;
 L24:
 //==== End find v1,v3 ==================================================}
-
 
 //        ;{=== find v2 ====}
 L30:
@@ -3562,11 +3376,8 @@ L39:
     mov      eax,dword ptr[offset mscrp + 12 + ebx]
     mov      ty3,eax
 
-
     cmp y3,0
     jl L400
-
-
 
 //======================================== calc l1,l2,l3 =============//
     mov eax,y2
@@ -3587,7 +3398,6 @@ L39:
     mov eax,ty1
     mov tya,eax
     mov tyb,eax
-
 
     mov eax,x1
     shl eax,16
@@ -3630,7 +3440,6 @@ L101:
     lea      ebx,[offset DivTbl + ebx*4]
     mov ebx,[ebx]
 
-
     mov  eax,tx3
     sub  eax,tx2
     imul ebx
@@ -3659,7 +3468,6 @@ L102:
 
     lea      ebx,[offset DivTbl + ebx*4]
     mov ebx,[ebx]
-
 
     mov  eax,tx3
     sub  eax,tx1
@@ -3764,10 +3572,6 @@ L303:
 L400: ;
 }
 
-
-
-
-
 void DrawModelFaces()
 {
 
@@ -3792,9 +3596,6 @@ LBEGIN:
     and      eax, (0x0004+0x0008)
     mov      OpacityMode,eax
     //mov      iModelFade,ebx
-
-
-
 
     mov      eax, [edi+0]
 	mov      ebx, gScrp
@@ -3856,7 +3657,6 @@ L23:  v3 = 2;
 L24:
 //==== End find v1,v3 ==================================================}
 
-
 //        ;{=== find v2 ====}
 L30:
 
@@ -3907,8 +3707,6 @@ L39:
     mov      eax,dword ptr[eax + 4 + ebx]
     mov      Y1,eax
 
-
-
     mov      ebx,v2
 
     mov      eax, [edi + ebx*4 + 12]
@@ -3924,7 +3722,6 @@ L39:
 	mov      eax, gScrp
 	mov      eax,dword ptr[eax + 4 + ebx]
     mov      y2,eax
-
 
     mov      ebx,v3
 
@@ -3942,11 +3739,8 @@ L39:
 	mov      eax,dword ptr[eax + 4 + ebx]
     mov      y3,eax
 
-
     cmp y3,0
     jl L400
-
-
 
 //======================================== calc l1,l2,l3 =============//
     mov eax,y2
@@ -3967,7 +3761,6 @@ L39:
     mov eax,ty1
     mov tya,eax
     mov tyb,eax
-
 
     mov eax,x1
     shl eax,16
@@ -4006,7 +3799,6 @@ L101:
     jle L102
     mov      ebx, [offset DivTbl + ebx*4]
 
-
     mov  eax,tx3
     sub  eax,tx2
     imul ebx
@@ -4033,7 +3825,6 @@ L102:
     cmp ebx,0
     jle L103
     mov      ebx, [offset DivTbl + ebx*4]
-
 
     mov  eax,tx3
     sub  eax,tx1
@@ -4141,37 +3932,6 @@ L400:
 
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 void RenderSkyLine(int y)
 {
   __asm
@@ -4214,7 +3974,6 @@ void RenderSkyLine(int y)
     pop ebp
   }
 }
-
 
 void RenderSkyLineLo(int y)
 {
@@ -4260,9 +4019,6 @@ void RenderSkyLineLo(int y)
     pop ebp
   }
 }
-
-
-
 
 void RenderSkyLineFadeLo(int y, int FadeLevel)
 {
@@ -4313,9 +4069,6 @@ void RenderSkyLineFadeLo(int y, int FadeLevel)
   }
 }
 
-
-
-
 void RenderSkyLineFade(int y, int FadeLevel)
 {
   __asm
@@ -4362,11 +4115,6 @@ void RenderSkyLineFade(int y, int FadeLevel)
     pop ebp
   }
 }
-
-
-
-
-
 
 void DrawCorrectedTexturedFace()
 {
@@ -4424,7 +4172,6 @@ L23:  v3 = 2;
 L24:
 //==== End find v1,v3 ==================================================}
 
-
 //        ;{=== find v2 ====}
 L30:
 
@@ -4474,7 +4221,6 @@ L39:
     mov      eax,dword ptr[offset scrp + 20 + ebx]
     mov      zdepth1,eax
 
-
     mov      ebx,v2
     shl      ebx,5
     mov      eax,dword ptr[offset scrp + ebx]
@@ -4492,7 +4238,6 @@ L39:
     mov      eax,dword ptr[offset scrp + 20 + ebx]
     mov      zdepth2,eax
 
-
     mov      ebx,v3
     shl      ebx,5
     mov      eax,dword ptr[offset scrp + ebx]
@@ -4509,7 +4254,6 @@ L39:
     mov      lt3,eax
     mov      eax,dword ptr[offset scrp + 20 + ebx]
     mov      zdepth3,eax
-
 
 //======================================== calc l1,l2,l3 =============//
     mov eax,y2
@@ -4718,8 +4462,6 @@ L203:
     inc Y1
     jmp L201
   }
-
-
 
 //=============== 2->3 =================}
 L205:

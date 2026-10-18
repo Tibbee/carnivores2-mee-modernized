@@ -22,10 +22,6 @@ int CheckPlaceCollisionP(Vector3d &v, bool aquatic)
 	}
 	else if (F & (fmWater + fmNOWAY)) return 1;
 
-
-	
-
-
 	float h = GetLandH(v.x, v.z);
 	v.y = h;
 
@@ -128,8 +124,6 @@ int CheckPlaceCollisionFish(TCharacter *cptr, Vector3d &v, float mosaDepth, int 
 		(GetLandUpH(v.x - 256, v.z - 256) - GetLandH(v.x - 256, v.z - 256)) > maxDepth ||
 		(GetLandUpH(v.x + 256, v.z - 256) - GetLandH(v.x + 256, v.z - 256)) > maxDepth ||
 		(GetLandUpH(v.x - 256, v.z + 256) - GetLandH(v.x - 256, v.z + 256)) > maxDepth) return 1;
-
-
 
 	// #C1 REMOVE THESE
 	//if (mosaDepth > GetLandUpH(v.x, v.z) - 700) return 1;
@@ -270,7 +264,6 @@ int CheckPlaceCollision(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 			FMap[ccz + 1][ccx] | FMap[ccz][ccx + 1] | FMap[ccz + 1][ccx + 1]) & fmWater)
 			return 1;
 
-
 	float h = GetLandH(v.x, v.z);
 	if (!(FMap[ccz][ccx] & fmWater))
 		if (fabs(h - v.y) > 64) return 1;
@@ -325,7 +318,6 @@ int CheckPlaceCollisionMicro(TCharacter *cptr, Vector3d &v, BOOL wc, BOOL mc)
 			FMap[ccz][ccx] |
 			FMap[ccz + 1][ccx] | FMap[ccz][ccx + 1] | FMap[ccz + 1][ccx + 1]) & fmWater)
 			return 1;
-
 
 	float h = GetLandH(v.x, v.z);
 	if (!(FMap[ccz][ccx] & fmWater))

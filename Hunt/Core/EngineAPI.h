@@ -7,11 +7,9 @@
 #include "Core/GameTypes.h"
 #include "Core/GameState.h"
 
-
 void HLineTxB( void );
 void HLineTxC( void );
 void HLineTxGOURAUD( void );
-
 
 void HLineTxModel25( void );
 void HLineTxModel75( void );
@@ -25,7 +23,6 @@ void HLineTDGlass75( void );
 void HLineTDGlass50( void );
 void HLineTDGlass25( void );
 void HLineTBGlass25( void );
-
 
 void SetVideoMode(int, int);
 void SetFullScreen();
@@ -109,7 +106,6 @@ void CreateMorphedObject(TModel* mptr, TVTL &vtl, int FTime);
 void CreateMorphedModel(TModel* mptr, TAni *aptr, int FTime, float scale);
 void CreateMorphedModelBetaGamma(TModel* mptr, TAni *aptr, int FTime, float scale, float beta, float gamma);
 
-
 void CalcLights  (TModel* mptr);
 void CalcModelGroundLight(TModel *mptr, float x0, float z0, int FI);
 void CalcNormals (TModel* mptr, Vector3d *nvs);
@@ -143,14 +139,12 @@ int   TraceShot(float ax, float ay, float az,
 int   TraceLook(float ax, float ay, float az,
                 float bx, float by, float bz);
 
-
 void CheckCollision(float&, float&);
 // cachedFogIndex >= 0 reuses the map-cell lookup made by a caller that is
 // already walking the terrain grid; -1 preserves the general-purpose path.
 float CalcFogLevel(Vector3d v, int cachedFogIndex = -1);
 void AddMessage(LPCSTR mt);
 void CreateTMap();
-
 
 void LoadSky();
 void LoadSkyMap();
@@ -176,8 +170,6 @@ void ReleaseModel(unique_obj_ptr<TModel> &mptr);
 void ReleaseModelBuffers(TModel* mptr);
 void ReInitGame();
 
-
-
 void SaveScreenShot();
 
 #ifdef GL_PERF_HOOKS
@@ -192,8 +184,6 @@ void PerfTriggerCapture();
 // without measuring presentation/vsync wait. No-op when disabled.
 void PerfFrameBegin();
 void PerfFrameEnd();
-
-
 
 #endif
 // === TERRAIN QUERIES ===
@@ -241,7 +231,6 @@ void ProcessPlayerMovement();
 
 void AddShadowCircle(int x, int y, int R, int D);
 void PreCashGroundModel();
-
 
 void CreateWaterTab();
 void CreateFadeTab();
@@ -349,7 +338,6 @@ void Audio_SetEnvironment(int, float);
 bool Audio_SetEnvParam(int env, int field, float v);  // config.cfg envN_* tuning
 void Audio_UploadGeometry();
 
-
 //========== for 3d hardware =============//
 void ShowVideo();
 void Init3DHardware();
@@ -367,5 +355,4 @@ void EnumerateResolutions();
 void StartLoading();
 void EndLoading();
 void PrintLoad(char *t);
-
 

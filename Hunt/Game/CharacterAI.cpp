@@ -29,7 +29,6 @@ void ReactToHunterCall(Vector3d pos, int callIndex)
 		ApplyHunterStimulus(Characters[c], stimulus);
 }
 
-
 void CheckAfraid()
 {
 	if (!MyHealth) return;

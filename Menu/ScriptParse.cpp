@@ -53,7 +53,6 @@ public:
 	}
 };
 
-
 uint32_t g_ScriptLine = 0;
 
 static int ReadScriptIntValue(const char* value, const char* where)
@@ -120,7 +119,6 @@ static std::string ReadAssignedText(const char* value, const char* where)
 	return std::string(text, length);
 }
 
-
 void ReadWeapons(FILE*);
 void ReadCharacters(FILE*);
 void ReadAccessories(FILE*);
@@ -128,7 +126,6 @@ void ReadAccessoryIcons(FILE*);
 void ReadAccessoryDescriptions(FILE*);
 void ReadAccessoryPrices(FILE*);
 void LoadC2Maps();
-
 
 /*
  * Path of the missing half of an area's <basename>.map/.rsc pair, or an empty
@@ -159,7 +156,6 @@ std::string MissingAreaFile(const std::string& base)
 
 	return std::string();
 }
-
 
 /*
 ! DEPRECATED !
@@ -299,7 +295,6 @@ AreaInfo MakeOldAreaInfo(int index, int price)
 	return a;
 }
 
-
 /*
  * Skip a nested {} block in the _RES script.
  * Call this when encountering 'overwrite' or 'addition' keywords.
@@ -324,7 +319,6 @@ static void SkipNestedBlock(FILE* stream, char* line, int maxLine)
         }
     }
 }
-
 
 void ReadWeapons(FILE* stream)
 {
@@ -394,7 +388,6 @@ void ReadWeapons(FILE* stream)
 	}
 
 }
-
 
 void ReadCharacters(FILE* stream)
 {
@@ -497,7 +490,6 @@ void ReadCharacters(FILE* stream)
 	}
 }
 
-
 void ReadAreas(FILE* stream)
 {
 	char line[256], * value;
@@ -538,7 +530,6 @@ void ReadAreas(FILE* stream)
 
 	}
 }
-
 
 /*
  * ReadAccessories()
@@ -610,7 +601,6 @@ void ReadAccessories(FILE* stream)
 	std::cout << "Loaded " << count << " accessory score modifiers" << std::endl;
 }
 
-
 /*
  * LookupAccessoryScoreMod()
  *
@@ -628,7 +618,6 @@ float LookupAccessoryScoreMod(const std::string& key, float defaultValue)
 	}
 	return defaultValue;
 }
-
 
 /*
  * Accessory script keys
@@ -896,7 +885,6 @@ int32_t LookupAccessoryPrice(const std::string& scoreKey, const char* name,
 	return price ? *price : fallback;
 }
 
-
 void ReadPrices(FILE* stream)
 {
 	uint32_t CurA = 0;
@@ -962,7 +950,6 @@ void ReadPrices(FILE* stream)
 		}
 	}
 }
-
 
 /*
  * LoadC2Maps()
@@ -1200,7 +1187,6 @@ void LoadC2Maps()
 	          << " duplicates=" << duplicates
 	          << " total areas=" << g_AreaInfo.size() << std::endl;
 }
-
 
 void LoadResourcesScript()
 {

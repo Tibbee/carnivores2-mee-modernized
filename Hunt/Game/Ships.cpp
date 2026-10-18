@@ -90,7 +90,6 @@ void AnimateSShip() {
 		SShip.tgpos.z += static_cast<float>(sin(SShip.alpha)) * 256 * 6.f;
 	}
 
-
 	//====== speed ===============//
 	float vspeed = 64;
 	//if (fabs(dalpha) > 0.4) vspeed = 0.f;
@@ -112,8 +111,6 @@ void AnimateSShip() {
 		SShip.pos.y = h + 1024;
 	}
 
-
-
 	//======= rotation ============//
 
 	float tggamma = SShip.alpha;
@@ -122,7 +119,6 @@ void AnimateSShip() {
 	else currspeed = -0.1f - static_cast<float>(fabs(drspd)) / 2.f;
 
 	if (fabs(dalpha) > pi) currspeed = -currspeed;
-
 
 	DeltaFunc(SShip.rspeed, currspeed, static_cast<float>(TimeDt) / 420.f);
 
@@ -173,7 +169,6 @@ void AnimateSShip() {
 	//sqrt(bullet[b].dif.z*bullet[b].dif.z +
 	//	bullet[b].dif.x*bullet[b].dif.x), bullet[b].dif.y);
 
-	
 }
 void AnimateShip()
 {
@@ -217,14 +212,11 @@ void AnimateShip()
 
   Ship.pos.y+=0.3f*static_cast<float>(cos(RealTime / 256.f));
 
-
-
   Ship.tgalpha    = FindVectorAlpha(Ship.tgpos.x - Ship.pos.x, Ship.tgpos.z - Ship.pos.z);
   float currspeed;
   float dalpha = static_cast<float>(fabs(Ship.tgalpha - Ship.alpha));
   float drspd = dalpha;
   if (drspd>pi) drspd = 2*pi - drspd;
-
 
 //====== fly more away if I near =============//
   if (Ship.State)
@@ -238,8 +230,6 @@ void AnimateShip()
           Ship.tgpos.y = MAX(Ship.tgpos.y, GetLandUpH(Ship.pos.x, Ship.pos.z) + Ship.DeltaY);
         }
 //==============================//
-
-
 
 //========= animate down ==========//
   if (Ship.State==3)
@@ -256,7 +246,6 @@ void AnimateShip()
     }
     return;
   }
-
 
 //========= get body on board ==========//
   if (Ship.State)
@@ -286,7 +275,6 @@ void AnimateShip()
     }
   }
 //=====================================//
-
 
 //====== speed ===============//
   float vspeed = 1.f + L / 128.f;
@@ -345,15 +333,12 @@ void AnimateShip()
     Ship.pos.y = h + 1024;
   }
 
-
-
 //======= rotation ============//
 
   if (Ship.tgalpha > Ship.alpha) currspeed = 0.1f + static_cast<float>(fabs(drspd))/2.f;
   else currspeed =-0.1f - static_cast<float>(fabs(drspd))/2.f;
 
   if (fabs(dalpha) > pi) currspeed=-currspeed;
-
 
   DeltaFunc(Ship.rspeed, currspeed, static_cast<float>(TimeDt) / 420.f);
 
@@ -391,7 +376,5 @@ void AnimateShip()
     Ship.tgpos.y = GetLandUpH(Ship.tgpos.x, Ship.tgpos.z) + Ship.DeltaY;
     Ship.tgpos.y = MAX(Ship.tgpos.y, GetLandUpH(Ship.pos.x, Ship.pos.z) + Ship.DeltaY);
   }
-
-
 
 }

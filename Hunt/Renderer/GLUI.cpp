@@ -84,8 +84,6 @@ void PerfFrameEnd()
 }
 #endif
 
-
-
 void Init3DHardware()
 {
     LOG_INFO("Init3DHardware (OpenGL) started");

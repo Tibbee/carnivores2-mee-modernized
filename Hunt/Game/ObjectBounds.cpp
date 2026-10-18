@@ -255,7 +255,6 @@ void CalcBoundBox(TModel* mptr, TBound *bound)
     fitZ.clear();
     fitY.clear();
 
-
     for (int v=0; v<mptr->VCount; v++)
     {
       TPoint3d p = mptr->gVertex[v];

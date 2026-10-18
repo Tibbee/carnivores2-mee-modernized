@@ -98,19 +98,6 @@ void BuildTreeNoSort()
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 void BuildTreeClip()
 {
   Current = -1;
@@ -145,8 +132,6 @@ void BuildTreeClip()
   }
 }
 
-
-
 void BuildTreeClipNoSort()
 {
   Current = -1;
@@ -178,23 +163,6 @@ void BuildTreeClipNoSort()
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int VT, float al, float bt)
 {
   int f,CMASK;
@@ -207,8 +175,6 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
   float cb = static_cast<float>(cos(bt));
   float sb = static_cast<float>(sin(bt));
 
-
-
   __asm
   {
     mov eax,light
@@ -218,7 +184,6 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
     mov iModelFade,eax
     mov iModelBaseFade,eax
   }
-
 
   HLineT = (void*) HLineTxModel;
   lpTextureAddr = mptr->lpTexture.get();
@@ -248,7 +213,6 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
       if (sy>=WinEY) f+=4;
       if (sy<=0    ) f+=8;
 
-
       if (f)
       {
         gScrp[s].x = 0xFFFFFF;
@@ -273,7 +237,6 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
 
     vused = 3;
     TFace *fptr = &mptr->gFace[f];
-
 
 //======== if face fully on screen NO 3D CLIPPING ====================/
     if (!waterclip)
@@ -303,13 +266,11 @@ void RenderModelClip(TModel* _mptr, float x0, float y0, float z0, int light, int
         goto LNEXT;
       }
 
-
     CMASK = 0;
     if (gScrp[fptr->v1].x == 0xFFFFFF) CMASK|=gScrp[fptr->v1].y;
     if (gScrp[fptr->v2].x == 0xFFFFFF) CMASK|=gScrp[fptr->v2].y;
     if (gScrp[fptr->v3].x == 0xFFFFFF) CMASK|=gScrp[fptr->v3].y;
 //  CMASK = 0xFF;
-
 
     cp[0].ev.v = rVertex[fptr->v1];
     cp[0].tx = fptr->tax;
@@ -387,10 +348,6 @@ LNEXT:
   }
 }
 
-
-
-
-
 void RenderModelClipWater(TModel* _mptr, float x0, float y0, float z0, int light, int VT, float al, float bt)
 {
   int f;
@@ -403,8 +360,6 @@ void RenderModelClipWater(TModel* _mptr, float x0, float y0, float z0, int light
   float cb = static_cast<float>(cos(bt));
   float sb = static_cast<float>(sin(bt));
 
-
-
   __asm
   {
     mov eax,light
@@ -414,7 +369,6 @@ void RenderModelClipWater(TModel* _mptr, float x0, float y0, float z0, int light
     mov iModelFade,eax
     mov iModelBaseFade,eax
   }
-
 
 //=================== select mipmap & glass =============================//
 
@@ -439,8 +393,6 @@ void RenderModelClipWater(TModel* _mptr, float x0, float y0, float z0, int light
       HLineT = (void*) HLineTxModel3;
     }
 
-
-
   BOOL BL = false;
   float sg;
   for (int s=0; s<mptr->VCount; s++)
@@ -463,7 +415,6 @@ void RenderModelClipWater(TModel* _mptr, float x0, float y0, float z0, int light
   if (fabs(z0) + fabs(x0)>256*10)
     BuildTreeClipNoSort();
   else BuildTreeClip();
-
 
   f = Current;
   while( f!=-1 )
@@ -536,15 +487,6 @@ LNEXT:
   }
 }
 
-
-
-
-
-
-
-
-
-
 void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT, float al, float bt)
 {
   int f;
@@ -561,8 +503,6 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
   int maxx =-10241024;
   int miny = 10241024;
   int maxy =-10241024;
-
-
 
   __asm
   {
@@ -595,9 +535,6 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
       HLineT = (void*) HLineTxModel3;
     }
 
-
-
-
   for (int s=0; s<mptr->VCount; s++)
   {
     rVertex[s].x = (mptr->gVertex[s].x * ca + mptr->gVertex[s].z * sa)   + x0;
@@ -626,7 +563,6 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
   if (fabs(z0) + fabs(x0)>256*10)
     BuildTreeNoSort();
   else BuildTree();
-
 
   if (Current != -1) DrawModelFaces();
   return;
@@ -659,15 +595,11 @@ void RenderModel(TModel* _mptr, float x0, float y0, float z0, int light, int VT,
   }
 }
 
-
-
-
 void RenderBMPModel(TBMPModel* _mptr, float x0, float y0, float z0, int light)
 {
   int f;
 
   TBMPModel *mptr = _mptr;
-
 
   int minx = 10241024;
   int maxx =-10241024;
@@ -684,10 +616,8 @@ void RenderBMPModel(TBMPModel* _mptr, float x0, float y0, float z0, int light)
     mov iModelBaseFade,eax
   }
 
-
   lpTextureAddr = mptr->lpTexture.get();
   HLineT = (void*) HLineTxModel2;
-
 
   for (int s=0; s<4; s++)
   {
@@ -736,12 +666,6 @@ void RenderBMPModel(TBMPModel* _mptr, float x0, float y0, float z0, int light)
   }
 }
 
-
-
-
-
-
-
 void RenderNearModel(TModel* _mptr, float x0, float y0, float z0, int light, float al, float bt)
 {
   int f;
@@ -754,7 +678,6 @@ void RenderNearModel(TModel* _mptr, float x0, float y0, float z0, int light, flo
   float cb = static_cast<float>(cos(bt));
   float sb = static_cast<float>(sin(bt));
 
-
   //light = 0;
   __asm
   {
@@ -765,7 +688,6 @@ void RenderNearModel(TModel* _mptr, float x0, float y0, float z0, int light, flo
     mov iModelFade,eax
     mov iModelBaseFade,eax
   }
-
 
   HLineT = (void*) HLineTxModel;
   lpTextureAddr = mptr->lpTexture.get();
@@ -825,7 +747,6 @@ void RenderNearModel(TModel* _mptr, float x0, float y0, float z0, int light, flo
     scrp[0].tx    = cp[0].tx;
     scrp[0].ty    = cp[0].ty;
 
-
     OpacityMode = (fptr->Flags & (sfOpacity + sfTransparent));
     if (CORRECTION) Soft_Persp_K = 2.0f;
     else Soft_Persp_K = 0.0f;
@@ -847,11 +768,5 @@ LNEXT:
     f = mptr->gFace[f].Next;
   }
 }
-
-
-
-
-
-
 
 #endif // _soft

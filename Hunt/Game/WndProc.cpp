@@ -156,7 +156,6 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     else cheati=0;
   }
 
-
   switch (message)
   {
   case WM_CREATE:
@@ -182,7 +181,6 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
       return 0;
     }
     break;
-
 
   case WM_KEYDOWN:
   {
@@ -298,7 +296,6 @@ LONG APIENTRY MainWndProc( HWND hWnd, UINT message, UINT wParam, LONG lParam)
     case 'T':
       if (DEBUG && CTRL) SwitchMode("Timer",TIMER);
       break;
-
 
     case 'M':
       if (DEBUG && CTRL) SwitchMode("Draw 3D models",MODELS);

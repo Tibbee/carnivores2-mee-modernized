@@ -39,13 +39,9 @@ GLOBAL   int   UnderWaterT;
 
 GLOBAL   int   TotalTreeTable, TotalAreaInfo, TotalSpawnGroup, TotalC, TotalW, TotalMA, TotalTrophy;// , TotalRegion, TotalAvoid;
 
-
 GLOBAL   WSADATA wsaData;
 
 GLOBAL   int iResult;
-
-
-
 
 GLOBAL   struct addrinfo *result;
 
@@ -636,7 +632,6 @@ constexpr uint32_t kGpuFeaturesDefault =
 
 GLOBAL int  OptFpsLimit;
 
-
 GLOBAL float UIScale;
 
 GLOBAL int  CurRes, ResCount;
@@ -684,7 +679,6 @@ GLOBAL void UploadGeometry();
 GLOBAL int Env;
 
 GLOBAL BOOL HARD3D;
-
 
 GLOBAL char KeysName[256][24];
 

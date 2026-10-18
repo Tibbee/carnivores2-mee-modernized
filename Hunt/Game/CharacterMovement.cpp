@@ -25,7 +25,6 @@ replace1:
 	Characters[ChCount].pos.y = GetLandH(Characters[ChCount].pos.x,
 		Characters[ChCount].pos.z);
 
-	
 	BOOL outside = true;
 	for (int sr = 0; sr < spawnGroup[Characters[ChCount].SpawnGroupType].spawnRegionCh; sr++) {
 		if (Characters[ChCount].pos.x > spawnGroup[Characters[ChCount].SpawnGroupType].spawnRegion[sr].XMin * 256 &&
@@ -50,7 +49,6 @@ replace1:
 			DinoInfo[Characters[ChCount].CType].minDepth,
 			DinoInfo[Characters[ChCount].CType].maxDepth)) goto replace1;
 	} else if (CheckPlaceCollisionP(Characters[ChCount].pos, Characters[ChCount].cpcpAquatic)) goto replace1;
-	
 
 	if (fabs(Characters[ChCount].pos.x - PlayerX) +
 		fabs(Characters[ChCount].pos.z - PlayerZ) < 256 * 40)

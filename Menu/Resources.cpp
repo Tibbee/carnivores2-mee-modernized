@@ -141,7 +141,6 @@ void LoadResources()
 	g_ObserverInfo.m_Command = "-observe -observer";
 	g_ObserverInfo.m_ScoreMod = LookupAccessoryScoreMod("observe", 1.0f); // neutral
 
-
 	LoadWave(g_MenuSound_Go, "huntdat/soundfx/menugo.wav");
 	LoadWave(g_MenuSound_Ambient, "huntdat/soundfx/menuamb.wav");
 	LoadWave(g_MenuSound_Move, "huntdat/soundfx/menumov.wav");
@@ -156,7 +155,6 @@ void LoadResources()
 		diagnostics.Clear();
 	}
 }
-
 
 void ReleaseResources()
 {

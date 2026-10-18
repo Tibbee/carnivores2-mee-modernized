@@ -142,7 +142,6 @@ void TrophyLoad(Profile& profile, int pr)
 	std::cout << "Profile Loaded." << std::endl;
 }
 
-
 void TrophySave(Profile& profile)
 {
 	std::stringstream fname;
@@ -207,7 +206,6 @@ void TrophyDelete(uint32_t trophy_index)
 	std::cout << "Deleting trophy: \'" << fp << "\'" << std::endl;
 	std::filesystem::remove(fp);
 }
-
 
 void Profile::New(const std::string& name, int32_t index)
 {

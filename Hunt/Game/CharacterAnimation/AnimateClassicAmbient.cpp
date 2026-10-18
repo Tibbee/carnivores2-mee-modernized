@@ -58,7 +58,6 @@ TBEGIN:
 	else
 		cptr->StateF &= (!csONWATER);
 
-
 	//=========== run away =================//
 
 	if (cptr->State)
@@ -104,7 +103,6 @@ TBEGIN:
 			}
 		} else if (cptr->packId >= 0) Packs[cptr->packId].alert = true;
 
-
 		if (TracksHunterExactly(cptr)) {
 			nv.x = playerdx[0];
 			nv.z = playerdz[0];
@@ -128,7 +126,6 @@ TBEGIN:
 	// to allow smoothstep fade-out to complete
 	if (pdistSq[0] > ((charViewR + 20 + 4) * 256) * ((charViewR + 20 + 4) * 256) && cptr->CType)
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
-
 
 	//======== exploring area ===============//
 	if (!cptr->State)
@@ -188,7 +185,6 @@ TBEGIN:
 		}
 	}
 
-
 	//============================================//
 
 	if (cptr->NoFindCnt) cptr->NoFindCnt--;
@@ -232,7 +228,6 @@ TBEGIN:
 	}
 
 	if (NewPhase)
-
 
 		if (!cptr->State)
 		{
@@ -280,8 +275,6 @@ ENDPSELECT:
 
 	cptr->FTime %= cptr->pinfo->Animation[cptr->Phase].AniTime;
 
-
-
 	//========== rotation to tgalpha ===================//
 
 	float rspd, currspeed, tgbend;
@@ -314,11 +307,9 @@ ENDPSELECT:
 	if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 800.f);
 	else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 400.f);
 
-
 	rspd = cptr->rspeed * TimeDt / 1024.f;
 	if (drspd < fabs(rspd)) cptr->alpha = cptr->tgalpha;
 	else cptr->alpha += rspd;
-
 
 	if (cptr->alpha > pi * 2) cptr->alpha -= pi * 2;
 	if (cptr->alpha < 0) cptr->alpha += pi * 2;

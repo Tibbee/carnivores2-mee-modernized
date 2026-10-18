@@ -73,7 +73,6 @@ void PlaceTrophy()
 //		Characters[ChCount].tropIndex = c;
 
 //		if (DinoInfo[Characters[ChCount].CType].tCounter >= DinoInfo[TrophyIndex[TrophyRoom2.Body[c].ctype]].trophyTypeCount) continue;
-		
 
 		//Characters[ChCount].CType = TrophyRoom.Body[c].ctype;
 
@@ -83,11 +82,8 @@ void PlaceTrophy()
 		else if (c < 18) Characters[ChCount].alpha = pi * 3 / 2;
 		else			*/
 
-
-
 		ResetCharacter(&Characters[ChCount]);
 
-		
 		Characters[ChCount].State = c;
 		Characters[ChCount].scale = TrophyRoom2.Body[c].scale;
 		
@@ -107,7 +103,6 @@ void PlaceTrophy()
 
 		Characters[ChCount].Phase = trophyType[c].anim;
 		Characters[ChCount].PrevPhase = Characters[ChCount].Phase;
-
 
 		Characters[ChCount].pos.y = GetLandH(Characters[ChCount].pos.x,
 			Characters[ChCount].pos.z);
@@ -148,27 +143,8 @@ void PlaceTrophy()
 	}
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 void spawnPositionPackLeader() {
 	TSpawnRegion *sr = &spawnGroup[Characters[ChCount].SpawnGroupType].spawnRegion[rRand(spawnGroup[Characters[ChCount].SpawnGroupType].spawnRegionCh - 1)];
-
-	
 
 	Characters[ChCount].pos.x = sr->XMin * 256
 		+ abs(rRand(sr->XMax - sr->XMin) * 256);
@@ -176,7 +152,6 @@ void spawnPositionPackLeader() {
 	Characters[ChCount].pos.z = sr->YMin * 256
 		+ abs(rRand(sr->YMax - sr->YMin) * 256);
 }
-
 
 void spawnPositionPackFollower(int leader) {
 	//spawn on same spot, so the pack doesn't spawn over a cliff edge or something
@@ -214,7 +189,6 @@ replace2:
 
 	ResetCharacter(&Characters[ChCount]);
 	ChCount++;
-
 
 }
 */
@@ -258,7 +232,6 @@ replace2:
 	tr++;
 	if (tr > 10240) return false;
 
-
 	// Survival regions are authored around the hunter. A large view-distance
 	// setting can exceed the entire region, so it cannot be used as a spawn
 	// exclusion radius here; the shared 40-cell safety check still applies.
@@ -284,8 +257,6 @@ replace2:
 		if (wy > DinoInfo[Characters[ChCount].CType].maxDepth) goto replaceSMA;
 	}
 
-
-
 	if (spawnGroup[Characters[ChCount].SpawnGroupType].avoidRegionCh) {
 		for (int ar = 0; ar < spawnGroup[Characters[ChCount].SpawnGroupType].avoidRegionCh; ar++) {
 			if (Characters[ChCount].pos.x > spawnGroup[Characters[ChCount].SpawnGroupType].avoidRegion[ar].XMin * 256 &&
@@ -309,10 +280,6 @@ replace2:
 		if (CheckPlaceCollisionP(Characters[ChCount].pos, true)) goto replaceSMA;
 	}
 	else if (CheckPlaceCollisionP(Characters[ChCount].pos, false)) goto replaceSMA;
-
-
-	
-	
 
 	Characters[ChCount].tgx = Characters[ChCount].pos.x;
 	Characters[ChCount].tgz = Characters[ChCount].pos.z;
@@ -341,11 +308,6 @@ replace2:
 	ResetCharacter(&Characters[ChCount]);
 	return true;
 }
-
-
-
-
-
 
 //multiplayer
 void PlaceMHunters() {
@@ -381,9 +343,6 @@ void PlaceMHunters() {
 	HunterCount = 1;
 
 }
-
-
-
 
 void dispSighting(int dii, int xx, int zz) {
 
@@ -490,7 +449,6 @@ void dispSighting(int dii, int xx, int zz) {
 			foundLoc = true;
 		}
 	}
-
 
 	if (!foundLoc) {
 		int locc;
@@ -619,7 +577,6 @@ void PlaceCharacters()
 	//TODO - NO PACK HUNTING WITH MOVEFORWARD
 	//TODO - HALF AMBIENT SPAWN AT NIGHT MANUALLY IN RES?
 
-
 	if (!RestartMode) {
 
 		for (int di = 0; di < DINOINFO_MAX; di++) {
@@ -689,8 +646,6 @@ void PlaceCharacters()
 
 	for (int sg = 0; sg < TotalSpawnGroup; sg++){
 	//for (TSpawnGroup sg : spawnGroup) {
-		
-		
 
 		if (spawnGroup[sg].packIndexCh) {
 			RequireSpawnCount(spawnGroup[sg].packIndexCh, kSpawnLinkCapacity,
@@ -840,7 +795,6 @@ void PlaceCharacters()
 
 					ChCount++;
 
-
 					//pack members
 					if (packNo > 1) {
 						RequireSpawnCapacity(PackCount, kPackCapacity, "pack");
@@ -891,17 +845,12 @@ void PlaceCharacters()
 
 				if (tr > 10500) break;
 
-
-
 			}
 		}
 		
 	}
 
 	//END NEW SYSTEM
-
-
-
 
 	//======== lohs =========//
 	/*
@@ -935,7 +884,6 @@ void PlaceCharacters()
 		Characters[ChCount].tgz = Characters[ChCount].pos.z;
 		Characters[ChCount].tgtime = 0;
 
-
 		ChCount++;
 	}
 	*/
@@ -963,7 +911,6 @@ void PlaceCharacters()
 	}
 	*/
 
-
 	//MAP AMBIENTS
 
 	/*
@@ -974,7 +921,6 @@ void PlaceCharacters()
 		for (int r = 0; r < DinoInfo[DinoInfoIndex].RegionCount; r++) {
 
 			int RegionNo = DinoInfo[DinoInfoIndex].RType0[r];
-
 
 			//spawn count
 			int SpwnMax = Region[RegionNo].SpawnMax;
@@ -1049,14 +995,10 @@ void PlaceCharacters()
 
 			}
 
-
 		}
-
 
 	}
 	*/
-
-
 
 	// main
 	/*
@@ -1065,7 +1007,6 @@ void PlaceCharacters()
 	TDi[0] = 10;
 	for (c = 10; c < 20; c++)
 		if (TargetDino & (1 << c)) TDi[TC++] = c;
-
 
 	MC = 8 + OptDens / 30 + rRand(6);
 	tr = 0;
@@ -1081,9 +1022,6 @@ void PlaceCharacters()
 		//else Characters[ChCount].CType = AI_to_CIndex[ TDi[rRand(TC-1)] ];
 
 		//Characters[ChCount].CType = AI_to_CIndex[10] + 7;//rRand(3);
-
-		
-
 
 		int DinoInfoIndex = Characters[ChCount].CType;
 

@@ -61,7 +61,6 @@ void CreateLog()
 	PrintLogSeparater();
 }
 
-
 void CloseLogs()
 {
 #ifdef _DEBUG
@@ -70,12 +69,10 @@ void CloseLogs()
 #endif //_DEBUG
 }
 
-
 void PrintLogSeparater()
 {
 	std::cout << std::setfill('=') << std::setw(40) << "=" << std::endl;
 }
-
 
 int LaunchProcess(const std::string& exe_name, std::string cmd_line)
 {
@@ -134,7 +131,6 @@ int LaunchProcess(const std::string& exe_name, std::string cmd_line)
 	return exitCode;
 }
 
-
 LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
@@ -179,7 +175,6 @@ LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 	return false;
 }
 
-
 std::string errordialog_str = "";
 
 INT_PTR CALLBACK ErrorDialogProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -205,7 +200,6 @@ INT_PTR CALLBACK ErrorDialogProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 	return false;
 }
 
-
 void ShowErrorMessage(const std::string& error_text)
 {
 	errordialog_str = error_text;
@@ -220,7 +214,6 @@ void ShowErrorMessage(const std::string& error_text)
 	}
 }
 
-
 void HuntWindowResize()
 {
 	// Fullscreen borderless client area. The 800x600 menu buffer is
@@ -230,7 +223,6 @@ void HuntWindowResize()
 	SetWindowPos(hwndMain, HWND_TOP, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, SWP_SHOWWINDOW);
 	UpdateWindow(hwndMain);
 }
-
 
 bool CreateMainWindow()
 {
@@ -293,7 +285,6 @@ bool CreateMainWindow()
 
 	return true;
 }
-
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLine, int nCmdShow) {
 	hInst = hInstance;

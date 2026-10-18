@@ -21,7 +21,6 @@ extern void AnimateBag();
 // Forward declaration from EngineInit.cpp
 extern void SetupRes();
 
-
 void ProcessTrophy()
 {
   TrophyBody = -1;
@@ -36,7 +35,6 @@ void ProcessTrophy()
   if (Characters[c].StateF != 0xFF) continue;
   const int slot = Characters[c].State;
   if (slot < 0 || slot >= TROPHY2_COUNT) continue;
-
 
 	  //Vector3d p = Characters[c].pos;
 	  Vector3d p;
@@ -115,7 +113,6 @@ void AnimateElements()
 			Elements[eg].RGBA2= (Elements[eg].RGBA2 & 0x00FFFFFF) + (a2<<24);
 			if (a1 == 0 && a2==0) Elements[eg].ECount = 0;
 		  }
-		  
 
 //====== remove finished process =========//
     if (!Elements[eg].ECount)
@@ -125,7 +122,6 @@ void AnimateElements()
       eg--;
       continue;
     }
-
 
     for (int e=0; e<Elements[eg].ECount; e++)
     {
@@ -171,9 +167,6 @@ void AnimateElements()
 
   AnimateBloodTrails();
 
-
-  
-  
   for (int st = 0; st < SnowCh; st++) {
 	  nv = Wind.nv;
 	  NormVector(nv, (4 + Wind.speed) * SnowInfo[st].snow_hSpd * TimeDt / 1000);//4
@@ -215,9 +208,7 @@ void AnimateElements()
 
 	  }
 
-
   }
-  
 
 }
 void AnimateProcesses()
@@ -261,8 +252,6 @@ void AnimateProcesses()
                  answpos.x, answpos.y, answpos.z);
     }
   }
-
-
 
   if (CallLockTime)
   {
@@ -332,23 +321,16 @@ void RemoveCurrentTrophy()
          (Characters[p].StateF != 0xFF || Characters[p].State != TrophyBody)) ++p;
   if (p == ChCount) return;
 
-
-
   PrintLogVerbose("Trophy removed: ");
   //PrintLog(DinoInfo[TrophyRoom.Body[TrophyBody].ctype].Name);
   PrintLogVerbose(DinoInfo[TrophyRoom2.Body[TrophyBody].ctype].Name);
   PrintLogVerbose("\n");
 
-  
   TrophyRoom2.Body[TrophyBody] = {};
 
   for (int c = p; c + 1 < ChCount; ++c)
     Characters[c] = Characters[c + 1];
   Characters[--ChCount] = {};
-
-
-
-
 
   TrophyDisplay = false;
   TrophyBody = -1;
@@ -416,7 +398,6 @@ void LoadTrophy()
   if (!ReadExact(hfile, &SHADOWS3D, 4)) tailOk = false;
   if (!ReadExact(hfile, &OptMsSens, 4)) tailOk = false;
   if (!ReadExact(hfile, &OptBrightness, 4)) tailOk = false;
-
 
   {
     // Saves can predate the modernization or come from other mods with a
@@ -495,7 +476,6 @@ void SaveTrophy()
   TrophyRoom.Rank = 0;
   if (TrophyRoom.Score >= 100) TrophyRoom.Rank = 1;
   if (TrophyRoom.Score >= 300) TrophyRoom.Rank = 2;
-
 
   HANDLE hfile = CreateFile(fname, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (hfile == INVALID_HANDLE_VALUE)

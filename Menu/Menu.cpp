@@ -23,7 +23,6 @@
 #include <string>
 #include <thread>
 
-
 class MenuSet {
 public:
 	int32_t		x0, y0;
@@ -48,7 +47,6 @@ public:
 
 	void AddItem(const std::string& txt);
 };
-
 
 enum MenuSetEnum {
 	OPT_GAME = 0,
@@ -199,7 +197,6 @@ namespace OptionsLayout {
 
 } // namespace OptionsLayout
 
-
 enum DrawTextAlignEnum {
 	// Uses the same values as wingdi.h TA_LEFT and so on.
 	// TODO: Write a conversion function for Linux if we port it to Linux
@@ -208,7 +205,6 @@ enum DrawTextAlignEnum {
 	DTA_CENTER = 6,
 	DTA_BOTTOM = 8
 };
-
 
 std::pair<unsigned, unsigned> g_HuntInfo;
 MenuSet MenuOptions[3];
@@ -229,7 +225,6 @@ static int g_LastHoverId = -1;
 // Registry name-list double-click tracking (double-click a name to enter).
 static DWORD g_LastListClickTime = 0;
 static int g_LastListClickIndex = -1;
-
 
 // String table
 const char g_GitHubURL[] = "https://github.com/carnivores-cpe/Carn2-Menu";
@@ -295,7 +290,6 @@ static void AppendDisplayModeLaunchFlag(std::stringstream& params)
 	}
 }
 
-
 // ======================================================================= //
 // Global Layout Columns (initialized in InitInterface)
 // ======================================================================= //
@@ -303,12 +297,10 @@ Layout::Column g_GameLabels, g_GameValues;
 Layout::Column g_ControlsLabels, g_ControlsValues;
 Layout::Column g_VideoLabels, g_VideoValues;
 
-
 bool IsPointInRect(POINT& p, RECT& rc)
 {
 	return (p.x > rc.left && p.y > rc.top && p.x < rc.right&& p.y < rc.bottom);
 }
-
 
 void WaitForMouseRelease()
 {
@@ -316,7 +308,6 @@ void WaitForMouseRelease()
 	while (GetAsyncKeyState(VK_MBUTTON) & 0x80000000);
 	while (GetAsyncKeyState(VK_LBUTTON) & 0x80000000);
 }
-
 
 // Rows of MenuOptions[OPT_KEYBINDINGS] that do NOT map onto KeyMap fields.
 //
@@ -408,7 +399,6 @@ void AcceptNewKey()
 	}
 }
 
-
 void ChangeMenuState(int32_t ms)
 {
 	// NOTE: the ambient bed keeps playing across submenus (hunt, options,
@@ -419,7 +409,6 @@ void ChangeMenuState(int32_t ms)
 	g_LastHoverId = -1;
 	LoadGameMenu(g_MenuState);
 }
-
 
 // Centralized menu-exit path. Saves the current profile (and options,
 // since TrophySave writes the full 1660-byte trophy block) before
@@ -432,14 +421,12 @@ void RequestMenuExit(int exitCode)
 	PostQuitMessage(exitCode);
 }
 
-
 int GetTextW(HDC hdc, const std::string& s)
 {
 	SIZE sz;
 	GetTextExtentPoint(hdc, s.c_str(), (int)s.length(), &sz);
 	return sz.cx;
 }
-
 
 int GetTextH(HDC hdc, const std::string& s)
 {
@@ -448,13 +435,11 @@ int GetTextH(HDC hdc, const std::string& s)
 	return sz.cy;
 }
 
-
 void MenuSet::AddItem(const std::string& txt)
 {
 	this->Item.push_back(std::make_pair(txt, false));
 	this->Count = this->Item.size();
 }
-
 
 /*
 Determine the amount of points that the current license selection
@@ -486,7 +471,6 @@ HuntBudget CalculateDebit()
 	return debit;
 }
 
-
 /*
 Currently unused
 */
@@ -494,7 +478,6 @@ void CALLBACK WaveOutProc(HWAVEOUT hwo, UINT uMsg, DWORD_PTR dwInstance, DWORD_P
 {
 
 }
-
 
 /*
 Currently unused
@@ -573,7 +556,6 @@ void AudioSoftThread()
 
 	waveOutClose(hwo);
 }
-
 
 /*
 Initialise all the required settings and interface elements
@@ -801,7 +783,6 @@ void InitInterface()
 #endif // _DEBUG
 }
 
-
 void ShutdownInterface()
 {
 	if (bmpMain)
@@ -821,13 +802,11 @@ void ShutdownInterface()
 	std::cout << "Interface: Shutdown Ok!" << std::endl;
 }
 
-
 void _Line(HDC hdc, int x1, int y1, int x2, int y2)
 {
 	MoveToEx(hdc, x1, y1, nullptr);
 	LineTo(hdc, x2, y2);
 }
-
 
 void DrawProgressBar(int x, int y, float l)
 {
@@ -838,7 +817,6 @@ void DrawProgressBar(int x, int y, float l)
 
 	HPEN oldpen = (HPEN)SelectObject(hdcCMain, GetStockObject(BLACK_PEN));
 	HBRUSH oldbrs = (HBRUSH)SelectObject(hdcCMain, GetStockObject(BLACK_BRUSH));
-
 
 	x += 1; y += 1;
 	_Line(hdcCMain, x, y - 9, x + W + 1, y - 9);
@@ -864,7 +842,6 @@ void DrawProgressBar(int x, int y, float l)
 
 	SelectObject(hdcCMain, wb);
 	PatBlt(hdcCMain, x + 1, y - 6, static_cast<int>((W * l / 2.f)), 4, PATCOPY);
-
 
 	SelectObject(hdcCMain, oldpen);
 	SelectObject(hdcCMain, oldbrs);
@@ -907,7 +884,6 @@ void DrawSliderBar(int x, int y, int w, float v, int slider_rgb = RGB(239, 228, 
 	DeleteObject(wb);
 }
 
-
 int MenuViewOptFromSlider(float v)
 {
 	int opt = kViewOptMin + static_cast<int>((v * static_cast<float>(kViewOptMax - kViewOptMin)));
@@ -916,12 +892,10 @@ int MenuViewOptFromSlider(float v)
 	return opt;
 }
 
-
 int MenuObjectDetailFromSlider(float v)
 {
 	return DiscreteSliderValue(v, kObjectDetailMin, kObjectDetailMax, kObjectDetailStep);
 }
-
 
 void DrawPicture(int x, int y, Picture& pic)
 {
@@ -990,7 +964,6 @@ void DrawMenuBg(MenuItem& menu)
 	}
 }
 
-
 void DrawTextColor(int x, int y, const std::string& text, uint32_t color, int align = DTA_LEFT)
 {
 	if (align == DTA_RIGHT)
@@ -1003,7 +976,6 @@ void DrawTextColor(int x, int y, const std::string& text, uint32_t color, int al
 	TextOut(hdcCMain, x, y, text.c_str(), (int)text.size());
 }
 
-
 void DrawTextShadow(int x, int y, const std::string& text, uint32_t color, int align = DTA_LEFT)
 {
 	if (align == DTA_RIGHT)
@@ -1013,8 +985,6 @@ void DrawTextShadow(int x, int y, const std::string& text, uint32_t color, int a
 
 	shadowtext::Draw(hdcCMain, x, y, text.c_str(), (int)text.size(), color);
 }
-
-
 
 void DrawURLShadow(int x, int y, const std::string& text, uint32_t color, int align = DTA_LEFT)
 {
@@ -1047,7 +1017,6 @@ void DrawURLShadow(int x, int y, const std::string& text, uint32_t color, int al
 	SelectObject(hdcCMain, oldpen);
 }
 
-
 void InterfaceSetFont(HFONT font)
 {
 	if (font == nullptr) {
@@ -1058,14 +1027,12 @@ void InterfaceSetFont(HFONT font)
 	}
 }
 
-
 void InterfaceClear(WORD Color)
 {
 	memset(lpVideoBuf, 0, (800 * 2) * 600);
 	hbmpOld = reinterpret_cast<HBITMAP>(SelectObject(hdcCMain, bmpMain));
 	hfntOld = reinterpret_cast<HFONT>(SelectObject(hdcCMain, fnt_Small));
 }
-
 
 void InterfaceBlt()
 {
@@ -1075,7 +1042,6 @@ void InterfaceBlt()
 	SelectObject(hdcCMain, hfntOld);
 	SelectObject(hdcCMain, hbmpOld);
 }
-
 
 /*
 Menu screen initialization event
@@ -1278,7 +1244,6 @@ void MenuEventStart(int32_t menu_state)
 	}
 }
 
-
 void LoadGameMenu(int32_t menu)
 {
 	std::string	mf_off = "";
@@ -1376,7 +1341,6 @@ void LoadGameMenu(int32_t menu)
 	}
 }
 
-
 /*
 Draw the profile details that appear at the top of the main menu,
 such as Profile Name, Score, Rank.
@@ -1404,7 +1368,6 @@ void DrawMenuProfile()
 
 	InterfaceSetFont(nullptr);
 }
-
 
 /*
 Draw this profile's last hunt statistics and total hunt statistics, also calls DrawProfileMenu()
@@ -1504,7 +1467,6 @@ void DrawMenuStatistics()
 	DrawMenuProfile();
 }
 
-
 /*
 */
 void DrawMenuCredits()
@@ -1526,7 +1488,6 @@ void DrawMenuCredits()
 		DrawTextShadow(650, 60 + ((i++) * 15), contributor, color);
 	}
 }
-
 
 void DrawMenuHunt()
 {
@@ -1732,7 +1693,6 @@ void DrawMenuHunt()
 	}
 }
 
-
 /*
 Draw the save file 'registry' menu
 */
@@ -1796,7 +1756,6 @@ void DrawMenuRegistry()
 		InterfaceSetFont(0);
 	}
 }
-
 
 /*
 Commit the current registry selection: load an existing profile or create
@@ -2624,7 +2583,6 @@ void MenuEventInput(int32_t menu)
 	}
 }
 
-
 void DrawMenuOptions()
 {
 	const int label_c = RGB(181, 134, 82);  // StartLegacy option label color
@@ -2730,7 +2688,6 @@ void DrawMenuOptions()
 	InterfaceSetFont(nullptr);
 }
 
-
 // TODO: Move these to Hunt.h
 #define FPS_TARGET 60L
 #define FRAME_TIME_DELTA (1000L / FPS_TARGET) // The time in milliseconds a frame takes to process to achieve FPS_TARGET
@@ -2833,7 +2790,6 @@ void ProcessMenu()
 	InterfaceBlt();
 }
 
-
 void MenuKeyCharEvent(uint16_t wParam)
 {
 	if (g_MenuState == MENU_REGISTER) {
@@ -2853,7 +2809,6 @@ void MenuKeyCharEvent(uint16_t wParam)
 		}
 	}
 }
-
 
 void MenuMouseScrollEvent(int32_t menu, int32_t scroll)
 {

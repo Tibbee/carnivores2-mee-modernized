@@ -87,7 +87,6 @@ TBEGIN:
 
 	}
 
-
 	// Step 4: Extend culling distance by 4 units (~1024 world units)
 	// to allow smoothstep fade-out to complete
 	if (pdistSq > ((charViewR + 20 + 4) * 256) * ((charViewR + 20 + 4) * 256))
@@ -115,7 +114,6 @@ TBEGIN:
 		targetNear = 2024;
 	}
 
-	
 	if (cptr->packId >= 0) {
 		float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
 		float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
@@ -147,17 +145,12 @@ TBEGIN:
 		SetNewTargetPlace_Icth(cptr, 2048.f);
 		goto TBEGIN;
 	}
-	
-
 
 	//===============================================//
 
 	ProcessPrevPhase(cptr);
 
-
-
 	//======== select new phase =======================//
-
 
 	if (cptr->FTime >= cptr->pinfo->Animation[cptr->Phase].AniTime)
 	{
@@ -182,7 +175,6 @@ TBEGIN:
 			else if (cptr->Phase != DinoInfo[cptr->CType].landAnim)
 			{
 				if (wy >= swimLevel) {
-					
 
 					if (DinoInfo[cptr->CType].idle2GroupCount) {
 
@@ -193,11 +185,9 @@ TBEGIN:
 					}
 					else cptr->Phase = DinoInfo[cptr->CType].swimAnim;
 
-
 				}
 				else
 				{
-					
 
 					if (DinoInfo[cptr->CType].idleGroupCount) {
 
@@ -223,7 +213,6 @@ TBEGIN:
 			if (cptr->packId >= 0) {
 				if (Packs[cptr->packId]._alert) afraid = true;
 			}
-
 
 			if (afraid) {
 
@@ -267,7 +256,6 @@ TBEGIN:
 					cptr->bend = 0;//?
 				}
 
-
 			}
 			else {
 				if (cptr->gliding == true)
@@ -295,8 +283,6 @@ TBEGIN:
 			}
 
 		}
-
-
 
 	}
 
@@ -331,7 +317,6 @@ TBEGIN:
 		}
 	}
 
-	
 	if (wy >= swimLevel)
 	{
 		if (cptr->Phase == DinoInfo[cptr->CType].walkAnim) {
@@ -346,7 +331,6 @@ TBEGIN:
 		}
 	}
 
-
 	if (!(wy >= swimLevel))
 	{
 		if (cptr->Phase == DinoInfo[cptr->CType].swimAnim) {
@@ -360,11 +344,8 @@ TBEGIN:
 					goto TBEGIN;
 		}
 	}
-	
-
 
 	//LAST
-
 
 	if (NewPhase)
 	{
@@ -387,8 +368,6 @@ TBEGIN:
 		}
 	}
 
-
-
 	//============================================//
 
 	if (cptr->Phase == DinoInfo[cptr->CType].flyAnim || cptr->Phase == DinoInfo[cptr->CType].glideAnim
@@ -409,7 +388,6 @@ TBEGIN:
 				if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 			}
 		}
-
 
 		LookForAWay(cptr, false, true);
 		if (cptr->NoWayCnt > 12)
@@ -465,9 +443,6 @@ ENDPSELECT:
 
 	cptr->FTime %= cptr->pinfo->Animation[cptr->Phase].AniTime;
 
-
-
-
 	//========== rotation to tgalpha ===================//
 
 	float rspd, currspeed, tgbend;
@@ -497,7 +472,6 @@ ENDPSELECT:
 
 	//if (cptr->AfraidTime) currspeed *= 1.5;
 	if (dalpha > pi) currspeed *= -1;
-
 
 	if (cptr->currentIdle2Group >= 0) {
 				currspeed /= 1.4f;
@@ -545,7 +519,6 @@ ENDPSELECT:
 	if (drspd < fabs(rspd)) cptr->alpha = cptr->tgalpha;
 	else cptr->alpha += rspd;
 
-
 	if (cptr->alpha > pi * 2) cptr->alpha -= pi * 2;
 	if (cptr->alpha < 0) cptr->alpha += pi * 2;
 
@@ -571,8 +544,6 @@ SKIPROT:
 
 	if (drspd > pi / 2.f) curspeed *= 2.f - 2.f*drspd / pi;
 
-
-
 	if (cptr->Phase == DinoInfo[cptr->CType].flyAnim || cptr->Phase == DinoInfo[cptr->CType].glideAnim
 		|| cptr->Phase == DinoInfo[cptr->CType].takeoffAnim || cptr->Phase == DinoInfo[cptr->CType].landAnim)
 	{
@@ -597,7 +568,6 @@ SKIPROT:
 		if (cptr->Phase == DinoInfo[cptr->CType].landAnim)
 			DeltaFunc(cptr->pos.y, GetLandUpH(cptr->pos.x, cptr->pos.z), TimeDt / 4.f);
 
-
 		if (cptr->gliding == false)
 		{
 			if (cptr->Phase != DinoInfo[cptr->CType].landAnim && cptr->Phase != DinoInfo[cptr->CType].takeoffAnim) {
@@ -612,8 +582,6 @@ SKIPROT:
 		}
 
 	}
-
-
 
 	//========== process speed =============//
 
@@ -633,7 +601,6 @@ SKIPROT:
 		cptr->pos.x += cptr->lookx * cptr->vspeed * TimeDt;
 		cptr->pos.z += cptr->lookz * cptr->vspeed * TimeDt;
 
-		
 		cptr->tggamma = cptr->rspeed / 4.0f;
 		if (cptr->tggamma > pi / 6.f) cptr->tggamma = pi / 6.f;
 		if (cptr->tggamma < -pi / 6.f) cptr->tggamma = -pi / 6.f;
@@ -660,11 +627,6 @@ SKIPROT:
 			cptr->gamma = 0;
 		}
 	}
-
-
-	
-
-
 
 	//============ Y movement =================//
 	if ((wy >= swimLevel) && cptr->Phase != DinoInfo[cptr->CType].flyAnim && cptr->Phase != DinoInfo[cptr->CType].glideAnim

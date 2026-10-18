@@ -215,10 +215,8 @@ void ProcessDemoMovement()
 		  DemoPoint.pos.y += DinoInfo[killerDino->CType].camDemoPoint;
 	  }
   } else base = 824; //for drowning/poison fog
-  
 
   //if (Characters[DemoPoint.CIndex].Clone ==AI_TREX) DemoPoint.pos.y+=512;
-
 
   Vector3d nv = SubVectors(DemoPoint.pos,  CameraPos);
   Vector3d pp = DemoPoint.pos;
@@ -251,8 +249,6 @@ void ProcessDemoMovement()
   if (b>pi) b = b - 2*pi;
   DeltaFunc(CameraBeta, -b, TimeDt / 4000.f);
 
-
-
   float h = GetLandQH(CameraX, CameraZ);
   DeltaFunc(CameraY, h+128, TimeDt / 8.f);
   if (CameraY < h + 80) CameraY = h + 80;
@@ -272,7 +268,6 @@ void ProcessControls()
   workbench::FilterGameplayKeys(KeyboardState);
 #endif
 
-  
   if (KeyboardState[KeyMap.fkReload] & 128)  KeyFlags += kfLookUp;
   if (KeyboardState[KeyMap.fkResupply] & 128)  KeyFlags += kfLookDn;
 
@@ -282,7 +277,6 @@ void ProcessControls()
 	if (KeyboardState [KeyMap.fkForward ] & 128) KeyFlags+=kfForward;
 	if (KeyboardState [KeyMap.fkBackward] & 128) KeyFlags+=kfBackward;
 	//if (KeyboardState[KeyMap.fkCrouch] & 128) KeyFlags += kfDown;
-
 
 	/*
   if (KeyFlags & kfStrafe)
@@ -299,7 +293,6 @@ void ProcessControls()
   if (KeyboardState [KeyMap.fkSLeft]  & 128) KeyFlags+=kfSLeft;
   if (KeyboardState [KeyMap.fkSRight] & 128) KeyFlags+=kfSRight;
 
-
   if (KeyboardState [KeyMap.fkJump] & 128) KeyFlags+=kfJump;
 
   if (KeyboardState [KeyMap.fkCall] & 128)
@@ -311,7 +304,6 @@ void ProcessControls()
 
   if ( DemoPoint.DemoTime) ProcessDemoMovement();
   if (!DemoPoint.DemoTime) ProcessPlayerMovement();
-
 
 //======= Y movement ===========//
   HeadAlpha = HeadBackR / 20000;
@@ -339,7 +331,6 @@ void ProcessControls()
     if (HeadY>220.f) HeadY = 220.f;
   }
 
-
   float h  = GetLandQH(PlayerX, PlayerZ);
   float hu = GetLandCeilH(PlayerX, PlayerZ)-64;
   float hwater = GetLandUpH(PlayerX, PlayerZ);
@@ -358,7 +349,6 @@ void ProcessControls()
 
   if (FLY) YSpeed=0;
   PlayerY+=YSpeed*DeltaT;
-
 
   if (PlayerY+HeadY>hu)
   {
@@ -433,7 +423,6 @@ SKIPYMOVE:
     if (rbv < 0) rbv = 0;
   }
 
-
 //======== set camera pos ===================//
 
   if (Recoil.y < 0) {
@@ -476,7 +465,6 @@ SKIPYMOVE:
     BackViewR = 300;
     BackViewRR = 380;
   }
-
 
 //==================== SWIM & UNDERWATER =========================//
   // "Standing in water" requires the feet to be at or below the water
@@ -668,7 +656,6 @@ SKIPYMOVE:
     PlayerZ+=DeltaT*32;
   }
 
-
   CameraFogI = FogsMap [(static_cast<int>(CameraZ))>>9][(static_cast<int>(CameraX))>>9];
   if (IsUnderwater()) CameraFogI=127;
   if (FogsList[CameraFogI].YBegin*ctHScale> CameraY)
@@ -687,7 +674,6 @@ SKIPYMOVE:
       }
 
   int CameraAmb = AmbMap [(static_cast<int>(CameraZ))>>9][(static_cast<int>(CameraX))>>9];
-
 
   if (IsUnderwater())
   {
@@ -721,7 +707,6 @@ SKIPYMOVE:
       }
     }
   }
-
 
   if (NOCLIP) CameraY+=1024;
   //======= results ==========//

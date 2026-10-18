@@ -78,7 +78,6 @@ bool ReadTGAFile(const std::string& path, TargaImage& tga)
 	return true;
 }
 
-
 bool LoadMenuBackground(const std::string& path, TargaImage& tga)
 {
 	if (!ReadTGAFile(path, tga)) return false;
@@ -119,7 +118,6 @@ bool LoadPicture(Picture& pic, const std::string& fpath)
 	return false;
 }
 
-
 bool LoadText(std::vector<std::string>& txt, const std::string& path)
 {
 	std::ifstream tf(path);
@@ -141,7 +139,6 @@ bool LoadText(std::vector<std::string>& txt, const std::string& path)
 	return false;
 }
 
-
 // Load a file path with an optional built-in fallback. The row-specific
 // redirect logic lives in LoadRowDescription() above.
 void LoadAccessoryDescription(std::vector<std::string>& txt, const std::string& descFile,
@@ -151,7 +148,6 @@ void LoadAccessoryDescription(std::vector<std::string>& txt, const std::string& 
 		txt = *builtinDesc;
 	}
 }
-
 
 // Built-in flashlight blurb (see the Hunt.h declaration and the addUtil call
 // that consumes it). A modernization accessory must not depend on shipped
@@ -173,7 +169,6 @@ const std::vector<std::string> kFlashlightDescription = {
 	"of the flashlight does not affect your",
 	"score."
 };
-
 
 bool LoadWave(SoundFX& sfx, const std::string& path)
 {
@@ -202,7 +197,6 @@ SoundFX::SoundFX() :
 {
 }
 
-
 SoundFX::SoundFX(const SoundFX& w) : SoundFX()
 {
 	if (w.m_Length && w.m_Data) {
@@ -213,20 +207,17 @@ SoundFX::SoundFX(const SoundFX& w) : SoundFX()
 	m_Frequency = w.m_Frequency;
 }
 
-
 SoundFX::~SoundFX()
 {
 	if (m_Data)
 		delete[] m_Data;
 }
 
-
 Picture::Picture() :
 	m_Width(0),
 	m_Height(0),
 	m_Data(nullptr)
 {}
-
 
 Picture::Picture(const Picture& p)
 {
@@ -241,13 +232,11 @@ Picture::Picture(const Picture& p)
 	m_Height = p.m_Height;
 }
 
-
 Picture::~Picture()
 {
 	if (m_Data)
 		delete[] m_Data;
 }
-
 
 Picture& Picture::operator= (const Picture& rhs)
 {

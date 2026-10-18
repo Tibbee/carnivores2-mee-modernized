@@ -46,7 +46,6 @@ float GetLandH(float x, float y)
   int h3 = HMap[CY+1][CX+1];
   int h4 = HMap[CY+1][CX];
 
-
   if (FMap[CY][CX] & fmReverse)
   {
     if (256-dx>dy) h3 = h2+h4-h1;
@@ -113,8 +112,6 @@ void CalcModelGroundLight(TModel *mptr, float x0, float z0, int FI)
     mptr->VLight[0][v] = GetLandLt2(x, z) - 128;
   }
 }
-
-
 
 float GetLandCeilH(float CameraX, float CameraZ)
 {

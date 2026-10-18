@@ -38,11 +38,9 @@ void CreateChRenderList()
 //           AddShadowCircle(static_cast<int>(Ship.pos.x)+h, static_cast<int>(Ship.pos.z)+h, 1200, 24);
     }
 
-
   if (HARD3D) return;
   for (int c=0; c<=ctViewR; c++)
     ChRenderList[c].ICount = 0;
-
 
 //=========== ship ================//
 
@@ -59,10 +57,6 @@ void CreateChRenderList()
 NOSHIP:
   ;
 
-
-
-
-
   //=========== sship ================//
   SShip.rpos.x = SShip.pos.x - CameraX;
   SShip.rpos.y = SShip.pos.y - CameraY;
@@ -77,11 +71,9 @@ NOSHIP:
 		  //           AddShadowCircle(static_cast<int>(Ship.pos.x)+h, static_cast<int>(Ship.pos.z)+h, 1200, 24);
 	  }
 
-
   if (HARD3D) return;
   //for (int c = 0; c <= ctViewR; c++)
   //  ChRenderList[c].ICount = 0;
-
 
   //=========== sship ================//
 
@@ -98,11 +90,6 @@ NOSHIP:
 NOSSHIP:
   ;
 
-
-
-
-
-
   //=========== bag ================//
   AmmoBag.rpos.x = AmmoBag.pos.x - CameraX;
   AmmoBag.rpos.y = AmmoBag.pos.y - CameraY;
@@ -117,11 +104,9 @@ NOSSHIP:
 		  //           AddShadowCircle(static_cast<int>(Ship.pos.x)+h, static_cast<int>(Ship.pos.z)+h, 1200, 24);
 	  }
 
-
   if (HARD3D) return;
   //for (int c = 0; c <= ctViewR; c++)
   //	  ChRenderList[c].ICount = 0;
-
 
   //=========== bag ================//
 
@@ -138,13 +123,8 @@ NOSSHIP:
 NOBAG:
   ;
 
-
-
-
-
   for (int b = 0; b < bulletCh; b++) {
 	  if (WeapInfo[bullet[b].parent].bullet) {
-
 
 		  //=========== bullet ================//
 		  bullet[b].rpos.x = bullet[b].a.x - CameraX;
@@ -156,7 +136,6 @@ NOBAG:
 		  if (HARD3D) return;
 		  //for (int c = 0; c <= ctViewR; c++)
 		  //  ChRenderList[c].ICount = 0;
-
 
 		  //=========== sship ================//
 
@@ -172,10 +151,8 @@ NOBAG:
 	  NOBULLET:
 		  ;
 
-
 	  }
   }
-
 
 //============= Dinosaurs ====================//
   TCharacter *cptr;
@@ -206,11 +183,6 @@ NOBAG:
 
     AddChRenderItem(ri, 0, c);
   }
-
-
-
-
-
 
   if (Multiplayer) {
 
@@ -247,16 +219,9 @@ NOBAG:
 		  AddChRenderItem(ri, 4, 0); //increase for each extra player
 	  }
 
-
   }
 
-
-
-
-
-
 }
-
 
 void RenderChList(int r)
 {
@@ -280,8 +245,6 @@ void RenderChList(int r)
   }
 }
 
-
-
 void RenderCharacter(TCharacter *cptr)
 {
 
@@ -293,7 +256,6 @@ void RenderCharacter(TCharacter *cptr)
     GlassL = static_cast<int>((std::min)(255.0f, zs / 4.0f - 64.0f * (ctViewR - 4)));
 
   CreateChMorphedModel(cptr);
-
 
   float wh = GetLandUpH(cptr->pos.x, cptr->pos.z);
   waterclip = false;
@@ -307,7 +269,6 @@ void RenderCharacter(TCharacter *cptr)
       waterclipbase = RotateVector(waterclipbase);
       waterclip = true;
     }
-
 
   if ( fabs(cptr->rpos.z) + fabs(cptr->rpos.x) <2560)
     RenderModelClip(cptr->pinfo->mptr.get(),
@@ -326,7 +287,6 @@ void RenderCharacter(TCharacter *cptr)
                 CameraBeta );
 }
 
-
 void RenderBag()
 {
 	float zs = static_cast<float>(VectorLength(AmmoBag.rpos));
@@ -335,7 +295,6 @@ void RenderBag()
 	GlassL = 0;
 	if (zs > 256 * (ctViewR - 4))
 		GlassL = static_cast<int>((std::min)(255.0f, zs / 4.0f - 64.0f * (ctViewR - 4)));
-
 
 	CreateMorphedModel(BagModel.mptr.get(), &BagModel.Animation[0], AmmoBag.FTime, 1.0);
 
@@ -347,8 +306,6 @@ void RenderBag()
 			AmmoBag.rpos.x, AmmoBag.rpos.y, AmmoBag.rpos.z, 240, 0, -0 - pi / 2 + CameraAlpha, CameraBeta);
 }
 
-
-
 void RenderSShip()
 {
 	float zs = static_cast<float>(VectorLength(SShip.rpos));
@@ -357,7 +314,6 @@ void RenderSShip()
 	GlassL = 0;
 	if (zs > 256 * (ctViewR - 4))
 		GlassL = static_cast<int>((std::min)(255.0f, zs / 4.0f - 64.0f * (ctViewR - 4)));
-
 
 	CreateMorphedModelBetaGamma(SShipModel.mptr.get(), &SShipModel.Animation[0], SShip.FTime, 1.0, SShip.beta, SShip.gamma);
 
@@ -369,9 +325,6 @@ void RenderSShip()
 			SShip.rpos.x, SShip.rpos.y, SShip.rpos.z, 240, 0, -SShip.alpha - pi / 2 + CameraAlpha, CameraBeta);
 }
 
-
-
-
 void RenderShip()
 {
   float zs = static_cast<float>(VectorLength( Ship.rpos ));
@@ -380,7 +333,6 @@ void RenderShip()
   GlassL = 0;
   if (zs > 256 * (ctViewR-4))
     GlassL = static_cast<int>((std::min)(255.0f, zs / 4.0f - 64.0f * (ctViewR - 4)));
-
 
   CreateMorphedModel(ShipModel.mptr.get(), &ShipModel.Animation[0], Ship.FTime, 1.0);
 
@@ -392,7 +344,6 @@ void RenderShip()
                 Ship.rpos.x, Ship.rpos.y, Ship.rpos.z, 240, 0, -Ship.alpha -pi/2 + CameraAlpha, CameraBeta);
 }
 
-
 void RenderBullet(int b)
 {
 	float zs = static_cast<float>(VectorLength(bullet[b].rpos));
@@ -401,7 +352,6 @@ void RenderBullet(int b)
 	GlassL = 0;
 	if (zs > 256 * (ctViewR - 4))
 		GlassL = static_cast<int>((std::min)(255.0f, zs / 4.0f - 64.0f * (ctViewR - 4)));
-
 
 	CreateMorphedModelBetaGamma(Weapon.Bullet[bullet[b].parent].mptr.get(), &Weapon.Bullet[bullet[b].parent].Animation[0], bullet[b].FTime, 1.0, bullet[b].beta, 0);
 
@@ -414,9 +364,5 @@ void RenderBullet(int b)
 		RenderModel(Weapon.Bullet[bullet[b].parent].mptr.get(),
 			bullet[b].rpos.x, bullet[b].rpos.y, bullet[b].rpos.z, 240, 0, -bullet[b].alpha - pi / 2 + CameraAlpha, CameraBeta);
 }
-
-
-
-
 
 #endif // _soft

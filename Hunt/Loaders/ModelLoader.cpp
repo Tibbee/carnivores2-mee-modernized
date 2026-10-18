@@ -63,9 +63,7 @@ int DitherHi(int C)
   return C;
 }
 
-
 void GenerateModelMipMaps(TModel *mptr, MemoryTag tag);
-
 
 void BrightenTexture(WORD* A, int L)
 {
@@ -260,7 +258,6 @@ void CorrectModel(TModel *mptr, MemoryTag tag)
 #endif
   }
 
-
   int fp = 0;
   for (int f=0; f<mptr->FCount; f++)
     if ( (mptr->gFace[f].Flags & (sfOpacity | sfTransparent))==0)
@@ -282,8 +279,6 @@ void CorrectModel(TModel *mptr, MemoryTag tag)
       tface[fp] = mptr->gFace[f];
       fp++;
     }
-
-
 
   memcpy( mptr->gFace, tface, mptr->FCount << 6 );
   (void)_HeapFree(Heap, 0, tface);
@@ -800,13 +795,11 @@ void LoadCharacterInfo(TCharacterInfo &chinfo, char* FName, MemoryTag tag, const
 
   CorrectModel(chinfo.mptr.get(), tag);
 
-
   l = 0;
   if (!ReadFile(hfile, chinfo.Anifx, 64*4, &l, nullptr) || l != 256)
     for (l=0; l<64; l++) chinfo.Anifx[l] = -1;
   CloseHandle(hfile); 
 }
-
 
 void CreateMipMapMT(WORD* dst, WORD* src, int H)
 {

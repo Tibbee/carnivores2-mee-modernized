@@ -46,8 +46,6 @@ void FillMemoryWord(int maddr, int count, WORD w)
   }
 }
 
-
-
 void _memcpy(void* daddr, void* saddr, int count)
 {
   __asm
@@ -69,7 +67,6 @@ void _memcpy(void* daddr, void* saddr, int count)
   }
 }
 
-
 void ClearVideoBuf()
 {
   WORD w = HiColor(SkyR/8, SkyG/8, SkyB/8);
@@ -79,8 +76,6 @@ void ClearVideoBuf()
     _FillMemoryWord( static_cast<int>(reinterpret_cast<intptr_t>(lpVideoBuf)) + y*VideoPitchB, WinW*2, w);
   }
 }
-
-
 
 void ShowVideo()
 {
@@ -162,8 +157,5 @@ void ShowVideo()
   SelectObject(_hdc,hbmpOld);
   //DeleteDC(_hdc);
 }
-
-
-
 
 #endif // _soft

@@ -35,7 +35,6 @@ void ProcessMapW(int x, int y, int r)
 {
   //if (RunMode) return;
 
-
   if (x>=ctMapSize-1 || y>=ctMapSize-1 || x<0 || y<0) return;
 
   // Only draw cells whose four corners are all water. VMap2 (the water-plane
@@ -55,12 +54,9 @@ void ProcessMapW(int x, int y, int r)
   ev[0] = VMap2[y - CCY + kViewGridCenter][x - CCX + kViewGridCenter];
   if (ev[0].v.z>BackViewR) return;
 
-
   ReverseOn = (FMap[y][x] & fmReverse);
   TDirection = 0;
 //   if ( (HMap[y][x]>hw) || (HMap[y+1][x+1]>hw) ) ReverseOn = true;
-
-
 
   int _x = x;
   int _y = y;
@@ -155,7 +151,6 @@ S2:
   WaterTileDraw = 0;
 }
 
-
 void ProcessMapW2(int x, int y, int r)
 {
   //if (RunMode) return;
@@ -179,11 +174,9 @@ void ProcessMapW2(int x, int y, int r)
   ev[0] = VMap2[y - CCY + kViewGridCenter][x - CCX + kViewGridCenter];
   if (ev[0].v.z>BackViewR) return;
 
-
 // ReverseOn = (FMap[y][x] & fmReverse);
   TDirection = 0;
   if ( (HMap[y][x]>hw) || (HMap[y+2][x+2]>hw) ) ReverseOn = true;
-
 
   int _x = x;
   int _y = y;
@@ -207,9 +200,7 @@ void ProcessMapW2(int x, int y, int r)
   if (distanceSq > viewDistance * viewDistance) return;
   zs = static_cast<int>(sqrt(distanceSq));
 
-
   GlassL = 0;
-
 
   // Legacy behaviour, restored: seen from underwater the surface blends 25%
   // glass over the scene from DataB; from above it is opaque from DataC.

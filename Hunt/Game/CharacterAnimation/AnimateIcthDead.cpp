@@ -61,9 +61,7 @@ void AnimateIcthDead(TCharacter *cptr)
 		else
 			cptr->FTime %= cptr->pinfo->Animation[cptr->Phase].AniTime;
 
-
 	}
-
 
 	//======= movement ===========//
 	if (cptr->Phase == DinoInfo[cptr->CType].deathType[cptr->deathType].die || 

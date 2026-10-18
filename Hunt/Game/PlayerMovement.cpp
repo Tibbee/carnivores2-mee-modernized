@@ -72,7 +72,6 @@ void ProcessReload() {
 
 				}
 
-
 			}
 
 		}
@@ -94,7 +93,6 @@ void ProcessReload() {
 			if (Chambered[CurrentWeapon] && WeapInfo[CurrentWeapon].rldAnimPart >= 0) {
 				TAni* animation = FindWeaponAnimation(*wptr, CurrentWeapon,
 					WeapInfo[CurrentWeapon].rldAnimPart);
-
 
 				if (animation && animation->AniTime)
 				{
@@ -142,9 +140,6 @@ void ProcessReload() {
 				}
 
 			}
-
-
-
 
 		}
 
@@ -278,7 +273,6 @@ void ProcessShoot()
 		  rB = siRand(128) * 0.00010 * (2.f - WeapInfo[CurrentWeapon].Prec);
 	  }
 
-
       float ca = static_cast<float>(cos(PlayerAlpha + wpnDAlpha + rA));
       float sa = static_cast<float>(sin(PlayerAlpha + wpnDAlpha + rA));
       float cb = static_cast<float>(cos(PlayerBeta + wpnDBeta + rB));
@@ -310,7 +304,6 @@ void ProcessShoot()
 
 	//Multiplayer)
 	sendGunShot = CurrentWeapon;
-	
 
     Vector3d v;
     v.x = PlayerX;
@@ -458,8 +451,6 @@ void ProcessPlayerMovement()
     ResetMousePos();
   }
 
-
-
   if ( !(KeyFlags & (kfForward | kfBackward)))
     if (VSpeed>0) VSpeed=MAX(0,VSpeed-DeltaT*2);
     else VSpeed=MIN(0,VSpeed+DeltaT*2);
@@ -477,7 +468,6 @@ void ProcessPlayerMovement()
     else SSpeed+=DeltaT*4;
   if (KeyFlags & kfSLeft  )  if (SSpeed<0) SSpeed-=DeltaT;
     else SSpeed-=DeltaT*4;
-
 
   if (g_GameMode == GameMode::Swimming)
   {
@@ -616,7 +606,6 @@ void ProcessPlayerMovement()
   nv.x=sa;
   nv.y=0;
   nv.z=-ca;
-
 
   PlayerNv = nv;
   if (IsUnderwater() || FLY)

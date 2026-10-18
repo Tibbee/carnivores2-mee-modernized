@@ -48,9 +48,6 @@ TBEGIN:
 	// flee direction identical to the awareness core's copy.
 	const THunterGeometry hunter = GetHunterGeometry(cptr);
 
-	
-
-
 	if (GetLandUpH(cptr->pos.x, cptr->pos.z) - GetLandH(cptr->pos.x, cptr->pos.z) > DinoInfo[cptr->CType].waterLevel * cptr->scale)
 		cptr->StateF |= csONWATER;
 	else
@@ -142,15 +139,12 @@ TBEGIN:
 			}
 		}
 
-
 	}
-
 
 	// Step 4: Extend culling distance by 4 units (~1024 world units)
 	// to allow smoothstep fade-out to complete
 	if (hunter.distanceSquared > ((charViewR + 20 + 4) * 256) * ((charViewR + 20 + 4) * 256))
 		if (ReplaceCharacterForward(cptr)) goto TBEGIN;
-
 
 	if (!cptr->State)
 	{
@@ -168,7 +162,6 @@ TBEGIN:
 			cptr->Phase = DinoInfo[cptr->CType].runAnim;
 			goto TBEGIN;
 		}
-
 
 		if (cptr->packId >= 0) {
 			float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
@@ -202,8 +195,6 @@ TBEGIN:
 			goto TBEGIN;
 		}
 
-
-
 	}
 
 NOTHINK:
@@ -214,8 +205,6 @@ NOTHINK:
 		cptr->tgalpha = CorrectedAlpha(FindVectorAlpha(targetdx, targetdz), cptr->alpha);//FindVectorAlpha(targetdx, targetdz);
 
 		//bool weaveCondition = pdist > AIInfo[cptr->Clone].weaveRange;
-
-		
 
 		//if (!AIInfo[cptr->Clone].carnivore || AIInfo[cptr->Clone].iceAge) weaveCondition = weaveCondition && cptr->AfraidTime;
 
@@ -241,14 +230,12 @@ NOTHINK:
 		cptr->NoFindCnt = AIInfo[cptr->Clone].noFindWayMed + rRand(AIInfo[cptr->Clone].noFindWayRange);
 	}
 
-
 	if (cptr->tgalpha < 0) cptr->tgalpha += 2 * pi;
 	if (cptr->tgalpha > 2 * pi) cptr->tgalpha -= 2 * pi;
 
 	//===============================================//
 
 	ProcessPrevPhase(cptr);
-
 
 	//======== select new phase =======================//
 	cptr->FTime += TimeDt;
@@ -263,7 +250,6 @@ NOTHINK:
 				cptr->State = 0;
 			}
 		}
-
 
 		NewPhase = true;
 	}
@@ -283,9 +269,6 @@ NOTHINK:
 	if (NewPhase)
 		if (!cptr->State)
 		{
-
-
-
 
 			if (DinoInfo[cptr->CType].idleGroupCount
 				&& (MyHealth || !DinoInfo[cptr->CType].killType[cptr->killType].carryCorpse)
@@ -325,7 +308,6 @@ NOTHINK:
 		if (cptr->Slide > 40) cptr->Phase = DinoInfo[cptr->CType].slideAnim;
 	}
 
-
 ENDPSELECT:
 
 	//====== process phase changing ===========//
@@ -355,8 +337,6 @@ ENDPSELECT:
 
 	cptr->FTime %= cptr->pinfo->Animation[cptr->Phase].AniTime;
 
-
-
 	//========== rotation to tgalpha ===================//
 
 	float rspd, currspeed, tgbend;
@@ -369,7 +349,6 @@ ENDPSELECT:
 	}
 	if (cptr->Phase == DinoInfo[cptr->CType].killType[cptr->killType].anim && DinoInfo[cptr->CType].killTypeCount) goto SKIPROT;
 	if (cptr->currentIdleGroup >= 0) goto SKIPROT;
-
 
 	if (AIInfo[cptr->Clone].carnivore && !AIInfo[cptr->Clone].iceAge) {
 
@@ -391,7 +370,6 @@ ENDPSELECT:
 		tgbend *= SGN(currspeed);
 		if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 800.f);
 		else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / 600.f);
-
 
 		rspd = cptr->rspeed * TimeDt / 1024.f;
 
@@ -415,15 +393,12 @@ ENDPSELECT:
 		if (fabs(tgbend) > fabs(cptr->bend)) DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / AIInfo[cptr->Clone].targetBendDelta1);
 		else DeltaFunc(cptr->bend, tgbend, static_cast<float>(TimeDt) / AIInfo[cptr->Clone].targetBendDelta2);
 
-
 		rspd = cptr->rspeed * TimeDt / 612.f;
 
 	}
 
-
 	if (drspd < fabs(rspd)) cptr->alpha = cptr->tgalpha;
 	else cptr->alpha += rspd;
-
 
 	if (cptr->alpha > pi * 2) cptr->alpha -= pi * 2;
 	if (cptr->alpha < 0) cptr->alpha += pi * 2;
@@ -502,7 +477,6 @@ SKIPROT:
 
 	}
 
-
 	//============ Y movement =================//
 	if (cptr->StateF & csONWATER && DinoInfo[cptr->CType].canSwim)
 	{
@@ -536,14 +510,11 @@ SKIPROT:
 
 }
 
-
-
 Vector3d LookForATree(TCharacter *cptr) {
 
 	float searchAlpha1 = cptr->tgalpha;
 	float searchAlpha2 = cptr->tgalpha;
 	float dalpha = 15.f;
-
 
 	for (int i = 0; i < 12; i++)
 	{
@@ -591,12 +562,10 @@ Vector3d LookForATree(TCharacter *cptr) {
 	return tree;
 }
 
-
 Vector3d CheckForATree(TCharacter *cptr) {
 
 	int ccx = static_cast<int>(cptr->pos.x) / 256;
 	int ccz = static_cast<int>(cptr->pos.z) / 256;
-	
 
 	if (TreeTable[OMap[ccz][ccx]])
 	{

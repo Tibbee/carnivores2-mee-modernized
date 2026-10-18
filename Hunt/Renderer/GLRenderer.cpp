@@ -32,9 +32,6 @@
 
 using PFNWGLCREATECONTEXTATTRIBSARBPROC = HGLRC (WINAPI *)(HDC, HGLRC, const int*);
 
-
-
-
 GLRenderer* g_GLRenderer = nullptr;
 
 float GLRenderer::CharacterCullRadius(const TCharacter& character) const
@@ -444,17 +441,6 @@ void GLRenderer::DestroyContext()
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
 // ==========================================================================
 // PerFrame UBO (Phase 1.1 + Phase 2.4)
 // Shared by terrain and model shaders. std140 layout:
@@ -589,23 +575,6 @@ void GLRenderer::UpdatePerFrameUBO(const std::array<float, 16>& projection,
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 void GLRenderer::ApplyModelDistanceFade(const Vector3d& rpos)
 {
     const float distanceSq = VectorLengthSq(rpos);
@@ -619,7 +588,6 @@ void GLRenderer::ApplyModelDistanceFade(const Vector3d& rpos)
     // Keep GlassL = 0 for the GL path (legacy renderers still use it)
     GlassL = 0;
 }
-
 
 void GLRenderer::Render3DHardwarePosts()
 {
@@ -1308,15 +1276,6 @@ void GLRenderer::RenderElements()
     }
 }
 
-
-
-
-
-
-
-
-
-
 unsigned int GLRenderer::Expand1555to8888(unsigned short c)
 {
     if (c == 0) return 0x00000000;
@@ -1496,13 +1455,6 @@ float GLRenderer::Clamp01(float value)
     return value;
 }
 
-
-
-
-
-
-
-
 float GetTerrainFogAmountForMapPoint(int mapX, int mapY, int legacyFog)
 {
     return GetTerrainFogAmountForMapPoint(GetFogIndexForMapPoint(mapX, mapY), legacyFog);
@@ -1511,17 +1463,6 @@ float GetTerrainFogAmountForMapPoint(int mapX, int mapY, int legacyFog)
 // Phase 2.x: fogIndex overload -- caller already computed GetFogIndexForMapPoint.
 // Eliminates the duplicate FogsMap lookup when both fog amount and fog color
 // are needed for the same (x,y) corner.
-
-
-
-
-
-
-
-
-
-
-
 
 void GLRenderer::DrawVertexBatch(const TerrainVertex* vertices, size_t count, const char* drawScopeName)
 {
@@ -1585,11 +1526,6 @@ void GLRenderer::DrawScene()
     RenderWater();
 }
 
-
-
-
-
-
 void GLRenderer::ClearVideoBuf()
 {
     // NOTE: do NOT reset m_uploadedTerrainTextures here -- ClearVideoBuf is
@@ -1619,10 +1555,8 @@ void GLRenderer::PostProcess()
     }
 }
 
-
 // Copy picture pixels directly to lpVideoBuf (matching C1 and D3D/3DFX approach).
 // lpVideoBuf is a 16-bit DIB section, pictures are already in 565 format after conv_pic.
-
 
 // Phase 2.20: upload lpVideoBuf directly as GL_RGB5 texture.
 // lpVideoBuf is 16-bit X1R5G5B5, top-down, stride = VideoPitch.

@@ -77,7 +77,6 @@ void ShowControlElements()
     STTextOut(10, 10, MessageList.mtext, 0x0020A0A0);
   }
 
-
   if (ExitTime)
   {
     int y = WinH / 3;
@@ -106,8 +105,6 @@ void ShowControlElements()
   SelectObject(hdcCMain, hbmpOld);
 
 }
-
-
 
 static void BlitPicture(int x, int y, int w, int h, const TPicture& pic)
 {
@@ -146,7 +143,6 @@ void DrawFlash(int x, int y, int w, int h, TPicture &pic)
 {
   BlitPicture(x, y, w, h, pic);
 }
-
 
 int CircleCX, CircleCY;
 
@@ -210,8 +206,6 @@ void DrawBoxMystery(WORD *lfbPtr, int xx, int yy, WORD c)
 	*(static_cast<WORD*>(lpVideoBuf) + yy *VideoPitch + xx + 2) = c;
 }
 
-
-
 void DrawBox(WORD *lfbPtr, int xx, int yy, WORD c)
 {
 	if (!lpVideoBuf || VideoPitch <= 0 || xx < 0 || xx + 1 >= WinW ||
@@ -225,7 +219,6 @@ void DrawBox(WORD *lfbPtr, int xx, int yy, WORD c)
 
 void DrawHMap()
 {
-
 
 	if (g_GameMode == GameMode::SurvivalMode) return;
 
@@ -263,7 +256,6 @@ void DrawHMap()
     for (int c=0; c<ChCount; c++)
     {
 
-
 			//if (! (TargetDino & (1<<Characters[c].AI)) ) continue;
 			//if (Characters[c].AI > 0) continue;
 		
@@ -295,7 +287,6 @@ void DrawHMap()
 					dz = py - yy;
 					int pd = static_cast<int>(sqrt(dx * dx + dz * dz));
 
-
 					if (pd < 38) {
 						if (pd >= _sonarPos && pd <= sonarPos) {
 							Characters[c].showSonar = true;
@@ -316,7 +307,6 @@ void DrawHMap()
 
     }
 }
-
 
 void DrawSurvivalText(int x0, int y0)
 {
@@ -369,8 +359,6 @@ void DrawScoreText(int x0, int y0) {
 
     SelectObject(hdcCMain, hbmpOld);
 }
-
-
 
 void DrawTrophyText(int x0, int y0)
 {
@@ -432,8 +420,6 @@ void DrawTrophyText(int x0, int y0)
   SelectObject(hdcCMain, hbmpOld);
 }
 
-
-
 void Render_LifeInfo(int li)
 {
   int x,y;
@@ -491,7 +477,6 @@ void RenderHealthBar()
       *(static_cast<WORD*>(lpVideoBuf) + ((y0+y)*VideoPitch) + x0 + x) = HCOLOR;
   }
 }
-
 
 void Render_Cross(int sx, int sy)
 {
@@ -553,8 +538,6 @@ void Init3DHardware()
   DirectActive = true;
 }
 
-
-
 void Activate3DHardware()
 {
   SetVideoMode(WinW, WinH);
@@ -583,7 +566,6 @@ void Activate3DHardware()
   DWORD cl = DDSCL_EXCLUSIVE|DDSCL_FULLSCREEN;
   if (!FULLSCREEN)
     cl = DDSCL_NORMAL;
-
 
   HRESULT hres = lpDD->SetCooperativeLevel( hwndMain, cl);
   if( hres != DD_OK )

@@ -118,7 +118,6 @@ void GLRenderer::ShutdownTerrainPipeline()
         m_terrainVAO = 0;
     }
 
-
     m_terrainVertices.reset();
     m_terrainVertexCapacity = 0;
     m_terrainVertexCount = 0;
@@ -351,7 +350,6 @@ void GLRenderer::AppendTerrainTriangle(const EPoint& v0,
     m_terrainVertexCount += 3;
 }
 
-
 void GLRenderer::RenderTerrain()
 {
     if (m_terrainVertexCount == 0) {
@@ -571,7 +569,6 @@ void GLRenderer::CollectTerrainTile(int x, int y, int r,
     if (x >= ctMapSize - 1 || y >= ctMapSize - 1 || x < 0 || y < 0) {
         return;
     }
-
 
     const int localX = x - CCX + kViewGridCenter;
     const int localY = y - CCY + kViewGridCenter;

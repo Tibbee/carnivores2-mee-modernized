@@ -15,7 +15,6 @@
 inline constexpr int SCRIPT_NAME_MAX = 48;
 inline constexpr int SCRIPT_PATH_MAX = 96;
 
-
 struct TCharacterInfo
 {
   char ModelName[32];
@@ -34,7 +33,6 @@ struct TCharacterInfo
   TSFX SoundFX[64];
   int  Anifx[64];
 };
-
 
 struct TWeapon
 {
@@ -59,7 +57,6 @@ struct TWeapon
   int ammoIn;
 };
 
-
 struct TBullet
 {
 	float fallTotal;
@@ -74,14 +71,12 @@ struct TBullet
 //	float power, speed, fall;
 };
 
-
 struct TWCircle
 {
   Vector3d pos;
   float scale;
   int FTime;
 };
-
 
 struct TSnowType  {
 	int snow_vSpd;//vertical
@@ -94,12 +89,10 @@ struct TSnowType  {
 	int SnCount;//total number of snow particles
 };
 
-
 struct TSnowElement  {
 	Vector3d pos;
 	float hl, ftime;
 };
-
 
 struct TCharacter
 {
@@ -193,7 +186,6 @@ struct TCharacter
 
 };
 
-
 struct TPlayer
 {
   BOOL Active;
@@ -204,13 +196,11 @@ struct TPlayer
   char NickName[16];
 };
 
-
 struct TDemoPoint
 {
   Vector3d pos;
   int DemoTime, CIndex;
 };
-
 
 struct TLevelDef
 {
@@ -220,13 +210,11 @@ struct TLevelDef
   WORD *lpMapImage;
 };
 
-
 struct TShipTask
 {
   int tcount;
   int clist[255];
 };
-
 
 struct TShip
 {
@@ -235,14 +223,12 @@ struct TShip
   int State, cindex, FTime;
 };
 
-
 struct TBag
 {
 	Vector3d pos, rpos;
 	int State;
 	int FTime;
 };
-
 
 struct THitBox
 {
@@ -251,13 +237,11 @@ struct THitBox
 	int phase;
 };
 
-
 struct TLandingList
 {
   int PCount;
   Vector2di list[64];
 };
-
 
 struct TPlayerR
 {
@@ -265,7 +249,6 @@ struct TPlayerR
   int  RegNumber;
   int  Score, Rank;
 };
-
 
 struct TTrophyItem
 {
@@ -276,13 +259,11 @@ struct TTrophyItem
   int r1, r2, r3, r4;
 };
 
-
 struct TStats
 {
   int smade, success;
   float path, time;
 };
-
 
 struct TTrophyRoom
 {
@@ -295,7 +276,6 @@ struct TTrophyRoom
   TTrophyItem Body[TROPHY_COUNT];
 };
 
-
 struct TTrophyItem2  //Add neccesary stuff here! (later, not now)
 {
 	int ctype, weapon, phase,
@@ -305,14 +285,12 @@ struct TTrophyItem2  //Add neccesary stuff here! (later, not now)
 	int r1, r2, r3, r4;
 };
 
-
 struct TTrophyRoom2
 {
 	int versionID;
 	int survivalHighScore;
 	TTrophyItem2 Body[TROPHY2_COUNT];
 };
-
 
 struct TDinoKill
 {
@@ -324,7 +302,6 @@ struct TDinoKill
 	BOOL dontloop;
 	BOOL scream;
 };
-
 
 struct TTrophyType
 {
@@ -340,13 +317,11 @@ struct TTrophyType
 	bool playAnim;
 };
 
-
 struct TPackMember
 {
 	int ctype;
 	float ratio;
 };
-
 
 struct TPackMember2
 {
@@ -354,13 +329,11 @@ struct TPackMember2
 	float ratio;
 };
 
-
 struct TSpawnInfo
 {
 	int spawnGroup;//, spawnMax;
 	float spawnRatio;
 };
-
 
 struct TPackType
 {
@@ -372,7 +345,6 @@ struct TPackType
 	float packDensity;
 };
 
-
 struct TDinoDeathType
 {
 	int die;
@@ -380,7 +352,6 @@ struct TDinoDeathType
 	int fall;
 	bool nosleep;
 };
-
 
 struct TDinoIdleType
 {
@@ -392,7 +363,6 @@ struct TDinoIdleType
 	bool startOnAny;
 	bool instantRepeat;
 };
-
 
 struct TDinoInfo
 {
@@ -467,13 +437,11 @@ struct TDinoInfo
   TDinoIdleType idle2Group[32];
   int idle2GroupCount;
 
- 
   int lookAnim[32];//trex look
   int lookCount;
  
   int smellAnim[32]; //icth wateridle   trex smell
   int smellCount;
- 
 
   int roarAnim[32];
   int roarCount;
@@ -500,7 +468,6 @@ struct TDinoInfo
   unsigned char radarRed, radarGreen, radarBlue, bloodRed, bloodGreen, bloodBlue;
   WORD radarColour565, radarColour555;
 
-
   int SpawnInfoCh=0;
   TSpawnInfo SpawnInfo[32];
 
@@ -513,7 +480,6 @@ struct TDinoInfo
 
 };
 
-
 struct TPack
 {
 	TCharacter *leader;
@@ -522,7 +488,6 @@ struct TPack
 	bool attack;
 	bool _attack;
 };
-
 
 struct TAIInfo  {
 	float targetDistance;
@@ -552,12 +517,10 @@ struct TAIInfo  {
 
 };
 
-
 struct TSpawnRegion
 {
 	int XMax, YMax, XMin, YMin;
 };
-
 
 struct TSpawnGroup
 {
@@ -574,7 +537,6 @@ struct TSpawnGroup
 	int packIndex[128];
 	int spawnInfoIndex[128];
 };
-
 
 struct TWeapInfo
 {
@@ -700,14 +662,12 @@ inline int FindWeaponSound(const TWeapon& weapon, int weaponIndex, int soundInde
   return soundIndex >= 0 && soundIndex < character.SfxCount ? soundIndex : -1;
 }
 
-
 struct TWaterEntity
 {
   int tindex, wlevel;
   float transp;
   int fogRGB;
 };
-
 
 struct TWind
 {
@@ -716,14 +676,12 @@ struct TWind
   Vector3d nv;
 };
 
-
 struct TElement
 {
   Vector3d pos, speed;
   int     Flags;
   float   R;
 };
-
 
 struct TElements
 {
@@ -734,7 +692,6 @@ struct TElements
   TElement EList[32];
 };
 
-
 struct TBloodP
 {
   int LTime;
@@ -742,13 +699,11 @@ struct TBloodP
   int Owner;
 };
 
-
 struct TBTrail
 {
   int Count;
   TBloodP Trail[512];
 };
-
 
 struct TMenuDinoInfo
 {

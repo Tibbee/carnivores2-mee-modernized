@@ -535,7 +535,6 @@ void ReadTrophyTypeInfo(FILE *stream, int trophyGroup)
 		}
 		value++;
 
-
 		if (strstr(line, "tropPos")) trophyType[trophyTypeCount].trophyPos = ReadScriptIntField(value, line, "trophy tropPos");
 		if (strstr(line, "alpha")) trophyType[trophyTypeCount].alpha = ReadScriptIntField(value, line, "trophy alpha");
 		if (strstr(line, "beta")) trophyType[trophyTypeCount].beta = ReadScriptIntField(value, line, "trophy beta");
@@ -552,11 +551,8 @@ void ReadTrophyTypeInfo(FILE *stream, int trophyGroup)
 		if (strstr(line, "zdata")) trophyType[trophyTypeCount].zdata = ReadScriptIntField(value, line, "trophy zdata");
 		if (strstr(line, "playAnim")) readBool(value, trophyType[trophyTypeCount].playAnim);
 
-
-
 	}
 }
-
 
 void WipePackMembers2() {
 	if (DinoInfo[TotalC].packMember2Ch) {
@@ -566,7 +562,6 @@ void WipePackMembers2() {
 	}
 	DinoInfo[TotalC].packMember2Ch = 0;
 }
-
 
 void WipeSpawnInfo() {
 	if (DinoInfo[TotalC].SpawnInfoCh) {
@@ -604,8 +599,6 @@ void ReadSpawnInfo(FILE *stream)
 	}
 }
 
-
-
 void WipeSpawnInfoPack() {
 	RequireScriptSlot(packTypeCount, 1024, "pack types");
 	if (packType[packTypeCount].SpawnInfoCh) {
@@ -622,8 +615,6 @@ void ReadSpawnInfoPack(FILE *stream)
 	RequireScriptSlot(packType[packTypeCount].SpawnInfoCh, 32, "pack spawn-info list");
 	char *value;
 	char line[256];
-
-
 
 	while (fgets(line, 255, stream)) {
 		if (strstr(line, "}")) {
@@ -642,7 +633,6 @@ void ReadSpawnInfoPack(FILE *stream)
 		if (strstr(line, "spawngroup")) packType[packTypeCount].SpawnInfo[packType[packTypeCount].SpawnInfoCh].spawnGroup = ReadScriptIndexField(value, line, "pack spawn group", 256);
 	}
 }
-
 
 void ReadPackMember2(FILE *stream) {
 	RequireScriptSlot(DinoInfo[TotalC].packMember2Ch, 32, "character pack-member list");
@@ -754,7 +744,6 @@ void WipeSpawnReg() {
 
 }
 
-
 void ReadSpawnTableLine(FILE *stream, char *_value, char line[256], bool &spawnOverwrite, bool &avoidOverwrite) {
 	char *value = _value;
 
@@ -777,8 +766,6 @@ void ReadSpawnTableLine(FILE *stream, char *_value, char line[256], bool &spawnO
 
 		ReadAvoid(stream);
 	}
-
-
 
 	if (strstr(line, "spawnrate")) spawnGroup[TotalSpawnGroup].SpawnRate = ReadScriptFloatField(value, line, "spawn rate");
 	if (strstr(line, "spawnmax")) spawnGroup[TotalSpawnGroup].SpawnMax = ReadScriptIntField(value, line, "spawn max");
@@ -888,7 +875,6 @@ void ReadSpawnGroup(FILE *stream, char line[256], int mode) {
 
 	char *value;
 
-
 	while (fgets(line, 255, stream))
 	{
 		if (strstr(line, "}"))
@@ -913,8 +899,6 @@ void ReadSpawnGroup(FILE *stream, char line[256], int mode) {
 			break;
 		}
 		value = strstr(line, "=");
-
-
 
 		if (strstr(line, "overwrite") || strstr(line, "addition")) {
 
@@ -951,7 +935,6 @@ void ReadSpawnGroup(FILE *stream, char line[256], int mode) {
 
 		}
 
-
 	}
 }
 
@@ -970,11 +953,6 @@ void ReadSpawnTable(FILE *stream)
 		return;
 	}
 
-
-
-
-
-
 	TotalSpawnGroup = 0;
 	char line[256];
 	while (fgets(line, 255, stream))
@@ -984,7 +962,6 @@ void ReadSpawnTable(FILE *stream)
 		if (strstr(line, "spawngroup")) ReadSpawnGroup(stream, line, 0);
 	}
 }
-
 
 void ReadPackTableLine(FILE *stream, char *_value, char line[256], bool &spawnIOverwrite) {
 	RequireScriptSlot(packTypeCount, 1024, "pack types");
@@ -1101,9 +1078,7 @@ void ReadPackTable(FILE *stream)
 	{
 		if (strstr(line, "}")) break;
 
-
 		if (strstr(line, "packgroup"))ReadPackGroup(stream, line, 0);
-			
 
 	}
 
@@ -1135,7 +1110,6 @@ void ReadTrophyTable(FILE *stream)
 
 	}
 }
-
 
 void ReadSnowType(FILE *stream)
 {
@@ -1172,7 +1146,6 @@ void ReadSnowType(FILE *stream)
 
 	}
 }
-
 
 void ReadAreaTable (FILE *stream, int areaNumber)
 {
@@ -1225,7 +1198,6 @@ void ReadAreaTable (FILE *stream, int areaNumber)
 				sprintf(testBuff, "\n TES2: %i", areaNumber);
 				PrintLogVerbose(testBuff);
 
-
 				if (TotalAreaInfo == areaNumber) {
 
 					if (strstr(line, "snow")) {
@@ -1252,7 +1224,6 @@ void ReadAreaTable (FILE *stream, int areaNumber)
 	}
 
 }
-
 
 void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	RequireScriptSlot(TotalW, 10, "weapons");
@@ -1328,7 +1299,6 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	if (strstr(line, "canRun")) readBool(value, WeapInfo[TotalW].canRun);
 	if (strstr(line, "cannotMortal")) readBool(value, WeapInfo[TotalW].cannotMortal);
 
-
 	if (strstr(line, "semiAuto")) readBool(value, WeapInfo[TotalW].semiauto);
 	if (strstr(line, "fullAuto")) readBool(value, WeapInfo[TotalW].fullauto);
 
@@ -1376,7 +1346,6 @@ void ReadWeaponLine(FILE *stream, char *_value, char line[256]) {
 	if (strstr(line, "retrieve")) readBool(value, WeapInfo[TotalW].retrieve);
 
 }
-
 
 void ReadWeapons(FILE *stream)
 {
@@ -1435,11 +1404,7 @@ void ReadWeapons(FILE *stream)
 
 		ReadWeaponLine(stream, value, line);
 
-
-
 		if (strstr(line, "overwrite") || strstr(line, "addition")) {
-
-
 
 			bool readThis = true;
 			char mapNo1 = tempProjectName[18];
@@ -1498,7 +1463,6 @@ void ReadWeapons(FILE *stream)
 					}
 				}
 
-
 				if (strstr(line, "char")) {
 					bool readChar = false;
 					if (strstr(line, "char0") && (dinSelect & (1 << 10))) readChar = true;
@@ -1516,9 +1480,6 @@ void ReadWeapons(FILE *stream)
 
 				break;
 			}
-
-
-
 
 			if (readThis) {
 
@@ -1543,16 +1504,11 @@ void ReadWeapons(FILE *stream)
 			}
 		}
 
-
-		
-		
       }
 
   }
 
 }
-
-
 
 void WipeKillTypes() {
 	if (DinoInfo[TotalC].killTypeCount) {
@@ -1660,7 +1616,6 @@ void ReadIdleGroupInfo(FILE *stream)
 	}
 }
 
-
 void ReadIdle2GroupInfo(FILE *stream)
 {
 	RequireScriptSlot(DinoInfo[TotalC].idle2GroupCount, 32, "secondary idle groups");
@@ -1699,7 +1654,6 @@ void ReadIdle2GroupInfo(FILE *stream)
 
 	}
 }
-
 
 void ReadDeathTypeInfo(FILE *stream)
 {
@@ -1755,7 +1709,6 @@ void ReadKillTypeInfo(FILE *stream)
 		if (strstr(line, "carryCorpse")) readBool(value, DinoInfo[TotalC].killType[DinoInfo[TotalC].killTypeCount].carryCorpse);
 		if (strstr(line, "dontloop")) readBool(value, DinoInfo[TotalC].killType[DinoInfo[TotalC].killTypeCount].dontloop);
 		if (strstr(line, "scream")) readBool(value, DinoInfo[TotalC].killType[DinoInfo[TotalC].killTypeCount].scream);
-		
 
 	}
 }
@@ -1857,14 +1810,12 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	if (strstr(line, "radar")) readBool(value, DinoInfo[TotalC].onRadar);
 	if (strstr(line, "dontswimaway")) readBool(value, DinoInfo[TotalC].dontSwimAway);
 
-
 	if (strstr(line, "survivalIndex")) {
 		DinoInfo[TotalC].survivalDino = true;
 		RequireScriptSlot(SurvivalIndexCh, 128, "survival character list");
 		SurvivalIndex[ScriptIndex(value, 128, "survival index")] = TotalC;
 		SurvivalIndexCh++;
 	}
-
 
 	if (strstr(line, "dontBend")) readBool(value, DinoInfo[TotalC].dontBend);
 	//if (strstr(line, "bendOffset")) DinoInfo[TotalC].bendOffset = atof(value);
@@ -1891,12 +1842,10 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 
 	if (strstr(line, "waterLevel")) DinoInfo[TotalC].waterLevel = ReadScriptIntField(value, line, "character water level");
 
-
 	if (strstr(line, "CamYLand")) DinoInfo[TotalC].camDemoPoint = ReadScriptFloatField(value, line, "character land camera height");
 	if (strstr(line, "CamYWater")) DinoInfo[TotalC].camDemoPointWater = ReadScriptFloatField(value, line, "character water camera height");
 	if (strstr(line, "CamBaseLand")) DinoInfo[TotalC].camBase = ReadScriptFloatField(value, line, "character land camera base");
 	if (strstr(line, "CamBaseWater")) DinoInfo[TotalC].camBaseWater = ReadScriptFloatField(value, line, "character water camera base");
-
 
 	if (strstr(line, "dogSmell")) readBool(value, DinoInfo[TotalC].dogSmell);
 
@@ -1954,7 +1903,6 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	if (strstr(line, "fireAnim")) DinoInfo[TotalC].fireAnim = ReadScriptIntField(value, line, "fire animation");
 	if (strstr(line, "reloadAnim")) DinoInfo[TotalC].reloadAnim = ReadScriptIntField(value, line, "reload animation");
 
-	
 	if (strstr(line, "lookAnim") || strstr(line, "fishIdleAnim")) {
 		if (idleOverwrite) {
 			DinoInfo[TotalC].lookCount = 0;
@@ -1974,7 +1922,6 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 		DinoInfo[TotalC].smellAnim[DinoInfo[TotalC].smellCount] = ReadScriptIntField(value, line, "smell animation");
 		DinoInfo[TotalC].smellCount++;
 	}
-	
 
 	if (strstr(line, "roarAnim")) {
 		if (roarOverwrite) {
@@ -1996,10 +1943,6 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 		DinoInfo[TotalC].waterDieCount++;
 	}
 
-
-
-
-
 	/*
 	if (strstr(line, "trophy")) {
 		if (!DinoInfo[TotalC].trophyCode) {
@@ -2018,7 +1961,6 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	if (strstr(line, "tropinfo")) {
 		ReadTrophyTypeInfo(stream, -1);
 	}
-
 
 	if (strstr(line, "killtype")) {
 
@@ -2086,10 +2028,8 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 
 }
 
-
 void ReadCharacters(FILE *stream)
 {
-
 
 	//area
 	char tempProjectName[128];
@@ -2101,8 +2041,6 @@ void ReadCharacters(FILE *stream)
 	{
 		LPSTR s = __argv[a];
 	}
-
-
 
   char line[256], *value;
   while (fgets( line, 255, stream))
@@ -2155,7 +2093,6 @@ void ReadCharacters(FILE *stream)
 	
 		  DinoInfo[TotalC].radarColour565 = ((DinoInfo[TotalC].radarRed>>3) << 11) | ((DinoInfo[TotalC].radarGreen>>2) << 5) | (DinoInfo[TotalC].radarBlue>>3);
 		  DinoInfo[TotalC].radarColour555 = ((DinoInfo[TotalC].radarRed >> 3) << 10) | ((DinoInfo[TotalC].radarGreen >> 3) << 5) | (DinoInfo[TotalC].radarBlue >> 3);
-		 
 
 		  // DinoInfo has DINOINFO_MAX (128) entries.
 		  if (TotalC >= DINOINFO_MAX)
@@ -2183,7 +2120,6 @@ void ReadCharacters(FILE *stream)
 				DoHalt("Script loading error: Characters");
 			value = value ? value + 1 : line;
 
-
 			bool temp, temp3, temp4, temp5, temp6, temp7, temp8, temp9, temp10, temp11, temp12, temp13;
 			temp = false;
 			temp3 = false;
@@ -2200,8 +2136,6 @@ void ReadCharacters(FILE *stream)
 			ReadCharacterLine(stream, value, line, temp, temp3, temp4, temp5, temp6, temp7, temp8, temp9, temp12, temp10, temp11, temp13);
 
 			if (strstr(line, "overwrite") || strstr(line, "addition")) {
-
-
 
 				bool readThis = true;
 				char mapNo1 = tempProjectName[18];
@@ -2260,7 +2194,6 @@ void ReadCharacters(FILE *stream)
 						}
 					}
 
-
 					if (strstr(line, "char")){
 						bool readChar = false;
 						if (strstr(line, "char0") && (dinSelect & (1<<10))) readChar = true;
@@ -2278,9 +2211,6 @@ void ReadCharacters(FILE *stream)
 					
 					break;
 				}
-
-
-
 
 				if (readThis) {
 
@@ -2338,15 +2268,12 @@ void ReadCharacters(FILE *stream)
 			}
 			*/
 
-
 		//}
 
       }
 
   }
 }
-
-
 
 void LoadResourcesScript()
 {
@@ -2392,7 +2319,6 @@ void LoadResourcesScript()
 	AIInfo[AI_HUNTDOG].yBetaGamma4 = 0.4f;
 	AIInfo[AI_HUNTDOG].idleStartD = 128;
 
-	
 	AIInfo[AI_PARA].targetDistance = 8048.f;
 	AIInfo[AI_PARA].agressMulti = 128;
 	AIInfo[AI_PARA].noWayCntMin = 8;
@@ -2415,7 +2341,6 @@ void LoadResourcesScript()
 	//AIInfo[AI_PARA].weaveRange = 0;
 	AIInfo[AI_PARA].pWMin = 2048;
 	//waterLevel = 160;
-
 
 	AIInfo[AI_BRONT].iceAge = true;
 	AIInfo[AI_BRONT].targetDistance = 8048.f;
@@ -2462,7 +2387,6 @@ void LoadResourcesScript()
 	AIInfo[AI_HOG].rot2 = 1.4f;
 	//AIInfo[AI_HOG].weaveRange = 3072;
 	AIInfo[AI_HOG].pWMin = 2048;
-
 
 	AIInfo[AI_BEAR].iceAge = true;
 	AIInfo[AI_BEAR].targetDistance = 8048.f;
@@ -2511,7 +2435,6 @@ void LoadResourcesScript()
 	//AIInfo[AI_RHINO].weaveRange = 3072;
 	AIInfo[AI_RHINO].pWMin = 2048;
 
-
 	AIInfo[AI_DEER].iceAge = true;
 	AIInfo[AI_DEER].targetDistance = 8048.f;
 	AIInfo[AI_DEER].agressMulti = 256;
@@ -2558,9 +2481,6 @@ void LoadResourcesScript()
 	//AIInfo[AI_MAMM].weaveRange = 0;
 	AIInfo[AI_MAMM].pWMin = 3048;
 
-
-
-
 	AIInfo[AI_SMILO].iceAge = true;
 	AIInfo[AI_SMILO].carnivore = true;
 	AIInfo[AI_SMILO].targetDistance = 8048.f;
@@ -2586,9 +2506,6 @@ void LoadResourcesScript()
 	AIInfo[AI_SMILO].pWMin = 2048;
 	AIInfo[AI_SMILO].jumper = true;
 
-
-
-
 	AIInfo[AI_WOLF].iceAge = true;
 	AIInfo[AI_WOLF].carnivore = true;
 	AIInfo[AI_WOLF].targetDistance = 8048.f;
@@ -2613,10 +2530,6 @@ void LoadResourcesScript()
 	//AIInfo[AI_WOLF].weaveRange = 3072;
 	AIInfo[AI_WOLF].pWMin = 2048;
 	AIInfo[AI_WOLF].jumper = true;
-
-
-
-
 
 	AIInfo[AI_ANKY].targetDistance = 8048.f;
 	AIInfo[AI_ANKY].agressMulti = 128;
@@ -2790,7 +2703,6 @@ void LoadResourcesScript()
 	//AIInfo[AI_CERAT].weaveRange = 1648;
 	AIInfo[AI_CERAT].pWMin = 2048;
 
-
 	AIInfo[AI_TITAN].jumper = false;
 	AIInfo[AI_TITAN].agressMulti = 8;
 	//AIInfo[AI_TITAN].waterLevel = 140;
@@ -2833,8 +2745,6 @@ void LoadResourcesScript()
 
 	//AIInfo[AI_TREX].waterLevel = 560;
 
-
-
 	AIInfo[AI_FISH].jumper = false;
 	AIInfo[AI_FISH].agressMulti = 4;
 	AIInfo[AI_FISH].idleStart = 126;
@@ -2843,14 +2753,10 @@ void LoadResourcesScript()
 	AIInfo[AI_MOSA].agressMulti = 4;
 	AIInfo[AI_MOSA].idleStart = 126; //SET THIS BACK TO 126
 
-
 	AIInfo[AI_MOSH].idleStart = 76;
 	AIInfo[AI_DIMET].idleStart = 76;
 	AIInfo[AI_GALL].idleStart = 76;
 	AIInfo[AI_PIG].idleStart = 96;
-
-
-
 
   FILE *stream;
   char line[256];
@@ -2875,7 +2781,6 @@ void LoadResourcesScript()
   ApplySurvivalCommonOptions(commonOptions);
 
   ReadScriptCommandLineOptions(tempProjectName, timeOfDay, dinSelect);
-  
 
   int areaNumber = -1;
   switch ((char)tempProjectName[18]) {
@@ -2910,7 +2815,6 @@ void LoadResourcesScript()
   }
 
   trophyTypeCount = 0;
-
 
   while (fgets( line, 255, stream))
   {

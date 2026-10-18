@@ -171,7 +171,6 @@ void PreCashGroundModel()
   };
 #endif
 
-
   for (y=-gridRadius; y<gridRadius; y++)
   {
 #if defined(_gl)
@@ -203,7 +202,6 @@ void PreCashGroundModel()
       v[0].x = worldX[gridX];
       v[0].z = worldZ[gridY];
       v[0].y = static_cast<float>((static_cast<int>(HMap[yy][xx])))*ctHScale - CameraY;
-
 
 //========= water section ===========//
 
@@ -321,8 +319,6 @@ void PreCashGroundModel()
         }
       }
 
-
-
 #ifdef _soft
 #else
 #endif
@@ -332,7 +328,6 @@ void PreCashGroundModel()
       rv.y = v[0].y * localCb - terrainVz * localSb;
       rv.z = terrainVz * localCb + v[0].y * localSb;
 
-
       if (!inAttributeSquare || fabs(rv.x * FOVK) > -rv.z + 1600)
       {
         VMap[kViewGridCenter + y][kViewGridCenter + x].v = rv;
@@ -341,7 +336,6 @@ void PreCashGroundModel()
 #endif
         continue;
       }
-
 
       if (HARD3D)
         if (  ((FMap[yy][xx] & fmWater)==0) || IsUnderwater())
@@ -394,8 +388,6 @@ void PreCashGroundModel()
         clt= MAX(64, clt-db);
         VMap[kViewGridCenter + y][kViewGridCenter + x].Light = clt;
       }
-
-
 
 #if !defined(_gl)
       if (v[0].z>-256.0) DF+=128;

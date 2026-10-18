@@ -20,8 +20,6 @@
 #include <chrono>
 #include <map>
 
-
-
 #include "Version.h"
 #include "Core/Constants.h"
 #include "Core/ResolutionList.h"
@@ -37,7 +35,6 @@ enum HuntTimeEnum {
 #else
 #	define EXTERNAL extern
 #endif
-
 
 // ======================================================================= //
 // Global Enumerators
@@ -119,7 +116,6 @@ struct Color16 {
 #pragma pack(pop)
 using RGBA16 = Color16;
 
-
 class TargaImage
 {
 public:
@@ -131,7 +127,6 @@ public:
 		if (m_Data) delete[] m_Data;
 	}
 };
-
 
 class Timer
 {
@@ -154,7 +149,6 @@ public:
 
 };
 
-
 class SoundFX
 {
 public:
@@ -166,7 +160,6 @@ public:
 	SoundFX(const SoundFX& w);
 	~SoundFX();
 };
-
 
 class MenuItem
 {
@@ -213,7 +206,6 @@ public:
 	}
 };
 
-
 class Picture
 {
 public:
@@ -231,7 +223,6 @@ public:
 
 	// TODO: Add Getters and Setters, move member variables to private
 };
-
 
 class DinoInfo
 {
@@ -290,7 +281,6 @@ public:
 	{}
 };
 
-
 class WeapInfo
 {
 public:
@@ -338,7 +328,6 @@ public:
 		m_ThumbnailHidden()
 	{}
 };
-
 
 class AreaInfo
 {
@@ -391,7 +380,6 @@ public:
 	}
 };
 
-
 class UtilInfo
 {
 protected:
@@ -442,7 +430,6 @@ public:
 	{
 	}
 };
-
 
 class TKeyMap
 {
@@ -526,7 +513,6 @@ public:
 	void Default();
 };
 
-
 class TrophyItem
 {
 public:
@@ -542,7 +528,6 @@ public:
 	float m_Range;
 	int32_t m_Reserved[4];
 };
-
 
 class ProfileStats
 {
@@ -685,7 +670,6 @@ EXTERNAL SoundFX				g_MenuSound_Move;
 EXTERNAL SoundFX				g_MenuSound_Type;
 EXTERNAL SoundFX				g_MenuSound_TypeGo;
 
-
 // ======================================================================= //
 // Global Functions
 // ======================================================================= //
@@ -757,7 +741,6 @@ void MenuAudioPlayHover();
 void MenuAudioPlayClick();
 void MenuAudioPlayType();
 void MenuAudioPlayTypeGo();
-
 
 #ifdef _MAIN_
 EXTERNAL char g_KeyNames[256][24] = {

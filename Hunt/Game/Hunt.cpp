@@ -52,12 +52,6 @@ static TAni* RequireCurrentWeaponAnimation(int animationIndex)
   return nullptr;
 }
 
-
-
-
-
-
-
 float CalcFogLevel(Vector3d v, int cachedFogIndex)
 {
   if (!FOGON) return 0;
@@ -75,7 +69,6 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
     }
   }
   else cf = 127;
-
 
   if (! (CAMERAINFOG | cf) ) return 0;
   TFogEntity *fptr;
@@ -251,17 +244,6 @@ float CalcFogLevel(Vector3d v, int cachedFogIndex)
   return MIN(fl, fptr->FLimit);
 }
 
-
-
-
-
-
-
-
-
-
-
-
 void DrawScene()
 {
 #ifdef GL_PERF_HOOKS
@@ -343,7 +325,6 @@ void DrawScene()
   cb = static_cast<float>(cos(CameraBeta));
   sb = static_cast<float>(sin(CameraBeta));
 
-
   RenderGround();
 
   RenderModelsList();
@@ -371,9 +352,6 @@ void DrawScene()
   RenderElements();
 }
 
-
-
-
 void DrawOpticCross( int v)
 {
   int sx =  VideoCX + static_cast<int>((rVertex[v].x / (-rVertex[v].z) * CameraW));
@@ -384,8 +362,6 @@ void DrawOpticCross( int v)
 
   Render_Cross(sx, sy);
 }
-
-
 
 void ScanLifeForms()
 {
@@ -416,12 +392,6 @@ void ScanLifeForms()
   if (li==-1) return;
   Render_LifeInfo(li);
 }
-
-
-
-
-
-
 
 void DrawPostObjects()
 {
@@ -525,7 +495,6 @@ void DrawPostObjects()
     }
 
 SKIPWIND:
-
 
   if (wptr->state == 0) {
 	  if (Weapon.BTime) {
@@ -648,7 +617,6 @@ SKIPWIND:
 	  }
   }
 
-
   if (wptr->state == 7)
   {
 	  wptr->FTime += frameAdvance;
@@ -739,11 +707,9 @@ SKIPWIND:
 
   //==================== render weapon ===================//
 
-
   Vector3d v = Sun3dPos;
   Sun3dPos = RotateVector(Sun3dPos);
   CalcNormals(wptr->chinfo[CurrentWeapon].mptr.get(), wptr->normals.get());
-
 
   if (GOUR)
     CalcGouraud(wptr->chinfo[CurrentWeapon].mptr.get(), wptr->normals.get());
@@ -797,7 +763,6 @@ SKIPWIND:
     CameraH = savedCH;
   }
 
-
 #ifdef _soft
 #else
   if (PHONG)
@@ -814,7 +779,6 @@ SKIPWIND:
 #endif
 
   Sun3dPos = v;
-
 
   //Render_Cross(VideoCX, VideoCY);
   if ((!WeapInfo[CurrentWeapon].Optic || IsScopeView()) && WeapInfo[CurrentWeapon].cross
@@ -930,7 +894,6 @@ SKIPWEAPON:
 			  DrawScaledPicture(ind + ch * bulletW + bl*bulletW, y2, bulletW, bulletH, Weapon.BulletPic[CurrentWeapon]);
 	}
   }
-
 
   if (InTrophyRoom())
   {
@@ -1123,8 +1086,6 @@ void ProcessGame()
   ShowVideo();
 }
 
-
-
 int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                    LPSTR lpszCmdLine, int nCmdShow)
 {
@@ -1168,7 +1129,6 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
   PrintLog("== Loading resources ==\n");
   hcArrow = LoadCursor(nullptr, IDC_ARROW);
-
 
   PrintLog("Loading common resources:");
   PrintLoad("Loading common resources...");
@@ -1244,7 +1204,6 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
   LoadPictureTGA(TFX_ENVMAP,    "HUNTDAT\\FX\\envmap.tga", MemoryTag::Global);
   LoadPictureTGA(TFX_SPECULAR,  "HUNTDAT\\FX\\specular.tga", MemoryTag::Global);
-
 
   PrintLog(" Done.\n");
 
