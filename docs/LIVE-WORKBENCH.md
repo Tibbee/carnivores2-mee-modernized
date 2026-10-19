@@ -23,8 +23,8 @@ owner request and its evidence is archived.
 - **F10:** open/close the compact floating inspector.
 - **UI mode:** mouse and keyboard belong to the tool, including outside its panel.
 - **F8:** switch to Test scene for normal movement/look; F8 or Escape returns to UI.
-- Choose Fog, Waves, Sun, Night or Beam. Drag a slider, or type an exact number and press Enter.
-  Rejected text never replaces the previous valid runtime value.
+- Choose Fog, Waves, Water, Sun, Night, Beam, Audio or Collision. Drag a slider, or type an
+  exact number and press Enter. Rejected text never replaces the previous valid runtime value.
 - Reset restores the captured loaded value. Compare loaded previews the baseline
   without deleting edits; Return to edited restores them. One drag is one undo.
 - Undo/Redo buttons or Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z when no widget is active.
@@ -58,6 +58,13 @@ must stay at least one degree below outer; sliders respect the pair and exact
 entry rejects invalid pairs. Tint edits/reset/compare/history cover RGB together.
 Beam preview requires purchased equipment, switch on and a living hunter; the
 workbench never grants equipment. No obsolete Classic/Moonlit selector is added.
+
+Water exposes the two existing config-backed water settings:
+`water_wave_fade_rings` (distance over which the wave displacement fades to
+zero before the legacy cutoff; 0 restores the hard cutoff) and `water_mipmap`
+(software renderer only; 1 uses the distance mip chain, 0 keeps legacy
+full-resolution water). Both are integer settings and both save through the
+workbench review; `water_mipmap` has no visible effect under OpenGL.
 
 Expand Scene context for read-only project/time/renderer, underwater/pocket-fog,
 requested audio environment and equipment state. Environment is the control-state
@@ -106,8 +113,10 @@ Closed/collapsed skips scans/projection. No physics, picking, pause or map write
 ## Saving to config.cfg
 
 The panel's **SAVE TO CONFIG.CFG** section writes the changed fields that have a
-recognized config key: the nine night/beam scalars and the 32 effective `envN_*`
-reverb fields. It is a two-step action — **Review changes** shows the resolved
+recognized config key: the nine night/beam scalars, the 32 effective `envN_*`
+reverb fields and the two water keys `water_wave_fade_rings` and
+`water_mipmap` (software renderer only; OpenGL ignores it, but the value is
+saved for the software renderer). It is a two-step action — **Review changes** shows the resolved
 destination, the exact lines and their old/new values, then **Confirm write**
 performs the save — so closing the panel or moving a slider writes nothing. Only
 the changed keys' own value tokens are rewritten; comments, unknown keys,
@@ -121,7 +130,7 @@ loader ignores.
 
 ## What is not saved
 
-All 57 scalar/channel descriptors are global runtime tuning, not per-area
+All 59 scalar/channel descriptors are global runtime tuning, not per-area
 definitions. Editing a value changes the running session; closing keeps applied
 values until the hunt's ordinary reset. The review save above is the only path
 that writes a file, and it writes only `config.cfg`; no profile, trophy or

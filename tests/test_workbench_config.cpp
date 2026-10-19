@@ -458,6 +458,37 @@ TEST_F(ConfigPersistence, WhatWasWrittenIsWhatTheLoaderWouldReadBack) {
 	EXPECT_TRUE(SameValue(parsed, 17.25f)) << "token was " << token;
 }
 
+TEST_F(ConfigPersistence, WaterKeysSaveAsIntegersAndRoundTrip) {
+	// The two water settings are ordinary recognized keys: the review rewrites
+	// their integer tokens, the backup holds the previous bytes, and the loader's
+	// token grammar reads the new values back.
+	const std::string path = Path();
+	const std::string original = "renderer 1\r\nwater_mipmap 1\r\nwater_wave_fade_rings 8\r\n";
+	Write(path, original);
+	Session session;
+	ASSERT_EQ(session.Capture(CompiledDefaults()), Error::None);
+	ASSERT_EQ(session.Edit(Parameter::WaterMipmap, 0), Error::None);
+	ASSERT_EQ(session.Edit(Parameter::WaterWaveFadeRings, 0), Error::None);
+	EXPECT_EQ(session.Edit(Parameter::WaterMipmap, .5f), Error::IntegerRequired);
+
+	const auto preview = PreviewConfigWrite(path, session);
+	ASSERT_TRUE(preview.ok()) << preview.message;
+	ASSERT_EQ(preview.fields.size(), 2u);
+	EXPECT_EQ(preview.fields[0].key, "water_mipmap");
+	EXPECT_EQ(preview.fields[0].newValue, "0");
+	EXPECT_EQ(preview.fields[1].key, "water_wave_fade_rings");
+	EXPECT_EQ(preview.fields[1].newValue, "0");
+	ASSERT_TRUE(ApplyConfigWrite(path, session, preview).ok());
+	EXPECT_EQ(ReadFileText(path), "renderer 1\r\nwater_mipmap 0\r\nwater_wave_fade_rings 0\r\n");
+	EXPECT_EQ(ReadFileText(path + ".before-workbench.bak"), original);
+
+	float parsed = -1.f;
+	ASSERT_EQ(ParseValue(Parameter::WaterMipmap, LoadedToken(ReadFileText(path), "water_mipmap"), parsed), Error::None);
+	EXPECT_TRUE(SameValue(parsed, 0.f));
+	ASSERT_EQ(ParseValue(Parameter::WaterWaveFadeRings, LoadedToken(ReadFileText(path), "water_wave_fade_rings"), parsed), Error::None);
+	EXPECT_TRUE(SameValue(parsed, 0.f));
+}
+
 TEST_F(ConfigPersistence, AFileEditOrSessionEditBetweenReviewAndSaveRefuses) {
 	const std::string path = Path();
 	Write(path, kOriginal);
@@ -646,7 +677,7 @@ std::vector<const Descriptor*> Publishable()
 
 TEST(ConfigRegistry, EveryPublishableKeyRoundTripsThroughTheLoaderParser) {
 	const auto publishable = Publishable();
-	ASSERT_EQ(publishable.size(), 41u) << "the write set size is part of the contract";
+	ASSERT_EQ(publishable.size(), 43u) << "the write set size is part of the contract";
 	for (const auto* descriptor : publishable) {
 		for (const float value : {descriptor->minimum, descriptor->maximum, descriptor->compiledDefault}) {
 			// The production formatter, not a copy of its rule: a precision loss

@@ -1,5 +1,6 @@
 #include "TuningSession.h"
 #include "Audio/AudioInspection.h"
+#include "Core/WaterWaveFade.h"
 #include <algorithm>
 #include <charconv>
 #include <cstring>
@@ -181,7 +182,13 @@ const std::array<Descriptor, kParameterCount> registry{{
 	 0, 1, .01f, c2audio::Defaults()[8][2], LegacyAdjustment::Add, .01f, -.01f, 3, ValueType::Float, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
 	{Parameter::Env8Reverb, Group::Audio, "Late-reverb level", "env8_reverb", "", "mB",
 	 "Live preset-bank tuning; does not select the gameplay environment. Requires OpenAL EFX; save through the workbench review.",
-	 -10000, 0, 1, c2audio::Defaults()[8][3], LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey}
+	 -10000, 0, 1, c2audio::Defaults()[8][3], LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::WaterMipmap, Group::Water, "Water mipmaps", "water_mipmap", "", "0 / 1",
+	 "Software renderer only: 1 uses the distance mip chain, 0 keeps full-resolution water. OpenGL ignores this, but the value is saved for the software renderer.",
+	 0, 1, 1, 1, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey},
+	{Parameter::WaterWaveFadeRings, Group::Water, "Wave fade distance", "water_wave_fade_rings", "", "rings",
+	 "Distance over which water wave displacement fades to zero before the legacy cutoff. Zero restores the hard cutoff; both renderers share the result.",
+	 kWaterWaveFadeMin, kWaterWaveFadeMax, 1, kWaterWaveFadeDefault, LegacyAdjustment::Add, 1, -1, 0, ValueType::Integer, Scope::GlobalRuntime, ApplyPolicy::Live, PersistPolicy::RecognizedConfigKey}
 }};
 
 bool Finite(float value) {
@@ -205,7 +212,7 @@ Parameter AudioParameter(int environment, int field) {
 }
 int AudioEnvironment(Parameter id) {
 	const auto i = static_cast<std::size_t>(id);
-	if (i < kAudioParameterBegin || i >= kParameterCount) return -1;
+	if (i < kAudioParameterBegin || i >= kAudioParameterEnd) return -1;
 	const int bank = static_cast<int>((i - kAudioParameterBegin) / 4);
 	return bank == 7 ? 8 : bank;
 }

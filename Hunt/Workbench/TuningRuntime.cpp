@@ -23,16 +23,20 @@ const std::array<int*, 9> integerBindings{{
 	&NightLightingOptions().moonGlowStrengthPct, &OptFlashlightIntensityPct,
 	&OptFlashlightRange, &OptFlashlightInnerAngleDeg, &OptFlashlightOuterAngleDeg
 }};
+// Water settings follow the audio bank. Kept separate from integerBindings
+// because the descriptor order is not the binding order here.
+const std::array<int*, 2> waterBindings{{&OptWaterMipmap, &OptWaterWaveFadeRings}};
 Error WriteRuntimeValues(const Values& values, bool requireCapability = true) {
 	const auto expected = c2audio::ReadEnvironments();
 	auto audio = expected;
-	for (std::size_t i = kAudioParameterBegin; i < kParameterCount; ++i)
+	for (std::size_t i = kAudioParameterBegin; i < kAudioParameterEnd; ++i)
 		audio[AudioEnvironment(static_cast<Parameter>(i))][(i - kAudioParameterBegin) % 4] = values[i];
 	const auto result = c2audio::WriteEnvironments(expected, audio, requireCapability);
 	if (result != c2audio::WriteResult::Ok) return result == c2audio::WriteResult::Unavailable ? Error::Unavailable : Error::RuntimeChanged;
 	for (std::size_t i = 0; i < bindings.size(); ++i) *bindings[i] = values[i];
 	for (std::size_t i = 0; i < integerBindings.size(); ++i) *integerBindings[i] = static_cast<int>(values[kLegacyParameterCount + i]);
 	for (std::size_t i = 0; i < 3; ++i) FlashlightTint()[i] = values[static_cast<std::size_t>(Parameter::FlashlightRed) + i];
+	for (std::size_t i = 0; i < waterBindings.size(); ++i) *waterBindings[i] = static_cast<int>(values[static_cast<std::size_t>(Parameter::WaterMipmap) + i]);
 	return Error::None;
 }
 Error CheckCurrent() {
@@ -68,8 +72,9 @@ Values ReadRuntimeValues() {
 	for (std::size_t i = 0; i < bindings.size(); ++i) values[i] = *bindings[i];
 	for (std::size_t i = 0; i < integerBindings.size(); ++i) values[kLegacyParameterCount + i] = static_cast<float>(*integerBindings[i]);
 	for (std::size_t i = 0; i < 3; ++i) values[static_cast<std::size_t>(Parameter::FlashlightRed) + i] = FlashlightTint()[i];
+	for (std::size_t i = 0; i < waterBindings.size(); ++i) values[static_cast<std::size_t>(Parameter::WaterMipmap) + i] = static_cast<float>(*waterBindings[i]);
 	const auto audio = c2audio::ReadEnvironments();
-	for (std::size_t i = kAudioParameterBegin; i < kParameterCount; ++i)
+	for (std::size_t i = kAudioParameterBegin; i < kAudioParameterEnd; ++i)
 		values[i] = audio[AudioEnvironment(static_cast<Parameter>(i))][(i - kAudioParameterBegin) % 4];
 	return values;
 }
@@ -131,6 +136,7 @@ const char* GroupName(Group group) {
 		case Group::Sun: return "Sun glare";
 		case Group::Night: return "Night";
 		case Group::Flashlight: return "Beam";
+		case Group::Water: return "Water";
 		default: return "Audio";
 	}
 }
@@ -162,7 +168,7 @@ std::string FormatRuntimeDump() {
 	// nothing here may alter it: the legacy D-dump only ever covered Fog, Waves and
 	// Sun, which left night, beam and reverb values untranscribable.
 	dump += "\n=== WORKBENCH TUNABLES ===\n";
-	for (const Group group : {Group::Fog, Group::Waves, Group::Sun, Group::Night, Group::Flashlight, Group::Audio}) {
+	for (const Group group : {Group::Fog, Group::Waves, Group::Water, Group::Sun, Group::Night, Group::Flashlight, Group::Audio}) {
 		std::snprintf(line, sizeof(line), "--- %s ---\n", GroupName(group));
 		dump += line;
 		for (const auto& d : Descriptors()) if (d.group == group) {

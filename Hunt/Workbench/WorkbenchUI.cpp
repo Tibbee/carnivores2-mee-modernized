@@ -58,7 +58,7 @@ void DisarmPersist() {
 }
 
 // A visible review must not describe values that have since moved. Comparing the
-// edited set is 57 float compares and no file access, so it can run every frame;
+// edited set is 59 float compares and no file access, so it can run every frame;
 // ApplyConfigWrite re-derives the bytes anyway, so this is the early warning,
 // not the guard.
 bool ReviewIsStale() {
@@ -603,9 +603,10 @@ void DrawInspector() {
 				ImGui::TextDisabled("%zu changed; %s", RuntimeSession().ChangedCount(), RuntimeSession().IsComparing() ? "previewing loaded" : "previewing edited");
 			}
 			DrawSceneContext();
-			for (const auto group : {Group::Fog, Group::Waves, Group::Sun, Group::Night, Group::Flashlight, Group::Audio, Group::Collision}) {
-				if (group != Group::Fog && group != Group::Collision) ImGui::SameLine();
-				const char* label = group == Group::Fog ? "Fog" : group == Group::Waves ? "Waves" : group == Group::Sun ? "Sun" : group == Group::Night ? "Night" : group == Group::Flashlight ? "Beam" : group == Group::Audio ? "Audio" : "Collision";
+			int groupIndex = 0;
+			for (const auto group : {Group::Fog, Group::Waves, Group::Water, Group::Sun, Group::Night, Group::Flashlight, Group::Audio, Group::Collision}) {
+				if (groupIndex++ % 4 != 0) ImGui::SameLine();
+				const char* label = group == Group::Fog ? "Fog" : group == Group::Waves ? "Waves" : group == Group::Water ? "Water" : group == Group::Sun ? "Sun" : group == Group::Night ? "Night" : group == Group::Flashlight ? "Beam" : group == Group::Audio ? "Audio" : "Collision";
 				if (ImGui::RadioButton(label, group == selectedGroup)) {
 					Result(EndRuntimeGesture()); selectedGroup = group;
 				}

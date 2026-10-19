@@ -43,19 +43,25 @@ float LegacyReference(int index, float value, bool right) {
 TEST(WorkbenchRegistry, InventoryAndFactoryDefaultsAreExplicit) {
 	{
 		std::set<std::string> keys;
-		ASSERT_EQ(Descriptors().size(), 57u);
+		ASSERT_EQ(Descriptors().size(), 59u);
 		EXPECT_EQ(GroupCount(Group::Audio), 32u);
 		EXPECT_EQ(GroupCount(Group::Night), 5u); EXPECT_EQ(GroupCount(Group::Flashlight), 7u);
 		EXPECT_EQ(GroupCount(Group::Fog), 7u);
 		EXPECT_EQ(GroupCount(Group::Waves), 4u);
 		EXPECT_EQ(GroupCount(Group::Sun), 2u);
+		EXPECT_EQ(GroupCount(Group::Water), 2u);
 		for (std::size_t i = 0; i < Descriptors().size(); ++i) {
 			const auto& d = Descriptors()[i];
 			EXPECT_EQ(static_cast<std::size_t>(d.id), i);
 			EXPECT_TRUE(keys.insert(d.key).second);
 			EXPECT_EQ(FindParameter(d.key), d.id);
 			EXPECT_EQ(FindDescriptor(d.id), &d);
-			EXPECT_EQ(d.type, i < 13 ? ValueType::Float : i < 22 ? ValueType::Integer : i < 25 ? ValueType::ColorChannel : (i - 25) % 4 == 3 ? ValueType::Integer : ValueType::Float);
+			const ValueType expectedType = i < 13 ? ValueType::Float
+				: i < 22 ? ValueType::Integer
+				: i < 25 ? ValueType::ColorChannel
+				: i < kAudioParameterEnd ? ((i - kAudioParameterBegin) % 4 == 3 ? ValueType::Integer : ValueType::Float)
+				: ValueType::Integer;
+			EXPECT_EQ(d.type, expectedType);
 			EXPECT_EQ(d.scope, Scope::GlobalRuntime);
 			EXPECT_EQ(d.apply, ApplyPolicy::Live);
 			EXPECT_EQ(d.persist, i < 13 ? PersistPolicy::RuntimeDumpOnly : (i >= 22 && i < 25) ? PersistPolicy::RuntimeOnly : PersistPolicy::RecognizedConfigKey);
@@ -69,7 +75,7 @@ TEST(WorkbenchRegistry, InventoryAndFactoryDefaultsAreExplicit) {
 			22, 85, 60, 128, 100, 500, 6000, 14, 26, 1, .902f, .784f,
 			1.49f,.3f,.4f,-620, 1.2f,.2f,.2f,-600, 1.49f,.18f,.3f,-700,
 			2.6f,.2f,.326f,-500, 1.1f,.6f,.275f,-700, 3.2f,.6f,.9f,-200,
-			1.8f,.4f,.4f,-400, 1.5f,.1f,.1f,-200};
+			1.8f,.4f,.4f,-400, 1.5f,.1f,.1f,-200, 1, 8};
 		EXPECT_TRUE(SameValues(expected, CompiledDefaults()));
 	}
 }
@@ -79,6 +85,7 @@ TEST(WorkbenchAudio, BankIdsAreStableAndDryBankIsNeverEditable) {
 	EXPECT_EQ(AudioParameter(7,0),Parameter::Count);EXPECT_EQ(AudioParameter(9,0),Parameter::Count);
 	for(int e:{0,1,2,3,4,5,6,8})for(int f=0;f<4;++f)EXPECT_EQ(AudioEnvironment(AudioParameter(e,f)),e);
 	EXPECT_EQ(AudioEnvironment(Parameter::FlashlightBlue),-1);
+	EXPECT_EQ(AudioEnvironment(Parameter::WaterMipmap),-1);
 	auto s=LoadedSession();const auto before=s.Edited();
 	EXPECT_EQ(s.EditText(AudioParameter(8,3),"-200.5"),Error::IntegerRequired);
 	EXPECT_EQ(s.Edited(),before);EXPECT_FALSE(s.CanUndo());
@@ -297,7 +304,10 @@ TEST(WorkbenchAtmosphere, IntegerSettingsRejectFractionsWithoutRoundingOrPublish
 		const auto before = s.Edited(); float parsed = -123;
 		EXPECT_EQ(ParseValue(d.id, "22.00000001", parsed), Error::IntegerRequired);
 		EXPECT_EQ(parsed, -123);
-		EXPECT_EQ(s.Edit(d.id, d.compiledDefault + .5f), Error::IntegerRequired);
+		// Stay inside the range: a toggle's default sits on its maximum, and an
+		// out-of-range value would be rejected for the wrong reason.
+		const float fraction = d.compiledDefault + .5f <= d.maximum ? d.compiledDefault + .5f : d.compiledDefault - .5f;
+		EXPECT_EQ(s.Edit(d.id, fraction), Error::IntegerRequired);
 		EXPECT_EQ(s.EditText(d.id, "nan"), Error::NonFinite);
 		EXPECT_EQ(s.Edited(), before); EXPECT_FALSE(s.CanUndo());
 	}

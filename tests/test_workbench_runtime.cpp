@@ -25,6 +25,7 @@ protected:
 		OptFlashlightIntensityPct = 500; OptFlashlightRange = 6000;
 		OptFlashlightInnerAngleDeg = 14; OptFlashlightOuterAngleDeg = 26;
 		FlashlightTint() = {1, .902f, .784f};
+		OptWaterMipmap = 1; OptWaterWaveFadeRings = kWaterWaveFadeDefault;
 		UWFog_BaseDensityMult = 0; // Simulate fresh engine initialization.
 		ASSERT_EQ(ResetRuntimeForHunt(), Error::None);
 	}
@@ -43,6 +44,8 @@ Values Globals() {
 	// Independent bank ordering; do not derive it from the production ID helper.
 	int i = 25;
 	for (int bank : {0,1,2,3,4,5,6,8}) for (int f = 0; f < 4; ++f) v[i++] = workbench_test::audio[bank][f];
+	v[i++] = static_cast<float>(OptWaterMipmap);
+	v[i++] = static_cast<float>(OptWaterWaveFadeRings);
 	return v;
 }
 }
@@ -191,11 +194,14 @@ TEST_F(WorkbenchRuntime, DumpInventoryAndLegacyBlockStayByteExact) {
 		EXPECT_NE(dump.find("--- Night ---\n"), std::string::npos);
 		EXPECT_NE(dump.find("--- Beam ---\n"), std::string::npos);
 		EXPECT_NE(dump.find("--- Audio ---\n"), std::string::npos);
+		EXPECT_NE(dump.find("--- Water ---\n"), std::string::npos);
 		EXPECT_NE(dump.find("night_world_brightness = 22  [cfg]\n"), std::string::npos);
 		EXPECT_NE(dump.find("UWFog_BaseDensityMult = 0.23  [dump]\n"), std::string::npos);
 		EXPECT_NE(dump.find("runtime.flashlight_tint_r = 1.000  [runtime]\n"), std::string::npos);
 		EXPECT_NE(dump.find("env0_decay = 1.490  [cfg]\n"), std::string::npos);
 		EXPECT_NE(dump.find("env0_reverb = -620  [cfg]\n"), std::string::npos);
+		EXPECT_NE(dump.find("water_mipmap = 1  [cfg]\n"), std::string::npos);
+		EXPECT_NE(dump.find("water_wave_fade_rings = 8  [cfg]\n"), std::string::npos);
 	}
 	{
 		CameraWaterDepthFactor = .099f;
@@ -269,7 +275,7 @@ TEST_F(WorkbenchRuntime, DumpEmitterAndPasteableConfigBlock) {
 			EXPECT_EQ(*tail, '\0') << d.key << " -> " << token;
 			EXPECT_FLOAT_EQ(parsed, ReadRuntimeValues()[static_cast<std::size_t>(d.id)]);
 		}
-		EXPECT_EQ(listed, 41u); // Nine night/beam keys plus the eight live banks x four reverb fields.
+		EXPECT_EQ(listed, 43u); // Nine night/beam keys, eight banks x four reverb fields, two water keys.
 		EXPECT_EQ(block.find("UWFog_BaseDensityMult"), std::string::npos); // dump-only: no loader key
 		EXPECT_EQ(block.find("runtime.flashlight_tint_r"), std::string::npos); // runtime-only
 		EXPECT_NE(dump.find("night_world_brightness 15\n"), std::string::npos); // edited, not compiled default

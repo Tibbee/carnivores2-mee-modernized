@@ -25,9 +25,12 @@ enum class Parameter : std::size_t {
 	Env5Decay, Env5DecayHF, Env5Diffusion, Env5Reverb,
 	Env6Decay, Env6DecayHF, Env6Diffusion, Env6Reverb,
 	Env8Decay, Env8DecayHF, Env8Diffusion, Env8Reverb,
+	WaterMipmap, WaterWaveFadeRings,
 	Count
 };
-enum class Group { Fog, Waves, Sun, Night, Flashlight, Audio, Collision };
+// New groups are appended so existing numeric group IDs used by the probes
+// stay stable. The UI chooses its own tab order.
+enum class Group { Fog, Waves, Sun, Night, Flashlight, Audio, Collision, Water };
 enum class ValueType { Float, Integer, ColorChannel };
 enum class Scope { GlobalRuntime };
 enum class ApplyPolicy { Live };
@@ -41,6 +44,12 @@ enum class Error {
 constexpr std::size_t kParameterCount = static_cast<std::size_t>(Parameter::Count);
 constexpr std::size_t kLegacyParameterCount = 13;
 constexpr std::size_t kAudioParameterBegin = 25;
+constexpr std::size_t kAudioParameterCount = 32;
+constexpr std::size_t kAudioParameterEnd = kAudioParameterBegin + kAudioParameterCount;
+static_assert(kAudioParameterEnd == static_cast<std::size_t>(Parameter::Env8Reverb) + 1,
+	"audio bank range must stay contiguous");
+static_assert(static_cast<std::size_t>(Parameter::WaterMipmap) == kAudioParameterEnd,
+	"water descriptors follow the audio bank range");
 Parameter AudioParameter(int environment, int field);
 int AudioEnvironment(Parameter id);
 constexpr std::size_t kHistoryLimit = 128;

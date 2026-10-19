@@ -15,6 +15,12 @@
 
 inline constexpr int kWaterWaveCutoffRings = 4;
 
+// Accepted range for the config.cfg / workbench fade setting. Kept here, next
+// to the curve, so the loader, workbench registry and defaults cannot drift.
+inline constexpr int kWaterWaveFadeDefault = 8;
+inline constexpr int kWaterWaveFadeMin     = 0;
+inline constexpr int kWaterWaveFadeMax     = 64;
+
 // Amplitude multiplier (0..1) for a water cell `ring` cells out from the
 // camera.
 //

@@ -20,6 +20,7 @@
 #include "Core/AudioTypes.h"
 #include "Core/Flashlight.h"
 #include "Core/RenderTypes.h"
+#include "Core/WaterWaveFade.h"
 #include "Core/ModelTypes.h"
 #include <array>
 #include "ddraw.h"
@@ -579,10 +580,7 @@ GLOBAL int  OptWaterMipmap;
 // legacy cutoff. Shared by both renderers: PreCashGroundModel writes the
 // displaced vertices into VMap2 before either draws. 0 = legacy hard cutoff
 // (seam where the last displaced ring meets flat water). config.cfg
-// "water_wave_fade_rings"; see Core/WaterWaveFade.h.
-constexpr int kWaterWaveFadeDefault = 8;
-constexpr int kWaterWaveFadeMin     = 0;
-constexpr int kWaterWaveFadeMax     = 64;
+// "water_wave_fade_rings"; the range and default live in Core/WaterWaveFade.h.
 GLOBAL int  OptWaterWaveFadeRings;
 
 // ── ofBOUND collision-box fit (experimental; see Core/BoundFit.h) ──
