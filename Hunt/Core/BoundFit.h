@@ -23,7 +23,7 @@ namespace c2bound {
 
 // CalcBoundBox pads X/Z extents by 72 per side; the fit pads the same way.
 inline constexpr float kPad = 72.0f;
-// cos(45°)/sin(45°) with the same literal Math.cpp's kOctCos/kOctSin use.
+// cos(45°)/sin(45°) for the diagonal fit-orientation candidate.
 inline constexpr float kSqrt1_2 = 0.70710678f;
 
 // Top-plane (slope) fit limits: envelope sampling bucket (model units), the

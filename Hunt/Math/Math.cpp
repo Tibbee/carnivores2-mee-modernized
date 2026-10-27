@@ -6,8 +6,6 @@ extern float FindVectorAlpha(float vx, float vy);
 
 // LUT for cos(angle*pi/2), sin(angle*pi/2) with integer angle 0..3
 namespace { constexpr float kRotCos[4] = { 1.0f, 0.0f, -1.0f, 0.0f }; constexpr float kRotSin[4] = { 0.0f, 1.0f, 0.0f, -1.0f }; }
-// Octant LUT for cos(q*pi/4), sin(q*pi/4) with q=0..7
-namespace { constexpr float kOctCos[8] = { 1.0f, 0.70710678f, 0.0f, -0.70710678f, -1.0f, -0.70710678f, 0.0f, 0.70710678f }; constexpr float kOctSin[8] = { 0.0f, 0.70710678f, 1.0f, 0.70710678f, 0.0f, -0.70710678f, -1.0f, -0.70710678f }; }
 
 Vector3d TraceA, TraceNv;
 
@@ -267,9 +265,14 @@ void TraceModel(int xx, int zz, int o)
 
   v[0].y-=700.f;
 
-  const int q = ((FMap[zz][xx] >> 2) & 7);
-  const float ca = kOctCos[q];
-  const float sa = kOctSin[q];
+  // C2 map cells store the object direction in FMap bits 2..3 only (four
+  // quarter-turns); bit 4 is fmReverse, not a third rotation bit. Decode with
+  // the same & 3 mask as the renderers and CheckBoundCollision so traced
+  // geometry matches what is drawn on fmReverse cells (C1 used & 7 because
+  // its fmReverse was 0x40).
+  const int q = ((FMap[zz][xx] >> 2) & 3);
+  const float ca = kRotCos[q];
+  const float sa = kRotSin[q];
 
   for (int vv=0; vv<mptr->VCount; vv++)
 
