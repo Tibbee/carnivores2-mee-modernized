@@ -15,6 +15,7 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <utility>
 
 namespace {
 std::string Source(const char* relative) {
@@ -35,6 +36,22 @@ std::string Block(const std::string& text, const char* begin, const char* end) {
     return block;
 }
 } // namespace
+
+TEST(SourceContracts, LandingDryAndWaterFootstepsShareTheBoundedIndex) {
+    const auto controls = Source("Hunt/Game/Controls.cpp");
+    EXPECT_NE(controls.find("const unsigned stepIndex = FootstepIndex(RealTime);"), std::string::npos);
+    EXPECT_EQ(controls.find("fxStep[(RealTime % 3)]"), std::string::npos);
+    EXPECT_EQ(controls.find("fxStepW[(RealTime % 3)]"), std::string::npos);
+    for (const auto& entry : {std::pair<const char*, int>{"fxStep[stepIndex].length", 2},
+                             {"fxStep[stepIndex].lpData.data()", 2},
+                             {"fxStepW[stepIndex].length", 1},
+                             {"fxStepW[stepIndex].lpData.data()", 1}}) {
+        int count = 0;
+        for (auto at = controls.find(entry.first); at != std::string::npos;
+             at = controls.find(entry.first, at + 1)) ++count;
+        EXPECT_EQ(count, entry.second) << entry.first;
+    }
+}
 
 TEST(SourceContracts, SkyAndMoonWiring) {
     const auto sky = Source("Hunt/Renderer/GLSky.cpp");

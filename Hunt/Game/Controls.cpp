@@ -230,6 +230,7 @@ void ProcessDemoMovement()
 
 void ProcessControls()
 {
+  const unsigned stepIndex = FootstepIndex(RealTime);
   int _KeyFlags = KeyFlags;
   KeyFlags = 0;
   if (unattended_capture::options.enabled) ZeroMemory(KeyboardState, sizeof(KeyboardState));
@@ -331,8 +332,8 @@ void ProcessControls()
     PlayerY+=(h-PlayerY+32)*DeltaT*4;
     if (PlayerY>h) PlayerY = h;
     if (YSpeed<-600)
-      AddVoicev(fxStep[(RealTime % 3)].length,
-                fxStep[(RealTime % 3)].lpData.data(), 64);
+      AddVoicev(fxStep[stepIndex].length,
+                fxStep[stepIndex].lpData.data(), 64);
     YSpeed = 0;
   }
 
@@ -363,12 +364,12 @@ SKIPYMOVE:
         if (ONWATER)
         {
           AddWCircle(CameraX, CameraZ, 1.2);
-          AddVoicev(fxStepW[(RealTime % 3)].length,
-                    fxStepW[(RealTime % 3)].lpData.data(), FootstepVolume(VSpeed, true));
+          AddVoicev(fxStepW[stepIndex].length,
+                    fxStepW[stepIndex].lpData.data(), FootstepVolume(VSpeed, true));
         }
         else
-          AddVoicev(fxStep[(RealTime % 3)].length,
-                    fxStep[(RealTime % 3)].lpData.data(), FootstepVolume(VSpeed, false));
+          AddVoicev(fxStep[stepIndex].length,
+                    fxStep[stepIndex].lpData.data(), FootstepVolume(VSpeed, false));
   stepdd = d;
 
   if (PlayerBeta> 1.46f) {

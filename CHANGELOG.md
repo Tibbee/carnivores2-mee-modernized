@@ -20,6 +20,15 @@ compatibility/gameplay package candidate, not an already published hotfix.
 The separately labelled workbench preview below is part of this line of work;
 the consolidation pass brings it onto main.
 
+### Footstep uptime fix (2026-10-27)
+
+Fix dry-land footsteps selecting water-impact sounds after roughly 24.9 days
+of Windows uptime. Landing, dry and wet footsteps now share an unsigned,
+bounded sample index, with regression coverage across the signed and DWORD
+timer boundaries. The owner reproduced the splashes with a temporary clock
+override; that diagnostic and its launcher have been removed. The global
+clock, movement timing, water detection, sound assets and volume are unchanged.
+
 ### Consolidation pass (2026-10-14)
 
 Bring the modder workbench previews onto main and consolidate the engine, menu,

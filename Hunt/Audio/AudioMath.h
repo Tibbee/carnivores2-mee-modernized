@@ -3,10 +3,18 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 inline float AudioGain(int volume)
 {
     return static_cast<float>((std::max)(0, volume)) / 256.0f;
+}
+
+// RealTime holds DWORD uptime bits in a signed int. Convert BEFORE modulo:
+// after ~24.9 days, signed remainders indexed before the three step sounds.
+inline unsigned FootstepIndex(int realTime)
+{
+    return static_cast<std::uint32_t>(realTime) % 3u;
 }
 
 // Preserve forward-walking loudness, but not its accidental signed-speed bias.
