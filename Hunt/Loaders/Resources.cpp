@@ -657,7 +657,7 @@ void ReleaseGlobalResources()
   // the absence of the menu SFX globals (fxMenuGo/Mov/Amb -- C2 ME handles
   // menu audio differently and doesn't have them as globals).
 
-  for (int c = 0; c < DINOINFO_MAX; c++)
+  for (int c = 0; c < ChInfo.size(); c++)
   {
     ReleaseCharacterInfo(ChInfo[c]);
   }
@@ -721,6 +721,10 @@ void ReleaseGlobalResources()
     (void)_HeapFree(Heap, 0, Snow);
     Snow = nullptr;
   }
+  // Gameplay has stopped and character resources/caches have been retired.
+  for (auto& character : Characters) character.pinfo = nullptr;
+  g_CharacterRoster.Reset();
+  TotalC = 0;
 }
 
 void LoadResources()

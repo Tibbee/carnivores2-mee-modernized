@@ -20,6 +20,16 @@ compatibility/gameplay package candidate, not an already published hotfix.
 The separately labelled workbench preview below is part of this line of work;
 the consolidation pass brings it onto main.
 
+### Dynamic character roster (2026-10-28)
+
+Load character definitions into data-sized storage instead of a fixed 128-entry
+array. Finalize model-record storage before placement to preserve character
+pointers, and grow spawn links and trophy membership without changing saved
+trophy layouts or live population/menu/call limits. Invalid indices and resource
+budgets remain checked (16 MiB script input; 64 MiB estimated roster metadata,
+including growth allowance). Tests cover 513 definitions and a deployed-asset
+hidden OpenGL capture with high-numbered variants. See `docs/MODDING-ROSTER.md`.
+
 ### Footstep uptime fix (2026-10-27)
 
 Fix dry-land footsteps selecting water-impact sounds after roughly 24.9 days

@@ -193,12 +193,6 @@ void HideWeapon()
 }
 void InitGameInfo()
 {
-  for (int c=0; c< DINOINFO_MAX; c++)
-  {
-    DinoInfo[c].Scale0 = 800;
-    DinoInfo[c].ScaleA = 600;
-    DinoInfo[c].ShDelta = 0;
-  }
   LoadResourcesScript();
 }
 

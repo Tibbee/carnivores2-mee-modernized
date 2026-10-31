@@ -172,6 +172,7 @@ do not add new rows or gameplay abilities.
 - [docs/BUILDING.md](docs/BUILDING.md): presets, packaging, PGO, deployment
 - [docs/DEBUGGING.md](docs/DEBUGGING.md): keys, logs, config, data validation
 - [docs/MODDING-SHOP.md](docs/MODDING-SHOP.md): equipment prices, art, text and validation
+- [docs/MODDING-ROSTER.md](docs/MODDING-ROSTER.md): dynamic character definitions, remaining limits and large-roster testing (local unreleased preview)
 - [docs/NIGHT-LIGHTING.md](docs/NIGHT-LIGHTING.md): Moonlit night, flashlight color restoration and Classic fallback (unmerged feature)
 - [NOTICE.md](NOTICE.md): upstream credits, base commit, third-party licences
 

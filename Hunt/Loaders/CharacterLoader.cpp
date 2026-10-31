@@ -23,11 +23,12 @@ static void ValidateWeaponAnimationReferences(int weaponIndex)
 
 void LoadCharacters()
 {
-  BOOL pres[DINOINFO_MAX];
-  FillMemory(pres, sizeof(pres), 0);
+  std::vector<BOOL> pres(static_cast<size_t>(DinoInfo.size()), false);
   pres[0]=true;
   for (int c=0; c<ChCount; c++)
   {
+    if (Characters[c].CType < 0 || Characters[c].CType >= DinoInfo.size())
+      DoHalt("Character model reference outside loaded roster");
     pres[Characters[c].CType] = true;
   }
 
@@ -42,6 +43,9 @@ void LoadCharacters()
         LoadCharacterInfo(ChInfo[c], logt, MemoryTag::Global, src);
         PrintLog("Loading: ");
         PrintLog(logt);
+        PrintLog(" (");
+        PrintLog(src);
+        PrintLog(")");
         PrintLog("\n");
       }
 

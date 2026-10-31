@@ -10,8 +10,14 @@
 #include "ScriptValueParse.h"
 #include "ScriptParserInternal.h"
 
-void LoadResourcesScript()
+static void LoadResourcesScriptImpl()
 {
+    g_CharacterRoster.Reset();
+    for (auto& type : trophyType) type = {};
+    for (auto& group : spawnGroup) group = {};
+    for (auto& pack : packType) pack = {};
+    TotalSpawnGroup = 0;
+    packTypeCount = 0;
 
 	SurvivalIndexCh = 0;
 
@@ -497,8 +503,14 @@ void LoadResourcesScript()
   char line[256];
 
 
-  stream = fopen("HUNTDAT\\_res.txt", "r");
+  std::unique_ptr<FILE, decltype(&fclose)> file(fopen("HUNTDAT\\_res.txt", "r"), &fclose);
+  stream = file.get();
   if (!stream) DoHalt("Can't open resources file _res.txt");
+  if (fseek(stream, 0, SEEK_END) != 0) DoHalt("Cannot size _RES.TXT");
+  const long scriptBytes = ftell(stream);
+  if (scriptBytes < 0 || scriptBytes > 16 * 1024 * 1024)
+    DoHalt("_RES.TXT exceeds 16 MiB input budget");
+  rewind(stream);
 
   TotalC = 0;
   TotalMA = 0;
@@ -574,7 +586,25 @@ void LoadResourcesScript()
 	  }
   }
 
-  fclose (stream);
-
   FlushScriptDiagnostics();
+  for (int c = 0; c < DinoInfo.size(); ++c)
+    if (DinoInfo[c].Clone < 0 || DinoInfo[c].Clone >= AI_FAMILY_CAPACITY)
+      DoHalt("Character AI family outside supported table");
+  g_CharacterRoster.Finalize();
+  char rosterMessage[128];
+  sprintf_s(rosterMessage, sizeof(rosterMessage), "\nCharacter roster finalized: %d definitions.\n", TotalC);
+  PrintLog(rosterMessage);
+}
+
+void LoadResourcesScript()
+{
+    if (g_CharacterRoster.Frozen())
+        DoHalt("Character roster reload requires retiring the previous session");
+    try { LoadResourcesScriptImpl(); }
+    catch (const std::exception& error) {
+        g_CharacterRoster.Reset();
+        char message[512];
+        sprintf_s(message, sizeof(message), "Script loading error (_RES.TXT): %s", error.what());
+        DoHalt(message);
+    }
 }

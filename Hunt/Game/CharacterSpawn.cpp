@@ -12,7 +12,6 @@ namespace {
 constexpr int kCharacterCapacity = 256;
 constexpr int kPackCapacity = 256;
 constexpr int kPackMemberCapacity = 32;
-constexpr int kSpawnLinkCapacity = 128;
 
 void RequireSpawnCapacity(int index, int capacity, const char* what)
 {
@@ -382,8 +381,9 @@ void PlaceCharacters()
 	//TODO - HALF AMBIENT SPAWN AT NIGHT MANUALLY IN RES?
 
 	if (!RestartMode) {
+		for (int sg = 0; sg < TotalSpawnGroup; ++sg) spawnGroup[sg].links.clear();
 
-		for (int di = 0; di < DINOINFO_MAX; di++) {
+		for (int di = 0; di < DinoInfo.size(); di++) {
 			if (DinoInfo[di].packMember2Ch) {
 				for (int pin = 0; pin < DinoInfo[di].packMember2Ch; pin++) {
 					const int packGroup = DinoInfo[di].packMember2[pin].packGroup;
@@ -398,7 +398,7 @@ void PlaceCharacters()
 			}
 		}
 
-		for (int di = 0; di < DINOINFO_MAX; di++) {
+		for (int di = 0; di < DinoInfo.size(); di++) {
 			if (DinoInfo[di].SpawnInfoCh) {
 				RequireSpawnCapacity(packTypeCount, 1024, "generated pack type");
 				TPackType& generatedPack = packType[packTypeCount];
@@ -437,11 +437,7 @@ void PlaceCharacters()
 					RequireSpawnCapacity(spawnGroupIndex, TotalSpawnGroup,
 						"spawn group reference");
 					TSpawnGroup& group = spawnGroup[spawnGroupIndex];
-					RequireSpawnCapacity(group.packIndexCh, kSpawnLinkCapacity,
-						"spawn group link");
-					group.packIndex[group.packIndexCh] = p;
-					group.spawnInfoIndex[group.packIndexCh] = si;
-					group.packIndexCh++;
+					group.links.push_back({p, si});
 				}
 			}
 		}
@@ -451,9 +447,9 @@ void PlaceCharacters()
 	for (int sg = 0; sg < TotalSpawnGroup; sg++){
 	//for (TSpawnGroup sg : spawnGroup) {
 
-		if (spawnGroup[sg].packIndexCh) {
-			RequireSpawnCount(spawnGroup[sg].packIndexCh, kSpawnLinkCapacity,
-				"spawn group link");
+		if (!spawnGroup[sg].links.empty()) {
+			const auto& links = spawnGroup[sg].links;
+			const int linkCount = static_cast<int>(links.size());
 			int spawnNo = spawnGroup[sg].SpawnMin;
 			for (int i = 0; i < spawnGroup[sg].SpawnMax - spawnGroup[sg].SpawnMin; i++) {
 				if (spawnGroup[sg].SpawnRate * 30000 > rRand(30000)) spawnNo++;
@@ -468,13 +464,13 @@ void PlaceCharacters()
 			if (spawnNo < 0 || spawnNo > kCharacterCapacity)
 				DoHalt("Character placement error: spawn count exceeds capacity.");
 
-			float ratioScores[256];
+			std::vector<float> ratioScores(links.size(), 0.f);
 			float totalRatio = 0;
 			//int counter[256];
-			for (c = 0; c < spawnGroup[sg].packIndexCh; c++) {
+			for (c = 0; c < linkCount; c++) {
 				ratioScores[c] = 0.f;
 				//counter[c] = 0;
-				const float ratio = packType[spawnGroup[sg].packIndex[c]].SpawnInfo[spawnGroup[sg].spawnInfoIndex[c]].spawnRatio;
+				const float ratio = packType[links[c].packType].SpawnInfo[links[c].spawnInfo].spawnRatio;
 				if (!IsValidSelectionRatio(ratio))
 					DoHalt("Character placement error: spawn ratios must be non-negative.");
 				totalRatio += ratio;
@@ -493,34 +489,34 @@ void PlaceCharacters()
 				// disable an entry; an all-zero group keeps the legacy
 				// first-entry fallback used by pack-member selection.
 				if (!(totalRatio > 0.0f)) {
-					packInd = spawnGroup[sg].packIndex[0];
+					packInd = links[0].packType;
 				}
 				else if (spawnGroup[sg].Randomised) {
 					float selector = rRand(30000);
 					selector /= 30000;
 					selector *= totalRatio;
 					int lastPositive = 0;
-					for (int ch = 0; ch < spawnGroup[sg].packIndexCh; ch++) {
-						const float ratio = packType[spawnGroup[sg].packIndex[ch]].SpawnInfo[spawnGroup[sg].spawnInfoIndex[ch]].spawnRatio;
+					for (int ch = 0; ch < linkCount; ch++) {
+						const float ratio = packType[links[ch].packType].SpawnInfo[links[ch].spawnInfo].spawnRatio;
 						if (!(ratio > 0.0f)) continue;
 						lastPositive = ch;
 						if (selector <= ratio) {
-							packInd = spawnGroup[sg].packIndex[ch];
+							packInd = links[ch].packType;
 							break;
 						}
 						selector -= ratio;
 					}
 					if (packInd == -1)
-						packInd = spawnGroup[sg].packIndex[lastPositive];
+						packInd = links[lastPositive].packType;
 				} else {
 					while (packInd == -1) {
-						int post = posi % spawnGroup[sg].packIndexCh;
+						int post = posi % linkCount;
 						if (ratioScores[post] >= 1.f) {
 							ratioScores[post] -= 1.f;
-							packInd = spawnGroup[sg].packIndex[post];
+							packInd = links[post].packType;
 						}
 						else {
-							ratioScores[post] += packType[spawnGroup[sg].packIndex[post]].SpawnInfo[spawnGroup[sg].spawnInfoIndex[post]].spawnRatio;
+							ratioScores[post] += packType[links[post].packType].SpawnInfo[links[post].spawnInfo].spawnRatio;
 							posi++;
 						}
 					}

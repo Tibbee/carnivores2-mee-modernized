@@ -26,6 +26,7 @@
 #include "ddraw.h"
 #include "Core/GameTypes.h"
 #include "Core/GameMode.h"
+#include "Core/CharacterRoster.h"
 
 class MemoryArena;
 GLOBAL MemoryArena *LevelArena;
@@ -245,14 +246,7 @@ GLOBAL unique_obj_ptr<TModel> CompasModel;
 
 GLOBAL unique_obj_ptr<TModel> Binocular;
 
-GLOBAL TDinoInfo DinoInfo[DINOINFO_MAX];
-
-// Optional per-species override of the AI-family aggression multiplier
-// (AIInfo[].agressMulti), set by the _RES.TXT key "agressMulti". 0 means the
-// clone table default applies. Kept beside DinoInfo because TDinoInfo is
-// size-locked.
-GLOBAL int DinoAggressMulti[DINOINFO_MAX];
-
+// Definition/model/override storage is owned by CharacterRoster, not fixed arrays.
 GLOBAL TMenuDinoInfo MenuDinoInfo[16];
 
 GLOBAL int sendGunShot;
@@ -267,13 +261,13 @@ GLOBAL int mHunterCall[4];
 
 GLOBAL int mHunterCallType[4];
 
-GLOBAL int sendDamage[DINOINFO_MAX];
+GLOBAL int sendDamage[LIVE_CHARACTER_MAX];
 
-GLOBAL int mDamage[4][DINOINFO_MAX];
+GLOBAL int mDamage[4][LIVE_CHARACTER_MAX];
 
 GLOBAL bool TreeTable[255];
 
-GLOBAL TAIInfo AIInfo[DINOINFO_MAX];
+GLOBAL TAIInfo AIInfo[AI_FAMILY_CAPACITY];
 
 GLOBAL TWeapInfo WeapInfo[10];
 
@@ -317,8 +311,6 @@ GLOBAL int ScoreDisp;
 GLOBAL TTrophyItem TrophyDisplayBody;
 
 GLOBAL TCharacterInfo WindModel;
-
-GLOBAL TCharacterInfo ChInfo[DINOINFO_MAX];
 
 GLOBAL TCharacterInfo MPlayerInfo[3]; //multiplayer
 

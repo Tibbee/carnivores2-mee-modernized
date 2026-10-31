@@ -25,10 +25,7 @@ void ReadTrophyTypeInfo(FILE *stream, int trophyGroup)
 				trophyType[trophyTypeCount].group = trophyGroup;
 			}
 			else {
-				RequireScriptSlot(trophyType[trophyTypeCount].ctypeCh, TROPHY2_COUNT,
-				                  "trophy character list");
-				trophyType[trophyTypeCount].ctype[trophyType[trophyTypeCount].ctypeCh] = TotalC;
-				trophyType[trophyTypeCount].ctypeCh++;
+				trophyType[trophyTypeCount].ctype.push_back(TotalC);
 				DinoInfo[TotalC].trophy = true;
 			}
 			trophyTypeCount++;

@@ -239,7 +239,8 @@ inline constexpr int HiColor(int R, int G, int B)
 inline constexpr int TCMAX = (128 << 16) - 62024;
 inline constexpr int TCMIN = (000 << 16) + 62024;
 
-inline constexpr int DINOINFO_MAX = 128;
+inline constexpr int AI_FAMILY_CAPACITY = 128;
+inline constexpr int LIVE_CHARACTER_MAX = 256;
 inline constexpr int TROPHY_COUNT = 24;
 inline constexpr int TROPHY2_COUNT = 128; //.sab
 

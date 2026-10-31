@@ -173,7 +173,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 	bool &deathTypeOverwrite, bool &trophyTypeOverwrite, bool &idleGroupOverwrite, bool &idle2GroupOverwrite,
 	bool &memberOverwrite) {
 
-	RequireScriptSlot(TotalC, DINOINFO_MAX, "characters");
+	RequireScriptSlot(TotalC, DinoInfo.size(), "characters");
 	char *value = _value;
 
 	// Text fields are handled before the numeric/flag dispatch and before the
@@ -213,10 +213,7 @@ void ReadCharacterLine(FILE *stream, char *_value, char line[256], bool &spawnIn
 		int gr = ReadScriptIntField(value, line, "trophy group");
 		for (int i = 0; i < trophyTypeCount; i++){
 			if (trophyType[i].group == gr) {
-				RequireScriptSlot(trophyType[i].ctypeCh, TROPHY2_COUNT,
-				                  "trophy character list");
-				trophyType[i].ctype[trophyType[i].ctypeCh] = TotalC;
-				trophyType[i].ctypeCh++;
+				trophyType[i].ctype.push_back(TotalC);
 				DinoInfo[TotalC].trophy = true;
 			}
 		}
@@ -491,12 +488,11 @@ void ReadCharacters(FILE *stream)
   while (fgets( line, 255, stream))
   {
     if (strstr(line, "}")) break;
-    if (strstr(line, "{"))
+    if (strstr(line, "{")) {
+      g_CharacterRoster.BeginDefinition(TotalC);
       while (fgets( line, 255, stream))
       {
-        // Validate before any field or end-of-section calculation indexes
-        // DinoInfo; an empty 129th section must be rejected too.
-        RequireScriptSlot(TotalC, DINOINFO_MAX, "characters");
+        RequireScriptSlot(TotalC, DinoInfo.size(), "characters");
 
         if (strstr(line, "}"))
         {
@@ -517,9 +513,6 @@ void ReadCharacters(FILE *stream)
 		  DinoInfo[TotalC].radarColour565 = ((DinoInfo[TotalC].radarRed>>3) << 11) | ((DinoInfo[TotalC].radarGreen>>2) << 5) | (DinoInfo[TotalC].radarBlue>>3);
 		  DinoInfo[TotalC].radarColour555 = ((DinoInfo[TotalC].radarRed >> 3) << 10) | ((DinoInfo[TotalC].radarGreen >> 3) << 5) | (DinoInfo[TotalC].radarBlue >> 3);
 
-		  // DinoInfo has DINOINFO_MAX (128) entries.
-		  if (TotalC >= DINOINFO_MAX)
-		    DoHalt("Script loading error: too many characters.");
 		  TotalC++;
 
           break;
@@ -604,6 +597,7 @@ void ReadCharacters(FILE *stream)
 			}
 
       }
-
+      if (TotalC != DinoInfo.size()) DoHalt("Script loading error: unterminated character");
+    }
   }
 }

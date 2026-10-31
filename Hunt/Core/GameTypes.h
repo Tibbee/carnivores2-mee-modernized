@@ -7,6 +7,7 @@
 #include "Core/ModelTypes.h"
 #include "Core/RenderTypes.h"
 #include <cstdint>
+#include <vector>
 
 // _RES.TXT values are copied into fixed arrays and rejected when they do not
 // fit. Display names retain their legacy capacity because several UI layouts
@@ -306,8 +307,7 @@ struct TDinoKill
 struct TTrophyType
 {
 	int group = -1;
-	int ctype[TROPHY2_COUNT];
-	int ctypeCh = 0;
+	std::vector<int> ctype;
 	int xoffset, yoffset, zoffset;
 	int xoffsetScale, yoffsetScale, zoffsetScale;
 	int xdata, ydata, zdata;
@@ -522,6 +522,12 @@ struct TSpawnRegion
 	int XMax, YMax, XMin, YMin;
 };
 
+struct SpawnLink
+{
+	int packType;
+	int spawnInfo;
+};
+
 struct TSpawnGroup
 {
 	int SpawnMax, SpawnMin;
@@ -533,9 +539,7 @@ struct TSpawnGroup
 	TSpawnRegion spawnRegion[16];
 	TSpawnRegion avoidRegion[16];
 
-	int packIndexCh;
-	int packIndex[128];
-	int spawnInfoIndex[128];
+	std::vector<SpawnLink> links;
 };
 
 struct TWeapInfo
@@ -724,7 +728,7 @@ static_assert(sizeof(TBullet)        == 96,   "TBullet size changed — projecti
 static_assert(sizeof(TDinoInfo)      == 13896,"TDinoInfo size changed — dino configuration data compat");
 static_assert(sizeof(TWeapInfo)      == 708,  "TWeapInfo size changed — weapon configuration");
 static_assert(sizeof(TPack)          == 8,    "TPack size changed — pack state");
-static_assert(sizeof(TTrophyType)    == 580,  "TTrophyType size changed — trophy type data");
+// TTrophyType is runtime-only and owns dynamic membership; never raw-serialize it.
 static_assert(sizeof(TDinoKill)      == 32,   "TDinoKill size changed — kill tracking record");
 static_assert(sizeof(TStats)         == 16,   "TStats size changed — statistics record");
 static_assert(sizeof(TObjInfo)       == 64,   "TObjInfo size changed — object info binary compat");
@@ -738,7 +742,7 @@ static_assert(sizeof(TBag)           == 32,   "TBag size changed — bag state")
 static_assert(sizeof(TShip)          == 96,   "TShip size changed — ship state");
 static_assert(sizeof(TDemoPoint)     == 20,   "TDemoPoint size changed — demo playback");
 static_assert(sizeof(TLevelDef)      == 200,  "TLevelDef size changed — level definition");
-static_assert(sizeof(TSpawnGroup)    == 1568, "TSpawnGroup size changed — spawn group config");
+// TSpawnGroup is runtime-only and owns dynamic links; saved structs stay locked above.
 static_assert(sizeof(TSpawnInfo)     == 8,    "TSpawnInfo size changed — spawn info");
 static_assert(sizeof(TSpawnRegion)   == 16,   "TSpawnRegion size changed — spawn region");
 static_assert(sizeof(TAIInfo)        == 92,   "TAIInfo size changed — AI info");

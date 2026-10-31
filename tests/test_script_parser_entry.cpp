@@ -10,6 +10,8 @@
 #include <gtest/gtest.h>
 
 #include <cstdio>
+#include <cstdlib>
+#include <iostream>
 #include <cstring>
 #include <limits>
 #include <stdexcept>
@@ -103,8 +105,22 @@ void ResetWeapon()
 
 void ResetCharacter()
 {
+    g_CharacterRoster.Reset();
+    g_CharacterRoster.BeginDefinition(0);
     TotalC = 0;
     DinoInfo[0] = TDinoInfo{};
+}
+
+TEST(RosterIntegration, InstalledResourceScript)
+{
+    if (!std::getenv("C2_ROSTER_PROBE"))
+        GTEST_SKIP() << "Opt-in: run from a backed-up deployed game directory";
+    EXPECT_NO_THROW(LoadResourcesScript());
+    EXPECT_GT(TotalC, 128);
+    EXPECT_EQ(TotalC, DinoInfo.size());
+    EXPECT_EQ(TotalC, ChInfo.size());
+    EXPECT_TRUE(g_CharacterRoster.Frozen());
+    std::cout << "Loaded and finalized " << TotalC << " character definitions\n";
 }
 
 void ResetSpawnGroup()
@@ -502,6 +518,100 @@ TEST(ScriptParserSections, CharactersSectionReadsMinimalEntry)
     EXPECT_EQ(TotalC, 1);
     EXPECT_STREQ(DinoInfo[0].Name, "Test Dino");
     EXPECT_EQ(DinoInfo[0].Health0, 3);
+}
+
+TEST(DynamicRoster, ParsesBeyondOldAndPatchLimits)
+{
+    for (int count : {127, 128, 129, 257, 513}) {
+        g_CharacterRoster.Reset();
+        TotalC = 0;
+        std::string text;
+        for (int i = 0; i < count; ++i)
+            text += "{\n name = 'Duplicate name'\n ai = 1\n}\n";
+        text += "}\n";
+        TempScript script(text.c_str());
+        ASSERT_NO_THROW(ReadCharacters(script.stream));
+        EXPECT_EQ(TotalC, count);
+        EXPECT_EQ(DinoInfo.size(), count);
+        EXPECT_EQ(DinoInfo[count - 1].Scale0, 800);
+        EXPECT_EQ(DinoInfo[count - 1].ScaleA, 600);
+        ASSERT_NO_THROW(g_CharacterRoster.Finalize());
+        EXPECT_EQ(ChInfo.size(), count);
+        auto* lastModel = &ChInfo[count - 1];
+        EXPECT_THROW(g_CharacterRoster.BeginDefinition(count), std::logic_error);
+        EXPECT_EQ(&ChInfo[count - 1], lastModel);
+        EXPECT_THROW(DinoInfo[-1], std::out_of_range);
+        EXPECT_THROW(DinoInfo[count], std::out_of_range);
+    }
+    ResetCharacter();
+}
+
+TEST(DynamicRoster, EmptyEntriesAndRepeatedSectionsKeepIds)
+{
+    g_CharacterRoster.Reset();
+    TotalC = 0;
+    TempScript first("{\n}\n}\n");
+    ASSERT_NO_THROW(ReadCharacters(first.stream));
+    TempScript second("{\n name = 'Second'\n}\n}\n");
+    ASSERT_NO_THROW(ReadCharacters(second.stream));
+    EXPECT_EQ(TotalC, 2);
+    EXPECT_STREQ(DinoInfo[1].Name, "Second");
+    ResetCharacter();
+}
+
+TEST(DynamicRoster, RejectsEmptyFinalRosterAndUnterminatedEntry)
+{
+    g_CharacterRoster.Reset();
+    EXPECT_THROW(g_CharacterRoster.Finalize(), std::runtime_error);
+    TotalC = 0;
+    TempScript bad("{\n name = 'Unterminated'\n");
+    EXPECT_THROW(ReadCharacters(bad.stream), std::runtime_error);
+    ResetCharacter();
+}
+
+TEST(DynamicRoster, MetadataBudgetIsFailClosed)
+{
+    CharacterRoster roster;
+    EXPECT_THROW({
+        while (true) roster.BeginDefinition(roster.size());
+    }, std::length_error);
+    EXPECT_GT(roster.size(), 513);
+    EXPECT_FALSE(roster.Frozen());
+    EXPECT_EQ(roster.Definitions().size(), roster.Aggression().size());
+    EXPECT_EQ(roster.Models().size(), 0);
+}
+
+TEST(DynamicRoster, SpawnLinksGrowAsPairedRecords)
+{
+    TSpawnGroup group{};
+    for (int i = 0; i < 513; ++i) group.links.push_back({i, i % 32});
+    ASSERT_EQ(group.links.size(), 513u);
+    for (int i = 0; i < 513; ++i) {
+        EXPECT_EQ(group.links[i].packType, i);
+        EXPECT_EQ(group.links[i].spawnInfo, i % 32);
+    }
+    group = {};
+    EXPECT_TRUE(group.links.empty());
+}
+
+TEST(DynamicRoster, TrophyMembershipGrowsWithoutChangingSaveLayout)
+{
+    ResetCharacter();
+    trophyTypeCount = 1;
+    trophyType[0] = {};
+    trophyType[0].group = 42;
+    for (int i = 0; i < 513; ++i) {
+        g_CharacterRoster.BeginDefinition(i);
+        TotalC = i;
+        TempScript unused("");
+        CallCharacterLine(unused.stream, "tropgroup = 42");
+    }
+    ASSERT_EQ(trophyType[0].ctype.size(), 513u);
+    EXPECT_EQ(trophyType[0].ctype.back(), 512);
+    EXPECT_EQ(sizeof(TTrophyRoom2), 7176u);
+    trophyType[0] = {};
+    trophyTypeCount = 0;
+    ResetCharacter();
 }
 
 TEST(ScriptParserCommon, ReadBoolOverloadsParseTrueFalse)

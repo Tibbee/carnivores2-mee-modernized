@@ -71,8 +71,8 @@ void AddShipTask(int cindex)
   bool foundSpareSlot = false;
   for (t = 0; t < TROPHY2_COUNT - 1; t++) {
 	  bool validCType = false;
-	  for (int i = 0; i < trophyType[t].ctypeCh; i++) {
-		  if (trophyType[t].ctype[i] == cptr->CType) validCType = true;
+	  for (int type : trophyType[t].ctype) {
+		  if (type == cptr->CType) validCType = true;
 	  }
 	  if (!TrophyRoom2.Body[t].ctype && validCType) {
 		  foundSpareSlot = true;

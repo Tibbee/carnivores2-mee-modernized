@@ -8,6 +8,11 @@
 #include "Core/GameState.h"
 #include "Core/GameMode.h"
 
+CharacterRoster g_CharacterRoster;
+RosterView<TDinoInfo> DinoInfo = g_CharacterRoster.Definitions();
+RosterView<int> DinoAggressMulti = g_CharacterRoster.Aggression();
+RosterView<TCharacterInfo> ChInfo = g_CharacterRoster.Models();
+
 // Define the game mode global (declared extern in GameMode.h)
 GameMode g_GameMode = GameMode::Normal;
 // Overlay stash for menu round-trips (see GameMode.h); zero-init is Normal,
