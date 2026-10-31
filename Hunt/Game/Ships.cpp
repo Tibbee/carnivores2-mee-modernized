@@ -181,7 +181,8 @@ void AnimateShip()
       SetAmbient3d(0,0, 0,0,0);
     if (!ShipTask.tcount) return;
     InitShip(ShipTask.clist[0]);
-    memcpy(&ShipTask.clist[0], &ShipTask.clist[1], 250*4);
+    if (ShipTask.tcount > 1)
+      memmove(&ShipTask.clist[0], &ShipTask.clist[1], (ShipTask.tcount - 1) * sizeof(ShipTask.clist[0]));
     ShipTask.tcount--;
     return;
   }

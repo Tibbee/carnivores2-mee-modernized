@@ -44,6 +44,13 @@ appended body to callers, and add a body-independent camera fallback so a full
 roster cannot index past `Characters[]` or follow a removed demo target.
 Ordinary body-backed deaths keep their existing timing and camera behavior.
 
+### Ship pickup queue safety (2026-10-31)
+
+Bound the trophy pickup queue at its real array capacity and drain only the
+active tail. A full queue now drops the extra pickup request and its
+acknowledgement sound while still recording the trophy; the previous fixed
+250-entry shift could leave stale entries and overlap its own source.
+
 ### Footstep uptime fix (2026-10-27)
 
 Fix dry-land footsteps selecting water-impact sounds after roughly 24.9 days

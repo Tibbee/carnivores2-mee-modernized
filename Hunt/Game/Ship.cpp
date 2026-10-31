@@ -58,10 +58,20 @@ void AddShipTask(int cindex)
 
   if (GetLandUpH(cptr->pos.x, cptr->pos.z) - GetLandH(cptr->pos.x, cptr->pos.z) < 100) {
 
-    ShipTask.clist[ShipTask.tcount] = cindex;
-    ShipTask.tcount++;
-    AddVoicev(ShipModel.SoundFX[3].length,
-              ShipModel.SoundFX[3].lpData.data(), 256);
+    const int capacity = static_cast<int>(sizeof(ShipTask.clist) / sizeof(ShipTask.clist[0]));
+    if (ShipTask.tcount < capacity) {
+      ShipTask.clist[ShipTask.tcount] = cindex;
+      ShipTask.tcount++;
+      AddVoicev(ShipModel.SoundFX[3].length,
+                ShipModel.SoundFX[3].lpData.data(), 256);
+    }
+    else {
+      static bool reportedFull = false;
+      if (!reportedFull) {
+        PrintLog("Ship task queue full; pickup request dropped.\n");
+        reportedFull = true;
+      }
+    }
 
   }
 

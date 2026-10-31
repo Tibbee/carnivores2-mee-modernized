@@ -332,6 +332,17 @@ TEST(SourceContracts, DeathCameraModeSeparatesBodyAndPlayerFallback) {
     EXPECT_NE(loader.find("g_DeathCameraMode = DeathCameraMode::None;"), std::string::npos);
 }
 
+TEST(SourceContracts, ShipTaskQueueGuardsCapacityAndDrainsActiveRange) {
+    const auto ship = Source("Hunt/Game/Ship.cpp");
+    EXPECT_NE(ship.find("sizeof(ShipTask.clist) / sizeof(ShipTask.clist[0])"), std::string::npos);
+    EXPECT_NE(ship.find("if (ShipTask.tcount < capacity)"), std::string::npos);
+    EXPECT_NE(ship.find("Ship task queue full"), std::string::npos);
+
+    const auto ships = Source("Hunt/Game/Ships.cpp");
+    EXPECT_NE(ships.find("memmove(&ShipTask.clist[0], &ShipTask.clist[1], (ShipTask.tcount - 1) * sizeof(ShipTask.clist[0]));"), std::string::npos);
+    EXPECT_EQ(ships.find("250*4"), std::string::npos);
+}
+
 TEST(SourceContracts, OverlappingArrayCompactionUsesMemmoveAndActiveCounts) {
     const auto projectiles = Source("Hunt/Game/Projectiles.cpp");
     EXPECT_NE(projectiles.find("memmove(&Elements[0], &Elements[1], (ElCount-1) * sizeof(TElements));"), std::string::npos);
