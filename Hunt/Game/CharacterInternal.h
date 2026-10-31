@@ -211,17 +211,23 @@ inline bool ShouldPromoteFixedPursuitToTracking(const TCharacter* cptr,
 // anchor: without one it keeps its own event or wander destination instead of
 // freezing on its own position. The anchor is a packmate's position, never
 // the hunter's.
+inline TCharacter* PackLeader(const TCharacter* cptr)
+{
+    if (!cptr || cptr->packId < 0 || cptr->packId >= PackCount) return nullptr;
+    return Packs[cptr->packId].leader;
+}
+
 inline void SetPackLeaderTarget(TCharacter* cptr, bool flee)
 {
-    if (cptr->packId < 0 || !Packs[cptr->packId].leader) return;
+    TCharacter* leader = PackLeader(cptr);
+    if (!leader) return;
 
-    const TPack& pack = Packs[cptr->packId];
     const bool anchorFresh = IsPackHuntAnchorFresh(
         RealTime, PackHuntTime[cptr->packId], kPackHuntAnchorTime);
-    if (!ShouldFollowPackTarget(anchorFresh, pack.leader == cptr)) return;
+    if (!ShouldFollowPackTarget(anchorFresh, leader == cptr)) return;
 
-    const float targetX = anchorFresh ? PackHuntX[cptr->packId] : pack.leader->pos.x;
-    const float targetZ = anchorFresh ? PackHuntZ[cptr->packId] : pack.leader->pos.z;
+    const float targetX = anchorFresh ? PackHuntX[cptr->packId] : leader->pos.x;
+    const float targetZ = anchorFresh ? PackHuntZ[cptr->packId] : leader->pos.z;
     if (!flee) {
         cptr->tgx = targetX;
         cptr->tgz = targetZ;

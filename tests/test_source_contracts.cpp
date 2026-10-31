@@ -332,6 +332,30 @@ TEST(SourceContracts, DeathCameraModeSeparatesBodyAndPlayerFallback) {
     EXPECT_NE(loader.find("g_DeathCameraMode = DeathCameraMode::None;"), std::string::npos);
 }
 
+TEST(SourceContracts, PackLeaderAccessorGuardsAllConsumers) {
+    const auto internal = Source("Hunt/Game/CharacterInternal.h");
+    EXPECT_NE(internal.find("inline TCharacter* PackLeader(const TCharacter* cptr)"), std::string::npos);
+    EXPECT_NE(internal.find("cptr->packId >= PackCount"), std::string::npos);
+
+    for (const char* file : {"AnimateHuntable.cpp", "AnimateBrahi.cpp", "AnimateBrahiOld.cpp",
+                             "AnimateClassicAmbient.cpp", "AnimateDimor.cpp", "AnimateFish.cpp",
+                             "AnimateIcth.cpp", "AnimateTRex.cpp"}) {
+        const auto text = Source((std::string("Hunt/Game/CharacterAnimation/") + file).c_str());
+        EXPECT_NE(text.find("TCharacter* leader = PackLeader(cptr);"), std::string::npos) << file;
+        EXPECT_NE(text.find("if (leader && cptr->followLeader)"), std::string::npos) << file;
+        EXPECT_EQ(text.find("Packs[cptr->packId].leader->"), std::string::npos) << file;
+    }
+
+    const auto animation = Source("Hunt/Game/CharacterAnimation.cpp");
+    EXPECT_NE(animation.find("TCharacter* leader = PackLeader(cptr);"), std::string::npos);
+    EXPECT_NE(animation.find("if (!leader || !leader->Health)"), std::string::npos);
+
+    const auto projectiles = Source("Hunt/Game/Projectiles.cpp");
+    EXPECT_NE(projectiles.find("const int tail = oldChCount - index - 1;"), std::string::npos);
+    EXPECT_NE(projectiles.find("if (leader == removed) Packs[p].leader = nullptr;"), std::string::npos);
+    EXPECT_NE(projectiles.find("ShipTask.clist[dst++] = target;"), std::string::npos);
+}
+
 TEST(SourceContracts, ShipTaskQueueGuardsCapacityAndDrainsActiveRange) {
     const auto ship = Source("Hunt/Game/Ship.cpp");
     EXPECT_NE(ship.find("sizeof(ShipTask.clist) / sizeof(ShipTask.clist[0])"), std::string::npos);

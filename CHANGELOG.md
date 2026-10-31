@@ -51,6 +51,14 @@ active tail. A full queue now drops the extra pickup request and its
 acknowledgement sound while still recording the trophy; the previous fixed
 250-entry shift could leave stale entries and overlap its own source.
 
+### Pack pointer repair on character removal (2026-10-31)
+
+Rebuild pack-leader, killer and demo-target pointers after a character is
+removed, drop stale pickup entries for the removed slot, and route animator
+leader follow logic through a bounded accessor. A missing leader now skips
+follow behavior until the next live member is promoted; ordinary pack movement
+and replacement order are unchanged.
+
 ### Footstep uptime fix (2026-10-27)
 
 Fix dry-land footsteps selecting water-impact sounds after roughly 24.9 days

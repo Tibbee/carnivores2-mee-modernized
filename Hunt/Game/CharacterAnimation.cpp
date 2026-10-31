@@ -159,7 +159,8 @@ void AnimateCharacters()
 
 		// replace pack leader
 		if (cptr->Health && cptr->packId >= 0) {
-			if (!Packs[cptr->packId].leader->Health) Packs[cptr->packId].leader = cptr;
+			TCharacter* leader = PackLeader(cptr);
+			if (!leader || !leader->Health) Packs[cptr->packId].leader = cptr;
 		}
 
 		if (cptr->tgtime > 30 * 1000) {

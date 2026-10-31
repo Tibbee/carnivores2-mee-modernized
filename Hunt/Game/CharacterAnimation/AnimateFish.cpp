@@ -127,9 +127,10 @@ TBEGIN:
 			//goto TBEGIN;
 		} else {
 
-			if (cptr->packId >= 0) {
-				float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
-				float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
+			TCharacter* leader = PackLeader(cptr);
+			if (leader) {
+				float leaderdx = leader->pos.x - cptr->pos.x;
+				float leaderdz = leader->pos.z - cptr->pos.z;
 				float leaderdistSq = leaderdx * leaderdx + leaderdz * leaderdz;
 
 				if (cptr->followLeader) {
@@ -151,10 +152,10 @@ TBEGIN:
 
 			}
 
-			if (cptr->followLeader) {
-				cptr->tgx = Packs[cptr->packId].leader->pos.x;
-				cptr->tgz = Packs[cptr->packId].leader->pos.z;
-				cptr->tdepth = Packs[cptr->packId].leader->depth;
+			if (leader && cptr->followLeader) {
+				cptr->tgx = leader->pos.x;
+				cptr->tgz = leader->pos.z;
+				cptr->tdepth = leader->depth;
 
 			} else if (tdist2Sq < 456 * 456) // Ignore vertical
 			{

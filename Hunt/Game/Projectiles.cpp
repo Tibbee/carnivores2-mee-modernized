@@ -382,12 +382,51 @@ void registerDamage(int Dino, bool enemyBullet, const Vector3d& hunterPosition) 
 }
 void RemoveCharacter(int index)
 {
-  if (index==-1) return;
-  memcpy( &Characters[index], &Characters[index+1], (255 - index) * sizeof(TCharacter) );
+  if (index < 0 || index >= ChCount) return;
+
+  const int oldChCount = ChCount;
+  TCharacter* removed = &Characters[index];
+
+  if (DemoPoint.CIndex == index) {
+    if (g_DeathCameraMode == DeathCameraMode::BodyBacked) {
+      g_DeathCameraX = removed->pos.x;
+      g_DeathCameraY = removed->pos.y;
+      g_DeathCameraZ = removed->pos.z;
+      g_DeathCameraMode = DeathCameraMode::CapturedPlayer;
+      DemoPoint.pos.x = g_DeathCameraX;
+      DemoPoint.pos.y = g_DeathCameraY;
+      DemoPoint.pos.z = g_DeathCameraZ;
+    }
+    DemoPoint.CIndex = -1;
+  }
+  else if (DemoPoint.CIndex > index) {
+    DemoPoint.CIndex--;
+  }
+
+  const int tail = oldChCount - index - 1;
+  if (tail > 0)
+    memmove(&Characters[index], &Characters[index+1], tail * sizeof(TCharacter));
   ChCount--;
 
-  if (DemoPoint.CIndex > index) DemoPoint.CIndex--;
+  const TCharacter* oldEnd = removed + (oldChCount - index);
+  for (int p = 0; p < PackCount; p++) {
+    TCharacter* leader = Packs[p].leader;
+    if (!leader) continue;
+    if (leader == removed) Packs[p].leader = nullptr;
+    else if (leader > removed && leader < oldEnd) --Packs[p].leader;
+  }
 
-  for (int c=0; c<ShipTask.tcount; c++)
-    if (ShipTask.clist[c]>index) ShipTask.clist[c]--;
+  if (killerDino) {
+    if (killerDino == removed) killerDino = nullptr;
+    else if (killerDino > removed && killerDino < oldEnd) --killerDino;
+  }
+
+  int dst = 0;
+  for (int c = 0; c < ShipTask.tcount; c++) {
+    int target = ShipTask.clist[c];
+    if (target == index) continue;
+    if (target > index) --target;
+    ShipTask.clist[dst++] = target;
+  }
+  ShipTask.tcount = dst;
 }

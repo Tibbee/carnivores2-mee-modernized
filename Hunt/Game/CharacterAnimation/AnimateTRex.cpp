@@ -144,9 +144,10 @@ TBEGIN:
 
 	if (!cptr->State) {
 
-		if (cptr->packId >= 0) {
-			float leaderdx = Packs[cptr->packId].leader->pos.x - cptr->pos.x;
-			float leaderdz = Packs[cptr->packId].leader->pos.z - cptr->pos.z;
+		TCharacter* leader = PackLeader(cptr);
+		if (leader) {
+			float leaderdx = leader->pos.x - cptr->pos.x;
+			float leaderdz = leader->pos.z - cptr->pos.z;
 			float leaderdistSq = leaderdx * leaderdx + leaderdz * leaderdz;
 
 			if (cptr->followLeader) {
@@ -166,9 +167,9 @@ TBEGIN:
 
 		}
 
-		if (cptr->followLeader) {
-			cptr->tgx = Packs[cptr->packId].leader->pos.x;
-			cptr->tgz = Packs[cptr->packId].leader->pos.z;
+		if (leader && cptr->followLeader) {
+			cptr->tgx = leader->pos.x;
+			cptr->tgz = leader->pos.z;
 		}
 		else if (tdistSq < 1224 * 1224)
 		{
