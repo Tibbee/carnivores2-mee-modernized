@@ -312,3 +312,30 @@ TEST(SourceContracts, CallSitesAndOrdering) {
     EXPECT_LT(draw.find("NightVisionOn"), draw.find("workbench::RenderUI()"));
     EXPECT_LT(draw.find("workbench::RenderUI()"), draw.find("SwapBuffers(hdc)"));
 }
+
+TEST(SourceContracts, OverlappingArrayCompactionUsesMemmoveAndActiveCounts) {
+    const auto projectiles = Source("Hunt/Game/Projectiles.cpp");
+    EXPECT_NE(projectiles.find("memmove(&Elements[0], &Elements[1], (ElCount-1) * sizeof(TElements));"), std::string::npos);
+    const std::string bulletShift =
+        "memmove(&bullet[b], &bullet[b + 1], (bulletCh - 1 - b) * sizeof(TBullet));";
+    int bulletShifts = 0;
+    for (auto at = projectiles.find(bulletShift); at != std::string::npos;
+         at = projectiles.find(bulletShift, at + 1))
+        ++bulletShifts;
+    EXPECT_EQ(bulletShifts, 2);
+    EXPECT_EQ(projectiles.find("memcpy(&bullet[b]"), std::string::npos);
+    EXPECT_EQ(projectiles.find("memcpy(&Elements[0]"), std::string::npos);
+
+    const auto trophy = Source("Hunt/Game/Trophy.cpp");
+    EXPECT_NE(trophy.find("memmove(&Elements[eg], &Elements[eg+1], (ElCount - eg) * sizeof(TElements));"), std::string::npos);
+    EXPECT_EQ(trophy.find("memcpy(&Elements[eg]"), std::string::npos);
+
+    const auto tracking = Source("Hunt/Game/CharacterTracking.cpp");
+    EXPECT_NE(tracking.find("memmove(&BloodTrail.Trail[0], &BloodTrail.Trail[1], (BloodTrail.Count - 1) * sizeof(TBloodP));"), std::string::npos);
+    EXPECT_NE(tracking.find("memmove(&BloodTrail.Trail[b], &BloodTrail.Trail[b + 1], (BloodTrail.Count - 1 - b) * sizeof(TBloodP));"), std::string::npos);
+    EXPECT_EQ(tracking.find("memcpy(&BloodTrail.Trail"), std::string::npos);
+
+    const auto resources = Source("Hunt/Loaders/Resources.cpp");
+    EXPECT_NE(resources.find("memmove(&Ambient[a].rdata[r], &Ambient[a].rdata[r+1], (Ambient[a].RSFXCount - 1 - r)*sizeof(TRD));"), std::string::npos);
+    EXPECT_EQ(resources.find("memcpy(&Ambient[a].rdata"), std::string::npos);
+}

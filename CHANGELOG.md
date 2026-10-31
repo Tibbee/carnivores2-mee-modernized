@@ -30,6 +30,13 @@ budgets remain checked (16 MiB script input; 64 MiB estimated roster metadata,
 including growth allowance). Tests cover 513 definitions and a deployed-asset
 hidden OpenGL capture with high-numbered variants. See `docs/MODDING-ROSTER.md`.
 
+### Overlapping array-shift safety (2026-10-31)
+
+Replace overlapping `memcpy` calls in bullet, particle, blood-trail and ambient
+sound compaction with `memmove`, and use the active element count instead of
+fixed over-copies in the particle, blood-trail and ambient lists. Element order,
+counts and gameplay timing are unchanged.
+
 ### Footstep uptime fix (2026-10-27)
 
 Fix dry-land footsteps selecting water-impact sounds after roughly 24.9 days

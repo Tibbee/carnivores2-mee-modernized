@@ -28,7 +28,7 @@ void AddElementsA(float x, float y, float z, int etype, int cnt, int mag, bool a
 {
   if (ElCount > 697)
   {
-    memcpy(&Elements[0], &Elements[1], (ElCount-1) * sizeof(TElements));
+    memmove(&Elements[0], &Elements[1], (ElCount-1) * sizeof(TElements));
     ElCount--;
   }
 
@@ -273,7 +273,7 @@ void AnimateBullets() {
 						(WeapInfo[bullet[b].parent].rldAnim < 0 && WeapInfo[bullet[b].parent].Reload)))
 						Chambered[bullet[b].parent]++;
 					else ShotsLeft[bullet[b].parent]++;
-					memcpy(&bullet[b], &bullet[b + 1], (bulletCh - 1 - b) * sizeof(TBullet));
+					memmove(&bullet[b], &bullet[b + 1], (bulletCh - 1 - b) * sizeof(TBullet));
 					b--;
 					bulletCh--;
 				}
@@ -325,7 +325,7 @@ void AnimateBullets() {
 					bullet[b].state = 1;
 					bullet[b].a = TraceB;
 				} else {
-					memcpy(&bullet[b], &bullet[b + 1], (bulletCh - 1 - b) * sizeof(TBullet));
+					memmove(&bullet[b], &bullet[b + 1], (bulletCh - 1 - b) * sizeof(TBullet));
 					b--;
 					bulletCh--;
 				}

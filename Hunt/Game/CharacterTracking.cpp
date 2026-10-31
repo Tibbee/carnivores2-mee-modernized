@@ -9,7 +9,7 @@ void AddBloodTrail(TCharacter *cptr)
 {
   if (BloodTrail.Count > 508)
   {
-    memcpy(&BloodTrail.Trail[0], &BloodTrail.Trail[1], 510 * sizeof(TBloodP));
+    memmove(&BloodTrail.Trail[0], &BloodTrail.Trail[1], (BloodTrail.Count - 1) * sizeof(TBloodP));
     BloodTrail.Count--;
   }
   BloodTrail.Trail[BloodTrail.Count].Owner = cptr->CType;
@@ -30,7 +30,7 @@ void AnimateBloodTrails()
     BloodTrail.Trail[b].LTime -= TimeDt;
     if (BloodTrail.Trail[b].LTime <= 0)
     {
-      memcpy(&BloodTrail.Trail[b], &BloodTrail.Trail[b + 1], (511 - b) * sizeof(TBloodP));
+      memmove(&BloodTrail.Trail[b], &BloodTrail.Trail[b + 1], (BloodTrail.Count - 1 - b) * sizeof(TBloodP));
       BloodTrail.Count--;
       b--;
     }
