@@ -48,7 +48,7 @@ void ResetCharacter(TCharacter *cptr);
 void ProcessPrevPhase(TCharacter *cptr);
 void ActivateCharacterFx(TCharacter *cptr);
 void ActivateCharacterFxAquatic(TCharacter *cptr);
-void AddDeadBody(TCharacter *cptr, int phase, bool scream);
+TCharacter* AddDeadBody(TCharacter *cptr, int phase, bool scream);
 
 // Animation helpers
 void ThinkY_Beta_Gamma(TCharacter *cptr, float blook, float glook, float blim, float glim);

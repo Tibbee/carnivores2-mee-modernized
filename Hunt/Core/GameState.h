@@ -354,7 +354,16 @@ GLOBAL TWCircle       WCircles[2096]; //increased
 
 GLOBAL TSnowElement*  Snow;
 
+enum class DeathCameraMode
+{
+    None,
+    BodyBacked,
+    CapturedPlayer,
+};
+
 GLOBAL TDemoPoint     DemoPoint;
+GLOBAL DeathCameraMode g_DeathCameraMode;
+GLOBAL float g_DeathCameraX, g_DeathCameraY, g_DeathCameraZ;
 
 GLOBAL TCharacter     *killerDino;
 

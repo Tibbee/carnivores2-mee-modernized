@@ -37,6 +37,13 @@ sound compaction with `memmove`, and use the active element count instead of
 fixed over-copies in the particle, blood-trail and ambient lists. Element order,
 counts and gameplay timing are unchanged.
 
+### Death-camera and body-capacity safety (2026-10-31)
+
+Guard the hunter-death body append at the live-character capacity, return the
+appended body to callers, and add a body-independent camera fallback so a full
+roster cannot index past `Characters[]` or follow a removed demo target.
+Ordinary body-backed deaths keep their existing timing and camera behavior.
+
 ### Footstep uptime fix (2026-10-27)
 
 Fix dry-land footsteps selecting water-impact sounds after roughly 24.9 days

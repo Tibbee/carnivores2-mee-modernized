@@ -177,7 +177,29 @@ void ProcessDemoMovement()
 
   VSpeed = 0.f;
 
-  DemoPoint.pos = Characters[DemoPoint.CIndex].pos;
+  if (g_DeathCameraMode == DeathCameraMode::BodyBacked &&
+      DemoPoint.CIndex >= 0 && DemoPoint.CIndex < ChCount)
+  {
+    DemoPoint.pos = Characters[DemoPoint.CIndex].pos;
+    g_DeathCameraX = DemoPoint.pos.x;
+    g_DeathCameraY = DemoPoint.pos.y;
+    g_DeathCameraZ = DemoPoint.pos.z;
+  }
+  else
+  {
+    if (g_DeathCameraMode == DeathCameraMode::None)
+    {
+      g_DeathCameraX = PlayerX;
+      g_DeathCameraY = PlayerY;
+      g_DeathCameraZ = PlayerZ;
+    }
+    g_DeathCameraMode = DeathCameraMode::CapturedPlayer;
+    killerDino = nullptr;
+    DemoPoint.CIndex = -1;
+    DemoPoint.pos.x = g_DeathCameraX;
+    DemoPoint.pos.y = g_DeathCameraY;
+    DemoPoint.pos.z = g_DeathCameraZ;
+  }
   float base;
   if (killerDino) {
 	  base = DinoInfo[killerDino->CType].camBase;

@@ -138,9 +138,9 @@ void ResetCharacter(TCharacter *cptr)
 
 }
 
-void AddDeadBody(TCharacter *cptr, int phase, bool scream)
+TCharacter* AddDeadBody(TCharacter *cptr, int phase, bool scream)
 {
-	if (!MyHealth) return;
+	if (!MyHealth) return nullptr;
 
 	if (ExitTime)
 		AddMessage("Transportation cancelled.");
@@ -148,16 +148,44 @@ void AddDeadBody(TCharacter *cptr, int phase, bool scream)
 
 	g_GameMode = GameMode::Normal;
 	g_GameMode = GameMode::Normal;
-	Characters[ChCount].CType = 0;
-	Characters[ChCount].alpha = CameraAlpha;
-	ResetCharacter(&Characters[ChCount]);
+
+	const int capacity = static_cast<int>(sizeof(Characters) / sizeof(Characters[0]));
+	if (ChCount >= capacity)
+	{
+		MyHealth = 0;
+		FlashlightOn = false;
+		killerDino = nullptr;
+
+		g_DeathCameraMode = DeathCameraMode::CapturedPlayer;
+		g_DeathCameraX = PlayerX;
+		g_DeathCameraY = PlayerY;
+		g_DeathCameraZ = PlayerZ;
+
+		DemoPoint.pos.x = PlayerX;
+		DemoPoint.pos.y = PlayerY;
+		DemoPoint.pos.z = PlayerZ;
+		DemoPoint.DemoTime = 1;
+		DemoPoint.CIndex = -1;
+
+		rRand(3);
+		if (phase != HUNT_BREATH && scream){
+			AddVoicev(fxScream[r].length, fxScream[r].lpData.data(), 256);
+		}
+		return nullptr;
+	}
+
+	TCharacter* body = &Characters[ChCount];
+	body->CType = 0;
+	body->alpha = CameraAlpha;
+	ResetCharacter(body);
 
 	int v = rRand(3);
+	(void)v;
 	if (phase != HUNT_BREATH && scream){
 		AddVoicev(fxScream[r].length, fxScream[r].lpData.data(), 256);
 	}
 
-	Characters[ChCount].Health = 0;
+	body->Health = 0;
 	MyHealth = 0;
 	FlashlightOn = false; // Switch off before the death/kill camera takes over.
 	if (cptr)
@@ -174,27 +202,33 @@ void AddDeadBody(TCharacter *cptr, int phase, bool scream)
 		}
 
 		float pl = DinoInfo[cptr->CType].killType[cptr->killType].offset;
-		Characters[ChCount].pos.x = cptr->pos.x + cptr->lookx * pl * cptr->scale;
-		Characters[ChCount].pos.z = cptr->pos.z + cptr->lookz * pl * cptr->scale;
-		Characters[ChCount].pos.y = GetLandQH(Characters[ChCount].pos.x, Characters[ChCount].pos.z);
+		body->pos.x = cptr->pos.x + cptr->lookx * pl * cptr->scale;
+		body->pos.z = cptr->pos.z + cptr->lookz * pl * cptr->scale;
+		body->pos.y = GetLandQH(body->pos.x, body->pos.z);
 	}
 	else
 	{
-		Characters[ChCount].pos.x = PlayerX;
-		Characters[ChCount].pos.z = PlayerZ;
-		Characters[ChCount].pos.y = PlayerY;
+		body->pos.x = PlayerX;
+		body->pos.z = PlayerZ;
+		body->pos.y = PlayerY;
 	}
 
-	Characters[ChCount].Phase = phase;
-	Characters[ChCount].PrevPhase = phase;
+	body->Phase = phase;
+	body->PrevPhase = phase;
 
-	ActivateCharacterFx(&Characters[ChCount]);
+	ActivateCharacterFx(body);
 
-	DemoPoint.pos = Characters[ChCount].pos;
+	DemoPoint.pos = body->pos;
 	DemoPoint.DemoTime = 1;
 	DemoPoint.CIndex = ChCount;
 
+	g_DeathCameraMode = DeathCameraMode::BodyBacked;
+	g_DeathCameraX = body->pos.x;
+	g_DeathCameraY = body->pos.y;
+	g_DeathCameraZ = body->pos.z;
+
 	ChCount++;
+	return body;
 }
 
 float AngleDifference(float a, float b)

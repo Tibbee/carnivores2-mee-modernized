@@ -238,7 +238,7 @@ TEST(SourceContracts, CallSitesAndOrdering) {
     // Death clears the health gate before the flashlight toggle, and the
     // toggle before the kill camera; the key handler refuses to relight.
     const auto characters = Source("Hunt/Game/Characters.cpp");
-    const auto deathStart = characters.find("void AddDeadBody(");
+    const auto deathStart = characters.find("TCharacter* AddDeadBody(");
     const auto deathEnd = characters.find("float AngleDifference(", deathStart);
     ASSERT_NE(deathStart, std::string::npos);
     ASSERT_NE(deathEnd, std::string::npos);
@@ -311,6 +311,25 @@ TEST(SourceContracts, CallSitesAndOrdering) {
     const auto draw = Source("Hunt/Renderer/GLUI.cpp");
     EXPECT_LT(draw.find("NightVisionOn"), draw.find("workbench::RenderUI()"));
     EXPECT_LT(draw.find("workbench::RenderUI()"), draw.find("SwapBuffers(hdc)"));
+}
+
+TEST(SourceContracts, DeathCameraModeSeparatesBodyAndPlayerFallback) {
+    const auto characters = Source("Hunt/Game/Characters.cpp");
+    EXPECT_NE(characters.find("if (ChCount >= capacity)"), std::string::npos);
+    EXPECT_NE(characters.find("DeathCameraMode::CapturedPlayer"), std::string::npos);
+    EXPECT_NE(characters.find("TCharacter* body = &Characters[ChCount];"), std::string::npos);
+    EXPECT_NE(characters.find("return body;"), std::string::npos);
+
+    const auto controls = Source("Hunt/Game/Controls.cpp");
+    EXPECT_NE(controls.find("g_DeathCameraMode == DeathCameraMode::BodyBacked"), std::string::npos);
+    EXPECT_NE(controls.find("DemoPoint.CIndex >= 0 && DemoPoint.CIndex < ChCount"), std::string::npos);
+    EXPECT_NE(controls.find("g_DeathCameraMode = DeathCameraMode::CapturedPlayer;"), std::string::npos);
+
+    const auto projectiles = Source("Hunt/Game/Projectiles.cpp");
+    EXPECT_NE(projectiles.find("TCharacter* body = AddDeadBody(nullptr, HUNT_EAT, true)"), std::string::npos);
+
+    const auto loader = Source("Hunt/Loaders/CharacterLoader.cpp");
+    EXPECT_NE(loader.find("g_DeathCameraMode = DeathCameraMode::None;"), std::string::npos);
 }
 
 TEST(SourceContracts, OverlappingArrayCompactionUsesMemmoveAndActiveCounts) {

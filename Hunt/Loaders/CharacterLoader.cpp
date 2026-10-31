@@ -326,6 +326,10 @@ void ReInitGame()
   }
 
   DemoPoint.DemoTime = 0;
+  DemoPoint.CIndex = -1;
+  g_DeathCameraMode = DeathCameraMode::None;
+  g_DeathCameraX = g_DeathCameraY = g_DeathCameraZ = 0.f;
+  killerDino = nullptr;
   RestartMode = false;
   TrophyDisplay=false;
   answtime = 0;

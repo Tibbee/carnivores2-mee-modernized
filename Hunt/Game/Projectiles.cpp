@@ -182,8 +182,8 @@ int AnimateBullet(float ax, float ay, float az,
 	  if (IsUnderwater() && poon) AddVoice3dv(fxImpactAquatic[sNo].length, fxImpactAquatic[sNo].lpData.data(), bx, by, bz, 256); //change this to aquatic sound
 
 	  if (sres == tresHunter) {
-		AddDeadBody(nullptr, HUNT_EAT, true);
-		Characters[ChCount - 1].alpha = PlayerAlpha - pi / 2;
+		if (TCharacter* body = AddDeadBody(nullptr, HUNT_EAT, true))
+			body->alpha = PlayerAlpha - pi / 2;
 		return sres;
 	  } else if (!Characters[ShotDino].Health) return sres;
 

@@ -90,7 +90,7 @@ void InitClips();
 void InitDirectDraw();
 
 void Characters_AddSecondaryOne(TCharacter *cptr);
-void AddDeadBody(TCharacter *cptr, int, bool);
+TCharacter* AddDeadBody(TCharacter *cptr, int, bool);
 void PlaceCharacters();
 void PlaceCharactersSurvival();
 void PlaceMHunters(); //multiplayer
