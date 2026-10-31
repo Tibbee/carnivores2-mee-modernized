@@ -10,6 +10,9 @@
 #include <mutex>
 #include <cstring>
 #include <unordered_map>
+#include <vector>
+#include <algorithm>
+#include <cstdint>
 #include <cmath>
 #include <atomic>
 #include <utility>
@@ -19,7 +22,27 @@
 // ---------------------------------------------------------------------------
 static ALCdevice*  alDevice = nullptr;
 static ALCcontext* alContext = nullptr;
-static std::unordered_map<short*, ALuint> bufferCache;
+struct BufferKey {
+    short int* data;
+    int length;
+    uint64_t generation;
+
+    bool operator==(const BufferKey& other) const {
+        return data == other.data && length == other.length && generation == other.generation;
+    }
+};
+
+struct BufferKeyHash {
+    size_t operator()(const BufferKey& key) const {
+        size_t hash = std::hash<short int*>{}(key.data);
+        hash ^= std::hash<int>{}(key.length) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        hash ^= std::hash<uint64_t>{}(key.generation) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        return hash;
+    }
+};
+
+static std::unordered_map<BufferKey, ALuint, BufferKeyHash> bufferCache;
+static uint64_t g_BufferGeneration = 0;
 static HANDLE      hAudioThread = nullptr;
 static DWORD       AudioTId;
 static CRITICAL_SECTION AudioCS;
@@ -228,7 +251,8 @@ static void SetAmbientVolume(AMBIENT& sound, int volume)
 static ALuint GetBuffer(short int* lpData, int length)
 {
     if (!lpData || length <= 0 || length > (16 << 20) || length % sizeof(short)) return 0;
-    const auto found = bufferCache.find(lpData);
+    const BufferKey key{lpData, length, g_BufferGeneration};
+    const auto found = bufferCache.find(key);
     if (found != bufferCache.end()) return found->second;
     ALuint buffer = 0;
     if (!AL_CHECK(alGenBuffers(1, &buffer)) || !buffer) {
@@ -239,8 +263,34 @@ static ALuint GetBuffer(short int* lpData, int length)
         AL_CHECK(alDeleteBuffers(1, &buffer));
         return 0;
     }
-    bufferCache.emplace(lpData, buffer);
+    bufferCache.emplace(key, buffer);
     return buffer;
+}
+
+void Audio_ForgetLevelSamples()
+{
+    if (g_AudioBackend == AudioBackend::LegacyDLL) return;
+    if (!iSoundActive) return;
+    AudioLock lock;
+    ++g_BufferGeneration;
+
+    std::vector<ALuint> attached;
+    attached.reserve(MAX_CHANNEL + 3);
+    for (const CHANNEL& voice : channel)
+        if (voice.buffer) attached.push_back(voice.buffer);
+    if (ambient.buffer) attached.push_back(ambient.buffer);
+    if (ambient2.buffer) attached.push_back(ambient2.buffer);
+    if (mambient.buffer) attached.push_back(mambient.buffer);
+
+    for (auto it = bufferCache.begin(); it != bufferCache.end();) {
+        if (it->first.generation == g_BufferGeneration ||
+            std::find(attached.begin(), attached.end(), it->second) != attached.end()) {
+            ++it;
+            continue;
+        }
+        AL_CHECK(alDeleteBuffers(1, &it->second));
+        it = bufferCache.erase(it);
+    }
 }
 
 // One deterministic 70ms tick, also driven directly by regression tests.
@@ -420,6 +470,7 @@ void Audio_Shutdown()
     for (auto& kv : bufferCache)
         AL_CHECK(alDeleteBuffers(1, &kv.second));
     bufferCache.clear();
+    g_BufferGeneration = 0;
 
     LeaveCriticalSection(&AudioCS);
 

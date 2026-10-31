@@ -586,6 +586,8 @@ void ReleaseResources()
     RandSound[r].length = 0;
   }
 
+  Audio_ForgetLevelSamples();
+
   // Per-level UI pictures and weapon scratch buffers loaded from the
   // current .rsc/map pass.
   MapPic.lpImage.reset();

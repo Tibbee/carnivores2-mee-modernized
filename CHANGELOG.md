@@ -65,6 +65,14 @@ Treat an empty or oversized spawn-region list as the default map region, and
 reject zero or over-capacity idle-group counts before indexing their animation
 arrays. Valid groups keep the same RNG order and selection results.
 
+### Audio buffer identity across level reloads (2026-10-31)
+
+Key cached OpenAL buffers by sample pointer, length and a resource generation,
+invalidate the generation when level sound vectors are released, and sweep only
+retired buffers that no voice, ambient or moving-ambient source still holds.
+Reusing an address for different audio can no longer return the previous level's
+buffer; in-flight sources keep their buffers until detached.
+
 ### Footstep uptime fix (2026-10-27)
 
 Fix dry-land footsteps selecting water-impact sounds after roughly 24.9 days

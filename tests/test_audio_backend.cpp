@@ -100,11 +100,26 @@ TEST_F(AudioBackendTest, FailedNewAmbientPlaybackRollsBackToPreviousLoop) {
 }
 TEST_F(AudioBackendTest, UploadFailureDoesNotPoisonCacheAndValidRetrySucceeds) {
     fakeal::failure="bufferData";EXPECT_EQ(GetBuffer(a,sizeof(a)),0u);
-    EXPECT_EQ(bufferCache.count(a),0u);EXPECT_TRUE(fakeal::buffers.empty());
+    EXPECT_EQ(bufferCache.count(BufferKey{a,static_cast<int>(sizeof(a)),g_BufferGeneration}),0u);
+    EXPECT_TRUE(fakeal::buffers.empty());
     const auto id=GetBuffer(a,sizeof(a));ASSERT_NE(id,0u);
     EXPECT_EQ(fakeal::buffers[id],sizeof(a));EXPECT_EQ(GetBuffer(a,sizeof(a)),id);
     EXPECT_EQ(GetBuffer(b,1),0u);EXPECT_EQ(GetBuffer(b,0),0u);EXPECT_EQ(GetBuffer(b,-2),0u);
-    EXPECT_EQ(bufferCache.count(b),0u);
+    EXPECT_EQ(bufferCache.count(BufferKey{b,1,g_BufferGeneration}),0u);
+}
+TEST_F(AudioBackendTest, GenerationChangeUploadsFreshBufferWhenPointerAndLengthMatch) {
+    const auto oldBuffer=GetBuffer(a,sizeof(a));ASSERT_NE(oldBuffer,0u);
+    AddVoice(sizeof(a),a);ASSERT_EQ(channel[0].buffer,oldBuffer);
+    Audio_ForgetLevelSamples();
+    const auto newBuffer=GetBuffer(a,sizeof(a));ASSERT_NE(newBuffer,0u);
+    EXPECT_NE(newBuffer,oldBuffer);
+    EXPECT_EQ(fakeal::sources[channel[0].source].buffer,oldBuffer);
+    EXPECT_EQ(fakeal::buffers.count(oldBuffer),1u);
+}
+TEST_F(AudioBackendTest, GenerationSweepDeletesUnattachedRetiredBuffers) {
+    const auto oldBuffer=GetBuffer(a,sizeof(a));ASSERT_NE(oldBuffer,0u);
+    Audio_ForgetLevelSamples();
+    EXPECT_EQ(fakeal::buffers.count(oldBuffer),0u);
 }
 TEST_F(AudioBackendTest, InvalidVoiceRequestsCannotPlayWithStaleGain) {
     fakeal::sources[channel[0].source].gain=0.75f;
