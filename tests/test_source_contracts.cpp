@@ -332,6 +332,15 @@ TEST(SourceContracts, DeathCameraModeSeparatesBodyAndPlayerFallback) {
     EXPECT_NE(loader.find("g_DeathCameraMode = DeathCameraMode::None;"), std::string::npos);
 }
 
+TEST(SourceContracts, SpawnPositionHandlesEmptyOrInvalidRegions) {
+    const auto spawn = Source("Hunt/Game/CharacterSpawn.cpp");
+    EXPECT_NE(spawn.find("Spawn group has no valid region"), std::string::npos);
+    EXPECT_NE(spawn.find("TSpawnRegion fallback = {988, 988, 12, 12};"), std::string::npos);
+    EXPECT_NE(spawn.find("group.spawnRegionCh <= regionCapacity"), std::string::npos);
+    EXPECT_NE(spawn.find("sr->XMax > sr->XMin ? sr->XMax - sr->XMin : 0"), std::string::npos);
+    EXPECT_NE(spawn.find("sr->YMax > sr->YMin ? sr->YMax - sr->YMin : 0"), std::string::npos);
+}
+
 TEST(SourceContracts, PackLeaderAccessorGuardsAllConsumers) {
     const auto internal = Source("Hunt/Game/CharacterInternal.h");
     EXPECT_NE(internal.find("inline TCharacter* PackLeader(const TCharacter* cptr)"), std::string::npos);

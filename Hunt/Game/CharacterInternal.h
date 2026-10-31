@@ -63,14 +63,31 @@ float CorrectedAlpha(float a, float b);
 // came from a group -- the caller must then skip the rest of its phase
 // selection; false when no group started and `fallbackPhase` was assigned.
 // Callers keep their own gate (state, corpse-carried, water).
+inline int IdleGroupCount(const TDinoIdleType& group)
+{
+    const int capacity = static_cast<int>(sizeof(group.anim) / sizeof(group.anim[0]));
+    return (group.count > 0 && group.count <= capacity) ? group.count : 0;
+}
+
 inline bool SelectIdleGroupPhase(int& phase, const TDinoIdleType* groups,
                                  int groupCount, int& currentGroup,
                                  int fallbackPhase)
 {
+    if (!groups || groupCount <= 0) {
+        currentGroup = -1;
+        phase = fallbackPhase;
+        return false;
+    }
+    if (currentGroup >= groupCount) currentGroup = -1;
+
     if (currentGroup >= 0) {
         const TDinoIdleType& group = groups[currentGroup];
-        if (rRand(127) + 1 > (1 - group.end) * 128
-            && (group.endOnAny || phase == group.anim[group.count - 1])) {
+        const int count = IdleGroupCount(group);
+        if (count == 0) {
+            currentGroup = -1;
+        }
+        else if (rRand(127) + 1 > (1 - group.end) * 128
+            && (group.endOnAny || phase == group.anim[count - 1])) {
             phase = fallbackPhase;
             // The id clears before the instant-repeat case falls through and
             // starts a new group.
@@ -80,25 +97,32 @@ inline bool SelectIdleGroupPhase(int& phase, const TDinoIdleType* groups,
             }
         }
         else {
-            phase = group.anim[rRand(group.count - 1)];
+            phase = group.anim[rRand(count - 1)];
             return true;
         }
     }
 
     for (int idleGroupNo = 0; idleGroupNo < groupCount; idleGroupNo++) {
+        if (IdleGroupCount(groups[idleGroupNo]) == 0) continue;
         if (rRand(127) + 1 > (1 - groups[idleGroupNo].start) * 128) {
             currentGroup = idleGroupNo;
         }
     }
     if (currentGroup >= 0) {
         const TDinoIdleType& group = groups[currentGroup];
-        if (group.startOnAny) {
-            phase = group.anim[rRand(group.count - 1)];
+        const int count = IdleGroupCount(group);
+        if (count == 0) {
+            currentGroup = -1;
         }
         else {
-            phase = group.anim[0];
+            if (group.startOnAny) {
+                phase = group.anim[rRand(count - 1)];
+            }
+            else {
+                phase = group.anim[0];
+            }
+            return true;
         }
-        return true;
     }
 
     phase = fallbackPhase;

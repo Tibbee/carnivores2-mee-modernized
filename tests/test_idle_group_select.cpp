@@ -122,3 +122,38 @@ TEST(IdleGroupSelectTest, GroupEndReleasesOrRestarts)
     EXPECT_EQ(current, 1);
     EXPECT_EQ(phase, 20);
 }
+
+TEST(IdleGroupSelectTest, EmptyOrOversizedGroupsFallBack)
+{
+    TDinoIdleType groups[2];
+    InitGroups(groups);
+    groups[0].count = 0;
+    groups[1].count = 0;
+    groups[0].start = 1.0f;
+    groups[1].start = 1.0f;
+
+    int phase = 4242;
+    int current = -1;
+    EXPECT_FALSE(SelectIdleGroupPhase(phase, groups, 2, current, kFallbackPhase));
+    EXPECT_EQ(phase, kFallbackPhase);
+    EXPECT_EQ(current, -1);
+
+    // A current group that becomes empty is released, not indexed.
+    groups[0].start = 0.0f;
+    groups[1].start = 0.0f;
+    phase = 10;
+    current = 0;
+    EXPECT_FALSE(SelectIdleGroupPhase(phase, groups, 2, current, kFallbackPhase));
+    EXPECT_EQ(phase, kFallbackPhase);
+    EXPECT_EQ(current, -1);
+
+    // Counts beyond the fixed animation array are rejected as well.
+    groups[0].count = 40;
+    groups[0].start = 1.0f;
+    groups[0].anim[0] = 10;
+    phase = 4242;
+    current = -1;
+    EXPECT_FALSE(SelectIdleGroupPhase(phase, groups, 2, current, kFallbackPhase));
+    EXPECT_EQ(phase, kFallbackPhase);
+    EXPECT_EQ(current, -1);
+}

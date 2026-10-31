@@ -143,13 +143,28 @@ void PlaceTrophy()
 }
 
 void spawnPositionPackLeader() {
-	TSpawnRegion *sr = &spawnGroup[Characters[ChCount].SpawnGroupType].spawnRegion[rRand(spawnGroup[Characters[ChCount].SpawnGroupType].spawnRegionCh - 1)];
+	TSpawnGroup& group = spawnGroup[Characters[ChCount].SpawnGroupType];
+	const int regionCapacity = static_cast<int>(sizeof(group.spawnRegion) / sizeof(group.spawnRegion[0]));
+	TSpawnRegion fallback = {988, 988, 12, 12};
+	TSpawnRegion* sr = &fallback;
+	if (group.spawnRegionCh > 0 && group.spawnRegionCh <= regionCapacity) {
+		sr = &group.spawnRegion[rRand(group.spawnRegionCh - 1)];
+	}
+	else {
+		static bool reportedMissingRegion = false;
+		if (!reportedMissingRegion) {
+			PrintLog("Spawn group has no valid region; using the default map region.\n");
+			reportedMissingRegion = true;
+		}
+	}
 
+	const int spanX = sr->XMax > sr->XMin ? sr->XMax - sr->XMin : 0;
+	const int spanZ = sr->YMax > sr->YMin ? sr->YMax - sr->YMin : 0;
 	Characters[ChCount].pos.x = sr->XMin * 256
-		+ abs(rRand(sr->XMax - sr->XMin) * 256);
+		+ abs(rRand(spanX) * 256);
 
 	Characters[ChCount].pos.z = sr->YMin * 256
-		+ abs(rRand(sr->YMax - sr->YMin) * 256);
+		+ abs(rRand(spanZ) * 256);
 }
 
 void spawnPositionPackFollower(int leader) {
