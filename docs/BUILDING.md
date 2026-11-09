@@ -17,7 +17,7 @@ Python **3.10 or newer** is required when building the default test configuratio
 non-destructive config completion helper. Put `python` on `PATH` for deployment.
 The engine executable itself does not require Python; configure with
 `-DC2_BUILD_TESTS=OFF` to skip the test targets (and this requirement), as the
-CI release legs do.
+release presets in CI do.
 
 ### Why 32-bit
 
@@ -84,7 +84,29 @@ which is described in [DEBUGGING.md](DEBUGGING.md).
 `Carnivores2Tests.ShopAssetValidator` exercises `tools/check_mod_assets.ps1`;
 see [MODDING-SHOP.md](MODDING-SHOP.md).
 
-CI runs on every push; see `.github/workflows/build.yml`.
+The automatic gate runs on `main` pushes and pull requests: one clean
+`ogl-debug` build with `C2_BUILD_TESTS=ON`, the MSVC warning baseline, and all
+CTest suites. It does not build the release presets.
+
+The release gate is manual. Run the `Build and Test` workflow from the Actions
+page before packaging. It builds `ogl-release-shipping` with tests enabled,
+runs CTest there, and compiles `soft-release` and `menu-release` with their
+warning baselines and release stack checks.
+
+Clang-tidy has its own workflow, `.github/workflows/clang-tidy.yml`; run it
+manually or add the `ci:clang-tidy` label to a pull request.
+
+For the checks that are not in the automatic gate, use:
+
+```powershell
+./tools/verify-local.ps1
+```
+
+That builds the debug configuration, runs the warning baseline and CTest, and
+checks comment hygiene and the smoke-script contracts. Pass `-SkipBuild`,
+`-SkipCommentHygiene`, or `-SkipSmokeContracts` to narrow it. The automatic
+gate still has one thing this script cannot provide: a fresh checkout with no
+local build state.
 
 ## Packaging
 
@@ -202,6 +224,10 @@ mostly useless, so it stays off outside the debug presets.
 
 ## Static analysis
 
+The GitHub workflow for this lives in `.github/workflows/clang-tidy.yml`. It
+runs on manual dispatch or when a pull request carries the `ci:clang-tidy`
+label; it is not part of the normal build gate.
+
 ```powershell
 cmake --preset clang-tidy
 pwsh tools/run_clang_tidy.ps1
@@ -223,15 +249,17 @@ regenerating the baseline with `-UpdateBaseline` and reviewing the diff.
 
 The gate is a measured baseline, not a zero-warning target. After the
 2026-10-19 parser cleanup the `ogl-debug` baseline is 529 unique sites (mostly
-C4459 and C4244), `ogl-release` 507, `soft-release` 489, and `menu-release` 22
-(tests disabled, as in CI). `-DC2_WARNINGS_AS_ERRORS=ON` remains available for
-focused local work but is not enabled globally.
+C4459 and C4244), `ogl-release-shipping` 508 (tests enabled), `ogl-release` 507,
+`soft-release` 489, and `menu-release` 22 (tests disabled).
+`-DC2_WARNINGS_AS_ERRORS=ON` remains available for focused local work but is not
+enabled globally.
 
 ### Code coverage
 
-CI runs the debug test suite under OpenCppCoverage and uploads `coverage.xml`
-(Cobertura) plus the HTML report. OpenCppCoverage is archived upstream but is
-still the practical dynamic coverage option for MSVC PDBs; CI pins 0.9.9.0.
+Coverage is a local tool, not part of the automatic CI gate. Run the debug test
+suite under OpenCppCoverage when you want the report. OpenCppCoverage is
+archived upstream but is still the practical dynamic coverage option for MSVC
+PDBs; the project uses 0.9.9.0.
 
 The project and its tests are 32-bit, so the x64 collector is required: it
 drives the x64 `ctest` process and instruments the 32-bit test executables
@@ -243,7 +271,7 @@ choco install opencppcoverage --version=0.9.9.0
 ```
 
 The script writes `coverage.xml` and `coverage-html/`, prints the line rate, and
-appends it to the GitHub step summary. A local full-suite run on 2026-10-18
+appends it to the GitHub step summary when run in Actions. A local full-suite run on 2026-10-18
 reported 86.0% lines (21,603/25,128) across the debug tests.
 
 ## Third-party build dependencies
