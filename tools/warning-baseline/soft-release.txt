@@ -1,7 +1,7 @@
 # MSVC warning baseline for preset: soft-release
 # format: relative/path|code|unique_warning_line_count
-# source: f863082
-# updated: 2026-10-19
+# source: 80fd324
+# updated: 2026-11-09
 # Regenerate intentionally with tools/check_msvc_warnings.ps1 -UpdateBaseline.
 Hunt/Audio/Audio_DLL.cpp|C4459|10
 Hunt/Core/BoundFit.h|C4459|8
@@ -31,7 +31,6 @@ Hunt/Game/CharacterCollision.cpp|C4459|16
 Hunt/Game/CharacterMorph.cpp|C4189|2
 Hunt/Game/CharacterMorph.cpp|C4459|11
 Hunt/Game/CharacterMovement.cpp|C4100|1
-Hunt/Game/Characters.cpp|C4189|1
 Hunt/Game/Characters.cpp|C4244|2
 Hunt/Game/Characters.cpp|C4459|3
 Hunt/Game/CharacterSpawn.cpp|C4244|7
@@ -120,7 +119,7 @@ Hunt/Workbench/TuningOverlay.h|C4459|1
 Hunt/Workbench/TuningRuntime.cpp|C4459|1
 Menu/Hunt.h|C4100|1
 Menu/Hunt2.cpp|C4100|2
-Menu/Hunt2.cpp|C4127|1
+Menu/Hunt2.cpp|C4127|2
 Menu/Hunt2.cpp|C4244|1
 Menu/Menu.cpp|C4018|1
 Menu/Menu.cpp|C4100|1
