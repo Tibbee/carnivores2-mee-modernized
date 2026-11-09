@@ -1,0 +1,69 @@
+name: Clang-Tidy
+
+# Static analysis is deliberate: run it from the Actions page, or add the
+# `ci:clang-tidy` label to a pull request. It is not part of the normal build
+# gate because installing LLVM and analyzing the change set is the slowest
+# task in CI.
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+
+concurrency:
+  group: clang-tidy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clang-tidy:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'ci:clang-tidy')
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up x86 MSVC toolchain
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x86
+
+    - name: Install LLVM
+      shell: powershell
+      run: choco install llvm --version=22.1.8 --no-progress
+
+    - name: Configure clang-tidy database
+      shell: powershell
+      run: cmake --preset clang-tidy
+
+    - name: Analyze changed project sources
+      shell: powershell
+      run: |
+        $env:Path = "C:\Program Files\LLVM\bin;$env:Path"
+        if ($env:GITHUB_BASE_REF) {
+          $base = git merge-base HEAD "origin/$env:GITHUB_BASE_REF"
+        }
+        elseif ($env:GITHUB_EVENT_NAME -eq 'push') {
+          # A push can contain several commits; analyze the complete push
+          # range instead of only comparing HEAD with its immediate parent.
+          $event = Get-Content -LiteralPath $env:GITHUB_EVENT_PATH -Raw | ConvertFrom-Json
+          $base = $event.before
+          if (-not $base -or $base -match '^0{40}$') {
+            $base = git rev-parse HEAD^
+          }
+        }
+        else {
+          $base = git rev-parse HEAD^
+        }
+        $files = @(git diff --name-only $base HEAD)
+        if ($files.Count -eq 0) {
+          Write-Host 'No changed files to analyze.'
+          exit 0
+        }
+        # The runner owns the project-source filter (extensions, vendored and
+        # generated trees), so the change set is passed through untouched.
+        & ./tools/run_clang_tidy.ps1 -BuildDir build/clang-tidy -Files $files

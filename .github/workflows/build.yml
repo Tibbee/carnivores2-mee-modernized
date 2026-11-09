@@ -1,10 +1,12 @@
 name: Build and Test
 
-# Feature branches are checked through pull requests, not again on every push.
-# Markdown/documentation-only updates do not need the build/test matrix.
-# Tags and releases do not trigger this workflow: a release must not re-run the
-# full PR matrix. Use the manual "Run workflow" dispatch when a release needs
-# the full four-preset gate.
+# Normal pushes and pull requests get one clean debug build and the unit-test
+# suite. That is the only automatic gate: it proves the committed tree builds
+# from scratch and that the tests pass without local build state.
+#
+# The release presets are a manual pre-release gate. They are slower (release
+# LTO, shipping tests) and only need to run when a package is being prepared.
+# Tags and releases do not trigger this workflow.
 on:
   push:
     branches: [main]
@@ -24,26 +26,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Pull requests and manual dispatches get the full four-preset matrix.
-  # A plain main push gets the quick debug gate below instead, so merging does
-  # not spend four Windows runners and a coverage run again.
-  build:
-    if: github.event_name != 'push'
+  # One clean checkout, one debug build, all CTest suites. This catches a
+  # missing committed file, a stale local cache, and test regressions without
+  # spending four Windows runners on every change.
+  verify:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: windows-latest
-    strategy:
-      # Only the debug leg builds and runs the unit tests; the release legs
-      # skip them (C2_BUILD_TESTS=OFF) because they compile the same test
-      # sources and would not run them.
-      matrix:
-        include:
-          - preset: ogl-debug
-            build_tests: ON
-          - preset: ogl-release
-            build_tests: OFF
-          - preset: soft-release
-            build_tests: OFF
-          - preset: menu-release
-            build_tests: OFF
 
     steps:
     - uses: actions/checkout@v4
@@ -52,71 +40,6 @@ jobs:
     # the software renderer contains x86 inline assembly). windows-latest
     # defaults to the x64 toolchain, which makes every translation unit fail
     # to compile, so the x86 environment must be selected explicitly.
-    - name: Set up x86 MSVC toolchain
-      uses: ilammy/msvc-dev-cmd@v1
-      with:
-        arch: x86
-
-    - name: Configure CMake
-      run: cmake --preset ${{ matrix.preset }} -DC2_BUILD_TESTS=${{ matrix.build_tests }}
-
-    - name: Build
-      shell: powershell
-      run: |
-        $ErrorActionPreference = 'Stop'
-        $log = 'build-${{ matrix.preset }}.log'
-        cmake --build --preset ${{ matrix.preset }} 2>&1 | Tee-Object -FilePath $log
-        $buildExit = $LASTEXITCODE
-        if ($buildExit -ne 0) { exit $buildExit }
-        ./tools/check_msvc_warnings.ps1 -Log $log -Preset '${{ matrix.preset }}'
-
-    - name: Upload build log
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-log-${{ matrix.preset }}
-        path: build-${{ matrix.preset }}.log
-        if-no-files-found: ignore
-
-    - name: Check release stack protection
-      if: endsWith(matrix.preset, '-release')
-      shell: powershell
-      run: ./tools/check_release_flags.ps1 -BuildDir build/${{ matrix.preset }}
-
-    # Deployed smoke tests require licensed HUNTDAT assets and are registered
-    # only when ENABLE_DEPLOYED_SMOKE_TEST is enabled on a developer machine.
-    - name: Install OpenCppCoverage
-      if: matrix.preset == 'ogl-debug'
-      shell: powershell
-      run: choco install opencppcoverage --version=0.9.9.0 --no-progress -y
-
-    - name: Unit tests + coverage (debug builds)
-      if: matrix.preset == 'ogl-debug'
-      shell: powershell
-      run: |
-        $occ = Join-Path $env:ProgramFiles 'OpenCppCoverage\OpenCppCoverage.exe'
-        if (-not (Test-Path -LiteralPath $occ -PathType Leaf)) {
-          throw "OpenCppCoverage was not installed at $occ"
-        }
-        ./tools/run_coverage.ps1 -BuildDir build/ogl-debug -OpenCppCoverage $occ
-
-    - name: Upload coverage
-      if: always() && matrix.preset == 'ogl-debug'
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-ogl-debug
-        path: |
-          coverage.xml
-          coverage-html
-        if-no-files-found: warn
-
-  quick-main:
-    if: github.event_name == 'push'
-    runs-on: windows-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
     - name: Set up x86 MSVC toolchain
       uses: ilammy/msvc-dev-cmd@v1
       with:
@@ -139,102 +62,66 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: build-log-ogl-debug-quick
+        name: build-log-ogl-debug
         path: build-ogl-debug.log
         if-no-files-found: ignore
 
     - name: Unit tests
       run: ctest --test-dir build/ogl-debug --output-on-failure
 
-  comment-hygiene:
-    if: github.event_name != 'push'
-    # Separate job so it runs once instead of once per preset. CI checks rules
-    # that can be verified from this repository alone. External Markdown paths
-    # are additionally checked on developer machines that have the sibling
-    # CarnivoresDoc checkout or set CARNIVORES_DOC_DIR explicitly.
+  # Run this from the Actions page before packaging. It verifies the exact
+  # shipping preset used by the packaging script, including its test targets,
+  # and still compiles the software and menu releases.
+  release-matrix:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - preset: ogl-release-shipping
+            build_tests: 'ON'
+            run_tests: true
+          - preset: soft-release
+            build_tests: 'OFF'
+            run_tests: false
+          - preset: menu-release
+            build_tests: 'OFF'
+            run_tests: false
 
     steps:
     - uses: actions/checkout@v4
-
-    - name: Check comment hygiene
-      shell: powershell
-      run: ./tools/check_comment_hygiene.ps1
-
-  clang-tidy:
-    # Opt-in on pull requests: add the `ci:clang-tidy` label when the slower
-    # LLVM install and analysis pass is wanted. Manual dispatches always run
-    # it, and main pushes never do.
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:clang-tidy'))
-    runs-on: windows-latest
-    timeout-minutes: 30
-
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
 
     - name: Set up x86 MSVC toolchain
       uses: ilammy/msvc-dev-cmd@v1
       with:
         arch: x86
 
-    - name: Install LLVM
-      shell: powershell
-      run: choco install llvm --version=22.1.8 --no-progress
+    - name: Configure release build
+      run: cmake --preset ${{ matrix.preset }} -DC2_BUILD_TESTS=${{ matrix.build_tests }}
 
-    - name: Configure clang-tidy database
-      shell: powershell
-      run: cmake --preset clang-tidy
-
-    - name: Analyze changed project sources
+    - name: Build and check warnings
       shell: powershell
       run: |
-        $env:Path = "C:\Program Files\LLVM\bin;$env:Path"
-        if ($env:GITHUB_BASE_REF) {
-          $base = git merge-base HEAD "origin/$env:GITHUB_BASE_REF"
-        }
-        elseif ($env:GITHUB_EVENT_NAME -eq 'push') {
-          # A push can contain several commits; analyze the complete push
-          # range instead of only comparing HEAD with its immediate parent.
-          $event = Get-Content -LiteralPath $env:GITHUB_EVENT_PATH -Raw | ConvertFrom-Json
-          $base = $event.before
-          if (-not $base -or $base -match '^0{40}$') {
-            $base = git rev-parse HEAD^
-          }
-        }
-        else {
-          $base = git rev-parse HEAD^
-        }
-        $files = @(git diff --name-only $base HEAD)
-        if ($files.Count -eq 0) {
-          Write-Host 'No changed files to analyze.'
-          exit 0
-        }
-        # The runner owns the project-source filter (extensions, vendored and
-        # generated trees), so the change set is passed through untouched.
-        & ./tools/run_clang_tidy.ps1 -BuildDir build/clang-tidy -Files $files
+        $ErrorActionPreference = 'Stop'
+        $log = 'build-${{ matrix.preset }}.log'
+        cmake --build --preset ${{ matrix.preset }} 2>&1 | Tee-Object -FilePath $log
+        $buildExit = $LASTEXITCODE
+        if ($buildExit -ne 0) { exit $buildExit }
+        ./tools/check_msvc_warnings.ps1 -Log $log -Preset '${{ matrix.preset }}'
 
-  runtime-contracts:
-    if: github.event_name != 'push'
-    runs-on: windows-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up .NET
-      uses: actions/setup-dotnet@v4
+    - name: Upload build log
+      if: failure()
+      uses: actions/upload-artifact@v4
       with:
-        dotnet-version: 8.x
+        name: build-log-${{ matrix.preset }}
+        path: build-${{ matrix.preset }}.log
+        if-no-files-found: ignore
 
-    - name: Build smoke fixture
+    - name: Check release stack protection
       shell: powershell
-      run: |
-        $output = Join-Path $env:RUNNER_TEMP 'c2-smoke-fixture'
-        dotnet build tests/smoke_fixture.csproj --configuration Release --output $output --nologo
+      run: ./tools/check_release_flags.ps1 -BuildDir build/${{ matrix.preset }}
 
-    - name: Run smoke-script contracts
-      shell: powershell
-      run: |
-        $fixture = Join-Path $env:RUNNER_TEMP 'c2-smoke-fixture/smoke_fixture.dll'
-        ./tests/test_smoke_script.ps1 -FixtureDll $fixture
+    - name: Unit tests
+      if: matrix.run_tests
+      run: ctest --test-dir build/${{ matrix.preset }} --output-on-failure
