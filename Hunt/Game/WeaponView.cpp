@@ -83,6 +83,10 @@ void DrawPostObjects()
 {
   float b;
   TWeapon* wptr = &Weapon;
+  // Keep the original sun position available to the label path. Declaring it
+  // after the SKIPWEAPON jumps made MSVC warn that its initializer could be
+  // skipped; nothing before the assignment below changes Sun3dPos.
+  Vector3d v = Sun3dPos;
   // Weapon animation phase for the morph/HUD sections below. Declared above
   // the SKIPWEAPON jumps so no path can skip it; the state switch further
   // down assigns the active animation.
@@ -393,7 +397,6 @@ SKIPWIND:
 
   //==================== render weapon ===================//
 
-  Vector3d v = Sun3dPos;
   Sun3dPos = RotateVector(Sun3dPos);
   CalcNormals(wptr->chinfo[CurrentWeapon].mptr.get(), wptr->normals.get());
 
