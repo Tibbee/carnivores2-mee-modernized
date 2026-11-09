@@ -7,18 +7,33 @@ Based on [Keep a Changelog](https://keepachangelog.com/).
 Upstream Modder's Engine v1.11 is the base, not the modernization release
 number. ModDB V1 through V6 correspond to GitHub v1.1.4-modernized
 through v1.1.9-modernized.
-Windows executable resources use major.minor.patch.build (v1.1.9.1 package
-candidate: 1.1.9.1). The v1.1.9.1 package is a local build, not a published
-release; no GitHub tag or ModDB label has been assigned.
+Windows executable resources use major.minor.patch.build (v1.1.9.2 beta:
+1.1.9.2). v1.1.9.2 is a beta pre-release built from local `main`; v1.1.9.1
+(`81fe90b`) remains the last tagged patch. The beta is not a finished release
+and has not been published to ModDB.
 Copy-paste release summaries are in `release-notes/`.
 
-## [Unreleased] (proposed v1.1.9.1-modernized)
+## [v1.1.9.2-modernized-beta] - 2026-11-09
 
-Draft changes on local `main` after `origin/main` (`81fe90b`); not part of
-the published v1.1.9 tag or its refreshed archive. This is a follow-up
-compatibility/gameplay package candidate, not an already published hotfix.
-The separately labelled workbench preview below is part of this line of work;
-the consolidation pass brings it onto main.
+**Beta pre-release.** Changes since `v1.1.9.1-modernized` (`81fe90b`). The
+automated five-preset build/CTest matrix, warning gate and release-flag checks
+pass, but owner acceptance and broad mod-compatibility validation are partial.
+See [`release-notes/v1.1.9.2-modernized-beta.md`](release-notes/v1.1.9.2-modernized-beta.md)
+for user-facing notes and known limitations. The awareness and load-policy
+notes retained below were already part of v1.1.9.1; they are context, not new
+beta features.
+
+### Water footsteps on terrain, bridges and after long uptime (2026-09-27 / 2026-10-31)
+
+Three separate audio defects are fixed in this beta. Dry decks and objects
+above water now use land footsteps and no longer spawn ripple circles
+(`678352a`); the legacy `GetLandUpH > GetLandH` test only proved the tile was
+flooded, not that the player was in the water. Dry-land footsteps no longer
+select water-impact samples after roughly 24.9 days of Windows uptime
+(`1593709`); landing, dry and wet steps now share one unsigned bounded index.
+Cached OpenAL buffers are keyed by sample pointer, length and a resource
+generation (`308ac66`), so a level reload that reuses an address cannot return
+the previous level's water or ambient sound.
 
 ### Dynamic character roster (2026-10-28)
 

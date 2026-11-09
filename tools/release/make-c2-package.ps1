@@ -157,10 +157,16 @@ if ($LASTEXITCODE -ne 0) { throw "config.cfg generation failed ($LASTEXITCODE)" 
   Carnivores 2 - Modder's Engine v1.11 (Modernized v$Version)
 ================================================================
 
+BETA RELEASE
+  This package is a beta pre-release. It is built and tested, but
+  owner/gameplay acceptance is partial. Back up config.cfg and
+  saves before updating, and report reproducible issues. See
+  RELEASE-NOTES.md for known limitations.
+
 VERSIONING
-  Project release candidate: Modernized v$Version (not published).
+  Beta release: Modernized v$Version.
   Upstream Modder's Engine v1.11 is the base; modernization releases
-  are numbered separately. ModDB V6 was the previous v1.1.9 release.
+  are numbered separately. ModDB V6 remains the earlier v1.1.9 release.
   Windows executable version: $Version
 
 WHAT'S INCLUDED
@@ -225,13 +231,19 @@ UPSTREAM CREDITS
   https://github.com/carnivores-cpe/Carnivores-CPE/tree/Map-Amb-Demo-2
   See NOTICE.md for this fork's exact base snapshot and menu credits.
 
-MODERNIZED v$Version HIGHLIGHTS (since v1.1.9)
-  - Lenient-by-default script recovery with strict mod-validation mode.
-  - Fixed creature awareness, contact-range threats, fleeing and packs.
-  - Restored fish wander radius and safe trophy-room exhibit damage.
-  - Corrected weapon highlights in pocket fog.
-  - Added per-species aggression tuning and opt-in AI awareness logging.
-  See RELEASE-NOTES.md for details and config instructions.
+MODERNIZED v$Version HIGHLIGHTS (since v1.1.9.1)
+  - Native F10 modder workbench: Fog/Waves/Sun, Night/Beam, Water,
+    Audio reverb, collision inspector, review and optional config save.
+  - Dynamic character roster: no fixed 128-definition limit; scripts
+    are sized from _RES.TXT and saved trophy layouts stay compatible.
+  - Fixed water footsteps on dry decks/terrain above water and
+    dry-land water splashes after long Windows uptime; level reloads
+    no longer reuse stale cached audio.
+  - Shop externalization, moonlit nights and the flashlight.
+  - Creature awareness/pack/flee fixes and trophy-room fixes from the
+    1.1.9.1 line remain included.
+  See RELEASE-NOTES.md for details, known beta limitations and the
+  RoundUp compatibility note.
 
 REPORTING ISSUES
   https://github.com/Tibbee/carnivores2-mee-modernized/issues

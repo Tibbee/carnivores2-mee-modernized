@@ -1,11 +1,20 @@
 # Character definitions and the dynamic roster
 
-> Local unreleased implementation, 2026-10-28. Published v1.1.9 still has the
-> 128-definition limit; this guide describes the current source/preview.
+> Included in the v1.1.9.2 Beta. The published v1.1.9/v1.1.9.1 builds still have
+> the 128-definition limit; this guide describes the beta source/package.
 
 The engine now sizes its character-definition storage to the entries read from
 `HUNTDAT/_RES.TXT`, rather than using a fixed 128-element array. This is not a
 replacement limit of 256 or 512; regression tests include 513 definitions.
+
+On x86 the metadata budget admits up to **1,833 definitions** (64 MiB divided by
+2 x 18,300 bytes per definition, including the growth allowance). 1,024 and
+1,025 definitions fit; the 1,834th is rejected. This is a metadata limit, not a
+promise that every definition can spawn in one hunt: the independent 1,024-entry
+pack-type table, 16 MiB `_RES.TXT` input budget, 256 live-character slots, 128
+AI families, 128 trophy display slots and the menu's 32-bit launch flags still
+apply. A roster where every definition generates a pack can therefore hit the
+pack-type table before the metadata budget.
 
 ## What counts as an entry?
 
