@@ -16,447 +16,226 @@ Copy-paste release summaries are in `release-notes/`.
 ## [v1.1.9.2-modernized-beta] - 2026-11-09
 
 **Beta pre-release.** Changes since `v1.1.9.1-modernized` (`81fe90b`). The
-automated five-preset build/CTest matrix, warning gate and release-flag checks
-pass, but owner acceptance and broad mod-compatibility validation are partial.
-See [`release-notes/v1.1.9.2-modernized-beta.md`](release-notes/v1.1.9.2-modernized-beta.md)
-for user-facing notes and known limitations. The awareness and load-policy
-notes retained below were already part of v1.1.9.1; they are context, not new
-beta features.
+automated five-preset build and CTest matrix, warning gate and release-flag
+checks pass. Owner acceptance and broad mod validation are still partial. See
+[`release-notes/v1.1.9.2-modernized-beta.md`](release-notes/v1.1.9.2-modernized-beta.md)
+for the user-facing notes and known limits. The v1.1.9.1 items at the end of
+this entry are kept for context, not announced as new beta features.
 
-### Water footsteps on terrain, bridges and after long uptime (2026-09-27 / 2026-10-31)
+### Water sounds and footsteps
 
-Three separate audio defects are fixed in this beta. Dry decks and objects
-above water now use land footsteps and no longer spawn ripple circles
-(`678352a`); the legacy `GetLandUpH > GetLandH` test only proved the tile was
-flooded, not that the player was in the water. Dry-land footsteps no longer
-select water-impact samples after roughly 24.9 days of Windows uptime
-(`1593709`); landing, dry and wet steps now share one unsigned bounded index.
-Cached OpenAL buffers are keyed by sample pointer, length and a resource
-generation (`308ac66`), so a level reload that reuses an address cannot return
-the previous level's water or ambient sound.
+Dry decks and objects above water now use land footsteps. The old `ONWATER`
+test only checked whether the tile was flooded, so walking on a bridge,
+causeway or other object above a river played the water footstep set and
+spawned ripple circles on the water surface below. The check now also requires
+the player's feet to be at or below the water surface (`678352a`). Wading in
+shallow water and surface swimming keep their water footsteps.
 
-### Dynamic character roster (2026-10-28)
+Dry-land footsteps no longer become water splashes after long uptime. After
+roughly 24.9 days of Windows uptime, `timeGetTime()` becomes negative and
+`RealTime % 3` indexed before the dry-step array, selecting loaded water impact
+samples on dry terrain. Landing, dry and wet footsteps now use one unsigned,
+bounded sample index (`1593709`).
 
-Load character definitions into data-sized storage instead of a fixed 128-entry
-array. Finalize model-record storage before placement to preserve character
-pointers, and grow spawn links and trophy membership without changing saved
-trophy layouts or live population/menu/call limits. Invalid indices and resource
-budgets remain checked (16 MiB script input; 64 MiB estimated roster metadata,
-including growth allowance). Tests cover 513 definitions and a deployed-asset
-hidden OpenGL capture with high-numbered variants. See `docs/MODDING-ROSTER.md`.
+Level reloads cannot return the previous level's cached sound. OpenAL buffers
+are keyed by sample pointer, length and a resource generation, and retired
+buffers are swept only after their voices and ambient sources release them
+(`308ac66`). That removes another route to wrong water or ambient audio after
+leaving and re-entering a level.
 
-### Overlapping array-shift safety (2026-10-31)
+### Workbench
 
-Replace overlapping `memcpy` calls in bullet, particle, blood-trail and ambient
-sound compaction with `memmove`, and use the active element count instead of
-fixed over-copies in the particle, blood-trail and ambient lists. Element order,
-counts and gameplay timing are unchanged.
+The OpenGL F10 panel is now a native Dear ImGui inspector. It replaces the old
+GL panel and keeps the same thirteen Fog, Waves and Sun controls.
 
-### Death-camera and body-capacity safety (2026-10-31)
+- Fog, Waves and Sun controls have sliders, validated exact entry, loaded
+  resets and comparison, grouped undo/redo, help text and a change review.
+- Night and Beam tabs expose the existing night grading, moon controls,
+  flashlight intensity, reach and cone angles, plus a session-only RGB tint.
+- The Water group exposes `water_mipmap` and `water_wave_fade_rings`.
+- The Audio panel exposes 32 reverb fields across banks 0-6 and 8.
+  Environment 7 stays dry and read-only.
+- The collision inspector shows a bounded nearby-placement list, copied loaded
+  `ofBOUND` slots, selected and resolved floor/ceiling contributions, and a
+  default-off X-ray of the actual oriented geometry. A selection now lasts for
+  the object's lifetime instead of four cells around the player (`b1c1b4b`).
+- A review step can write changed, recognized keys to `config.cfg`. The merge
+  preserves comments and line endings, updates only the value token, keeps a
+  numbered `.before-workbench.bak` snapshot and replaces the file atomically.
+  A refused save leaves the original file untouched (`2297a41`, `329eaba`,
+  `c80702d`, `6a17733`, `0f336db`, `9b4e04d`).
+- The panel labels each field's persistence and can emit a pasteable dump of
+  the registry and recognized keys (`0b27fae`, `14d9d3a`).
+- F8 hands input to and from the hunt. Escape returns from Test to the UI.
+  Opening the panel does not pause the simulation.
+- The software renderer now draws its legacy F10 panel instead of accepting
+  keys with nothing on screen (`c2dcbcc`). The native Dear ImGui workbench is
+  still OpenGL-only.
 
-Guard the hunter-death body append at the live-character capacity, return the
-appended body to callers, and add a body-independent camera fallback so a full
-roster cannot index past `Characters[]` or follow a removed demo target.
-Ordinary body-backed deaths keep their existing timing and camera behavior.
+The performance tooling moved into `tools/perf`. It covers isolated scripted
+captures, strict bracketed reports and the CSV statistics helper. See
+`tools/perf/README.md` and `docs/LIVE-WORKBENCH.md`.
 
-### Ship pickup queue safety (2026-10-31)
+### Dynamic character roster
 
-Bound the trophy pickup queue at its real array capacity and drain only the
-active tail. A full queue now drops the extra pickup request and its
-acknowledgement sound while still recording the trophy; the previous fixed
-250-entry shift could leave stale entries and overlap its own source.
+Character definitions are no longer limited to a fixed 128-entry array.
+Storage is sized from the `characters` entries in `_RES.TXT`; model records are
+frozen before placement so live character pointers stay valid (`30b4ef3`).
 
-### Pack pointer repair on character removal (2026-10-31)
+Spawn links and trophy-group membership grow as needed. Live-character,
+AI-family, trophy-display, pack-member and per-definition spawn-info limits
+remain separate and enforced.
 
-Rebuild pack-leader, killer and demo-target pointers after a character is
-removed, drop stale pickup entries for the removed slot, and route animator
-leader follow logic through a bounded accessor. A missing leader now skips
-follow behavior until the next live member is promoted; ordinary pack movement
-and replacement order are unchanged.
+Saved trophy `.sav`/`.sab` layouts are unchanged. Definition IDs remain
+script-order IDs, so append variants instead of inserting or reordering entries
+if old saves must keep referring to the same animals.
 
-### Empty spawn-region and idle-group guards (2026-10-31)
+On x86 the metadata budget allows up to 1,833 definitions, and 1,024 fits
+inside it. This does not mean a 1,024+ roster can spawn every definition in one
+hunt. The 1,024-entry pack-type table, the 16 MiB `_RES.TXT` input budget, 256
+live-character slots, 128 AI families, 128 trophy display slots and the menu's
+32-bit launch flags still apply. Automated roster tests currently reach 513
+definitions.
 
-Treat an empty or oversized spawn-region list as the default map region, and
-reject zero or over-capacity idle-group counts before indexing their animation
-arrays. Valid groups keep the same RNG order and selection results.
+See `docs/MODDING-ROSTER.md` for authoring and capacity details.
 
-### Audio buffer identity across level reloads (2026-10-31)
+### Shop, night and flashlight
 
-Key cached OpenAL buffers by sample pointer, length and a resource generation,
-invalidate the generation when level sound vectors are released, and sweep only
-retired buffers that no voice, ambient or moving-ambient source still holds.
-Reusing an address for different audio can no longer return the previous level's
-buffer; in-flight sources keep their buffers until detached.
+The shop supports named prices and icon/text redirects for existing equipment
+rows, plus a read-only shop checker. Legacy positional prices still work.
+Dynamic shop rows are not implemented (`d86068e`, `037f137`, `85c654f`,
+`147f156`, `7864e32`).
 
-### Footstep uptime fix (2026-10-27)
+Moonlit night lighting has coordinated sky and fog grading, a Classic fallback,
+and independent moon-disc RGB and halo-strength controls (`c3690ed`,
+`ec9c6a6`, `bd92e19`). The flashlight restores brightness and color inside its
+beam; night vision wins when both are active. The flashlight is a seventh
+hunt-screen item with its own price fallback and configurable key, cone and
+range (`543048e`, `7330249`, `108ba44`).
 
-Fix dry-land footsteps selecting water-impact sounds after roughly 24.9 days
-of Windows uptime. Landing, dry and wet footsteps now share an unsigned,
-bounded sample index, with regression coverage across the signed and DWORD
-timer boundaries. The owner reproduced the splashes with a temporary clock
-override; that diagnostic and its launcher have been removed. The global
-clock, movement timing, water detection, sound assets and volume are unchanged.
+### Software renderer
 
-### Consolidation pass (2026-10-14)
+- Sky modes 0 and 1 are implemented in software (`4785059`). The renderers use
+  separate keys, `sky_mode` for OpenGL and `sky_mode_soft` for software, so the
+  shipped defaults no longer force one renderer onto the other's sky
+  (`8619c8e`, `2b987a2`).
+- Water tiles no longer backface-reject one half of a non-planar wave quad,
+  which showed terrain through a diagonal tear (`e1c5804`).
+- A hardware reload now recreates the software renderer instead of leaving a
+  black 3D scene (`f7f7d70`).
 
-Bring the modder workbench previews onto main and consolidate the engine, menu,
-tests and tooling around them. Redundant test cases drop from 686 to 487 while
-every contract assertion survives. Shared owners replace duplicated code for
-config scanning/paths/text, resolution lists, frame limiting, DPI/VK mapping,
-ship spawn, shadow text, the OpenAL device lifecycle and the TGA format; the
-flashlight GLSL tri-copy becomes one included fragment, LTO is scoped to the
-shipped targets and the packaged config is emitted from the engine template.
-Owner-approved fixes: two-digit trophy names at profile 10+, legacy audio 4-5
-back to OpenAL Soft, case-insensitive menu config keys, strict 16-bit engine TGA
-validation and the F10 panel's PgDn stepping backwards. Four presets and the
-487-case suite pass; comment hygiene is clean. No file-format, config-key or
-deployed-layout change.
+### Collision and terrain
 
-### MSVC code analysis fixes (2026-10-17)
+- `boundbox_fit 0` keeps legacy axis-aligned boxes and remains the default.
+  `boundbox_fit 1` enables oriented fitting at any baked angle. The former
+  value `2` is no longer accepted (`c909700`, `4a4a032`, `6f525e8`).
+- `boundbox_slope 1` fits the underside independently from the top, so wall
+  head-clearance and ceiling queries follow the accepted lower plane instead
+  of filling the space beneath a slab down to its lowest vertex (`754fb00`,
+  `598924f`).
+- `terrain_mip_level` controls the GL terrain mip cap. The default keeps the
+  stock 128+64 behaviour; higher values expose the full chain.
+- `water_wave_fade_rings` ramps wave amplitude to zero instead of using the
+  legacy hard cutoff. `0` reproduces the old gate exactly (`80cb01a`).
+- The software water path honours its mip level again, and the shared
+  camera-distance divide is guarded against a zero-distance tile.
+- Terrain precache read footprints and cached wave expressions are covered by
+  tests (`0d8027c`, `f666072`, `c9c94f7`).
 
-Fix the findings from a full `/analyze` pass over the game and menu translation
-units. Restore the intended caps-lock HUD gate (`!(state & 1)`), define the
-weapon morph phase above the SKIPWEAPON jumps and default the fish target range,
-and drop the Q branch whose pre-enum `EXITMODE && SurvivalMode` condition became
-unsatisfiable in the GameMode migration. Trophy saves use checked reads
-(truncated files log and keep defaults), the empty weapon selection halts
-instead of reading `WeapInfo[-1]`, and the remaining Win32 results (DPI lookup,
-window handles, keyboard state, model-loader reads) are guarded. False-positive
-findings are silenced by initializing the flag-guarded locals and marking
-`ScriptFieldFail` `[[noreturn]]`. No behavior change on covered paths; the
-analyzer's C6288/C6290/C4701/C6031/C6385 findings on the touched units are gone.
+### Audio
 
-### Workbench inspector corrections (2026-10-09)
+- Backward footsteps match forward loudness. Environment 7 stays dry. Ambient
+  transitions keep their live loop positions and reach their exact gain
+  endpoints. Moving-loop buffer replacement stops before binding.
+- Failed OpenAL uploads and setup roll back instead of claiming success.
+  Optional EFX uses the device-scoped capability and complete entry-point
+  checks. Listener pitch follows aiming. Shutdown joins the worker before
+  teardown, and OpenAL skips unused terrain geometry (`66e5f9e`).
+- The game and menu share bounded RIFF parsing. PCM8/16 mono/stereo is
+  normalized to mono16/22050, and all 73 deployed WAVs remain bit-exact.
+  Unsupported, compressed or malformed WAVs fail cleanly, and a failed
+  replacement keeps the existing samples.
+- Saved OpenAL driver values 4 and 5 keep their legacy mapping (`fefc4b3`).
 
-Separate a prominent live scene/backend audio card from the manually selected
-preset editor; an explicit button selects the scene-requested preset for editing.
-Fix missing collision placements: OCount is the last model's internal record count,
-not the map object roster. Validate loaded model slots and ignore sentinel cells.
-Add high-ID rotated/sloped bridge, release, live-status and manual-editor tests.
-Four matrices pass; seven compiled controls reject, including restoring the bad
-OCount filter. Collision geometry/gameplay and audio environment selection unchanged.
+### Safety and correctness
 
-### Workbench lifecycle isolation (2026-10-09)
+- The hunter-death body append is guarded at live-character capacity. Callers
+  receive the appended body, and a body-independent camera fallback prevents
+  indexing past `Characters[]` or following a removed demo target (`9b25ba4`).
+- The trophy pickup queue is bounded at its real capacity. A full queue drops
+  the extra pickup request and its acknowledgement sound while still recording
+  the trophy (`922c1b8`).
+- Pack, killer and demo pointers are rebuilt after a character is removed.
+  Stale pickup entries are dropped, and leader follow uses a bounded accessor
+  (`eb1621c`).
+- Bullets, particles, blood trails and ambient sounds use `memmove` and active
+  counts for compaction instead of overlapping `memcpy` and fixed over-copies
+  (`4235183`).
+- Empty or oversized spawn-region lists fall back to the default map region.
+  Zero or over-capacity idle-group counts are rejected before indexing their
+  animation arrays (`06e0e10`).
+- The MSVC `/analyze` pass fixed the caps-lock HUD gate, weapon morph phase,
+  fish range defaults, trophy-save reads, the empty weapon selection and
+  remaining Win32 result checks (`9448c8d`, `ef4a525`, `f531b76`, `0b1a59a`,
+  `8ffd6e3`, `50a2744`, `3a13ca9`, `37665d2`, `ecdf39f`).
+- Trophy exhibits no longer take bullet damage, rewrite their exhibit state or
+  award score. The trophy room follows the profile view-distance setting
+  (`20f8bbb`, `d26fbf4`).
+- Weapon viewmodel fog is applied once, which removes the pocket-fog specular
+  seam (`db58700`).
+- The exit countdown and survival note no longer draw on top of each other
+  (`54ecb4e`).
+- Two-digit trophy names work at profile 10+ (`fb2061a`). Engine TGA validation
+  is strict about the 16-bit format (`cec1877`). Menu config keys are
+  case-insensitive (`37cabec`). F10 PgDn steps backwards (`433fa7f`).
 
-Keep ordinary hunt's thirteen legacy scalar resets independent of diagnostic
-baseline validation failures. Fault-injected invalid audio snapshots cannot block
-those resets; existing config setter range rejection and custom values stay intact.
-Final four matrices and six targeted mutants re-pass/reject after the guard.
+### Menu, loaders and data
 
-### Workbench collision inspector (feature preview, 2026-10-09)
+- Missing model files name the referring `_RES.TXT` entry. The menu refuses an
+  incomplete area or trophy-room pair instead of launching into a file-open
+  halt.
+- Normal exits log `SESSION_EXIT` instead of `ABNORMAL_HALT`.
+- The model loader checks `ReadFile`. The picture loader closes its file on
+  every halt path. The empty weapon selection halts instead of reading
+  `WeapInfo[-1]`.
+- `config.cfg` gains missing supported defaults without replacing existing
+  bytes or values. The engine and package defaults share one owner
+  (`ca4e674`, `17ac7df`, `20fd3a1`).
 
-Add a bounded nearby-placement list, copied loaded ofBOUND slots and separately
-labelled selected/resolved floor/ceiling contributions. A default-off X-ray overlay
-shows actual oriented top/underside/footprint geometry and optional wall +2 margin;
-no depth claim, extra load padding, refit, model upload or collision-policy changes.
-Validate cell/object/session keys and map margins; closed/collapsed skips inspection.
-Test mode and unshared renderer recreation retain only valid CPU selection.
-Four presets pass; double-padding, wrong-rotation and stale-selection mutants reject.
-New in-game visual/listening acceptance is separate from earlier owner acceptance.
+### Build, tests and tooling
 
-### Workbench Audio panel (feature preview, 2026-10-09)
+- `ScriptParser.cpp` split into a driver plus Common, Tables, Spawn and
+  Character translation units. The parser contract suite grew from 20 to 34
+  cases before the extraction (`12bfc54`, `4a14a03`, `cec0a86`, `ab05c53`,
+  `dd4b438`).
+- The menu was split into `MenuInput.cpp`, `MenuDraw.cpp`, `ConfigIO.cpp`,
+  script parsing, asset loading and profile IO units (`530c939`, `99574ea`,
+  `b8c4f82`, `20c5381`, `426d6e4`, `9cc6bd8`).
+- Dead functions, stale comments and unused globals were removed. The test
+  suite was consolidated from 686 to 487 cases while keeping every contract
+  assertion (`d7c95a7`, `d74dfd2`, `af72cb2`, `429a0e5`).
+- Per-preset MSVC warning baselines, OpenCppCoverage reporting and scoped LTO
+  are in the CI/build path (`e381dfb`, `9b5c420`, `163e621`, `7c40f6b`).
+- CMake exports `C2_BUILD_TESTS` so release legs can skip test targets.
 
-Add 32 effective reverb fields across banks 0-6/8 to the native F10 workbench;
-environment 7 stays dry/read-only. Loaded config baselines, atomic publication,
-grouped history/compare and existing legacy dump are preserved. Backend status
-separates requests, checked application, failures and EFX dry fallback. Explicit,
-bounded playback/ambient snapshots have no PCM/AL handles or automatic audition.
-No hearing, source allocation, reverb balance, file persistence or spatial occlusion
-change. Four presets pass; three new compiled negative controls reject. New audio
-listening/owner acceptance pending; deployment follows the collision checkpoint.
+### Performance
 
-### Hidden capture corrections (2026-10-09)
+- Identical full UBO uploads are skipped, and unchanged draw uniforms are
+  cached per GL program (`e81bd86`, `f59676b`).
+- Sun occlusion sampling moved to frame start, before the depth clear. The
+  measured area4_spawn run dropped frame CPU from 20.27 ms to 18.61 ms
+  (`450ec73`).
+- The terrain precache sweep is bounded to its read set (`c9c94f7`).
 
-First asset-backed validation exposes two capture-only setup gaps: include
-`MULTIPLAYER` assets in the private fixture (the hitbox CAR loads offline), and
-attach the native backend during hidden captures as during ordinary hunts.
-Retain existing no-focus/cursor/input/audio guards and strict mode verification.
-Preserve halt diagnostics even when legacy shutdown returns exit code zero.
-No ordinary-launch behavior change or installed-preview replacement.
+### Retained from v1.1.9.1
 
-### Workbench measurement tools (feature tooling, 2026-10-08)
-
-Move the workspace Perl CSV helper into `tools/perf`, fix its syntax and validate
-numeric data, sentinel handling, medians/nearest-rank percentiles and current
-scope/workload columns. Add an opt-in isolated workbench capture runner and
-strict bracketed closed/UI/closed reports, with Test-strip results separate.
-An explicit background-capture option sets/verifies the actual workbench mode
-before warm-up without bypassing normal input ownership or injecting OS input.
-No deployment, game launch or new performance result in this tooling pass.
-Owner reports gameplay acceptance complete; timing remains open. See
-[tools and limitations](tools/perf/README.md).
-
-### Live modder workbench (feature preview, 2026-10-06)
-
-Local `feat/modder-workbench` at `4d05faa` replaces OpenGL F10 with a compact
-native Dear ImGui inspector for the same thirteen Fog/Waves/Sun controls.
-Sliders, validated exact entry, loaded resets/comparison, grouped undo/redo and
-help/change review are available. F8 hands input to/from the hunt; Escape from
-Test returns to UI. Keyboard/mouse ownership is explicit, including held-input
-and focus reconciliation. **Simulation keeps running; opening is not pause.**
-Software keeps its legacy panel. Current fields are runtime-only: closing keeps
-edits, not files, and dump names are not supported config keys. No docking,
-picking, definition reloads or 1.2 migration behavior. Shipping preview is tested
-and deployed, but owner visual/input acceptance remains pending; no main merge,
-push or release. See the [current workbench guide](docs/LIVE-WORKBENCH.md).
-
-### Workbench atmosphere controls (feature preview, 2026-10-08)
-
-F10 adds Night and Beam tabs for existing night grading/moon controls and
-flashlight intensity/reach/cone angles, plus session-only RGB beam tint. Whole
-numbers and ordered cone pairs are validated, color edits are atomic, and
-loaded reset/comparison/history preserve configured baselines. Scene context
-shows read-only project/time/renderer, water/fog and equipment/requested audio
-state. No equipment grants, new lighting algorithm, config writes or schema;
-legacy D-dump and Software panel retained. Four build/test variants pass.
-Collision main checkpoint `598924f` is merged into the feature at `38efa89`;
-combined Shipping preview is tested/deployed without losing either workstream.
-All four matrices and 123 focused cases pass; config/profiles/assets unchanged.
-Workbench remains off main. Owner later confirmed gameplay acceptance complete
-(2026-10-08); matched timing remains open. Historical initial checks above retain
-their original evidence.
-
-### Tilted-slab underside clearance (local preview)
-
-`boundbox_slope 1` now independently fits a part's lower envelope as well
-as its top, using existing model vertices. Wall head-clearance and ceiling
-queries follow an accepted underside plane instead of filling empty space
-beneath a slab down to its lowest vertex. Rejected/flat lower fits keep the
-original minimum; accepted lower planes must stay below the retained top
-throughout the padded footprint. Ceiling queries no longer cap valid model
-heights at 1000 units. No model/map format change or new required config key.
-
-The four object-bound entry points are isolated in `Game/ObjectBounds.cpp`
-so tests can exercise production box generation and wall/floor/ceiling
-queries without launching the game. Flat limits remain the default;
-`boundbox_fit` continues to control the footprint independently.
-
-Release, Shipping, Software and Menu builds pass with 13/13 CTest suites
-each. All 42 focused bounding/surface cases pass, including 20 new cases
-covering actual producers/consumers and ordering/envelope helpers; four
-compiled negative controls fail as expected. In-game underside acceptance
-remains pending; automated geometric checks do not replace owner testing.
-
-### Collision fitting cleanup (local preview)
-
-Removed the unreleased 0°/45°-only fitting algorithm and renumbered the
-remaining modes: `boundbox_fit 0` keeps legacy axis-aligned boxes (still
-the default), and `boundbox_fit 1` enables oriented fitting at any baked
-angle. The former value `2` is no longer accepted. Oriented fitting now
-includes the 0°/45° candidates in its hull-edge search, with no separate
-candidate-only implementation. Collinear footprints also test their actual
-segment direction, recovering arbitrary baked angles; single-point and
-sub-tolerance footprints retain the safe seeded fallback.
-The padded-area acceptance threshold and independent `boundbox_slope`
-setting are unchanged.
-
-### Audio correctness (on local main, 2026-10-05)
-
-Implemented at `66e5f9e` on `fix/audio-system-hardening`, based on collision
-preview `754fb00`. The owner approved fast-forwarding the fit/slope/audio
-branch chain into local `main` on 2026-10-05, with no merge commit. Not pushed
-or released; listening acceptance remains pending. Backward footsteps now match
-forward loudness, environment 7 is explicitly dry, ambient transitions retain live
-loop positions and reach their exact gain endpoints, and moving-loop buffer
-replacement stops before binding. Failed OpenAL uploads/setup roll back instead
-of claiming successful playback; optional EFX uses the device-scoped capability
-and complete entry-point checks. Listener pitch matches aiming, shutdown joins
-the worker before teardown, and OpenAL skips unused terrain geometry.
-
-Game and menu share bounded RIFF parsing, with PCM8/16 mono/stereo normalized to
-mono16/22050; all 73 deployed WAVs remain bit-exact. Unsupported/compressed or
-malformed WAVs fail cleanly, and failed replacements preserve existing samples.
-No AI hearing, reverb tuning, voice-priority, endpoint-recovery or HRTF policy
-change. Automated and silent loopback verification do not replace listening
-acceptance. See [audio architecture](../CarnivoresDoc/architecture/audio-system.md).
-
-### Moonlit night lighting (on local main)
-
-Accepted night-lighting work implements darker OpenGL moonlit nights, coordinated
-sky/fog grading and flashlight restoration of both brightness and natural
-color within the beam. Bounded config settings and a complete Classic fallback
-are documented in [night lighting](docs/NIGHT-LIGHTING.md). Day/dawn, software
-rendering, trophy layouts and equipment economy remain unchanged. The owner
-accepted the initial Shipping night preview. A subsequent local implementation
-unifies in-game UI/weapon visibility: flashlight restores brightness/color;
-NV restores brightness but retains desaturation and wins when both are on.
-Essential controls have a readability floor; the geometric beam is unchanged.
-The owner tested and visually accepted the deployed Shipping follow-up.
-No exhaustive manual matrix or published package is claimed.
-The owner approved fast-forwarding local main from `7864e32` to `366ab7e`;
-all four night commits are included, with no merge commit. The completed
-shop-externalization and night-lighting feature branches were deleted safely.
-No push, rebuild, deployment or live data edits occurred for this merge.
-
-### Shop customization (on local main)
-
-The owner fast-forwarded `feature/shop-externalization` into local `main` on
-2026-10-01. It provides named prices and icon/text redirects for existing
-equipment rows, plus a read-only shop checker. Not in a published package; see
-[the modder guide](docs/MODDING-SHOP.md). Pictures are clipped to the menu canvas,
-setup-budget totals use 64-bit arithmetic, and comments/complete-line parsing
-and checker diagnostics agree for the new blocks. Legacy positional prices
-and score-block terminators remain supported. Prices do not permanently spend
-profile score. Dynamic rows are not implemented.
-
-### Summary
-- Restore legacy/mod script tolerance with a lenient-by-default load policy,
-  repair finite creature-awareness edge cases and pack/flee behavior, and
-  correct fish wandering, weapon fog overlays, and trophy-exhibit damage.
-
-### Added
-- Data-load policy and recovery diagnostics
-  (`Hunt/Loaders/LoadDiagnostics.h`). Lenient (default) accepts legacy/mod
-  data, recovers to a memory-safe value (clamp/truncate/default) and records
-  one diagnostic per distinct problem; strict mode (`load_mode strict` in
-  config.cfg or `C2_STRICT_DATA=1`) halts on the first recoverable problem
-  for CI and mod authoring. Structurally malformed files and values that
-  cannot be made safe stay fatal in both modes.
-- Differential scalar tests pin every recovered value to the legacy
-  `atoi`/`atof` result (`tests/test_legacy_scalar_differential.cpp`), so a
-  future strictness rule fails in CI before it can reach a mod.
-- A permanent AI awareness trace with its own `ai_logging` switch in
-  `config.cfg` (default 0; `verbose_logging 1` still enables it for existing
-  debug setups). It writes one line per hunter event and a roughly
-  per-second state line per reacting creature to `render.log`, with species
-  name and id, state, position, stored destination, live hunter distance
-  and remaining reaction time, so flee/pursue decisions can be diagnosed
-  from a playtest without a debugger. Every awareness acquisition is
-  traced: sight, scent, aquatic proximity and startle scatters join the
-  shot/hit/call/contact event lines, so a reaction's trigger is always
-  visible; perception refreshes stay silent.
-- A per-species `agressMulti` override in `_RES.TXT` for the AI-family
-  aggression multiplier. The code-side clone table stays the default; an
-  authored value replaces it for that species only, so a mod can retune an
-  aggression range without a new clone. The Brachiosaurus legacy formula is
-  not affected, and non-positive values keep the default.
-
-### Changed
-- `_RES.TXT` and legacy `_MENU.TXT` recovery: malformed scalars now keep a
-  fallback, out-of-range indices clamp, overlong text fields truncate, and
-  invalid min/max ranges clamp and order, each with a logged diagnostic
-  naming the offending line. Strict mode preserves the v1.1.9 halt behavior.
-- `load_mode` documents the policy in config.cfg; the engine applies it
-  before `_RES.TXT` is parsed, so the policy is known before any script
-  data is validated.
-- Route all hunter awareness through one resolver and navigator
-  (`Hunt/Game/CharacterAwareness.*`). Heard shots, direct hits, hunter calls
-  and contact-range promotion share one eligibility, priority and timer path;
-  the navigator owns every hunter-directed destination and the single
-  reaction timer, and animators only read the response.
-- Unify hunter attack geometry (per-family look offsets) and the kill gate.
-  Kills require family attack reach and either exact tracking or a fixed flee
-  reaction at contact (a fleeing giant can crush the hunter). Remembered event
-  positions at a distance, expired locks and awareness-less proximity do not
-  authorize a kill.
-- Tracking timers always expire now. A creature that loses the hunter
-  returns to ordinary behavior when its reaction time runs out instead of
-  chasing the live position indefinitely; its reaction time is refreshed
-  normally while sight or scent keeps working.
-- Route hunter-stimulus eligibility through one `THunterCapabilities` lookup
-  (`HunterHearsShots`, `HunterHearsCalls`, `sniffs`) instead of repeating the
-  aquatic/hunt-dog, flying-family and sniffer checks in every handler. Adding
-  a stimulus or a clone family now touches one table.
-
-### Removed
-- The legacy `awareHunter` boolean. `hunterAwareness` is the single awareness
-  state and `IsHunterAware()` derives from it; `TCharacter` remains 344 bytes,
-  so save compatibility is unchanged.
-
-### Fixed
-- Stop the hunt-AI awareness layer from using live hunter coordinates in states that may only know a remembered event position, and close the timer corruption around it:
-  - Fixed reactions (shot investigation, hit retaliation, shot/hit/call flight) never receive live-derived pursue or flee targets any more; the navigator keeps their stored destination and local search. Previously a per-frame flee rule that disagreed with the event-time rule (see below) could make an "investigating" creature flee from the hunter's current position.
-  - The event-time and per-frame flee decisions now share one authored-fear rule (`FearsHunterEvent`): a species with `fearShotHit` that is already injured flees from a heard shot instead of entering a fixed investigation its per-frame rule immediately contradicted (structural issue S1 in `architecture/hunter-awareness-review.md`).
-  - The legacy non-carnivore overwrite that forced `AfraidTime = 8000` while the hunter was within 6000 units is gone. It clobbered finite shot/hit/call reaction timers and silently kept tracking locks alive without any perception, so a spooked herbivore kept fleeing from the live hunter position after contact broke and the stealth mechanic (cover, crouch, wind) never worked against it. Tracking locks are now refreshed only by real detection and always expire.
-  - Survival mode no longer computes a tracking-lock duration from uninitialized stack values: `CheckAfraid`'s `goto isAfraid` jumped over the perception locals, so every wave creature got a garbage reaction timer (and the compiled behavior was not portable C++). The survival path now uses deterministic neutral values.
-  - Trophy exhibits and carried bodies are inert to bullets. A mount's character slot kept whatever `Health` the previous hunt left there, so shooting a mount could damage it, rewrite its exhibit-slot `State` through `registerDamage` (disconnecting the plaque), or even submit a trophy score; `registerDamage` now also rejects `StateF == 0xFF` bodies like the other stimulus channels already did.
-- The T-Rex tracking lock is refreshed by sight and scent like every other species, instead of expiring mid-chase against a hunter in plain view. Perception used to be skipped entirely during an established pursuit to protect it from look/roar animation resets; the notice animation is now gated to brand-new detections instead, so the chase is preserved *and* the lock follows the documented expiry rule.
-- A hunting dangerous fish refreshes its proximity lock while the hunter stays in the water at attack range. The unrefreshed 10-second lock used to run out mid-attack, after which the navigator read the fish as an unengaged flee and the predator swam away from its prey until it left its own attack range.
-- Escaping animals no longer orbit a flee point their walk cannot close on. A flee leg is only a direction, but the next leg was aimed only once the animal reached the tight 512-unit investigation radius, so a leg point behind shoreline, rocks or trees left it circling at 700-1300 units until random weaving happened to cross the radius (reproduced with a long-range Pachycephalosaurus hit). A leg now counts as done at half its length, a leg that cannot be closed at all is re-aimed after four seconds with a rotated heading so the same blocked direction is not re-picked, and the flee ray rejects candidates whose midpoint is blocked too.
-- Proximity scatters count as detections: the classic-ambient scare and the deer scatter enter `TrackingHunter` for their authored scare window. Without the lock a scattered animal kept its stale wander target (which could point at the hunter) instead of fleeing from the live position it had just perceived.
-- A shot reaction's local area search uses the family's ordinary target picker (`SetNewTargetPlace_Icth` for the ichthyornis family) so a searching flyer stays inside its authored spawn region.
-- Fog the weapon viewmodel's phong/env-map overlays once. The camera-in-fog
-  envelope mixed the fog colour into both the additive reflection pass and
-  the body it is drawn over, so inside a pocket-fog volume the specular
-  highlights picked up roughly twice the fog tint of the rest of the weapon
-  and read as a colour seam between its sections. The overlays now attenuate
-  with the envelope instead and leave the fog colour to the body pass; base
-  viewmodel and world-model rendering are unchanged.
-- Let a fleeing creature crush the hunter at contact range. A huge sauropod
-  that panics and runs over the player no longer passes through harmlessly:
-  the kill gate accepts a fixed flee reaction at the species' authored
-  attack reach, while the reach check keeps a remembered event point from
-  ever authorizing a kill at a distance. The detached observer camera stays
-  exempt; debug mode is still lethal.
-- Restore the threat of species that have no active sight or scent. A
-  creature in a fixed pursuit (shot investigation or hit retaliation) now
-  treats a hunter who physically enters its authored attack reach as detected
-  and promotes the reaction to exact tracking for 60 seconds. Defending
-  sauropods (Amphicoelias, Brontosaurus) and wounded aquatic predators are
-  dangerous again without gaining perception they were not authored to have; a
-  remembered event position at a distance still never authorizes a kill, and
-  flee reactions remain non-lethal.
-- Let a reacting dangerous fish (Mosasaurus, Lacunepa) use its ordinary
-  in-water proximity sense during a shot or hit reaction instead of only while
-  idle. A wounded aquatic predator no longer loses the ability to hunt a
-  hunter it can sense, and re-shooting it no longer refreshes a harmless
-  pursuit instead of a real one.
-- Fix the original flee-leg overshoot: extending toward a point already
-  passed made escaping animals loop back. The initial heading-based extension
-  (`a87a278`) was later superseded by hunter-away re-aiming (`a2f6f22`) and
-  the blocked-leg recovery described above (`3a67fbf`).
-- Pick walkable flee destinations. The flee point is validated against the
-  placement map (water, blocked cells, steep slopes) and the direction is
-  rotated in 15-degree steps until a crossable point is found, so a
-  panicked creature no longer runs into a lake or cliff and follows its
-  edge in circles. The ideal away point remains the fallback when no
-  heading is placeable.
-- Re-aim a reached fixed-flee leg away from the hunter instead of along the
-  creature's current heading. A creature that had overshot its flee point was
-  turning back toward the hunter, and the heading-based extension then sent
-  the next leg sideways or straight back at the player, so a fleeing animal
-  could loop into its own acquisition range. The new leg goes through the
-  same placement check as the initial flee point, and the reaction state,
-  timer and kill rules are unchanged.
-- Wake a pack when one of its members starts a fixed shot or hit reaction.
-  The per-animator alarm writes are guarded by `!fixedReaction`, so an
-  investigating or retaliating member used to leave its packmates wandering
-  while it moved alone; the navigator now raises the alarm for fixed
-  reactions too. The alarm remains coordination only (leader-follow or
-  scatter) and publishes no hunter coordinates. The pack leader also no
-  longer takes a leader-relative target, which previously let an alarm from
-  a packmate freeze it on its own position.
-- Let a pack follow the member that finds the hunter. The follow target was
-  always the formal leader, so when a follower noticed the hunter the rest of
-  the pack converged on the leader -- who had no signal and kept wandering --
-  while only the detector engaged. A tracking member now publishes its own
-  position as the pack's hunt anchor for two seconds, and packmates
-  (including the leader) follow a fresh anchor before falling back to the
-  leader position. The anchor is a packmate's position, never the hunter's,
-  so no coordinates, tracking grants or kill authority are shared.
-- Restore the generic fish idle wander radius. `AnimateFish` fell through
-  from its `AI_FISH` case into the `AI_MOSA` case, so every stock fish clone
-  (Bananogmius, Pleuroceras, Ichthyosaurus, Squalicorax, Atractosteus)
-  wandered with the 5,024-unit Mosasaurus radius instead of the authored
-  1,024-unit fish radius.
-- Let the trophy room render at the configured view distance. `LoadResources`
-  forced `ctViewR` (and with it `charViewR`) to 60 whenever the project name
-  contained `trophy`, running after `InitEngine` had already derived the value
-  from the profile's view-distance setting, so the room's fog range, far
-  plane, model fade and shadow radii ignored the menu slider and the far end
-  of the hall washed out -- at the top of the range (OptViewR 242 -> ctViewR
-  214) fog closed at 15,360 units instead of 54,784. The room now keeps the
-  engine values and matches a hunt at the same setting; only the room mode is
-  set there. Its spawn point and the menu's forced daytime launch are
-  unchanged.
-- Play land footsteps on a bridge or any other object above water. The
-  land/water footstep selector (`ONWATER` in `ProcessControls`) was the legacy
-  `GetLandUpH > GetLandH` test at the player's position, which is true for
-  every flooded tile; a deck above the water therefore took the water footstep
-  set (`fxStepW`) and spawned a ripple circle on the water surface below the
-  player. The water level is now also compared against the player's feet, so
-  the deck plays `fxStep`; wading in shallow water and surface swimming are
-  unchanged (feet still below the surface).
+The v1.1.9.1 line already covered the lenient and strict script load policy,
+the awareness resolver and timer ownership, the main pack and flee fixes, the
+fish wander radius, trophy-room view distance, bullet-inert trophy exhibits and
+weapon fog. It also added per-species `agressMulti` and the optional
+`ai_logging` trace. Those changes remain in this build. See the v1.1.9.1
+package notes and `CarnivoresDoc/architecture/creature-awareness.md` for the
+detailed behavior.
 
 ## [v1.1.9-modernized] - 2026-09-20
 
