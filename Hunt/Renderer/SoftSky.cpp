@@ -177,7 +177,6 @@ void RenderSkyPlane()
     if (dt<lastdt) dt = lastdt;
     lastdt = dt;
 
-    float u0, v0, u1, v1;
     if (skyMode == skyl::kModeLevel)
     {
       // World-level plane: sample from the world view ray, anchored to world
@@ -188,26 +187,32 @@ void RenderSkyPlane()
       skyl::ComputeLevelPlaneTexel(rayL, planeScale, dropSin, anchorX, anchorY, &texU0, &texV0);
       skyl::ComputeLevelPlaneTexel(rayR, planeScale, dropSin, anchorX, anchorY, &texU1, &texV1);
       // SKYDTime scrolls U forward and V backward, as in the legacy path.
-      u0 = texU0 + SKYDTime;
-      v0 = texV0 - SKYDTime;
-      u1 = texU1 + SKYDTime;
-      v1 = texV1 - SKYDTime;
+      const float u0 = texU0 + SKYDTime;
+      const float v0 = texV0 - SKYDTime;
+      const float u1 = texU1 + SKYDTime;
+      const float v1 = texV1 - SKYDTime;
+
+      txa = (static_cast<int>(u0)) & ((256<<16) - 1);
+      tya = (static_cast<int>(v0)) & ((256<<16) - 1);
+
+      ctdx = static_cast<int>((u1-u0));
+      ctdy = static_cast<int>((v1-v0));
+
+      if (ctdx > kMaxSkyStep) ctdx = kMaxSkyStep;
+      else if (ctdx < -kMaxSkyStep) ctdx = -kMaxSkyStep;
+      if (ctdy > kMaxSkyStep) ctdy = kMaxSkyStep;
+      else if (ctdy < -kMaxSkyStep) ctdy = -kMaxSkyStep;
     }
     else
     {
-      u0 = fxa; v0 = fya; u1 = fxb; v1 = fyb;
+      // Legacy camera-coupled plane: keep the original 1998 phase and
+      // unwrapped step. Do not apply the level-mode step clamp here; it
+      // changes the sampled texel and darkens the canopy.
+      txa = (static_cast<int>(fxa) + SKYDTime) & ((256<<16) - 1);
+      tya = (static_cast<int>(fya) - SKYDTime) & ((256<<16) - 1);
+      ctdx = static_cast<int>(fxb - fxa);
+      ctdy = static_cast<int>(fyb - fya);
     }
-
-    txa = (static_cast<int>(u0)) & ((256<<16) - 1);
-    tya = (static_cast<int>(v0)) & ((256<<16) - 1);
-
-    ctdx = static_cast<int>((u1-u0));
-    ctdy = static_cast<int>((v1-v0));
-
-    if (ctdx > kMaxSkyStep) ctdx = kMaxSkyStep;
-    else if (ctdx < -kMaxSkyStep) ctdx = -kMaxSkyStep;
-    if (ctdy > kMaxSkyStep) ctdy = kMaxSkyStep;
-    else if (ctdy < -kMaxSkyStep) ctdy = -kMaxSkyStep;
 
     ctdx/=WinW;
     ctdy/=WinW;

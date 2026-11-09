@@ -119,6 +119,11 @@ range (`543048e`, `7330249`, `108ba44`).
   separate keys, `sky_mode` for OpenGL and `sky_mode_soft` for software, so the
   shipped defaults no longer force one renderer onto the other's sky
   (`8619c8e`, `2b987a2`).
+- The legacy software sky keeps its original time-scrolled texture phase and
+  unwrapped scanline step. The mode refactor had dropped `SKYDTime` and applied
+  the level-plane step clamp to legacy mode, which froze and darkened the
+  canopy into hard horizontal bands. Legacy mode is the original 1998 path
+  again; mode 1 still uses the bounded level-plane step.
 - Water tiles no longer backface-reject one half of a non-planar wave quad,
   which showed terrain through a diagonal tear (`e1c5804`).
 - A hardware reload now recreates the software renderer instead of leaving a
