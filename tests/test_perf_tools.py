@@ -37,7 +37,10 @@ class TempCase(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="c2-perf-tests-")
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        # GitHub's Windows runner can return an 8.3 short temp path. Resolve
+        # once so path comparisons and the prepare() containment check use the
+        # same canonical spelling as Path.resolve().
+        self.root = Path(self.temp.name).resolve()
 
     def csv(self, text):
         path = self.root / "capture.csv"
