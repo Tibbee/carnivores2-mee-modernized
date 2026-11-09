@@ -2,9 +2,10 @@
 // ScriptParserCommon.cpp -- shared _RES.TXT script-parser helpers
 // ==========================================================================
 //
-// Extracted mechanically from ScriptParser.cpp (see CarnivoresDoc/working/
-// specs/c2-script-parser-split.md, Slice 2). Behavior, diagnostics, recovery
-// policy, and parse order are unchanged; only file placement and linkage
+// Extracted mechanically from ScriptParser.cpp (see
+// CarnivoresDoc/working/specs/c2-script-parser-split.md, Slice 2).
+// Behavior, diagnostics, recovery policy, and parse order are unchanged;
+// only file placement and linkage
 // moved. The grammar translation units include ScriptParserInternal.h for
 // these helpers.
 

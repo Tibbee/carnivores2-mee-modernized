@@ -2,9 +2,10 @@
 // ScriptParserTables.cpp -- _RES.TXT trophy, snow, area, and weapon readers
 // ==========================================================================
 //
-// Extracted mechanically from ScriptParser.cpp (see CarnivoresDoc/working/
-// specs/c2-script-parser-split.md, Slice 3). Behavior, diagnostics, recovery
-// policy, and parse order are unchanged; only file placement and linkage
+// Extracted mechanically from ScriptParser.cpp (see
+// CarnivoresDoc/working/specs/c2-script-parser-split.md, Slice 3).
+// Behavior, diagnostics, recovery policy, and parse order are unchanged;
+// only file placement and linkage
 // moved. The driver, the character group, and the contract tests reach these
 // readers through the declarations in ScriptParserInternal.h.
 

@@ -2,9 +2,10 @@
 // ScriptParserSpawn.cpp -- _RES.TXT spawn and pack table readers
 // ==========================================================================
 //
-// Extracted mechanically from ScriptParser.cpp (see CarnivoresDoc/working/
-// specs/c2-script-parser-split.md, Slice 4). Behavior, diagnostics, recovery
-// policy, and parse order are unchanged; only file placement and linkage
+// Extracted mechanically from ScriptParser.cpp (see
+// CarnivoresDoc/working/specs/c2-script-parser-split.md, Slice 4).
+// Behavior, diagnostics, recovery policy, and parse order are unchanged;
+// only file placement and linkage
 // moved. The driver and the character group reach these readers through the
 // declarations in ScriptParserInternal.h.
 

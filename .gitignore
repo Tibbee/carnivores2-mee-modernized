@@ -44,5 +44,6 @@ tools/perf/*
 !tools/check_release_flags.ps1
 !tools/check_msvc_warnings.ps1
 !tools/run_coverage.ps1
+!tools/verify-local.ps1
 !tools/warning-baseline/
 !tools/warning-baseline/*.txt

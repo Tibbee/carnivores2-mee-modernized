@@ -2,9 +2,10 @@
 // ScriptParserCharacter.cpp -- _RES.TXT character-section readers
 // ==========================================================================
 //
-// Extracted mechanically from ScriptParser.cpp (see CarnivoresDoc/working/
-// specs/c2-script-parser-split.md, Slice 5). Behavior, diagnostics, recovery
-// policy, and parse order are unchanged; only file placement and linkage
+// Extracted mechanically from ScriptParser.cpp (see
+// CarnivoresDoc/working/specs/c2-script-parser-split.md, Slice 5).
+// Behavior, diagnostics, recovery policy, and parse order are unchanged;
+// only file placement and linkage
 // moved. The driver and the contract tests reach ReadCharacterLine and
 // ReadCharacters through the declarations in ScriptParserInternal.h; the
 // remaining readers are internal to this translation unit.
