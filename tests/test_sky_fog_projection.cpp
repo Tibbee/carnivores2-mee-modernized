@@ -56,15 +56,20 @@ skyfog::ProjectionCoefficients BuildProjection(float cameraW, float cameraH)
 void ExpectCoefficientsNear(const skyfog::ProjectionCoefficients& actual,
                             const skyfog::ProjectionCoefficients& expected)
 {
-    EXPECT_NEAR(actual.q.x, expected.q.x, 0.0001f);
-    EXPECT_NEAR(actual.q.y, expected.q.y, 0.0001f);
-    EXPECT_NEAR(actual.q.z, expected.q.z, 0.0001f);
-    EXPECT_NEAR(actual.p.x, expected.p.x, 0.0001f);
-    EXPECT_NEAR(actual.p.y, expected.p.y, 0.0001f);
-    EXPECT_NEAR(actual.p.z, expected.p.z, 0.0001f);
-    EXPECT_NEAR(actual.r.x, expected.r.x, 0.0001f);
-    EXPECT_NEAR(actual.r.y, expected.r.y, 0.0001f);
-    EXPECT_NEAR(actual.r.z, expected.r.z, 0.0001f);
+    // These values reach about 1.6e7, where one float ULP is larger than the
+    // old 0.0001 absolute tolerance. The zoom round trip divides and then
+    // multiplies by the same value, so Release can land one ULP away from the
+    // base coefficients. EXPECT_FLOAT_EQ allows that representable difference
+    // without hiding a real projection change.
+    EXPECT_FLOAT_EQ(actual.q.x, expected.q.x);
+    EXPECT_FLOAT_EQ(actual.q.y, expected.q.y);
+    EXPECT_FLOAT_EQ(actual.q.z, expected.q.z);
+    EXPECT_FLOAT_EQ(actual.p.x, expected.p.x);
+    EXPECT_FLOAT_EQ(actual.p.y, expected.p.y);
+    EXPECT_FLOAT_EQ(actual.p.z, expected.p.z);
+    EXPECT_FLOAT_EQ(actual.r.x, expected.r.x);
+    EXPECT_FLOAT_EQ(actual.r.y, expected.r.y);
+    EXPECT_FLOAT_EQ(actual.r.z, expected.r.z);
 }
 
 } // namespace
