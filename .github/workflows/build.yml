@@ -162,8 +162,12 @@ jobs:
       run: ./tools/check_comment_hygiene.ps1
 
   clang-tidy:
-    if: github.event_name != 'push'
+    # Opt-in on pull requests: add the `ci:clang-tidy` label when the slower
+    # LLVM install and analysis pass is wanted. Manual dispatches always run
+    # it, and main pushes never do.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:clang-tidy'))
     runs-on: windows-latest
+    timeout-minutes: 30
 
     steps:
     - uses: actions/checkout@v4
