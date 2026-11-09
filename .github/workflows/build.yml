@@ -2,9 +2,13 @@ name: Build and Test
 
 # Feature branches are checked through pull requests, not again on every push.
 # Markdown/documentation-only updates do not need the build/test matrix.
+# Tags and releases do not trigger this workflow: a release must not re-run the
+# full PR matrix. Use the manual "Run workflow" dispatch when a release needs
+# the full four-preset gate.
 on:
   push:
     branches: [main]
+    tags-ignore: ['**']
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
@@ -12,6 +16,7 @@ on:
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
+  workflow_dispatch:
 
 # Keep PR and main checks separate; newer updates supersede older runs.
 concurrency:
@@ -19,7 +24,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Pull requests and manual dispatches get the full four-preset matrix.
+  # A plain main push gets the quick debug gate below instead, so merging does
+  # not spend four Windows runners and a coverage run again.
   build:
+    if: github.event_name != 'push'
     runs-on: windows-latest
     strategy:
       # Only the debug leg builds and runs the unit tests; the release legs
@@ -101,7 +110,44 @@ jobs:
           coverage-html
         if-no-files-found: warn
 
+  quick-main:
+    if: github.event_name == 'push'
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up x86 MSVC toolchain
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x86
+
+    - name: Configure debug build
+      run: cmake --preset ogl-debug -DC2_BUILD_TESTS=ON
+
+    - name: Build and check warnings
+      shell: powershell
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $log = 'build-ogl-debug.log'
+        cmake --build --preset ogl-debug 2>&1 | Tee-Object -FilePath $log
+        $buildExit = $LASTEXITCODE
+        if ($buildExit -ne 0) { exit $buildExit }
+        ./tools/check_msvc_warnings.ps1 -Log $log -Preset 'ogl-debug'
+
+    - name: Upload build log
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-log-ogl-debug-quick
+        path: build-ogl-debug.log
+        if-no-files-found: ignore
+
+    - name: Unit tests
+      run: ctest --test-dir build/ogl-debug --output-on-failure
+
   comment-hygiene:
+    if: github.event_name != 'push'
     # Separate job so it runs once instead of once per preset. CI checks rules
     # that can be verified from this repository alone. External Markdown paths
     # are additionally checked on developer machines that have the sibling
@@ -116,6 +162,7 @@ jobs:
       run: ./tools/check_comment_hygiene.ps1
 
   clang-tidy:
+    if: github.event_name != 'push'
     runs-on: windows-latest
 
     steps:
@@ -165,6 +212,7 @@ jobs:
         & ./tools/run_clang_tidy.ps1 -BuildDir build/clang-tidy -Files $files
 
   runtime-contracts:
+    if: github.event_name != 'push'
     runs-on: windows-latest
 
     steps:
