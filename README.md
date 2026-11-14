@@ -6,9 +6,9 @@ cleaned up. It still reads the same `HUNTDAT` scripts an MEE install uses, and
 drops into the same directory layout.
 
 Release history lives in [CHANGELOG.md](CHANGELOG.md). The current source tree
-is the `1.1.9.2` beta, which is packaged as a local/GitHub pre-release; it is
+is the `1.1.9.2 Beta Hotfix`, packaged as a GitHub pre-release; it is
 not a finished or fully hand-validated release. See
-[release-notes/v1.1.9.2-modernized-beta.md](release-notes/v1.1.9.2-modernized-beta.md)
+[release-notes/v1.1.9.2-modernized-beta-hotfix.md](release-notes/v1.1.9.2-modernized-beta-hotfix.md)
 for the user-facing changes and known beta limitations.
 
 ## What you need to run it

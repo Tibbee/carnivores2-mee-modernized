@@ -13,7 +13,11 @@ Windows executable resources use major.minor.patch.build (v1.1.9.2 beta:
 and has not been published to ModDB.
 Copy-paste release summaries are in `release-notes/`.
 
-## [Unreleased]
+## [v1.1.9.2-modernized-beta-hotfix] - 2026-11-14
+
+**Beta hotfix** for v1.1.9.2. Update the menu and both renderer binaries,
+including `v_soft.ren`. See
+[`release-notes/v1.1.9.2-modernized-beta-hotfix.md`](release-notes/v1.1.9.2-modernized-beta-hotfix.md).
 
 - Double the character-roster metadata budget from 64 to 128 MiB, allowing
   3,667 definitions in x86 Release/Shipping instead of 1,833. Storage still

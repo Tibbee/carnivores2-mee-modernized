@@ -7,11 +7,11 @@ The engine now sizes its character-definition storage to the entries read from
 `HUNTDAT/_RES.TXT`, rather than using a fixed 128-element array. This is not a
 replacement limit of 256 or 512; regression tests include 513 definitions.
 
-The local unreleased source doubles the beta's 64 MiB metadata budget to
+The v1.1.9.2 beta hotfix doubles the original beta's 64 MiB metadata budget to
 **128 MiB**. On x86 Release/Shipping this admits **3,667 definitions**
 (128 MiB divided by 2 x 18,300 bytes per definition, rounded down).
 The 3,668th is rejected; x86 Debug admits 3,616 because its metadata is larger.
-The published beta retains its 1,833-definition budget ceiling.
+The original v1.1.9.2 beta retains its 1,833-definition budget ceiling.
 This is a metadata limit, not a
 promise that every definition can spawn in one hunt: the independent 1,024-entry
 pack-type table, 16 MiB `_RES.TXT` input budget, 256 live-character slots, 128

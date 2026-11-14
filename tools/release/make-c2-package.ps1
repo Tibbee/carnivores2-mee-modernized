@@ -20,6 +20,10 @@
 
 .EXAMPLE
   powershell -NoProfile -File tools/release/make-c2-package.ps1 -OpenAlDir "C:\Games\CarnivoresLegacy" -ReleaseNotesPath "C:\release\RELEASE-NOTES.md"
+
+.PARAMETER PackageSuffix
+  Use Hotfix for a separately named same-version beta hotfix archive.
+  The numeric executable version still comes from Version.h.
 #>
 [CmdletBinding()]
 param(
@@ -30,7 +34,9 @@ param(
     [string]$LgplPath = '',           # path to LGPL 2.1 license text (fetched if empty)
     [string]$ReleaseNotesPath = '',   # explicit notes file outside the staging folder
     [string]$PythonPath = '',         # python.exe used to emit config.cfg (auto-detected if empty)
-    [string]$ShaOut = ''
+    [string]$ShaOut = '',
+    [ValidateSet('', 'Hotfix')]
+    [string]$PackageSuffix = ''      # distinguish same-version hotfix archives
 )
 
 $ErrorActionPreference = 'Stop'
@@ -43,8 +49,9 @@ if ($versionHeader -notmatch '#define\s+VERSION_STRING\s+"(\d+\.\d+\.\d+\.\d+)"'
     throw 'Expected VERSION_STRING in major.minor.patch.build format'
 }
 $Version = $Matches[1]
-$ZipName   = "Carnivores2_MEE_v${Version}_Modernized.zip"
-$PkgName   = "Carnivores2_MEE_v${Version}_Modernized"
+$suffix = if ($PackageSuffix) { "_$PackageSuffix" } else { '' }
+$ZipName   = "Carnivores2_MEE_v${Version}${suffix}_Modernized.zip"
+$PkgName   = "Carnivores2_MEE_v${Version}${suffix}_Modernized"
 $PkgDir    = Join-Path $PkgRoot $PkgName
 if (-not $ReleaseNotesPath) {
     throw 'Pass -ReleaseNotesPath to a release-note file outside the package staging folder; historical CarnivoresDoc release-note drafts were removed.'
