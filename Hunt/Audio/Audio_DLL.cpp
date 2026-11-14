@@ -561,13 +561,15 @@ void SetAmbient(int length, short int* lpdata, int av)
     }
     if (!iSoundActive) return;
     AudioLock lock;
-    if (ambient.lpData == lpdata && ambient.iLength == length) {
+    const ALuint buffer = lpdata ? GetBuffer(lpdata, length) : 0;
+    if (lpdata && !buffer) return;
+    // Pointer/length can repeat after level storage is freed. The AL buffer
+    // also identifies the resource generation; only reuse the same sample.
+    if (ambient.lpData == lpdata && ambient.iLength == length && ambient.buffer == buffer) {
         SetAmbientVolume(ambient, av);
         return;
     }
-    const ALuint buffer = lpdata ? GetBuffer(lpdata, length) : 0;
-    if (lpdata && !buffer) return;
-    if (lpdata && ambient2.lpData == lpdata && ambient2.iLength == length) {
+    if (lpdata && ambient2.lpData == lpdata && ambient2.iLength == length && ambient2.buffer == buffer) {
         // Reverse A -> B without restarting either loop.
         std::swap(ambient, ambient2);
         SetAmbientVolume(ambient, av);
@@ -612,9 +614,9 @@ void SetAmbient3d(int length, short int* lpdata, float cx, float cy, float cz)
         return;
     }
     if (!std::isfinite(cx) || !std::isfinite(cy) || !std::isfinite(cz)) return;
-    if (mambient.lpData != lpdata || mambient.iLength != length) {
-        const ALuint buffer = GetBuffer(lpdata, length);
-        if (!buffer) return;
+    const ALuint buffer = GetBuffer(lpdata, length);
+    if (!buffer) return;
+    if (mambient.lpData != lpdata || mambient.iLength != length || mambient.buffer != buffer) {
         // AL_BUFFER cannot be changed on a playing/paused source.
         if (!StopAndDetach(mambient.source)) return;
         mambient.lpData = nullptr; mambient.buffer = 0; mambient.iLength = 0;

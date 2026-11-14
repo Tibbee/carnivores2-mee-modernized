@@ -20,6 +20,7 @@
 
 #include "Hunt.h"
 #include "Game/CharacterInternal.h"
+#include "Core/SpawnRegion.h"
 #include "Loaders/LoadDiagnostics.h"
 #include "test_support.h"
 
@@ -121,6 +122,89 @@ TEST(RosterIntegration, InstalledResourceScript)
     EXPECT_EQ(TotalC, ChInfo.size());
     EXPECT_TRUE(g_CharacterRoster.Frozen());
     std::cout << "Loaded and finalized " << TotalC << " character definitions\n";
+}
+
+TEST(RosterIntegration, InstalledStockSessionMatrix)
+{
+    if (!std::getenv("C2_STOCK_SESSION_AUDIT"))
+        GTEST_SKIP() << "Opt-in read-only script audit; run from the stock game directory";
+
+    int baselineCount = -1;
+    int checked = 0;
+    auto audit = [&](const char* project, int time, GameMode mode, bool observer, int weapons) {
+        SCOPED_TRACE(project);
+        SCOPED_TRACE(time);
+        SCOPED_TRACE(static_cast<int>(mode));
+        g_CharacterRoster.Reset();
+        strcpy_s(ProjectName, project);
+        g_GameMode = mode;
+        ObservMode = observer;
+        OptDayNight = time;
+        WeaponPres = weapons;
+        LoadDiagnostics::Instance().Clear();
+        LoadDiagnostics::Instance().SetMode(LoadMode::Lenient);
+
+        ASSERT_NO_THROW(LoadResourcesScript());
+        ASSERT_GT(TotalC, 0);
+        ASSERT_GT(TotalW, 0);
+        if (baselineCount < 0) baselineCount = TotalC;
+        EXPECT_EQ(TotalC, baselineCount);
+        EXPECT_EQ(DinoInfo.size(), TotalC);
+        EXPECT_EQ(ChInfo.size(), TotalC);
+        EXPECT_TRUE(g_CharacterRoster.Frozen());
+        if (mode != GameMode::SurvivalMode)
+            EXPECT_EQ(WeaponPres, weapons); // Includes the valid trophy/observer zero mask.
+        else
+            EXPECT_GT(WeaponPres, 0); // Stock common block supplies the Survival weapon.
+
+        for (int c = 0; c < TotalC; ++c) {
+            EXPECT_GE(DinoInfo[c].Clone, 0);
+            EXPECT_LT(DinoInfo[c].Clone, AI_FAMILY_CAPACITY);
+        }
+        if (std::strcmp(project, "huntdat/areas/area7") == 0 && mode == GameMode::Normal) {
+            bool foundTrapRegion = false;
+            for (int c = 0; c < TotalC; ++c) {
+                if (std::strcmp(DinoInfo[c].Name, "Poacher Trap") != 0) continue;
+                for (int s = 0; s < DinoInfo[c].SpawnInfoCh; ++s) {
+                    const int group = DinoInfo[c].SpawnInfo[s].spawnGroup;
+                    ASSERT_GE(group, 0);
+                    ASSERT_LT(group, TotalSpawnGroup);
+                    for (int regionIndex = 0; regionIndex < spawnGroup[group].spawnRegionCh; ++regionIndex) {
+                        const auto& region = spawnGroup[group].spawnRegion[regionIndex];
+                        if (region.YMin == 602 && region.YMax == 487) {
+                            foundTrapRegion = true;
+                            EXPECT_EQ(SpawnRegionRandomMaximum(region.YMin, region.YMax), -115);
+                        }
+                    }
+                }
+            }
+            EXPECT_TRUE(foundTrapRegion); // Confirm this is effective production data, not dead text.
+        }
+        std::cout << "Session script: " << project << " time=" << time
+                  << " mode=" << static_cast<int>(mode) << " observer=" << observer
+                  << " definitions=" << TotalC << " weapons=" << TotalW
+                  << " mask=" << WeaponPres
+                  << " diagnostics=" << LoadDiagnostics::Instance().Count() << '\n';
+        ++checked;
+    };
+
+    for (int area = 1; area <= 8; ++area) {
+        char project[128];
+        sprintf_s(project, "huntdat/areas/area%d", area);
+        for (int time = 0; time <= 2; ++time)
+            audit(project, time, GameMode::Normal, false, 1);
+    }
+    audit("huntdat/areas/trophy", 1, GameMode::TrophyMode, false, 0);
+    for (int time = 0; time <= 2; ++time) {
+        audit("huntdat/areas/area1", time, GameMode::Normal, true, 0);
+        audit("huntdat/areas/area8", time, GameMode::SurvivalMode, false, 0);
+    }
+    EXPECT_EQ(checked, 31);
+    g_CharacterRoster.Reset();
+    g_GameMode = GameMode::Normal;
+    ObservMode = false;
+    ProjectName[0] = 0;
+    LoadDiagnostics::Instance().Clear();
 }
 
 void ResetSpawnGroup()
@@ -522,7 +606,8 @@ TEST(ScriptParserSections, CharactersSectionReadsMinimalEntry)
 
 TEST(DynamicRoster, ParsesBeyondOldAndPatchLimits)
 {
-    for (int count : {127, 128, 129, 257, 513}) {
+    for (int count : {127, 128, 129, 257, 513, 1834,
+                     static_cast<int>(CharacterRoster::MaxDefinitions)}) {
         g_CharacterRoster.Reset();
         TotalC = 0;
         std::string text;
@@ -571,14 +656,23 @@ TEST(DynamicRoster, RejectsEmptyFinalRosterAndUnterminatedEntry)
 
 TEST(DynamicRoster, MetadataBudgetIsFailClosed)
 {
+    EXPECT_EQ(CharacterRoster::MetadataBudget, 128u * 1024u * 1024u);
+    const size_t entryBytes = sizeof(TDinoInfo) + sizeof(int) + sizeof(TCharacterInfo);
+    const size_t expectedCount = (128u * 1024u * 1024u) / (2 * entryBytes);
     CharacterRoster roster;
-    EXPECT_THROW({
-        while (true) roster.BeginDefinition(roster.size());
-    }, std::length_error);
-    EXPECT_GT(roster.size(), 513);
+    for (size_t i = 0; i < expectedCount; ++i)
+        ASSERT_NO_THROW(roster.BeginDefinition(roster.size()));
+    ASSERT_EQ(roster.size(), static_cast<int>(expectedCount));
+    EXPECT_THROW(roster.BeginDefinition(roster.size()), std::length_error);
+    EXPECT_EQ(roster.size(), static_cast<int>(expectedCount));
     EXPECT_FALSE(roster.Frozen());
     EXPECT_EQ(roster.Definitions().size(), roster.Aggression().size());
     EXPECT_EQ(roster.Models().size(), 0);
+    ASSERT_NO_THROW(roster.Finalize());
+    EXPECT_EQ(roster.Models().size(), static_cast<int>(expectedCount));
+    EXPECT_TRUE(roster.Frozen());
+    std::cout << "Roster boundary: entry bytes=" << entryBytes
+              << ", definitions=" << expectedCount << '\n';
 }
 
 TEST(DynamicRoster, SpawnLinksGrowAsPairedRecords)

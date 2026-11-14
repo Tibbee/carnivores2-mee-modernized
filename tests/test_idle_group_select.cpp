@@ -8,7 +8,9 @@
 #include <gtest/gtest.h>
 
 #include "Hunt.h"
+#include "Core/SpawnRegion.h"
 #include "Game/CharacterInternal.h"
+#include <cstdlib>
 
 namespace {
 
@@ -29,6 +31,33 @@ void InitGroups(TDinoIdleType (&groups)[2])
 }
 
 } // namespace
+
+TEST(SpawnRegion, LegacyPositiveZeroAndReversedSpansKeepResultsAndRngOrder)
+{
+    // -115 is the shipped area7 trap's ymax=487 minus ymin=602.
+    for (int maximum : {976, 1, 0, -2, -115}) {
+        EXPECT_EQ(SpawnRegionRandomMaximum(602, 602 + maximum), maximum);
+        for (unsigned seed : {0u, 1u, 42u, 731u, 9999u}) {
+            std::srand(seed);
+            const int legacy = rRand(maximum);
+            const int legacyNext = std::rand();
+            std::srand(seed);
+            const int candidate = rRand(SpawnRegionRandomMaximum(602, 602 + maximum));
+            EXPECT_EQ(candidate, legacy);
+            EXPECT_EQ(std::rand(), legacyNext);
+        }
+    }
+}
+
+TEST(SpawnRegion, UndefinedSpanArithmeticRecoversWithoutCallingInvalidRand)
+{
+    EXPECT_EQ(SpawnRegionRandomMaximum(602, 601), 0); // rRand(-1) divides by zero.
+    const int low = (std::numeric_limits<int>::min)();
+    const int high = (std::numeric_limits<int>::max)();
+    EXPECT_EQ(SpawnRegionRandomMaximum(0, high), 0); // r + 1 overflows.
+    EXPECT_EQ(SpawnRegionRandomMaximum(low, high), 0); // difference overflows int.
+    EXPECT_EQ(SpawnRegionRandomMaximum(high, low), 0);
+}
 
 TEST(IdleGroupSelectTest, ZeroStartChanceLeavesFallback)
 {

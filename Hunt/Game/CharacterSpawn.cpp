@@ -4,6 +4,7 @@
 // Extracted from Characters.cpp.
 
 #include "Hunt.h"
+#include "Core/SpawnRegion.h"
 #include "Core/SpawnMath.h"
 #include "Core/UnattendedCapture.h"
 #include "Game/CharacterInternal.h"
@@ -158,8 +159,8 @@ void spawnPositionPackLeader() {
 		}
 	}
 
-	const int spanX = sr->XMax > sr->XMin ? sr->XMax - sr->XMin : 0;
-	const int spanZ = sr->YMax > sr->YMin ? sr->YMax - sr->YMin : 0;
+    const int spanX = SpawnRegionRandomMaximum(sr->XMin, sr->XMax);
+    const int spanZ = SpawnRegionRandomMaximum(sr->YMin, sr->YMax);
 	Characters[ChCount].pos.x = sr->XMin * 256
 		+ abs(rRand(spanX) * 256);
 

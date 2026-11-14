@@ -3,6 +3,7 @@
 // ==========================================================================
 
 #include "Hunt.h"
+#include "Core/WeaponSelection.h"
 #include "Workbench/TuningRuntime.h"
 
 // Forward declarations
@@ -273,7 +274,9 @@ void ReInitGame()
 
   refillWeapons(true);
 
-  CurrentWeapon = TargetWeapon;
+  // Trophy-room and observer launches legitimately select no weapon. Keep
+  // the loadout empty, but shared hidden-weapon HUD code needs a safe index.
+  CurrentWeapon = ResolveInitialWeaponIndex(TargetWeapon, InTrophyRoom(), ObservMode != 0);
   if (CurrentWeapon < 0)
     DoHalt("No weapon is available for this hunt (empty weapon selection).");
 

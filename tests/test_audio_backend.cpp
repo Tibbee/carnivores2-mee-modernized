@@ -121,6 +121,33 @@ TEST_F(AudioBackendTest, GenerationSweepDeletesUnattachedRetiredBuffers) {
     Audio_ForgetLevelSamples();
     EXPECT_EQ(fakeal::buffers.count(oldBuffer),0u);
 }
+TEST_F(AudioBackendTest, AmbientAddressReuseAcrossGenerationsUsesNewSample) {
+    SetAmbient(sizeof(a),a,256);FullFade();
+    const auto oldBuffer=ambient.buffer;
+    const auto oldSource=ambient.source;
+    fakeal::sources[oldSource].offset=123;
+    Audio_ForgetLevelSamples();
+    a[0]=99; // A released level's address and length can be reused for new PCM.
+    SetAmbient(sizeof(a),a,256);
+    EXPECT_NE(ambient.buffer,oldBuffer);
+    EXPECT_EQ(ambient2.buffer,oldBuffer);
+    EXPECT_EQ(fakeal::sources[oldSource].offset,123);
+    EXPECT_TRUE(fakeal::sources[oldSource].playing); // Retained outgoing bed fades normally.
+    FullFade();
+    EXPECT_EQ(ambient2.buffer,0u);
+}
+TEST_F(AudioBackendTest, MovingAmbientAddressReuseAcrossGenerationsRebinds) {
+    SetAmbient3d(sizeof(a),a,10,20,30);
+    const auto oldBuffer=mambient.buffer;
+    const auto source=mambient.source;
+    Audio_ForgetLevelSamples();
+    a[0]=99;
+    SetAmbient3d(sizeof(a),a,11,21,31);
+    EXPECT_NE(mambient.buffer,oldBuffer);
+    EXPECT_EQ(fakeal::sources[source].buffer,mambient.buffer);
+    EXPECT_EQ(fakeal::sources[source].starts,2);
+    EXPECT_TRUE(fakeal::logs.empty()); // Replacement stops/detaches before binding.
+}
 TEST_F(AudioBackendTest, InvalidVoiceRequestsCannotPlayWithStaleGain) {
     fakeal::sources[channel[0].source].gain=0.75f;
     AddVoicev(sizeof(a),a,-11);EXPECT_FALSE(fakeal::sources[channel[0].source].playing);

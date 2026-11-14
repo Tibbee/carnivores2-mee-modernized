@@ -7,9 +7,12 @@ The engine now sizes its character-definition storage to the entries read from
 `HUNTDAT/_RES.TXT`, rather than using a fixed 128-element array. This is not a
 replacement limit of 256 or 512; regression tests include 513 definitions.
 
-On x86 the metadata budget admits up to **1,833 definitions** (64 MiB divided by
-2 x 18,300 bytes per definition, including the growth allowance). 1,024 and
-1,025 definitions fit; the 1,834th is rejected. This is a metadata limit, not a
+The local unreleased source doubles the beta's 64 MiB metadata budget to
+**128 MiB**. On x86 Release/Shipping this admits **3,667 definitions**
+(128 MiB divided by 2 x 18,300 bytes per definition, rounded down).
+The 3,668th is rejected; x86 Debug admits 3,616 because its metadata is larger.
+The published beta retains its 1,833-definition budget ceiling.
+This is a metadata limit, not a
 promise that every definition can spawn in one hunt: the independent 1,024-entry
 pack-type table, 16 MiB `_RES.TXT` input budget, 256 live-character slots, 128
 AI families, 128 trophy display slots and the menu's 32-bit launch flags still
@@ -40,9 +43,15 @@ for used entries and released during normal shutdown.
 Safety checks remain enabled in both loading modes. Lenient loading can recover
 some invalid field values; it cannot safely ignore invalid memory references or
 failed allocations. `_RES.TXT` has a 16 MiB input budget. Roster metadata has a
-conservative 64 MiB estimated budget including growth allowance; model textures,
+conservative 128 MiB estimated budget including growth allowance; model textures,
 animations and sounds are additional allocations, not covered by that estimate.
 The 32-bit process and independent model-format limits still apply.
+The budget is a ceiling, not a startup allocation: a stock-sized roster does not
+allocate 128 MiB. At the Release ceiling the records themselves total about
+64 MiB before vector spare capacity and other overhead. Raising this policy
+does not guarantee that a mod's assets fit in the remaining address space.
+Parser/finalization tests cover the full metadata ceiling and rejection of the
+next entry; asset-backed gameplay remains tested to 513 definitions, not 3,667.
 
 ## What has not been expanded?
 

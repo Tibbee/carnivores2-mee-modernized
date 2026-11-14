@@ -234,6 +234,18 @@ TEST(SourceContracts, DrawPassAndShaderWiring) {
     EXPECT_NE(renderer.find("m_flashlightLocations.clear();"), std::string::npos);
 }
 
+TEST(SourceContracts, UnarmedSessionPolicyRunsBeforeMissingHuntWeaponGuard) {
+    const auto loader = Source("Hunt/Loaders/CharacterLoader.cpp");
+    const auto resolve = loader.find("CurrentWeapon = ResolveInitialWeaponIndex(TargetWeapon, InTrophyRoom(), ObservMode != 0);");
+    const auto guard = loader.find("if (CurrentWeapon < 0)");
+    const auto hidden = loader.find("Weapon.state = 0;", guard);
+    ASSERT_NE(resolve, std::string::npos);
+    ASSERT_NE(guard, std::string::npos);
+    ASSERT_NE(hidden, std::string::npos);
+    EXPECT_LT(resolve, guard);
+    EXPECT_LT(guard, hidden);
+}
+
 TEST(SourceContracts, CallSitesAndOrdering) {
     // Death clears the health gate before the flashlight toggle, and the
     // toggle before the kill camera; the key handler refuses to relight.
@@ -337,8 +349,8 @@ TEST(SourceContracts, SpawnPositionHandlesEmptyOrInvalidRegions) {
     EXPECT_NE(spawn.find("Spawn group has no valid region"), std::string::npos);
     EXPECT_NE(spawn.find("TSpawnRegion fallback = {988, 988, 12, 12};"), std::string::npos);
     EXPECT_NE(spawn.find("group.spawnRegionCh <= regionCapacity"), std::string::npos);
-    EXPECT_NE(spawn.find("sr->XMax > sr->XMin ? sr->XMax - sr->XMin : 0"), std::string::npos);
-    EXPECT_NE(spawn.find("sr->YMax > sr->YMin ? sr->YMax - sr->YMin : 0"), std::string::npos);
+    EXPECT_NE(spawn.find("SpawnRegionRandomMaximum(sr->XMin, sr->XMax)"), std::string::npos);
+    EXPECT_NE(spawn.find("SpawnRegionRandomMaximum(sr->YMin, sr->YMax)"), std::string::npos);
 }
 
 TEST(SourceContracts, PackLeaderAccessorGuardsAllConsumers) {

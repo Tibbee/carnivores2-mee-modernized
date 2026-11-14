@@ -30,7 +30,10 @@ public:
     CharacterRoster& operator=(CharacterRoster&&) = delete;
     // Metadata only, not model payloads. Protect the x86 process from hostile
     // input without reinstating an arbitrary species-count limit.
-    static constexpr size_t MetadataBudget = 64u * 1024u * 1024u;
+    static constexpr size_t MetadataBudget = 128u * 1024u * 1024u;
+    static constexpr size_t MetadataBytesPerEntry =
+        sizeof(TDinoInfo) + sizeof(int) + sizeof(TCharacterInfo);
+    static constexpr size_t MaxDefinitions = MetadataBudget / (2 * MetadataBytesPerEntry);
     RosterView<TDinoInfo> Definitions() { return RosterView<TDinoInfo>(definitions); }
     RosterView<int> Aggression() { return RosterView<int>(aggression); }
     RosterView<TCharacterInfo> Models() { return RosterView<TCharacterInfo>(models); }
@@ -49,9 +52,8 @@ public:
         if (index < 0 || index > size() || index + 1 < size())
             throw std::out_of_range("Invalid character definition index");
         if (index < size()) return; // pending record used by line-reader seams
-        const size_t bytesPerEntry = sizeof(TDinoInfo) + sizeof(int) + sizeof(TCharacterInfo);
-        if (definitions.size() >= MetadataBudget / (2 * bytesPerEntry))
-            throw std::length_error("Character roster exceeds 64 MiB metadata budget (including growth)");
+        if (definitions.size() >= MaxDefinitions)
+            throw std::length_error("Character roster exceeds 128 MiB metadata budget (including growth)");
         definitions.emplace_back();
         try { aggression.push_back(0); }
         catch (...) { definitions.pop_back(); throw; }

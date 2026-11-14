@@ -13,6 +13,22 @@ Windows executable resources use major.minor.patch.build (v1.1.9.2 beta:
 and has not been published to ModDB.
 Copy-paste release summaries are in `release-notes/`.
 
+## [Unreleased]
+
+- Double the character-roster metadata budget from 64 to 128 MiB, allowing
+  3,667 definitions in x86 Release/Shipping instead of 1,833. Storage still
+  grows with the loaded data; the script, pack-type and live-population
+  limits remain unchanged.
+- Preserve the legacy spawn calculation and RNG sequence for working reversed
+  region bounds, including the stock Area 7 Poacher Trap. Only undefined spans
+  recover to zero; reversed bounds are no longer universally clamped to zero.
+- Ambient and moving-ambient channels now include the resource generation when
+  deciding whether to keep a sound. A reused sample address/length after a
+  level-resource reload no longer bypasses the buffer-cache invalidation.
+- Restore trophy-room entry with the menu's intentional `wep=0` loadout.
+  Unarmed trophy-room and observer sessions keep their weapon hidden and use
+  a safe metadata index; ordinary hunts still reject an empty weapon selection.
+
 ## [v1.1.9.2-modernized-beta] - 2026-11-09
 
 **Beta pre-release.** Changes since `v1.1.9.1-modernized` (`81fe90b`). The
